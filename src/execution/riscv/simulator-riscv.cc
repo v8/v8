@@ -5204,7 +5204,17 @@ bool Simulator::DecodeRvvVL() {
              RO_V_VLSEG4 == instr_temp || RO_V_VLSEG5 == instr_temp ||
              RO_V_VLSEG6 == instr_temp || RO_V_VLSEG7 == instr_temp ||
              RO_V_VLSEG8 == instr_temp) {
+    uint32_t vlnr_instr =
+        instr_.InstructionBits() & (kRvvMopMask | kRvvVmMask | kRvvLumopMask |
+                                    kRvvNfMask | kBaseOpcodeMask);
+
     if (!(instr_.InstructionBits() & (kRvvRs2Mask))) {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    } else if (RO_V_VL1R == vlnr_instr || RO_V_VL2R == vlnr_instr ||
+               RO_V_VL4R == vlnr_instr || RO_V_VL8R == vlnr_instr) {
+      // vl<nr>r
+      set_vill_ignore(true);
       UNIMPLEMENTED_RISCV();
       return true;
     } else {
@@ -5271,8 +5281,24 @@ bool Simulator::DecodeRvvVS() {
              RO_V_VSSEG4 == instr_temp || RO_V_VSSEG5 == instr_temp ||
              RO_V_VSSEG6 == instr_temp || RO_V_VSSEG7 == instr_temp ||
              RO_V_VSSEG8 == instr_temp) {
-    UNIMPLEMENTED_RISCV();
-    return true;
+    uint32_t vsnr_instr =
+        instr_.InstructionBits() &
+        (kRvvMewMask | kRvvMopMask | kRvvVmMask | kRvvSumopMask |
+         kRvvWidthMask | kRvvNfMask | kBaseOpcodeMask);
+
+    if (!(instr_.InstructionBits() & (kRvvRs2Mask))) {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    } else if (RO_V_VS1R == vsnr_instr || RO_V_VS2R == vsnr_instr ||
+               RO_V_VS4R == vsnr_instr || RO_V_VS8R == vsnr_instr) {
+      // vs<nr>r
+      set_vill_ignore(true);
+      UNIMPLEMENTED_RISCV();
+      return true;
+    } else {
+      UNIMPLEMENTED_RISCV();
+      return true;
+    }
   } else if (RO_V_VSSSEG2 == instr_temp || RO_V_VSSSEG3 == instr_temp ||
              RO_V_VSSSEG4 == instr_temp || RO_V_VSSSEG5 == instr_temp ||
              RO_V_VSSSEG6 == instr_temp || RO_V_VSSSEG7 == instr_temp ||
@@ -5766,6 +5792,9 @@ void Simulator::DecodeRVIType() {
       if (!DecodeRvvVL()) {
         UNSUPPORTED();
       }
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       break;
 #else
       UNSUPPORTED();
@@ -5820,6 +5849,9 @@ void Simulator::DecodeRVSType() {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
       if (!DecodeRvvVS()) {
         UNSUPPORTED();
+      }
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
       }
       break;
 #else
@@ -6730,6 +6762,10 @@ void Simulator::DecodeRvvIVI() {
       break;
     case RO_V_VSLL_VI:
       RVV_VI_VI_ULOOP({ vd = vs2 << (uimm5 & (rvv_sew() - 1)); })
+      break;
+    case RO_V_VMVNR_VI:
+      set_vill_ignore(true);
+      UNIMPLEMENTED_RISCV();
       break;
     case RO_V_VADC_VI:
       if (instr_.RvvVM()) {
@@ -8282,24 +8318,45 @@ void Simulator::DecodeVType() {
   switch (instr_.InstructionBits() & (kFunct3Mask | kBaseOpcodeMask)) {
     case OP_IVV:
       DecodeRvvIVV();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_FVV:
       DecodeRvvFVV();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_MVV:
       DecodeRvvMVV();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_IVI:
       DecodeRvvIVI();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_IVX:
       DecodeRvvIVX();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_FVF:
       DecodeRvvFVF();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
     case OP_MVX:
       DecodeRvvMVX();
+      if (rvv_vill() && !get_vill_ignore()) {
+        ILLEGAL_RISCV();
+      }
       return;
   }
   switch (instr_.InstructionBits() &
@@ -8317,6 +8374,13 @@ void Simulator::DecodeVType() {
         avl = rvv_vl();
       }
       avl = avl <= rvv_vlmax() ? avl : rvv_vlmax();
+      if (rvv_vflmul() * kRvvELEN < rvv_sew()) {
+        // If the `vtype` value is not supported by the implementation, then the
+        // `vil`l bit is set in `vtype`, the remaining bits in `vtype` are set
+        // to zero, and the `vl` register is also set to zero.
+        set_rvv_vtype(0x1UL << (kRvXLEN - 1));
+        avl = 0;
+      }
       set_rvv_vl(avl);
       set_rd(rvv_vl());
       set_rvv_vstart(0);
@@ -8325,8 +8389,8 @@ void Simulator::DecodeVType() {
       break;
     }
     case RO_V_VSETVL: {
+      uint64_t avl;
       if (!(instr_.InstructionBits() & 0x40000000)) {
-        uint64_t avl;
         set_rvv_vtype(rs2());
         CHECK_GE(rvv_sew(), E8);
         CHECK_LE(rvv_sew(), E64);
@@ -8337,26 +8401,24 @@ void Simulator::DecodeVType() {
         } else {
           avl = rvv_vl();
         }
-        avl = avl <= rvv_vlmax()        ? avl
-              : avl < (rvv_vlmax() * 2) ? avl / 2
-                                        : rvv_vlmax();
-        set_rvv_vl(avl);
-        set_rd(rvv_vl());
-        rvv_trace_status();
       } else {
         DCHECK_EQ(instr_.InstructionBits() &
                       (kBaseOpcodeMask | kFunct3Mask | 0xC0000000),
                   RO_V_VSETIVLI);
-        uint64_t avl;
         set_rvv_vtype(rvv_zimm());
         avl = instr_.Rvvuimm();
-        avl = avl <= rvv_vlmax()        ? avl
-              : avl < (rvv_vlmax() * 2) ? avl / 2
-                                        : rvv_vlmax();
-        set_rvv_vl(avl);
-        set_rd(rvv_vl());
-        rvv_trace_status();
       }
+      avl = avl <= rvv_vlmax()        ? avl
+            : avl < (rvv_vlmax() * 2) ? avl / 2
+                                      : rvv_vlmax();
+      if (rvv_vflmul() * kRvvELEN < rvv_sew()) {
+        set_rvv_vtype(0x1UL << (kRvXLEN - 1));
+        avl = 0;
+      }
+      set_rvv_vl(avl);
+      set_rd(rvv_vl());
+      rvv_trace_status();
+
       vu_enabled_ = true;
       break;
     }
@@ -8385,6 +8447,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
     //        reinterpret_cast<intptr_t>(instr), buffer.begin());
   }
+#ifdef CAN_USE_RVV_INSTRUCTIONS
+  set_vill_ignore(false);
+#endif
   instr_ = instr;
   switch (instr_.InstructionType()) {
     case Instruction::kRType:

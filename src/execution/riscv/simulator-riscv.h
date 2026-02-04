@@ -484,6 +484,11 @@ class Simulator : public SimulatorBase {
     }
   }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
+  inline uint32_t rvv_vill() const {
+    return ((rvv_vtype() >> (kRvXLEN - 1)) & 0x1);
+  }
+  inline void set_vill_ignore(bool ignored) { vill_ignore_ = ignored; }
+  inline bool get_vill_ignore() const { return vill_ignore_; }
 
   inline const char* rvv_sew_s() const {
     uint32_t vsew = rvv_vsew();
@@ -1223,6 +1228,7 @@ class Simulator : public SimulatorBase {
   // 'Clean', or 'Dirty', but for the simulator we only need to know if it is
   // enabled or not.
   bool vu_enabled_ = false;
+  bool vill_ignore_ = false;
 #endif
   // Simulator support.
   // Allocate 1MB for stack.
