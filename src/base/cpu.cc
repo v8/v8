@@ -349,18 +349,24 @@ class CPUInfo final {
   size_t datalen_;
 };
 
-// Checks that a space-separated list of items contains one given 'item'.
-static bool HasListItem(const char* list, const char* item) {
+// Checks whether the given item appears in a list of items separated by
+// characters for which isseparator returns true.
+template <typename Predicate>
+static bool HasListItem(const char* list, const char* item,
+                        Predicate isseparator) {
   ssize_t item_len = strlen(item);
   const char* p = list;
   if (p != nullptr) {
+    // Skip whitespace.
+    while (isspace(*p)) ++p;
+
     while (*p != '\0') {
-      // Skip whitespace.
-      while (isspace(*p)) ++p;
+      // Skip separator.
+      while (isseparator(*p)) ++p;
 
       // Find end of current list item.
       const char* q = p;
-      while (*q != '\0' && !isspace(*q)) ++q;
+      while (*q != '\0' && !isseparator(*q)) ++q;
 
       if (item_len == q - p && memcmp(p, item, item_len) == 0) {
         return true;
@@ -371,6 +377,11 @@ static bool HasListItem(const char* list, const char* item) {
     }
   }
   return false;
+}
+
+// Checks that a space-separated list of items contains one given 'item'.
+static bool HasListItem(const char* list, const char* item) {
+  return HasListItem(list, item, isspace);
 }
 
 #endif  // V8_OS_LINUX
@@ -1050,10 +1061,16 @@ CPU::CPU()
 #else
   char* features = cpu_info.ExtractField("isa");
 
-  if (HasListItem(features, "rv64imafdc")) {
+  // Underscore (_) is used as the separator for RISC-V ISA features.
+  auto HasFeature = [features](const char* feature) {
+    return HasListItem(features, feature,
+                       std::bind_front(std::equal_to{}, '_'));
+  };
+
+  if (HasFeature("rv64imafdc")) {
     has_fpu_ = true;
   }
-  if (HasListItem(features, "rv64imafdcv")) {
+  if (HasFeature("rv64imafdcv")) {
     has_fpu_ = true;
     has_rvv_ = true;
   }
