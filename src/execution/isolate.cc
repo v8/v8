@@ -5934,14 +5934,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // To avoid marking trying to write to these read-only cells they are
   // allocated black. Target code objects in the read-only dispatch table are
   // read-only code objects.
-  read_only_js_dispatch_table_space->set_allocate_black(true);
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   js_dispatch_table().AttachSpaceToReadOnlySegments(
       read_only_js_dispatch_table_space);
-  // TODO(omerkatz): Consider allocating and populating the read only space
-  // once for the first isolate, and remapping it for every other isolate.
-  js_dispatch_table().PreAllocateEntries(read_only_js_dispatch_table_space,
-                                         JSBuiltinDispatchHandleRoot::kCount);
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   js_dispatch_table().InitializeSpace(heap()->js_dispatch_table_space());
 
@@ -8005,10 +8000,6 @@ void DefaultWasmAsyncResolvePromiseCallback(
   CHECK(ret.IsJust() ? ret.FromJust() : isolate->IsExecutionTerminating());
 }
 
-// Mutex used to ensure that the dispatch table entries for builtins are only
-// initialized once.
-base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
-
 void Isolate::InitializeBuiltinJSDispatchTable() {
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
 
@@ -8021,16 +8012,7 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
   static_assert(Builtins::kCodeObjectsAreInROSpace);
   static_assert(JSDispatchTable::kUseContiguousMemory);
 
-  // Ideally these entries would be created when the read only heap is
-  // initialized. However, since builtins are deserialized later, we need to
-  // patch it up here. Also, we need a mutex so the shared read only heaps space
-  // is not initialized multiple times. This must be blocking as no isolate
-  // should be allowed to proceed until the table is initialized.
-  base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
-
-  CHECK(jdt.PreAllocatedEntryNeedsInitialization(
-      heap()->read_only_js_dispatch_table_space(),
-      builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst)));
+  JSDispatchHandle last_handle = kNullJSDispatchHandle;
   JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(&jdt);
   for (JSBuiltinDispatchHandleRoot::Idx idx =
            JSBuiltinDispatchHandleRoot::kFirst;
@@ -8055,10 +8037,15 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
     // parameter count of this builtin.
     int parameter_count = code->parameter_count();
 
-    JSDispatchHandle handle = builtin_dispatch_handle(builtin);
+    JSDispatchHandle handle = jdt.AllocateAndInitializeEntry(
+        heap()->read_only_js_dispatch_table_space(), parameter_count, code);
     DCHECK_EQ(builtin_dispatch_handle(idx), handle);
-    jdt.InitializePreAllocatedEntry(heap()->read_only_js_dispatch_table_space(),
-                                    handle, code, parameter_count);
+    // Read only entries should be consecutive.
+    DCHECK_EQ(handle, JSDispatchTable::IndexToHandle(
+                          JSDispatchTable::HandleToIndex(last_handle) + 1));
+    last_handle = handle;
+    CHECK_EQ(handle,
+             JSDispatchTable::GetStaticHandleForReadOnlySegmentEntry(idx));
   }
 #else
   for (JSBuiltinDispatchHandleRoot::Idx idx =

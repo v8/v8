@@ -126,6 +126,8 @@ void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegments(
   DCHECK(!space->is_internal_read_only_space());
   space->is_internal_read_only_space_ = true;
 
+  space->set_allocate_black(true);
+
   // For the internal read-only segment, index 0 is reserved for the `null`
   // entry. This call also ensures that the first segment is initialized.
   {

@@ -242,14 +242,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   inline std::optional<JSDispatchHandle> TryAllocateAndInitializeEntry(
       Space* space, uint16_t parameter_count, Tagged<Code> code);
 
-  // The following methods are used to pre allocate entries and then initialize
-  // them later.
-  void PreAllocateEntries(Space* space, int num);
-  bool PreAllocatedEntryNeedsInitialization(Space* space,
-                                            JSDispatchHandle handle);
-  void InitializePreAllocatedEntry(Space* space, JSDispatchHandle handle,
-                                   Tagged<Code> code, uint16_t parameter_count);
-
   // Can be used to statically predict the handles if the pre allocated entries
   // are in the overall first read only segment of the whole table.
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
@@ -329,6 +321,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
     return handle;
   }
 
+  friend class Isolate;
   friend class MarkCompactCollector;
 
   // Using `ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable)` in the
