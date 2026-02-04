@@ -5749,13 +5749,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   Value PopDescriptor(ModuleTypeIndex described_index, bool expect_desc) {
     const TypeDefinition& type = this->module_->type(described_index);
     if (type.has_descriptor()) {
-      // TODO(tlively): Uncomment this once users have transitioned to the new
-      // struct.new_desc and struct.new_default_desc instructions.
-      // if (!VALIDATE(expect_desc)) {
-      //   this->DecodeError(
-      //       "non-descriptor allocation used for type %d with descriptor",
-      //       described_index);
-      // }
+      if (!VALIDATE(expect_desc)) {
+        this->DecodeError(
+            "non-descriptor allocation used for type %d with descriptor",
+            described_index);
+      }
       DCHECK(this->enabled_.has_custom_descriptors());
       ValueType desc_type =
           ValueType::RefNull(this->module_->heap_type(type.descriptor))

@@ -17,11 +17,6 @@
   'memory64/table64': [FAIL],
   'table': [FAIL],
 
-  # TODO(tlively): V8 intentionally doesn't enforce the requirement yet that
-  # struct types with descriptor must be allocated with `struct.new_desc`.
-  # See matching TODO in mjsunit/wasm/custom-descriptors.js.
-  'proposals/custom-descriptors/custom-descriptors/struct_new_desc': [FAIL],
-
   # Implementation in progress.
   'proposals/stack-switching/stack-switching/cont': [FAIL],
   'proposals/stack-switching/stack-switching/resume_throw': [FAIL],

@@ -38,7 +38,7 @@ let unreachable = [
   kExprBlock, kAnyRefCode,
     // Instantiate a struct with descriptor $desc0.
     kExprGlobalGet, $g_desc0.index,
-    kGCPrefix, kExprStructNewDefault, $s0,
+    kGCPrefix, kExprStructNewDefaultDesc, $s0,
 
     // Check if this is a struct w/ descriptor $desc1, which is false.
     // WasmGCTypeAnalyzer::ProcessBranchOnTarget assumes otherwise and marks

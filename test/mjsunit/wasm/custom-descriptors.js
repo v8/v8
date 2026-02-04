@@ -399,31 +399,29 @@ assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
   }
 })();
 
-// TODO(tlively): Uncomment this once users have transitioned to the new
-// struct.new_desc and struct.new_default_desc instructions.
-// // Using struct.new to allocate a type with a descriptor is invalid.
-// (() => {
-//   for (let [expr, name] of
-//     [[kExprStructNew, "struct.new"],
-//       [kExprStructNewDefault, "struct.new_default"]]) {
-//     let builder = new WasmModuleBuilder();
-//     builder.startRecGroup();
-//     let $desc = builder.nextTypeIndex() + 1;
-//     let $withdesc = builder.addStruct({ descriptor: $desc });
-//     builder.addStruct({ describes: $withdesc });
-//     builder.endRecGroup();
+// Using struct.new to allocate a type with a descriptor is invalid.
+(() => {
+  for (let [expr, name] of
+    [[kExprStructNew, "struct.new"],
+      [kExprStructNewDefault, "struct.new_default"]]) {
+    let builder = new WasmModuleBuilder();
+    builder.startRecGroup();
+    let $desc = builder.nextTypeIndex() + 1;
+    let $withdesc = builder.addStruct({ descriptor: $desc });
+    builder.addStruct({ describes: $withdesc });
+    builder.endRecGroup();
 
-//     builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
-//       kGCPrefix, kExprStructNewDefault, $desc,
-//       kGCPrefix, expr, $withdesc,
-//       kExprDrop
-//     ]);
+    builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
+      kGCPrefix, kExprStructNewDefault, $desc,
+      kGCPrefix, expr, $withdesc,
+      kExprDrop
+    ]);
 
-//     let expected = new RegExp(
-//       `.*"invalid-${name}" failed: non-descriptor allocation used for type 0 ` +
-//       'with descriptor.*');
-//     let buffer = builder.toBuffer();
-//     assertThrowsAsync(
-//       WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
-//   }
-// })();
+    let expected = new RegExp(
+      `.*"invalid-${name}" failed: non-descriptor allocation used for type 0 ` +
+      'with descriptor.*');
+    let buffer = builder.toBuffer();
+    assertThrowsAsync(
+      WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+  }
+})();
