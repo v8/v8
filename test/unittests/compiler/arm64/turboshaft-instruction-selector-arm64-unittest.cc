@@ -6445,7 +6445,7 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
   using test_config =
-      std::tuple<Simd128LoadTransformOp::TransformKind, ArchOpcode, unsigned>;
+      std::tuple<Simd128LoadTransformOp::TransformKind, ArchOpcode, int>;
   std::array configs = std::to_array<test_config>({
       {Simd128LoadTransformOp::TransformKind::k8x8S, kArm64Sxtl, 16},
       {Simd128LoadTransformOp::TransformKind::k8x8U, kArm64Uxtl, 16},
@@ -6466,7 +6466,7 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
     Stream s = m.Build();
 
     ArchOpcode expected_opcode = std::get<1>(config);
-    unsigned expected_lanesize = std::get<2>(config);
+    int expected_lanesize = std::get<2>(config);
 
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64LdrD, s[0]->arch_opcode());
