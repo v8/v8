@@ -152,9 +152,19 @@ in_category(
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-sandbox-testing"}},
     ),
     clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 fuzzilli sandbox testing - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-fuzzilli-sandbox-testing"}},
+    ),
+    clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-sandbox-testing"}},
+    ),
+    clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 ASAN fuzzilli sandbox testing - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-fuzzilli-sandbox-testing"}},
     ),
 )
 
@@ -186,6 +196,13 @@ in_category(
         bucket = "ci",
         properties = {"builder_group": "client.v8.clusterfuzz"},
         barrier = BARRIER.TREE_CLOSER,
+    ),
+    v8_builder(
+        name = "V8 Linux64 ASAN - sandbox testing",
+        parent_builder = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
+        bucket = "ci",
+        properties = {"builder_group": "client.v8.clusterfuzz"},
+        barrier = BARRIER.NONE,
     ),
     v8_builder(
         name = "V8 NumFuzz",

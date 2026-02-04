@@ -175,8 +175,8 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_linux64_asan_sandbox_testing_compile_rel",
-    cq_properties = CQ.BLOCK,
+    name = "v8_linux64_asan_fuzzilli_sandbox_testing_compile_rel",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"default_targets": ["v8_clusterfuzz"]},
 )
@@ -195,6 +195,13 @@ try_builder(
     executable = "recipe:v8/compilator",
     properties = {"default_targets": ["d8"]},
     dimensions = {"os": "Ubuntu-22.04"},
+)
+
+try_builder(
+    name = "v8_linux64_fuzzilli_sandbox_testing_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"default_targets": ["v8_clusterfuzz"]},
 )
 
 try_builder(
