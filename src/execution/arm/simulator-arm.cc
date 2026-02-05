@@ -770,6 +770,10 @@ void Simulator::set_register(int reg, int32_t value) {
   if (reg == pc) {
     pc_modified_ = true;
   }
+  if (InstructionTracingEnabled() && reg != pc) {
+    PrintF("%s <- 0x%08x\n", i::RegisterName(i::Register::from_code(reg)),
+           value);
+  }
   registers_[reg] = value;
 }
 
@@ -798,11 +802,21 @@ double Simulator::get_double_from_register_pair(int reg) {
 
 void Simulator::set_register_pair_from_double(int reg, double* value) {
   DCHECK((reg >= 0) && (reg < num_registers) && ((reg % 2) == 0));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08x\n", i::RegisterName(i::Register::from_code(reg)),
+           reinterpret_cast<const uint32_t*>(value)[0]);
+    PrintF("%s <- 0x%08x\n", i::RegisterName(i::Register::from_code(reg + 1)),
+           reinterpret_cast<const uint32_t*>(value)[1]);
+  }
   memcpy(registers_ + reg, value, sizeof(*value));
 }
 
 void Simulator::set_dw_register(int dreg, const int* dbl) {
   DCHECK((dreg >= 0) && (dreg < num_d_registers));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08x / 0x%08x\n",
+           i::RegisterName(i::DoubleRegister::from_code(dreg)), dbl[0], dbl[1]);
+  }
   registers_[dreg] = dbl[0];
   registers_[dreg + 1] = dbl[1];
 }
@@ -814,6 +828,10 @@ void Simulator::get_d_register(int dreg, uint64_t* value) {
 
 void Simulator::set_d_register(int dreg, const uint64_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%016llx\n",
+           i::RegisterName(i::DoubleRegister::from_code(dreg)), *value);
+  }
   memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value));
 }
 
@@ -824,12 +842,16 @@ void Simulator::get_d_register(int dreg, uint32_t* value) {
 
 void Simulator::set_d_register(int dreg, const uint32_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08x\n",
+           i::RegisterName(i::DoubleRegister::from_code(dreg)), *value);
+  }
   memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
 }
 
 template <typename T, int SIZE>
 void Simulator::get_neon_register(int reg, T (&value)[SIZE / sizeof(T)]) {
-  DCHECK(SIZE == kSimd128Size || SIZE == kDoubleSize);
+  static_assert(SIZE == kSimd128Size || SIZE == kDoubleSize);
   DCHECK_LE(0, reg);
   DCHECK_GT(SIZE == kSimd128Size ? num_q_registers : num_d_registers, reg);
   memcpy(value, vfp_registers_ + reg * (SIZE / 4), SIZE);
@@ -837,9 +859,16 @@ void Simulator::get_neon_register(int reg, T (&value)[SIZE / sizeof(T)]) {
 
 template <typename T, int SIZE>
 void Simulator::set_neon_register(int reg, const T (&value)[SIZE / sizeof(T)]) {
-  DCHECK(SIZE == kSimd128Size || SIZE == kDoubleSize);
+  static_assert(SIZE == kSimd128Size || SIZE == kDoubleSize);
   DCHECK_LE(0, reg);
   DCHECK_GT(SIZE == kSimd128Size ? num_q_registers : num_d_registers, reg);
+  if (InstructionTracingEnabled()) {
+    for (int i = 0; i < SIZE / 4; ++i) {
+      printf("%s <- 0x%08x\n",
+             i::RegisterName(i::DoubleRegister::from_code(reg + i)),
+             reinterpret_cast<const uint32_t*>(value)[i]);
+    }
+  }
   memcpy(vfp_registers_ + reg * (SIZE / 4), value, SIZE);
 }
 
@@ -859,6 +888,10 @@ int32_t Simulator::get_pc() const { return registers_[pc]; }
 // Getting from and setting into VFP registers.
 void Simulator::set_s_register(int sreg, unsigned int value) {
   DCHECK((sreg >= 0) && (sreg < num_s_registers));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08x\n", i::RegisterName(i::FloatRegister::from_code(sreg)),
+           value);
+  }
   vfp_registers_[sreg] = value;
 }
 
@@ -869,13 +902,26 @@ unsigned int Simulator::get_s_register(int sreg) const {
 
 template <class InputType, int register_size>
 void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
+  static_assert(register_size == 1 || register_size == 2);
   unsigned bytes = register_size * sizeof(vfp_registers_[0]);
   DCHECK_EQ(sizeof(InputType), bytes);
   DCHECK_GE(reg_index, 0);
-  if (register_size == 1) DCHECK(reg_index < num_s_registers);
-  if (register_size == 2)
-    DCHECK(reg_index < DwVfpRegister::SupportedRegisterCount());
+  DCHECK_LT(reg_index, register_size == 1
+                           ? num_s_registers
+                           : DwVfpRegister::SupportedRegisterCount());
 
+  if (InstructionTracingEnabled()) {
+    PrintF(
+        "%s <- 0x%08x\n",
+        i::RegisterName(i::FloatRegister::from_code(reg_index * register_size)),
+        reinterpret_cast<const int32_t*>(&value)[0]);
+    if (register_size == 2) {
+      PrintF("%s <- 0x%08x\n",
+             i::RegisterName(
+                 i::FloatRegister::from_code(reg_index * register_size + 1)),
+             reinterpret_cast<const int32_t*>(&value)[1]);
+    }
+  }
   memcpy(&vfp_registers_[reg_index * register_size], &value, bytes);
 }
 
