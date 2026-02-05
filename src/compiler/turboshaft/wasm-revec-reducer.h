@@ -1187,37 +1187,31 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   void ReduceInputsOfOp(OpIndex start_marker, OpIndex op_index) {
     // Reduce all the operations of op_index's input tree which are
-    // bigger than the start_marker. The traversal is done in a DFS manner
-    // to make sure all inputs are emitted before the use.
+    // bigger than the start_marker. The traversal is done in BFS to ensure all
+    // inputs are visited. Inputs will be sorted to keep the original order.
     const Block* current_input_block = __ current_input_block();
-    std::stack<OpIndex, base::SmallVector<OpIndex, 8>> inputs;
+    ZoneDeque<OpIndex>& inputs = analyzer_.GetSharedOpIndexDeque();
     ZoneUnorderedSet<OpIndex>& visited = analyzer_.GetSharedOpIndexSet();
-    DCHECK(visited.empty());
+    DCHECK(visited.empty() && inputs.empty());
 
-    inputs.push(op_index);
+    inputs.push_back(op_index);
     while (!inputs.empty()) {
-      OpIndex idx = inputs.top();
-      if (visited.contains(idx)) {
-        inputs.pop();
-        continue;
-      }
+      OpIndex idx = inputs.front();
+      inputs.pop_front();
+      visited.insert(idx);
 
       const Operation& op = __ input_graph().Get(idx);
-      bool has_unvisited_inputs = false;
       for (OpIndex input : op.inputs()) {
         if (input > start_marker && !visited.contains(input)) {
-          inputs.push(input);
-          has_unvisited_inputs = true;
+          inputs.push_back(input);
         }
       }
+    }
 
-      if (!has_unvisited_inputs) {
-        inputs.pop();
-        visited.insert(idx);
-
-        // op_index will be reduced later.
-        if (idx == op_index) continue;
-
+    // Reduce inputs in original order.
+    for (OpIndex idx = __ input_graph().NextIndex(start_marker); idx < op_index;
+         idx = __ input_graph().NextIndex(idx)) {
+      if (visited.contains(idx)) {
         DCHECK(!__ input_graph().Get(idx).template Is<PhiOp>());
         __ template VisitOpAndUpdateMapping<false>(idx, current_input_block);
       }

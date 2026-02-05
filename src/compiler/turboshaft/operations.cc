@@ -2375,6 +2375,8 @@ bool Operation::IsProtectedLoad() const {
     return load_t->load_kind.with_trap_handler;
   } else if (const auto* load_pd = TryCast<Simd128LoadPairDeinterleaveOp>()) {
     return load_pd->load_kind.with_trap_handler;
+  } else if (const auto* load_lane = TryCast<Simd128LaneMemoryOp>()) {
+    return load_lane->kind.with_trap_handler;
   }
   return false;
 }
