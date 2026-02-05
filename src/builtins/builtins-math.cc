@@ -27,7 +27,7 @@ BUILTIN(MathSumPrecise) {
   }
 
   Xsum xsum;
-  auto smi_visitor = [&](int32_t val) -> bool {
+  auto int_visitor = [&](int val) -> bool {
     xsum.AddForSumPrecise(val);
     return true;
   };
@@ -50,7 +50,7 @@ BUILTIN(MathSumPrecise) {
     return true;
   };
 
-  if (IterableForEach(isolate, items, smi_visitor, double_visitor,
+  if (IterableForEach(isolate, items, int_visitor, double_visitor,
                       generic_visitor, kMaxSafeIntegerUint64)
           .is_null()) {
     return ReadOnlyRoots(isolate).exception();

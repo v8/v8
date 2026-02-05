@@ -6,8 +6,11 @@
 #define V8_BUILTINS_BUILTINS_ITERATOR_INL_H_
 
 #include "src/builtins/builtins-iterator.h"
+
+#include "src/base/float16.h"
 #include "src/execution/execution.h"
 #include "src/execution/protectors-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -121,16 +124,16 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
 }
 
 // Helper for iterating over an iterable, with fast paths for Arrays and Sets.
-template <typename SmiVisitor, typename DoubleVisitor, typename GenericVisitor>
+template <typename IntVisitor, typename DoubleVisitor, typename GenericVisitor>
 MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                                           DirectHandle<Object> items,
-                                          SmiVisitor smi_visitor,
+                                          IntVisitor int_visitor,
                                           DoubleVisitor double_visitor,
                                           GenericVisitor generic_visitor,
                                           std::optional<uint64_t> max_count) {
   auto dispatch = [&](DirectHandle<Object> obj) -> bool {
     if (IsSmi(*obj)) {
-      return smi_visitor(Smi::ToInt(*obj));
+      return int_visitor(Smi::ToInt(*obj));
     } else if (IsHeapNumber(*obj)) {
       return double_visitor(Object::NumberValue(Cast<HeapNumber>(*obj)));
     } else {
@@ -159,7 +162,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           DirectHandle<FixedArray> smi_elements = Cast<FixedArray>(elements);
           for (uint32_t i = 0; i < len; ++i) {
             Tagged<Object> obj = smi_elements->get(i);
-            if (!smi_visitor(Smi::ToInt(obj))) return abort;
+            if (!int_visitor(Smi::ToInt(obj))) return abort;
           }
         } else if (kind == HOLEY_SMI_ELEMENTS) {
           DirectHandle<FixedArray> smi_elements = Cast<FixedArray>(elements);
@@ -171,7 +174,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                 return abort;
               }
             } else {
-              if (!smi_visitor(Smi::ToInt(obj))) return abort;
+              if (!int_visitor(Smi::ToInt(obj))) return abort;
             }
           }
         } else if (kind == PACKED_DOUBLE_ELEMENTS) {
@@ -225,6 +228,71 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       isolate, iterator_fn,
       Object::GetMethod(isolate, receiver,
                         isolate->factory()->iterator_symbol()));
+
+  // Fast path for JSTypedArray.
+  if (IsJSTypedArray(*receiver) &&
+      Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
+      IsJSFunction(*iterator_fn)) {
+    if (DirectHandle<JSFunction> func = Cast<JSFunction>(iterator_fn);
+        func->code(isolate) ==
+        *isolate->builtins()->code(Builtin::kTypedArrayPrototypeValues)) {
+      DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(receiver);
+      ElementsKind kind = typed_array->GetElementsKind();
+      if (!IsBigIntTypedArrayElementsKind(kind)) {
+        bool out_of_bounds = false;
+        size_t len = typed_array->GetLengthOrOutOfBounds(out_of_bounds);
+        if (out_of_bounds || typed_array->WasDetached()) {
+          isolate->Throw(*isolate->factory()->NewTypeError(
+              MessageTemplate::kTypedArrayDetachedErrorOperation,
+              isolate->factory()->NewStringFromAsciiChecked("iteration")));
+          return MaybeDirectHandle<Object>();
+        }
+        switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                           \
+  case TYPE##_ELEMENTS:                                                     \
+  case RAB_GSAB_##TYPE##_ELEMENTS: {                                        \
+    if constexpr (!(std::is_same_v<ctype, uint64_t> ||                      \
+                    (!std::is_same_v<int, int64_t> &&                       \
+                     (std::is_same_v<ctype, int64_t> ||                     \
+                      std::is_same_v<ctype, uint32_t>)))) {                 \
+      for (size_t i = 0; i < len; ++i) {                                    \
+        if (typed_array->WasDetached()) {                                   \
+          isolate->Throw(*isolate->factory()->NewTypeError(                 \
+              MessageTemplate::kTypedArrayDetachedErrorOperation,           \
+              isolate->factory()->NewStringFromAsciiChecked("iteration"))); \
+          return MaybeDirectHandle<Object>();                               \
+        }                                                                   \
+        ctype val = static_cast<ctype*>(typed_array->DataPtr())[i];         \
+        if constexpr (ElementsKind::TYPE##_ELEMENTS == FLOAT16_ELEMENTS) {  \
+          if (!double_visitor(fp16_ieee_to_fp32_value(val))) {              \
+            return MaybeDirectHandle<Object>();                             \
+          }                                                                 \
+        } else if constexpr (std::is_floating_point_v<ctype>) {             \
+          if (!double_visitor(val)) {                                       \
+            return MaybeDirectHandle<Object>();                             \
+          }                                                                 \
+        } else {                                                            \
+          static_assert(std::numeric_limits<ctype>::max() <=                \
+                        std::numeric_limits<int>::max());                   \
+          static_assert(std::numeric_limits<ctype>::min() >=                \
+                        std::numeric_limits<int>::min());                   \
+          if (!int_visitor(static_cast<int>(val))) {                        \
+            return MaybeDirectHandle<Object>();                             \
+          }                                                                 \
+        }                                                                   \
+      }                                                                     \
+      return isolate->root_handle(RootIndex::kUndefinedValue);              \
+    }                                                                       \
+    break;                                                                  \
+  }
+          TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+          default:
+            break;
+        }
+      }
+    }
+  }
   if (IsUndefined(*iterator_fn, isolate)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kNotIterable, receiver));
@@ -269,7 +337,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                 DirectHandle<FixedArray> smi_elements =
                     Cast<FixedArray>(elements);
                 Tagged<Object> obj = smi_elements->get(current_index);
-                if (!smi_visitor(Smi::ToInt(obj))) break;
+                if (!int_visitor(Smi::ToInt(obj))) break;
               } else if (kind == HOLEY_SMI_ELEMENTS) {
                 DirectHandle<FixedArray> smi_elements =
                     Cast<FixedArray>(elements);
@@ -280,7 +348,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                     break;
                   }
                 } else {
-                  if (!smi_visitor(Smi::ToInt(obj))) break;
+                  if (!int_visitor(Smi::ToInt(obj))) break;
                 }
               } else if (kind == PACKED_DOUBLE_ELEMENTS) {
                 DirectHandle<FixedDoubleArray> double_elements =

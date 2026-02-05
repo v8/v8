@@ -26,9 +26,9 @@ inline MaybeDirectHandle<JSReceiver> IteratorStep(
 inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator);
 
 // Helper for iterating over an iterable, with fast paths for Arrays and Sets.
-template <typename SmiVisitor, typename DoubleVisitor, typename GenericVisitor>
+template <typename IntVisitor, typename DoubleVisitor, typename GenericVisitor>
 MaybeDirectHandle<Object> IterableForEach(
-    Isolate* isolate, DirectHandle<Object> items, SmiVisitor smi_visitor,
+    Isolate* isolate, DirectHandle<Object> items, IntVisitor smi_visitor,
     DoubleVisitor double_visitor, GenericVisitor generic_visitor,
     std::optional<uint64_t> max_count = std::nullopt);
 

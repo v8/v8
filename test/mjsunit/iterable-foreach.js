@@ -10,7 +10,7 @@ function assertIterated(expected, iterable) {
   assertEquals(expected, result);
 }
 
-// 1. Basic Iteration
+// Basic Iteration
 // Smi Array
 assertIterated([1, 2, 3], [1, 2, 3]);
 
@@ -38,7 +38,7 @@ let customIterable = {
 };
 assertIterated([0, 1, 2], customIterable);
 
-// 2. Exception handling and 'return' method
+// Exception handling and 'return' method
 function testReturnCalled(iterableFactory) {
   let returnCalled = false;
   let iterable = iterableFactory();
@@ -74,7 +74,7 @@ testReturnCalled(() => ({
     }
 }));
 
-// 3. Exception in 'return' vs Exception in callback
+// Exception in 'return' vs Exception in callback
 function testExceptionPriority() {
   let iterable = {
     [Symbol.iterator]() {
@@ -99,7 +99,7 @@ function testExceptionPriority() {
 }
 testExceptionPriority();
 
-// 4. Stack overflow
+// Stack overflow
 function testStackOverflow() {
   let iterable = {
     [Symbol.iterator]() {
@@ -144,7 +144,7 @@ function testStackOverflow() {
 }
 testStackOverflow();
 
-// 5. Next method throws -> Exception propagates, iterator NOT closed
+// Next method throws -> Exception propagates, iterator NOT closed
 (function TestNextThrows() {
   let closed = false;
   let iterable = {
@@ -172,7 +172,7 @@ testStackOverflow();
   if (closed) throw new Error("Iterator should NOT be closed when next() throws");
 })();
 
-// 6. Value getter throws -> Exception propagates, iterator NOT closed
+// Value getter throws -> Exception propagates, iterator NOT closed
 (function TestValueGetterThrows() {
   let closed = false;
   let iterable = {
@@ -204,7 +204,7 @@ testStackOverflow();
   if (closed) throw new Error("Iterator should NOT be closed when value getter throws");
 })();
 
-// 7. Next returns non-object -> TypeError, iterator NOT closed
+// Next returns non-object -> TypeError, iterator NOT closed
 (function TestNextReturnsNonObject() {
   let closed = false;
   let iterable = {
@@ -231,7 +231,7 @@ testStackOverflow();
   if (closed) throw new Error("Iterator should NOT be closed when next() returns non-object");
 })();
 
-// 8. Array holes are visited as undefined
+// Array holes are visited as undefined
 (function TestArrayHoles() {
   let result = [];
   let arr = [1, , 3];
@@ -243,7 +243,7 @@ testStackOverflow();
   if (result[2] !== 3) throw new Error("Wrong index 2");
 })();
 
-// 9. Modified Array Iterator -> Slow path
+// Modified Array Iterator -> Slow path
 (function TestModifiedArrayIterator() {
   let result = [];
   let arr = [1, 2];
@@ -281,7 +281,7 @@ testStackOverflow();
   }
 })();
 
-// 10. JSArrayIterator with patched return method
+// JSArrayIterator with patched return method
 (function TestArrayIteratorReturnCalled() {
   let arr = [1, 2, 3];
   let it = arr.values();
@@ -301,7 +301,7 @@ testStackOverflow();
   assertTrue(returnCalled, "Iterator.return() should be called when callback throws");
 })();
 
-// 11. JSArrayIterator with holey array and patched return method
+// JSArrayIterator with holey array and patched return method
 (function TestHoleyArrayIteratorReturnCalled() {
   let arr = [1, , 3];
   let it = arr.values();
@@ -321,7 +321,7 @@ testStackOverflow();
   assertTrue(returnCalled, "Iterator.return() should be called when callback throws on holey array");
 })();
 
-// 12. JSArrayIterator with holey array, throw on hole
+// JSArrayIterator with holey array, throw on hole
 (function TestHoleyArrayIteratorReturnCalledOnHole() {
   let arr = [1, , 3];
   let it = arr.values();
@@ -341,7 +341,7 @@ testStackOverflow();
   assertTrue(returnCalled, "Iterator.return() should be called when callback throws on hole");
 })();
 
-// 13. JSSetIterator with patched return method
+// JSSetIterator with patched return method
 (function TestSetIteratorReturnCalled() {
   let set = new Set([1, 2, 3]);
   let it = set.values();
@@ -379,4 +379,73 @@ testStackOverflow();
     // because IteratorClose returns the completion if it's a throw completion (Step 5).
     assertEquals('break', e.message);
   }
+})();
+
+// TypedArray Iteration
+// Uint8Array
+assertIterated([1, 2, 3], new Uint8Array([1, 2, 3]));
+// Float32Array
+assertIterated([1.5, 2.5, 3.5], new Float32Array([1.5, 2.5, 3.5]));
+// BigInt64Array
+if (typeof BigInt64Array !== 'undefined') {
+  assertIterated([1n, 2n, 3n], new BigInt64Array([1n, 2n, 3n]));
+}
+// Float16Array
+if (typeof Float16Array !== 'undefined') {
+   assertIterated([1.5, 2.5], new Float16Array([1.5, 2.5]));
+}
+
+// Detached TypedArray
+(function TestDetachedTypedArray() {
+  let ta = new Uint8Array([1, 2, 3]);
+  try {
+    %IterableForEach(ta, (x) => {
+      if (x === 2) {
+        %ArrayBufferDetach(ta.buffer);
+      }
+    });
+    throw new Error("Should have thrown TypeError");
+  } catch (e) {
+    // V8 error message for detached TypedArray
+    if (!e.message.includes("detached")) throw e;
+  }
+})();
+
+// Modified TypedArray Iterator
+(function TestModifiedTypedArrayIterator() {
+  let ta = new Uint8Array([1, 2]);
+  let result = [];
+  const originalIter = Uint8Array.prototype[Symbol.iterator];
+  Uint8Array.prototype[Symbol.iterator] = function() {
+    let i = 0;
+    return {
+      next() {
+        if (i < 1) {
+            i++;
+            return { value: 99, done: false };
+        }
+        return { done: true };
+      }
+    };
+  };
+
+  try {
+    // Should fall back to slow path and use modified iterator
+    %IterableForEach(ta, (val) => result.push(val));
+  } finally {
+    Uint8Array.prototype[Symbol.iterator] = originalIter;
+  }
+  if (result.length !== 1 || result[0] !== 99) {
+    throw new Error(`Expected [99], got [${result}]`);
+  }
+})();
+
+// TypedArray with offset
+(function TestOffsetTypedArray() {
+  const buffer = new ArrayBuffer(16);
+  const ta = new Uint8Array(buffer, 8, 4); // Offset 8, length 4
+  for (let i = 0; i < 4; i++) {
+    ta[i] = i + 1;
+  }
+  assertIterated([1, 2, 3, 4], ta);
 })();
