@@ -2602,7 +2602,12 @@ struct PhiOp : OperationT<PhiOp> {
   }
 
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
-      : Base(inputs), rep(rep) {}
+      : Base(inputs), rep(rep) {
+    // We add an additional CHECK specifically for Phi, to prevent Wasm from
+    // passing too many inputs, e.g. as part of a br_table operation.
+    CHECK_LE(inputs.size(),
+             std::numeric_limits<decltype(this->input_count)>::max());
+  }
 
   // Helpers to access loop phis forward/backedge. These should only be used for
   // loop phis (which isn't trivial to DCHECK since PhiOp doesn't know if it's a
