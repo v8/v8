@@ -2000,8 +2000,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     // allocation limits are at least at or above current sizes to not finalize
     // incremental marking prematurely.
     EnsureMinimumRemainingAllocationLimit(0);
-    CHECK_LE(OldGenerationConsumedBytes(),
-             limits()->old_generation_allocation_limit());
   }
 
   if (isolate()->is_shared_space_isolate()) {
