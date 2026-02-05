@@ -55,6 +55,7 @@ InternedV8JsScript::Type GetJsScriptType(Tagged<Script> script) {
     case Script::Type::kInspector:
       return InternedV8JsScript::TYPE_INSPECTOR;
   }
+  UNREACHABLE();
 }
 
 InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
