@@ -1921,9 +1921,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
                                          Register scratch);
-  void LoadEntrypointFromJSDispatchTable(Register destination,
-                                         JSDispatchHandle dispatch_handle,
-                                         Register scratch);
 #ifdef V8_TARGET_ARCH_RISCV64
   // On 32 bit architectures only the mark bit is shared with the pointer.
   // see src/sandbox/js-dispatch-table.h
