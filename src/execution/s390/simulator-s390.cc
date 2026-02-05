@@ -1642,6 +1642,10 @@ Simulator* Simulator::current(Isolate* isolate) {
 // Sets the register in the architecture state.
 void Simulator::set_register(int reg, uint64_t value) {
   DCHECK((reg >= 0) && (reg < kNumGPRs));
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+           i::RegisterName(i::Register::from_code(reg)), value);
+  }
   registers_[reg] = value;
 }
 
@@ -1730,6 +1734,10 @@ void Simulator::set_low_register(int reg, uint32_t value) {
   uint64_t shifted_val = static_cast<uint64_t>(value);
   uint64_t orig_val = static_cast<uint64_t>(registers_[reg]);
   uint64_t result = (orig_val >> 32 << 32) | shifted_val;
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+           i::RegisterName(i::Register::from_code(reg)), result);
+  }
   registers_[reg] = result;
 }
 
@@ -1737,6 +1745,10 @@ void Simulator::set_high_register(int reg, uint32_t value) {
   uint64_t shifted_val = static_cast<uint64_t>(value) << 32;
   uint64_t orig_val = static_cast<uint64_t>(registers_[reg]);
   uint64_t result = (orig_val & 0xFFFFFFFF) | shifted_val;
+  if (InstructionTracingEnabled()) {
+    PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+           i::RegisterName(i::Register::from_code(reg)), result);
+  }
   registers_[reg] = result;
 }
 
