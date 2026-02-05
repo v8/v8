@@ -3057,46 +3057,6 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
   EXPECT_TRUE(DecodeSigError(base::ArrayVector(data)));
 }
 
-class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
- public:
-  FunctionResult DecodeWasmFunction(
-      ModuleWireBytes wire_bytes, const WasmModule* module,
-      base::Vector<const uint8_t> function_bytes) {
-    return DecodeWasmFunctionForTesting(WasmEnabledFeatures::All(), zone(),
-                                        wire_bytes, module, function_bytes);
-  }
-};
-
-TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
-  static const uint8_t data[] = {
-      SIG_ENTRY_v_v,  // signature entry
-      4,              // locals
-      3,
-      kI32Code,  // --
-      4,
-      kI64Code,  // --
-      5,
-      kF32Code,  // --
-      6,
-      kF64Code,  // --
-      kExprEnd   // body
-  };
-
-  WasmModule module;
-  FunctionResult result =
-      DecodeWasmFunction(ModuleWireBytes({}), &module, base::ArrayVector(data));
-  EXPECT_OK(result);
-
-  if (result.value() && result.ok()) {
-    WasmFunction* function = result.value().get();
-    EXPECT_EQ(0u, function->sig->parameter_count());
-    EXPECT_EQ(0u, function->sig->return_count());
-    EXPECT_EQ(COUNT_ARGS(SIG_ENTRY_v_v), function->code.offset());
-    EXPECT_EQ(sizeof(data), function->code.end_offset());
-    // TODO(titzer): verify encoding of local declarations
-  }
-}
-
 TEST_F(WasmModuleVerifyTest, SectionWithoutNameLength) {
   const uint8_t data[] = {1};
   EXPECT_FAILURE(data);

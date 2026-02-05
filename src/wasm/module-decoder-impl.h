@@ -2196,31 +2196,6 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunctionForTesting(Zone* zone,
-                                                ModuleWireBytes wire_bytes,
-                                                const WasmModule* module) {
-    DCHECK(ok());
-    pc_ = start_;
-    expect_u8("type form", kWasmFunctionTypeCode);
-    WasmFunction function;
-    function.sig = consume_sig(zone);
-    function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
-
-    if (!ok()) return FunctionResult{std::move(error_)};
-
-    constexpr bool kShared = false;
-    FunctionBody body{function.sig, off(pc_), pc_, end_, kShared};
-
-    WasmDetectedFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(zone, enabled_features_, module,
-                                               &unused_detected_features, body);
-
-    if (result.failed()) return FunctionResult{std::move(result).error()};
-
-    return FunctionResult{std::make_unique<WasmFunction>(function)};
-  }
-
   // Decodes a single function signature at {start}.
   const FunctionSig* DecodeFunctionSignatureForTesting(Zone* zone,
                                                        const uint8_t* start) {
@@ -2228,11 +2203,6 @@ class ModuleDecoderImpl : public Decoder {
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
-  }
-
-  ConstantExpression DecodeInitExprForTesting(ValueType expected) {
-    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-    return consume_init_expr(module_.get(), expected, kIsShared);
   }
 
   // Takes a module as parameter so that wasm-disassembler.cc can pass its own
