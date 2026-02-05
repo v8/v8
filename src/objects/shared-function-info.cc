@@ -85,6 +85,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
     if (Tagged<Code> code; TryCast(data, &code)) {
       // Having baseline Code means we are a compiled, baseline function.
       DCHECK(HasBaselineCode());
+      SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
       return code;
     }
     if (IsInterpreterData(data)) {

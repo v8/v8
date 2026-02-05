@@ -4395,6 +4395,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            context, native_context);
   }
 
+  TNode<BoolT> IsBaselineCode(TNode<Code> code) {
+    TNode<Int32T> code_flags =
+        LoadObjectField<Int32T>(code, Code::kFlagsOffset);
+    return Word32Equal(DecodeWord32<Code::KindField>(code_flags),
+                       Int32Constant(static_cast<int>(CodeKind::BASELINE)));
+  }
+
   // Promise helpers
   TNode<Uint32T> PromiseHookFlags();
   TNode<BoolT> HasAsyncEventDelegate();

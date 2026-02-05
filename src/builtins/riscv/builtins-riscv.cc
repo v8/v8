@@ -432,8 +432,8 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   // Verify that the code kind is baseline code via the CodeKind.
   __ LoadWord(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(scratch);
-  __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
-            Operand(static_cast<int64_t>(CodeKind::BASELINE)));
+  __ SbxCheck(eq, AbortReason::kExpectedBaselineData, scratch,
+              Operand(static_cast<int64_t>(CodeKind::BASELINE)));
 }
 
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
@@ -442,7 +442,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Register scratch2, Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
-  Label is_interpreter_data, is_bytecode_array;
+  Label is_interpreter_data, is_bytecode_array, is_code;
   Register data = bytecode;
   __ LoadTrustedUnknownPointerField(
       data,
@@ -452,12 +452,17 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {INTERPRETER_DATA_TYPE, &is_interpreter_data},
           {BYTECODE_ARRAY_TYPE, &is_bytecode_array},
 #if !V8_JITLESS_BOOL
-          {CODE_TYPE, is_baseline},
+          {CODE_TYPE, &is_code},
 #endif
       });
   // Fallthrough means none of the types matched. The destination register is
   // zeroed.
   __ Branch(is_unavailable);
+
+  __ bind(&is_code);
+  AssertCodeIsBaseline(masm, data, scratch1);
+  __ Branch(is_baseline);
+
   __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
   __ bind(&is_bytecode_array);
@@ -5261,7 +5266,10 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     __ GetObjectType(code_obj, scratch, scratch);
     __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
               Operand(CODE_TYPE));
-    AssertCodeIsBaseline(masm, code_obj, scratch);
+  }
+  {
+    UseScratchRegisterScope temps(masm);
+    AssertCodeIsBaseline(masm, code_obj, temps.Acquire());
   }
 
   // Load the feedback cell and vector.

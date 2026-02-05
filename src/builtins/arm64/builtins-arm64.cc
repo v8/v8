@@ -386,7 +386,7 @@ static void AssertCodeIsBaselineAllowClobber(MacroAssembler* masm,
   __ Ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(scratch);
   __ Cmp(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
-  __ Assert(eq, AbortReason::kExpectedBaselineData);
+  __ SbxCheck(eq, AbortReason::kExpectedBaselineData);
 }
 
 static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
@@ -402,7 +402,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(bytecode, scratch1));
-  Label is_interpreter_data, is_bytecode_array;
+  Label is_interpreter_data, is_bytecode_array, is_code;
 
   Register data = bytecode;
   __ LoadTrustedUnknownPointerField(
@@ -413,12 +413,16 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {INTERPRETER_DATA_TYPE, &is_interpreter_data},
           {BYTECODE_ARRAY_TYPE, &is_bytecode_array},
 #if !V8_JITLESS_BOOL
-          {CODE_TYPE, is_baseline},
+          {CODE_TYPE, &is_code},
 #endif
       });
   // Fallthrough means none of the types matched. The destination register is
   // zeroed.
   __ B(is_unavailable);
+
+  __ Bind(&is_code);
+  AssertCodeIsBaseline(masm, data, scratch1);
+  __ B(is_baseline);
 
   __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
@@ -5444,8 +5448,8 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   if (v8_flags.debug_code) {
     __ IsObjectType(code_obj, x3, x3, CODE_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
-    AssertCodeIsBaseline(masm, code_obj, x3);
   }
+  AssertCodeIsBaseline(masm, code_obj, x3);
 
   // Load the feedback cell and vector.
   Register feedback_cell = x2;
