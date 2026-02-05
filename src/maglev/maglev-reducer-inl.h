@@ -281,6 +281,7 @@ template <UseReprHintRecording hint>
 ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
     ValueNode* input, ValueRepresentation expected) {
   ValueRepresentation repr = input->properties().value_representation();
+  if (repr == expected) return input;
   // If the reducer base does not track KNA, it must convert its own input.
   if constexpr (ReducerBaseWithKNA<BaseT>) {
     switch (expected) {
@@ -297,8 +298,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
       case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:
         // These conversion should be explicitly done beforehand.
-        CHECK_EQ(repr, expected);
-        return input;
+        UNREACHABLE();
     }
   } else {
     // If the input's value representation is not equal to the expected one,
