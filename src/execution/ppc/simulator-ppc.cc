@@ -1127,7 +1127,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 #ifdef DEBUG
             TrashCallerSaveRegisters();
 #endif
-            set_register(r0, static_cast<int32_t>(iresult));
+            set_register(r3, static_cast<int32_t>(iresult));
             break;
           }
           default:
