@@ -74,6 +74,8 @@ enum CpuFeature {
 
 #elif V8_TARGET_ARCH_LOONG64
   FPU,
+  LSX,
+  LASX,
 
 #elif V8_TARGET_ARCH_PPC64
   PPC_9_PLUS,

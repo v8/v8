@@ -58,7 +58,7 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kCallerSavedFPU.Count() * kDoubleSize;
+    bytes += kCallerSavedFPU.Count() * kSimd128Size;
   }
 
   return bytes;
@@ -75,10 +75,46 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_WEBASSEMBLY
+    bool generating_bultins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_bultins) {
+      Label no_simd, done;
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+
+      li(scratch, ExternalReference::supports_wasm_simd_128_address());
+      // If > 0 then simd is available.
+      Ld_bu(scratch, MemOperand(scratch, 0));
+      Branch(&no_simd, le, scratch, Operand(zero_reg));
+
+      // Save vector registers.
+      {
+        CpuFeatureScope lsx_scope(
+            this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+        MultiPushLSX(kCallerSavedFPU);
+      }
+      Branch(&done);
+
+      bind(&no_simd);
+      MultiPushFPU(kCallerSavedFPU);
+      Sub_d(sp, sp, kCallerSavedFPU.Count() * kDoubleSize);
+
+      bind(&done);
+    } else {
+      if (CpuFeatures::SupportsWasmSimd128()) {
+        MultiPushLSX(kCallerSavedFPU);
+      } else {
+        MultiPushFPU(kCallerSavedFPU);
+        Sub_d(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+      }
+    }
+    bytes += kCallerSavedFPU.Count() * kSimd128Size;
+#else
     MultiPushFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
-
   return bytes;
 }
 
@@ -87,8 +123,47 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_WEBASSEMBLY
+    bool generating_bultins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_bultins) {
+      // Check if machine has simd enabled, if so push vector registers. If not
+      // then only push double registers.
+      Label no_simd, done;
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+
+      li(scratch, ExternalReference::supports_wasm_simd_128_address());
+      // If > 0 then simd is available.
+      Ld_bu(scratch, MemOperand(scratch, 0));
+      Branch(&no_simd, le, scratch, Operand(zero_reg));
+
+      // Save vector registers.
+      {
+        CpuFeatureScope lsx_scope(
+            this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+        MultiPopLSX(kCallerSavedFPU);
+      }
+      Branch(&done);
+
+      bind(&no_simd);
+      Add_d(sp, sp, kCallerSavedFPU.Count() * kDoubleSize);
+      MultiPopFPU(kCallerSavedFPU);
+
+      bind(&done);
+    } else {
+      if (CpuFeatures::SupportsWasmSimd128()) {
+        MultiPopLSX(kCallerSavedFPU);
+      } else {
+        Add_d(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+        MultiPopFPU(kCallerSavedFPU);
+      }
+    }
+    bytes += kCallerSavedFPU.Count() * kSimd128Size;
+#else
     MultiPopFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
 
   RegList exclusions = {exclusion1, exclusion2, exclusion3};
@@ -1699,6 +1774,59 @@ void MacroAssembler::Sc_d(Register rd, const MemOperand& rj, int* trap_pc) {
   }
 }
 
+void MacroAssembler::Vst(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  MemOperand source = vj;
+  AdjustBaseAndOffset(&source);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  if (source.hasIndexReg()) {
+    vstx(vd, source.base(), source.index());
+  } else {
+    vst(vd, source.base(), source.offset());
+  }
+}
+
+void MacroAssembler::Vld(VRegister vd, const MemOperand& vj, int* trap_pc) {
+  MemOperand source = vj;
+  AdjustBaseAndOffset(&source);
+  if (trap_pc != NULL) *trap_pc = pc_offset();
+  if (source.hasIndexReg()) {
+    vldx(vd, source.base(), source.index());
+  } else {
+    vld(vd, source.base(), source.offset());
+  }
+}
+
+void MacroAssembler::Vmove(VRegister dst, VRegister src) {
+  if (dst != src) vaddi_bu(dst, src, 0);
+}
+
+void MacroAssembler::LoadSplat(LSXSize sz, VRegister dst, MemOperand src,
+                               int* trap_pc) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  switch (sz) {
+    case LSX_B:
+      Ld_b(scratch, src, trap_pc);
+      vreplgr2vr_b(dst, scratch);
+      break;
+    case LSX_H:
+      Ld_h(scratch, src, trap_pc);
+      vreplgr2vr_h(dst, scratch);
+      break;
+    case LSX_W:
+      Ld_w(scratch, src, trap_pc);
+      vreplgr2vr_w(dst, scratch);
+      break;
+    case LSX_D:
+      Ld_d(scratch, src, trap_pc);
+      vreplgr2vr_d(dst, scratch);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void MacroAssembler::li(Register dst, Handle<HeapObject> value,
                         RelocInfo::Mode rmode, LiFlags mode) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
@@ -2009,6 +2137,31 @@ void MacroAssembler::MultiPopFPU(DoubleRegList regs) {
     if ((regs.bits() & (1 << i)) != 0) {
       Fld_d(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
+    }
+  }
+  addi_d(sp, sp, stack_offset);
+}
+
+void MacroAssembler::MultiPushLSX(DoubleRegList regs) {
+  int16_t num_to_push = regs.Count();
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  Sub_d(sp, sp, Operand(stack_offset));
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      stack_offset -= kSimd128Size;
+      Vst(VRegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+void MacroAssembler::MultiPopLSX(DoubleRegList regs) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      Vld(VRegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kSimd128Size;
     }
   }
   addi_d(sp, sp, stack_offset);
@@ -2382,6 +2535,179 @@ void MacroAssembler::Ftintrz_ul_s(Register rd, FPURegister fj,
   bind(&fail);
 }
 
+void MacroAssembler::ExtAddPairwise(LSXDataType type, VRegister dst,
+                                    VRegister src) {
+  switch (type) {
+    case LSXS8:
+      vhaddw_h_b(dst, src, src);
+      break;
+    case LSXU8:
+      vhaddw_hu_bu(dst, src, src);
+      break;
+    case LSXS16:
+      vhaddw_w_h(dst, src, src);
+      break;
+    case LSXU16:
+      vhaddw_wu_hu(dst, src, src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MacroAssembler::LoadLane(LSXSize sz, VRegister dst, uint8_t laneidx,
+                              MemOperand src, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  switch (sz) {
+    case LSX_B:
+      Ld_bu(scratch, src, trap_pc);
+      vinsgr2vr_b(dst, scratch, laneidx);
+      break;
+    case LSX_H:
+      Ld_hu(scratch, src, trap_pc);
+      vinsgr2vr_h(dst, scratch, laneidx);
+      break;
+    case LSX_W:
+      Ld_wu(scratch, src, trap_pc);
+      vinsgr2vr_w(dst, scratch, laneidx);
+      break;
+    case LSX_D:
+      Ld_d(scratch, src, trap_pc);
+      vinsgr2vr_d(dst, scratch, laneidx);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MacroAssembler::StoreLane(LSXSize sz, VRegister src, uint8_t laneidx,
+                               MemOperand dst, int* trap_pc) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  switch (sz) {
+    case LSX_B:
+      vpickve2gr_bu(scratch, src, laneidx);
+      St_b(scratch, dst, trap_pc);
+      break;
+    case LSX_H:
+      vpickve2gr_hu(scratch, src, laneidx);
+      St_h(scratch, dst, trap_pc);
+      break;
+    case LSX_W:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Fst_s(src_reg, dst, trap_pc);
+      } else {
+        vpickve2gr_wu(scratch, src, laneidx);
+        St_w(scratch, dst, trap_pc);
+      }
+      break;
+    case LSX_D:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Fst_d(src_reg, dst, trap_pc);
+      } else {
+        vpickve2gr_d(scratch, src, laneidx);
+        St_d(scratch, dst, trap_pc);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MacroAssembler::Dotp_w(VRegister dst, VRegister src1, VRegister src2,
+                            VRegister temp) {
+  vmulwev_w_h(temp, src1, src2);
+  vmulwod_w_h(dst, src1, src2);
+  vadd_w(dst, dst, temp);
+}
+
+void MacroAssembler::Dotp_h(VRegister dst, VRegister src1, VRegister src2,
+                            VRegister temp) {
+  vmulwev_h_b(temp, src1, src2);
+  vmulwod_h_b(dst, src1, src2);
+  vadd_h(dst, dst, temp);
+}
+
+#define EXT_MUL_BINOP(type, ilv_instr, Dotp_instr)             \
+  case type:                                                   \
+    vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero); \
+    ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1);      \
+    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2);         \
+    Dotp_instr(dst, kSimd128ScratchReg, kSimd128RegZero);      \
+    break;
+
+void MacroAssembler::ExtMulLow(LSXDataType type, VRegister dst, VRegister src1,
+                               VRegister src2) {
+  switch (type) {
+    EXT_MUL_BINOP(LSXS8, vilvl_b, vmulwev_h_b)
+    EXT_MUL_BINOP(LSXS16, vilvl_h, vmulwev_w_h)
+    EXT_MUL_BINOP(LSXS32, vilvl_w, vmulwev_d_w)
+    EXT_MUL_BINOP(LSXU8, vilvl_b, vmulwev_h_bu)
+    EXT_MUL_BINOP(LSXU16, vilvl_h, vmulwev_w_hu)
+    EXT_MUL_BINOP(LSXU32, vilvl_w, vmulwev_d_wu)
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MacroAssembler::ExtMulHigh(LSXDataType type, VRegister dst, VRegister src1,
+                                VRegister src2) {
+  switch (type) {
+    EXT_MUL_BINOP(LSXS8, vilvh_b, vmulwev_h_b)
+    EXT_MUL_BINOP(LSXS16, vilvh_h, vmulwev_w_h)
+    EXT_MUL_BINOP(LSXS32, vilvh_w, vmulwev_d_w)
+    EXT_MUL_BINOP(LSXU8, vilvh_b, vmulwev_h_bu)
+    EXT_MUL_BINOP(LSXU16, vilvh_h, vmulwev_w_hu)
+    EXT_MUL_BINOP(LSXU32, vilvh_w, vmulwev_d_wu)
+    default:
+      UNREACHABLE();
+  }
+}
+#undef EXT_MUL_BINOP
+
+void MacroAssembler::LSXRoundW(VRegister dst, VRegister src,
+                               FPURoundingMode mode) {
+  switch (mode) {
+    case kRoundToNearest:
+      vfrintrne_s(dst, src);
+      break;
+    case kRoundToPlusInf:
+      vfrintrp_s(dst, src);
+      break;
+    case kRoundToMinusInf:
+      vfrintrm_s(dst, src);
+      break;
+    case kRoundToZero:
+      vfrintrz_s(dst, src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MacroAssembler::LSXRoundD(VRegister dst, VRegister src,
+                               FPURoundingMode mode) {
+  switch (mode) {
+    case kRoundToNearest:
+      vfrintrne_d(dst, src);
+      break;
+    case kRoundToPlusInf:
+      vfrintrp_d(dst, src);
+      break;
+    case kRoundToMinusInf:
+      vfrintrm_d(dst, src);
+      break;
+    case kRoundToZero:
+      vfrintrz_d(dst, src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
                                  FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -2504,6 +2830,83 @@ void MacroAssembler::MovePair(Register dst0, Register src0, Register dst1,
   } else {
     // Worse case scenario, this is a swap.
     Swap(dst0, src0);
+  }
+}
+
+void MacroAssembler::BranchLSX(Label* target, LSXBranchDF df,
+                               LSXBranchCondition cond, VRegister vj,
+                               CFRegister cj) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (target) {
+    bool long_branch = target->is_bound()
+                           ? !is_near(target, OffsetSize::kOffset21)
+                           : is_trampoline_emitted();
+    if (long_branch) {
+      Label skip;
+      LSXBranchCondition neg_cond = NegateLSXBranchCondition(cond);
+      BranchShortLSX(&skip, df, neg_cond, vj, cj);
+      Branch(target);
+      bind(&skip);
+    } else {
+      BranchShortLSX(target, df, cond, vj, cj);
+    }
+  }
+}
+
+void MacroAssembler::BranchShortLSX(Label* target, LSXBranchDF df,
+                                    LSXBranchCondition cond, VRegister vj,
+                                    CFRegister cj) {
+  if (IsEnabled(LSX)) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (target) {
+      switch (cond) {
+        case all_not_zero:
+          switch (df) {
+            case LSX_BRANCH_D:
+              vsetallnez_d(cj, vj);
+              break;
+            case LSX_BRANCH_W:
+              vsetallnez_w(cj, vj);
+              break;
+            case LSX_BRANCH_H:
+              vsetallnez_h(cj, vj);
+              break;
+            case LSX_BRANCH_B:
+            default:
+              vsetallnez_b(cj, vj);
+              break;
+          }
+          break;
+        case one_elem_not_zero:
+          vsetnez_v(cj, vj);
+          break;
+        case one_elem_zero:
+          switch (df) {
+            case LSX_BRANCH_D:
+              vsetanyeqz_d(cj, vj);
+              break;
+            case LSX_BRANCH_W:
+              vsetanyeqz_w(cj, vj);
+              break;
+            case LSX_BRANCH_H:
+              vsetanyeqz_h(cj, vj);
+              break;
+            case LSX_BRANCH_B:
+            default:
+              vsetanyeqz_b(cj, vj);
+              break;
+          }
+          break;
+        case all_zero:
+          vseteqz_v(cj, vj);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      BranchTrueShortF(target, cj);
+    }
+  } else {
+    UNREACHABLE();
   }
 }
 

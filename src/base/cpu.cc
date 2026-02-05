@@ -121,7 +121,7 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
 #endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS64 || \
-    V8_HOST_ARCH_RISCV64
+    V8_HOST_ARCH_RISCV64 || V8_HOST_ARCH_LOONG64
 
 #if V8_OS_LINUX
 
@@ -242,6 +242,21 @@ static std::tuple<uint64_t, uint64_t> ReadELFHWCaps() {
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
 
+#if V8_HOST_ARCH_LOONG64
+
+#define LOONGARCH_CFG2 0x2
+#define LOONGARCH_CFG2_LSX (1 << 6)
+#define LOONGARCH_CFG2_LASX (1 << 7)
+
+static int cpu_flags_cpucfg(int cfg) {
+  int flags = 0;
+
+  __asm__ volatile("cpucfg %0, %1 \n\t" : "+&r"(flags) : "r"(cfg));
+
+  return flags;
+}
+#endif  // V8_HOST_ARCH_LOONG64
+
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
  public:
@@ -361,7 +376,8 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
+        // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64 ||
+        // V8_HOST_ARCH_LOONG64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -474,7 +490,9 @@ CPU::CPU()
       has_rvv_(false),
       has_zba_(false),
       has_zbb_(false),
-      has_zbs_(false) {
+      has_zbs_(false),
+      has_lsx_(false),
+      has_lasx_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -819,6 +837,20 @@ CPU::CPU()
   has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
   delete[] ASEs;
+
+#elif V8_HOST_ARCH_LOONG64
+
+  CPUInfo cpu_info;
+  int flags = cpu_flags_cpucfg(LOONGARCH_CFG2);
+  if (flags != 0) {
+    has_lsx_ = (flags & LOONGARCH_CFG2_LSX) != 0;
+    has_lasx_ = (flags & LOONGARCH_CFG2_LASX) != 0;
+  } else {
+    char* features = cpu_info.ExtractField("features");
+    has_lsx_ = HasListItem(features, "lsx");
+    has_lasx_ = HasListItem(features, "lasx");
+    delete[] features;
+  }
 
 #elif V8_HOST_ARCH_ARM64
 #ifdef V8_OS_WIN
