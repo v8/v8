@@ -1122,6 +1122,7 @@ static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
+  // Invoke GCEpilogueCallbacks for all involved LocalHeaps.
   {
     // Allows handle derefs for all threads/isolates from this thread.
     AllowHandleUsageOnAllThreads allow_all_handle_derefs;
@@ -1139,6 +1140,25 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
                   GCCallbacksInSafepoint::GCType::kShared);
             });
       });
+    }
+  }
+
+  // Invoke global GCRootsProviders for all involved Heap.
+  {
+    GCType gc_type = GetGCTypeFromGarbageCollector(collector);
+    for (GCRootsProvider* provider : global_gc_roots_providers_) {
+      provider->GCEpilogueInSafepoint(gc_type);
+    }
+
+    if (collector == GarbageCollector::MARK_COMPACTOR &&
+        isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates(
+          [gc_type](Isolate* client) {
+            for (GCRootsProvider* provider :
+                 client->heap()->global_gc_roots_providers_) {
+              provider->GCEpilogueInSafepoint(gc_type);
+            }
+          });
     }
   }
 
@@ -4725,6 +4745,13 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
       v->VisitRootPointers(Root::kStrongRoots, current->label, current->start,
                            current->end);
     }
+
+    v->Synchronize(VisitorSynchronization::kStrongRoots);
+
+    for (GCRootsProvider* provider : global_gc_roots_providers_) {
+      provider->Iterate(v);
+    }
+
     v->Synchronize(VisitorSynchronization::kStrongRoots);
 
     // Iterate over the startup and shared heap object caches unless
@@ -6547,6 +6574,20 @@ void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                     void* data) {
   gc_epilogue_callbacks_.Remove(callback, data);
+}
+
+void Heap::AddGlobalGCRootsProvider(GCRootsProvider* provider) {
+  base::MutexGuard guard(&global_gc_roots_providers_mutex_);
+  global_gc_roots_providers_.push_back(provider);
+}
+
+void Heap::RemoveGlobalGCRootsProvider(GCRootsProvider* provider) {
+  base::MutexGuard guard(&global_gc_roots_providers_mutex_);
+  auto it = std::find(global_gc_roots_providers_.begin(),
+                      global_gc_roots_providers_.end(), provider);
+  DCHECK_NE(it, global_gc_roots_providers_.end());
+  *it = global_gc_roots_providers_.back();
+  global_gc_roots_providers_.pop_back();
 }
 
 namespace {
