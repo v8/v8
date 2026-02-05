@@ -217,7 +217,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
-    mode = SKIP_WRITE_BARRIER;  // Object is in new space.
+    if (!type.is_shared) mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
