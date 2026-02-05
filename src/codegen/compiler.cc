@@ -1479,6 +1479,26 @@ void FinalizeUnoptimizedCompilation(
   }
 }
 
+void StressLazy(Isolate* isolate, Handle<Script> script) {
+  if (!v8_flags.stress_lazy) return;
+
+  HandleScope scope(isolate);
+  DirectHandle<WeakFixedArray> infos(script->infos(), isolate);
+  for (int i = 0; i < infos->length(); ++i) {
+    HandleScope loop_scope(isolate);
+    Tagged<MaybeObject> maybe_obj = infos->get(i);
+    Tagged<HeapObject> obj;
+    if (maybe_obj.GetHeapObject(&obj) && IsSharedFunctionInfo(obj)) {
+      Handle<SharedFunctionInfo> shared(Cast<SharedFunctionInfo>(obj), isolate);
+      if (!shared->is_compiled()) {
+        IsCompiledScope is_compiled_scope(*shared, isolate);
+        Compiler::Compile(isolate, shared, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope);
+      }
+    }
+  }
+}
+
 void FinalizeUnoptimizedScriptCompilation(
     Isolate* isolate, Handle<Script> script,
     const UnoptimizedCompileFlags& flags,
@@ -1487,6 +1507,8 @@ void FinalizeUnoptimizedScriptCompilation(
         finalize_unoptimized_compilation_data_list) {
   FinalizeUnoptimizedCompilation(isolate, script, flags, compile_state,
                                  finalize_unoptimized_compilation_data_list);
+
+  StressLazy(isolate, script);
 
   script->set_compilation_state(Script::CompilationState::kCompiled);
   DCHECK_IMPLIES(isolate->NeedsSourcePositions(), script->has_line_ends());

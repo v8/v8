@@ -1184,6 +1184,7 @@ DEFINE_BOOL(enable_lazy_source_positions, V8_LAZY_SOURCE_POSITIONS_BOOL,
             "regenerate when actually required")
 DEFINE_BOOL(stress_lazy_source_positions, false,
             "collect lazy source positions immediately after lazy compile")
+DEFINE_BOOL(stress_lazy, false, "stress lazy compilation")
 DEFINE_STRING(print_bytecode_filter, "*",
               "filter for selecting which functions to print bytecode")
 DEFINE_BOOL(omit_default_ctors, true, "omit calling default ctors in bytecode")
@@ -3428,7 +3429,8 @@ DEFINE_BOOL(
 // When fuzzing, always compile functions twice and ensure that the generated
 // bytecode is the same. This can help find bugs such as crbug.com/1394403 as it
 // avoids the need for bytecode aging to kick in to trigger the recomplication.
-DEFINE_WEAK_NEG_IMPLICATION(fuzzing, lazy)
+// We use stress-lazy to still test the preparse / lazy compilation pipeline.
+DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy)
 DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy_source_positions)
 
 DEFINE_BOOL(
