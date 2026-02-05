@@ -419,9 +419,9 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     }
     case TypeDefinition::kStruct: {
       const StructType* original_type = type.struct_type;
-      CanonicalStructType::Builder builder(&zone_, original_type->field_count(),
-                                           original_type->is_descriptor(),
-                                           original_type->is_shared());
+      CanonicalStructType::Builder<Zone> builder(
+          &zone_, original_type->field_count(), original_type->is_descriptor(),
+          original_type->is_shared());
       for (uint32_t i = 0; i < original_type->field_count(); i++) {
         builder.AddField(CanonicalizeValueType(original_type->field(i)),
                          original_type->mutability(i),
@@ -429,7 +429,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       }
       builder.set_total_fields_size(original_type->total_fields_size());
       return CanonicalType(
-          builder.Build(CanonicalStructType::Builder::kUseProvidedOffsets),
+          builder.Build(
+              CanonicalStructType::Builder<Zone>::kUseProvidedOffsets),
           supertype, CanonicalizeTypeIndex(type.descriptor),
           CanonicalizeTypeIndex(type.describes), type.is_final, type.is_shared);
     }

@@ -946,7 +946,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Stores the signature of the C++ call target of an imported web API
   // function. The signature got copied from the `FunctionTemplateInfo` object
-  // of the web API function into the `signature_zone` of the `WasmModule` so
+  // of the web API function into the `signature_storage` of the `WasmModule` so
   // that it stays alive as long as the `WasmModule` exists.
   void set_fast_api_signature(int func_index, const MachineSignature* sig) {
     fast_api_data_[func_index].signature = sig;

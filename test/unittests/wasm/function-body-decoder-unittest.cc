@@ -107,7 +107,7 @@ class TestModuleBuilder {
     const bool is_final = true;
     const bool is_shared = false;
     ModuleTypeIndex funIndex = AddSignature(sig);
-    mod.AddContTypeForTesting(mod.signature_zone.New<ContType>(funIndex),
+    mod.AddContTypeForTesting(mod.signature_storage.New<ContType>(funIndex),
                               kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
@@ -149,9 +149,9 @@ class TestModuleBuilder {
   HeapType AddStruct(std::initializer_list<F> fields,
                      ModuleTypeIndex supertype = kNoSuperType,
                      bool is_shared = false) {
-    StructType::Builder type_builder(&mod.signature_zone,
-                                     static_cast<uint32_t>(fields.size()),
-                                     false, is_shared);
+    StructType::Builder<WasmModuleSignatureStorage> type_builder(
+        &mod.signature_storage, static_cast<uint32_t>(fields.size()), false,
+        is_shared);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
@@ -167,7 +167,7 @@ class TestModuleBuilder {
   }
 
   HeapType AddArray(ValueType type, bool mutability, bool is_shared = false) {
-    ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
+    ArrayType* array = mod.signature_storage.New<ArrayType>(type, mutability);
     const bool is_final = true;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
@@ -6538,11 +6538,11 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Struct) {
       builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
   FunctionSig* sig_get =
-      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+      FunctionSig::Build(storage, {element_type.Unpacked()}, {struct_type});
   FunctionSig* sig_set =
-      FunctionSig::Build(zone, {}, {struct_type, element_type.Unpacked()});
+      FunctionSig::Build(storage, {}, {struct_type, element_type.Unpacked()});
 
   ExpectFailure(
       sig_get,
@@ -6571,12 +6571,12 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+  FunctionSig* sig_get = FunctionSig::Build(storage, {element_type.Unpacked()},
                                             {array_type, kWasmI32});
   FunctionSig* sig_set = FunctionSig::Build(
-      zone, {}, {array_type, kWasmI32, element_type.Unpacked()});
+      storage, {}, {array_type, kWasmI32, element_type.Unpacked()});
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET(0, array_type_index, WASM_LOCAL_GET(0),
                                        WASM_LOCAL_GET(1))},
@@ -6634,9 +6634,9 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
       builder.AddStruct({F(element_type, true)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
   FunctionSig* sig_get =
-      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+      FunctionSig::Build(storage, {element_type.Unpacked()}, {struct_type});
 
   ExpectFailure(
       sig_get,
@@ -6655,9 +6655,9 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, true, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+  FunctionSig* sig_get = FunctionSig::Build(storage, {element_type.Unpacked()},
                                             {array_type, kWasmI32});
 
   ExpectFailure(sig_get,
@@ -6698,12 +6698,13 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
       builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
   ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
   ValueType struct_type = ValueType::Ref(struct_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
-  const FunctionSig* sig = FunctionSig::Build(
-      zone, {element_type.Unpacked()}, {struct_type, element_type.Unpacked()});
+  const FunctionSig* sig =
+      FunctionSig::Build(storage, {element_type.Unpacked()},
+                         {struct_type, element_type.Unpacked()});
   const FunctionSig* sig_cmpxchg = FunctionSig::Build(
-      zone, {element_type.Unpacked()},
+      storage, {element_type.Unpacked()},
       {struct_type, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Field 0 of type 0 has invalid type"
@@ -6751,13 +6752,13 @@ TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
   HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
   ModuleTypeIndex array_type_index = array_heaptype.ref_index();
   ValueType array_type = ValueType::Ref(array_heaptype);
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
   const FunctionSig* sig =
-      FunctionSig::Build(zone, {element_type.Unpacked()},
+      FunctionSig::Build(storage, {element_type.Unpacked()},
                          {array_type, kWasmI32, element_type.Unpacked()});
   const FunctionSig* sig_cmpxchg = FunctionSig::Build(
-      zone, {element_type.Unpacked()},
+      storage, {element_type.Unpacked()},
       {array_type, kWasmI32, element_type.Unpacked(), element_type.Unpacked()});
 
   const char* error_msg = mutability ? "Array type 0 has invalid type"
@@ -6820,24 +6821,24 @@ TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
   ValueType array_i16 = ValueType::Ref(array_i16_heaptype);
 
   const char* error = "invalid memory ordering 2";
-  Zone* zone = &builder.module()->signature_zone;
+  WasmModuleSignatureStorage* storage = &builder.module()->signature_storage;
 
   FunctionSig* sig_struct_load_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i32});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i32});
   FunctionSig* sig_struct_load_i16 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i16});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i16});
   FunctionSig* sig_struct_store_i32 =
-      FunctionSig::Build(zone, {}, {struct_i32, kWasmI32});
+      FunctionSig::Build(storage, {}, {struct_i32, kWasmI32});
   FunctionSig* sig_struct_rmw_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {struct_i32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {struct_i32, kWasmI32});
   FunctionSig* sig_array_load_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i32, kWasmI32});
   FunctionSig* sig_array_load_i16 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i16, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i16, kWasmI32});
   FunctionSig* sig_array_store_i32 =
-      FunctionSig::Build(zone, {}, {array_i32, kWasmI32, kWasmI32});
+      FunctionSig::Build(storage, {}, {array_i32, kWasmI32, kWasmI32});
   FunctionSig* sig_array_rmw_i32 =
-      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
+      FunctionSig::Build(storage, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
 
   for (uint8_t memory_order = 0; memory_order < 3; ++memory_order) {
     // TODO(c++20): Replace with std::format once available on all compilers

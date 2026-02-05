@@ -360,13 +360,13 @@ bool IsDataViewSetterSig(const wasm::CanonicalSig* sig,
 }
 
 const MachineSignature* GetFunctionSigForFastApiImport(
-    Zone* zone, const CFunctionInfo* info) {
+    WasmModuleSignatureStorage* storage, const CFunctionInfo* info) {
   uint32_t arg_count = info->ArgumentCount();
   uint32_t ret_count =
       info->ReturnInfo().GetType() == CTypeInfo::Type::kVoid ? 0 : 1;
   constexpr uint32_t param_offset = 1;
 
-  MachineSignature::Builder sig_builder(zone, ret_count,
+  MachineSignature::Builder sig_builder(storage, ret_count,
                                         arg_count - param_offset);
   if (ret_count) {
     sig_builder.AddReturn(MachineType::TypeForCType(info->ReturnInfo()));
@@ -489,13 +489,13 @@ WellKnownImport CheckForWellKnownImport(
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
       // We have to use the lock of the NativeModule here because the
-      // `signature_zone` may get accessed by another module instantiation
+      // `signature_storage` may get accessed by another module instantiation
       // concurrently.
       NativeModule::NativeModuleAllocationLockScope lock(native_module);
       native_module->set_fast_api_signature(
           func_index,
           GetFunctionSigForFastApiImport(
-              &native_module->module()->signature_zone,
+              &native_module->module()->signature_storage,
               func_data->GetCSignature(isolate, out_api_function_index)));
     }
 

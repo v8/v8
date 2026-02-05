@@ -214,14 +214,16 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 
 bool ModuleDecoder::ok() const { return impl_->ok(); }
 
-Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes) {
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes) {
   WasmDetectedFeatures unused_detected_features;
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
                             &unused_detected_features};
-  return decoder.toResult(
-      decoder.DecodeFunctionSignatureForTesting(zone, bytes.begin()));
+  const FunctionSig* sig =
+      decoder.DecodeFunctionSignatureForTesting(bytes.begin());
+  return decoder.toResult(std::make_pair(
+      std::move(decoder.shared_module()->signature_storage), sig));
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(

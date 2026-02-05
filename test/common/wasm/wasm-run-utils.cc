@@ -577,21 +577,17 @@ FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
   size_t return_count = return_type.IsNone() ? 0 : 1;
   size_t param_count = param_types.size();
 
-  Zone& zone = builder_.SignatureZone();
-
-  // Allocate storage array in zone.
-  ValueType* sig_types =
-      zone.AllocateArray<ValueType>(return_count + param_count);
+  FunctionSig::Builder sig_builder{&builder_.module()->signature_storage,
+                                   return_count, param_count};
 
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.
-  int idx = 0;
-  if (return_count) sig_types[idx++] = ValueType::For(return_type);
+  if (return_count) sig_builder.AddReturn(ValueType::For(return_type));
   for (MachineType param : param_types) {
     CHECK_NE(MachineType::None(), param);
-    sig_types[idx++] = ValueType::For(param);
+    sig_builder.AddParam(ValueType::For(param));
   }
-  return zone.New<FunctionSig>(return_count, param_count, sig_types);
+  return sig_builder.Get();
 }
 
 }  // namespace v8::internal::wasm

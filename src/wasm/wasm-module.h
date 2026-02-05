@@ -679,14 +679,92 @@ using CallTargetVector = base::SmallVector<CallTarget, 4>;
 using CallTargets =
     std::map<uint32_t, std::vector<std::pair<uint32_t, CallTargetVector>>>;
 
+// WasmModuleSignatureStorage provides a minimal allocator interface.
+// Allocations never move, i.e. pointers stay stable.
+// This is similar to a Zone, but tuned for long-time storage (less memory
+// overhead).
+class WasmModuleSignatureStorage {
+ public:
+  WasmModuleSignatureStorage() = default;
+
+  // Disallow copy assignment and copy construction.
+  WasmModuleSignatureStorage(const WasmModuleSignatureStorage&) = delete;
+  WasmModuleSignatureStorage& operator=(const WasmModuleSignatureStorage&) =
+      delete;
+
+  // Move assignment / construction is needed for tests which internally
+  // construct a WasmModule and then pass out e.g. a signature pointer plus the
+  // storage.
+  WasmModuleSignatureStorage(WasmModuleSignatureStorage&&)
+      V8_NOEXCEPT = default;
+  WasmModuleSignatureStorage& operator=(WasmModuleSignatureStorage&&)
+      V8_NOEXCEPT = default;
+
+  uint8_t* Allocate(size_t length, size_t align = 1) {
+    DCHECK(base::bits::IsPowerOfTwo(align));
+    if (V8_UNLIKELY(storage_.empty())) {
+      Allocate_more_storage(length + align - 1);
+    }
+
+    std::vector<uint8_t>* last = &storage_.back();
+    size_t last_size = last->size();
+    uint8_t* ptr = last->data() + last_size;
+    size_t padding = (-reinterpret_cast<intptr_t>(ptr)) & (align - 1);
+    if (V8_UNLIKELY(last->capacity() - last_size < length + padding)) {
+      Allocate_more_storage(length + align - 1);
+      // Redo calculations from before:
+      last = &storage_.back();
+      last_size = last->size();
+      ptr = last->data() + last_size;
+      padding = (-reinterpret_cast<intptr_t>(ptr)) & (align - 1);
+    }
+    DCHECK_LE(last_size + length + padding, last->capacity());
+    last->resize(last_size + length + padding);
+    DCHECK_EQ(0, reinterpret_cast<intptr_t>(ptr + padding) & (align - 1));
+    return ptr + padding;
+  }
+
+  template <typename T>
+  T* AllocateArray(size_t count) {
+    CHECK_LE(count, std::numeric_limits<size_t>::max() / sizeof(T));
+    return reinterpret_cast<T*>(Allocate(count * sizeof(T), alignof(T)));
+  }
+
+  template <typename T, typename... Args>
+  T* New(Args&&... args) {
+    T* memory = AllocateArray<T>(1);
+    return new (memory) T(std::forward<Args>(args)...);
+  }
+
+  size_t TotalReservedSize() const {
+    size_t size = 0;
+    for (const std::vector<uint8_t>& vec : storage_) {
+      size += sizeof(vec) + vec.capacity();
+    }
+    return size;
+  }
+
+ private:
+  V8_NOINLINE V8_PRESERVE_MOST void Allocate_more_storage(size_t min_length) {
+    size_t new_length =
+        std::max(min_length, storage_.empty() ? 4 * (sizeof(FunctionSig) + 4)
+                                              : storage_.back().capacity());
+    std::vector<uint8_t> new_storage;
+    new_storage.reserve(new_length);
+    storage_.push_back(std::move(new_storage));
+  }
+
+  std::vector<std::vector<uint8_t>> storage_;
+};
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
-  // The signature zone is also used to store the signatures of C++ functions
+  // The signature storage is also used to store the signatures of C++ functions
   // called with the V8 fast API. These signatures are added during
-  // instantiation, so the `signature_zone` may be changed even when the
+  // instantiation, so the `signature_storage` may be changed even when the
   // `WasmModule` is already `const`.
-  mutable Zone signature_zone;
+  mutable WasmModuleSignatureStorage signature_storage;
   int start_function_index = -1;   // start function, >= 0 if any
 
   // Size of the buffer required for all globals that are not imported and

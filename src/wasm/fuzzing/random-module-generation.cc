@@ -4490,8 +4490,8 @@ class ModuleGen {
       } while (false);
 
       // TODO(42204563): Add support for shared structs.
-      StructType::Builder struct_builder(zone_, num_fields, is_descriptor,
-                                         false);
+      StructType::Builder<Zone> struct_builder(zone_, num_fields, is_descriptor,
+                                               false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -5345,7 +5345,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     }
     // TODO(403372470): Add support for custom descriptors.
     // TODO(42204563): Add support for shared structs.
-    StructType::Builder struct_builder(zone, num_fields, false, false);
+    StructType::Builder<Zone> struct_builder(zone, num_fields, false, false);
 
     // Add all fields from super type.
     uint32_t field_index = 0;

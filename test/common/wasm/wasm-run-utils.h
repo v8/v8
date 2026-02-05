@@ -107,6 +107,8 @@ class TestingModuleBuilder {
                        TestExecutionTier, Isolate* isolate);
   ~TestingModuleBuilder();
 
+  WasmModule* module() const { return module_.get(); }
+
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
                      AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
@@ -125,8 +127,6 @@ class TestingModuleBuilder {
     const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
-
-  Zone& SignatureZone() { return module_->signature_zone; }
 
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {

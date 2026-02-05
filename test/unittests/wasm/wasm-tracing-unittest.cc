@@ -119,7 +119,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     ValueType i32 = ValueType::Primitive(kI32);
     builder.AddGlobal(i32, true, WasmInitExpr::DefaultValue(i32));
 
-    StructType::Builder type_builder(zone(), 1, false, false);
+    StructType::Builder<Zone> type_builder(zone(), 1, false, false);
     type_builder.AddField(i32, true);
     StructType* struct_type = type_builder.Build();
     ModuleTypeIndex struct_type_index =

@@ -110,9 +110,10 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone.
-V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes);
+V8_EXPORT_PRIVATE
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes);
 
 struct CustomSectionOffset {
   WireBytesRef section;

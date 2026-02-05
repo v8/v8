@@ -576,7 +576,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     switch (kind) {
       case kWasmFunctionTypeCode: {
-        const FunctionSig* sig = consume_sig(&module_->signature_zone);
+        const FunctionSig* sig = consume_sig();
         if (sig == nullptr) {
           CHECK(!ok());
           return {};
@@ -586,8 +586,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
-        const StructType* type =
-            consume_struct(&module_->signature_zone, is_descriptor, is_shared);
+        const StructType* type = consume_struct(is_descriptor, is_shared);
         if (type == nullptr) {
           CHECK(!ok());
           return {};
@@ -596,7 +595,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array(&module_->signature_zone);
+        const ArrayType* type = consume_array();
         if (type == nullptr) {
           CHECK(!ok());
           return {};
@@ -619,7 +618,8 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
 
-        ContType* type = module_->signature_zone.New<ContType>(hp.ref_index());
+        ContType* type =
+            module_->signature_storage.New<ContType>(hp.ref_index());
         return {type, kNoSuperType, is_final, is_shared};
       }
       default:
@@ -2197,11 +2197,10 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single function signature at {start}.
-  const FunctionSig* DecodeFunctionSignatureForTesting(Zone* zone,
-                                                       const uint8_t* start) {
+  const FunctionSig* DecodeFunctionSignatureForTesting(const uint8_t* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    const FunctionSig* result = consume_sig(zone);
+    const FunctionSig* result = consume_sig();
     return ok() ? result : nullptr;
   }
 
@@ -2730,7 +2729,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  const FunctionSig* consume_sig(Zone* zone) {
+  const FunctionSig* consume_sig() {
     if (tracer_) tracer_->NextLine();
     // Parse parameter types.
     uint32_t param_count =
@@ -2753,45 +2752,46 @@ class ModuleDecoderImpl : public Decoder {
     }
     // Now that we know the param count and the return count, we can allocate
     // the permanent storage.
-    ValueType* sig_storage =
-        zone->AllocateArray<ValueType>(param_count + return_count);
-    // Note: Returns come first in the signature storage.
-    std::copy_n(params.begin(), param_count, sig_storage + return_count);
+    FunctionSig::Builder sig_builder{&module_->signature_storage, return_count,
+                                     param_count};
+    for (ValueType t : params) sig_builder.AddParam(t);
     for (uint32_t i = 0; i < return_count; ++i) {
-      sig_storage[i] = consume_value_type();
+      sig_builder.AddReturn(consume_value_type());
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
 
-    return zone->New<FunctionSig>(return_count, param_count, sig_storage);
+    return sig_builder.Get();
   }
 
-  const StructType* consume_struct(Zone* zone, bool is_descriptor,
-                                   bool is_shared) {
+  const StructType* consume_struct(bool is_descriptor, bool is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
-    ValueType* fields = zone->AllocateArray<ValueType>(field_count);
-    bool* mutabilities = zone->AllocateArray<bool>(field_count);
+    ValueType* fields =
+        module_->signature_storage.AllocateArray<ValueType>(field_count);
+    bool* mutabilities =
+        module_->signature_storage.AllocateArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       fields[i] = consume_storage_type();
       mutabilities[i] = consume_mutability();
       if (tracer_) tracer_->NextLine();
     }
     if (failed()) return nullptr;
-    uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
-    StructType* result = zone->New<StructType>(
+    uint32_t* offsets =
+        module_->signature_storage.AllocateArray<uint32_t>(field_count);
+    StructType* result = module_->signature_storage.New<StructType>(
         field_count, offsets, fields, mutabilities, is_descriptor, is_shared);
     result->InitializeOffsets();
     return result;
   }
 
-  const ArrayType* consume_array(Zone* zone) {
+  const ArrayType* consume_array() {
     ValueType element_type = consume_storage_type();
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (failed()) return nullptr;
-    return zone->New<ArrayType>(element_type, mutability);
+    return module_->signature_storage.New<ArrayType>(element_type, mutability);
   }
 
   // Consume the attribute field of an exception.

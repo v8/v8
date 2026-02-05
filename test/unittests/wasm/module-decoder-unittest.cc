@@ -208,7 +208,7 @@ struct ValueTypePair {
     {kStringViewIterCode, kWasmStringViewIter},    // --
 };
 
-class WasmModuleVerifyTest : public TestWithIsolateAndZone {
+class WasmModuleVerifyTest : public TestWithPlatform {
  public:
   WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
@@ -2853,22 +2853,24 @@ TEST_F(WasmModuleVerifyTest, CallTargetsSumOfPercentagesOver100) {
   EXPECT_EQ(0U, targets.size());
 }
 
-class WasmSignatureDecodeTest : public TestWithZone {
+class WasmSignatureDecodeTest : public TestWithPlatform {
  public:
   WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
 
-  const FunctionSig* DecodeSig(base::Vector<const uint8_t> bytes) {
-    Result<const FunctionSig*> res =
-        DecodeWasmSignatureForTesting(enabled_features_, zone(), bytes);
+  std::pair<WasmModuleSignatureStorage, const FunctionSig*> DecodeSig(
+      base::Vector<const uint8_t> bytes) {
+    Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>> res =
+        DecodeWasmSignatureForTesting(enabled_features_, bytes);
     EXPECT_TRUE(res.ok()) << res.error().message() << " at offset "
                           << res.error().offset();
-    return res.ok() ? res.value() : nullptr;
+    if (res.ok()) return std::move(res).value();
+    return {};
   }
 
   V8_NODISCARD testing::AssertionResult DecodeSigError(
       base::Vector<const uint8_t> bytes) {
-    Result<const FunctionSig*> res =
-        DecodeWasmSignatureForTesting(enabled_features_, zone(), bytes);
+    Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>> res =
+        DecodeWasmSignatureForTesting(enabled_features_, bytes);
     if (res.ok()) {
       return testing::AssertionFailure() << "unexpected valid signature";
     }
@@ -2878,9 +2880,7 @@ class WasmSignatureDecodeTest : public TestWithZone {
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const uint8_t data[] = {SIG_ENTRY_v_v};
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+  auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
   ASSERT_TRUE(sig != nullptr);
   EXPECT_EQ(0u, sig->parameter_count());
@@ -2894,7 +2894,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_x(ret_type.code)};
-    const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+    auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
     SCOPED_TRACE("Return type " + ret_type.type.name());
     ASSERT_TRUE(sig != nullptr);
@@ -2911,7 +2911,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_v_x(param_type.code)};
-    const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+    auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
     SCOPED_TRACE("Param type " + param_type.type.name());
     ASSERT_TRUE(sig != nullptr);
@@ -2930,7 +2930,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueTypePair param_type = kValueTypes[j];
       const uint8_t data[] = {SIG_ENTRY_x_x(ret_type.code, param_type.code)};
-      const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+      auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
       SCOPED_TRACE("Param type " + param_type.type.name());
       ASSERT_TRUE(sig != nullptr);
@@ -2952,7 +2952,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
       ValueTypePair p1_type = kValueTypes[j];
       const uint8_t data[] = {
           SIG_ENTRY_x_xx(kI32Code, p0_type.code, p1_type.code)};
-      const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+      auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
       SCOPED_TRACE("Signature i32(" + p0_type.type.name() + ", " +
                    p1_type.type.name() + ")");
@@ -2975,7 +2975,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
       ValueTypePair p1_type = kValueTypes[j];
       const uint8_t data[] = {SIG_ENTRY_xx_xx(p0_type.code, p1_type.code,
                                               p0_type.code, p1_type.code)};
-      const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+      auto [storage, sig] = DecodeSig(base::ArrayVector(data));
 
       SCOPED_TRACE("p0 = " + p0_type.type.name() +
                    ", p1 = " + p1_type.type.name());
@@ -2996,7 +2996,7 @@ TEST_F(WasmSignatureDecodeTest, Simd) {
     EXPECT_TRUE(DecodeSigError(base::ArrayVector(data)))
         << "Type S128 should not be allowed on this hardware";
   } else {
-    const FunctionSig* sig = DecodeSig(base::ArrayVector(data));
+    auto [storage, sig] = DecodeSig(base::ArrayVector(data));
     ASSERT_TRUE(sig != nullptr);
     EXPECT_EQ(0u, sig->parameter_count());
     EXPECT_EQ(1u, sig->return_count());
@@ -3627,7 +3627,7 @@ TEST_F(WasmModuleVerifyTest, Section_Name_No_UTF8) {
   EXPECT_FAILURE(data);
 }
 
-class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
+class WasmModuleCustomSectionTest : public TestWithPlatform {
  public:
   void CheckSections(base::Vector<const uint8_t> wire_bytes,
                      const CustomSectionOffset* expected, size_t num_expected) {
