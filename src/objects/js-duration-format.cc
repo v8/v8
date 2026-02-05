@@ -501,7 +501,7 @@ DirectHandle<String> StyleToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 DirectHandle<String> StyleToString(Isolate* isolate,
@@ -527,7 +527,7 @@ DirectHandle<String> StyleToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 DirectHandle<String> DisplayToString(Isolate* isolate,
@@ -540,7 +540,7 @@ DirectHandle<String> DisplayToString(Isolate* isolate,
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -636,7 +636,7 @@ UNumberUnitWidth ToUNumberUnitWidth(JSDurationFormat::FieldStyle style) {
   }
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 struct Part {

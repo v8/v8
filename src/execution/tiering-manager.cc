@@ -215,7 +215,7 @@ int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
       // The enum value is coming from inside the sandbox and while the switch
       // is exhaustive, it's not guaranteed that value is one of the declared
       // values.
-      SBXCHECK(false);
+      UNREACHABLE();
     }
     return v8_flags.invocation_count_for_maglev * bytecode_length;
   }
@@ -450,7 +450,7 @@ bool ShouldResetInterruptBudgetByICChange(
   }
   // The enum value is coming from inside the sandbox and while the switch is
   // exhaustive, it's not guaranteed that value is one of the declared values.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 }  // namespace

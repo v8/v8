@@ -1174,7 +1174,7 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
 
   // Avoid undefined behavior for enum values not handled by the exhaustive
   // switch, since they're read from inside the sandbox.
-  SBXCHECK(false);
+  UNREACHABLE();
 }
 
 HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
