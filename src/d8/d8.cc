@@ -7356,6 +7356,7 @@ int Shell::Main(int argc, char* argv[]) {
           FATAL("REPRL: Unknown action: %u", action);
         }
       }
+#endif  // V8_FUZZILLI
 #ifdef V8_DUMPLING
       v8::internal::Isolate* internal_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
@@ -7365,7 +7366,6 @@ int Shell::Main(int argc, char* argv[]) {
         internal_isolate->dumpling_manager()->PrepareForNextREPRLCycle();
       }
 #endif  // V8_DUMPLING
-#endif  // V8_FUZZILLI
 
       result = 0;
 
@@ -7475,6 +7475,15 @@ int Shell::Main(int argc, char* argv[]) {
         cpu_profiler->Dispose();
       }
 
+#ifdef V8_DUMPLING
+      // Need to make sure that dump file is fully readable by Fuzzilli.
+      // TODO(mdanylo): ideally this should be a part of fd-based protocol
+      // between Fuzzilli and V8.
+      if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
+        internal_isolate->dumpling_manager()->FinishCurrentREPRLCycle();
+      }
+#endif  // V8_DUMPLING
+
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
@@ -7501,14 +7510,6 @@ int Shell::Main(int argc, char* argv[]) {
         // to be flushed after every execution
         fflush(stdout);
         fflush(stderr);
-#ifdef V8_DUMPLING
-        // Need to make sure that dump file is fully readable by Fuzzilli.
-        // TODO(mdanylo): ideally this should be a part of fd-based protocol
-        // between Fuzzilli and V8.
-        if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
-          internal_isolate->dumpling_manager()->FinishCurrentREPRLCycle();
-        }
-#endif  // V8_DUMPLING
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
         if (options.fuzzilli_enable_builtins_coverage) {
