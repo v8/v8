@@ -248,108 +248,116 @@ void WasmShuffleAnalyzer::ProcessReplaceLane(
 }
 
 void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
-    const Simd128ShuffleOp& shuffle_op, const Simd128ShuffleOp& shuffle,
+    const Simd128ShuffleOp& shuffle_in, const Simd128ShuffleOp& shuffle_out,
     uint8_t lower_limit, uint8_t upper_limit) {
   // Suppose we have two 16-byte shuffles:
-  // |---a1---|---b3---|--------|--------|  shuffle_op = (a, b)
+  // |---a1---|---b3---|--------|--------|  shuffle_in = (a, b)
   //
-  // |---a1---|---b3---|---c?---|---c?---|  shuffle = (shf0, c)
+  // |---a1---|---b3---|---c?---|---c?---|  shuffle_out = (shuffle_in, c)
   //
-  // As only half of the shf0 is used, it means that half the work of shf0 is
-  // wasted so, here, we try to reduce shf0 to a more narrow kind. In the case
-  // above we can simply truncate shf0.shuffle but there are other situations
-  // which involve more work:
+  // As only half of the shuffle_in is used, it means that half the work of
+  // shuffle_in is wasted so, here, we try to reduce shuffle_in to a more narrow
+  // kind. In the case above we can simply truncate shuffle_in.shuffle but
+  // there are other situations which involve more work:
   //
-  // In the following case, shf0.shuffle needs to be shifted left so that it
-  // writes the required lanes to the low half of the result. This then means
-  // that shf1.shuffle needs to be updated to read from the low half.
+  // In the following case, shuffle_in.shuffle needs to be shifted left so that
+  // it writes the required lanes to the low half of the result. This then means
+  // that shuffle_out.shuffle needs to be updated to read from the low half.
   //
-  // |--------|--------|---a1---|---b3---|  shuffle_op = (a, b)
+  // |--------|--------|---a1---|---b3---|  shuffle_in = (a, b)
   //
-  // |---a1---|---b3---|---c?---|---c?---|  shuffle = (shf0, c)
+  // |---a1---|---b3---|---c?---|---c?---|  shuffle_out = (shuffle_in, c)
   //
 
   struct ShuffleHelper {
+    const uint8_t* shuffle;
+
     explicit ShuffleHelper(const uint8_t* shuffle) : shuffle(shuffle) {}
 
     const uint8_t* begin() const { return shuffle; }
 
-    const uint8_t* midpoint() const {
-      constexpr size_t half_lanes = kSimd128Size / 2;
-      return shuffle + half_lanes;
-    }
+    const uint8_t* midpoint() const { return shuffle + kSimd128HalfSize; }
 
     const uint8_t* end() const { return shuffle + kSimd128Size; }
 
-    const uint8_t* shuffle;
+    // Test whether the low half of the shuffle is within the inclusive range.
+    bool all_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::all_of(begin(), midpoint(),
+                         [lower_limit, upper_limit](uint8_t i) {
+                           return i >= lower_limit && i <= upper_limit;
+                         });
+    }
+    // Test whether the high half of the shuffle is within the inclusive range.
+    bool all_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::all_of(midpoint(), end(),
+                         [lower_limit, upper_limit](uint8_t i) {
+                           return i >= lower_limit && i <= upper_limit;
+                         });
+    }
+    // Test whether none of the low half of the shuffle contains lanes within
+    // the inclusive range.
+    bool none_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::none_of(begin(), midpoint(),
+                          [lower_limit, upper_limit](uint8_t i) {
+                            return i >= lower_limit && i <= upper_limit;
+                          });
+    }
+    // Test whether none of the high half of the shuffle contains lanes within
+    // the inclusive range.
+    bool none_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return std::none_of(midpoint(), end(),
+                          [lower_limit, upper_limit](uint8_t i) {
+                            return i >= lower_limit && i <= upper_limit;
+                          });
+    }
+
+    bool shuffle_into_low_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return all_low_half(lower_limit, upper_limit) &&
+             none_high_half(lower_limit, upper_limit);
+    }
+
+    bool shuffle_into_high_half(uint8_t lower_limit, uint8_t upper_limit) {
+      return all_high_half(lower_limit, upper_limit) &&
+             none_low_half(lower_limit, upper_limit);
+    }
   };
 
-  ShuffleHelper view(shuffle.shuffle);
+  ShuffleHelper view(shuffle_out.shuffle);
+  DCHECK(!(view.shuffle_into_low_half(lower_limit, upper_limit) &&
+           view.shuffle_into_high_half(lower_limit, upper_limit)));
 
-  // Test whether the low half of the shuffle is within the inclusive range.
-  auto all_low_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::all_of(view.begin(), view.midpoint(),
-                       [lower_limit, upper_limit](uint8_t i) {
-                         return i >= lower_limit && i <= upper_limit;
-                       });
-  };
-  // Test whether the high half of the shuffle is within the inclusive range.
-  auto all_high_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::all_of(view.midpoint(), view.end(),
-                       [lower_limit, upper_limit](uint8_t i) {
-                         return i >= lower_limit && i <= upper_limit;
-                       });
-  };
-  // Test whether none of the low half of the shuffle contains lanes within the
-  // inclusive range.
-  auto none_low_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::none_of(view.begin(), view.midpoint(),
-                        [lower_limit, upper_limit](uint8_t i) {
-                          return i >= lower_limit && i <= upper_limit;
-                        });
-  };
-  // Test whether none of the high half of the shuffle contains lanes within the
-  // inclusive range.
-  auto none_high_half = [&view](uint8_t lower_limit, uint8_t upper_limit) {
-    return std::none_of(view.midpoint(), view.end(),
-                        [lower_limit, upper_limit](uint8_t i) {
-                          return i >= lower_limit && i <= upper_limit;
-                        });
-  };
-
-  // lower_ and upper_limit and set from the caller depending on whether we're
+  // lower_ and upper_limit are set from the caller depending on whether we're
   // examining the left or right operand of shuffle. So, here we check if
   // shuffle_op is being exclusively shuffled into the low or high half using
   // either the lower and upper limits of {0,15} or {16,31}.
-  bool shf_into_low_half = all_low_half(lower_limit, upper_limit) &&
-                           none_high_half(lower_limit, upper_limit);
-  bool shf_into_high_half = all_high_half(lower_limit, upper_limit) &&
-                            none_low_half(lower_limit, upper_limit);
-  DCHECK(!(shf_into_low_half && shf_into_high_half));
 
-  constexpr size_t quarter_lanes = kSimd128Size / 4;
-  if (shf_into_low_half) {
-    if (all_low_half(lower_limit + quarter_lanes, upper_limit)) {
-      // Low half of shuffle is sourced from the high half of shuffle_op.
-      demanded_element_analysis.RecordOp(shuffle_op,
+  if (view.shuffle_into_low_half(lower_limit, upper_limit)) {
+    if (view.all_low_half(lower_limit + kSimd128HalfSize, upper_limit)) {
+      // The low half of the result shuffle is sourced only from the high half
+      // of the input shuffle_op.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
-      shift_shuffles_.push_back(&shuffle_op);
-      low_half_shuffles_.push_back(&shuffle);
-    } else if (all_low_half(lower_limit, upper_limit - quarter_lanes)) {
-      // Low half of shuffle is sourced from the low half of shuffle_op.
-      demanded_element_analysis.RecordOp(shuffle_op,
+      shift_shuffles_.push_back(&shuffle_in);
+      low_half_shuffles_.push_back(&shuffle_out);
+    } else if (view.all_low_half(lower_limit, upper_limit - kSimd128HalfSize)) {
+      // The low half of the result shuffle is sourced only from the low half
+      // of the input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
     }
-  } else if (shf_into_high_half) {
-    if (all_high_half(lower_limit + quarter_lanes, upper_limit)) {
-      // High half of shuffle is sourced from the high half of shuffle_op.
-      demanded_element_analysis.RecordOp(shuffle_op,
+  } else if (view.shuffle_into_high_half(lower_limit, upper_limit)) {
+    if (view.all_high_half(lower_limit + kSimd128HalfSize, upper_limit)) {
+      // The high half of the result shuffle is sourced only from the high half
+      // of input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
-      shift_shuffles_.push_back(&shuffle_op);
-      high_half_shuffles_.push_back(&shuffle);
-    } else if (all_high_half(lower_limit, upper_limit - quarter_lanes)) {
-      // High half of shuffle is sourced from the low half of shuffle_op.
-      demanded_element_analysis.RecordOp(shuffle_op,
+      shift_shuffles_.push_back(&shuffle_in);
+      high_half_shuffles_.push_back(&shuffle_out);
+    } else if (view.all_high_half(lower_limit,
+                                  upper_limit - kSimd128HalfSize)) {
+      // The high half of the result shuffle is sourced only from the low half
+      // of input shuffle.
+      demanded_element_analysis.RecordOp(shuffle_in,
                                          DemandedElementAnalysis::k8x8Low);
     }
   }

@@ -2653,6 +2653,115 @@ WASM_EXEC_TEST(S8x16Concat) {
   }
 }
 
+WASM_EXEC_TEST(I8x16ShuffleOfShuffleLowQuarter) {
+  WasmRunner<int32_t> r(execution_tier);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_a = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_b = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_c = r.builder().AddGlobal<uint8_t>(kWasmS128);
+
+  for (int i = 0; i < kSimd128Size; ++i) {
+    LANE(src_a, i) = i;
+    LANE(src_b, i) = 100 + i;
+    LANE(src_c, i) = 200 + i;
+  }
+
+  constexpr std::array<int8_t, kSimd128Size> inner_shuffle = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  constexpr std::array<int8_t, kSimd128Size> outer_shuffle = {
+      4, 5, 6, 7, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23};
+
+  r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SHUFFLE_OP(
+                                  kExprI8x16Shuffle, outer_shuffle,
+                                  WASM_SIMD_I8x16_SHUFFLE_OP(
+                                      kExprI8x16Shuffle, inner_shuffle,
+                                      WASM_GLOBAL_GET(1), WASM_GLOBAL_GET(2)),
+                                  WASM_GLOBAL_GET(3))),
+           WASM_ONE});
+
+  // src_a = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
+  // src_a = [ A0, A1, A2, A3 ]
+  //
+  // src_b = [ 100, 101, 102, 103, ... 115 ]
+  // src_b = [ B0, B1, B2, B3 ]
+  //
+  // Shuffles patterns allow us to interpret them as 32x4.
+  //
+  // inner_shuffle = [0, 1, 2, 3](src_a, src_b)
+  // inner_shuffle = [ A0, A1, A2, A3 ]
+  //
+  // src_c = [ 200, 201, 202, 203, ... 215 ]
+  // src_c = [ C0, C1, C2, C3 ]
+  //
+  // outer_shuffle = [1, 1, 4, 5](inner_shuffle, src_c)
+  // outer_shuffle = [ A1, A1, C0, C1 ]
+  //
+  // A1 = [ 4, 5, 6, 7 ]
+  // C0 = [ 200, 201, 202, 203 ]
+  // C1 = [ 204, 205, 206, 207 ]
+
+  CHECK_EQ(1, r.Call());
+  constexpr std::array<uint8_t, kSimd128Size> expected = {
+      4, 5, 6, 7, 4, 5, 6, 7, 200, 201, 202, 203, 204, 205, 206, 207};
+  for (int i = 0; i < kSimd128Size; ++i) {
+    CHECK_EQ(LANE(dst, i), expected[i]);
+  }
+}
+
+WASM_EXEC_TEST(I8x16ShuffleOfShuffleHighQuarter) {
+  WasmRunner<int32_t> r(execution_tier);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_a = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_b = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src_c = r.builder().AddGlobal<uint8_t>(kWasmS128);
+
+  for (int i = 0; i < kSimd128Size; ++i) {
+    LANE(src_a, i) = i;
+    LANE(src_b, i) = 100 + i;
+    LANE(src_c, i) = 200 + i;
+  }
+
+  constexpr std::array<int8_t, kSimd128Size> inner_shuffle = {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  constexpr std::array<int8_t, kSimd128Size> outer_shuffle = {
+      16, 17, 18, 19, 20, 21, 22, 23, 4, 5, 6, 7, 4, 5, 6, 7};
+
+  r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SHUFFLE_OP(
+                                  kExprI8x16Shuffle, outer_shuffle,
+                                  WASM_SIMD_I8x16_SHUFFLE_OP(
+                                      kExprI8x16Shuffle, inner_shuffle,
+                                      WASM_GLOBAL_GET(1), WASM_GLOBAL_GET(2)),
+                                  WASM_GLOBAL_GET(3))),
+           WASM_ONE});
+
+  // src_a = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
+  // src_a = [ A0, A1, A2, A3 ]
+  //
+  // src_b = [ 100, 101, 102, 103, ... 115 ]
+  // src_b = [ B0, B1, B2, B3 ]
+  //
+  // Shuffles patterns allow us to interpret them as 32x4.
+  //
+  // inner_shuffle = [0, 1, 2, 3](src_a, src_b)
+  // inner_shuffle = [ A0, A1, A2, A3 ]
+  // src_c = [ 200, 201, 202, 203, ... 215 ]
+  // src_c = [ C0, C1, C2, C3 ]
+  //
+  // outer_shuffle = [4, 5, 1, 1](inner_shuffle, src_c)
+  // outer_shuffle = [ C0, C1, A1, A1 ]
+  //
+  // A1 = [ 4, 5, 6, 7 ]
+  // C0 = [ 200, 201, 202, 203 ]
+  // C1 = [ 204, 205, 206, 207 ]
+
+  CHECK_EQ(1, r.Call());
+  constexpr std::array<uint8_t, kSimd128Size> expected = {
+      200, 201, 202, 203, 204, 205, 206, 207, 4, 5, 6, 7, 4, 5, 6, 7};
+  for (int i = 0; i < kSimd128Size; ++i) {
+    CHECK_EQ(LANE(dst, i), expected[i]);
+  }
+}
+
 WASM_EXEC_TEST(ShuffleShufps) {
   // We reverse engineer the shufps immediates into 8x16 shuffles.
   std::array<int8_t, kSimd128Size> expected;
