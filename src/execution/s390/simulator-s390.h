@@ -157,6 +157,7 @@ class Simulator : public SimulatorBase {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
     if (InstructionTracingEnabled()) {
       uint64_t bits = 0;
+      static_assert(sizeof(val) <= sizeof(bits));
       memcpy(&bits, &val, sizeof(val));
 
       PrintF("%s <- 0x%08" V8PRIxPTR "\n",
