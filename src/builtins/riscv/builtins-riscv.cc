@@ -3788,10 +3788,12 @@ void SwitchStackPointerAndSimulatorStackLimit(MacroAssembler* masm,
   if (masm->options().enable_simulator_code) {
     UseScratchRegisterScope temps(masm);
     temps.Exclude(kSimulatorBreakArgument);
-    __ LoadWord(sp, MemOperand(stack, wasm::kStackSpOffset));
+    Register tmp = temps.Acquire();
+    __ LoadWord(tmp, MemOperand(stack, wasm::kStackSpOffset));
     __ LoadWord(kSimulatorBreakArgument,
                 MemOperand(stack, wasm::kStackLimitOffset));
-    __ break_(kExceptionIsSwitchStackLimit);
+    __ mv(sp, tmp);
+    __ break_(kExceptionIsSwitchStackLimit, false);
   } else {
     __ LoadWord(sp, MemOperand(stack, wasm::kStackSpOffset));
   }

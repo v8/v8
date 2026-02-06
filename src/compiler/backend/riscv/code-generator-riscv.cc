@@ -1117,7 +1117,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ RecordComment("-- Set simulator stack limit --");
         __ LoadStackLimit(kSimulatorBreakArgument,
                           StackLimitKind::kRealStackLimit);
-        __ break_(kExceptionIsSwitchStackLimit);
+        __ break_(kExceptionIsSwitchStackLimit, false);
       }
       __ Move(sp, i.InputRegister(0));
       break;
@@ -5322,6 +5322,14 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ mv(fp, kReturnRegister0);
     __ MultiPop(regs_to_save);
+    if (masm()->options().enable_simulator_code) {
+      UseScratchRegisterScope temps(masm());
+      temps.Exclude(kSimulatorBreakArgument);
+      __ RecordComment("-- Set simulator stack limit --");
+      __ LoadStackLimit(kSimulatorBreakArgument,
+                        StackLimitKind::kRealStackLimit);
+      __ break_(kExceptionIsSwitchStackLimit, false);
+    }
     __ bind(&done);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
