@@ -31,9 +31,6 @@
   # still use the old API (which works but is deprecated).
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
 
-  # TODO(tlively): Need to update test to use struct.new_desc.
-  'proposals/custom-descriptors/custom-descriptors/prototype': [FAIL],
-
   # TODO(402340845): This requires the type reflection proposal to be staged or enabled by default.
   'wpt/function/call.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],

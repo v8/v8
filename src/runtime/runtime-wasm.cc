@@ -2050,8 +2050,10 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   // the data we'll need to decode.
   uint32_t length = data->length();
   std::vector<uint8_t> immovable_data(size_t{length});
-  memcpy(immovable_data.data(),
-         reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+  if (length != 0) {
+    memcpy(immovable_data.data(),
+           reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+  }
 
   PrototypesSetup_Arrays decoder(isolate, immovable_data.data(),
                                  immovable_data.data() + length, prototypes,
