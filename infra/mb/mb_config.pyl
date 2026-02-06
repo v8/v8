@@ -298,7 +298,6 @@
       'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
       'v8_linux64_jammy_gcc_compile_rel': 'release_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
-      'v8_linux64_minor_mc_compile_dbg': 'debug_x64_trybot',
       'v8_linux64_fyi_compile_rel': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_compile_rel': 'release_x64',
       'v8_linux64_perfetto_compile_dbg': 'debug_x64_perfetto',
