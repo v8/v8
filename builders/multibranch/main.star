@@ -133,11 +133,6 @@ in_category(
         dimensions = {"host_class": "strong", "os": "Ubuntu-24.04", "cpu": "x86-64"},
         executable = "recipe:v8/bazel",
     ),
-    main_multibranch_builder(
-        name = "V8 Linux64 - minor mc - debug",
-        parent_builder = "V8 Linux64 - debug builder",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - debug - single generation",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
