@@ -265,6 +265,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
     case kI32:
     case kI8:
     case kI16:
+    case kWaitQueue:
       return WasmValue(0);
     case kI64:
       return WasmValue(int64_t{0});

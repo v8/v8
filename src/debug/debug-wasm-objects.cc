@@ -1023,6 +1023,12 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
       v = WasmSimd128ToString(isolate, value.to_s128_unchecked());
       break;
     }
+    case wasm::kWaitQueue: {
+      t = isolate->factory()->InternalizeString(
+          base::StaticCharVector("waitqueue"));
+      v = isolate->factory()->NewNumberFromInt(value.to_i32_unchecked());
+      break;
+    }
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();

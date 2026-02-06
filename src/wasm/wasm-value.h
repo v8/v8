@@ -82,6 +82,15 @@ class WasmValue {
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
+  static WasmValue WaitQueue(int32_t value) {
+    return WasmValue(reinterpret_cast<const uint8_t*>(&value), kWasmWaitQueue);
+  }
+
+  int32_t to_wait_queue_value() const {
+    DCHECK_EQ(type_, kWasmWaitQueue);
+    return to_i32_unchecked();
+  }
+
   DirectHandle<Object> to_ref() const {
     DCHECK(type_.is_ref());
     return base::ReadUnalignedValue<DirectHandle<Object>>(
@@ -107,7 +116,7 @@ class WasmValue {
     memcpy(to, bit_pattern_, type_.value_kind_size());
   }
 
-  // If {packed_type.is_packed()}, create a new value of {packed_type()}.
+  // If {packed_type.is_packed()}, create a new value of {packed_type}.
   // Otherwise, return this object.
   WasmValue Packed(ValueType packed_type) const {
     if (packed_type == kWasmI8) {
@@ -117,6 +126,10 @@ class WasmValue {
     if (packed_type == kWasmI16) {
       DCHECK_EQ(type_, kWasmI32);
       return WasmValue(static_cast<int16_t>(to_i32()));
+    }
+    if (packed_type == kWasmWaitQueue) {
+      DCHECK_EQ(type_, kWasmI32);
+      return WaitQueue(to_i32());
     }
     return *this;
   }
@@ -163,6 +176,8 @@ class WasmValue {
         }
         return stream.str();
       }
+      case kWaitQueue:
+        return "WaitQueue[" + std::to_string(to_wait_queue_value()) + "]";
       case kRefNull:
       case kRef:
         return "DirectHandle [" + std::to_string(to_ref().address()) + "]";

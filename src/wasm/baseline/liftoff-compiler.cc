@@ -5752,6 +5752,7 @@ class LiftoffCompiler {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kF16:
+      case wasm::kWaitQueue:
       case wasm::kVoid:
       case wasm::kTop:
       case wasm::kBottom:
@@ -5809,6 +5810,7 @@ class LiftoffCompiler {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kF16:
+      case wasm::kWaitQueue:
       case wasm::kVoid:
       case wasm::kTop:
       case wasm::kBottom:
@@ -10500,6 +10502,7 @@ class LiftoffCompiler {
       case kI8:
       case kI16:
       case kI32:
+      case kWaitQueue:
         return __ LoadConstant(reg, WasmValue(int32_t{0}));
       case kI64:
         return __ LoadConstant(reg, WasmValue(int64_t{0}));
@@ -10701,7 +10704,9 @@ class LiftoffCompiler {
       // MVP:
       kI32, kI64, kF32, kF64,
       // Extern ref:
-      kRef, kRefNull, kI8, kI16};
+      kRef, kRefNull, kI8, kI16,
+      // Shared-everything
+      kWaitQueue};
 
   LiftoffAssembler asm_;
 

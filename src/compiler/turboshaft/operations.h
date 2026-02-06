@@ -7453,7 +7453,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   // the concept is so similar: have an object, load a value from it.
   static constexpr int kDescFieldIndex = -1;
 
-  bool is_signed;  // `false` only for unsigned packed type accesses.
+  bool is_signed;  // `false` only for unsigned i8/i16 accesses.
   CheckForNull null_check;
   const wasm::StructType* type;
   wasm::ModuleTypeIndex type_index;

@@ -2309,6 +2309,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     return wasm::WasmValue(base::ReadUnalignedValue<ctype>(field_address));
     CASE_TYPE(kI8, int8_t)
     CASE_TYPE(kI16, int16_t)
+    CASE_TYPE(kWaitQueue, int32_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     case wasm::kF16:
@@ -2339,6 +2340,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     return wasm::WasmValue(base::ReadUnalignedValue<ctype>(element_address));
     CASE_TYPE(kI8, int8_t)
     CASE_TYPE(kI16, int16_t)
+    CASE_TYPE(kWaitQueue, int32_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     case wasm::kF16:
@@ -2978,6 +2980,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::CanonicalSig* sig) {
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kF16:
+      case wasm::kWaitQueue:
         UNREACHABLE();
     }
   }

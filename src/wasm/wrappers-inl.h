@@ -83,6 +83,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
       case NumericKind::kI8:
       case NumericKind::kI16:
       case NumericKind::kF16:
+      case NumericKind::kWaitQueue:
         UNREACHABLE();
     }
   }

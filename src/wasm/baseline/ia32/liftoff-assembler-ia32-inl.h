@@ -57,6 +57,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->mov(dst.gp(), src);
       break;
     case kI64:
@@ -91,6 +92,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->mov(dst, src.gp());
       break;
     case kI64:
@@ -121,6 +123,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kRef:
     case kRefNull:
+    case kWaitQueue:
       assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;

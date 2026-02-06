@@ -2913,6 +2913,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     Address field_address = RawFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
+      case wasm::kWaitQueue:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
       case wasm::kI64:
@@ -2976,6 +2977,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (element_type.kind()) {
     case wasm::kI32:
+    case wasm::kWaitQueue:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);
       break;

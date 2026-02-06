@@ -292,6 +292,7 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->str(src.gp(), dst);
       break;
     case kI64:
@@ -328,6 +329,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kI32:
     case kRefNull:
     case kRef:
+    case kWaitQueue:
       assm->ldr(dst.gp(), src);
       break;
     case kI64:

@@ -909,6 +909,8 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
       DCHECK_EQ(base::ReadUnalignedValue<int64_t>(initial_value_addr), 0);
       std::memset(initial_element_address, 0, bytes_to_set);
       return;
+    case kWaitQueue:
+      UNIMPLEMENTED();
     case kVoid:
     case kTop:
     case kBottom:

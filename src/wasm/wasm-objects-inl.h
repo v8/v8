@@ -664,7 +664,8 @@ DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
       int16_t value = base::Memory<int16_t>(field_address);
       return direct_handle(Smi::FromInt(value), isolate);
     }
-    case wasm::kI32: {
+    case wasm::kI32:
+    case wasm::kWaitQueue: {
       int32_t value = base::Memory<int32_t>(field_address);
       return isolate->factory()->NewNumberFromInt(value);
     }

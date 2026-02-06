@@ -3543,6 +3543,7 @@ class TurboshaftGraphBuildingInterface
         case kI8:
         case kI16:
         case kF16:
+        case kWaitQueue:
         case kVoid:
         case kTop:
         case kBottom:
@@ -5201,6 +5202,7 @@ class TurboshaftGraphBuildingInterface
         case wasm::kI64:
         case wasm::kI8:
         case wasm::kI16:
+        case wasm::kWaitQueue:
           array_copy_max_loop_length = 20;
           break;
         case wasm::kF16:  // TODO(irezvov): verify the threshold for F16.
@@ -6552,6 +6554,7 @@ class TurboshaftGraphBuildingInterface
       case kI8:
       case kI16:
       case kI32:
+      case kWaitQueue:
         return __ Word32Constant(int32_t{0});
       case kI64:
         return __ Word64Constant(int64_t{0});
@@ -8615,6 +8618,7 @@ class TurboshaftGraphBuildingInterface
         case kI8:
         case kI16:
         case kF16:
+        case kWaitQueue:
         case kVoid:
         case kTop:
         case kBottom:
@@ -8895,6 +8899,7 @@ class TurboshaftGraphBuildingInterface
       case wasm::kI64:
       case wasm::kF32:
       case wasm::kF64:
+      case wasm::kWaitQueue:
       case wasm::kRefNull:
       case wasm::kRef:
         break;
@@ -8907,7 +8912,7 @@ class TurboshaftGraphBuildingInterface
       case wasm::kF16:
         UNIMPLEMENTED();
       case wasm::kVoid:
-      case kTop:
+      case wasm::kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }

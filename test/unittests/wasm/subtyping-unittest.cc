@@ -199,8 +199,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 2);
   }
 
-  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
-                                         kWasmS128};
+  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64,      kWasmF32,
+                                         kWasmF64, kWasmS128,     kWasmI8,
+                                         kWasmI16, kWasmWaitQueue};
   constexpr ValueType ref_types[] = {
       kWasmFuncRef,
       kWasmEqRef,

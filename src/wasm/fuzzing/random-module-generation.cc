@@ -4935,7 +4935,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
   switch (type.kind()) {
     case kI8:
     case kI16:
-    case kI32: {
+    case kI32:
+    case kWaitQueue: {
       if (range.size() == 0 || recursion_depth >= kMaxRecursionDepth) {
         return WasmInitExpr(int32_t{0});
       }

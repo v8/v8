@@ -4012,15 +4012,21 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   HeapType immutable_struct_type = builder.AddStruct({F(kWasmI32, false)});
   ModuleTypeIndex immutable_struct_type_index =
       immutable_struct_type.ref_index();
+  HeapType struct_waitqueue_type =
+      builder.AddStruct({F(kWasmWaitQueue, false)});
+  ModuleTypeIndex struct_waitqueue_type_index =
+      struct_waitqueue_type.ref_index();
   uint8_t field_index = 0;
 
   ValueType struct_type = ValueType::Ref(struct_heaptype);
   ValueType reps_i_r[] = {kWasmI32, struct_type};
   ValueType reps_f_r[] = {kWasmF32, struct_type};
+  ValueType reps_i_w[] = {kWasmI32, ValueType::Ref(struct_waitqueue_type)};
   const FunctionSig sig_i_r(1, 1, reps_i_r);
   const FunctionSig sig_v_r(0, 1, &struct_type);
   const FunctionSig sig_r_v(1, 0, &struct_type);
   const FunctionSig sig_f_r(1, 1, reps_f_r);
+  const FunctionSig sig_i_w(1, 1, reps_i_w);
 
   /** struct.new **/
   ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
@@ -4106,15 +4112,27 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       &sig_i_r,
       {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_s: Field 0 of type 0 has non-packed type i32. Use struct.get "
-      "instead.");
+      "struct.get_s: Field 0 of type 0 has type i32. Use struct.get instead.");
 
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_u: Field 0 of type 0 has non-packed type i32. Use struct.get "
-      "instead.");
+      "struct.get_u: Field 0 of type 0 has type i32. Use struct.get instead.");
+
+  ExpectFailure(&sig_i_w,
+                {WASM_STRUCT_GET_S(struct_waitqueue_type_index, field_index,
+                                   WASM_LOCAL_GET(0))},
+                kAppendEnd,
+                "struct.get_s: Field 0 of type 3 has type waitqueue. Use "
+                "struct.get instead.");
+
+  ExpectFailure(&sig_i_w,
+                {WASM_STRUCT_GET_U(struct_waitqueue_type_index, field_index,
+                                   WASM_LOCAL_GET(0))},
+                kAppendEnd,
+                "struct.get_u: Field 0 of type 3 has type waitqueue. Use "
+                "struct.get instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -4199,14 +4217,12 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s: Array type 0 has non-packed type funcref. Use array.get "
-      "instead.");
+      "array.get_s: Array type 0 has type funcref. Use array.get instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u: Array type 0 has non-packed type funcref. Use array.get "
-      "instead.");
+      "array.get_u: Array type 0 has type funcref. Use array.get instead.");
 
   /** array.set **/
   ExpectValidates(&sig_v_r,
@@ -4328,14 +4344,14 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                 {WASM_ARRAY_GET(array_type_index,
                                 WASM_REF_NULL(array_type_index), WASM_I32V(0))},
                 kAppendEnd,
-                "array.get: Array type 0 has packed type i8. Use array.get_s "
-                "or array.get_u instead.");
+                "array.get: Array type 0 has type i8. Use array.get_s or "
+                "array.get_u instead.");
   ExpectFailure(sigs.i_v(),
                 {WASM_STRUCT_GET(struct_type_index, field_index,
                                  WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
-                "struct.get: Field 0 of type 1 has packed type i16. "
-                "Use struct.get_s or struct.get_u instead.");
+                "struct.get: Field 0 of type 1 has type i16. Use struct.get_s "
+                "or struct.get_u instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
@@ -6641,11 +6657,11 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
   ExpectFailure(
       sig_get,
       {WASM_STRUCT_ATOMIC_GET_S(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
-      kAppendEnd, "struct.atomic.get_s: Field 0 of type 0 has non-packed type");
+      kAppendEnd, "struct.atomic.get_s: Field 0 of type 0 has type");
   ExpectFailure(
       sig_get,
       {WASM_STRUCT_ATOMIC_GET_U(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
-      kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has non-packed type");
+      kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has type");
 }
 
 TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
@@ -6663,13 +6679,11 @@ TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET_S(0, array_type_index, WASM_LOCAL_GET(0),
                                          WASM_LOCAL_GET(1))},
-                kAppendEnd,
-                "array.atomic.get_s: Array type 0 has non-packed type");
+                kAppendEnd, "array.atomic.get_s: Array type 0 has type");
   ExpectFailure(sig_get,
                 {WASM_ARRAY_ATOMIC_GET_U(0, array_type_index, WASM_LOCAL_GET(0),
                                          WASM_LOCAL_GET(1))},
-                kAppendEnd,
-                "array.atomic.get_u: Array type 0 has non-packed type");
+                kAppendEnd, "array.atomic.get_u: Array type 0 has type");
 }
 
 class FunctionBodyDecoderTestAtomicRMWInvalid

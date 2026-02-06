@@ -123,6 +123,9 @@ let kWasmS128 = 0x7b;
 let kWasmI8 = 0x78;
 let kWasmI16 = 0x77;
 let kWasmF16 = 0x76;
+// TODO(manoskouk): The spec now defines this as 0x68 which is the same as
+// kWasmContRef. Fix when spec adjusts.
+let kWasmWaitQueue = 0x5c;
 
 // These are defined as negative integers to distinguish them from positive type
 // indices.

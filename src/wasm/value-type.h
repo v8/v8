@@ -37,7 +37,8 @@ namespace wasm {
   V(S128, 4, S128, Simd128, 's', "v128") \
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")      \
-  V(F16, 1, F16, Float16, 'p', "f16")
+  V(F16, 1, F16, Float16, 'p', "f16")    \
+  V(WaitQueue, 2, WaitQueue, Int32, 'w', "waitqueue")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
@@ -311,12 +312,8 @@ constexpr uint32_t ToZeroBasedIndex(NumericKind kind) {
                 kNumberOfGenericKinds);
   uint32_t raw = PayloadField::decode(static_cast<uint32_t>(kind));
   DCHECK_GE(raw, kNumberOfGenericKinds);
-  // As an additional safety net, as long as we happen to have exactly 8
-  // numeric types, we can conveniently apply a mask here. If we need to
-  // accommodate a different number of numeric kinds in the future, we should
-  // consider adding bounds checks at use sites.
-  static_assert(kNumberOfNumericKinds == 8);
-  return (raw - kNumberOfGenericKinds) & 0x7;
+  // TODO(manoskouk): We should consider adding bounds checks at use sites.
+  return raw - kNumberOfGenericKinds;
 }
 
 }  // namespace value_type_impl
@@ -453,7 +450,8 @@ class ValueTypeBase {
   constexpr bool is_packed() const {
     return bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
            bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
-           bit_field_ == static_cast<uint32_t>(NumericKind::kF16);
+           bit_field_ == static_cast<uint32_t>(NumericKind::kF16) ||
+           bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue);
   }
   constexpr bool is_reference_to(GenericKind type) const {
     return is_abstract_ref() && generic_kind() == type;
@@ -635,6 +633,8 @@ class ValueTypeBase {
         return ValueTypeBase(NumericKind::kI16);
       case kF16:
         return ValueTypeBase(NumericKind::kF16);
+      case kWaitQueue:
+        return ValueTypeBase(NumericKind::kWaitQueue);
       case kVoid:
         return ValueTypeBase(GenericKind::kVoid, kNonNullable, false);
       case kRef:
@@ -668,6 +668,8 @@ class ValueTypeBase {
           return kI16;
         case NumericKind::kF16:
           return kF16;
+        case NumericKind::kWaitQueue:
+          return kWaitQueue;
       }
       UNREACHABLE();
     }
@@ -881,7 +883,8 @@ class ValueType : public ValueTypeBase {
 
   constexpr ValueType Unpacked() const {
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kI8) ||
-        bit_field_ == static_cast<uint32_t>(NumericKind::kI16)) {
+        bit_field_ == static_cast<uint32_t>(NumericKind::kI16) ||
+        bit_field_ == static_cast<uint32_t>(NumericKind::kWaitQueue)) {
       return Primitive(NumericKind::kI32);
     }
     if (bit_field_ == static_cast<uint32_t>(NumericKind::kF16)) {
@@ -1121,7 +1124,7 @@ constexpr MachineType machine_type(ValueKind kind) {
 }
 
 constexpr bool is_packed(ValueKind kind) {
-  return kind == kI8 || kind == kI16 || kind == kF16;
+  return kind == kI8 || kind == kI16 || kind == kF16 || kind == kWaitQueue;
 }
 constexpr ValueKind unpacked(ValueKind kind) {
   return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
@@ -1147,6 +1150,7 @@ constexpr IndependentValueType kWasmS128{NumericKind::kS128};
 constexpr IndependentValueType kWasmI8{NumericKind::kI8};
 constexpr IndependentValueType kWasmI16{NumericKind::kI16};
 constexpr IndependentValueType kWasmF16{NumericKind::kF16};
+constexpr IndependentValueType kWasmWaitQueue{NumericKind::kWaitQueue};
 constexpr IndependentHeapType kWasmVoid{GenericKind::kVoid, kNonNullable};
 // The abstract top type (super type of all other types).
 constexpr IndependentHeapType kWasmTop{GenericKind::kTop};
@@ -1289,7 +1293,13 @@ class LoadType {
         return is_signed ? kI32Load16S : kI32Load16U;
       case kF16:
         return kF32LoadF16;
-      default:
+      case kWaitQueue:
+        return kI32Load;
+      case kVoid:
+      case kRef:
+      case kRefNull:
+      case kTop:
+      case kBottom:
         UNREACHABLE();
     }
   }
@@ -1377,7 +1387,13 @@ class StoreType {
         return kI32Store16;
       case kF16:
         return kF32StoreF16;
-      default:
+      case kWaitQueue:
+        return kI32Store;
+      case kVoid:
+      case kRef:
+      case kRefNull:
+      case kTop:
+      case kBottom:
         UNREACHABLE();
     }
   }

@@ -124,6 +124,7 @@ WasmGraphBuilderBase<Assembler>::RepresentationFor(ValueTypeBase type) {
     case kI8:
     case kI16:
     case kI32:
+    case kWaitQueue:
       return RegisterRepresentation::Word32();
     case kI64:
       return RegisterRepresentation::Word64();

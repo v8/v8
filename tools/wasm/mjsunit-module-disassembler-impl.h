@@ -359,14 +359,15 @@ class MjsunitNamesProvider {
     if (type.is_numeric()) {
       switch (type.numeric_kind()) {
           // clang-format off
-        case NumericKind::kI8:   out << "kWasmI8";   return;
-        case NumericKind::kI16:  out << "kWasmI16";  return;
-        case NumericKind::kI32:  out << "kWasmI32";  return;
-        case NumericKind::kI64:  out << "kWasmI64";  return;
-        case NumericKind::kF16:  out << "kWasmF16";  return;
-        case NumericKind::kF32:  out << "kWasmF32";  return;
-        case NumericKind::kF64:  out << "kWasmF64";  return;
-        case NumericKind::kS128: out << "kWasmS128"; return;
+        case NumericKind::kI8:        out << "kWasmI8";        return;
+        case NumericKind::kI16:       out << "kWasmI16";       return;
+        case NumericKind::kI32:       out << "kWasmI32";       return;
+        case NumericKind::kI64:       out << "kWasmI64";       return;
+        case NumericKind::kF16:       out << "kWasmF16";       return;
+        case NumericKind::kF32:       out << "kWasmF32";       return;
+        case NumericKind::kF64:       out << "kWasmF64";       return;
+        case NumericKind::kS128:      out << "kWasmS128";      return;
+        case NumericKind::kWaitQueue: out << "kWasmWaitQueue"; return;
           // clang-format on
       }
     }

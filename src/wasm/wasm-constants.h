@@ -23,6 +23,8 @@ constexpr uint32_t kWasmMagic = 0x6d736100;
 constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
+// TODO(manoskouk): The spec now defines kWaitQueueCode as 0x68 which is the
+// same as kContRefCode. Fix it when the spec adjusts.
 enum ValueTypeCode : uint8_t {
   // Current value types
   kVoidCode = 0x40,
@@ -56,6 +58,7 @@ enum ValueTypeCode : uint8_t {
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
+  kWaitQueueCode = 0x5c,        // -0x24, packed type.
 
   // For decoding, we build an array for all heap types with these bounds:
   kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
