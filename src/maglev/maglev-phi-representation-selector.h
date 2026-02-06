@@ -291,6 +291,8 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
+  bool is_turbolev() const { return graph_->compilation_info()->is_turbolev(); }
+
   Graph* graph_;
 
   MaglevReducer<MaglevPhiRepresentationSelector> reducer_;

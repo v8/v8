@@ -402,7 +402,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
-  } else if (v8_flags.maglev_truncated_int32_phis &&
+  } else if (v8_flags.maglev_truncated_int32_phis && is_turbolev() &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,

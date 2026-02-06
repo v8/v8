@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --maglev --allow-natives-syntax
-// Flags: --no-optimize-maglev-optimizes-to-turbofan
-// Flags: --maglev-truncated-int32-phis
+// Flags: --no-maglev --allow-natives-syntax
+// Flags: --maglev-truncated-int32-phis --turbofan --turbolev
 
 // In this example, during feedback collection, we provide inputs that cause
 // `phi` to always be a Smi, which means that `phi | 0` will have Smi
@@ -28,7 +27,7 @@ function unused_required_CheckedSmiUntag(x) {
 
 %PrepareFunctionForOptimization(unused_required_CheckedSmiUntag);
 unused_required_CheckedSmiUntag(-0.5);
-%OptimizeMaglevOnNextCall(unused_required_CheckedSmiUntag);
+%OptimizeFunctionOnNextCall(unused_required_CheckedSmiUntag);
 assertEquals(42, unused_required_CheckedSmiUntag(-0.5));
 assertOptimized(unused_required_CheckedSmiUntag);
 // Even if we need to truncate 3.53, we don't deopt.
