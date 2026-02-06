@@ -3186,61 +3186,28 @@ ToTemporalGeneric<JSTemporalZonedDateTime>(
 // times)
 class RelativeTo {
  public:
-  RelativeTo()
-      : date_(std::nullopt),
-        zoned_(std::nullopt),
-        date_ptr_(nullptr),
-        zoned_ptr_(nullptr) {}
+  RelativeTo() = default;
 
-  // These methods are not constructors so that they can be explicitly invoked,
-  // to avoid e.g. passing in an owned type as a pointer.
-  static RelativeTo Owned(std::unique_ptr<temporal_rs::PlainDate>&& val) {
-    RelativeTo ret;
-    ret.date_ = std::move(val);
-    ret.date_ptr_ = ret.date_.value().get();
-    return ret;
-  }
-  static RelativeTo Owned(std::unique_ptr<temporal_rs::ZonedDateTime>&& val) {
-    RelativeTo ret;
-    ret.zoned_ = std::move(val);
-    ret.zoned_ptr_ = ret.zoned_.value().get();
-    return ret;
+  explicit RelativeTo(std::shared_ptr<const temporal_rs::PlainDate> val)
+      : date_(std::move(val)), zoned_(nullptr) {}
+  explicit RelativeTo(std::shared_ptr<const temporal_rs::ZonedDateTime> val)
+      : date_(nullptr), zoned_(std::move(val)) {}
+
+  explicit RelativeTo(temporal_rs::OwnedRelativeTo&& owned) {
+    date_ = std::move(owned.date);
+    zoned_ = std::move(owned.zoned);
   }
 
-  static RelativeTo Owned(temporal_rs::OwnedRelativeTo&& owned) {
-    if (owned.date) {
-      return Owned(std::move(owned.date));
-    } else if (owned.zoned) {
-      return Owned(std::move(owned.zoned));
-    }
-
-    return RelativeTo();
-  }
-
-  static RelativeTo Borrowed(temporal_rs::PlainDate const* val) {
-    RelativeTo ret;
-    ret.date_ptr_ = val;
-    return ret;
-  }
-
-  static RelativeTo Borrowed(temporal_rs::ZonedDateTime const* val) {
-    RelativeTo ret;
-    ret.zoned_ptr_ = val;
-    return ret;
-  }
   temporal_rs::RelativeTo ToRust() const {
     return temporal_rs::RelativeTo{
-        .date = date_ptr_,
-        .zoned = zoned_ptr_,
+        .date = date_.get(),
+        .zoned = zoned_.get(),
     };
   }
 
  private:
-  std::optional<std::unique_ptr<temporal_rs::PlainDate>> date_;
-  std::optional<std::unique_ptr<temporal_rs::ZonedDateTime>> zoned_;
-
-  temporal_rs::PlainDate const* date_ptr_;
-  temporal_rs::ZonedDateTime const* zoned_ptr_;
+  std::shared_ptr<const temporal_rs::PlainDate> date_;
+  std::shared_ptr<const temporal_rs::ZonedDateTime> zoned_;
 };
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
@@ -3294,16 +3261,15 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: undefined,
       // [[ZonedRelativeTo]]: value }.
-      return Just(RelativeTo::Borrowed(
-          Cast<JSTemporalZonedDateTime>(value)->zoned_date_time()->raw()));
+      return Just(
+          RelativeTo(Cast<JSTemporalZonedDateTime>(value)->wrapped_rust()));
     }
 
     // b. If value has an [[InitializedTemporalDate]] internal slot, then
     if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
       // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]:
       // undefined }.
-      return Just(RelativeTo::Borrowed(
-          Cast<JSTemporalPlainDate>(value)->date()->raw()));
+      return Just(RelativeTo(Cast<JSTemporalPlainDate>(value)->wrapped_rust()));
     }
 
     // c. If value has an [[InitializedTemporalDateTime]] internal slot, then
@@ -3320,7 +3286,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
                                          date_record, std::nullopt)));
       // ii. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(RelativeTo::Owned(std::move(plain_date)));
+      return Just(RelativeTo(std::move(plain_date)));
     }
     // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
     temporal_rs::AnyCalendarKind kind = temporal_rs::AnyCalendarKind::Iso;
@@ -3369,7 +3335,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
       // b. Return the Record { [[PlainRelativeTo]]: plainDate,
       // [[ZonedRelativeTo]]: undefined }.
-      return Just(RelativeTo::Owned(std::move(plain_relative_to)));
+      return Just(RelativeTo(std::move(plain_relative_to)));
     }
     // 8. If offsetBehaviour is option, then
     // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
@@ -3394,7 +3360,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
                 TimeZoneProvider())));
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(RelativeTo::Owned(std::move(zoned_relative_to)));
+    return Just(RelativeTo(std::move(zoned_relative_to)));
 
     // 6. Else,
   } else {
@@ -3430,7 +3396,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
 
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
-    return Just(RelativeTo::Owned(std::move(relative_to)));
+    return Just(RelativeTo(std::move(relative_to)));
   }
 }
 
@@ -4471,7 +4437,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
 
   DirectHandle<JSTemporalPlainTime> temporal_time;
-  temporal_rs::PlainTime* temporal_time_rust = nullptr;
+  std::shared_ptr<const temporal_rs::PlainTime> temporal_time_rust;
 
   // 5. If temporalTime is undefined, then
   if (temporal_time_obj.is_null() || IsUndefined(*temporal_time_obj)) {
@@ -4484,13 +4450,13 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_time,
         temporal::ToTemporalTime(isolate, temporal_time_obj, {}, method_name));
-    temporal_time_rust = temporal_time->time()->raw();
+    temporal_time_rust = temporal_time->wrapped_rust();
     // (Rest of the steps handled in Rust)
   }
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate, temporal_date->date()->raw()->to_zoned_date_time_with_provider(
-                   time_zone, temporal_time_rust, TimeZoneProvider()));
+                   time_zone, temporal_time_rust.get(), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -6251,7 +6217,7 @@ JSTemporalZonedDateTime::WithPlainTime(
   // (handled later in Rust, idempotent)
 
   DirectHandle<JSTemporalPlainTime> plain_time_obj;
-  temporal_rs::PlainTime* plain_time = nullptr;
+  std::shared_ptr<const temporal_rs::PlainTime> plain_time;
 
   // 6. If plainTimeLike is undefined, then
   if (IsUndefined(*plain_time_like)) {
@@ -6268,7 +6234,7 @@ JSTemporalZonedDateTime::WithPlainTime(
         isolate, plain_time_obj,
         temporal::ToTemporalTime(isolate, plain_time_like, {}, method_name));
 
-    plain_time = plain_time_obj->time()->raw();
+    plain_time = plain_time_obj->wrapped_rust();
     // b. Let resultISODateTime be
     // CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
     // c. Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime,
@@ -6283,7 +6249,7 @@ JSTemporalZonedDateTime::WithPlainTime(
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
       zoned_date_time->zoned_date_time()->raw()->with_plain_time_and_provider(
-          plain_time, TimeZoneProvider()));
+          plain_time.get(), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
