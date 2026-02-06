@@ -2536,6 +2536,19 @@ constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
   }
 }
 
+constexpr const char* ToString(Heap::HeapGrowingMode mode) {
+  switch (mode) {
+    case Heap::HeapGrowingMode::kSlow:
+      return "slow";
+    case Heap::HeapGrowingMode::kConservative:
+      return "conservative";
+    case Heap::HeapGrowingMode::kMinimal:
+      return "minimal";
+    case Heap::HeapGrowingMode::kDefault:
+      return "default";
+  }
+}
+
 #define DECL_RIGHT_TRIM(T)                                         \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void  \
   Heap::RightTrimArray<T>(Tagged<T> object, uint32_t new_capacity, \

@@ -246,12 +246,13 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
 
   const size_t old_gen_consumed_bytes_at_last_gc =
       OldGenerationConsumedBytesAtLastGC();
+  const size_t computed_old_generation_allocation_limit =
+      old_gen_consumed_bytes_at_last_gc * v8_growing_factor;
   const size_t preliminary_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
           isolate(), old_gen_consumed_bytes_at_last_gc,
-          old_gen_consumed_bytes_at_last_gc * v8_growing_factor,
-          min_old_generation_size_, max_old_generation_size(),
-          new_space_capacity, mode);
+          computed_old_generation_allocation_limit, min_old_generation_size_,
+          max_old_generation_size(), new_space_capacity, mode);
 
   const double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
@@ -261,17 +262,17 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
   const size_t global_consumed_bytes_at_last_gc = GlobalConsumedBytesAtLastGC();
+  const size_t computed_global_allocation_limit =
+      (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
+          global_growing_factor +
+      (v8_flags.external_memory_accounted_in_global_limit
+           ? external_memory_low_since_last_gc() * external_growing_factor
+           : 0);
   const size_t preliminary_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
           isolate(), global_consumed_bytes_at_last_gc,
-          (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
-                  global_growing_factor +
-              (v8_flags.external_memory_accounted_in_global_limit
-                   ? external_memory_low_since_last_gc() *
-                         external_growing_factor
-                   : 0),
-          min_global_memory_size_, max_global_memory_size(), new_space_capacity,
-          mode);
+          computed_global_allocation_limit, min_global_memory_size_,
+          max_global_memory_size(), new_space_capacity, mode);
 
   // Now enforce provided boundaries on computed/preliminary limits.
   const size_t next_old_generation_allocation_limit =
@@ -288,12 +289,15 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
       "value", [&](perfetto::TracedValue ctx) {
         auto dict = std::move(ctx).WriteDictionary();
         dict.Add("caller", caller);
+        dict.Add("growing_mode", ToString(mode));
         dict.Add("v8_gc_speed", v8_gc_speed.value_or(0));
         dict.Add("v8_mutator_speed", v8_mutator_speed);
         dict.Add("v8_growing_factor", v8_growing_factor);
         dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
         dict.Add("next_old_gen_allocation_limit",
                  next_old_generation_allocation_limit);
+        dict.Add("computed_old_generation_allocation_limit",
+                 computed_old_generation_allocation_limit);
         dict.Add("preliminary_old_gen_allocation_limit",
                  preliminary_old_generation_allocation_limit);
         dict.Add("old_gen_consumed_bytes_at_last_gc",
@@ -305,6 +309,8 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
         dict.Add("global_growing_factor", global_growing_factor);
         dict.Add("global_allocation_limit", global_allocation_limit());
         dict.Add("next_global_allocation_limit", next_global_allocation_limit);
+        dict.Add("computed_global_allocation_limit",
+                 computed_global_allocation_limit);
         dict.Add("preliminary_global_allocation_limit",
                  preliminary_global_allocation_limit);
         dict.Add("global_consumed_bytes_at_last_gc",
@@ -314,6 +320,25 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
         dict.Add("external_growing_factor", external_growing_factor);
         dict.Add("external_memory_low_since_last_gc",
                  external_memory_low_since_last_gc());
+        dict.Add(
+            "v8_min_allocation_limit_growing_step",
+            MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
+                mode));
+        dict.Add(
+            "global_min_allocation_limit_growing_step",
+            MemoryController<
+                GlobalMemoryTrait>::MinimumAllocationLimitGrowingStep(mode));
+        dict.Add("max_old_generation_size", max_old_generation_size());
+        dict.Add("max_global_memory_size", max_global_memory_size());
+        dict.Add("boundary_min_old_gen_allocation_limit",
+                 boundaries.minimum_old_generation_allocation_limit);
+        dict.Add("boundary_max_old_gen_allocation_limit",
+                 boundaries.maximum_old_generation_allocation_limit);
+        dict.Add("boundary_min_global_allocation_limit",
+                 boundaries.minimum_global_allocation_limit);
+        dict.Add("boundary_max_global_allocation_limit",
+                 boundaries.maximum_global_allocation_limit);
+        dict.Add("new_space_capacity", new_space_capacity);
       });
 
   SetAllocationLimit(next_old_generation_allocation_limit,
