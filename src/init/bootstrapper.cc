@@ -6168,6 +6168,10 @@ bool Genesis::InstallABunchOfRandomThings() {
   InstallFunctionWithBuiltinId(isolate(), global_object, "isNaN",
                                Builtin::kGlobalIsNaN, 1, kAdapt);
 
+  // Install Global.queueMicrotask
+  InstallFunctionWithBuiltinId(isolate(), global_object, "queueMicrotask",
+                               Builtin::kGlobalQueueMicrotask, 1, kAdapt);
+
   // Install Array builtin functions.
   {
     DirectHandle<JSFunction> array_constructor(

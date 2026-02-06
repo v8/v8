@@ -36,6 +36,7 @@ V8_OBJECT class Microtask : public StructLayout {
  private:
   friend class TorqueGeneratedMicrotaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
   friend class JSPromise;
   friend struct ObjectTraits<Microtask>;
 
@@ -89,6 +90,7 @@ V8_OBJECT class CallableTask : public Microtask {
  private:
   friend class TorqueGeneratedCallableTaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
 
   TaggedMember<JSReceiver> callable_;
   TaggedMember<Context> context_;

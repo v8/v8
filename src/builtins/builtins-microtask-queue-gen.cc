@@ -627,6 +627,34 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
+TF_BUILTIN(GlobalQueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
+  auto callback = Parameter<Object>(Descriptor::kCallback);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  Label callback_is_not_callable(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callback), &callback_is_not_callable);
+  GotoIfNot(IsCallable(CAST(callback)), &callback_is_not_callable);
+
+  TNode<CallableTask> microtask = TNode<CallableTask>::UncheckedCast(
+      AllocateInNewSpace(sizeof(CallableTask)));
+  StoreMapNoWriteBarrier(microtask, RootIndex::kCallableTaskMap);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  StoreObjectFieldNoWriteBarrier(
+      microtask, offsetof(CallableTask, continuation_preserved_embedder_data_),
+      GetContinuationPreservedEmbedderData());
+#endif
+  StoreObjectFieldNoWriteBarrier(microtask, offsetof(CallableTask, callable_),
+                                 callback);
+  StoreObjectFieldNoWriteBarrier(microtask, offsetof(CallableTask, context_),
+                                 context);
+  // TODO(leszeks): Tailcall this builtin, which would require the right
+  // argument teardown.
+  Return(CallBuiltin(Builtin::kEnqueueMicrotask, context, microtask));
+
+  BIND(&callback_is_not_callable);
+  ThrowTypeError(context, MessageTemplate::kNotCallable, callback);
+}
+
 TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   // Load the current context from the isolate.
   TNode<Context> current_context = GetCurrentContext();
