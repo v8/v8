@@ -2577,32 +2577,44 @@ Handle<JSObject> Factory::CopyJSObject(DirectHandle<JSObject> source) {
   return CopyJSObjectWithAllocationSite(source, DirectHandle<AllocationSite>());
 }
 
+namespace {
+
+// We can only clone regexps, normal objects, api objects, errors or arrays.
+// Copying anything else will break invariants.
+constexpr bool IsCloneable(InstanceType instance_type) {
+  if (InstanceTypeChecker::IsJSApiObject(instance_type)) {
+    return true;
+  }
+  switch (instance_type) {
+    case JS_OBJECT_TYPE:
+    case JS_ARRAY_TYPE:
+    case JS_REG_EXP_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_GLOBAL_OBJECT_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     DirectHandle<JSObject> source, DirectHandle<AllocationSite> site) {
-  DirectHandle<Map> map(source->map(), isolate());
+  Tagged<Map> raw_map = source->map();
+  const InstanceType instance_type = raw_map->instance_type();
+  CHECK(IsCloneable(instance_type));
+  DCHECK_IMPLIES(!site.is_null(), AllocationSite::CanTrack(instance_type));
 
-  // We can only clone regexps, normal objects, api objects, errors or arrays.
-  // Copying anything else will break invariants.
-  InstanceType instance_type = map->instance_type();
-  bool is_clonable_js_type =
-      instance_type == JS_REG_EXP_TYPE || instance_type == JS_OBJECT_TYPE ||
-      instance_type == JS_ERROR_TYPE || instance_type == JS_ARRAY_TYPE ||
-      instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-      InstanceTypeChecker::IsJSApiObject(instance_type);
-  bool is_clonable_wasm_type = false;
-#if V8_ENABLE_WEBASSEMBLY
-  is_clonable_wasm_type = instance_type == WASM_GLOBAL_OBJECT_TYPE ||
-                          instance_type == WASM_INSTANCE_OBJECT_TYPE ||
-                          instance_type == WASM_MEMORY_OBJECT_TYPE ||
-                          instance_type == WASM_MODULE_OBJECT_TYPE ||
-                          instance_type == WASM_TABLE_OBJECT_TYPE;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  CHECK(is_clonable_js_type || is_clonable_wasm_type);
-
-  DCHECK(site.is_null() || AllocationSite::CanTrack(instance_type));
-
-  int object_size = map->instance_size();
-  int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  const int object_size = raw_map->instance_size();
+  const int aligned_object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   int adjusted_object_size = aligned_object_size;
   if (!site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
@@ -2620,7 +2632,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       SafeHeapObjectSize(static_cast<uint32_t>(object_size)).value());
   Handle<JSObject> clone(Cast<JSObject>(raw_clone), isolate());
 
-  if (v8_flags.enable_unconditional_write_barriers) {
+  if constexpr (v8_flags.enable_unconditional_write_barriers.value()) {
     // By default, we shouldn't need to update the write barrier here, as the
     // clone will be allocated in new space.
     const ObjectSlot start(raw_clone.address());
