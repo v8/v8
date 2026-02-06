@@ -298,6 +298,8 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
                  preliminary_old_generation_allocation_limit);
         dict.Add("old_gen_consumed_bytes_at_last_gc",
                  old_gen_consumed_bytes_at_last_gc);
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 heap_->OldGenerationAllocationLimitConsumedBytes());
         dict.Add("global_gc_speed", embedder_gc_speed.value_or(0));
         dict.Add("global_mutator_speed", embedder_speed);
         dict.Add("global_growing_factor", global_growing_factor);
@@ -307,6 +309,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
                  preliminary_global_allocation_limit);
         dict.Add("global_consumed_bytes_at_last_gc",
                  global_consumed_bytes_at_last_gc);
+        dict.Add("global_consumed_bytes", heap_->GlobalConsumedBytes());
         dict.Add("embedder_size_at_last_gc", embedder_size_at_last_gc_);
         dict.Add("external_growing_factor", external_growing_factor);
         dict.Add("external_memory_low_since_last_gc",
