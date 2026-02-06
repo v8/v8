@@ -4564,31 +4564,45 @@ void ClearStaleLeftTrimmedPointerVisitor::ClearLeftTrimmedOrForward(
   }
 }
 
+namespace {
+bool IsInterestingObjectStart(MapWord map_word) {
+  // Scavenge tasks may run concurrently to this function and therefore
+  // could introduce forwarding pointers at any moment. This is the reason
+  // why we pass the Map from the MapWord to
+  // InstanceTypeChecker::IsFreeSpaceOrFiller.
+  return map_word.IsForwardingAddress() ||
+         !InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap());
+}
+}  // namespace
+
 bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
   Tagged<HeapObject> current;
   if (!TryCast<HeapObject>(*p, &current)) return false;
-  if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-      IsFreeSpaceOrFiller(current, cage_base())) {
+  // Using MapWord instead of `current` directly defends against concurrent
+  // Scavenge tasks installing forward pointers on `current`.
+  MapWord map_word = current->map_word(cage_base(), kRelaxedLoad);
+  if (!IsInterestingObjectStart(map_word)) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
-      while (
-          !current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-          IsFreeSpaceOrFiller(current, cage_base())) {
+      while (!IsInterestingObjectStart(map_word)) {
         Address next = current.ptr();
-        if (current->map(cage_base()) ==
-            ReadOnlyRoots(heap_).one_pointer_filler_map()) {
+        Tagged<Map> map = map_word.ToMap();
+        if (map == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kTaggedSize;
-        } else if (current->map(cage_base()) ==
-                   ReadOnlyRoots(heap_).two_pointer_filler_map()) {
+        } else if (map == ReadOnlyRoots(heap_).two_pointer_filler_map()) {
           next += 2 * kTaggedSize;
         } else {
-          next += current->Size();
+          next += current->SizeFromMap(map);
         }
         current = Cast<HeapObject>(Tagged<Object>(next));
+        map_word = current->map_word(cage_base(), kRelaxedLoad);
       }
-      DCHECK(
-          current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
-          IsFixedArrayBase(current, cage_base()));
+      // Scavenge tasks may run concurrently to this function and therefore
+      // could introduce forwarding pointers at any moment. This is the reason
+      // why we pass the Map from the MapWord to
+      // InstanceTypeChecker::IsFreeSpaceOrFiller.
+      DCHECK(map_word.IsForwardingAddress() ||
+             InstanceTypeChecker::IsFixedArrayBase(map_word.ToMap()));
 #endif  // DEBUG
       return true;
   } else {
