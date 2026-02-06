@@ -702,16 +702,14 @@ class WasmModuleSignatureStorage {
 
   uint8_t* Allocate(size_t length, size_t align = 1) {
     DCHECK(base::bits::IsPowerOfTwo(align));
-    if (V8_UNLIKELY(storage_.empty())) {
-      Allocate_more_storage(length + align - 1);
-    }
+    if (V8_UNLIKELY(storage_.empty())) AllocateMoreStorage(length + align - 1);
 
     std::vector<uint8_t>* last = &storage_.back();
     size_t last_size = last->size();
     uint8_t* ptr = last->data() + last_size;
     size_t padding = (-reinterpret_cast<intptr_t>(ptr)) & (align - 1);
     if (V8_UNLIKELY(last->capacity() - last_size < length + padding)) {
-      Allocate_more_storage(length + align - 1);
+      AllocateMoreStorage(length + align - 1);
       // Redo calculations from before:
       last = &storage_.back();
       last_size = last->size();
@@ -745,7 +743,7 @@ class WasmModuleSignatureStorage {
   }
 
  private:
-  V8_NOINLINE V8_PRESERVE_MOST void Allocate_more_storage(size_t min_length) {
+  V8_NOINLINE V8_PRESERVE_MOST void AllocateMoreStorage(size_t min_length) {
     size_t new_length =
         std::max(min_length, storage_.empty() ? 4 * (sizeof(FunctionSig) + 4)
                                               : storage_.back().capacity());
