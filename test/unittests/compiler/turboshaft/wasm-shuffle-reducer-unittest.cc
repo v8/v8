@@ -7,6 +7,7 @@
 #include "src/base/vector.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
@@ -715,6 +716,123 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongBlocks) {
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
   EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, TaggedLoadReplace) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    V<Object> base = Asm.GetParameter(0);
+    V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    V<Simd128> into =
+        __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
+    V<Object> new_lane = __ Load(base, index, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Int32(),
+                                 RegisterRepresentation::Word32(), 0);
+    Asm.Capture(new_lane, "new_lane");
+    V<Simd128> replace = __ Simd128ReplaceLane(
+        into, new_lane, Simd128ReplaceLaneOp::Kind::kI32x4, 0);
+    __ Return(
+        __ Simd128ExtractLane(replace, Simd128ExtractLaneOp::Kind::kI16x8U, 1));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+
+  test.Run<WasmShuffleReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kLoad), 1u);
+  ASSERT_EQ(test.GetCapture("new_lane").GetAs<LoadOp>()->kind,
+            LoadOp::Kind::TaggedBase());
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128LaneMemory), 0u);
+}
+
+TEST_F(ReducerTest, ProtectedLoadReplace) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    V<WordPtr> base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    V<Simd128> into =
+        __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
+    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::Protected(),
+                                 MemoryRepresentation::Int32(),
+                                 RegisterRepresentation::Word32(), 4);
+    V<Simd128> replace = __ Simd128ReplaceLane(
+        into, new_lane, Simd128ReplaceLaneOp::Kind::kI32x4, 1);
+    V<Any> extract =
+        __ Simd128ExtractLane(replace, Simd128ExtractLaneOp::Kind::kI16x8S, 2);
+    Asm.Capture(extract, "extract");
+    __ Return(extract);
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+
+  test.Run<WasmShuffleReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kLoad), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128LaneMemory), 1u);
+  const Simd128ExtractLaneOp* extract_op =
+      test.GetCapture("extract").GetAs<Simd128ExtractLaneOp>();
+  const Simd128LaneMemoryOp* lane_op =
+      test.graph().Get(extract_op->input()).TryCast<Simd128LaneMemoryOp>();
+  ASSERT_TRUE(lane_op);
+  ASSERT_EQ(lane_op->kind, Simd128LaneMemoryOp::Kind::Protected());
+}
+
+TEST_F(ReducerTest, AtomicProtectedLoadReplace) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    V<WordPtr> base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    V<Simd128> into =
+        __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
+    V<Word32> new_lane = __ Load(
+        base, index, LoadOp::Kind::Protected().Atomic(),
+        MemoryRepresentation::Int16(), RegisterRepresentation::Word32(), 8);
+    V<Simd128> replace = __ Simd128ReplaceLane(
+        into, new_lane, Simd128ReplaceLaneOp::Kind::kI16x8, 1);
+    V<Any> extract =
+        __ Simd128ExtractLane(replace, Simd128ExtractLaneOp::Kind::kI16x8S, 2);
+    Asm.Capture(extract, "extract");
+    __ Return(extract);
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+
+  test.Run<WasmShuffleReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kLoad), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128LaneMemory), 0u);
+}
+
+TEST_F(ReducerTest, RawLoadReplace) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    V<WordPtr> base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    V<Simd128> into =
+        __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
+    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::RawAligned(),
+                                 MemoryRepresentation::Int8(),
+                                 RegisterRepresentation::Word32(), 1);
+    V<Simd128> replace = __ Simd128ReplaceLane(
+        into, new_lane, Simd128ReplaceLaneOp::Kind::kI8x16, 8);
+    __ Return(
+        __ Simd128ExtractLane(replace, Simd128ExtractLaneOp::Kind::kI8x16S, 9));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+
+  test.Run<WasmShuffleReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+  ASSERT_EQ(test.CountOp(Opcode::kLoad), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128LaneMemory), 1u);
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -175,6 +175,7 @@ class WasmShuffleAnalyzer {
   void Process(const Operation& op);
   void ProcessUnary(const Simd128UnaryOp& unop);
   void ProcessBinary(const Simd128BinopOp& binop);
+  void ProcessReplaceLane(const Simd128ReplaceLaneOp& replace_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
   void ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
@@ -182,7 +183,8 @@ class WasmShuffleAnalyzer {
 
   bool ShouldReduce() const {
     return !demanded_element_analysis.demanded_elements().empty() ||
-           !deinterleave_load_candidates_.empty();
+           !deinterleave_load_candidates_.empty() ||
+           !load_lane_candidates_.empty();
   }
 
   const DemandedElementAnalysis::DemandedElementMap& ops_to_reduce() const {
@@ -240,6 +242,29 @@ class WasmShuffleAnalyzer {
     return false;
   }
 
+  void AddLoadLaneCandidate(const LoadOp* load,
+                            const Simd128ReplaceLaneOp& replace) {
+    load_lane_candidates_[load] = &replace;
+  }
+
+  std::optional<const Simd128ReplaceLaneOp*> IsLoadLaneCandidate(
+      const LoadOp& op) {
+    auto it = load_lane_candidates_.find(&op);
+    if (it != load_lane_candidates_.end()) return it->second;
+    return {};
+  }
+
+  std::optional<OpIndex> GetMergedLoadReplaceLane(
+      const Simd128ReplaceLaneOp& op) {
+    auto it = load_lanes_.find(&op);
+    if (it != load_lanes_.end()) return it->second;
+    return {};
+  }
+
+  void RecordLoadLane(const Simd128ReplaceLaneOp* replace, OpIndex load_lane) {
+    load_lanes_[replace] = load_lane;
+  }
+
   const Graph& input_graph() const { return input_graph_; }
 
  private:
@@ -264,6 +289,10 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector shift_shuffles_{phase_zone_};
   SmallShuffleVector low_half_shuffles_{phase_zone_};
   SmallShuffleVector high_half_shuffles_{phase_zone_};
+  ZoneUnorderedMap<const LoadOp*, const Simd128ReplaceLaneOp*>
+      load_lane_candidates_{phase_zone_};
+  ZoneUnorderedMap<const Simd128ReplaceLaneOp*, OpIndex> load_lanes_{
+      phase_zone_};
   SmallShuffleVector even_64x2_shuffles_{phase_zone_};
   SmallShuffleVector odd_64x2_shuffles_{phase_zone_};
   SmallShuffleVector even_32x4_shuffles_{phase_zone_};
@@ -330,11 +359,48 @@ class WasmShuffleReducer : public Next {
     Next::Analyze();
   }
 
+  OpIndex REDUCE_INPUT_GRAPH(Simd128ReplaceLane)(
+      OpIndex ig_index, const Simd128ReplaceLaneOp& replace_lane) {
+    if (!ShouldSkipOptimizationStep()) {
+      if (auto load_lane = analyzer_->GetMergedLoadReplaceLane(replace_lane)) {
+        return load_lane.value();
+      }
+    }
+    return Next::ReduceInputGraphSimd128ReplaceLane(ig_index, replace_lane);
+  }
+
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphLoad(ig_index, load);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (auto maybe_replace_lane = analyzer_->IsLoadLaneCandidate(load)) {
+      const Simd128ReplaceLaneOp* replace_lane = maybe_replace_lane.value();
+      OpIndex og_into = __ template MapToNewGraph<true>(replace_lane->into());
+      if (og_into.valid()) {
+        V<WordPtr> base = __ MapToNewGraph(load.base());
+        V<WordPtr> index;
+        if (load.index().has_value()) {
+          index = __ MapToNewGraph(load.index().value());
+          if (load.offset != 0) {
+            index = __ WordPtrAdd(index, load.offset);
+          }
+        } else {
+          index = __ IntPtrConstant(load.offset);
+        }
+
+        Simd128LaneMemoryOp::LaneKind lane_kind =
+            Simd128LaneMemoryOp::LaneKindFromBytes(
+                load.loaded_rep.SizeInBytes());
+        OpIndex load_lane = __ Simd128LaneMemory(
+            base, index, og_into, Simd128LaneMemoryOp::Mode::kLoad, load.kind,
+            lane_kind, replace_lane->lane, 0);
+        analyzer_->RecordLoadLane(replace_lane, load_lane);
+        return load_lane;
+      }
+    }
+
     if (load.loaded_rep != MemoryRepresentation::Simd128()) goto no_change;
 
     if (auto maybe_combined = MaybeAlreadyCombined(&load)) {

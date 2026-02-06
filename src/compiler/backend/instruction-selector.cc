@@ -3810,6 +3810,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kSimd128LaneMemory: {
       const Simd128LaneMemoryOp& memory = op.Cast<Simd128LaneMemoryOp>();
       MarkAsSimd128(node);
+      DCHECK_EQ(memory.offset, 0);
       if (memory.mode == Simd128LaneMemoryOp::Mode::kLoad) {
         return VisitLoadLane(node);
       } else {

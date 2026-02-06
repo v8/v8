@@ -8845,6 +8845,21 @@ struct Simd128LaneMemoryOp : FixedArityOperationT<3, Simd128LaneMemoryOp> {
                           RegisterRepresentation::Simd128()>();
   }
 
+  static LaneKind LaneKindFromBytes(uint8_t size) {
+    switch (size) {
+      default:
+        UNREACHABLE();
+      case 1:
+        return LaneKind::k8;
+      case 2:
+        return LaneKind::k16;
+      case 4:
+        return LaneKind::k32;
+      case 8:
+        return LaneKind::k64;
+    }
+  }
+
   Simd128LaneMemoryOp(OpIndex base, OpIndex index, OpIndex value, Mode mode,
                       Kind kind, LaneKind lane_kind, uint8_t lane, int offset)
       : Base(base, index, value),

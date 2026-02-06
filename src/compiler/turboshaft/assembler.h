@@ -5189,7 +5189,7 @@ class AssemblerOpInterface : public Next {
                                             from_lane);
   }
 
-  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<WordPtr> value,
+  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<Simd128> value,
                             Simd128LaneMemoryOp::Mode mode,
                             Simd128LaneMemoryOp::Kind kind,
                             Simd128LaneMemoryOp::LaneKind lane_kind,

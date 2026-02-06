@@ -215,6 +215,11 @@ void WasmShuffleAnalyzer::Process(const Operation& op) {
     ProcessShuffle(*shuffle_op);
     return;
   }
+
+  if (auto* replace_op = op.TryCast<Simd128ReplaceLaneOp>()) {
+    ProcessReplaceLane(*replace_op);
+    return;
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
@@ -223,6 +228,23 @@ void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
 
 void WasmShuffleAnalyzer::ProcessBinary(const Simd128BinopOp& binop) {
   demanded_element_analysis.AddBinaryOp(binop, DemandedElementAnalysis::k8x16);
+}
+
+void WasmShuffleAnalyzer::ProcessReplaceLane(
+    const Simd128ReplaceLaneOp& replace_op) {
+  // FP16 isn't supported.
+  if (replace_op.kind == Simd128ReplaceLaneOp::Kind::kF16x8) return;
+
+  if (const LoadOp* load =
+          input_graph().Get(replace_op.new_lane()).TryCast<LoadOp>()) {
+    int replace_bytes =
+        ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(replace_op.kind));
+    if (load->saturated_use_count.IsOne() &&
+        load->loaded_rep.SizeInBytes() == replace_bytes &&
+        !load->kind.tagged_base && !load->kind.is_atomic) {
+      AddLoadLaneCandidate(load, replace_op);
+    }
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
