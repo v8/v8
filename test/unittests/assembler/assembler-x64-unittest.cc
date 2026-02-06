@@ -3323,6 +3323,10 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
   __ pop2q(rcx, rdx);
   __ pop2pq(rcx, rdx);
 
+  __ setzucc(greater, r8);
+
+  __ jmpabs(Immediate64(0x123456789abcdef));
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
 
@@ -3344,7 +3348,12 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
                         // pop2q rcx, rdx
                         0x62, 0xf4, 0x74, 0x18, 0x8f, 0xc2,
                         // pop2pq rcx, rdx
-                        0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2};
+                        0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2,
+                        // setzunle r8b
+                        0x62, 0xd4, 0x7f, 0x18, 0x4f, 0xc0,
+                        // jmpabs 0x123456789abcdef
+                        0xd5, 0x00, 0xa1, 0xef, 0xcd, 0xab, 0x89, 0x67, 0x45,
+                        0x23, 0x01};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

@@ -5091,6 +5091,21 @@ void Assembler::emit_legacy_extended_evex_byte3_ccmp_ctest(Condition scc) {
   unsigned int nd = 0;
   emit((nd << 4) | scc);
 }
+
+void Assembler::setzucc(Condition cc, Register reg) {
+  EnsureSpace ensure_space(this);
+  DCHECK(is_uint4(cc));
+  emit_legacy_extended_evex_prefix(rax /*place holder*/, rax /*place holder*/,
+                                   reg, kF2, kWIG, kFlagUpdate, kNewDataDest);
+  emit(0x40 | cc);
+  emit_modrm(0x0, reg);
+}
+
+void Assembler::jmpabs(Immediate64 target) {
+  emit_rex2_32(rax /* place holder*/, kRex2Map0);
+  emit(0xA1);
+  emit(target);
+}
 #endif  // V8_ENABLE_APX_F
 
 }  // namespace internal

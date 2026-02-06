@@ -2540,6 +2540,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void push2pq(Register src1, Register src2);
   void pop2q(Register dst1, Register dst2);
   void pop2pq(Register dst1, Register dst2);
+  void setzucc(Condition cc, Register reg);
+  void jmpabs(Immediate64 target);
 #endif  // V8_ENABLE_APX_F
 
   // Check the code size generated from label to here.
