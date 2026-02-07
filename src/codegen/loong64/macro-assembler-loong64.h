@@ -1117,9 +1117,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
                                          Register scratch);
-  void LoadEntrypointFromJSDispatchTable(Register destination,
-                                         JSDispatchHandle dispatch_handle,
-                                         Register scratch);
   void LoadParameterCountFromJSDispatchTable(Register destination,
                                              Register dispatch_handle,
                                              Register scratch);

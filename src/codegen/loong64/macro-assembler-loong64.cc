@@ -668,24 +668,6 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   Ld_d(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
 }
 
-void MacroAssembler::LoadEntrypointFromJSDispatchTable(
-    Register destination, JSDispatchHandle dispatch_handle, Register scratch) {
-  DCHECK(!AreAliased(destination, scratch));
-  ASM_CODE_COMMENT(this);
-
-  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
-  // WARNING: This offset calculation is only safe if we have already stored a
-  // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
-  // keeping the dispatch entry alive) _and_ because the entrypoints are not
-  // compatible (thus meaning that the offset calculation is not invalidated by
-  // a compaction).
-  // TODO(leszeks): Make this less of a footgun.
-  static_assert(!JSDispatchTable::kSupportsCompaction);
-  int offset = JSDispatchTable::OffsetOfEntry(dispatch_handle) +
-               JSDispatchEntry::kEntrypointOffset;
-  Ld_d(destination, MemOperand(scratch, offset));
-}
-
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, dispatch_handle, scratch));
@@ -5715,14 +5697,8 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   Register scratch = s1;
   li(kJavaScriptCallDispatchHandleRegister,
      Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
-  // WARNING: This entrypoint load is only safe because we are storing a
-  // RelocInfo for the dispatch handle in the li above (thus keeping the
-  // dispatch entry alive) _and_ because the entrypoints are not compactable
-  // (thus meaning that the calculation in the entrypoint load is not
-  // invalidated by a compaction).
-  // TODO(leszeks): Make this less of a footgun.
-  static_assert(!JSDispatchTable::kSupportsCompaction);
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  LoadEntrypointFromJSDispatchTable(code, kJavaScriptCallDispatchHandleRegister,
+                                    scratch);
   CHECK_EQ(argument_count,
            isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
   Call(code);
