@@ -10112,6 +10112,10 @@ class LiftoffCompiler {
 
         __ bind(&success_label);
       } else {
+        if (needs_null_check) {
+          __ emit_i32_cond_jumpi(kEqual, null_func.label(),
+                                 real_sig_id.gp_reg(), -1, null_func.frozen());
+        }
         __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch.label(),
                                real_sig_id.gp_reg(), canonical_sig_id.index,
                                sig_mismatch.frozen());

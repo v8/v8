@@ -8119,7 +8119,14 @@ class TurboshaftGraphBuildingInterface
         BIND(end);
       } else {
         // In this case, signatures must match exactly.
-        __ TrapIfNot(sigs_match, TrapId::kTrapFuncSigMismatch);
+        if (needs_null_check) {
+          IF_NOT (LIKELY(sigs_match)) {
+            __ TrapIf(__ Word32Equal(-1, loaded_sig), TrapId::kTrapNullFunc);
+            __ TrapIf(1, TrapId::kTrapFuncSigMismatch);
+          }
+        } else {
+          __ TrapIfNot(sigs_match, TrapId::kTrapFuncSigMismatch);
+        }
       }
     } else if (needs_null_check) {
       V<Word32> loaded_sig =
