@@ -713,6 +713,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // Create a JSArray with the given elements.
+  // TODO(375937549): Change length to uint32_t.
   Handle<JSArray> NewJSArrayWithElements(
       DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
       int length, AllocationType allocation = AllocationType::kYoung);

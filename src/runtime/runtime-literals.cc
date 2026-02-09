@@ -161,7 +161,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
 
     // Assume non-arrays don't end up having elements.
-    if (copy->elements(isolate)->length() == 0) return copy;
+    if (copy->elements(isolate)->ulength().value() == 0) return copy;
   }
 
   // Deep copy own elements.
@@ -177,14 +177,15 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case SHARED_ARRAY_ELEMENTS: {
       DirectHandle<FixedArray> elements(
           Cast<FixedArray>(copy->elements(isolate)), isolate);
+      uint32_t elements_len = elements->ulength().value();
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
-        for (int i = 0; i < elements->length(); i++) {
+        for (uint32_t i = 0; i < elements_len; i++) {
           DCHECK(!IsJSObject(elements->get(i)));
         }
 #endif
       } else {
-        for (int i = 0; i < elements->length(); i++) {
+        for (uint32_t i = 0; i < elements_len; i++) {
           Tagged<Object> raw = elements->get(i);
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -464,7 +465,8 @@ Handle<JSObject> CreateArrayLiteral(
       copied_elements_values = constant_elements_values;
       if (DEBUG_BOOL) {
         auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
-        for (int i = 0; i < fixed_array_values->length(); i++) {
+        uint32_t fixed_array_values_len = fixed_array_values->ulength().value();
+        for (uint32_t i = 0; i < fixed_array_values_len; i++) {
           DCHECK(!IsFixedArray(fixed_array_values->get(i)));
         }
       }
@@ -474,7 +476,8 @@ Handle<JSObject> CreateArrayLiteral(
       Handle<FixedArray> fixed_array_values_copy =
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
-      for (int i = 0; i < fixed_array_values->length(); i++) {
+      uint32_t fixed_array_values_len = fixed_array_values->ulength().value();
+      for (uint32_t i = 0; i < fixed_array_values_len; i++) {
         Tagged<Object> value = fixed_array_values_copy->get(i);
         Tagged<HeapObject> value_heap_object;
         if (!value.GetHeapObject(isolate, &value_heap_object)) continue;
@@ -501,7 +504,7 @@ Handle<JSObject> CreateArrayLiteral(
   }
   return isolate->factory()->NewJSArrayWithElements(
       copied_elements_values, constant_elements_kind,
-      copied_elements_values->length(), allocation);
+      static_cast<int>(copied_elements_values->ulength().value()), allocation);
 }
 
 template <typename LiteralHelper>

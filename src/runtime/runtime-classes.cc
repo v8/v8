@@ -401,7 +401,7 @@ bool AddDescriptorsByTemplate(
     DirectHandle<NumberDictionary> elements_dictionary_template,
     DirectHandle<FixedArray> computed_properties,
     DirectHandle<JSObject> receiver, RuntimeArguments& args) {
-  int computed_properties_length = computed_properties->length();
+  uint32_t computed_properties_length = computed_properties->ulength().value();
 
   // Shallow-copy properties template.
   Handle<Dictionary> properties_dictionary =
@@ -414,9 +414,8 @@ bool AddDescriptorsByTemplate(
 
   // Merge computed properties with properties and elements dictionary
   // templates.
-  int i = 0;
-  while (i < computed_properties_length) {
-    int flags = Smi::ToInt(computed_properties->get(i++));
+  for (uint32_t i = 0; i < computed_properties_length; i++) {
+    int flags = Smi::ToInt(computed_properties->get(i));
 
     ValueKind value_kind = ComputedEntryFlags::ValueKindBits::decode(flags);
     int key_index = ComputedEntryFlags::KeyIndexBits::decode(flags);

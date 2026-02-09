@@ -846,7 +846,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
       TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
-  DCHECK_LT(table_index, trusted_instance_data->tables()->length());
+  DCHECK_LT(table_index, trusted_instance_data->tables()->ulength().value());
   auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
@@ -868,7 +868,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
   DirectHandle<Object> element(args[3], isolate);
-  DCHECK_LT(table_index, trusted_instance_data->tables()->length());
+  DCHECK_LT(table_index, trusted_instance_data->tables()->ulength().value());
   auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
@@ -1179,9 +1179,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     // If the segment is initialized in the instance, we have to get its length
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
-    int segment_length = IsFixedArray(*elem_segment_raw)
-                             ? Cast<FixedArray>(elem_segment_raw)->length()
-                             : module_elem_segment->element_count;
+    uint32_t segment_length =
+        IsFixedArray(*elem_segment_raw)
+            ? Cast<FixedArray>(elem_segment_raw)->ulength().value()
+            : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(offset, length, segment_length)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
@@ -1255,9 +1256,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // If the segment is initialized in the instance, we have to get its length
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
-    int segment_length = IsFixedArray(*elem_segment_raw)
-                             ? Cast<FixedArray>(elem_segment_raw)->length()
-                             : module_elem_segment->element_count;
+    uint32_t segment_length =
+        IsFixedArray(*elem_segment_raw)
+            ? Cast<FixedArray>(elem_segment_raw)->ulength().value()
+            : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(segment_offset, length, segment_length)) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
@@ -2087,7 +2089,7 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
     return ReadOnlyRoots(isolate).exception();
   }
   if (!base::IsInBounds<size_t>(prototypes_start, prototypes_length,
-                                prototypes_segment->length())) {
+                                prototypes_segment->ulength().value())) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
   }
@@ -2099,7 +2101,7 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
     return ReadOnlyRoots(isolate).exception();
   }
   if (!base::IsInBounds<size_t>(functions_start, functions_length,
-                                functions_segment->length())) {
+                                functions_segment->ulength().value())) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
   }
@@ -2644,7 +2646,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   DCHECK_LE(start, end);
-  DCHECK(base::IsInBounds<size_t>(start, end - start, array->length()));
+  DCHECK(
+      base::IsInBounds<size_t>(start, end - start, array->ulength().value()));
 
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   size_t length = end - start;
@@ -2688,7 +2691,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
   uint32_t end = NumberToUint32(args[2]);
 
   DCHECK_LT(start, end);
-  DCHECK(base::IsInBounds<size_t>(start, end - start, array->length()));
+  DCHECK(
+      base::IsInBounds<size_t>(start, end - start, array->ulength().value()));
 
   // This can't throw because the result can't be too long if the input wasn't,
   // and encoding failures are ruled out too because {start}/{end} are aligned.

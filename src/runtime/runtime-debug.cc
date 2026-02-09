@@ -563,7 +563,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
   }
 
   // Convert the script objects to proper JS objects.
-  for (int i = 0; i < instances->length(); i++) {
+  uint32_t instances_len = instances->ulength().value();
+  for (uint32_t i = 0; i < instances_len; i++) {
     DirectHandle<Script> script(Cast<Script>(instances->get(i)), isolate);
     instances->set(i, Smi::FromInt(script->id()));
   }
@@ -596,8 +597,9 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 namespace {
 
 int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
-                       int line) {
-  if (line < 0) return -1;
+                       int int_line) {
+  if (int_line < 0) return -1;
+  uint32_t line = static_cast<uint32_t>(int_line);
 
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::Type::kWasm) {
@@ -609,8 +611,7 @@ int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
   Script::InitLineEnds(isolate, script);
 
   Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
-  const int line_count = line_ends_array->length();
-  DCHECK_LT(0, line_count);
+  const uint32_t line_count = line_ends_array->ulength().value();
 
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.

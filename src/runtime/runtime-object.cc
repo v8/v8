@@ -717,7 +717,9 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       // become PACKED_DOUBLE_ELEMENTS.
       ElementsKind elements_kind = lookup_start_object->GetElementsKind();
       if (IsDoubleElementsKind(elements_kind)) {
-        if (Smi::ToInt(*key_obj) >= lookup_start_object->elements()->length()) {
+        if (Smi::ToInt(*key_obj) >=
+            static_cast<int>(
+                lookup_start_object->elements()->ulength().value())) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(isolate, lookup_start_object,
@@ -1440,7 +1442,8 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
     }
   }
 
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Object> obj_key(keys->get(i), isolate);
     Handle<Symbol> symbol(Cast<Symbol>(*obj_key), isolate);
     CHECK(symbol->is_any_private_name());

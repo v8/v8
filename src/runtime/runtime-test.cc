@@ -2641,10 +2641,10 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedFixedArray> constant_pool(bytecode_array->constant_pool(),
                                                 isolate);
-  int cp_length = constant_pool->length();
+  uint32_t cp_length = constant_pool->ulength().value();
   Handle<JSArray> constant_pool_array =
       isolate->factory()->NewJSArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> value(constant_pool->get(i), isolate);
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, constant_pool_array, i, value,
@@ -2653,7 +2653,7 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedByteArray> handler_table(bytecode_array->handler_table(),
                                                isolate);
-  int ht_length = handler_table->length();
+  size_t ht_length = static_cast<size_t>(handler_table->ulength().value());
   Handle<JSArrayBuffer> handler_table_buffer =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(ht_length,

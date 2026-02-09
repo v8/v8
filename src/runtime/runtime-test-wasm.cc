@@ -183,8 +183,8 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
     }
   }
   Tagged<ProtectedFixedArray> dispatch_tables = trusted_data->dispatch_tables();
-  int table_count = dispatch_tables->length();
-  for (int table_index = 0; table_index < table_count; ++table_index) {
+  uint32_t table_count = dispatch_tables->ulength().value();
+  for (uint32_t table_index = 0; table_index < table_count; ++table_index) {
     if (dispatch_tables->get(table_index) == Smi::zero()) continue;
     Tagged<WasmDispatchTable> table =
         TrustedCast<WasmDispatchTable>(dispatch_tables->get(table_index));
@@ -555,8 +555,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
       WasmExceptionPackage::GetExceptionTag(isolate, exception);
   CHECK(IsWasmExceptionTag(*tag));
   DirectHandle<FixedArray> tags_table(trusted_data->tags_table(), isolate);
-  for (int index = 0; index < tags_table->length(); ++index) {
-    if (tags_table->get(index) == *tag) return Smi::FromInt(index);
+  uint32_t tags_table_len = tags_table->ulength().value();
+  for (uint32_t index = 0; index < tags_table_len; ++index) {
+    if (tags_table->get(index) == *tag) return Smi::FromUInt(index);
   }
   return CrashUnlessFuzzing(isolate);
 }
@@ -577,7 +578,8 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   auto values = Cast<FixedArray>(values_obj);
   DirectHandle<FixedArray> externalized_values =
       isolate->factory()->NewFixedArray(values->length());
-  for (int i = 0; i < values->length(); i++) {
+  uint32_t values_len = values->ulength().value();
+  for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {
       // Note: This will leak string views to JS. This should be fine for a
