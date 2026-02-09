@@ -1452,7 +1452,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
   // Since this is combining untrusted data ({feedback} vector on the JS heap)
   // with trusted data ({call_targets}), make sure to avoid an OOB access.
-  int checked_feedback_length = feedback->length();
+  uint32_t checked_feedback_length = feedback->ulength().value();
   // The first slot is reserved for total invocation count.
   SBXCHECK_EQ(checked_feedback_length,
               call_targets.size() * FeedbackConstants::kSlotsPerInstruction +
@@ -1460,7 +1460,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   FeedbackMaker fm(isolate_, instance_data_, func_index,
                    (checked_feedback_length - FeedbackConstants::kHeaderSlots) /
                        FeedbackConstants::kSlotsPerInstruction);
-  for (int i = FeedbackConstants::kHeaderSlots; i < checked_feedback_length;
+  for (uint32_t i = FeedbackConstants::kHeaderSlots;
+       i < checked_feedback_length;
        i += FeedbackConstants::kSlotsPerInstruction) {
     uint32_t sentinel_or_target =
         call_targets[(i - FeedbackConstants::kHeaderSlots) /
@@ -1499,11 +1500,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // Polymorphic call_ref or call_indirect.
       Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
       DCHECK(IsUndefined(second_slot));
-      int checked_polymorphic_length = polymorphic->length();
+      uint32_t checked_polymorphic_length = polymorphic->ulength().value();
       SBXCHECK_LE(checked_polymorphic_length,
                   FeedbackConstants::kSlotsPerInstruction * kMaxPolymorphism);
       if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
-        for (int j = 0; j < checked_polymorphic_length;
+        for (uint32_t j = 0; j < checked_polymorphic_length;
              j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<WasmFuncRef> target = Cast<WasmFuncRef>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
@@ -1511,7 +1512,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         }
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
-        for (int j = 0; j < checked_polymorphic_length;
+        for (uint32_t j = 0; j < checked_polymorphic_length;
              j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<Object> target = polymorphic->get(j);
           int count = Smi::ToInt(polymorphic->get(j + 1));

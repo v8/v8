@@ -1165,12 +1165,12 @@ template <typename... Args>
 Local<FixedArray> MakeInternalFixedArray(i::Isolate* i_isolate, Args... args) {
   i::DirectHandle<i::FixedArray> fixed_array =
       i_isolate->factory()->NewFixedArray(sizeof...(args));
-  int index = 0;
+  uint32_t index = 0;
   auto add = [&](Local<Data> obj) {
     fixed_array->set(index++, *Utils::OpenHandle(*obj));
   };
   (add(args), ...);
-  DCHECK_EQ(fixed_array->length(), index);
+  DCHECK_EQ(fixed_array->ulength().value(), index);
   return Utils::FixedArrayToLocal(fixed_array);
 }
 

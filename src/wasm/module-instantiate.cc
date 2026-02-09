@@ -65,8 +65,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   // Try to find the canonical map for this type in the isolate store.
   DirectHandle<WeakFixedArray> canonical_rtts =
       direct_handle(isolate->heap()->wasm_canonical_rtts(), isolate);
-  DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
-            canonical_type_index.index);
+  DCHECK_GT(canonical_rtts->ulength().value(), canonical_type_index.index);
   Tagged<MaybeObject> maybe_canonical_map =
       canonical_rtts->get(canonical_type_index.index);
   if (!maybe_canonical_map.IsCleared()) {
@@ -302,7 +301,7 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
   if (IsJSBoundFunction(*callable)) {
     auto bound_target = Cast<JSBoundFunction>(callable);
     // Nested bound functions and arguments not supported yet.
-    if (bound_target->bound_arguments()->length() > 0) {
+    if (bound_target->bound_arguments()->ulength().value() > 0) {
       return false;
     }
     if (IsJSBoundFunction(bound_target->bound_target_function())) {
@@ -448,7 +447,7 @@ WellKnownImport CheckForWellKnownImport(
   // is {Function.prototype.call}, and which only binds a receiver.
   if (!IsJSBoundFunction(*callable)) return kGeneric;
   auto bound = Cast<JSBoundFunction>(callable);
-  if (bound->bound_arguments()->length() != 0) return kGeneric;
+  if (bound->bound_arguments()->ulength().value() != 0) return kGeneric;
   if (!IsJSFunction(bound->bound_target_function())) return kGeneric;
   Tagged<SharedFunctionInfo> sfi =
       Cast<JSFunction>(bound->bound_target_function())->shared();
@@ -3028,7 +3027,8 @@ void InstanceBuilder::LoadTableSegments() {
 
 void InstanceBuilder::InitializeTags() {
   DirectHandle<FixedArray> tags_table(trusted_data_->tags_table(), isolate_);
-  for (int index = 0; index < tags_table->length(); ++index) {
+  uint32_t tags_table_len = tags_table->ulength().value();
+  for (uint32_t index = 0; index < tags_table_len; ++index) {
     if (!IsUndefined(tags_table->get(index), isolate_)) continue;
     DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
     tags_table->set(index, *tag);

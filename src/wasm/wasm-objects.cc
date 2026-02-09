@@ -70,7 +70,7 @@ void SetUsedLength(Tagged<ProtectedWeakFixedArray> uses, int length) {
   uses->set(0, Smi::FromInt(length));
 }
 int GetUsedLength(Tagged<ProtectedWeakFixedArray> uses) {
-  if (uses->length() == 0) return 0;
+  if (uses->ulength().value() == 0) return 0;
   return Cast<Smi>(uses->get(0)).value();
 }
 void SetEntry(Tagged<ProtectedWeakFixedArray> uses, int slot_index,
@@ -266,13 +266,13 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
   // Even with 2x over-allocation, there should not be an integer overflow.
   static_assert(wasm::kV8MaxWasmTableSize <= kMaxInt / 2);
   DCHECK_GE(kMaxInt, new_size);
-  int old_capacity = table->entries()->length();
-  if (new_size > static_cast<uint32_t>(old_capacity)) {
-    int grow = static_cast<int>(new_size) - old_capacity;
+  uint32_t old_capacity = table->entries()->ulength().value();
+  if (new_size > old_capacity) {
+    uint32_t grow = new_size - old_capacity;
     // Grow at least by the old capacity, to implement exponential growing.
     grow = std::max(grow, old_capacity);
     // Never grow larger than the max size.
-    grow = std::min(grow, static_cast<int>(max_size - old_capacity));
+    grow = std::min(grow, max_size - old_capacity);
     auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
         direct_handle(table->entries(), isolate), grow);
     table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
@@ -1026,8 +1026,8 @@ void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
     // TODO(clemensb): Avoid the iteration by also remembering the memory index
     // if we ever see larger numbers of memories.
     Tagged<FixedArray> memory_objects = trusted_data->memory_objects();
-    int num_memories = memory_objects->length();
-    for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
+    uint32_t num_memories = memory_objects->ulength().value();
+    for (uint32_t mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
       if (memory_objects->get(mem_idx) == *this) {
         SetInstanceMemory(trusted_data, array_buffer(), backing_store(),
                           mem_idx);
@@ -1874,8 +1874,9 @@ bool WasmTrustedInstanceData::CopyTableEntries(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     uint32_t table_dst_index, uint32_t table_src_index, uint32_t dst,
     uint32_t src, uint32_t count) {
-  CHECK_LT(table_dst_index, trusted_instance_data->tables()->length());
-  CHECK_LT(table_src_index, trusted_instance_data->tables()->length());
+  uint32_t table_len = trusted_instance_data->tables()->ulength().value();
+  CHECK_LT(table_dst_index, table_len);
+  CHECK_LT(table_src_index, table_len);
   auto table_dst =
       direct_handle(Cast<WasmTableObject>(
                         trusted_instance_data->tables()->get(table_dst_index)),
@@ -1940,7 +1941,8 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
   if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length())) {
     return {MessageTemplate::kWasmTrapTableOutOfBounds};
   }
-  if (!base::IsInBounds<uint64_t>(src, count, elem_segment->length())) {
+  if (!base::IsInBounds<uint64_t>(src, count,
+                                  elem_segment->ulength().value())) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
   }
 
@@ -2642,7 +2644,7 @@ void WasmDispatchTable::AddUse(Isolate* isolate,
 Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
     Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table) {
   Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
-  int capacity = uses->length();
+  uint32_t capacity = uses->ulength().value();
   if (capacity == 0) {
     constexpr int kInitialLength = 3;  // 1 slot + 1 pair.
     DirectHandle<ProtectedWeakFixedArray> new_uses =
@@ -2651,13 +2653,14 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
     dispatch_table->set_protected_uses(*new_uses);
     return *new_uses;
   }
-  DCHECK_GT(uses->length(), 0);
-  int used_length = GetUsedLength(uses);
+  int int_used_length = GetUsedLength(uses);
+  DCHECK_GE(int_used_length, 0);
+  uint32_t used_length = static_cast<uint32_t>(int_used_length);
   if (used_length < capacity) return uses;
   // Try to compact, grow if that doesn't free up enough space.
-  int cleared_entries = 0;
-  int write_cursor = kReservedSlotOffset;
-  for (int i = kReservedSlotOffset; i < capacity; i += 2) {
+  uint32_t cleared_entries = 0;
+  uint32_t write_cursor = kReservedSlotOffset;
+  for (uint32_t i = kReservedSlotOffset; i < capacity; i += 2) {
     DCHECK(uses->get(i).IsWeakOrCleared());
     if (uses->get(i).IsCleared()) {
       cleared_entries++;
@@ -2670,7 +2673,7 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   }
   // We need at least one free entry. We want at least half the array to be
   // empty; each entry needs two slots.
-  int min_free_entries = 1 + (capacity >> 2);
+  uint32_t min_free_entries = 1 + (capacity >> 2);
   if (cleared_entries >= min_free_entries) {
     SetUsedLength(uses, write_cursor);
     return uses;
@@ -2678,9 +2681,10 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   // Grow by 50%, at least one entry.
   DirectHandle<ProtectedWeakFixedArray> uses_handle(uses, isolate);
   uses = {};
-  int old_entries = capacity >> 1;  // Two slots per entry.
-  int new_entries = std::max(old_entries + 1, old_entries + (old_entries >> 1));
-  int new_capacity = new_entries * 2 + kReservedSlotOffset;
+  uint32_t old_entries = capacity >> 1;  // Two slots per entry.
+  uint32_t new_entries =
+      std::max(old_entries + 1, old_entries + (old_entries >> 1));
+  uint32_t new_capacity = new_entries * 2 + kReservedSlotOffset;
   DirectHandle<ProtectedWeakFixedArray> new_uses =
       isolate->factory()->NewProtectedWeakFixedArray(new_capacity);
   // The allocation could have triggered GC, freeing more entries.
@@ -2690,7 +2694,7 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   DisallowGarbageCollection no_gc;
   uses = *uses_handle;
   write_cursor = kReservedSlotOffset;
-  for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+  for (uint32_t i = kReservedSlotOffset; i < used_length; i += 2) {
     if (uses->get(i).IsCleared()) continue;
     CopyEntry(*new_uses, write_cursor, uses, i);
     write_cursor += 2;

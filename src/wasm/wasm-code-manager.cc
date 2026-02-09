@@ -1102,7 +1102,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
       base::OwnedCopyOf(code->relocation_start(), relocation_size);
   DirectHandle<TrustedByteArray> source_pos_table(code->source_position_table(),
                                                   Isolate::Current());
-  int source_pos_len = source_pos_table->length();
+  uint32_t source_pos_len = source_pos_table->ulength().value();
   base::OwnedVector<uint8_t> source_pos =
       base::OwnedCopyOf(source_pos_table->begin(), source_pos_len);
 

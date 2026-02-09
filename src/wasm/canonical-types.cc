@@ -504,16 +504,16 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   // the {old_length * 3} computation below must not overflow.
   static_assert(kMaxCanonicalTypes <= kMaxInt / 3 - 1);
   // Canonical types are zero-indexed.
-  const int length = id.index + 1;
+  const uint32_t length = id.index + 1;
   // The fast path is non-handlified.
   Tagged<WeakFixedArray> old_rtts_raw = heap->wasm_canonical_rtts();
 
   // Fast path: length is sufficient.
-  int old_length = old_rtts_raw->length();
+  uint32_t old_length = old_rtts_raw->ulength().value();
   if (old_length >= length) return;
 
   // Allocate a bigger WeakFixedArray, growing exponentially.
-  const int new_length = std::max(old_length * 3 / 2, length);
+  const uint32_t new_length = std::max(old_length * 3 / 2, length);
   CHECK_LT(old_length, new_length);
 
   // Allocation can invalidate previous unhandled pointers.
