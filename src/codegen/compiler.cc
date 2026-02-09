@@ -2541,7 +2541,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
     if (maybe_new_info == maybe_old_info) {
-      if (sfis_without_scope_info_.contains(i)) {
+      if (sfis_without_scope_info_.contains(i) && maybe_old_info.IsWeak()) {
         Tagged<SharedFunctionInfo> sfi =
             Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
         if (!sfi->scope_info()->IsEmpty()) {
