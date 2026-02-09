@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-iterator.h"
 
 #include "src/base/float16.h"
+#include "src/base/memory.h"
 #include "src/execution/execution.h"
 #include "src/execution/protectors-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -269,7 +270,9 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
               isolate->factory()->NewStringFromAsciiChecked("iteration"))); \
           return MaybeDirectHandle<Object>();                               \
         }                                                                   \
-        ctype val = static_cast<ctype*>(typed_array->DataPtr())[i];         \
+        ctype val = base::ReadUnalignedValue<ctype>(                        \
+            reinterpret_cast<Address>(typed_array->DataPtr()) +             \
+            i * sizeof(ctype));                                             \
         if constexpr (ElementsKind::TYPE##_ELEMENTS == FLOAT16_ELEMENTS) {  \
           if (!double_visitor(fp16_ieee_to_fp32_value(val))) {              \
             return MaybeDirectHandle<Object>();                             \
