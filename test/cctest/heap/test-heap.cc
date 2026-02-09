@@ -6863,7 +6863,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
 
     HandleScope scope(i_isolate);
     while (heap->OldGenerationSizeOfObjects() <
-           heap->MaxOldGenerationSize() * 0.95) {
+           heap->MaxOldGenerationSize() * 0.97) {
       factory->NewFixedArray(100, AllocationType::kOld);
     }
     {
