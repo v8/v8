@@ -238,44 +238,57 @@ bool HandleWatchpoint(struct user_regs_struct& regs) {
 // - stopping itself in case `d8` exited regularly or via a crash,
 // - setting a new hardware watchpoint if requested, or
 // - reacting to a hit watchpoint.
-void WaitForD8ToStopThenReact() {
+// Returns what's expected to happen next.
+enum HowToContinueAfterWatchpoint {
+  kContinueD8Process,
+  kStopDebuggerProcess,
+  kContinueD8WithSigChld
+};
+HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   TRACE("[debugger] waiting for d8 to stop.\n");
   int status;
   waitpid(g_support.d8_pid, &status, 0);
 
-  if (WIFEXITED(status)) {
-    TRACE("[debugger] d8 exited with status %d.\n", WEXITSTATUS(status));
-    base::OS::ExitProcess(0);
-  }
-
   if (WIFSIGNALED(status)) {
     TRACE("[debugger] d8 crashed/killed by signal %d (%s).\n", WTERMSIG(status),
           strsignal(WTERMSIG(status)));
-    base::OS::ExitProcess(0);
+    return kStopDebuggerProcess;
+  }
+
+  if (WIFEXITED(status)) {
+    TRACE("[debugger] d8 exited with status %d.\n", WEXITSTATUS(status));
+    return kStopDebuggerProcess;
   }
 
   CHECK(WIFSTOPPED(status));
+  int signal = WSTOPSIG(status);
 
   struct user_regs_struct regs;
   CHECK_EQ(0, ptrace(PTRACE_GETREGS, g_support.d8_pid, 0, &regs));
-  int signal = WSTOPSIG(status);
   TRACE("[debugger] d8 stopped at 0x%llx (sig %d, %s).\n", regs.rip, signal,
         strsignal(signal));
 
-  // Check if a watchpoint has been hit; if so, handle it and return.
-  if (signal == SIGTRAP && HandleWatchpoint(regs)) return;
+  switch (signal) {
+    case SIGCHLD:
+      TRACE("[debugger] A child process of d8 exited; continuing d8.\n");
+      return kContinueD8WithSigChld;
 
-  if (WSTOPSIG(status) == SIGSTOP) {
-    // D8 requested an update on watchpoints -> execute them.
-    CHECK(g_support.shared->has_changed_watchpoints.exchange(false));
-    SetNewWatchpoints();
-    return;
-  }
+    case SIGSTOP:
+      // D8 requested an update on watchpoints -> execute them.
+      CHECK(g_support.shared->has_changed_watchpoints.exchange(false));
+      SetNewWatchpoints();
+      return kContinueD8Process;
 
-  if (signal == SIGSEGV || signal == SIGABRT || signal == SIGILL ||
-      signal == SIGTRAP) {
-    TRACE("[debugger] d8 crashed (%s)\n", strsignal(signal));
-    base::OS::ExitProcess(0);
+    case SIGTRAP:
+      // Check if a watchpoint has been hit; if so, handle it and return.
+      if (HandleWatchpoint(regs)) return kContinueD8Process;
+      [[fallthrough]];
+
+    case SIGSEGV:
+    case SIGABRT:
+    case SIGILL:
+      TRACE("[debugger] d8 crashed (%s)\n", strsignal(signal));
+      return kStopDebuggerProcess;
   }
 
   // If there are other reasons for the d8 process to stop we should handle
@@ -293,7 +306,7 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
 
   // Set up shared memory for communication between the two processes.
   void* shared_mem =
-      mmap(NULL, sizeof(HardwareWatchpointSupport), PROT_READ | PROT_WRITE,
+      mmap(nullptr, sizeof(HardwareWatchpointSupport), PROT_READ | PROT_WRITE,
            MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   if (shared_mem == MAP_FAILED) {
     FATAL("mmap failed: %s", strerror(errno));
@@ -366,16 +379,24 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
   // Signal to d8 that it can start executing the actual JS code.
   g_support.shared->initialization_step.store(2);
 
-  while (true) {
-    TRACE("[debugger] continuing d8\n");
+  // Continuing d8 is the initial action.
+  HowToContinueAfterWatchpoint how_to_continue = kContinueD8Process;
+  while (how_to_continue != kStopDebuggerProcess) {
+    DCHECK(how_to_continue == kContinueD8Process ||
+           how_to_continue == kContinueD8WithSigChld);
+    const bool sigchld = how_to_continue == kContinueD8WithSigChld;
+    TRACE("[debugger] continuing d8%s\n", sigchld ? " with SIGCHLD" : "");
 
-    if (ptrace(PTRACE_CONT, d8_pid, NULL, NULL) == -1) {
+    if (ptrace(PTRACE_CONT, d8_pid, nullptr,
+               sigchld ? reinterpret_cast<void*>(SIGCHLD) : nullptr) == -1) {
       FATAL("PTRACE_CONT failed: %s", strerror(errno));
     }
 
-    // This will eventually end the process, once the "d8" process has exited.
-    WaitForD8ToStopThenReact();
+    how_to_continue = WaitForD8ToStopThenReact();
   }
+
+  base::OS::ExitProcess(0);
+  UNREACHABLE();
 }
 
 // Called from d8 on exit to reset all watchpoints.
