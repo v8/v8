@@ -1691,8 +1691,9 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
         // We'll succeed applying the property, but the value is already the
         // same and the property is read-only, so skip actually writing the
         // property. Otherwise we may try to e.g., write to frozen elements.
-        if (Object::SameValue(*desc->value(), *current->value()))
+        if (Object::SameValue(*desc->value(), *current->value())) {
           return Just(true);
+        }
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,

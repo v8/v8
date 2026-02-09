@@ -313,6 +313,11 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--print_all_code", "--print_code", "--print_opt_code",
         "--print_code_verbose", "--print_builtin_code", "--print_regexp_code"
     ],
+    "single_generation": [
+        "--shared-strings",
+        "--shared-heap",
+        "--harmony-struct",
+    ],
     "!slow_dchecks": ["--enable-slow-asserts"],
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
     "!has_maglev": ["--maglev"],

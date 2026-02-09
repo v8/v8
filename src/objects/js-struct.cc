@@ -88,6 +88,9 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   }
   DCHECK(it.property_attributes() == desc->ToAttributes());
   if (desc->has_value()) {
+    if (Object::SameValue(*desc->value(), *current.value())) {
+      return Just(true);
+    }
     return Object::SetDataProperty(&it, desc->value());
   }
   return Just(true);
