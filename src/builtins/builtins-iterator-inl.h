@@ -234,8 +234,9 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
       IsJSFunction(*iterator_fn)) {
     if (DirectHandle<JSFunction> func = Cast<JSFunction>(iterator_fn);
-        func->code(isolate) ==
-        *isolate->builtins()->code(Builtin::kTypedArrayPrototypeValues)) {
+        isolate->builtins()
+            ->code(Builtin::kTypedArrayPrototypeValues)
+            ->SafeEquals(func->code(isolate))) {
       DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(receiver);
       ElementsKind kind = typed_array->GetElementsKind();
       if (!IsBigIntTypedArrayElementsKind(kind)) {
