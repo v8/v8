@@ -9007,6 +9007,7 @@ void Simulator::DoSwitchStackLimit(Instruction* instr) {
 }
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
+#ifdef V8_COMPRESS_POINTERS
   if ((address >= stack_limit_) && (address < stack)) {
     PrintF("ACCESS BELOW STACK POINTER:\n");
     PrintF("  sp is here:          0x%016" PRIx64 "\n",
@@ -9017,6 +9018,7 @@ void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
            static_cast<uint64_t>(stack_limit_));
     FATAL("ACCESS BELOW STACK POINTER");
   }
+#endif
 }
 
 }  // namespace internal
