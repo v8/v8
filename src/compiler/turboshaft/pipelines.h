@@ -213,7 +213,8 @@ class V8_EXPORT_PRIVATE Pipeline {
     // `MachineLoweringPhase` since we can reuse the `DataViewLoweringReducer`
     // there and avoid a separate phase.
     if (v8_flags.turboshaft_wasm_in_js_inlining ||
-        v8_flags.turbolev_inline_js_wasm_wrappers) {
+        (v8_flags.turbolev_inline_js_wasm_wrappers &&
+         data_->turbolev_graph_has_inlineable_wasm_calls())) {
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
     }
 #endif  // !V8_ENABLE_WEBASSEMBLY

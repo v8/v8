@@ -467,6 +467,13 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
   void clear_wasm_shuffle_analyzer() { wasm_shuffle_analyzer_ = nullptr; }
+
+  bool turbolev_graph_has_inlineable_wasm_calls() const {
+    return turbolev_graph_has_inlineable_wasm_calls_;
+  }
+  void set_turbolev_graph_has_inlineable_wasm_calls() {
+    turbolev_graph_has_inlineable_wasm_calls_ = true;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -545,6 +552,15 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
+  // When creating the Turboshaft graph from Maglev for Turbolev, we record in
+  // {turbolev_graph_has_inlineable_wasm_calls_} whether there are inlineable
+  // Wasm calls. This way, the WasmInJSInliningPhase can be ran conditionally
+  // and avoid a useless CopyingPhase for pure-JS functions, in order to reduce
+  // compile time.
+  // TODO(dmercadier,353475584): once WasmInJSInliningPhase has been merged with
+  // MachineLoweringPhase, we can get rid of this trick, since the
+  // MachineLoweringPhase runs unconditionally anyways.
+  bool turbolev_graph_has_inlineable_wasm_calls_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

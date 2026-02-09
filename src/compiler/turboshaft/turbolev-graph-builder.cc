@@ -1383,6 +1383,7 @@ class GraphBuildingNodeProcessor {
           wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
               native_module, wasm_function_index, shared, feedback,
               receiver_is_first_param);
+          __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
         }
       }
     }
