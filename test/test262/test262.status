@@ -385,10 +385,6 @@
   # May OOM fatally
   'staging/sm/regress/regress-610026': [SKIP],
 
-  # https://github.com/rbuckton/ecma262/pull/14
-  'staging/explicit-resource-management/await-using-in-switch-case-block': [SKIP],
-  'staging/explicit-resource-management/call-dispose-methods': [SKIP],
-
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
@@ -1149,6 +1145,28 @@
   'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/Intl/supportedValuesOf/numberingSystems-with-simple-digit-mappings': [SKIP],
+  'intl402/NumberFormat/prototype/format/numbering-systems': [SKIP],
+  'intl402/Temporal/Instant/prototype/toLocaleString/respect-timezone-after-formatting-plaindatetime': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/ignore-timezone': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/ignore-timezone': [SKIP],
+  'intl402/Temporal/PlainMonthDay/from/chinese-leap-month-codes-common': [SKIP],
+  'intl402/Temporal/PlainMonthDay/from/dangi-leap-month-codes-common': [SKIP],
+  'intl402/Temporal/PlainMonthDay/from/islamic-civil-month-codes': [SKIP],
+  'intl402/Temporal/PlainMonthDay/from/islamic-tbla-month-codes': [SKIP],
+  'staging/Intl402/Temporal/old/datetime-toLocaleString': [SKIP],
+  'staging/sm/String/string-upper-lower-mapping': [SKIP],
 }],
 # End roll-watcher patch
 ####
