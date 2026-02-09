@@ -73,6 +73,46 @@ TEST_F(DumplingTest, InterpreterSmiParams) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterObjectWithObjectPrototype) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x.a;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);"
+      "foo({a: 100});\n";
+
+  const char* expected =
+      "---I\\s+"
+      "b:0\\s+"            // Bytecode offset 0
+      "f:\\d+\\s+"         // Function id can be anything
+      "x:<undefined>\\s+"  // Accumulator
+      "n:1\\s+"            // Number of params
+      "m:0\\s+"            // Number of registers
+      "a0:<Object>\\{a\\[WEC\\]100\\}\\s+";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterObjectWithCustomPrototype) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x.a;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);"
+      "foo({a: 100, __proto__: {b: 200}});\n";
+
+  const char* expected =
+      "---I\\s+"
+      "b:0\\s+"            // Bytecode offset 0
+      "f:\\d+\\s+"         // Function id can be anything
+      "x:<undefined>\\s+"  // Accumulator
+      "n:1\\s+"            // Number of params
+      "m:0\\s+"            // Number of registers
+      "a0:<Object>\\{a\\[WEC\\]100\\}__proto__:<Object>\\{b\\[WEC\\]200\\}\\s+";
+
+  RunInterpreterTest(program, expected);
+}
+
 }  // namespace v8
 
 #endif  // V8_DUMPLING
