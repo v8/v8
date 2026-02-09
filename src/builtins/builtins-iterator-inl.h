@@ -187,7 +187,13 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           DirectHandle<FixedDoubleArray> double_elements =
               Cast<FixedDoubleArray>(elements);
           for (uint32_t i = 0; i < len; ++i) {
-            if (double_elements->is_the_hole(i)) {
+            if (double_elements->is_the_hole(i) ||
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+                double_elements->is_undefined(i)
+#else
+                false
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+            ) {
               if (!generic_visitor(
                       isolate->root_handle(RootIndex::kUndefinedValue))) {
                 return abort;
@@ -361,7 +367,13 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
               } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
                 DirectHandle<FixedDoubleArray> double_elements =
                     Cast<FixedDoubleArray>(elements);
-                if (double_elements->is_the_hole(current_index)) {
+                if (double_elements->is_the_hole(current_index) ||
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+                    double_elements->is_undefined(current_index)
+#else
+                    false
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+                ) {
                   if (!generic_visitor(
                           isolate->root_handle(RootIndex::kUndefinedValue))) {
                     break;
