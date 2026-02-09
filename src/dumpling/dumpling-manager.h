@@ -5,7 +5,7 @@
 #ifndef V8_DUMPLING_DUMPLING_MANAGER_H_
 #define V8_DUMPLING_DUMPLING_MANAGER_H_
 
-#include <fstream>
+#include <ostream>
 
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -107,6 +107,16 @@ class DumplingManager {
                         Isolate* isolate, int bytecode_offset,
                         DumpFrameType frame_dump_type);
 
+  void set_print_into_string(bool print_into_string) {
+    print_into_string_ = print_into_string;
+  }
+
+  std::string GetOutput() {
+    DCHECK(print_into_string_);
+    DCHECK(dumpling_stream_);
+    return static_cast<std::ostringstream*>(dumpling_stream_.get())->str();
+  }
+
  private:
   bool AnyDumplingFlagsSet() const;
 
@@ -158,7 +168,10 @@ class DumplingManager {
 
   DumplingLastFrame dumpling_last_frame_;
 
-  std::ofstream dumpling_os_;
+  // Gather the output into a string instead of printing out to a file.
+  bool print_into_string_ = false;
+
+  std::unique_ptr<std::ostream> dumpling_stream_;
 
   std::unordered_map<int, std::unordered_set<int> > dump_positions_;
 };

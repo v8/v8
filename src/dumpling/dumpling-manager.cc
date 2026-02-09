@@ -5,6 +5,7 @@
 #include "src/dumpling/dumpling-manager.h"
 
 #include <fstream>
+#include <sstream>
 
 #include "src/dumpling/object-dumping.h"
 #include "src/execution/frames-inl.h"
@@ -17,9 +18,9 @@ namespace v8::internal {
 
 namespace {
 
-V8_INLINE void MaybePrint(std::string short_name,
+V8_INLINE void MaybePrint(const std::string& short_name,
                           std::optional<std::string> maybe_value,
-                          std::ofstream& os) {
+                          std::ostream& os) {
   if (maybe_value.has_value()) {
     os << short_name << maybe_value.value() << "\n";
   }
@@ -76,16 +77,16 @@ void DumplingManager::DoPrint(DumplingJSFrame* frame,
 
   switch (frame_dump_type) {
     case DumpFrameType::kInterpreterFrame:
-      dumpling_os_ << "---I" << '\n';
+      *dumpling_stream_ << "---I" << '\n';
       break;
     case DumpFrameType::kSparkplugFrame:
-      dumpling_os_ << "---S" << '\n';
+      *dumpling_stream_ << "---S" << '\n';
       break;
     case DumpFrameType::kMaglevFrame:
-      dumpling_os_ << "---M" << '\n';
+      *dumpling_stream_ << "---M" << '\n';
       break;
     case DumpFrameType::kTurbofanFrame:
-      dumpling_os_ << "---T" << '\n';
+      *dumpling_stream_ << "---T" << '\n';
       break;
     default:
       UNREACHABLE();
@@ -103,25 +104,25 @@ void DumplingManager::DoPrint(DumplingJSFrame* frame,
     }
   }
 
-  MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), dumpling_os_);
+  MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), *dumpling_stream_);
 
-  MaybePrint("f:", DumpFunctionId(function_id), dumpling_os_);
+  MaybePrint("f:", DumpFunctionId(function_id), *dumpling_stream_);
 
   std::stringstream check_acc;
   DifferentialFuzzingPrint(*accumulator, check_acc);
-  MaybePrint("x:", DumpAcc(check_acc.str()), dumpling_os_);
+  MaybePrint("x:", DumpAcc(check_acc.str()), *dumpling_stream_);
 
   int param_count = bytecode_array->parameter_count() - 1;
-  MaybePrint("n:", DumpArgCount(param_count), dumpling_os_);
+  MaybePrint("n:", DumpArgCount(param_count), *dumpling_stream_);
   int register_count = bytecode_array->register_count();
-  MaybePrint("m:", DumpRegCount(register_count), dumpling_os_);
+  MaybePrint("m:", DumpRegCount(register_count), *dumpling_stream_);
 
   for (int i = 0; i < param_count; i++) {
     std::stringstream check_arg;
     Tagged<Object> arg_object = frame->GetParameter(i);
     DifferentialFuzzingPrint(arg_object, check_arg);
     std::string label = "a" + std::to_string(i) + ":";
-    MaybePrint(label, DumpArg(i, check_arg.str()), dumpling_os_);
+    MaybePrint(label, DumpArg(i, check_arg.str()), *dumpling_stream_);
   }
 
   for (int i = 0; i < register_count; i++) {
@@ -129,10 +130,10 @@ void DumplingManager::DoPrint(DumplingJSFrame* frame,
     Tagged<Object> reg_object = frame->GetRegisterValue(i);
     DifferentialFuzzingPrint(reg_object, check_reg);
     std::string label = "r" + std::to_string(i) + ":";
-    MaybePrint(label, DumpReg(i, check_reg.str()), dumpling_os_);
+    MaybePrint(label, DumpReg(i, check_reg.str()), *dumpling_stream_);
   }
 
-  dumpling_os_ << "\n";
+  *dumpling_stream_ << "\n";
 }
 
 std::string DumplingManager::GetDumpOutFilename() const {
@@ -214,7 +215,6 @@ DumplingManager::~DumplingManager() {
   if (v8_flags.generate_dump_positions) {
     WriteDumpPositionsToFile();
   }
-  dumpling_os_.close();
 }
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
@@ -266,15 +266,18 @@ void DumplingManager::ResetLastFrame() {
                           -1};
 }
 
-void DumplingManager::FinishCurrentREPRLCycle() { dumpling_os_.close(); }
+void DumplingManager::FinishCurrentREPRLCycle() { dumpling_stream_.reset(); }
 
 void DumplingManager::PrepareForNextREPRLCycle() {
   ResetLastFrame();
   dump_positions_.clear();
 
-  DCHECK(!dumpling_os_.is_open());
-  // this will truncate the file
-  dumpling_os_.open(GetDumpOutFilename());
+  if (print_into_string_) {
+    dumpling_stream_ = std::make_unique<std::ostringstream>();
+  } else {
+    // this will truncate the file
+    dumpling_stream_ = std::make_unique<std::ofstream>(GetDumpOutFilename());
+  }
 }
 
 }  // namespace v8::internal

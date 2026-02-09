@@ -325,6 +325,7 @@ v8_source_set("v8_unittests_sources") {
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
+    "dumpling/dumpling-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
