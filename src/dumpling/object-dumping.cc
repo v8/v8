@@ -163,16 +163,19 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     int hole_range_start = -1;
     // We output consecutive holes as hole_range_start-hole_range_end:the_hole
     for (int i = 0; i < dump_len; i++) {
+      if (i != 0) {
+        accumulator->Put(',');
+      }
       if (elements->is_the_hole(isolate, i)) {
         if (hole_range_start == -1) {
           hole_range_start = i;
         }
       } else {
         if (hole_range_start != -1) {
-          accumulator->Add("%d-%d:the_hole,", hole_range_start, i - 1);
+          accumulator->Add("%d-%d:the_hole", hole_range_start, i - 1);
           hole_range_start = -1;
         }
-        accumulator->Add("%s,", format_element(i).c_str());
+        accumulator->Add("%s", format_element(i).c_str());
       }
     }
     // We specifically not add trailing holes, because elements capacity can be
@@ -201,125 +204,33 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
                           StringStream* accumulator) {
-  InstanceType instance_type = obj->map()->instance_type();
-
-  switch (instance_type) {
-    case JS_ARRAY_TYPE: {
-      accumulator->Add("<JSArray>");
-      break;
+  if (IsJSFunction(obj)) {
+    Tagged<JSFunction> function = Cast<JSFunction>(obj);
+    std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
+    accumulator->Add("<JSFunction ");
+    if (fun_name[0] != '\0') {
+      accumulator->Add(fun_name.get());
     }
-    case JS_BOUND_FUNCTION_TYPE: {
-      accumulator->Add("<JSBoundFunction>");
-      break;
-    }
-    case JS_WEAK_MAP_TYPE: {
-      accumulator->Add("<JSWeakMap>");
-      break;
-    }
-    case JS_WEAK_SET_TYPE: {
-      accumulator->Add("<JSWeakSet>");
-      break;
-    }
-    case JS_REG_EXP_TYPE: {
-      accumulator->Add("<JSRegExp");
-      Tagged<JSRegExp> regexp = Cast<JSRegExp>(obj);
-      if (IsString(regexp->source())) {
-        accumulator->Add(" ");
-        Cast<String>(regexp->source())->StringShortPrint(accumulator);
-      }
-      accumulator->Add(">");
-
-      break;
-    }
-    case JS_PROMISE_CONSTRUCTOR_TYPE:
-    case JS_REG_EXP_CONSTRUCTOR_TYPE:
-    case JS_ARRAY_CONSTRUCTOR_TYPE:
-#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
-  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
-      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
-#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-    case JS_CLASS_CONSTRUCTOR_TYPE:
-    case JS_FUNCTION_TYPE: {
-      Tagged<JSFunction> function = Cast<JSFunction>(obj);
-      std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
-      if (fun_name[0] != '\0') {
-        accumulator->Add("<JSFunction ");
-        accumulator->Add(fun_name.get());
-      } else {
-        accumulator->Add("<JSFunction");
-      }
-      accumulator->Put('>');
-      break;
-    }
-    case JS_GENERATOR_OBJECT_TYPE: {
-      accumulator->Add("<JSGenerator>");
-      break;
-    }
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE: {
-      accumulator->Add("<JSAsyncFunctionObject>");
-      break;
-    }
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE: {
-      accumulator->Add("<JS AsyncGenerator>");
-      break;
-    }
-    case JS_SHARED_ARRAY_TYPE:
-      accumulator->Add("<JSSharedArray>");
-      break;
-    case JS_SHARED_STRUCT_TYPE:
-      accumulator->Add("<JSSharedStruct>");
-      break;
-    case JS_ATOMICS_MUTEX_TYPE:
-      accumulator->Add("<JSAtomicsMutex>");
-      break;
-    case JS_ATOMICS_CONDITION_TYPE:
-      accumulator->Add("<JSAtomicsCondition>");
-      break;
-    case JS_MESSAGE_OBJECT_TYPE:
-      accumulator->Add("<JSMessageObject>");
-      break;
-    case JS_EXTERNAL_OBJECT_TYPE:
-      accumulator->Add("<JSExternalObject>");
-      break;
-    case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
-      accumulator->Add("<CppHeapExternalObject>");
-      break;
-
-    default: {
-      Tagged<Map> map_of_this = obj->map();
-      Tagged<Object> constructor = map_of_this->GetConstructor();
-      bool printed = false;
-      bool is_global_proxy = IsJSGlobalProxy(obj);
-      if (IsJSFunction(constructor)) {
-        Tagged<SharedFunctionInfo> sfi =
-            Cast<JSFunction>(constructor)->shared();
-        Tagged<String> constructor_name = sfi->Name();
-        if (constructor_name->length() > 0) {
-          accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
-          accumulator->Put(constructor_name);
-          printed = true;
-        }
-      } else if (IsFunctionTemplateInfo(constructor)) {
-        accumulator->Add("<RemoteObject>");
+    accumulator->Put('>');
+  } else if (IsJSArray(obj)) {
+    accumulator->Add("<JSArray>");
+  } else {
+    Tagged<Map> map = obj->map();
+    Tagged<Object> constructor = map->GetConstructor();
+    bool printed = false;
+    if (IsJSFunction(constructor)) {
+      Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(constructor)->shared();
+      Tagged<String> constructor_name = sfi->Name();
+      if (constructor_name->length() > 0) {
+        accumulator->Add("<");
+        accumulator->Put(constructor_name);
         printed = true;
       }
-      if (!printed) {
-        accumulator->Add("<JS");
-        if (is_global_proxy) {
-          accumulator->Add("GlobalProxy");
-        } else if (IsJSGlobalObject(obj)) {
-          accumulator->Add("GlobalObject");
-        } else {
-          accumulator->Add("Object");
-        }
-      }
-      if (IsJSPrimitiveWrapper(obj)) {
-        accumulator->Add(" value = ");
-        ShortPrint(Cast<JSPrimitiveWrapper>(obj)->value(), accumulator);
-      }
-      accumulator->Put('>');
-      break;
     }
+    if (!printed) {
+      accumulator->Add("<JSObject");
+    }
+    accumulator->Put('>');
   }
 
   Isolate* isolate = Isolate::Current();
