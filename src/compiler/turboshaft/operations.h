@@ -7496,7 +7496,9 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     if (is_get_desc()) {
-      return base::VectorOf({RegisterRepresentation::Tagged()});
+      static constexpr RegisterRepresentation kTagged[] = {
+          RegisterRepresentation::Tagged()};
+      return base::VectorOf(kTagged);
     }
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
   }
