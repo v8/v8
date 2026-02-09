@@ -1014,6 +1014,8 @@ external_v8_defines = [
   "V8_TARGET_OS_CHROMEOS",
   "V8_TARGET_ARCH_ARM64",
   "V8_TARGET_ARCH_PPC64",
+  "V8_TARGET_ARCH_MIPS64",
+  "V8_TARGET_ARCH_LOONG64",
 ]
 
 enabled_external_v8_defines = [
@@ -1106,6 +1108,10 @@ if (v8_current_cpu == "arm64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_ARM64" ]
 } else if (v8_current_cpu == "ppc64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_PPC64" ]
+} else if (v8_current_cpu == "mips64el") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_MIPS64" ]
+} else if (v8_current_cpu == "loong64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_LOONG64" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines

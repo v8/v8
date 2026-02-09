@@ -6324,8 +6324,9 @@ bool v8::V8::Initialize(const int build_config) {
         kV8EnableChecks ? "ENABLED" : "DISABLED");
   }
 
-  // TODO(ishell, 455600234): check that V8_TARGET_ARCH_ARM64/PPC64 on embedder
-  // side matches the ones on V8 side.
+  // TODO(ishell, 455600234): check that
+  // V8_TARGET_ARCH_ARM64/PPC64/MIPS64/LOONG64 on embedder side matches the ones
+  // on V8 side.
 
   i::V8::Initialize();
   if (!cppgc::IsInitialized()) {
