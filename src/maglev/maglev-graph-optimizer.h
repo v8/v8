@@ -53,8 +53,7 @@ class MaglevGraphOptimizer {
   }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    DCHECK(current_node()->properties().can_eager_deopt() ||
-           current_node()->properties().is_deopt_checkpoint());
+    DCHECK(current_node()->properties().has_eager_deopt_info());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 

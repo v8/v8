@@ -609,7 +609,7 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
 
 void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                           NodeBase* node, int max_node_id) {
-  if (node->properties().can_eager_deopt()) {
+  if (node->properties().has_eager_deopt_info()) {
     PrintEagerDeopt(os, targets, node, max_node_id);
   }
 }

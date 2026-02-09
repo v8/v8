@@ -384,7 +384,7 @@ class Graph final : public ZoneObject {
   NodeT* CreateNewConstantNode(Args&&... args) const {
     static_assert(IsConstantNode(Node::opcode_of<NodeT>));
     NodeT* node = NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
-    static_assert(!NodeT::kProperties.can_eager_deopt());
+    static_assert(!NodeT::kProperties.has_eager_deopt_info());
     static_assert(!NodeT::kProperties.can_lazy_deopt());
     static_assert(!NodeT::kProperties.can_throw());
     static_assert(!NodeT::kProperties.can_write());
