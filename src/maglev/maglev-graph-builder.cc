@@ -1122,6 +1122,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       caller_details_(caller_details),
       flags_(compilation_unit->info()->flags()),
       graph_(graph),
+      tracer_(graph->compilation_info()),
       bytecode_analysis_(bytecode().object(), zone(),
                          compilation_unit->osr_offset(), true),
       iterator_(bytecode().object()),
@@ -8263,8 +8264,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
       if (v8_flags.maglev_print_feedback) {
         i::Print(*feedback.object(), std::cout);
       }
-    } else if (v8_flags.trace_maglev_graph_building ||
-               v8_flags.trace_maglev_inlining) {
+    } else if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== Inlining " << shared.object() << std::endl;
     }
   }
@@ -8347,14 +8347,8 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   return current_interpreter_frame_.accumulator();
 }
 
-#define TRACE_INLINING(...)                                         \
-  do {                                                              \
-    if (V8_UNLIKELY(flags_.trace_inlining && is_tracing_enabled())) \
-      StdoutStream{} << __VA_ARGS__ << std::endl;                   \
-  } while (false)
-
 #define TRACE_CANNOT_INLINE(...) \
-  TRACE_INLINING("  cannot inline " << shared << ": " << __VA_ARGS__)
+  TRACE_INLINING(TraceSkip(shared) << __VA_ARGS__)
 
 bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
                                        float call_frequency) {
@@ -8395,8 +8389,8 @@ bool MaglevGraphBuilder::IsFunctionCandidateForEagerInlining(
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   if (bytecode.length() < flags_.max_eager_inlined_bytecode) {
-    TRACE_INLINING("  greedy inlining "
-                   << shared << ": small function, skipping max-depth");
+    TRACE_INLINING(TraceInlineEager(shared)
+                   << "Small function, skipping max-depth");
     return true;
   }
 
@@ -8415,8 +8409,8 @@ bool MaglevGraphBuilder::IsFunctionCandidateForEagerInlining(
       }
     }
     if (has_float_arg) {
-      TRACE_INLINING("  greedy inlining "
-                     << shared << ": small function with heap number inputs");
+      TRACE_INLINING(TraceInlineEager(shared)
+                     << "Small function with heap number inputs");
       return true;
     }
   }
@@ -8522,7 +8516,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
                                 feedback_cell, args, call_frequency);
   }
 
-  TRACE_INLINING("  considering " << shared << " for inlining");
   auto [result, arguments] = GetArgumentsAsArrayOfValueNodes(shared, args);
   RETURN_IF_ABORT(result);
 
@@ -8555,6 +8548,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
           /* is_eager_inline */ false, /* is_small_function */ false,
           call_frequency, current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
+  TRACE_INLINING(TracePush(shared)
+                 << "Score: " << std::right << std::setw(6) << std::fixed
+                 << std::setprecision(2) << call_site->score << ", Node: n"
+                 << graph_->graph_labeller()->NodeId(
+                        call_site->generic_call_node));
   graph()->inlineable_calls().push(call_site);
   return generic_call;
 }

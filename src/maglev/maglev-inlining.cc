@@ -14,15 +14,9 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-reducer-inl.h"
+#include "src/maglev/maglev-tracer.h"
 
 namespace v8::internal::maglev {
-
-#define TRACE(x)                                                               \
-  do {                                                                         \
-    if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) { \
-      StdoutStream() << x << std::endl;                                        \
-    }                                                                          \
-  } while (false)
 
 bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
                                            const MaglevCallSiteInfo* info2) {
@@ -56,12 +50,7 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
     }
   }
 
-  if (!has_heapnumber_input_output) {
-    TRACE("> Does not have heapnum in/out. Uses: "
-          << call_site->generic_call_node->use_repr_hints());
-    return false;
-  }
-
+  if (!has_heapnumber_input_output) return false;
   return call_site->bytecode_length <=
          flags_.max_inlined_bytecode_size_small_with_heapnum_in_out;
 }
@@ -79,28 +68,35 @@ bool MaglevInliner::InlineCallSites() {
   while (!graph_->inlineable_calls().empty()) {
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
 
-    TRACE("Considering for inlining "
-          << graph_->graph_labeller()->NodeId(call_site->generic_call_node)
-          << " : " << call_site->generic_call_node->shared_function_info()
-          << " score:" << call_site->score);
+    compiler::SharedFunctionInfoRef shared =
+        call_site->generic_call_node->shared_function_info();
+    TRACE_INLINING(TraceTry(shared)
+                   << "Score: " << std::right << std::setw(6) << std::fixed
+                   << std::setprecision(2) << call_site->score << ", Node: n"
+                   << graph_->graph_labeller()->NodeId(
+                          call_site->generic_call_node));
 
     bool is_small_with_heapnum_input_outputs =
         IsSmallWithHeapNumberInputsOutputs(call_site);
 
     if (graph_->total_inlined_bytecode_size() >
         flags_.max_inlined_bytecode_size_cumulative) {
-      TRACE("> Main budget exhausted ("
-            << graph_->total_inlined_bytecode_size() << " > "
-            << flags_.max_inlined_bytecode_size_cumulative << ")");
+      TRACE_INLINING(TraceIdent{}
+                     << C_RED << "Main budget exhausted ("
+                     << graph_->total_inlined_bytecode_size() << " > "
+                     << flags_.max_inlined_bytecode_size_cumulative << ")"
+                     << C_RESET);
+
       // We ran out of budget. Checking if this is a small-ish function that we
       // can still inline.
       if (graph_->total_inlined_bytecode_size_small() >
           flags_.max_inlined_bytecode_size_small_total) {
         graph_->compilation_info()->set_could_not_inline_all_candidates();
-        TRACE(">> Small budget exhausted ("
-              << graph_->total_inlined_bytecode_size_small() << " > "
-              << flags_.max_inlined_bytecode_size_small_total
-              << "), stopping.");
+        TRACE_INLINING(TraceIdent{}
+                       << C_RED << "Small budget exhausted ("
+                       << graph_->total_inlined_bytecode_size_small() << " > "
+                       << flags_.max_inlined_bytecode_size_small_total << ")"
+                       << C_RESET);
         break;
       }
 
@@ -108,7 +104,9 @@ bool MaglevInliner::InlineCallSites() {
         graph_->compilation_info()->set_could_not_inline_all_candidates();
         // Not that we don't break just rather just continue: next candidates
         // might be inlineable.
-        TRACE(">> !is_small_with_heapnum_input_outputs, skipping");
+        TRACE_INLINING(TraceIdent{}
+                       << "Not a small functions with heap number arguments");
+        TRACE_INLINING(TraceSkip(shared));
         continue;
       }
     }
@@ -191,12 +189,12 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   if (!call_block || call_block->is_dead()) {
     // The block containing the call is unreachable, and it was previously
     // removed. Do not try to inline the call.
+    TRACE_INLINING(TraceSkip(shared)
+                   << "The block containing the call is unreachable.");
     return InliningResult::kFail;
   }
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) {
-    std::cout << "  non-eager inlining " << shared << std::endl;
-  }
+  TRACE_INLINING(TraceInline(shared));
 
   // Check if the catch block might become unreachable, ie, the call is the
   // only instance of a throwable node in this block to the same catch block.
@@ -336,14 +334,16 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   if (is_small || is_small_graph) {
     caller_details->is_small_function = true;
     graph_->add_inlined_bytecode_size_small(bytecode_length);
-    TRACE("> generated " << generated_node_count << " nodes. small_budget += "
-                         << bytecode_length << " ~~> "
-                         << graph_->total_inlined_bytecode_size_small());
+    TRACE_INLINING(TraceIdent{} << "Generated " << generated_node_count
+                                << " nodes. small_budget += " << bytecode_length
+                                << " ~~> "
+                                << graph_->total_inlined_bytecode_size_small());
   } else {
     graph_->add_inlined_bytecode_size(bytecode_length);
-    TRACE("> generated " << generated_node_count
-                         << " nodes. regular_budget += " << bytecode_length
-                         << " ~~> " << graph_->total_inlined_bytecode_size());
+    TRACE_INLINING(TraceIdent{}
+                   << "Generated " << generated_node_count
+                   << " nodes. regular_budget += " << bytecode_length << " ~~> "
+                   << graph_->total_inlined_bytecode_size());
   }
 
   // Update the predecessor of the successors of the {final_block}, that were

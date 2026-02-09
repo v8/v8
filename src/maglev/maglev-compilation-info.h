@@ -42,7 +42,7 @@ inline bool FlagsMightEnableMaglevTracing() {
          v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
          v8_flags.trace_maglev_escape_analysis ||
          v8_flags.trace_maglev_graph_building ||
-         v8_flags.trace_maglev_inlining ||
+         v8_flags.trace_maglev_inlining || v8_flags.trace_turbo_inlining ||
          v8_flags.trace_maglev_object_tracking ||
          v8_flags.trace_maglev_phi_untagging ||
          v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation;
@@ -194,6 +194,8 @@ class MaglevCompilationInfo final {
 
   const CompilationFlags& flags() const { return flags_; }
 
+  uint16_t trace_id() const { return trace_id_; }
+
   bool could_not_inline_all_candidates() {
     return could_not_inline_all_candidates_;
   }
@@ -224,6 +226,7 @@ class MaglevCompilationInfo final {
   IndirectHandle<JSFunction> toplevel_function_;
   IndirectHandle<Code> code_;
   BytecodeOffset osr_offset_;
+  const uint16_t trace_id_;
 
   // True if this MaglevCompilationInfo owns its broker and false otherwise. In
   // particular, when used as Turboshaft front-end, this will use Turboshaft's

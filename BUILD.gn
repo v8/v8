@@ -4710,6 +4710,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-regalloc-data.h",
       "src/maglev/maglev-regalloc.h",
       "src/maglev/maglev-register-frame-array.h",
+      "src/maglev/maglev-tracer.h",
       "src/maglev/maglev-truncation.h",
       "src/maglev/maglev.h",
     ]

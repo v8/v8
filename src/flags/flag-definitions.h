@@ -776,6 +776,9 @@ DEFINE_BOOL(maglev_print_provenance, true,
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)
 
+DEFINE_BOOL(trace_with_compilation_id, true,
+            "prefix maglev/turbolev trace line with a compilation id")
+
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)

@@ -36,6 +36,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/string.h"
@@ -1862,6 +1863,7 @@ class MaglevGraphBuilder {
   const CompilationFlags flags_;
 
   Graph* const graph_;
+  Tracer tracer_;
   compiler::BytecodeAnalysis bytecode_analysis_;
   interpreter::BytecodeArrayIterator iterator_;
   SourcePositionTableIterator source_position_iterator_;

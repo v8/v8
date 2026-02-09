@@ -76,6 +76,9 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
       osr_offset_(osr_offset),
+      trace_id_(static_cast<uint16_t>(
+          reinterpret_cast<uint64_t>(this) ^ function.address() ^
+          function->shared()->function_literal_id(kRelaxedLoad))),
       owns_broker_(!js_broker.has_value()),
       is_turbolev_(is_turbolev),
       flags_(is_turbolev ? CompilationFlags::ForTurbolev()
