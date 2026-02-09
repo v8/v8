@@ -310,7 +310,7 @@ class ParserBase {
 
   void SkipInfos(int delta) { info_id_ += delta; }
 
-  void ResetInfoId(int id = 0) {
+  void ResetInfoId(int id) {
     DCHECK_LE(0, id);
     info_id_ = id;
   }
@@ -5127,9 +5127,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         int dummy_function_length = -1;
         DCHECK(IsArrowFunction(kind));
         bool did_preparse_successfully = impl()->SkipFunction(
-            nullptr, kind, FunctionSyntaxKind::kAnonymousExpression,
-            formal_parameters.scope, &dummy_num_parameters,
-            &dummy_function_length, &produced_preparse_data);
+            function_literal_id, nullptr, kind,
+            FunctionSyntaxKind::kAnonymousExpression, formal_parameters.scope,
+            &dummy_num_parameters, &dummy_function_length,
+            &produced_preparse_data);
 
         DCHECK_NULL(produced_preparse_data);
 
