@@ -31,5 +31,6 @@
 
 ['official_build', {
   'wasm/crash/failed-type-assertion': [SKIP],
+  'wasm/crash/regress-481074858': [SKIP],
 }], # official_build
 ]
