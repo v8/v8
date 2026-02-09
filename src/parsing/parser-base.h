@@ -2853,7 +2853,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kSpread:
       impl()->ReportUnexpectedTokenAt(
-          Scanner::Location(name_token_position, name_expression->position()),
+          Scanner::Location(name_token_position,
+                            name_expression->position() == -1
+                                ? name_token_position
+                                : name_expression->position()),
           name_token);
       return impl()->NullLiteralProperty();
   }
@@ -4576,7 +4579,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       DCHECK(!impl()->IsIdentifier(pattern));
     } else {
       // `using` declarations should have an identifier.
-      impl()->ReportMessageAt(Scanner::Location(decl_pos, end_position()),
+      impl()->ReportMessageAt(scanner_->peek_location(),
                               MessageTemplate::kDeclarationMissingInitializer,
                               "using");
       return;
