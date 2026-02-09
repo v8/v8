@@ -2959,7 +2959,8 @@ int AccessorInfo::AppendUnique(Isolate* isolate,
                                DirectHandle<FixedArray> array,
                                int valid_descriptors) {
   auto callbacks = Cast<ArrayList>(descriptors);
-  DCHECK_GE(array->length(), callbacks->length() + valid_descriptors);
+  DCHECK_GE(array->ulength().value(),
+            static_cast<uint32_t>(callbacks->length() + valid_descriptors));
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }
@@ -4266,9 +4267,10 @@ void WriteChunkListToFlat(Tagged<FixedArray> chunk_list_head,
   while (true) {
     Tagged<Object> maybe_next_chunk = chunk->get(0);
     bool is_last_chunk = IsUndefined(maybe_next_chunk);
-    uint32_t length = is_last_chunk ? last_chunk_length : chunk->ulength();
+    uint32_t chunk_len = chunk->ulength().value();
+    uint32_t length = is_last_chunk ? last_chunk_length : chunk_len;
     CHECK_GT(length, 0);
-    CHECK_LE(length, chunk->length());
+    CHECK_LE(length, chunk_len);
 
     for (uint32_t i = 1; i < length; i++) {
       Tagged<Object> element = chunk->get(i);
@@ -4295,8 +4297,8 @@ void WriteChunkListToFlat(Tagged<FixedArray> chunk_list_head,
           // Repeat is only possible when the previous element is not special.
           DCHECK_GE(i, 1);
           DCHECK(IsString(last_element));
-          DCHECK_IMPLIES(i == 1, prev_chunk->get(prev_chunk->ulength() - 1) ==
-                                     last_element);
+          DCHECK_IMPLIES(i == 1, prev_chunk->get(prev_chunk->ulength().value() -
+                                                 1) == last_element);
           DCHECK_IMPLIES(i > 1, chunk->get(i - 1) == last_element);
         }
       }
@@ -4518,7 +4520,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
 
 bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
   if (!HasFastElements()) return false;
-  uint32_t capacity = static_cast<uint32_t>(elements()->length());
+  uint32_t capacity = elements()->ulength().value();
   uint32_t new_capacity;
   return JSArray::SetLengthWouldNormalize(Isolate::Current()->heap(),
                                           new_length) &&
@@ -4931,8 +4933,9 @@ void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
-  BodyDescriptorBase::IteratePointers(this, kElementsStartOffset,
-                                      SizeFor(length()), v);
+  BodyDescriptorBase::IteratePointers(
+      this, kElementsStartOffset, SizeFor(static_cast<int>(ulength().value())),
+      v);
 }
 
 template <typename Derived, typename Shape>
@@ -5312,12 +5315,12 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
     // If not, we generate new indices for the properties.
     DirectHandle<FixedArray> iteration_order =
         IterationIndices(isolate, dictionary);
-    int length = iteration_order->length();
+    uint32_t length = iteration_order->ulength().value();
     DCHECK_LE(length, dictionary->NumberOfElements());
 
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
-    for (int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
       InternalIndex internal_index(Smi::ToInt(iteration_order->get(i)));
       DCHECK(dictionary->IsKey(GetReadOnlyRoots(),
                                dictionary->KeyAt(isolate, internal_index)));
@@ -5329,7 +5332,7 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
       dictionary->DetailsAtPut(internal_index, new_details);
     }
 
-    index = PropertyDetails::kInitialIndex + length;
+    index = PropertyDetails::kInitialIndex + static_cast<int>(length);
   }
 
   // Don't update the next enumeration index here, since we might be looking at
@@ -5558,7 +5561,7 @@ void NumberDictionary::UncheckedSet(Isolate* isolate,
 
 void NumberDictionary::CopyValuesTo(Tagged<FixedArray> elements) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  int pos = 0;
+  uint32_t pos = 0;
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = elements->GetWriteBarrierMode(no_gc);
   for (InternalIndex i : this->IterateEntries()) {
@@ -5567,7 +5570,7 @@ void NumberDictionary::CopyValuesTo(Tagged<FixedArray> elements) {
       elements->set(pos++, this->ValueAt(i), *mode);
     }
   }
-  DCHECK_EQ(pos, elements->length());
+  DCHECK_EQ(pos, elements->ulength().value());
 }
 
 template <typename Derived, typename Shape>
@@ -5637,8 +5640,8 @@ template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
     DirectHandle<Derived> table) {
   auto roots = GetReadOnlyRoots();
-  int length = table->length();
-  for (int i = Derived::EntryToIndex(InternalIndex(0)); i < length; i++) {
+  uint32_t length = table->ulength().value();
+  for (uint32_t i = Derived::EntryToIndex(InternalIndex(0)); i < length; i++) {
     table->set_the_hole(roots, i);
   }
 }

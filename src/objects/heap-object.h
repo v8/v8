@@ -33,6 +33,8 @@ class EarlyReadOnlyRoots;
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
 // callsites when V8 cannot enable stricter compiler flags in general.
+// TODO(375937549): Find a better name for this since it's no longer used just
+// for HeapObject size.
 using SafeHeapObjectSize = base::StrongAlias<class HeapObjectSizeTag, uint32_t>;
 
 V8_OBJECT class HeapObjectLayout {

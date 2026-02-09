@@ -59,17 +59,21 @@ void detail::ArrayHeaderBase<S, false>::set_capacity(int value,
 
 template <class S>
 int detail::ArrayHeaderBase<S, true>::length() const {
-  return length_.load().value();
+  int len = length_.load().value();
+  DCHECK_GE(len, 0);
+  return len;
 }
 
 template <class S>
-uint32_t detail::ArrayHeaderBase<S, true>::ulength() const {
-  return static_cast<uint32_t>(length());
+SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::ulength() const {
+  return SafeHeapObjectSize(static_cast<uint32_t>(length()));
 }
 
 template <class S>
 int detail::ArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
-  return length_.Acquire_Load().value();
+  int len = length_.Acquire_Load().value();
+  DCHECK_GE(len, 0);
+  return len;
 }
 
 template <class S>

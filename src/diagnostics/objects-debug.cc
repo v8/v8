@@ -1164,7 +1164,9 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   bool is_fast = kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
   Tagged<Context> context_object = elements->context();
   Tagged<FixedArray> arg_elements = elements->arguments();
-  if (arg_elements->length() == 0) {
+  const uint32_t elements_len = elements->ulength().value();
+  const uint32_t arg_elements_len = arg_elements->ulength().value();
+  if (arg_elements_len == 0) {
     CHECK(arg_elements == ReadOnlyRoots(isolate).empty_fixed_array());
     return;
   }
@@ -1178,8 +1180,9 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   // for fast sloppy arguments take the minimum between the elements length and
   // the argument count as done in the built-in NewSloppyArgumentsElements.
   uint32_t mapped_elements_length =
-      is_fast ? std::min(elements->ulength(), arg_elements->ulength())
-              : elements->ulength();
+      is_fast ? std::min(elements_len, arg_elements_len) : elements_len;
+  const int context_object_len = context_object->length();
+  CHECK_GE(context_object_len, 0);
   uint32_t nofMappedParameters = 0;
   for (uint32_t i = 0; i < mapped_elements_length; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
@@ -1188,26 +1191,25 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     if (IsTheHole(mapped, isolate)) {
       // Both slow and fast sloppy arguments can be holey. Ensure that the fixed
       // array backing the fast sloppy arguments is large enough.
-      CHECK(!is_fast || i < arg_elements->ulength());
+      CHECK(!is_fast || i < arg_elements_len);
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
-    CHECK_LT(mappedIndex, context_object->length());
+    CHECK_LT(mappedIndex, context_object_len);
     Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
     CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
-  for (uint32_t i = mapped_elements_length; i < elements->ulength(); ++i) {
+  for (uint32_t i = mapped_elements_length; i < elements_len; ++i) {
     // Ensure that any overshooted element is the hole
     CHECK(IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate));
   }
-  CHECK_LE(nofMappedParameters,
-           static_cast<uint32_t>(context_object->length()));
+  CHECK_LE(nofMappedParameters, static_cast<uint32_t>(context_object_len));
   if (is_fast) {
-    CHECK_LE(nofMappedParameters, arg_elements->ulength());
+    CHECK_LE(nofMappedParameters, arg_elements_len);
   } else {
     CHECK(IsNumberDictionary(elements->arguments()));
   }

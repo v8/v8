@@ -57,7 +57,9 @@ class ArrayHeaderBase<Super, true> : public Super {
  public:
   // Length and capacity are never supposed to be negative.
   // See https://crbug.com/441221573.
-  inline uint32_t ulength() const;
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
   inline uint32_t ucapacity() const;
 
   inline int length() const;
