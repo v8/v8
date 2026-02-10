@@ -4945,6 +4945,121 @@ TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderAcqRelFeatureGated) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderValid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+
+  // seqcst read, seqcst write
+  uint8_t order_seqcst =
+      (static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst) << 4) |
+      static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst);
+  const uint8_t code_seqcst[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order_seqcst,
+      kOffset,           kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code_seqcst);
+
+  // acqrel read, acqrel write
+  uint8_t order_acqrel =
+      (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+      static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel);
+  const uint8_t code_acqrel[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order_acqrel,
+      kOffset,           kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code_acqrel);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderSeqCstImplicit) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kAlignment,        kOffset,
+      kExprDrop,
+  };
+  ExpectValidates(sigs.v_ii(), code);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderInvalid) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "mismatched read and write memory ordering";
+
+  // Mismatched orderings.
+  uint8_t order = (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+                  static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst);
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderInvalidImmediate) {
+  WASM_FEATURE_SCOPE(shared);
+  WASM_FEATURE_SCOPE(acquire_release);
+  builder.AddMemory();
+
+  // Test invalid memory order immediate with an invalid ordering value.
+  uint8_t order = 0x22;
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg = "invalid memory ordering";
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicRMWMemoryOrderAcqRelFeatureGated) {
+  WASM_FEATURE_SCOPE(shared);
+  enabled_features_.Remove(WasmEnabledFeature::acquire_release);
+  builder.AddMemory();
+
+  const uint8_t kAlignment = 2;
+  const uint8_t kOffset = 0;
+  const uint8_t kMemAccess = kAlignment | 0x20;
+  const char* error_msg =
+      "invalid memory ordering: acquire-release requires "
+      "--experimental-wasm-acquire-release flag";
+
+  uint8_t order = (static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel) << 4) |
+                  static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel);
+  const uint8_t code[] = {
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+      kAtomicPrefix,     U32V_1(kExprI32AtomicAdd),
+      kMemAccess,        order,
+      kOffset,           kExprDrop,
+  };
+  ExpectFailure(sigs.v_ii(), code, kAppendEnd, error_msg);
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}

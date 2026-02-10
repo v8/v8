@@ -990,6 +990,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsThrowingOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
   static constexpr bool IsFP16SimdOpcode(WasmOpcode);
+  static constexpr bool IsAtomicRmwOpcode(WasmOpcode);
 #if DEBUG
   static constexpr bool IsMemoryAccessOpcode(WasmOpcode);
 #endif  // DEBUG
