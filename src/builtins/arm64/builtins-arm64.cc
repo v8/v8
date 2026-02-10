@@ -420,9 +420,11 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   // zeroed.
   __ B(is_unavailable);
 
+#if !V8_JITLESS_BOOL
   __ Bind(&is_code);
   AssertCodeIsBaseline(masm, data, scratch1);
   __ B(is_baseline);
+#endif
 
   __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);

@@ -3864,7 +3864,10 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       nullptr,
       {{BYTECODE_ARRAY_TYPE, &done},
        {INTERPRETER_DATA_TYPE, &is_interpreter_data},
-       {CODE_TYPE, &is_code}},
+#if !V8_JITLESS_BOOL
+       {CODE_TYPE, &is_code}
+#endif
+      },
       SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&is_interpreter_data);
@@ -3873,6 +3876,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     Goto(&done);
   }
 
+#if !V8_JITLESS_BOOL
   BIND(&is_code);
   {
     TNode<Code> code = CAST(var_result.value());
@@ -3897,6 +3901,7 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       Goto(&done);
     }
   }
+#endif
 
   BIND(&done);
   return CAST(var_result.value());
