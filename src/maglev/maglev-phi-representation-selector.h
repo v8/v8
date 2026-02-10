@@ -80,6 +80,7 @@ class MaglevPhiRepresentationSelector {
   }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState&) {
+    eager_deopt_frame_ = &node->eager_deopt_info()->top_frame();
     FixLoopPhisBackedge(node->target());
     return ProcessResult::kContinue;
   }
@@ -256,11 +257,14 @@ class MaglevPhiRepresentationSelector {
   // then {predecessor_index} should be set to the id of this input (ie, 0 for
   // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
   // to find existing tagging for {phi} in the {predecessor_index}th predecessor
-  // of the current block.
+  // of the current block. If {force_smi} is true, then the inserted tagging
+  // will produce a Smi or deopt (eg, instead of a Int32ToNumber we'll insert a
+  // CheckedSmiTagInt32).
   ValueNode* EnsurePhiTagged(
       Phi* phi, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
-      std::optional<int> predecessor_index = std::nullopt);
+      std::optional<int> predecessor_index = std::nullopt,
+      bool force_smi = false);
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(BasicBlock* block, BasicBlockPosition pos,
