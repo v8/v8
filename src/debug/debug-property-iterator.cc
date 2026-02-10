@@ -199,7 +199,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
                               filter, GetKeysConversion::kConvertToString,
                               false, skip_indices_ || IsJSTypedArray(*receiver))
           .ToHandle(&current_keys_)) {
-    current_keys_length_ = current_keys_->length();
+    current_keys_length_ = current_keys_->ulength().value();
     return true;
   }
   return false;

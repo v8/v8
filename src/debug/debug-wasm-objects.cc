@@ -57,7 +57,7 @@ constexpr int kNumDebugMaps = kWasmValueMapIndex + 1;
 
 DirectHandle<FixedArray> GetOrCreateDebugMaps(Isolate* isolate) {
   DirectHandle<FixedArray> maps = isolate->wasm_debug_maps();
-  if (maps->length() == 0) {
+  if (maps->ulength().value() == 0) {
     maps = isolate->factory()->NewFixedArrayWithHoles(kNumDebugMaps);
     isolate->native_context()->set_wasm_debug_maps(*maps);
   }
@@ -75,7 +75,7 @@ DirectHandle<Map> GetOrCreateDebugProxyMap(
     v8::Local<v8::FunctionTemplate> (*create_template_fn)(v8::Isolate*),
     bool make_non_extensible = true) {
   auto maps = GetOrCreateDebugMaps(isolate);
-  CHECK_LE(kNumProxies, maps->length());
+  CHECK_LE(static_cast<uint32_t>(kNumProxies), maps->ulength().value());
   if (!maps->is_the_hole(isolate, id)) {
     return direct_handle(Cast<Map>(maps->get(id)), isolate);
   }
@@ -287,7 +287,8 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     auto isolate = T::GetIsolate(info);
     auto table = GetNameTable(T::GetHolder(info), isolate);
     auto names = NameDictionary::IterationIndices(isolate, table);
-    for (int i = 0; i < names->length(); ++i) {
+    uint32_t names_len = names->ulength().value();
+    for (uint32_t i = 0; i < names_len; ++i) {
       InternalIndex entry(Smi::ToInt(names->get(i)));
       names->set(i, table->NameAt(entry));
     }
@@ -361,7 +362,7 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
 
   static uint32_t Count(Isolate* isolate,
                         DirectHandle<WasmInstanceObject> instance) {
-    return instance->trusted_data(isolate)->memory_objects()->length();
+    return instance->trusted_data(isolate)->memory_objects()->ulength().value();
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
@@ -388,7 +389,7 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
 
   static uint32_t Count(Isolate* isolate,
                         DirectHandle<WasmInstanceObject> instance) {
-    return instance->trusted_data(isolate)->tables()->length();
+    return instance->trusted_data(isolate)->tables()->ulength().value();
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
@@ -432,7 +433,9 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
   }
 
   static uint32_t Count(Isolate* isolate, DirectHandle<FixedArray> values) {
-    return values->length() - 2;
+    uint32_t len = values->ulength().value();
+    DCHECK_GE(len, 2);
+    return len - 2;
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
@@ -475,7 +478,7 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
   }
 
   static uint32_t Count(Isolate* isolate, DirectHandle<FixedArray> values) {
-    return values->length();
+    return values->ulength().value();
   }
 
   static DirectHandle<Object> Get(Isolate* isolate,
