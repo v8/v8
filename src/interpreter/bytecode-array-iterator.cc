@@ -317,8 +317,9 @@ AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
 
 Tagged<Object> BytecodeArrayIterator::GetConstantAtIndex(int index) const {
   Tagged<TrustedFixedArray> constant_pool = bytecode_array()->constant_pool();
-  CHECK_WITH_MSG(base::IsInHalfOpenRange(index, 0, constant_pool->length()),
-                 "Constant pool index out of bounds");
+  CHECK_WITH_MSG(
+      base::IsInHalfOpenRange(index, 0u, constant_pool->ulength().value()),
+      "Constant pool index out of bounds");
   return constant_pool->get(index);
 }
 

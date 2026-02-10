@@ -17,6 +17,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
@@ -444,6 +445,12 @@ inline int WeakArrayList::capacity(RelaxedLoadTag) const {
   return value;
 }
 
+inline SafeHeapObjectSize WeakArrayList::ulength() const {
+  int len = length();
+  DCHECK_GE(len, 0);
+  return SafeHeapObjectSize(static_cast<uint32_t>(len));
+}
+
 bool FixedArray::is_the_hole(Isolate* isolate, uint32_t index) {
   return IsTheHole(get(index), isolate);
 }
@@ -795,8 +802,17 @@ Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   return Tagged<HeapObject>();
 }
 
-int ArrayList ::length() const { return length_.load().value(); }
-void ArrayList ::set_length(int value) {
+int ArrayList::length() const {
+  int len = length_.load().value();
+  DCHECK_GE(len, 0);
+  return len;
+}
+
+SafeHeapObjectSize ArrayList::ulength() const {
+  return SafeHeapObjectSize(static_cast<uint32_t>(length()));
+}
+
+void ArrayList::set_length(int value) {
   length_.store(this, Smi::FromInt(value));
 }
 

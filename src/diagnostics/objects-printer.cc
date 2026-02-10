@@ -479,11 +479,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
 
 template <typename T>
 void PrintByteArrayElements(std::ostream& os, const T* array) {
-  int length = array->length();
-  int i = 0;
+  uint32_t length = array->ulength().value();
+  uint32_t i = 0;
   while (i < length) {
     os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i << ":";
-    int line_end = std::min(i + 16, length);
+    uint32_t line_end = std::min(i + 16, length);
     for (; i < line_end; ++i) {
       os << " " << std::setfill('0') << std::setw(2) << std::hex
          << static_cast<int>(array->get(i));
@@ -591,14 +591,14 @@ double GetScalarElement(Tagged<T> array, int index) {
 }
 
 template <class T>
-void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
+void DoPrintElements(std::ostream& os, Tagged<Object> object, uint32_t length) {
   const bool print_nans = std::is_same_v<T, FixedDoubleArray>;
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
-  int previous_index = 0;
+  uint32_t previous_index = 0;
   uint64_t previous_representation = array->get_representation(0);
   uint64_t representation = 0;
-  int i;
+  uint32_t i;
   for (i = 1; i <= length; i++) {
     if (i < length) {
       representation = array->get_representation(i);
@@ -680,14 +680,15 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
-                             Tagged<Object> (*get)(Tagged<T>, int)) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             uint32_t capacity,
+                             Tagged<Object> (*get)(Tagged<T>, uint32_t)) {
   // Print in array notation for non-sparse arrays.
   if (capacity == 0) return;
   Tagged<Object> previous_value = get(array, 0);
   Tagged<Object> value;
-  int previous_index = 0;
-  int i;
+  uint32_t previous_index = 0;
+  uint32_t i;
   for (i = 1; i <= capacity; i++) {
     if (i < capacity) value = get(array, i);
     if (previous_value == value && i != capacity) {
@@ -706,10 +707,12 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array, int capacity,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             uint32_t array_len) {
+  DCHECK_EQ(array->ulength().value(), array_len);
   PrintFixedArrayElements<T>(
-      os, array, array->length(),
-      [](Tagged<T> xs, int i) { return Cast<Object>(xs->get(i)); });
+      os, array, array_len,
+      [](Tagged<T> xs, uint32_t i) { return Cast<Object>(xs->get(i)); });
 }
 
 void PrintNumberDictionaryFlags(std::ostream& os,
@@ -727,7 +730,8 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   os << "\n    0: context: " << Brief(elements->context())
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
-  for (int i = 0; i < elements->length(); i++) {
+  uint32_t elements_len = elements->ulength().value();
+  for (uint32_t i = 0; i < elements_len; i++) {
     Tagged<Object> mapped_entry = elements->mapped_entries(i, kRelaxedLoad);
     os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
     if (IsTheHole(mapped_entry)) {
@@ -736,12 +740,13 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
       os << " in the context";
     }
   }
-  if (arguments_store->length() == 0) return;
+  uint32_t arg_elements_len = arguments_store->ulength().value();
+  if (arg_elements_len == 0) return;
   os << "\n }"
      << "\n - arguments_store: " << Brief(arguments_store) << " "
      << ElementsKindToString(arguments_store->map()->elements_kind()) << " {";
   if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
-    PrintFixedArrayElements(os, arguments_store);
+    PrintFixedArrayElements(os, arguments_store, arg_elements_len);
   } else {
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
     PrintDictionaryContents(os, Cast<NumberDictionary>(arguments_store));
@@ -772,9 +777,11 @@ void JSObject::PrintElements(std::ostream& os) {
   // the map(), as much as possible.
 
   if (IsFixedArrayExact(elements())) {
-    PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
+    auto array = Cast<FixedArray>(elements());
+    PrintFixedArrayElements(os, array, array->ulength().value());
   } else if (IsFixedDoubleArray(elements())) {
-    DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
+    DoPrintElements<FixedDoubleArray>(os, elements(),
+                                      elements()->ulength().value());
   } else if (IsTypedArrayOrRabGsabTypedArrayElementsKind(
                  map()->elements_kind())) {
     // elements() is a ByteArray, and we need to look at the map to figure out
@@ -858,7 +865,7 @@ void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
 
   if (print_elements) {
     size_t length = IsJSTypedArray(obj) ? Cast<JSTypedArray>(obj)->GetLength()
-                                        : obj->elements()->length();
+                                        : obj->elements()->ulength().value();
     if (length > 0) obj->PrintElements(os);
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
@@ -1076,10 +1083,11 @@ void EnumCache::EnumCachePrint(std::ostream& os) {
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintHeader(os, "DescriptorArray");
   os << "\n - enum_cache: ";
-  if (enum_cache()->keys()->length() == 0) {
+  uint32_t keys_len = enum_cache()->keys()->ulength().value();
+  if (keys_len == 0) {
     os << "empty";
   } else {
-    os << enum_cache()->keys()->length();
+    os << keys_len;
     os << "\n   - keys: " << Brief(enum_cache()->keys());
     os << "\n   - indices: " << Brief(enum_cache()->indices());
   }
@@ -1109,22 +1117,24 @@ namespace {
 template <typename T>
 void PrintFixedArrayWithHeader(std::ostream& os, T* array, const char* type) {
   array->PrintHeader(os, type);
-  os << "\n - length: " << array->length();
-  PrintFixedArrayElements(os, Tagged(array));
+  uint32_t length = array->ulength().value();
+  os << "\n - length: " << length;
+  PrintFixedArrayElements(os, Tagged(array), length);
   os << "\n";
 }
 
 template <typename T>
-void PrintWeakArrayElements(std::ostream& os, T* array) {
+void PrintWeakArrayElements(std::ostream& os, T* array, uint32_t array_len) {
   // Print in array notation for non-sparse arrays.
+  DCHECK_EQ(array->ulength().value(), array_len);
   Tagged<MaybeObject> previous_value =
-      array->length() > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
+      array_len > 0 ? array->get(0) : Tagged<MaybeObject>(kNullAddress);
   Tagged<MaybeObject> value;
-  int previous_index = 0;
-  int i;
-  for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get(i);
-    if (previous_value == value && i != array->length()) {
+  uint32_t previous_index = 0;
+  uint32_t i;
+  for (i = 1; i <= array_len; i++) {
+    if (i < array_len) value = array->get(i);
+    if (previous_value == value && i != array_len) {
       continue;
     }
     os << "\n";
@@ -1166,7 +1176,8 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
   os << "\n - flags: " << flags();
   os << "\n - elements:";
   PrintFixedArrayElements<ObjectBoilerplateDescription>(
-      os, this, capacity(), [](Tagged<ObjectBoilerplateDescription> xs, int i) {
+      os, this, ucapacity(),
+      [](Tagged<ObjectBoilerplateDescription> xs, uint32_t i) {
         return xs->get(i);
       });
   os << "\n";
@@ -1221,12 +1232,13 @@ void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
 
 void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintHeader(os, "ArrayList");
+  uint32_t len = ulength().value();
   os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length();
+  os << "\n - length: " << len;
   os << "\n - elements:";
   PrintFixedArrayElements<ArrayList>(
-      os, this, length(),
-      [](Tagged<ArrayList> xs, int i) { return xs->get(i); });
+      os, this, len,
+      [](Tagged<ArrayList> xs, uint32_t i) { return xs->get(i); });
   os << "\n";
 }
 
@@ -1237,7 +1249,8 @@ void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
   os << "\n - names_to_context_index: " << names_to_context_index();
   os << "\n - elements:";
   PrintFixedArrayElements<ScriptContextTable>(
-      os, this, length(kAcquireLoad), [](Tagged<ScriptContextTable> xs, int i) {
+      os, this, static_cast<uint32_t>(length(kAcquireLoad)),
+      [](Tagged<ScriptContextTable> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1251,7 +1264,7 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   os << "\n - last_input: " << last_input();
   os << "\n - captures:";
   PrintFixedArrayElements<RegExpMatchInfo>(
-      os, this, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
+      os, this, ucapacity(), [](Tagged<RegExpMatchInfo> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1259,12 +1272,13 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
 
 void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
   PrintHeader(os, "SloppyArgumentsElements");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - context: " << Brief(context());
   os << "\n - arguments: " << Brief(arguments());
   os << "\n - mapped_entries:";
   PrintFixedArrayElements<SloppyArgumentsElements>(
-      os, this, length(), [](Tagged<SloppyArgumentsElements> xs, int i) {
+      os, this, len, [](Tagged<SloppyArgumentsElements> xs, uint32_t i) {
         return Cast<Object>(xs->mapped_entries(i, kRelaxedLoad));
       });
   os << '\n';
@@ -1415,7 +1429,8 @@ void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   os << "\n - length: " << length();
   os << "\n - elements:";
   PrintFixedArrayElements<Context>(
-      os, *this, length(), [](Tagged<Context> xs, int i) {
+      os, *this, static_cast<uint32_t>(length()),
+      [](Tagged<Context> xs, uint32_t i) {
         return Cast<Object>(xs->get(i, kRelaxedLoad));
       });
   os << "\n";
@@ -1694,45 +1709,51 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {
   PrintHeader(os, "PropertyArray");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - hash: " << Hash();
-  PrintFixedArrayElements(os, Tagged(*this));
+  PrintFixedArrayElements(os, Tagged(*this), len);
   os << "\n";
 }
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {
   PrintHeader(os, "FixedDoubleArray");
-  os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray>(os, this, length());
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  DoPrintElements<FixedDoubleArray>(os, this, len);
   os << "\n";
 }
 
 void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "WeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "TrustedWeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void ProtectedWeakFixedArray::ProtectedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "ProtectedWeakFixedArray");
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
 void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
   PrintHeader(os, "WeakArrayList");
+  uint32_t len = ulength().value();
   os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length();
-  PrintWeakArrayElements(os, this);
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
   os << "\n";
 }
 
@@ -1827,9 +1848,10 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayPrint(std::ostream& os) {
   PrintHeader(os, "ClosureFeedbackCellArray");
-  os << "\n - length: " << length();
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
   os << "\n - elements:";
-  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, this);
+  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, this, len);
   os << "\n";
 }
 
@@ -1945,7 +1967,8 @@ void FeedbackNexus::Print(std::ostream& os) {
         } else {
           array = Cast<WeakFixedArray>(feedback);
         }
-        for (int i = 0; i < array->length(); i += 2) {
+        uint32_t array_len = array->ulength().value();
+        for (uint32_t i = 0; i < array_len; i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
           if (!array->get(i + 1).IsCleared()) {
             LoadHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
@@ -1999,7 +2022,8 @@ void FeedbackNexus::Print(std::ostream& os) {
         } else {
           array = Cast<WeakFixedArray>(feedback);
         }
-        for (int i = 0; i < array->length(); i += 2) {
+        uint32_t array_len = array->ulength().value();
+        for (uint32_t i = 0; i < array_len; i += 2) {
           os << "\n   " << Brief(array->get(i)) << ": ";
           if (!array->get(i + 1).IsCleared()) {
             StoreHandler::PrintHandler(array->get(i + 1).GetHeapObjectOrSmi(),
@@ -2340,7 +2364,7 @@ void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
 void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
   JSIteratorHelperSimplePrintHeader(os, "JSIteratorConcatHelper");
   os << "\n - iterables: " << Brief(iterables()) << " {";
-  PrintFixedArrayElements(os, iterables());
+  PrintFixedArrayElements(os, iterables(), iterables()->ulength().value());
   os << "\n - current: " << current();
   JSObjectPrintBody(os, *this);
 }
@@ -4504,10 +4528,10 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 
   if (HasSideStepTransitions()) {
     auto sidestep_transitions = GetSideStepTransitions();
-    int num_transitions = sidestep_transitions->length();
+    uint32_t num_transitions = sidestep_transitions->ulength().value();
     os << "\n   Sidestep transitions #" << num_transitions << ": "
        << Brief(sidestep_transitions);
-    for (int i = 0; i < num_transitions; i++) {
+    for (uint32_t i = 0; i < num_transitions; i++) {
       SideStepTransition::Kind kind = static_cast<SideStepTransition::Kind>(i);
       auto maybe_target = sidestep_transitions->get(i);
       os << "\n     " << kind << " -> " << Brief(maybe_target);

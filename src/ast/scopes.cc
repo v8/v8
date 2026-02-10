@@ -2799,7 +2799,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
 
   Tagged<WeakFixedArray> infos = script->infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
-  if (v8_flags.reuse_scope_infos && infos->length() != 0) {
+  if (v8_flags.reuse_scope_infos && infos->ulength().value() != 0) {
     Tagged<SharedFunctionInfo> parse_info_sfi =
         *parse_info->literal()->shared_function_info();
     Tagged<ScopeInfo> outer = parse_info_sfi->HasOuterScopeInfo()

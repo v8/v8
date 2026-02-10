@@ -202,8 +202,9 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       if (reviver_mode == kWithSource) {
         auto val_nodes_and_snapshots =
             Cast<FixedArray>(val_node.ToHandleChecked());
-        int snapshot_length = val_nodes_and_snapshots->length() / 2;
-        for (int i = 0; i < length; i++) {
+        uint32_t snapshot_length =
+            val_nodes_and_snapshots->ulength().value() / 2;
+        for (uint32_t i = 0; i < length; i++) {
           HandleScope inner_scope(isolate_);
           DirectHandle<Object> index = isolate_->factory()->NewNumber(i);
           Handle<String> index_name =
@@ -249,7 +250,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       if (reviver_mode == kWithSource) {
         auto val_nodes_and_snapshots =
             Cast<ObjectTwoHashTable>(val_node.ToHandleChecked());
-        for (int i = 0; i < contents->length(); i++) {
+        uint32_t contents_len = contents->ulength().value();
+        for (uint32_t i = 0; i < contents_len; i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           auto property_val_node_and_snapshot =
@@ -274,7 +276,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       } else {
         DCHECK(reviver_mode == kWithoutSource ||
                reviver_mode == kWithoutContext);
-        for (int i = 0; i < contents->length(); i++) {
+        uint32_t contents_len = contents->ulength().value();
+        for (uint32_t i = 0; i < contents_len; i++) {
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           if (!RecurseAndApply<NoSource(initial_reviver_mode)>(

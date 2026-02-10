@@ -915,10 +915,10 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
   DCHECK_NOT_NULL(isolate);
   DirectHandle<FixedArray> arguments =
       maybe_wrapped_arguments_.ToHandleChecked();
-  int arguments_length = arguments->length();
+  uint32_t arguments_length = arguments->ulength().value();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
-  for (int i = 0; i < arguments_length; i++) {
+  for (uint32_t i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
         Cast<String>(arguments->get(i)),
         SharedStringAccessGuardIfNeeded(isolate));

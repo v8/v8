@@ -19,8 +19,12 @@ class PropertyArray
     : public TorqueGeneratedPropertyArray<PropertyArray, HeapObject> {
  public:
   // [length]: length of the array.
+  // TODO(375937549): Convert usages to uint32_t.
   inline int length() const;
   inline int length(AcquireLoadTag) const;
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.

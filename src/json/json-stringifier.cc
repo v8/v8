@@ -1471,7 +1471,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   AppendCharacter('{');
   Indent();
   bool comma = false;
-  for (int i = 0; i < contents->length(); i++) {
+  uint32_t contents_len = contents->ulength().value();
+  for (uint32_t i = 0; i < contents_len; i++) {
     Handle<String> key(Cast<String>(contents->get(i)), isolate_);
     Handle<Object> property;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(

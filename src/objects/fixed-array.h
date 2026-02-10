@@ -646,6 +646,10 @@ class WeakArrayList
   using TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject>::capacity;
   inline int capacity(RelaxedLoadTag) const;
 
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
+
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
   }
@@ -741,8 +745,12 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
       IsolateT* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
 
+  // TODO(375937549): Convert usages to uint32_t.
   inline int length() const;
   inline void set_length(int value);
+  // The function returns an alias instead of uint32_t to incrementally convert
+  // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize ulength() const;
 
   V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
       Isolate* isolate, DirectHandle<ArrayList> array, Tagged<Smi> obj,

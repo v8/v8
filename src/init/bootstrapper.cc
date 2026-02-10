@@ -107,7 +107,8 @@ void SourceCodeCache::Iterate(RootVisitor* v) {
 
 bool SourceCodeCache::Lookup(Isolate* isolate, base::Vector<const char> name,
                              DirectHandle<SharedFunctionInfo>* handle) {
-  for (int i = 0; i < cache_->length(); i += 2) {
+  uint32_t cache_len = cache_->ulength().value();
+  for (uint32_t i = 0; i < cache_len; i += 2) {
     Tagged<SeqOneByteString> str = Cast<SeqOneByteString>(cache_->get(i));
     if (str->IsOneByteEqualTo(name)) {
       *handle =
@@ -122,10 +123,10 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
                           DirectHandle<SharedFunctionInfo> shared) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  int length = cache_->length();
+  uint32_t length = cache_->ulength().value();
   DirectHandle<FixedArray> new_array =
       factory->NewFixedArray(length + 2, AllocationType::kOld);
-  FixedArray::CopyElements(isolate, *new_array, 0, cache_, 0, cache_->length());
+  FixedArray::CopyElements(isolate, *new_array, 0, cache_, 0, length);
   cache_ = *new_array;
   DirectHandle<String> str =
       factory
@@ -6879,7 +6880,8 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
         isolate());
     DirectHandle<FixedArray> indices =
         GlobalDictionary::IterationIndices(isolate(), properties);
-    for (int i = 0; i < indices->length(); i++) {
+    uint32_t indices_len = indices->ulength().value();
+    for (uint32_t i = 0; i < indices_len; i++) {
       InternalIndex index(Smi::ToInt(indices->get(i)));
       DirectHandle<PropertyCell> cell(properties->CellAt(index), isolate());
       DirectHandle<Name> key(cell->name(), isolate());
@@ -6927,8 +6929,9 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
                                             isolate());
     DirectHandle<FixedArray> key_indices =
         NameDictionary::IterationIndices(isolate(), properties);
+    uint32_t key_indices_len = key_indices->ulength().value();
     ReadOnlyRoots roots(isolate());
-    for (int i = 0; i < key_indices->length(); i++) {
+    for (uint32_t i = 0; i < key_indices_len; i++) {
       InternalIndex key_index(Smi::ToInt(key_indices->get(i)));
       Tagged<Object> raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));

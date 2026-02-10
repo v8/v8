@@ -128,7 +128,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
     VerifyRegister(incoming_new_target_or_generator, false);
   }
 
-  unsigned constant_pool_length = bytecode->constant_pool()->length();
+  uint32_t constant_pool_length = bytecode->constant_pool()->ulength().value();
 
   interpreter::BytecodeArrayIterator iterator(bytecode);
   interpreter::Bytecode previous_bytecode = interpreter::Bytecode::kIllegal;
@@ -187,7 +187,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
           break;
         }
         case interpreter::OperandType::kConstantPoolIndex: {
-          unsigned index = iterator.GetConstantPoolIndexOperand(i);
+          uint32_t index = iterator.GetConstantPoolIndexOperand(i);
           Check(index < constant_pool_length,
                 "Constant pool index out of bounds");
           break;

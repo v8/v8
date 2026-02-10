@@ -1401,7 +1401,7 @@ bool IsOutOfBoundsAccess(DirectHandle<Object> receiver, size_t index) {
   } else if (IsJSTypedArray(*receiver)) {
     length = Cast<JSTypedArray>(*receiver)->GetLength();
   } else if (IsJSObject(*receiver)) {
-    length = Cast<JSObject>(*receiver)->elements()->length();
+    length = Cast<JSObject>(*receiver)->elements()->ulength().value();
   } else if (IsString(*receiver)) {
     length = Cast<String>(*receiver)->length();
   } else {
@@ -4103,7 +4103,8 @@ bool MaybeCanCloneObjectForObjectAssign(DirectHandle<JSReceiver> source,
       KeyAccumulator::GetKeys(isolate, source, KeyCollectionMode::kOwnOnly,
                               ONLY_ENUMERABLE, GetKeysConversion::kKeepNumbers);
   CHECK(res.ToHandle(&keys));
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     Handle<Object> next_key(keys->get(i), isolate);
     PropertyKey key(isolate, next_key);
     LookupIterator it(isolate, target, key);

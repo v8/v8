@@ -122,7 +122,13 @@ ObjectSlot PropertyArray::RawFieldOfElementAt(int index) {
 }
 
 int PropertyArray::length() const {
-  return LengthField::decode(length_and_hash());
+  int len = LengthField::decode(length_and_hash());
+  DCHECK_GE(len, 0);
+  return len;
+}
+
+SafeHeapObjectSize PropertyArray::ulength() const {
+  return SafeHeapObjectSize(static_cast<uint32_t>(length()));
 }
 
 void PropertyArray::initialize_length(int len) {

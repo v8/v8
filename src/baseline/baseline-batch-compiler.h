@@ -66,7 +66,7 @@ class BaselineBatchCompiler {
   Handle<WeakFixedArray> compilation_queue_;
 
   // Last index set in compilation_queue_;
-  int last_index_;
+  uint32_t last_index_;
 
   // Estimated insturction size of current batch.
   int estimated_instruction_size_;
