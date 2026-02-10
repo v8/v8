@@ -599,6 +599,7 @@ class KnownNodeAspects {
   // Returns true if value was added to the cache, or false if the value updated
   // the cache.
   bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value) {
+    value = value->UnwrapIdentities();
     auto& target_map =
         (offset == Context::OffsetOfElementAt(Context::PREVIOUS_INDEX))
             ? loaded_context_constants_
@@ -664,7 +665,7 @@ class KnownNodeAspects {
     }
   }
 
-  void PrintLoadedProperties();
+  void PrintLoadedProperties() const;
 
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),
