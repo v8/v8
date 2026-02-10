@@ -421,6 +421,7 @@ class LiftoffAssembler : public MacroAssembler {
 
   // Pop a VarState from the stack, updating the register use count accordingly.
   V8_INLINE VarState PopVarState() {
+    DCHECK(!cache_state_.frozen);
     DCHECK(!cache_state_.stack_state.empty());
     VarState slot = cache_state_.stack_state.back();
     cache_state_.stack_state.pop_back();
@@ -467,6 +468,7 @@ class LiftoffAssembler : public MacroAssembler {
   }
 
   void DropValues(int count) {
+    DCHECK(!cache_state_.frozen);
     DCHECK_GE(cache_state_.stack_state.size(), count);
     for (VarState& slot :
          base::VectorOf(cache_state_.stack_state.end() - count, count)) {
@@ -834,6 +836,15 @@ class LiftoffAssembler : public MacroAssembler {
   // 4 bytes on the stack holding half of a 64-bit value.
   inline void FillI64Half(Register, int offset, RegPairHalf);
   inline void FillStackSlotsWithZero(int start, int size);
+
+  // Some architectures need certain fixed registers to be available for
+  // division instructions. We need the ability to spill them before freezing
+  // the cache state.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  inline void SpillDivRegisters();
+#else
+  inline void SpillDivRegisters() {}
+#endif
 
   inline void emit_trace_instruction(uint32_t markid);
 

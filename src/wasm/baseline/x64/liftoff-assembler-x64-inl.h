@@ -1384,6 +1384,8 @@ void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
                                                                      lhs, rhs);
 }
 
+void LiftoffAssembler::SpillDivRegisters() { SpillRegisters(rax, rdx); }
+
 namespace liftoff {
 enum class DivOrRem : uint8_t { kDiv, kRem };
 template <typename type, DivOrRem div_or_rem>
@@ -1405,12 +1407,11 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     }                             \
   } while (false)
 
-  // For division, the lhs is always taken from {edx:eax}. Thus, make sure that
-  // these registers are unused. If {rhs} is stored in one of them, move it to
-  // another temporary register.
-  // Do all this before any branch, such that the code is executed
-  // unconditionally, as the cache state will also be modified unconditionally.
-  assm->SpillRegisters(rdx, rax);
+  // For division, the lhs is always taken from {rdx:rax}. Callers need to
+  // make sure these registers are unused. If {rhs} is stored in one of them,
+  // move it to another temporary register.
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(rax)));
+  DCHECK(assm->cache_state()->is_free(LiftoffRegister(rdx)));
   if (rhs == rax || rhs == rdx) {
     iop(mov, kScratchRegister, rhs);
     rhs = kScratchRegister;
@@ -1467,6 +1468,7 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
     iop(mov, dst, kResultReg);
   }
   if (special_case_minus_1) assm->bind(&done);
+#undef iop
 }
 }  // namespace liftoff
 
