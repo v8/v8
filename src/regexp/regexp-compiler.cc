@@ -4104,5 +4104,13 @@ void RegExpCompiler::set_diagnostics(
   diagnostics_ = std::move(diagnostics);
 }
 #endif
+#undef TRACE_COMPILER
+#undef TRACE
+#undef TRACE_WITH_NODE
+#undef TRACE_WITH_NODE_AND_TRACE
+#undef TRACE_EMIT
+#undef TRACE_GRAPH
+#undef TRACE_GRAPH_WITH_NODE
+#undef REGISTER_NODE
 
 }  // namespace v8::internal

@@ -2323,6 +2323,9 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   }
   return result;
 }
+#undef TRACE
+#undef TRACE_WITH_NODE
+#undef REGISTER_NODE
 
 }  // namespace internal
 }  // namespace v8
