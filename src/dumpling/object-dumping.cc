@@ -297,8 +297,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(obj);
       if (map->instance_type() == MAP_TYPE) {
-        // This is one of the meta maps, print only relevant fields.
-        os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
+        os << "<MetaMap>";
       } else {
         os << "<Map";
         os << "(";
@@ -349,10 +348,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case ACCESSOR_INFO_TYPE: {
-      Tagged<AccessorInfo> info = Cast<AccessorInfo>(obj);
-      os << "<AccessorInfo ";
-      os << "name= " << Brief(info->name());
-      os << ">";
+      os << "<AccessorInfo>";
       break;
     }
     case ACCESSOR_PAIR_TYPE: {
@@ -384,7 +380,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case CLASS_POSITIONS_TYPE: {
-      Cast<ClassPositions>(obj)->ClassPositionsPrint(os);
+      os << "<ClassPositions>";
       break;
     }
     case SYMBOL_TYPE: {
@@ -393,11 +389,11 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case CLASS_BOILERPLATE_TYPE: {
-      os << "<ClassBoilerplateType>";
+      os << "<ClassBoilerplate>";
       break;
     }
     case SCRIPT_TYPE: {
-      os << "<ScriptType>";
+      os << "<Script>";
       break;
     }
     case FEEDBACK_VECTOR_TYPE: {

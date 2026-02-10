@@ -312,6 +312,30 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   }
 }
 
+TEST_F(DumplingTest, InterpreterInstanceOfClass) {
+  const char* program =
+      "class MyClass {\n"
+      "  constructor() { this.x = 1; }\n"
+      "  method() { return 2; }\n"
+      "};\n"
+      "let obj = new MyClass();\n"
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(obj);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:1\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:<MyClass>\{x\[WEC\]1\}__proto__:<MyClass>.*\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 }  // namespace v8
 
 #endif  // V8_DUMPLING
