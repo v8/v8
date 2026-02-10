@@ -328,6 +328,8 @@ class WasmFunctionCompiler {
     function_->sig_index = sig_index;
   }
 
+  Zone* zone() { return zone_; }
+
  private:
   friend class WasmRunnerBase;
 
