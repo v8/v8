@@ -4158,7 +4158,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
     case BIGINT_TYPE: {
       os << "<BigInt ";
-      Cast<BigInt>(*this)->BigIntShortPrint(os);
+      Cast<BigInt>(*this)->BigIntBaseShortPrint(os);
       os << ">";
       break;
     }

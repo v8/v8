@@ -114,6 +114,8 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
   using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
 
+  void BigIntBaseShortPrint(std::ostream& os);
+
   DECL_VERIFIER(BigIntBase)
   DECL_PRINTER(BigIntBase)
 
@@ -246,8 +248,6 @@ V8_OBJECT class BigInt : public BigIntBase {
   uint64_t AsUint64(bool* lossless = nullptr);
   uint32_t Words64Count();
   void ToWordsArray64(int* sign_bit, uint32_t* words64_count, uint64_t* words);
-
-  void BigIntShortPrint(std::ostream& os);
 
   inline static uint32_t SizeFor(uint32_t length) {
     return sizeof(BigInt) + length * kDigitSize;

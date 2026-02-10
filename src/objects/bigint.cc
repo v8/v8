@@ -1121,17 +1121,6 @@ MutableBigInt::Rounding MutableBigInt::DecideRounding(
   return kTie;
 }
 
-void BigInt::BigIntShortPrint(std::ostream& os) {
-  if (sign()) os << "-";
-  uint32_t len = length();
-  if (len == 0) {
-    os << "0";
-    return;
-  }
-  if (len > 1) os << "...";
-  os << digit(0);
-}
-
 // Internal helpers.
 
 // Adds 1 to the absolute value of {x} and sets the result's sign to {sign}.
@@ -1464,6 +1453,17 @@ void MutableBigInt::set_64_bits(uint64_t bits) {
     set_digit(0, static_cast<digit_t>(bits & 0xFFFFFFFFu));
     set_digit(1, static_cast<digit_t>(bits >> 32));
   }
+}
+
+void BigIntBase::BigIntBaseShortPrint(std::ostream& os) {
+  if (sign()) os << "-";
+  uint32_t len = length();
+  if (len == 0) {
+    os << "0";
+    return;
+  }
+  if (len > 1) os << "...";
+  os << digit(0);
 }
 
 #ifdef OBJECT_PRINT

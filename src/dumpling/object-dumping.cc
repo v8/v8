@@ -364,7 +364,9 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       break;
     }
     case BIG_INT_BASE_TYPE: {
-      Cast<BigIntBase>(obj)->BigIntBasePrint(os);
+      os << "<BigIntBase ";
+      Cast<BigIntBase>(obj)->BigIntBaseShortPrint(os);
+      os << ">";
       break;
     }
     case FUNCTION_CONTEXT_TYPE: {

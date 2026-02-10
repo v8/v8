@@ -336,6 +336,25 @@ TEST_F(DumplingTest, InterpreterInstanceOfClass) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterBigIntParams) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(1234567890123456789n);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:1\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:<BigIntBase 1234567890123456789>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 }  // namespace v8
 
 #endif  // V8_DUMPLING
