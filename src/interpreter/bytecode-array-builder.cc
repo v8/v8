@@ -812,7 +812,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
     }
   } else {
     DCHECK_EQ(kMutableSlot, mutability);
-    if (variable->scope()->has_context_cells()) {
+    if (variable->scope()->has_context_cells() &&
+        variable->mode() != VariableMode::kConst) {
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
       } else {
@@ -834,7 +835,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              int depth) {
   int slot_index = variable->index();
   if (variable->maybe_assigned() != kNotAssigned &&
-      variable->scope()->has_context_cells()) {
+      variable->scope()->has_context_cells() &&
+      variable->mode() != VariableMode::kConst) {
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
     } else {

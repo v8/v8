@@ -3097,10 +3097,19 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     ValueNode* context, int slot_index, ContextSlotMutability slot_mutability) {
   DCHECK(compilation_unit_->info()->specialize_to_function_context());
 
-  if (slot_mutability == kMutable) return false;
-
   auto context_ref = TryGetConstant<Context>(context);
   if (!context_ref) return false;
+
+  if (slot_mutability == kMutable) {
+    compiler::OptionalObjectRef maybe_scope_info =
+        context_ref->get(broker(), Context::SCOPE_INFO_INDEX);
+    if (!maybe_scope_info) return false;
+    auto scope_info = maybe_scope_info->As<ScopeInfo>();
+    int var_index = slot_index - scope_info.ContextHeaderLength();
+    if (scope_info.ContextLocalMode(var_index) != VariableMode::kConst) {
+      return false;
+    }
+  }
 
   compiler::OptionalObjectRef maybe_slot_value =
       context_ref->get(broker(), slot_index);
