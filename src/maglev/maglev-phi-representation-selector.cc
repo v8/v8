@@ -1320,7 +1320,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, BasicBlockPosition pos,
-    const ProcessingState* state, std::optional<int> predecessor_index) {
+    const ProcessingState* state, std::optional<int> predecessor_index,
+    bool force_smi) {
   DCHECK_IMPLIES(state == nullptr, pos == BasicBlockPosition::End());
 
   if (phi->value_representation() == ValueRepresentation::kTagged) {
@@ -1345,23 +1346,44 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
   ValueNode* tagged = nullptr;
   switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64:
-      // It's important to use kCanonicalizeSmi for Float64ToTagged, as
-      // otherwise, we could end up storing HeapNumbers in Smi fields.
-      tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
-          block, pos, {phi}, Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+      if (force_smi) {
+        tagged = AddNewNodeNoInputConversion<CheckedSmiTagFloat64>(block, pos,
+                                                                   {phi});
+      } else {
+        // It's important to use kCanonicalizeSmi for Float64ToTagged, as
+        // otherwise, we could end up storing HeapNumbers in Smi fields.
+        tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
+            block, pos, {phi},
+            Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+      }
       break;
     case ValueRepresentation::kHoleyFloat64:
-      // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
-      // otherwise, we could end up storing HeapNumbers in Smi fields.
-      tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-          block, pos, {phi},
-          HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+      if (force_smi) {
+        tagged = AddNewNodeNoInputConversion<CheckedSmiTagHoleyFloat64>(
+            block, pos, {phi});
+      } else {
+        // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
+        // otherwise, we could end up storing HeapNumbers in Smi fields.
+        tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
+            block, pos, {phi},
+            HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+      }
       break;
     case ValueRepresentation::kInt32:
-      tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {phi});
+      if (force_smi) {
+        tagged =
+            AddNewNodeNoInputConversion<CheckedSmiTagInt32>(block, pos, {phi});
+      } else {
+        tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {phi});
+      }
       break;
     case ValueRepresentation::kUint32:
-      tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
+      if (force_smi) {
+        tagged =
+            AddNewNodeNoInputConversion<CheckedSmiTagUint32>(block, pos, {phi});
+      } else {
+        tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
+      }
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
@@ -1414,10 +1436,14 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
         // Since all Phi inputs are initially tagged, the fact that the backedge
         // is not tagged means that it's a Phi that we recently untagged.
         DCHECK(backedge->Is<Phi>());
+        // If this loop phi has type Smi, then we need to make sure that its
+        // backedge remains a Smi.
+        bool force_smi = NodeTypeIs(phi->type(), NodeType::kSmi);
         phi->change_input(
             last_input_idx,
             EnsurePhiTagged(backedge->Cast<Phi>(), reducer_.current_block(),
-                            BasicBlockPosition::End(), /*state*/ nullptr));
+                            BasicBlockPosition::End(), /*state*/ nullptr,
+                            /*predecessor_index*/ std::nullopt, force_smi));
       }
     } else {
       // If {phi} was untagged and its backedge became Identity, then we need to

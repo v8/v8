@@ -10777,6 +10777,12 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref)
       : Base(bitfield, ref) {}
 
+  // We attach a deopt checkpoint to JumpLoop so that Phi untagging can insert
+  // deopting ToSmi conversions for loop phi backedges, which it sometimes needs
+  // to preserve Sminess of loop phis.
+  static constexpr OpProperties kProperties =
+      OpProperties::DeoptCheckpoint() | Base::kProperties;
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
