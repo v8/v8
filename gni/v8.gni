@@ -106,21 +106,25 @@ declare_args() {
   # interpreter, where the bounds checking is done in the instruction handler,
   # not using an unhandled exception filter (which also doesn't work with
   # Win-ASAN).
-  # Also enables explicit bounds checks on component builds in platforms other
-  # than Windows because of a problem with function name mangling for vectorcall
-  # ABI on ELF (The vectorcall calling convention requires a mangling that
-  # includes @@, but on ELF an @ indicates that the part after it is the version
-  # of the symbol, with @@ indicating the default symbol version to link against
-  # when none is specified by the caller and this causes linker errors). As a
-  # workaround, we need to disable the vectorcall calling convention for
-  # component builds on Linux and Mac, which means that we cannot use DrumBrake
-  # builtins for Load/Store instruction handlers, because of the different
-  # calling convention.
-  # Windows component builds are also enabled to support cross-compilation.
+  # Trap-handler based Load/Store builtins are supported on x64 and arm64.
+  # On x64, also enables explicit bounds checks on component builds in platforms
+  # other than Windows because of a problem with function name mangling for
+  # vectorcall ABI on ELF (The vectorcall calling convention requires a mangling
+  # that includes @@, but on ELF an @ indicates that the part after it is the
+  # version of the symbol, with @@ indicating the default symbol version to link
+  # against when none is specified by the caller and this causes linker errors).
+  # As a workaround, we need to disable the vectorcall calling convention for
+  # x64 component builds on Linux and Mac, which means that we cannot use
+  # DrumBrake builtins for Load/Store instruction handlers on x64 component
+  # builds because of the different calling convention.
+  # Windows component builds are also affected to support cross-compilation.
+  # On arm64, the builtins use the standard AAPCS64 calling convention, so
+  # component builds work without this restriction.
   v8_drumbrake_bounds_checks =
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
-      !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
-      is_component_build
+      !(is_win || is_linux || is_mac) ||
+      (v8_current_cpu != "x64" && v8_current_cpu != "arm64") || !is_clang ||
+      (is_component_build && v8_current_cpu == "x64")
 
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
