@@ -4,7 +4,9 @@
 
 #include "src/dumpling/object-dumping.h"
 
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
@@ -25,29 +27,40 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
   Tagged<DescriptorArray> descriptors =
       obj->map()->instance_descriptors(isolate);
 
-  InternalIndex::Range index_range(0);
-
   std::optional<Tagged<NameDictionary>> dict;
-  std::optional<Tagged<GlobalDictionary>> dict_global;
   std::optional<ReadOnlyRoots> roots;
 
+  std::vector<InternalIndex> indices;
+
   if (is_fast_object) {
-    index_range = obj->map()->IterateOwnDescriptors();
-  } else {
-    roots = GetReadOnlyRoots();
-    if (IsJSGlobalObject(*obj)) {
-      dict_global = Cast<JSGlobalObject>(*obj)->global_dictionary(kAcquireLoad);
-      index_range = dict_global.value()->IterateEntries();
-    } else {
-      dict = obj->property_dictionary();
-      index_range = dict.value()->IterateEntries();
+    for (InternalIndex i : obj->map()->IterateOwnDescriptors()) {
+      indices.push_back(i);
     }
+  } else {
+    CHECK(!IsJSGlobalObject(*obj));
+    CHECK(!IsJSGlobalProxy(*obj));
+    roots = GetReadOnlyRoots();
+    dict = obj->property_dictionary();
+    // We want to print out the properties in the same order they'd be in e.g.,
+    // Object.getOwnPropertyDescriptors. We'd like to use IterationIndices here,
+    // but cannot allocate. The code below does what IterationIndices would do,
+    // just without allocating.
+    for (InternalIndex i : dict.value()->IterateEntries()) {
+      Tagged<Object> k;
+      if (!dict.value()->ToKey(roots.value(), i, &k)) continue;
+      indices.push_back(i);
+    }
+    std::sort(indices.begin(), indices.end(),
+              [&](InternalIndex a, InternalIndex b) {
+                return dict.value()->DetailsAt(a).dictionary_index() <
+                       dict.value()->DetailsAt(b).dictionary_index();
+              });
   }
 
   bool first_property = true;
   accumulator->Add("{");
 
-  for (InternalIndex i : index_range) {
+  for (InternalIndex i : indices) {
     Handle<Name> key_name;
 
     PropertyDetails details = PropertyDetails::Empty();
@@ -57,13 +70,9 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
 
       if (is_fast_object) {
         key = descriptors->GetKey(i);
-      } else if (dict_global.has_value()) {
-        Tagged<Object> k;
-        if (!dict_global.value()->ToKey(roots.value(), i, &k)) continue;
-        key = Cast<Name>(k);
       } else {
         Tagged<Object> k;
-        if (!dict.value()->ToKey(roots.value(), i, &k)) continue;
+        CHECK(dict.value()->ToKey(roots.value(), i, &k));
         key = Cast<Name>(k);
       }
 
@@ -122,12 +131,12 @@ void JSObjectFuzzingPrintFastProperties(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrintDictProperties(Tagged<JSObject> obj,
                                         StringStream* accumulator, int depth) {
-  if (!IsJSGlobalObject(obj)) {
-    if (obj->property_dictionary()->Capacity() == 0) {
-      accumulator->Add("{}");
-    } else {
-      JSObjectFuzzingPrintInternalIndexRange(obj, accumulator, depth, false);
-    }
+  CHECK(!IsJSGlobalProxy(obj));
+  CHECK(!IsJSGlobalObject(obj));
+  if (obj->property_dictionary()->Capacity() == 0) {
+    accumulator->Add("{}");
+  } else {
+    JSObjectFuzzingPrintInternalIndexRange(obj, accumulator, depth, false);
   }
 }
 
@@ -204,6 +213,12 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
                           StringStream* accumulator) {
+  if (IsJSGlobalProxy(obj)) {
+    accumulator->Add("<global object>");
+    return;
+  }
+  CHECK(!IsJSGlobalObject(obj));
+
   if (IsJSFunction(obj)) {
     Tagged<JSFunction> function = Cast<JSFunction>(obj);
     std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();

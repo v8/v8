@@ -72,6 +72,49 @@ TEST_F(DumplingTest, InterpreterSmiParams) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterHeapNumberParams) {
+  const char* program =
+      "function foo(x, y) {\n"
+      "  return x + y;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(3.14, 2.5);\n";
+
+  // Check that we see the start frame of "foo" with the parameters a0 and a1.
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:2\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:3.14\s+)"
+                         R"(a1:2.5\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterOddballParams) {
+  const char* program =
+      "function foo(x, y, z, z2) {\n"
+      "  return x ? (y ? z : z2) : y;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(true, false, null, undefined);\n";
+
+  // Check that we see the start frame of "foo" with the parameters a0 and a1.
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"    // Bytecode offset 0
+                         R"(f:\d+\s+)"  // Function id can be anything
+                         R"(n:4\s+)"    // Number of params
+                         R"(m:0\s+)"    // Number of registers
+                         R"(a0:<true>\s+)"
+                         R"(a1:<false>\s+)"
+                         R"(a2:<null>\s+)"
+                         R"(a3:<undefined>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 TEST_F(DumplingTest, InterpreterObjectWithObjectPrototype) {
   const char* program =
       "function foo(x) {\n"
@@ -107,6 +150,53 @@ TEST_F(DumplingTest, InterpreterObjectWithCustomPrototype) {
       R"(n:1\s+)"            // Number of params
       R"(m:0\s+)"            // Number of registers
       R"(a0:<Object>\{a\[WEC\]100\}__proto__:<Object>\{b\[WEC\]200\}\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterGlobalObject) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(globalThis);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:1\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:<global object>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterDictionaryModeObject) {
+  const char* program =
+      "let obj = {};\n"
+      "for (let i = 0; i < 20; ++i) {\n"
+      "  obj['p' + i] = 0;\n"
+      "}\n"
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(obj);\n";
+
+  const char* expected =
+      R"(---I\s+)"
+      R"(b:0\s+)"            // Bytecode offset 0
+      R"(f:\d+\s+)"          // Function id can be anything
+      R"(x:<undefined>\s+)"  // Accumulator
+      R"(n:1\s+)"            // Number of params
+      R"(m:0\s+)"            // Number of registers
+      R"(a0:<Object>\{)"
+      // Verify that the dictionary properties are printed in the standard order
+      // (here we verify only the beginning).
+      R"(p0\[WEC\]0, p1\[WEC\]0, p2\[WEC\]0, p3\[WEC\]0, p4\[WEC\]0, p5\[WEC\]0,.*)"
+      R"(\}\s+)";
 
   RunInterpreterTest(program, expected);
 }
