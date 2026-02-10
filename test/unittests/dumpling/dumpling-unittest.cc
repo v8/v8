@@ -60,15 +60,14 @@ TEST_F(DumplingTest, InterpreterSmiParams) {
       "foo(10, 2);\n";
 
   // Check that we see the start frame of "foo" with the parameters a0 and a1.
-  const char* expected =
-      "---I\\s+"
-      "b:0\\s+"            // Bytecode offset 0
-      "f:\\d+\\s+"         // Function id can be anything
-      "x:<undefined>\\s+"  // Accumulator
-      "n:2\\s+"            // Number of params
-      "m:0\\s+"            // Number of registers
-      "a0:10\\s+"
-      "a1:2\\s+";
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:2\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:10\s+)"
+                         R"(a1:2\s+)";
 
   RunInterpreterTest(program, expected);
 }
@@ -81,14 +80,13 @@ TEST_F(DumplingTest, InterpreterObjectWithObjectPrototype) {
       "%PrepareFunctionForOptimization(foo);\n"
       "foo({a: 100});\n";
 
-  const char* expected =
-      "---I\\s+"
-      "b:0\\s+"            // Bytecode offset 0
-      "f:\\d+\\s+"         // Function id can be anything
-      "x:<undefined>\\s+"  // Accumulator
-      "n:1\\s+"            // Number of params
-      "m:0\\s+"            // Number of registers
-      "a0:<Object>\\{a\\[WEC\\]100\\}\\s+";
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"            // Bytecode offset 0
+                         R"(f:\d+\s+)"          // Function id can be anything
+                         R"(x:<undefined>\s+)"  // Accumulator
+                         R"(n:1\s+)"            // Number of params
+                         R"(m:0\s+)"            // Number of registers
+                         R"(a0:<Object>\{a\[WEC\]100\}\s+)";
 
   RunInterpreterTest(program, expected);
 }
@@ -102,13 +100,13 @@ TEST_F(DumplingTest, InterpreterObjectWithCustomPrototype) {
       "foo({a: 100, __proto__: {b: 200}});\n";
 
   const char* expected =
-      "---I\\s+"
-      "b:0\\s+"            // Bytecode offset 0
-      "f:\\d+\\s+"         // Function id can be anything
-      "x:<undefined>\\s+"  // Accumulator
-      "n:1\\s+"            // Number of params
-      "m:0\\s+"            // Number of registers
-      "a0:<Object>\\{a\\[WEC\\]100\\}__proto__:<Object>\\{b\\[WEC\\]200\\}\\s+";
+      R"(---I\s+)"
+      R"(b:0\s+)"            // Bytecode offset 0
+      R"(f:\d+\s+)"          // Function id can be anything
+      R"(x:<undefined>\s+)"  // Accumulator
+      R"(n:1\s+)"            // Number of params
+      R"(m:0\s+)"            // Number of registers
+      R"(a0:<Object>\{a\[WEC\]100\}__proto__:<Object>\{b\[WEC\]200\}\s+)";
 
   RunInterpreterTest(program, expected);
 }
@@ -125,16 +123,15 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   {
     const char* program = "foo(foo);\n";
 
-    const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
-        // Properties and proto will be printed out too (but we don't list
-        // them here)
-        "a0:<JSFunction foo>.*\\s+";
+    const char* expected = R"(---I\s+)"
+                           R"(b:0\s+)"            // Bytecode offset 0
+                           R"(f:\d+\s+)"          // Function id can be anything
+                           R"(x:<undefined>\s+)"  // Accumulator
+                           R"(n:1\s+)"            // Number of params
+                           R"(m:0\s+)"            // Number of registers
+                           // Properties and proto will be printed out too (but
+                           // we don't list them here)
+                           R"(a0:<JSFunction foo>.*\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -143,16 +140,15 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   {
     const char* program = "async function *gen() { } foo(gen);\n";
 
-    const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
-        // Properties and proto will be printed out too (but we don't list
-        // them here)
-        "a0:<JSFunction gen>.*\\s+";
+    const char* expected = R"(---I\s+)"
+                           R"(b:0\s+)"            // Bytecode offset 0
+                           R"(f:\d+\s+)"          // Function id can be anything
+                           R"(x:<undefined>\s+)"  // Accumulator
+                           R"(n:1\s+)"            // Number of params
+                           R"(m:0\s+)"            // Number of registers
+                           // Properties and proto will be printed out too (but
+                           // we don't list them here)
+                           R"(a0:<JSFunction gen>.*\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -162,14 +158,14 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
     const char* program = "foo(new Set());\n";
 
     const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
+        R"(---I\s+)"
+        R"(b:0\s+)"            // Bytecode offset 0
+        R"(f:\d+\s+)"          // Function id can be anything
+        R"(x:<undefined>\s+)"  // Accumulator
+        R"(n:1\s+)"            // Number of params
+        R"(m:0\s+)"            // Number of registers
         // The proto will be printed out too (but we don't list it here)
-        "a0:<Set>\\{\\}.*\\s+";
+        R"(a0:<Set>\{\}.*\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -178,16 +174,15 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   {
     const char* program = "function myCtor() { } foo(new myCtor());\n";
 
-    const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
-        "a0:<myCtor>\\{\\}__proto__:<Object>\\{"
-        "constructor\\[W_C\\]<JSFunction myCtor>.*"
-        "\\}\\s+";
+    const char* expected = R"(---I\s+)"
+                           R"(b:0\s+)"            // Bytecode offset 0
+                           R"(f:\d+\s+)"          // Function id can be anything
+                           R"(x:<undefined>\s+)"  // Accumulator
+                           R"(n:1\s+)"            // Number of params
+                           R"(m:0\s+)"            // Number of registers
+                           R"(a0:<myCtor>\{\}__proto__:<Object>\{)"
+                           R"(constructor\[W_C\]<JSFunction myCtor>.*)"
+                           R"(\}\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -196,16 +191,15 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   {
     const char* program = "let obj = new (function() {})(); foo(obj);\n";
 
-    const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
-        "a0:<JSObject>\\{\\}__proto__:<Object>\\{"
-        "constructor\\[W_C\\]<JSFunction >.*"
-        "\\}\\s+";
+    const char* expected = R"(---I\s+)"
+                           R"(b:0\s+)"            // Bytecode offset 0
+                           R"(f:\d+\s+)"          // Function id can be anything
+                           R"(x:<undefined>\s+)"  // Accumulator
+                           R"(n:1\s+)"            // Number of params
+                           R"(m:0\s+)"            // Number of registers
+                           R"(a0:<JSObject>\{\}__proto__:<Object>\{)"
+                           R"(constructor\[W_C\]<JSFunction >.*)"
+                           R"(\}\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -214,16 +208,15 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
   {
     const char* program = "foo([1, 2, 3]);\n";
 
-    const char* expected =
-        "---I\\s+"
-        "b:0\\s+"            // Bytecode offset 0
-        "f:\\d+\\s+"         // Function id can be anything
-        "x:<undefined>\\s+"  // Accumulator
-        "n:1\\s+"            // Number of params
-        "m:0\\s+"            // Number of registers
-        // Properties and proto will be printed out too (but we don't list
-        // them here)
-        "a0:<JSArray>.*[1,2,3]\\s+";
+    const char* expected = R"(---I\s+)"
+                           R"(b:0\s+)"            // Bytecode offset 0
+                           R"(f:\d+\s+)"          // Function id can be anything
+                           R"(x:<undefined>\s+)"  // Accumulator
+                           R"(n:1\s+)"            // Number of params
+                           R"(m:0\s+)"            // Number of registers
+                           // Properties and proto will be printed out too (but
+                           // we don't list them here)
+                           R"(a0:<JSArray>.*[1,2,3]\s+)";
 
     RunInterpreterTest(program, expected);
   }
