@@ -314,6 +314,7 @@ v8_source_set("v8_unittests_sources") {
     "codegen/code-pages-unittest.cc",
     "codegen/factory-unittest.cc",
     "codegen/register-configuration-unittest.cc",
+    "codegen/safepoint-table-unittest.cc",
     "codegen/source-position-table-unittest.cc",
     "common/thread-isolation-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",

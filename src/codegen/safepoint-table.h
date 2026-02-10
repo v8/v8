@@ -282,6 +282,12 @@ class SafepointTableBuilder : public SafepointTableBuilderBase {
   Zone* zone_;
 };
 
+// These are free functions to allow unit testing them. They are only meant
+// to be used by the {SafepointTableBuilder} and tests.
+V8_EXPORT_PRIVATE BitVector* CompareAndCreateXorPatch(
+    Zone* zone, const GrowableBitVector& changed, const GrowableBitVector& base,
+    uint32_t* common_prefix_bits);
+
 }  // namespace internal
 }  // namespace v8
 

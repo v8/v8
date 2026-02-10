@@ -329,5 +329,130 @@ void SafepointTableBuilder::RemoveDuplicates() {
   entries_.erase(remaining_it, end);
 }
 
+// Contract: Xoring the result of this function onto {a}, starting at
+// {common_prefix_bits}, yields a vector with the same bits set as {b}.
+// We consider the vectors to be sets, i.e. they have no upper bound, instead
+// they are assumed to continue with 0-bits to infinity.
+// This implies that both {a} and {b} may be empty ({length() == 0}), which
+// is treated the same as an arbitrary-length vector full of 0-bits.
+// Example:
+//   other:  110010100 (UsedLength() == 7, length() doesn't matter)
+//   this:   110000000 (UsedLength() == 2, length() doesn't matter)
+//   result:     101   (length() == 3), common_prefix_bits=4
+// For identical sets we return {nullptr} and, as an approximation of
+// "infinity", {common_prefix_bits} = kMaxUInt32.
+// For non-nullptr results, {common_prefix_bits} is a meaningful value, and
+// the {length()} of the result indicates the range containing all differing
+// bits, starting at that position.
+BitVector* CompareAndCreateXorPatch(Zone* zone, const GrowableBitVector& v1,
+                                    const GrowableBitVector& v2,
+                                    uint32_t* common_prefix_bits) {
+  // This function is prepared to work on overallocated GrowableBitVectors,
+  // so rather than relying on {length()} we compute the actual length (i.e.
+  // position of the last bit).
+  const BitVector& a = v1.bits_;
+  const BitVector& b = v2.bits_;
+  constexpr int kDataBits = BitVector::kDataBits;
+  constexpr int kDataBitShift = BitVector::kDataBitShift;
+
+  int a_length = a.UsedLength();
+  int b_length = b.UsedLength();
+  int a_word_length = (a_length + kDataBits - 1) >> kDataBitShift;
+  int b_word_length = (b_length + kDataBits - 1) >> kDataBitShift;
+  int max_common_bits = std::min(a_length, b_length);
+  int max_common_words = (max_common_bits + kDataBits - 1) >> kDataBitShift;
+  int different_word = 0;
+  int different_bit = 0;
+  while (different_word < max_common_words &&
+         a.data_begin_[different_word] == b.data_begin_[different_word]) {
+    ++different_word;
+  }
+  // We may have found a difference already. Otherwise, if we reached the
+  // end of one of the vectors, see if the other has any non-zero bits.
+  if (different_word == max_common_words) {
+    while (different_word < b_word_length &&
+           b.data_begin_[different_word] == 0) {
+      ++different_word;
+    }
+    while (different_word < a_word_length &&
+           a.data_begin_[different_word] == 0) {
+      ++different_word;
+    }
+  }
+  // If the overlapping part was identical and only zeros followed in the
+  // longer vector, they count as identical.
+  if (different_word >= b_word_length && different_word >= a_word_length) {
+    *common_prefix_bits = kMaxUInt32;
+    return nullptr;
+  }
+  // Otherwise we must have found a word that differs.
+  uintptr_t a_word =
+      different_word < a_word_length ? a.data_begin_[different_word] : 0;
+  uintptr_t b_word =
+      different_word < b_word_length ? b.data_begin_[different_word] : 0;
+  DCHECK_NE(a_word, b_word);
+  uintptr_t diff = a_word ^ b_word;
+  different_bit = base::bits::CountTrailingZeros(diff);
+  *common_prefix_bits = different_word * kDataBits + different_bit;
+
+  // Find the last difference.
+  // If the vectors have different lengths, then the end of the longer one
+  // is the last difference. Otherwise, skip any identical tails.
+  int result_end;
+  if (a_length != b_length) {
+    result_end = std::max(a_length, b_length);
+  } else {
+    int result_end_word = a_length >> kDataBitShift;
+    while (a.data_begin_[result_end_word] == b.data_begin_[result_end_word]) {
+      result_end_word--;
+    }
+    a_word = a.data_begin_[result_end_word];
+    b_word = b.data_begin_[result_end_word];
+    DCHECK_NE(a_word, b_word);
+    diff = a_word ^ b_word;
+    int identical_tail = base::bits::CountLeadingZeros(diff);
+    result_end = (result_end_word + 1) * kDataBits - identical_tail;
+    DCHECK_GE(result_end, *common_prefix_bits);
+  }
+
+  // Allocate and populate the result.
+  int suffix_length = result_end - *common_prefix_bits;
+  DCHECK_NE(suffix_length, 0);
+  BitVector* result = zone->New<BitVector>(suffix_length, zone);
+  int result_words = result->data_length();
+  if (different_bit == 0) {
+    for (int i = 0; i < result_words; i++) {
+      int read_i = different_word + i;
+      a_word = read_i < a_word_length ? a.data_begin_[read_i] : 0;
+      b_word = read_i < b_word_length ? b.data_begin_[read_i] : 0;
+      result->data_begin_[i] = a_word ^ b_word;
+    }
+  } else {
+    a_word = different_word < a_word_length ? a.data_begin_[different_word] : 0;
+    b_word = different_word < b_word_length ? b.data_begin_[different_word] : 0;
+    uintptr_t carry = (a_word ^ b_word) >> different_bit;
+    int left_shift = kDataBits - different_bit;
+    for (int i = 0; i < result_words; i++) {
+      int read_i = different_word + i + 1;
+      a_word = read_i < a_word_length ? a.data_begin_[read_i] : 0;
+      b_word = read_i < b_word_length ? b.data_begin_[read_i] : 0;
+      uintptr_t word = a_word ^ b_word;
+      result->data_begin_[i] = carry | (word << left_shift);
+      carry = word >> different_bit;
+    }
+  }
+#if DEBUG
+  // The patch always begins and ends with a bit that needs to be flipped.
+  DCHECK(result->Contains(0));
+  DCHECK(result->Contains(suffix_length - 1));
+  // Any trailing bits in the backing store are unset.
+  if (suffix_length != result_words * kDataBits) {
+    uintptr_t last_word = result->data_begin_[result_words - 1];
+    DCHECK_EQ(0, last_word >> (suffix_length % kDataBits));
+  }
+#endif  // DEBUG
+  return result;
+}
+
 }  // namespace internal
 }  // namespace v8
