@@ -1679,6 +1679,8 @@ int StackSize(Isolate* isolate) {
   return n;
 }
 
+}  // anonymous namespace
+
 void PrintIndentation(int stack_size) {
   const int max_display = 80;
   if (stack_size <= max_display) {
@@ -1687,8 +1689,6 @@ void PrintIndentation(int stack_size) {
     PrintF("%4d:%*s", stack_size, max_display, "...");
   }
 }
-
-}  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);

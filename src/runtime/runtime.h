@@ -1153,6 +1153,8 @@ enum class DebugPrintValueType : uint16_t {
   kTagged,
 };
 
+void PrintIndentation(int stack_size);
+
 }  // namespace internal
 }  // namespace v8
 

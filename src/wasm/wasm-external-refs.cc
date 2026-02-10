@@ -717,7 +717,7 @@ V ReadAndIncrementOffset(Address data, size_t* offset) {
   return result;
 }
 
-constexpr int32_t kSuccess = 1;
+constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
@@ -738,7 +738,7 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
       trusted_data->data_segment_starts()->get(seg_index));
   std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), seg_start + src,
               size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
@@ -757,7 +757,7 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(trusted_data, dst_mem_index, dst),
                EffectiveAddress(trusted_data, src_mem_index, src), size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
@@ -771,7 +771,7 @@ int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(trusted_data, mem_index, dst), value, size);
-  return kSuccess;
+  return kMemOpSuccess;
 }
 
 namespace {

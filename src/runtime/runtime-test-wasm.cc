@@ -137,15 +137,6 @@ RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
 
 namespace {
 
-void PrintIndentation(int stack_size) {
-  const int max_display = 80;
-  if (stack_size <= max_display) {
-    PrintF("%4d:%*s", stack_size, stack_size, "");
-  } else {
-    PrintF("%4d:%*s", stack_size, max_display, "...");
-  }
-}
-
 int WasmStackSize(Isolate* isolate) {
   // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
   // --trace-wasm.
@@ -156,7 +147,7 @@ int WasmStackSize(Isolate* isolate) {
   return n;
 }
 
-}  // namespace
+}  // anonymous namespace
 
 // TODO(jkummerow): I think this should just iterate the WasmCodePointerTable
 // directly, not individual dispatch tables.

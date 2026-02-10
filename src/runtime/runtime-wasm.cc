@@ -2841,5 +2841,6 @@ RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
   // security issues in ClusterFuzz.
   FATAL("[FuzzerSecurityIssueHigh] Wasm type assertion violation");
 }
+#undef RuntimeArguments
 
 }  // namespace v8::internal
