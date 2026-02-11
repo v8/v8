@@ -402,7 +402,8 @@ BitVector* CompareAndCreateXorPatch(Zone* zone, const GrowableBitVector& v1,
   if (a_length != b_length) {
     result_end = std::max(a_length, b_length);
   } else {
-    int result_end_word = a_length >> kDataBitShift;
+    int highest_bit = a_length - 1;
+    int result_end_word = highest_bit >> kDataBitShift;
     while (a.data_begin_[result_end_word] == b.data_begin_[result_end_word]) {
       result_end_word--;
     }

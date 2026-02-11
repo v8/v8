@@ -74,6 +74,15 @@ TEST_F(SafepointTableTest, CreatePatch) {
   EXPECT_FALSE(patch->Contains(80 - 64));  // Both u and v have that bit.
   EXPECT_TRUE(patch->Contains(81 - 64));
   EXPECT_TRUE(patch->Contains(83 - 64));
+
+  // Both contain a very high bit.
+  u.Add(1023, zone());
+  v.Add(1023, zone());
+  patch = CompareAndCreateXorPatch(zone(), u, v, &common_prefix_bits);
+  EXPECT_EQ(64u, common_prefix_bits);
+  EXPECT_EQ(84 - 64, patch->length());
+  EXPECT_TRUE(patch->Contains(64 - 64));
+  EXPECT_TRUE(patch->Contains(83 - 64));
 }
 
 #ifdef V8_ENABLE_FUZZTEST
