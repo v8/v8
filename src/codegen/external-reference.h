@@ -189,8 +189,6 @@ enum class IsolateFieldId : uint8_t;
   V(mod_two_doubles_operation, "mod_two_doubles")                              \
   V(mutable_big_int_absolute_add_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteAddAndCanonicalize")                                \
-  V(mutable_big_int_absolute_compare_function,                                 \
-    "MutableBigInt_AbsoluteCompare")                                           \
   V(mutable_big_int_absolute_sub_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteSubAndCanonicalize")                                \
   V(mutable_big_int_absolute_mul_and_canonicalize_function,                    \

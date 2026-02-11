@@ -1494,13 +1494,6 @@ void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
   MutableBigInt::Canonicalize(result);
 }
 
-int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr) {
-  Tagged<BigInt> x = Cast<BigInt>(Tagged<Object>(x_addr));
-  Tagged<BigInt> y = Cast<BigInt>(Tagged<Object>(y_addr));
-
-  return bigint::Compare(x->digits(), y->digits());
-}
-
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr) {
   Tagged<BigInt> x = Cast<BigInt>(Tagged<Object>(x_addr));
