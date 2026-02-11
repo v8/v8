@@ -8734,6 +8734,7 @@ compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
   if (!maybe_constant.has_value()) return {};
   return maybe_constant->AsMap();
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

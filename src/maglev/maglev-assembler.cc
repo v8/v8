@@ -727,6 +727,7 @@ void MaglevAssembler::ResetLastYoungAllocation() {
       ExternalReference::last_young_allocation_address(isolate_);
   Move(last_young_allocation_address, 0);
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal
