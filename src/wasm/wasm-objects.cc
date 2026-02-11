@@ -1040,8 +1040,9 @@ void WasmMemoryObject::FixUpResizableArrayBuffer(
     Tagged<JSArrayBuffer> new_buffer) {
   DCHECK(has_maximum_pages());
   DCHECK(new_buffer->is_resizable_by_js());
+  DCHECK_IMPLIES(new_buffer->is_shared(),
+                 new_buffer->byte_length_unchecked() == 0);
   DisallowGarbageCollection no_gc;
-  if (new_buffer->is_shared()) new_buffer->set_byte_length(0);
   // Unlike JS-created resizable buffers, Wasm memories' backing store maximum
   // may differ from the exposed maximum.
   uintptr_t max_byte_length;
@@ -1089,6 +1090,8 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     if (override_resizable.has_value()) {
       new_buffer->set_is_resizable_by_js(*override_resizable ==
                                          ResizableFlag::kResizable);
+      // GSABs read the byte length from the backing store.
+      new_buffer->set_byte_length(0);
     }
   } else {
     new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));

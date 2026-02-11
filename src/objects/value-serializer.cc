@@ -2173,6 +2173,8 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
           // In this case we are in the middle of constructing the
           // WebAssembly.Memory.
           array_buffer->set_is_resizable_by_js(true);
+          // GSABs don't use byte_length getter; avoid DCHECK from firing.
+          if (is_shared) array_buffer->set_byte_length(0);
           break;
         case WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory: {
           array_buffer->set_is_resizable_by_js(true);
