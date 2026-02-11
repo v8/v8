@@ -842,6 +842,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   int target_nof = target_map_->NumberOfOwnDescriptors();
   DirectHandle<DescriptorArray> target_descriptors(
       target_map_->instance_descriptors(isolate_), isolate_);
+  int in_object_field_count = target_map_->GetInObjectProperties();
 
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as the old descriptor
@@ -868,6 +869,8 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   for (InternalIndex i : InternalIndex::Range(root_nof)) {
     PropertyDetails old_details = old_descriptors_->GetDetails(i);
     if (old_details.location() == PropertyLocation::kField) {
+      DCHECK_EQ(old_details.is_in_object(),
+                current_offset < in_object_field_count);
       current_offset += old_details.field_width_in_words();
     }
 #ifdef DEBUG
@@ -944,7 +947,8 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
-                                  wrapped_type);
+                                  wrapped_type,
+                                  current_offset < in_object_field_count);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
@@ -990,7 +994,8 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
-                                  wrapped_type);
+                                  wrapped_type,
+                                  current_offset < in_object_field_count);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
@@ -1291,7 +1296,8 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(new_type));
     Descriptor d = Descriptor::DataField(
         name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-        new_constness, new_representation, wrapped_type);
+        new_constness, new_representation, wrapped_type,
+        details.is_in_object());
     DCHECK_EQ(descriptors->GetKey(descriptor), *d.key_);
     descriptors->Replace(descriptor, &d);
   }

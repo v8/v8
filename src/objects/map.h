@@ -257,6 +257,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline void SetInObjectPropertiesStartInWords(int value);
   // Count of properties allocated in the object (JSObject only).
   inline int GetInObjectProperties() const;
+  inline bool IsFieldInObject(int field_index) const;
   // Index of the constructor function in the native context (primitives only),
   // or the special sentinel value to indicate that there is no object wrapper
   // for the primitive (i.e. in case of null or undefined).
@@ -973,6 +974,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
 #ifdef VERIFY_HEAP
   void DictionaryMapVerify(Isolate* isolate);
+#endif
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  void VerifyDescriptorInObjectBits(Isolate* isolate,
+                                    Tagged<DescriptorArray> descriptors,
+                                    int number_of_own_descriptors);
 #endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)

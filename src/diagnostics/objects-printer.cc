@@ -526,7 +526,6 @@ bool JSObject::PrintProperties(std::ostream& os) {
   if (HasFastProperties()) {
     Tagged<DescriptorArray> descs =
         map()->instance_descriptors(Isolate::Current());
-    int nof_inobject_properties = map()->GetInObjectProperties();
     for (InternalIndex i : map()->IterateOwnDescriptors()) {
       os << "\n    ";
       descs->GetKey(i)->NamePrint(os);
@@ -544,19 +543,6 @@ bool JSObject::PrintProperties(std::ostream& os) {
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() == PropertyLocation::kField) {
-        os << " @ ";
-        FieldType::PrintTo(descs->GetFieldType(i), os);
-        int field_index = details.field_index();
-        if (field_index < nof_inobject_properties) {
-          os << ", location: in-object";
-        } else {
-          field_index -= nof_inobject_properties;
-          os << ", location: properties[" << field_index << "]";
-        }
-      } else {
-        os << ", location: descriptor";
-      }
     }
     return map()->NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject(*this)) {

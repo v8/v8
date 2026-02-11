@@ -879,7 +879,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
       Descriptor d = Descriptor::DataField(
           isolate,
           isolate->factory()->InternalizeString(base::StaticCharVector("type")),
-          WasmValueObject::kTypeIndex, FROZEN, Representation::Tagged());
+          WasmValueObject::kTypeIndex, FROZEN, Representation::Tagged(), true);
       map->AppendDescriptor(isolate, &d);
     }
     {  // value
@@ -887,7 +887,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
           isolate,
           isolate->factory()->InternalizeString(
               base::StaticCharVector("value")),
-          WasmValueObject::kValueIndex, FROZEN, Representation::Tagged());
+          WasmValueObject::kValueIndex, FROZEN, Representation::Tagged(), true);
       map->AppendDescriptor(isolate, &d);
     }
     map->set_is_extensible(false);

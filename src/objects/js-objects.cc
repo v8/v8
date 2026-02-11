@@ -4081,7 +4081,8 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
           key, current_offset, details.attributes(), constness,
           // TODO(verwaest): value->OptimalRepresentation();
           Representation::Tagged(),
-          MaybeObjectDirectHandle(FieldType::Any(isolate)));
+          MaybeObjectDirectHandle(FieldType::Any(isolate)),
+          current_offset < inobject_props);
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       d = Descriptor::AccessorConstant(key, direct_handle(value, isolate),

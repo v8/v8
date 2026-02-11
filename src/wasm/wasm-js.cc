@@ -3583,16 +3583,17 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
                                   isolate);
     Map::EnsureDescriptorSlack(isolate, initial_map, 2);
     {
-      Descriptor d = Descriptor::DataField(
-          isolate, f->wasm_exception_tag_symbol(),
-          WasmExceptionPackage::kTagIndex, DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate, f->wasm_exception_tag_symbol(),
+                                WasmExceptionPackage::kTagIndex, DONT_ENUM,
+                                Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
     {
       Descriptor d =
           Descriptor::DataField(isolate, f->wasm_exception_values_symbol(),
                                 WasmExceptionPackage::kValuesIndex, DONT_ENUM,
-                                Representation::Tagged());
+                                Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
   }

@@ -27,6 +27,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
@@ -547,8 +548,9 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
 
   MaybeObjectDirectHandle wrapped_type = WrapFieldType(type);
 
-  Descriptor d = Descriptor::DataField(name, index, attributes, constness,
-                                       representation, wrapped_type);
+  Descriptor d =
+      Descriptor::DataField(name, index, attributes, constness, representation,
+                            wrapped_type, map->IsFieldInObject(index));
   Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
   new_map->AccountAddedPropertyField();
   return new_map;
@@ -2431,12 +2433,39 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
   return slack;
 }
 
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+void Map::VerifyDescriptorInObjectBits(Isolate* isolate,
+                                       Tagged<DescriptorArray> descriptors,
+                                       int number_of_own_descriptors) {
+  if (!IsJSObjectMap(*this)) {
+    // Non-JSObjects should not have any own field descriptors.
+    for (int i = 0; i < number_of_own_descriptors; ++i) {
+      PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
+      CHECK_NE(details.location(), PropertyLocation::kField);
+    }
+    return;
+  }
+  // Verify that field descriptors' in-object bit matches the map's in-object
+  // property count.
+  for (int i = 0; i < number_of_own_descriptors; ++i) {
+    PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
+    if (details.location() == PropertyLocation::kField) {
+      int field_index = details.field_index();
+      CHECK_EQ(IsFieldInObject(field_index), details.is_in_object());
+    }
+  }
+}
+#endif
+
 void Map::SetInstanceDescriptors(Isolate* isolate,
                                  Tagged<DescriptorArray> descriptors,
                                  int number_of_own_descriptors,
                                  WriteBarrierMode barrier_mode) {
   DCHECK_IMPLIES(barrier_mode == WriteBarrierMode::SKIP_WRITE_BARRIER,
                  HeapLayout::InReadOnlySpace(descriptors));
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  VerifyDescriptorInObjectBits(isolate, descriptors, number_of_own_descriptors);
+#endif
   set_instance_descriptors(descriptors, kReleaseStore, barrier_mode);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS

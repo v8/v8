@@ -359,6 +359,10 @@ int Map::GetInObjectProperties() const {
   return instance_size_in_words() - GetInObjectPropertiesStartInWords();
 }
 
+bool Map::IsFieldInObject(int field_index) const {
+  return field_index < GetInObjectProperties();
+}
+
 int Map::GetConstructorFunctionIndex() const {
 #if V8_ENABLE_WEBASSEMBLY
   // We allow WasmNull here so builtins can produce error messages when

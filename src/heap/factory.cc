@@ -4508,8 +4508,9 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     DirectHandle<Name> name = isolate()->factory()->name_string();
-    Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
-                                         roc_attribs, Representation::Tagged());
+    Descriptor d =
+        Descriptor::DataField(isolate(), name, field_index++, roc_attribs,
+                              Representation::Tagged(), true);
     map->AppendDescriptor(isolate(), &d);
 
   } else {
@@ -4599,8 +4600,9 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     DirectHandle<Name> name = isolate()->factory()->name_string();
-    Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
-                                         roc_attribs, Representation::Tagged());
+    Descriptor d =
+        Descriptor::DataField(isolate(), name, field_index++, roc_attribs,
+                              Representation::Tagged(), true);
     map->AppendDescriptor(isolate(), &d);
 
   } else {

@@ -538,6 +538,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
     Tagged<DescriptorArray> descriptors = map()->instance_descriptors(isolate);
+    map()->VerifyDescriptorInObjectBits(isolate, descriptors,
+                                        map()->NumberOfOwnDescriptors());
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map()->elements_kind());
 
@@ -656,6 +658,8 @@ void Map::MapVerify(Isolate* isolate) {
     }
   }
   if (!is_wasm_struct) {
+    VerifyDescriptorInObjectBits(isolate, instance_descriptors(isolate),
+                                 NumberOfOwnDescriptors());
     SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
   }
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());

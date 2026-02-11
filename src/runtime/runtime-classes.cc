@@ -302,6 +302,7 @@ bool AddDescriptorsByTemplate(
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   int field_index = 0;
+  int in_object_field_count = map->GetInObjectProperties();
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     Tagged<Object> value = descriptors_template->GetStrongValue(i);
     if (IsAccessorPair(value)) {
@@ -348,7 +349,8 @@ bool AddDescriptorsByTemplate(
       details =
           PropertyDetails(details.kind(), details.attributes(),
                           PropertyLocation::kField, PropertyConstness::kConst,
-                          details.representation(), field_index)
+                          details.representation(), field_index,
+                          field_index < in_object_field_count)
               .set_pointer(details.pointer());
 
       property_array->set(field_index, value);
