@@ -3411,9 +3411,7 @@ class SetTimeoutTask : public v8::Task {
     Local<Context> context = context_.Get(isolate_);
     Local<Function> callback = callback_.Get(isolate_);
     Context::Scope context_scope(context);
-    MaybeLocal<Value> result =
-        callback->Call(context, Undefined(isolate_), 0, nullptr);
-    USE(result);
+    USE(callback->Call(context, Undefined(isolate_), 0, nullptr));
   }
 
  private:
@@ -3986,11 +3984,49 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  bool enter_context = context.IsEmpty();
-  if (enter_context) {
+  std::optional<Context::Scope> context_scope;
+  if (context.IsEmpty()) {
     context = Local<Context>::New(isolate, evaluation_context_);
-    context->Enter();
+    context_scope.emplace(context);
   }
+
+  // Exception reporting shouldn't recursively trigger exception reporting, so
+  // wrap in a TryCatch.
+  TryCatch try_catch(isolate);
+  try_catch.SetVerbose(false);
+
+  // Light-weight onerror event handling, similar to that in
+  // https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
+  //
+  // TODO(leszeks): Really onerror should be an accessor that sets a proper
+  // event handler, add this if we ever actually need it.
+  Local<String> onerror_name = String::NewFromUtf8Literal(isolate, "onerror");
+  Local<Value> onerror;
+  if (context->Global()->Get(context, onerror_name).ToLocal(&onerror) &&
+      onerror->IsFunction()) {
+    Local<Function> fun = Local<Function>::Cast(onerror);
+    Local<Value> message_val = v8::Undefined(isolate);
+    Local<Value> source_val = v8::Undefined(isolate);
+    Local<Value> lineno_val = v8::Undefined(isolate);
+    Local<Value> colno_val = v8::Undefined(isolate);
+    if (!message.IsEmpty()) {
+      message_val = message->Get();
+      source_val = message->GetScriptOrigin().ResourceName();
+      lineno_val = v8::Integer::New(
+          isolate, message->GetLineNumber(context).FromMaybe(0));
+      colno_val = v8::Integer::New(
+          isolate, message->GetStartColumn(context).FromMaybe(0) + 1);
+    }
+    Local<Value> args[] = {message_val, source_val, lineno_val, colno_val,
+                           exception_obj};
+    Local<Value> result;
+    if (fun->Call(context, context->Global(), 5, args).ToLocal(&result)) {
+      if (result->IsTrue()) {
+        return;
+      }
+    }
+  }
+
   // Converts a V8 value to a C string.
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
@@ -4041,7 +4077,6 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
     printf("%s\n", ToCString(stack_trace));
   }
   printf("\n");
-  if (enter_context) context->Exit();
 }
 
 void Shell::ReportException(v8::Isolate* isolate,
@@ -4226,6 +4261,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(Symbol::GetToStringTag(isolate),
                        String::NewFromUtf8Literal(isolate, "global"));
+  global_template->Set(isolate, "onerror", v8::Null(isolate));
   global_template->Set(isolate, "version",
                        FunctionTemplate::New(isolate, Version));
 
@@ -4641,14 +4677,14 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
       D8WasmAsyncResolvePromiseCallback);
   if (isOnMainThread) {
     InitializeMainThreadCounters(isolate);
-
-    // Disable default message reporting.
-    isolate->AddMessageListenerWithErrorLevel(
-        PrintMessageCallback,
-        v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
-            v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
-            v8::Isolate::kMessageLog);
   }
+
+  // Disable default message reporting.
+  isolate->AddMessageListenerWithErrorLevel(
+      PrintMessageCallback,
+      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+          v8::Isolate::kMessageLog);
 
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
@@ -6662,14 +6698,18 @@ bool ProcessMessages(
   if (isolate->IsExecutionTerminating()) return true;
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
+  bool exit_with_success = true;
 
   while (true) {
     bool ran_a_task =
         v8::platform::PumpMessageLoop(g_default_platform, isolate, behavior());
-    if (isolate->IsExecutionTerminating()) return true;
-    if (try_catch.HasCaught()) return false;
+    if (isolate->IsExecutionTerminating()) return exit_with_success;
+    if (try_catch.HasCaught()) {
+      exit_with_success = false;
+      try_catch.Reset();
+    }
     if (ran_a_task) MicrotasksScope::PerformCheckpoint(isolate);
-    if (isolate->IsExecutionTerminating()) return true;
+    if (isolate->IsExecutionTerminating()) return exit_with_success;
 
     // In predictable mode we push all background tasks into the foreground
     // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
@@ -6683,7 +6723,7 @@ bool ProcessMessages(
           platform::MessageLoopBehavior::kDoNotWait)) {
         ran_a_task = true;
         if (inner_try_catch.HasCaught()) return false;
-        if (isolate->IsExecutionTerminating()) return true;
+        if (isolate->IsExecutionTerminating()) return exit_with_success;
       }
     }
 
@@ -6693,9 +6733,9 @@ bool ProcessMessages(
     v8::platform::RunIdleTasks(g_default_platform, isolate,
                                50.0 / base::Time::kMillisecondsPerSecond);
     if (try_catch.HasCaught()) return false;
-    if (isolate->IsExecutionTerminating()) return true;
+    if (isolate->IsExecutionTerminating()) return exit_with_success;
   }
-  return true;
+  return exit_with_success;
 }
 }  // anonymous namespace
 
