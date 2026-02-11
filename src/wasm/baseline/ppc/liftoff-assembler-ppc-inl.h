@@ -5,6 +5,7 @@
 #ifndef V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_INL_H_
 #define V8_WASM_BASELINE_PPC_LIFTOFF_ASSEMBLER_PPC_INL_H_
 
+#include "src/base/logging.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -471,6 +472,11 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   if (offset_reg != no_reg && shift_amount != 0) {
     ShiftLeftU64(ip, offset_reg, Operand(shift_amount));
@@ -541,6 +547,11 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
   MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   lwsync();
