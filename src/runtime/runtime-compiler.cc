@@ -465,8 +465,6 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 
 #ifdef V8_DUMPLING
 RUNTIME_FUNCTION(Runtime_PrintDumpedFrame) {
-  DisallowHeapAllocation no_heap_alloc;
-
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   CHECK(isolate->context().is_null());
