@@ -2422,6 +2422,17 @@ IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
       }
       UNREACHABLE();
     }
+    case Opcode::kTaggedBitcast: {
+      switch (op.Cast<TaggedBitcastOp>().kind) {
+        case TaggedBitcastOp::Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case TaggedBitcastOp::Kind::kHeapObject:
+          return IsSmiDecision::kFalse;
+        case TaggedBitcastOp::Kind::kTagAndSmiBits:
+        case TaggedBitcastOp::Kind::kAny:
+          return IsSmiDecision::kUnknown;
+      }
+    }
     case Opcode::kLoad: {
       switch (op.Cast<LoadOp>().loaded_rep) {
         case MemoryRepresentation::TaggedPointer():
