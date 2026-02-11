@@ -3239,27 +3239,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI8x16Popcnt: {
-      VRegister dst = i.OutputSimd128Register(),
-                src = i.InputSimd128Register(0);
-      Label t;
+      // Implement vector popcnt refer dense_popcnt
+      //  int dense_popcnt(uint32_t n)
+      //  {
+      //      int count = 32;  // sizeof(uint32_t) * CHAR_BIT;
+      //      n ^= 0xFF'FF'FF'FF;
+      //      while(n)
+      //      {
+      //          --count;
+      //          n &= n - 1;
+      //      }
+      //      return count;
+      //  }
+      VRegister dst_v = i.OutputSimd128Register(),
+                src_v = i.InputSimd128Register(0);
 
+      Label t, done;
       __ VU.SetSimd128(E8);
-      // The output and input register might be the same.
-      // We could add a register constraint to avoid this, but in this
-      // case it's simpler to just copy the source into a scratch register.
-      __ vmv_vv(kSimd128ScratchReg, src);
-      auto zero_reg = kSimd128ScratchReg4;
-      __ vmv_vi(zero_reg, 0);
-      __ vmv_vv(dst, zero_reg);
-
+      __ vmv_vv(kSimd128ScratchReg, src_v);
+      __ li(kScratchReg, 0xFF);
+      __ vxor_vx(kSimd128ScratchReg, kSimd128ScratchReg, kScratchReg);
+      __ vmv_vi(dst_v, 8);
+      __ vmv_vi(kSimd128RegZero, 0);
       __ bind(&t);
-      __ vmsne_vv(v0, kSimd128ScratchReg, zero_reg);
-      __ vadd_vi(dst, dst, 1, Mask);
-      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
-      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
-      // kScratchReg = -1 if kSimd128ScratchReg == 0 i.e. no active element
-      __ vfirst_m(kScratchReg, kSimd128ScratchReg);
-      __ bgez(kScratchReg, &t);
+      __ vmsne_vi(v0, kSimd128ScratchReg, 0);
+      __ VU.SetSimd128(E16);
+      __ vmv_xs(kScratchReg, v0);
+      __ beqz(kScratchReg, &done);
+      __ VU.SetSimd128(E8);
+      __ vadd_vi(dst_v, dst_v, -1, MaskType::Mask);
+      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, MaskType::Mask);
+      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg2, kSimd128ScratchReg,
+                 MaskType::Mask);
+      __ Branch(&t);
+      __ bind(&done);
       break;
     }
     case kRiscvF64x2NearestInt: {
