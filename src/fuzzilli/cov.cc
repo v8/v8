@@ -31,6 +31,11 @@ uint32_t *edges_start, *edges_stop;
 uint32_t builtins_start;
 uint32_t builtins_edge_count;
 
+__attribute__((visibility("default"))) void fuzzilli_cov_enable() {
+  // This function exists solely to force the linker to include this object
+  // file.
+}
+
 __attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
   uint32_t N = 0;
   for (uint32_t* x = edges_start; x < edges_stop && N < MAX_EDGES; x++)
