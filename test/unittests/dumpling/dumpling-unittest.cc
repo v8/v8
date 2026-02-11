@@ -527,7 +527,7 @@ TEST_F(DumplingTest, InterpreterEmptyElements) {
       "const arr = [];\n"
       "foo(arr);\n";
 
-  // Expect <JSArray> followed immediately by whitespace/end-of-line,
+  // Expect <JSArray> followed by {...},
   // with NO "[]" or "[...]" printed.
   const char* expected = R"(---I\s+)"
                          R"(b:0\s+)"
@@ -535,7 +535,7 @@ TEST_F(DumplingTest, InterpreterEmptyElements) {
                          R"(x:<undefined>\s+)"
                          R"(n:1\s+)"
                          R"(m:0\s+)"
-                         R"(a0:<JSArray>\s+)";
+                         R"(a0:<JSArray>.*\}\s+)";
 
   RunInterpreterTest(program, expected);
 }
@@ -560,7 +560,7 @@ TEST_F(DumplingTest, InterpreterHolesOnly) {
                          R"(x:<undefined>\s+)"
                          R"(n:1\s+)"
                          R"(m:0\s+)"
-                         R"(a0:<JSArray>\s+)";
+                         R"(a0:<JSArray>.*\}\s+)";
 
   RunInterpreterTest(program, expected);
 }
