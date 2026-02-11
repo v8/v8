@@ -450,6 +450,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, NeedsContext::kYes, kMicrotask)                        \
+  TFJ(GlobalQueueMicrotask, kJSArgcReceiverSlots + 1, kReceiver, kCallback)    \
   ASM(RunMicrotasksTrampoline, RunMicrotasksEntry)                             \
   TFC(RunMicrotasks, RunMicrotasks)                                            \
                                                                                \

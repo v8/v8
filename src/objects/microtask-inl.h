@@ -47,8 +47,9 @@ void CallableTask::set_callable(Tagged<JSReceiver> value,
   callable_.store(this, value, mode);
 }
 
-Tagged<Context> CallableTask::context() const { return context_.load(); }
-void CallableTask::set_context(Tagged<Context> value, WriteBarrierMode mode) {
+Tagged<NativeContext> CallableTask::context() const { return context_.load(); }
+void CallableTask::set_context(Tagged<NativeContext> value,
+                               WriteBarrierMode mode) {
   context_.store(this, value, mode);
 }
 

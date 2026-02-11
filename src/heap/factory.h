@@ -493,8 +493,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<StackTraceInfo> NewStackTraceInfo(DirectHandle<FixedArray> frames);
 
   // Allocate various microtasks.
-  DirectHandle<CallableTask> NewCallableTask(DirectHandle<JSReceiver> callable,
-                                             DirectHandle<Context> context);
+  DirectHandle<CallableTask> NewCallableTask(
+      DirectHandle<JSReceiver> callable, DirectHandle<NativeContext> context);
   DirectHandle<CallbackTask> NewCallbackTask(DirectHandle<Foreign> callback,
                                              DirectHandle<Foreign> data);
   DirectHandle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(

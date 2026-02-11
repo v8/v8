@@ -173,8 +173,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   BIND(&is_callable);
   {
     // Enter the context of the {microtask}.
-    TNode<NativeContext> microtask_context = LoadNativeContext(
-        LoadObjectField<Context>(microtask, offsetof(CallableTask, context_)));
+    TNode<NativeContext> microtask_context = LoadObjectField<NativeContext>(
+        microtask, offsetof(CallableTask, context_));
     PrepareForContext(microtask_context, &done);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -625,6 +625,50 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
 
   Bind(&if_shutdown);
   Return(UndefinedConstant());
+}
+
+// Implements the HTML queueMicrotask API
+// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#microtask-queuing
+TF_BUILTIN(GlobalQueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
+  auto callback = Parameter<Object>(Descriptor::kCallback);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  Label callback_is_not_callable(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callback), &callback_is_not_callable);
+  GotoIfNot(IsCallable(CAST(callback)), &callback_is_not_callable);
+
+  // Use the callback's context as the microtask context, per
+  // https://webidl.spec.whatwg.org/#js-invoking-callback-functions
+  // specifically, getting the "associated realm" of the callback. Per-spec,
+  // this is underspecified for non-platform objects, but for function objects
+  // we're expected to use the [[Realm]] slot (which is the creation context),
+  // and we can do the same for other incoming callbacks.
+  Label callback_has_no_context(this, Label::kDeferred);
+  TNode<NativeContext> callback_context =
+      GetCreationContext(CAST(callback), &callback_has_no_context);
+
+  TNode<CallableTask> microtask = TNode<CallableTask>::UncheckedCast(
+      AllocateInNewSpace(sizeof(CallableTask)));
+  StoreMapNoWriteBarrier(microtask, RootIndex::kCallableTaskMap);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  StoreObjectFieldNoWriteBarrier(
+      microtask, offsetof(CallableTask, continuation_preserved_embedder_data_),
+      GetContinuationPreservedEmbedderData());
+#endif
+  StoreObjectFieldNoWriteBarrier(microtask, offsetof(CallableTask, callable_),
+                                 callback);
+  StoreObjectFieldNoWriteBarrier(microtask, offsetof(CallableTask, context_),
+                                 callback_context);
+  // TODO(leszeks): Tailcall this builtin, which would require the right
+  // argument teardown.
+  Return(CallBuiltin(Builtin::kEnqueueMicrotask, context, microtask));
+
+  BIND(&callback_is_not_callable);
+  ThrowTypeError(context, MessageTemplate::kNotCallable, callback);
+
+  BIND(&callback_has_no_context);
+  // Callables should always have a creation context.
+  Unreachable();
 }
 
 TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {

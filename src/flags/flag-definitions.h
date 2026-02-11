@@ -412,6 +412,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     for_of_optimization,
     "Experimental flag for improving ForOf loops on ArrayIterator")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_queue_microtask,
+    "ship a native queueMicrotask implementation on the global object")
+
 #ifdef V8_INTL_SUPPORT
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",

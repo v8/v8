@@ -266,6 +266,7 @@ class Genesis {
 #if V8_ENABLE_WEBASSEMBLY
   void InitializeWasmJSPI();
 #endif
+  void InitializeGlobal_queueMicrotask();
 
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   DirectHandle<JSFunction> CreateArrayBuffer(DirectHandle<String> name,
@@ -5111,6 +5112,8 @@ void Genesis::InitializeExperimentalGlobal() {
 #undef FEATURE_INITIALIZE_GLOBAL
   InitializeGlobal_regexp_linear_flag();
   InitializeGlobal_sharedarraybuffer();
+
+  InitializeGlobal_queueMicrotask();
 }
 
 namespace {
@@ -6034,6 +6037,16 @@ void Genesis::InitializeGlobal_js_sum_precise() {
 
   SimpleInstallFunction(isolate_, math, "sumPrecise", Builtin::kMathSumPrecise,
                         1, kAdapt);
+}
+
+void Genesis::InitializeGlobal_queueMicrotask() {
+  if (!v8_flags.enable_queue_microtask) return;
+
+  // Install Global.queueMicrotask
+  DirectHandle<JSGlobalObject> global_object(native_context()->global_object(),
+                                             isolate());
+  InstallFunctionWithBuiltinId(isolate(), global_object, "queueMicrotask",
+                               Builtin::kGlobalQueueMicrotask, 1, kAdapt);
 }
 
 DirectHandle<JSFunction> Genesis::CreateArrayBuffer(

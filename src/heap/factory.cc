@@ -1654,7 +1654,7 @@ Handle<Script> Factory::CloneScript(DirectHandle<Script> script,
 }
 
 DirectHandle<CallableTask> Factory::NewCallableTask(
-    DirectHandle<JSReceiver> callable, DirectHandle<Context> context) {
+    DirectHandle<JSReceiver> callable, DirectHandle<NativeContext> context) {
   DCHECK(IsCallable(*callable));
   auto microtask = NewStructInternal<CallableTask>(CALLABLE_TASK_TYPE,
                                                    AllocationType::kYoung);

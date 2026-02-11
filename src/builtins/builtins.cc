@@ -899,6 +899,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kMathSumPrecise:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_sum_precise);
 
+    // --enable-queue-microtask
+    case Builtin::kGlobalQueueMicrotask:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.enable_queue_microtask);
+
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants
     case Builtin::kLocalePrototypeVariants:

@@ -36,6 +36,7 @@ V8_OBJECT class Microtask : public StructLayout {
  private:
   friend class TorqueGeneratedMicrotaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
   friend class JSPromise;
   friend struct ObjectTraits<Microtask>;
 
@@ -77,8 +78,8 @@ V8_OBJECT class CallableTask : public Microtask {
   inline void set_callable(Tagged<JSReceiver> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Context> context() const;
-  inline void set_context(Tagged<Context> value,
+  inline Tagged<NativeContext> context() const;
+  inline void set_context(Tagged<NativeContext> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
@@ -89,9 +90,10 @@ V8_OBJECT class CallableTask : public Microtask {
  private:
   friend class TorqueGeneratedCallableTaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
 
   TaggedMember<JSReceiver> callable_;
-  TaggedMember<Context> context_;
+  TaggedMember<NativeContext> context_;
 } V8_OBJECT_END;
 
 template <>

@@ -18,5 +18,5 @@ extern class CallbackTask extends Microtask {
 @cppObjectLayoutDefinition
 extern class CallableTask extends Microtask {
   callable: JSReceiver;
-  context: Context;
+  context: NativeContext;
 }
