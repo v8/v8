@@ -730,7 +730,6 @@ size_t WasmModule::EstimateStoredSize() const {
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
-         signature_storage.TotalReservedSize() +         // --
          ContentSize(types) +                            // --
          ContentSize(isorecursive_canonical_type_ids) +  // --
          ContentSize(functions) +                        // --
@@ -811,6 +810,8 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();
+
+  result += signature_storage.TotalReservedSize();
 
   result += type_feedback.EstimateCurrentMemoryConsumption();
   // For type_feedback.well_known_imports:

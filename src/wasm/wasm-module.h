@@ -762,6 +762,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // called with the V8 fast API. These signatures are added during
   // instantiation, so the `signature_storage` may be changed even when the
   // `WasmModule` is already `const`.
+  // Accesses *after decoding* are synchronized via the `NativeModule`s
+  // `allocation_mutex_`.
   mutable WasmModuleSignatureStorage signature_storage;
   int start_function_index = -1;   // start function, >= 0 if any
 

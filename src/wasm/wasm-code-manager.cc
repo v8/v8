@@ -2905,6 +2905,10 @@ NamesProvider* NativeModule::GetNamesProvider() {
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(NativeModule, 552);
   size_t result = sizeof(NativeModule);
+  // The `WasmModule::signature_storage` is protected by the
+  // `NativeModule::allocation_mutex_`.
+  // Store it in an optional to release the mutex early, see below.
+  std::optional<base::RecursiveMutexGuard> lock(&allocation_mutex_);
   result += module_->EstimateCurrentMemoryConsumption();
 
   std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
@@ -2929,31 +2933,20 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For fast api call targets.
   result += module_->num_imported_functions *
             (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
-  // We cannot hold the `allocation_mutex_` while calling
-  // `debug_info_->EstimateCurrentMemoryConsumption`, as we would run into a
-  // lock-order-inversion when acquiring the `mutex_`. The reverse order happens
-  // when calling `WasmScript::SetBreakPointForFunction`.
-  DebugInfo* debug_info;
-  {
-    base::RecursiveMutexGuard lock(&allocation_mutex_);
-    result += ContentSize(owned_code_);
-    for (auto& [address, unique_code_ptr] : owned_code_) {
-      result += unique_code_ptr->EstimateCurrentMemoryConsumption();
-    }
-    result += ContentSize(new_owned_code_);
-    for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
-      result += code->EstimateCurrentMemoryConsumption();
-    }
-    // For {code_table_}.
-    result += module_->num_declared_functions * sizeof(void*);
-    result += ContentSize(code_space_data_);
-    debug_info = debug_info_.get();
-    if (names_provider_) {
-      result += names_provider_->EstimateCurrentMemoryConsumption();
-    }
+  result += ContentSize(owned_code_);
+  for (auto& [address, unique_code_ptr] : owned_code_) {
+    result += unique_code_ptr->EstimateCurrentMemoryConsumption();
   }
-  if (debug_info) {
-    result += debug_info->EstimateCurrentMemoryConsumption();
+  result += ContentSize(new_owned_code_);
+  for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
+    result += code->EstimateCurrentMemoryConsumption();
+  }
+  // For {code_table_}.
+  result += module_->num_declared_functions * sizeof(void*);
+  result += ContentSize(code_space_data_);
+  DebugInfo* debug_info = debug_info_.get();
+  if (names_provider_) {
+    result += names_provider_->EstimateCurrentMemoryConsumption();
   }
 
   result += counter_updates_.EstimateCurrentMemoryConsumption() -
@@ -2963,6 +2956,15 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   for (const std::shared_ptr<WasmWrapperHandle>& wrapper :
        stack_entry_wrappers_) {
     result += wrapper->code()->EstimateCurrentMemoryConsumption();
+  }
+
+  // We cannot hold the `allocation_mutex_` while calling
+  // `debug_info_->EstimateCurrentMemoryConsumption`, as we would run into a
+  // lock-order-inversion when acquiring the `mutex_`. The reverse order happens
+  // when calling `WasmScript::SetBreakPointForFunction`.
+  lock.reset();
+  if (debug_info) {
+    result += debug_info->EstimateCurrentMemoryConsumption();
   }
 
   if (v8_flags.trace_wasm_offheap_memory) {
