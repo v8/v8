@@ -43,16 +43,6 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
       // Apply the merge function to the values of the two iterators. If the
       // function returns false, remove the value.
       bool keep_value = func(lhs_it->second, rhs_it->second);
-      if constexpr (std::is_same_v<decltype(lhs_it->second), ValueNode*>) {
-        if (!keep_value) {
-          auto l = lhs_it->second->UnwrapIdentities();
-          auto r = rhs_it->second->UnwrapIdentities();
-          if (l != lhs_it->second || r != rhs_it->second) {
-            lhs_it->second = l;
-            keep_value = func(l, r);
-          }
-        }
-      }
       if (keep_value) {
         ++lhs_it;
       } else {
@@ -150,12 +140,7 @@ bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
   return NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone);
 }
 
-bool SameValue(ValueNode* before, ValueNode* after) {
-  // Nodes from loop headers can contain identities since the KnownNodeAspects
-  // constructor used in CloneForLoopHeader does not unwrap them.
-  return before == after ||
-         (before->Is<Identity>() && before->input_node(0) == after);
-}
+bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
 
 }  // namespace
 
@@ -380,8 +365,6 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       auto slot_written = loop_effects->context_slot_written.begin();
       auto slot_written_end = loop_effects->context_slot_written.end();
       for (auto loaded : other.loaded_context_slots_) {
-        if (!loaded.second) continue;
-        loaded.second = loaded.second->UnwrapIdentities();
         if (!NextInIgnoreList(slot_written, slot_written_end, loaded.first)) {
           loaded_context_slots_.emplace(loaded);
         }
@@ -507,7 +490,7 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   return aliased_slots_;
 }
 
-void KnownNodeAspects::PrintLoadedProperties() const {
+void KnownNodeAspects::PrintLoadedProperties() {
   std::cout << "Constant properties:\n";
   for (auto [key, map] : loaded_constant_properties_) {
     std::cout << "  - " << key << ": { ";
@@ -530,22 +513,6 @@ void KnownNodeAspects::PrintLoadedProperties() const {
       std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
     }
     std::cout << " }\n";
-  }
-  std::cout << "Constant context slots:\n";
-  for (auto [key, object] : loaded_context_constants_) {
-    std::cout << "  - ";
-    PrintNodeLabel(std::get<ValueNode*>(key));
-    std::cout << "@" << std::get<int>(key) << ": ";
-    std::cout << PrintNodeLabel(object);
-    std::cout << "\n";
-  }
-  std::cout << "Non-constant context slots:\n";
-  for (auto [key, object] : loaded_context_slots_) {
-    std::cout << "  - ";
-    PrintNodeLabel(std::get<ValueNode*>(key));
-    std::cout << "@" << std::get<int>(key) << ": ";
-    std::cout << PrintNodeLabel(object);
-    std::cout << "\n";
   }
 }
 
