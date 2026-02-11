@@ -1146,7 +1146,6 @@ class ScopeInfoRef : public HeapObjectRef {
 
   IndirectHandle<ScopeInfo> object() const;
 
-  int ContextHeaderLength() const;
   int ContextLength() const;
   bool HasContext() const;
   bool HasOuterScopeInfo() const;
@@ -1154,7 +1153,6 @@ class ScopeInfoRef : public HeapObjectRef {
   bool SomeContextHasExtension() const;
   bool ClassScopeHasPrivateBrand() const;
   bool SloppyEvalCanExtendVars() const;
-  VariableMode ContextLocalMode(int var) const;
   ScopeType scope_type() const;
 
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;

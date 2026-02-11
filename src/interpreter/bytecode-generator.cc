@@ -5035,10 +5035,13 @@ void BytecodeGenerator::BuildVariableAssignment(
                                                             hole_check_mode)) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
+        BytecodeArrayBuilder::ContextSlotMutability immutable =
+            (variable->maybe_assigned() == kNotAssigned)
+                ? BytecodeArrayBuilder::kImmutableSlot
+                : BytecodeArrayBuilder::kMutableSlot;
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable, depth,
-                             BytecodeArrayBuilder::kMutableSlot);
+            .LoadContextSlot(context_reg, variable, depth, immutable);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);

@@ -45,6 +45,8 @@ class Variable final : public ZoneObject {
     // Var declared variables never need initialization.
     DCHECK(!(mode == VariableMode::kVar &&
              initialization_flag == kNeedsInitialization));
+    DCHECK_IMPLIES(mode == VariableMode::kConst,
+                   maybe_assigned_flag == kNotAssigned);
     DCHECK_IMPLIES(is_static_flag == IsStaticFlag::kStatic,
                    IsImmutableLexicalOrPrivateVariableMode(mode));
   }
