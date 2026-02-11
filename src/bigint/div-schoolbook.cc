@@ -12,6 +12,7 @@
 // [1] https://golang.org/LICENSE
 
 #include <limits>
+#include <optional>
 
 #include "src/bigint/bigint-internal.h"
 #include "src/bigint/digit-arithmetic.h"
@@ -56,12 +57,20 @@ void ProcessorImpl::DivideSingle(RWDigits Q, digit_t* remainder, Digits A,
 
 // Z += X. Returns the "carry" (0 or 1) after adding all of X's digits.
 inline digit_t InplaceAdd(RWDigits Z, Digits X) {
-  return AddAndReturnCarry(Z, Z, X);
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_add3(Z[i], X[i], carry, &carry);
+  }
+  return carry;
 }
 
 // Z -= X. Returns the "borrow" (0 or 1) after subtracting all of X's digits.
 inline digit_t InplaceSub(RWDigits Z, Digits X) {
-  return SubtractAndReturnBorrow(Z, Z, X);
+  digit_t borrow = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
+  }
+  return borrow;
 }
 
 // Returns whether (factor1 * factor2) > (high << kDigitBits) + low.
@@ -104,20 +113,35 @@ void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
   const uint32_t n = B.len();
   const uint32_t m = A.len() - n;
 
+  // Try to avoid allocations by caching some scratch memory on the processor.
+  int qhatv_len = n + 1;
+  int b_normalized_storage_len = n;
+  int U_len = A.len() + 1;
+  int needed_scratch_space = qhatv_len + b_normalized_storage_len + U_len;
+  std::optional<ScratchDigits> allocated_scratch;
+  RWDigits scratch(nullptr, 0);
+  if (needed_scratch_space <= kSmallScratchSize) {
+    scratch = GetSmallScratch();
+  } else {
+    allocated_scratch = ScratchDigits(needed_scratch_space);
+    scratch = allocated_scratch.value();
+  }
+
   // In each iteration, {qhatv} holds {divisor} * {current quotient digit}.
   // "v" is the book's name for {divisor}, "qhat" the current quotient digit.
-  ScratchDigits qhatv(n + 1);
+  RWDigits qhatv(scratch, 0, qhatv_len);
 
   // D1.
   // Left-shift inputs so that the divisor's MSB is set. This is necessary
   // to prevent the digit-wise divisions (see digit_div call below) from
   // overflowing (they take a two digits wide input, and return a one digit
   // result).
-  ShiftedDigits b_normalized(B);
+  RWDigits b_normalized_storage(scratch, qhatv_len, b_normalized_storage_len);
+  ShiftedDigits b_normalized(B, b_normalized_storage);
   B = b_normalized;
   // U holds the (continuously updated) remaining part of the dividend, which
   // eventually becomes the remainder.
-  ScratchDigits U(A.len() + 1);
+  RWDigits U(scratch, qhatv_len + b_normalized_storage_len, U_len);
   LeftShift(U, A, b_normalized.shift());
 
   // D2.

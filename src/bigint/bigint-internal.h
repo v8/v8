@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/bigint/bigint.h"
+#include "src/bigint/digit-arithmetic.h"
 
 namespace v8 {
 namespace bigint {
@@ -96,9 +97,22 @@ class ProcessorImpl : public Processor {
   }
 
  private:
+  // Number of digits to keep around, to reduce the number of allocations.
+  // Arbitrarily chosen; should be large enough to hold a few scratch areas
+  // for commonly-occurring BigInt sizes.
+  static constexpr int kSmallScratchSize = 100;
+
+  RWDigits GetSmallScratch() {
+    if (!small_scratch_) {
+      small_scratch_.reset(new digit_t[kSmallScratchSize]);
+    }
+    return RWDigits(small_scratch_.get(), kSmallScratchSize);
+  }
+
   uintptr_t work_estimate_{0};
   Status status_{Status::kOk};
   Platform* platform_;
+  std::unique_ptr<digit_t[]> small_scratch_;
 };
 
 // Prevent computations of scratch space and number of bits from overflowing.
@@ -155,6 +169,22 @@ class ScratchDigits : public RWDigits {
  private:
   Storage storage_;
 };
+
+// Z := X * y, where y is a single digit.
+inline void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
+  DCHECK(y != 0);
+  digit_t carry = 0;
+  digit_t high = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    digit_t new_high;
+    digit_t low = digit_mul(X[i], y, &new_high);
+    Z[i] = digit_add3(low, high, carry, &carry);
+    high = new_high;
+  }
+  AddWorkEstimate(X.len());
+  Z[X.len()] = carry + high;
+  for (uint32_t i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
+}
 
 }  // namespace bigint
 }  // namespace v8

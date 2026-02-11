@@ -9,22 +9,6 @@
 namespace v8 {
 namespace bigint {
 
-// Z := X * y, where y is a single digit.
-void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
-  DCHECK(y != 0);
-  digit_t carry = 0;
-  digit_t high = 0;
-  for (uint32_t i = 0; i < X.len(); i++) {
-    digit_t new_high;
-    digit_t low = digit_mul(X[i], y, &new_high);
-    Z[i] = digit_add3(low, high, carry, &carry);
-    high = new_high;
-  }
-  AddWorkEstimate(X.len());
-  Z[X.len()] = carry + high;
-  for (uint32_t i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
-}
-
 #define BODY(min, max)                              \
   for (uint32_t j = min; j <= max; j++) {           \
     digit_t high;                                   \

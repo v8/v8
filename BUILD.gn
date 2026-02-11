@@ -7405,7 +7405,6 @@ v8_source_set("v8_bigint") {
     "src/bigint/bitwise.cc",
     "src/bigint/digit-arithmetic.h",
     "src/bigint/div-burnikel.cc",
-    "src/bigint/div-helpers.cc",
     "src/bigint/div-helpers.h",
     "src/bigint/div-schoolbook.cc",
     "src/bigint/fromstring.cc",
