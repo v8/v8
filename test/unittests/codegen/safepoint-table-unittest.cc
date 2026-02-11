@@ -5,6 +5,7 @@
 #include "src/codegen/safepoint-table.h"
 
 #include "src/codegen/macro-assembler.h"
+#include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -74,5 +75,38 @@ TEST_F(SafepointTableTest, CreatePatch) {
   EXPECT_TRUE(patch->Contains(81 - 64));
   EXPECT_TRUE(patch->Contains(83 - 64));
 }
+
+#ifdef V8_ENABLE_FUZZTEST
+class SafepointTableFuzzTest
+    : public fuzztest::PerFuzzTestFixtureAdapter<TestWithZone> {
+ public:
+  void TestXorPatch(const std::set<int>& bits_a, const std::set<int>& bits_b) {
+    GrowableBitVector a;
+    for (int bit : bits_a) a.Add(bit, zone());
+    GrowableBitVector b;
+    for (int bit : bits_b) b.Add(bit, zone());
+
+    uint32_t common_prefix_bits;
+    BitVector* xor_patch =
+        CompareAndCreateXorPatch(zone(), b, a, &common_prefix_bits);
+    std::set<int> patched_a = bits_a;
+    if (xor_patch) {
+      // Apply patch to `patched_a`. That should result in `b`.
+      for (int bit : *xor_patch) {
+        bit += common_prefix_bits;
+        if (!patched_a.erase(bit)) patched_a.insert(bit);
+      }
+    } else {
+      EXPECT_EQ(kMaxUInt32, common_prefix_bits);
+    }
+
+    EXPECT_EQ(patched_a, bits_b);
+  }
+};
+
+V8_FUZZ_TEST_F(SafepointTableFuzzTest, TestXorPatch)
+    .WithDomains(fuzztest::SetOf(fuzztest::InRange(0, 1 << 16)),
+                 fuzztest::SetOf(fuzztest::InRange(0, 1 << 16)));
+#endif  // V8_ENABLE_FUZZTEST
 
 }  // namespace v8::internal
