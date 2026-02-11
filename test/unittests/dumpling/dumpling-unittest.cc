@@ -517,6 +517,54 @@ TEST_F(DumplingTest, InterpreterSanitizeCarriageReturn) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterEmptyElements) {
+  // Test that an empty array prints no brackets at all.
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [];\n"
+      "foo(arr);\n";
+
+  // Expect <JSArray> followed immediately by whitespace/end-of-line,
+  // with NO "[]" or "[...]" printed.
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterHolesOnly) {
+  // Test that an array containing ONLY holes also prints no brackets.
+  // [hole, hole, hole] -> Should behave like empty for printing.
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1, 2, 3];\n"
+      "delete arr[0];\n"
+      "delete arr[1];\n"
+      "delete arr[2];\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 }  // namespace v8
 
 #endif  // V8_DUMPLING

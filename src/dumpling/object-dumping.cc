@@ -180,9 +180,13 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
                              StringStream* accumulator,
                              std::function<std::string(int)> format_element) {
     int dump_len = elements->length();
-    if (dump_len == 0) return;
 
-    accumulator->Add("[");
+    // We have this var because we print elements for all JSObjects and most
+    // often the array will be just empty or not empty but every element will be
+    // a hole. This way empty/full of holes JSArray will be printed without [],
+    // which might be confusing but still less confusing than JSObjects printed
+    // with [].
+    bool printed_open_bracket = false;
     int hole_range_start = -1;
     // We output consecutive holes as hole_range_start-hole_range_end:the_hole
     for (int i = 0; i < dump_len; i++) {
@@ -191,6 +195,11 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
           hole_range_start = i;
         }
       } else {
+        if (!printed_open_bracket) {
+          accumulator->Add("[");
+          printed_open_bracket = true;
+        }
+
         if (hole_range_start != -1) {
           accumulator->Add("%d-%d:the_hole,", hole_range_start, i - 1);
           hole_range_start = -1;
@@ -200,7 +209,9 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     }
     // We specifically not add trailing holes, because elements capacity can be
     // somewhat arbitrary.
-    accumulator->Add("]");
+    if (printed_open_bracket) {
+      accumulator->Add("]");
+    }
   };
 
   if (elements_kind == PACKED_SMI_ELEMENTS ||
