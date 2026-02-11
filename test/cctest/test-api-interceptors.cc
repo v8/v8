@@ -559,12 +559,14 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   // Attempt to store to interceptor's prototype's RW property should trigger
@@ -601,7 +603,8 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 }
 
