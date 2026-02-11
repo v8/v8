@@ -7635,17 +7635,20 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   li(scratch, global_jump_table);
 
 #ifdef V8_ENABLE_SANDBOX
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  CalcScaledAddress(target, scratch, target, 4);
+  // Mask the target index to prevent OOB access and shift for table indexing.
+  SllWord(target, target, kLeftShift);
+  And(target, target, Operand(((1U << kNumRelevantBits) - 1) << kLeftShift));
+  // Calculate address: table_base + (target << kLeftShift)
+  AddWord(target, scratch, target);
   LoadWord(
       scratch,
       MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
-  // bool has_second_tmp = temps.CanAcquire();
-  // Register signature_hash_register = has_second_tmp ? temps.Acquire() :
-  // target; if (!has_second_tmp) {
-  //   Push(signature_hash_register);
-  // }
-  // li(signature_hash_register, Operand(signature_hash));
   SbxCheck(Condition::kEqual, AbortReason::kWasmSignatureMismatch, scratch,
            Operand(signature_hash));
 #else
@@ -7672,10 +7675,18 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, global_jump_table);
-  constexpr unsigned int kEntrySizeLog2 =
-      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
-  CalcScaledAddress(target, scratch, target, kEntrySizeLog2);
-  LoadWord(target, MemOperand(target));
+
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+
+  SllWord(target, target, kLeftShift);
+  And(target, target, Operand(((1U << kNumRelevantBits) - 1) << kLeftShift));
+
+  AddWord(scratch, scratch, target);
+  LoadWord(target, MemOperand(scratch));
+
   Call(target);
 }
 
