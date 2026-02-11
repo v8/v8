@@ -306,7 +306,7 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
                            R"(m:0\s+)"            // Number of registers
                            // Properties and proto will be printed out too (but
                            // we don't list them here)
-                           R"(a0:<JSArray>.*[1,2,3]\s+)";
+                           R"(a0:<JSArray>.*[1,2,3,]\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -351,6 +351,110 @@ TEST_F(DumplingTest, InterpreterBigIntParams) {
                          R"(n:1\s+)"            // Number of params
                          R"(m:0\s+)"            // Number of registers
                          R"(a0:<BigIntBase 1234567890123456789>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterHoleySmiElements) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1, 2];\n"
+      "arr[3] = 4;\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1,2,2-2:the_hole,4,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterConsecutiveHoles) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1];\n"
+      "arr[4] = 5;\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1,1-3:the_hole,5,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterDoubleElements) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1.5, 2.25];\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1\.50*,2\.250*,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterHoleyDoubleElements) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1.5];\n"
+      "arr[2] = 2.5;\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1\.50*,1-1:the_hole,2\.50*,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterObjectElements) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [{val: 10}, {val: 20}];\n"
+      "foo(arr);\n";
+
+  const char* expected =
+      R"(---I\s+)"
+      R"(b:0\s+)"
+      R"(f:\d+\s+)"
+      R"(x:<undefined>\s+)"
+      R"(n:1\s+)"
+      R"(m:0\s+)"
+      R"(a0:<JSArray>.*\[<Object>\{val\[WEC\]10\},<Object>\{val\[WEC\]20\},\]\s+)";
 
   RunInterpreterTest(program, expected);
 }

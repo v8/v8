@@ -172,19 +172,16 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     int hole_range_start = -1;
     // We output consecutive holes as hole_range_start-hole_range_end:the_hole
     for (int i = 0; i < dump_len; i++) {
-      if (i != 0) {
-        accumulator->Put(',');
-      }
       if (elements->is_the_hole(isolate, i)) {
         if (hole_range_start == -1) {
           hole_range_start = i;
         }
       } else {
         if (hole_range_start != -1) {
-          accumulator->Add("%d-%d:the_hole", hole_range_start, i - 1);
+          accumulator->Add("%d-%d:the_hole,", hole_range_start, i - 1);
           hole_range_start = -1;
         }
-        accumulator->Add("%s", format_element(i).c_str());
+        accumulator->Add("%s,", format_element(i).c_str());
       }
     }
     // We specifically not add trailing holes, because elements capacity can be
