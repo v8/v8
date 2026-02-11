@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
@@ -1280,9 +1281,11 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     int frame_index, Address input_frame_pointer, CreateArgumentsType type,
     FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
-  int length =
+  uint32_t length =
       type == CreateArgumentsType::kRestParameter
-          ? std::max(0, actual_argument_count_ - formal_parameter_count_)
+          ? (actual_argument_count_ > formal_parameter_count_
+                 ? actual_argument_count_ - formal_parameter_count_
+                 : 0)
           : actual_argument_count_;
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
@@ -1298,25 +1301,25 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   ReadOnlyRoots roots(isolate_);
   frame.Add(TranslatedValue::NewTagged(this, roots.fixed_array_map()));
-  frame.Add(TranslatedValue::NewInt32(this, length));
+  frame.Add(TranslatedValue::NewUint32(this, length));
 
-  int number_of_holes = 0;
+  uint32_t number_of_holes = 0;
   if (type == CreateArgumentsType::kMappedArguments) {
     // If the actual number of arguments is less than the number of formal
     // parameters, we have fewer holes to fill to not overshoot the length.
     number_of_holes = std::min(formal_parameter_count_, length);
   }
-  for (int i = 0; i < number_of_holes; ++i) {
+  for (uint32_t i = 0; i < number_of_holes; ++i) {
     frame.Add(TranslatedValue::NewTagged(this, roots.the_hole_value()));
   }
-  int argc = length - number_of_holes;
-  int start_index = number_of_holes;
+  uint32_t argc = length - number_of_holes;
+  uint32_t start_index = number_of_holes;
   if (type == CreateArgumentsType::kRestParameter) {
-    start_index = std::max(0, formal_parameter_count_);
+    start_index = formal_parameter_count_;
   }
-  for (int i = 0; i < argc; i++) {
+  for (uint32_t i = 0; i < argc; i++) {
     // Skip the receiver.
-    int offset = i + start_index + 1;
+    uint32_t offset = i + start_index + 1;
     Address arguments_frame = offset > formal_parameter_count_
                                   ? stack_frame_pointer_
                                   : input_frame_pointer;
@@ -1398,12 +1401,14 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::REST_LENGTH: {
-      int rest_length =
-          std::max(0, actual_argument_count_ - formal_parameter_count_);
+      uint32_t rest_length =
+          actual_argument_count_ > formal_parameter_count_
+              ? actual_argument_count_ - formal_parameter_count_
+              : 0;
       if (trace_file != nullptr) {
         PrintF(trace_file, "rest length field (length = %d)", rest_length);
       }
-      frame.Add(TranslatedValue::NewInt32(this, rest_length));
+      frame.Add(TranslatedValue::NewUint32(this, rest_length));
       return 0;
     }
 
@@ -1899,7 +1904,7 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
   DCHECK(!data.is_null() && deopt_index != SafepointEntry::kNoDeoptIndex);
   DeoptimizationFrameTranslation::Iterator it(
       data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
-  int actual_argc = frame->GetActualArgumentCount();
+  uint32_t actual_argc = frame->GetActualArgumentCount();
   DeoptimizationLiteralProvider literals(data->LiteralArray());
   Init(frame->isolate(), frame->fp(), frame->fp(), &it,
        data->ProtectedLiteralArray(), literals, nullptr /* registers */,
@@ -1912,8 +1917,8 @@ void TranslatedState::Init(
     DeoptTranslationIterator* iterator,
     Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     const DeoptimizationLiteralProvider& literal_array,
-    RegisterValues* registers, FILE* trace_file, int formal_parameter_count,
-    int actual_argument_count) {
+    RegisterValues* registers, FILE* trace_file,
+    uint32_t formal_parameter_count, uint32_t actual_argument_count) {
   DCHECK(frames_.empty());
 
   stack_frame_pointer_ = stack_frame_pointer;
@@ -2455,7 +2460,8 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
       isolate()->factory()->NewByteArray(allocate_size, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   Tagged<ByteArray> raw_object_storage = *object_storage;
-  for (int i = 0; i < object_storage->length(); i++) {
+  uint32_t object_storage_len = object_storage->ulength().value();
+  for (uint32_t i = 0; i < object_storage_len; i++) {
     raw_object_storage->set(i, kStoreTagged);
   }
   return object_storage;
@@ -2739,21 +2745,21 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 
   Handle<Object> marker = isolate_->factory()->arguments_marker();
 
-  int length = static_cast<int>(object_positions_.size());
+  uint32_t length = base::checked_cast<uint32_t>(object_positions_.size());
   bool new_store = false;
   if (previously_materialized_objects.is_null()) {
     previously_materialized_objects =
         isolate_->factory()->NewFixedArray(length, AllocationType::kOld);
-    for (int i = 0; i < length; i++) {
+    for (uint32_t i = 0; i < length; i++) {
       previously_materialized_objects->set(i, *marker);
     }
     new_store = true;
   }
 
-  CHECK_EQ(length, previously_materialized_objects->length());
+  CHECK_EQ(length, previously_materialized_objects->ulength().value());
 
   bool value_changed = false;
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     TranslatedState::ObjectPosition pos = object_positions_[i];
     TranslatedValue* value_info =
         &(frames_[pos.frame_index_].values_[pos.value_index_]);
@@ -2761,7 +2767,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     CHECK(value_info->IsMaterializedObject());
 
     // Skip duplicate objects (i.e., those that point to some other object id).
-    if (value_info->object_index() != i) continue;
+    if (static_cast<uint32_t>(value_info->object_index()) != i) continue;
 
     DirectHandle<Object> previous_value(previously_materialized_objects->get(i),
                                         isolate_);
@@ -2808,10 +2814,10 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
 
   DirectHandle<Object> marker = isolate_->factory()->arguments_marker();
 
-  int length = static_cast<int>(object_positions_.size());
-  CHECK_EQ(length, previously_materialized_objects->length());
+  uint32_t length = base::checked_cast<uint32_t>(object_positions_.size());
+  CHECK_EQ(length, previously_materialized_objects->ulength().value());
 
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     // For a previously materialized objects, inject their value into the
     // translated values.
     if (previously_materialized_objects->get(i) != *marker) {

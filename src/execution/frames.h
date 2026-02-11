@@ -733,9 +733,9 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   // Access the parameters.
   virtual Tagged<Object> receiver() const;
   virtual Tagged<Object> GetParameter(int index) const;
-  virtual int ComputeParametersCount() const;
+  virtual uint32_t ComputeParametersCount() const;
   DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
-  virtual int GetActualArgumentCount() const;
+  virtual uint32_t GetActualArgumentCount() const;
 
   Tagged<HeapObject> unchecked_code() const override;
 
@@ -778,7 +778,7 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   Tagged<Object> unchecked_function() const;
   Tagged<Script> script() const;
   Tagged<Object> context() const override;
-  int GetActualArgumentCount() const override;
+  uint32_t GetActualArgumentCount() const override;
 
   inline void set_receiver(Tagged<Object> value);
 
@@ -950,7 +950,7 @@ class BuiltinExitFrame : public ExitFrame {
 
   Tagged<Object> receiver() const;
   Tagged<Object> GetParameter(int i) const;
-  int ComputeParametersCount() const;
+  uint32_t ComputeParametersCount() const;
   DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
@@ -995,7 +995,7 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   inline Tagged<Object> receiver() const;
   inline Tagged<Object> GetParameter(int i) const;
-  inline int ComputeParametersCount() const;
+  inline uint32_t ComputeParametersCount() const;
   DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
 
   inline Tagged<Object> context() const override;
@@ -1310,7 +1310,7 @@ class TurbofanJSFrame : public OptimizedJSFrame {
  public:
   Type type() const override { return TURBOFAN_JS; }
 
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
 
   void Iterate(RootVisitor* v) const override;
 
@@ -1338,7 +1338,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
   }
 
   Tagged<JSFunction> function() const override;
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
@@ -1686,7 +1686,7 @@ class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
   }
 
   Tagged<JSFunction> function() const override;
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
   Tagged<Object> context() const override;

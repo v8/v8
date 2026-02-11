@@ -535,7 +535,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
   // The builtins constants table is also tightly tied to embedded builtins.
   hash = base::hash_combine(
-      hash, static_cast<size_t>(heap_.builtins_constants_table()->length()));
+      hash, heap_.builtins_constants_table()->ulength().value());
 
   return hash;
 }
@@ -1434,16 +1434,18 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
 
   Handle<FixedArray> stack_trace = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
-                   "frameCount", stack_trace->length());
+                   "frameCount", stack_trace->ulength().value());
   return stack_trace;
 }
 
 DirectHandle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
-    Isolate* isolate, DirectHandle<FixedArray> call_site_infos, int limit) {
-  auto frames = isolate->factory()->NewFixedArray(
-      std::min(limit, call_site_infos->length()));
-  int index = 0;
-  for (int i = 0; i < call_site_infos->length() && index < limit; ++i) {
+    Isolate* isolate, DirectHandle<FixedArray> call_site_infos,
+    uint32_t limit) {
+  uint32_t call_site_infos_len = call_site_infos->ulength().value();
+  auto frames =
+      isolate->factory()->NewFixedArray(std::min(limit, call_site_infos_len));
+  uint32_t index = 0;
+  for (uint32_t i = 0; i < call_site_infos_len && index < limit; ++i) {
     DirectHandle<CallSiteInfo> call_site_info(
         Cast<CallSiteInfo>(call_site_infos->get(i)), isolate);
     if (call_site_info->IsAsync()) {
@@ -1518,10 +1520,14 @@ MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
     } else {
       auto call_site_infos =
           Cast<FixedArray>(call_site_infos_or_formatted_stack);
+      DCHECK_GE(stack_trace_for_uncaught_exceptions_frame_limit_, 0);
       stack_trace = GetDetailedStackTraceFromCallSiteInfos(
           this, call_site_infos,
-          stack_trace_for_uncaught_exceptions_frame_limit_);
-      if (stack_trace_limit < call_site_infos->length()) {
+          static_cast<uint32_t>(
+              stack_trace_for_uncaught_exceptions_frame_limit_));
+      DCHECK_GE(stack_trace_limit, 0);
+      if (static_cast<uint32_t>(stack_trace_limit) <
+          call_site_infos->ulength().value()) {
         call_site_infos_or_formatted_stack = FixedArray::RightTrimOrEmpty(
             this, call_site_infos, stack_trace_limit);
       }
@@ -1648,7 +1654,7 @@ DirectHandle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
   VisitStack(this, &builder, options);
   auto frames = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
-                   "frameCount", frames->length());
+                   "frameCount", frames->ulength().value());
   auto stack_trace = factory()->NewStackTraceInfo(frames);
   OnStackTraceCaptured(stack_trace);
   return stack_trace;
@@ -3165,7 +3171,8 @@ void Isolate::PrintCurrentStackTrace(
       this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
-  for (int i = 0; i < frames->length(); ++i) {
+  uint32_t frames_len = frames->ulength().value();
+  for (uint32_t i = 0; i < frames_len; ++i) {
     DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), this);
 
     if (should_include_frame_callback) {
@@ -3190,7 +3197,7 @@ void Isolate::PrintCurrentStackTrace(
       SerializeCallSiteInfo(this, frame, &builder);
     }
 
-    if (i != frames->length() - 1) builder.AppendCharacter('\n');
+    if (i != frames_len - 1) builder.AppendCharacter('\n');
   }
 
   DirectHandle<String> stack_trace = builder.Finish().ToHandleChecked();
@@ -3260,7 +3267,8 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(
   }
   DirectHandle<FixedArray> call_site_infos =
       GetSimpleStackTrace(Cast<JSReceiver>(exception));
-  for (int i = 0; i < call_site_infos->length(); ++i) {
+  uint32_t call_site_infos_len = call_site_infos->ulength().value();
+  for (uint32_t i = 0; i < call_site_infos_len; ++i) {
     DirectHandle<CallSiteInfo> call_site_info(
         Cast<CallSiteInfo>(call_site_infos->get(i)), this);
     if (CallSiteInfo::ComputeLocation(call_site_info, target)) {
@@ -6944,10 +6952,11 @@ MaybeDirectHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
 
   // The attributes will be passed to the host in the form: [key1,
   // value1, key2, value2, ...].
-  constexpr size_t kAttributeEntrySizeForDynamicImport = 2;
-  import_attributes_array = factory()->NewFixedArray(static_cast<int>(
-      attribute_keys->length() * kAttributeEntrySizeForDynamicImport));
-  for (int i = 0; i < attribute_keys->length(); i++) {
+  constexpr uint32_t kAttributeEntrySizeForDynamicImport = 2;
+  uint32_t attributes_keys_len = attribute_keys->ulength().value();
+  import_attributes_array = factory()->NewFixedArray(
+      attributes_keys_len * kAttributeEntrySizeForDynamicImport);
+  for (uint32_t i = 0; i < attributes_keys_len; i++) {
     DirectHandle<String> attribute_key(Cast<String>(attribute_keys->get(i)),
                                        this);
     DirectHandle<Object> attribute_value;

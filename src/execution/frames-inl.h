@@ -245,15 +245,15 @@ void ApiCallbackExitFrame::set_target(Tagged<HeapObject> function) const {
   target_slot().store(function);
 }
 
-int ApiCallbackExitFrame::ComputeParametersCount() const {
+uint32_t ApiCallbackExitFrame::ComputeParametersCount() const {
   int argc = static_cast<int>(base::Memory<Address>(
       fp() + ApiCallbackExitFrameConstants::kFCIArgcOffset));
   DCHECK_GE(argc, 0);
-  return argc;
+  return static_cast<uint32_t>(argc);
 }
 
 Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
-  DCHECK(i >= 0 && i < ComputeParametersCount());
+  DCHECK(i >= 0 && static_cast<uint32_t>(i) < ComputeParametersCount());
   int offset = ApiCallbackExitFrameConstants::kFirstJSArgumentOffset +
                i * kSystemPointerSize;
   return Tagged<Object>(base::Memory<Address>(fp() + offset));
@@ -327,13 +327,14 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address CommonFrameWithJSLinkage::GetParameterSlot(int index) const {
   DCHECK_LE(-1, index);
-  DCHECK_LT(index,
-            std::max(GetActualArgumentCount(), ComputeParametersCount()));
+  DCHECK(index == -1 ||
+         static_cast<uint32_t>(index) <
+             std::max(GetActualArgumentCount(), ComputeParametersCount()));
   int parameter_offset = (index + 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }
 
-inline int CommonFrameWithJSLinkage::GetActualArgumentCount() const {
+inline uint32_t CommonFrameWithJSLinkage::GetActualArgumentCount() const {
   return 0;
 }
 

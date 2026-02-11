@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
@@ -1359,7 +1360,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   DeoptTranslationIterator state_iterator(off_heap_translations,
                                           deopt_entry.translation_index);
   wasm::NativeModule* native_module = code->native_module();
-  int parameter_count = static_cast<int>(
+  uint32_t parameter_count = base::checked_cast<uint32_t>(
       native_module->module()->functions[code->index()].sig->parameter_count());
   DeoptimizationLiteralProvider literals(
       deopt_view.BuildDeoptimizationLiteralArray());

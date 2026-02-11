@@ -351,7 +351,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
   DirectHandle<JSObject> descriptors =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Name> key(Cast<Name>(keys->get(i)), isolate);
     PropertyDescriptor descriptor;
     Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(

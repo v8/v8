@@ -536,9 +536,9 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
 
     return param_data;
   } else {
-    int args_count = frame->GetActualArgumentCount();
+    uint32_t args_count = frame->GetActualArgumentCount();
     DirectHandleVector<Object> param_data(isolate, args_count);
-    for (int i = 0; i < args_count; i++) {
+    for (uint32_t i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
           DirectHandle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;

@@ -450,15 +450,15 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
 
   // Construct an arguments object mirror for the right frame and the underlying
   // function.
-  const int length = frame->GetActualArgumentCount();
+  const uint32_t length = frame->GetActualArgumentCount();
   DirectHandle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(length);
 
   // Copy the parameters to the arguments object.
-  DCHECK(array->length() == length);
-  for (int i = 0; i < length; i++) {
+  DCHECK_EQ(array->ulength().value(), length);
+  for (uint32_t i = 0; i < length; i++) {
     Tagged<Object> value = frame->GetParameter(i);
     if (IsTheHole(value, isolate)) {
       // Generators currently use holes as dummy arguments when resuming.  We
@@ -478,8 +478,9 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
         ArgumentsFromDeoptInfo(frame, function_index);
     DirectHandle<FixedArray> elements_from_deopt_info(
         Cast<FixedArray>(arguments_from_deopt_info->elements()), isolate);
-    int common_length = std::min(length, elements_from_deopt_info->length());
-    for (int i = 0; i < common_length; i++) {
+    uint32_t common_length =
+        std::min(length, elements_from_deopt_info->ulength().value());
+    for (uint32_t i = 0; i < common_length; i++) {
       array->set(i, elements_from_deopt_info->get(i));
     }
   }
