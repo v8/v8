@@ -459,6 +459,64 @@ TEST_F(DumplingTest, InterpreterObjectElements) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterSanitizeStringValue) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo('line1\\nline2');\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<String\[11\]: #line1\\nline2>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterSanitizeObjectKey) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const obj = {'key\\nwith\\nnewline': 42};\n"
+      "foo(obj);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<Object>\{key\\nwith\\nnewline\[WEC\]42\}\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterSanitizeCarriageReturn) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo('row1\\rrow2');\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<String\[9\]: #row1\\rrow2>\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 }  // namespace v8
 
 #endif  // V8_DUMPLING

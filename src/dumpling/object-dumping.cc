@@ -18,6 +18,20 @@ namespace v8::internal {
 
 namespace {
 
+std::string SanitizeString(const char* input) {
+  std::string result;
+  for (const char* c = input; *c != '\0'; ++c) {
+    if (*c == '\n') {
+      result += "\\n";
+    } else if (*c == '\r') {
+      result += "\\r";
+    } else {
+      result += *c;
+    }
+  }
+  return result;
+}
+
 void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
                                             StringStream* accumulator,
                                             int depth, bool is_fast_object) {
@@ -91,7 +105,7 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
 
     base::ScopedVector<char> name_buffer(100);
     key_name->NameShortPrint(name_buffer);
-    accumulator->Add("%s", name_buffer.begin());
+    accumulator->Add("%s", SanitizeString(name_buffer.begin()).c_str());
 
     std::stringstream attributes_stream;
     attributes_stream << details.attributes();
@@ -268,7 +282,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     Cast<String>(obj)->StringShortPrint(&accumulator);
-    os << accumulator.ToCString().get();
+    os << SanitizeString(accumulator.ToCString().get());
     return;
   }
   if (IsJSObject(obj, cage_base)) {
