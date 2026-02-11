@@ -800,18 +800,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
-    Register context, Variable* variable, int depth,
-    ContextSlotMutability mutability) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
+                                                            Variable* variable,
+                                                            int depth) {
   int slot_index = variable->index();
-  if (mutability == kImmutableSlot) {
+  if (variable->maybe_assigned() == kNotAssigned) {
     if (context.is_current_context() && depth == 0) {
       OutputLdaImmutableCurrentContextSlot(slot_index);
     } else {
       OutputLdaImmutableContextSlot(context, slot_index, depth);
     }
   } else {
-    DCHECK_EQ(kMutableSlot, mutability);
     DCHECK_NE(VariableMode::kConst, variable->mode());
     if (variable->scope()->has_context_cells()) {
       if (context.is_current_context() && depth == 0) {

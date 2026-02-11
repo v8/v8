@@ -4754,21 +4754,17 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         context_reg = execution_context()->reg();
       }
 
-      BytecodeArrayBuilder::ContextSlotMutability immutable =
-          (variable->maybe_assigned() == kNotAssigned)
-              ? BytecodeArrayBuilder::kImmutableSlot
-              : BytecodeArrayBuilder::kMutableSlot;
+      bool is_immutable = variable->maybe_assigned() == kNotAssigned;
       Register acc = Register::virtual_accumulator();
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot &&
-          IsVariableInRegister(variable, acc)) {
+      if (is_immutable && IsVariableInRegister(variable, acc)) {
         return;
       }
 
-      builder()->LoadContextSlot(context_reg, variable, depth, immutable);
+      builder()->LoadContextSlot(context_reg, variable, depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
         BuildThrowIfHole(variable);
       }
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot) {
+      if (is_immutable) {
         SetVariableInRegister(variable, acc);
       }
       break;
@@ -5035,13 +5031,9 @@ void BytecodeGenerator::BuildVariableAssignment(
                                                             hole_check_mode)) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
-        BytecodeArrayBuilder::ContextSlotMutability immutable =
-            (variable->maybe_assigned() == kNotAssigned)
-                ? BytecodeArrayBuilder::kImmutableSlot
-                : BytecodeArrayBuilder::kMutableSlot;
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable, depth, immutable);
+            .LoadContextSlot(context_reg, variable, depth);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
