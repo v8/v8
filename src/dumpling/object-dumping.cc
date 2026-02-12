@@ -264,13 +264,8 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
   CHECK(!IsJSGlobalObject(obj));
 
   if (IsJSFunction(obj)) {
-    Tagged<JSFunction> function = Cast<JSFunction>(obj);
-    std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
-    accumulator->Add("<JSFunction ");
-    if (fun_name[0] != '\0') {
-      accumulator->Add(fun_name.get());
-    }
-    accumulator->Put('>');
+    Tagged<JSFunction> func = Cast<JSFunction>(obj);
+    accumulator->Add("<JSFunction pos:%d>", func->shared()->StartPosition());
   } else if (IsJSArray(obj)) {
     accumulator->Add("<JSArray>");
   } else {

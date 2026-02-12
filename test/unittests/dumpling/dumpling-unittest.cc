@@ -221,7 +221,7 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
                            R"(m:0\s+)"            // Number of registers
                            // Properties and proto will be printed out too (but
                            // we don't list them here)
-                           R"(a0:<JSFunction foo>.*\s+)";
+                           R"(a0:<JSFunction pos:\d+>.*\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -238,7 +238,7 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
                            R"(m:0\s+)"            // Number of registers
                            // Properties and proto will be printed out too (but
                            // we don't list them here)
-                           R"(a0:<JSFunction gen>.*\s+)";
+                           R"(a0:<JSFunction pos:\d+>.*\s+)";
 
     RunInterpreterTest(program, expected);
   }
@@ -271,7 +271,7 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
                            R"(n:1\s+)"            // Number of params
                            R"(m:0\s+)"            // Number of registers
                            R"(a0:<myCtor>\{\}__proto__:<Object>\{)"
-                           R"(constructor\[W_C\]<JSFunction myCtor>.*)"
+                           R"(constructor\[W_C\]<JSFunction pos:\d+>.*)"
                            R"(\}\s+)";
 
     RunInterpreterTest(program, expected);
@@ -288,7 +288,7 @@ TEST_F(DumplingTest, InterpreterObjectTypes) {
                            R"(n:1\s+)"            // Number of params
                            R"(m:0\s+)"            // Number of registers
                            R"(a0:<JSObject>\{\}__proto__:<Object>\{)"
-                           R"(constructor\[W_C\]<JSFunction >.*)"
+                           R"(constructor\[W_C\]<JSFunction pos:\d+>.*)"
                            R"(\}\s+)";
 
     RunInterpreterTest(program, expected);
