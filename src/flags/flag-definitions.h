@@ -2980,6 +2980,8 @@ DEFINE_BOOL(sparkplug_dumping, false,
             "enable frame dumping in baseline compiler")
 DEFINE_BOOL(maglev_dumping, false, "enable frame dumping in maglev")
 DEFINE_BOOL(turbofan_dumping, false, "enable frame dumping in turbofan")
+DEFINE_BOOL(non_materialized_object_dumping, false,
+            "also dump non-materialized objects")
 // Needed for function id.
 DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
 DEFINE_NEG_IMPLICATION(sparkplug_dumping, enable_lazy_source_positions)

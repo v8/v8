@@ -1520,6 +1520,7 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
       &(translated_state_.frames()[output_count_ - 1]);
   DCHECK_EQ(trans_frame->kind(), TranslatedFrame::kUnoptimizedFunction);
   FrameDescription* frame_to_print = output_[output_count_ - 1];
+  absl::flat_hash_map<Address, TranslatedValue*> non_materialized_objects;
   {
     // Materialize objects and put their addresses into FrameDescription
     // instead of touching real stack.
@@ -1534,17 +1535,21 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
         frame_to_print->SetFrameSlot(offset, value);
       }
     };
-    // TODO(mdanylo): implement printing without materialization.
     for (auto& materialization : values_to_materialize_) {
-      update_frame_slot(materialization.output_slot_address_, 0xdeadbeef);
+      Address top = frame_to_print->GetTop();
+      int offset = static_cast<int>(materialization.output_slot_address_ - top);
+      non_materialized_objects[offset] = &*materialization.value_;
     }
 
     for (auto& fbv_mat : feedback_vector_to_materialize_) {
+      // TODO(dumpling): Figure out what to do with feedback vectors. Do we
+      // print them?
       update_frame_slot(fbv_mat.output_slot_address_, 0xdeadbeef);
     }
   }
 
-  DumplingFrameDescriptionFrame frame_view(frame_to_print, isolate());
+  DumplingFrameDescriptionFrame frame_view(
+      frame_to_print, std::move(non_materialized_objects), isolate());
 
   Tagged<JSFunction> function = frame_view.function();
   int bytecode_offset = trans_frame->bytecode_offset().ToInt();

@@ -450,8 +450,30 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
 
 }  // namespace
 
+class TranslatedValuePrinter {
+ public:
+  TranslatedValuePrinter() {}
+
+  std::string Print(TranslatedValue* obj, int depth) {
+    // TODO(marja): Implement actual translated value printing.
+    return "<non-materialized>";
+  }
+};
+
 void DifferentialFuzzingPrint(Tagged<Object> obj, std::ostream& os) {
   os << DifferentialFuzzingPrint(obj, v8_flags.dumpling_depth);
+}
+
+void DifferentialFuzzingPrint(ObjectOrNonMaterializedObject obj,
+                              std::ostream& os) {
+  if (TranslatedValue** value = std::get_if<TranslatedValue*>(&obj)) {
+    TranslatedValuePrinter printer;
+    os << printer.Print(*value, v8_flags.dumpling_depth);
+  } else {
+    CHECK(std::holds_alternative<Tagged<Object>>(obj));
+    os << DifferentialFuzzingPrint(std::get<Tagged<Object>>(obj),
+                                   v8_flags.dumpling_depth);
+  }
 }
 
 std::string DifferentialFuzzingPrint(Tagged<Object> obj, int depth) {

@@ -29,8 +29,20 @@ class DumplingTest : public TestWithContext {
   }
 
   void RunInterpreterTest(const char* program, const char* expected) {
-    i::FlagScope<bool> dumping_flag_scope(&i::v8_flags.interpreter_dumping,
-                                          true);
+    i::FlagScope<bool> interpreter_dumping_flag_scope(
+        &i::v8_flags.interpreter_dumping, true);
+    RunDumplingTest(program, expected);
+  }
+
+  void RunTurboTest(const char* program, const char* expected) {
+    i::FlagScope<bool> turbo_dumping_flag_scope(&i::v8_flags.turbofan_dumping,
+                                                true);
+    i::FlagScope<bool> non_materialized_object_flag_scope(
+        &i::v8_flags.non_materialized_object_dumping, true);
+    RunDumplingTest(program, expected);
+  }
+
+  void RunDumplingTest(const char* program, const char* expected) {
     i::FlagScope<bool> allow_natives_syntax_scope(
         &i::v8_flags.allow_natives_syntax, true);
 
@@ -644,6 +656,41 @@ TEST_F(DumplingTest, InterpreterStringsArePrintedConsistently) {
                          R"(a1:fooooooooobarrrrrrrr\s+)";
 
   RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, TurboEscapedObject) {
+  const char* program =
+      "function foo(x) {\n"
+      "  let escapeMe = {a: 1};\n"
+      "  return escapeMe.a + x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(10);\n"
+      "foo(10);\n"  // Object literals need a second run to warm up.
+      "%OptimizeFunctionOnNextCall(foo);\n"
+      "foo(10);\n";
+
+  const char* expected =
+      R"(---T\s+)"
+      // Bytecode offset can be anything
+      R"regex(b:\d+\s+)regex"
+      // Function id can be anything
+      R"regex((f:\d+\s+)?)regex"
+      // Accumulator can be anything
+      R"regex((x:\S*\s+)?)regex"
+      // Number of params can be anything
+      R"regex((n:\d\s+)?)regex"
+      // Number of registers can be anything
+      R"regex((m:\d+\s+)?)regex"
+      // Params can be anything
+      R"regex((a\d+:\S*\s+)*)regex"
+      // Other registers than the one we're interested in
+      // can be anything
+      R"regex((r\d+:\S*\s+)*)regex"
+      // In some register, we have the non-materialized object
+      R"(r\d+:<non-materialized>\s+)";
+
+  RunTurboTest(program, expected);
 }
 
 }  // namespace v8
