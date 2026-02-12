@@ -328,7 +328,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
   // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
   if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
       !OutsideSandboxOrInReadonlySpace(obj)) {
-    os << "<Invalid TrustedObject (outside trusted space)>\n";
+    os << "<Invalid TrustedObject (outside trusted space)>";
     return;
   }
 
