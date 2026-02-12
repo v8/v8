@@ -309,7 +309,7 @@ void BaselineCompiler::GenerateCode() {
     // Mark exception handlers as valid indirect jump targets. This is required
     // when CFI is enabled, to allow indirect jumps into baseline code.
     HandlerTable table(*bytecode_);
-    for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+    for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
       MarkIndirectJumpTarget(table.GetRangeHandler(i));
     }
     for (; !iterator_.done(); iterator_.Advance()) {

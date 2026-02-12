@@ -71,10 +71,11 @@ SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::ulength() const {
 }
 
 template <class S>
-int detail::ArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
+SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length(
+    AcquireLoadTag tag) const {
   int len = length_.Acquire_Load().value();
   DCHECK_GE(len, 0);
-  return len;
+  return SafeHeapObjectSize(static_cast<uint32_t>(len));
 }
 
 template <class S>
@@ -100,7 +101,7 @@ uint32_t detail::ArrayHeaderBase<S, true>::ucapacity() const {
 
 template <class S>
 int detail::ArrayHeaderBase<S, true>::capacity(AcquireLoadTag tag) const {
-  return length(tag);
+  return length(tag).value();
 }
 
 template <class S>
@@ -520,7 +521,7 @@ void PrimitiveArrayBase<D, S, P>::set(int index, ElementMemberT value) {
 // visitors need to read the length with acquire semantics.
 template <class D, class S, class P>
 int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
-  return SizeFor(this->length(kAcquireLoad));
+  return SizeFor(this->length(kAcquireLoad).value());
 }
 
 template <class D, class S, class P>

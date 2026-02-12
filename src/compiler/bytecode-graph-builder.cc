@@ -10,6 +10,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -436,8 +437,10 @@ class BytecodeGraphBuilder {
   bool skip_tierup_check() const {
     return skip_first_stack_and_tierup_check_ || osr_;
   }
-  int current_exception_handler() const { return current_exception_handler_; }
-  void set_current_exception_handler(int index) {
+  uint32_t current_exception_handler() const {
+    return current_exception_handler_;
+  }
+  void set_current_exception_handler(uint32_t index) {
     current_exception_handler_ = index;
   }
   bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
@@ -493,7 +496,7 @@ class BytecodeGraphBuilder {
 
   // Exception handlers currently entered by the iteration.
   ZoneStack<ExceptionHandler> exception_handlers_;
-  int current_exception_handler_;
+  uint32_t current_exception_handler_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -1331,10 +1334,10 @@ class BytecodeGraphBuilder::OsrIteratorState {
 
  private:
   struct IteratorsStates {
-    int exception_handler_index_;
+    uint32_t exception_handler_index_;
     SourcePositionTableIterator::IndexAndPositionState source_iterator_state_;
 
-    IteratorsStates(int exception_handler_index,
+    IteratorsStates(uint32_t exception_handler_index,
                     SourcePositionTableIterator::IndexAndPositionState
                         source_iterator_state)
         : exception_handler_index_(exception_handler_index),
@@ -2432,11 +2435,13 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   // data to converge. So, we disable allocation site mementos in optimized
   // code. We can revisit this when we have data to the contrary.
   literal_flags |= ArrayLiteral::kDisableMementos;
-  int number_of_elements =
+  uint32_t number_of_elements =
       array_boilerplate_description.constants_elements_length();
   static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
+  DCHECK_LE(number_of_elements, kMaxInt);
   const Operator* op = javascript()->CreateLiteralArray(
-      array_boilerplate_description, pair, literal_flags, number_of_elements);
+      array_boilerplate_description, pair, literal_flags,
+      static_cast<int>(number_of_elements));
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
@@ -4500,7 +4505,7 @@ void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
   }
 
   // Potentially enter exception handlers.
-  int num_entries = table.NumberOfRangeEntries();
+  uint32_t num_entries = table.NumberOfRangeEntries();
   while (current_exception_handler_ < num_entries) {
     int next_start = table.GetRangeStart(current_exception_handler_);
     if (current_offset < next_start) break;  // Not yet covered by range.

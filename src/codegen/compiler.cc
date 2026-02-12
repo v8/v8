@@ -743,8 +743,10 @@ template <typename IsolateT>
 void EnsureInfosArrayOnScript(DirectHandle<Script> script,
                               ParseInfo* parse_info, IsolateT* isolate) {
   DCHECK(parse_info->flags().is_toplevel());
-  if (script->infos()->length() > 0) {
-    DCHECK_EQ(script->infos()->length(), parse_info->max_info_id() + 1);
+  uint32_t script_infos_len = script->infos()->ulength().value();
+  if (script_infos_len > 0) {
+    DCHECK_EQ(script_infos_len,
+              static_cast<uint32_t>(parse_info->max_info_id() + 1));
     return;
   }
   DirectHandle<WeakFixedArray> infos(isolate->factory()->NewWeakFixedArray(
@@ -2182,7 +2184,7 @@ class ConstantPoolPointerForwarder {
     }
   }
   template <typename TArray>
-  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
+  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, uint32_t i) {
     Tagged<Object> obj = constant_pool->get(i);
     if (IsSmi(obj)) return;
     Tagged<HeapObject> heap_obj = Cast<HeapObject>(obj);
@@ -2226,7 +2228,7 @@ class ConstantPoolPointerForwarder {
   }
 
   template <typename TArray>
-  void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, int i,
+  void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, uint32_t i,
                                Tagged<SharedFunctionInfo> sfi) {
     Tagged<MaybeObject> maybe_old_sfi =
         old_script_->infos()->get(sfi->function_literal_id(kRelaxedLoad));
@@ -2237,7 +2239,7 @@ class ConstantPoolPointerForwarder {
   }
 
   template <typename TArray>
-  void VisitScopeInfo(Tagged<TArray> constant_pool, int i,
+  void VisitScopeInfo(Tagged<TArray> constant_pool, uint32_t i,
                       Tagged<ScopeInfo> scope_info) {
     auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
     // Try to replace the scope info itself with an already existing version.
@@ -2261,13 +2263,15 @@ class ConstantPoolPointerForwarder {
   }
 
   void IterateConstantPool(Tagged<TrustedFixedArray> constant_pool) {
-    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
+    uint32_t length = constant_pool->ulength().value();
+    for (uint32_t i = 0; i < length; ++i) {
       IterateConstantPoolEntry(constant_pool, i);
     }
   }
 
   void IterateConstantPoolNestedArray(Tagged<FixedArray> nested_array) {
-    for (int i = 0, length = nested_array->length(); i < length; ++i) {
+    uint32_t length = nested_array->ulength().value();
+    for (uint32_t i = 0; i < length; ++i) {
       IterateConstantPoolEntry(nested_array, i);
     }
   }
@@ -2324,7 +2328,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
   //   * All constant pool SFI entries point to an SFI referring to the old
   //     script (i.e. references were updated correctly).
   std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
-  for (int info_idx = 0; info_idx < script->infos()->length(); info_idx++) {
+  uint32_t script_infos_len = script->infos()->ulength().value();
+  for (uint32_t info_idx = 0; info_idx < script_infos_len; info_idx++) {
     Tagged<ScopeInfo> scope_info;
     if (!script->infos()->get(info_idx).IsWeak()) continue;
     Tagged<HeapObject> info =
@@ -2336,7 +2341,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
       if (sfi->HasBytecodeArray()) {
         Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
         Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
-        for (int constant_idx = 0; constant_idx < constant_pool->length();
+        uint32_t constant_pool_len = constant_pool->ulength().value();
+        for (uint32_t constant_idx = 0; constant_idx < constant_pool_len;
              ++constant_idx) {
           Tagged<Object> entry = constant_pool->get(constant_idx);
           if (Is<SharedFunctionInfo>(entry)) {
@@ -2423,8 +2429,10 @@ void BackgroundMergeTask::BeginMergeInBackground(
 
   // Iterate the SFI lists on both Scripts to set up the forwarding table and
   // follow-up worklists for the main thread.
-  CHECK_EQ(old_script->infos()->length(), new_script->infos()->length());
-  for (int i = 0; i < old_script->infos()->length(); ++i) {
+  uint32_t old_script_infos_len = old_script->infos()->ulength().value();
+  uint32_t new_script_infos_len = new_script->infos()->ulength().value();
+  CHECK_EQ(old_script_infos_len, new_script_infos_len);
+  for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
@@ -2536,7 +2544,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // need to be updated to point to the cached script's SFI instead. The cached
   // script's SFI's outer scope infos need to be used by the new script's outer
   // SFIs.
-  for (int i = 0; i < old_script->infos()->length(); ++i) {
+  uint32_t old_script_infos_len = old_script->infos()->ulength().value();
+  for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
@@ -2591,13 +2600,15 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // This is important because other background merge tasks as well as
   // concurrently running optimizing compile jobs might be looking at what we
   // release here.
-  for (int i = old_script->infos()->length() - 1; i >= 0; --i) {
+  for (uint32_t index = 0; index < old_script_infos_len; ++index) {
+    uint32_t i = old_script_infos_len - 1 - index;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
     if (maybe_new_info == maybe_old_info) {
+      DCHECK_LE(i, kMaxInt);
       if (compiled_data_it != new_compiled_data_for_cached_sfis_.rend() &&
           compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad) >=
-              i) {
+              static_cast<int32_t>(i)) {
         CHECK_EQ(
             compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad), i);
         Tagged<SharedFunctionInfo> sfi = *compiled_data_it->cached_sfi;
@@ -2671,8 +2682,8 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
      Background Compilation related corner cases.
   */
   Tagged<WeakFixedArray> infos = script->infos();
-  int length = infos->length();
-  for (int i = 0; i < length; ++i) {
+  uint32_t length = infos->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<MaybeObject> maybe_obj = infos->get(i);
     Tagged<HeapObject> obj;
     if (!maybe_obj.GetHeapObject(&obj)) continue;

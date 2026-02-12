@@ -417,8 +417,8 @@ void BytecodeExpectationsPrinter::PrintHandlers(
     i::DirectHandle<i::BytecodeArray> bytecode_array) const {
   *stream << "handlers: [\n";
   HandlerTable table(*bytecode_array);
-  for (int i = 0, num_entries = table.NumberOfRangeEntries(); i < num_entries;
-       ++i) {
+  for (uint32_t i = 0, num_entries = table.NumberOfRangeEntries();
+       i < num_entries; ++i) {
     *stream << "  [" << table.GetRangeStart(i) << ", " << table.GetRangeEnd(i)
             << ", " << table.GetRangeHandler(i) << "],\n";
   }

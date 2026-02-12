@@ -1339,7 +1339,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
 
   if (bytecode().handler_table_size() > 0) {
     HandlerTable table(*bytecode().object());
-    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
+    for (uint32_t i = 0; i < table.NumberOfRangeEntries(); i++) {
       const int offset = table.GetRangeHandler(i);
       const bool was_used = table.HandlerWasUsed(i);
       const interpreter::Register context_reg(table.GetRangeData(i));
@@ -4806,7 +4806,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     if (index >= 0 &&
         static_cast<uint32_t>(index) < fixed_array_ref->length()) {
       compiler::OptionalObjectRef maybe_value =
-          fixed_array_ref->TryGet(broker(), index);
+          fixed_array_ref->TryGet(broker(), static_cast<uint32_t>(index));
       if (maybe_value) return GetConstant(*maybe_value);
     } else {
       return BuildAbort(AbortReason::kUnreachable);

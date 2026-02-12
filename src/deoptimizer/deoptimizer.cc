@@ -800,9 +800,10 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
       HandlerTable table(translated_frame->raw_bytecode_array());
       int handler_index = table.LookupHandlerIndexForRange(bytecode_offset);
       if (handler_index == HandlerTable::kNoHandlerFound) return handler_index;
-      *data_out = table.GetRangeData(handler_index);
-      table.MarkHandlerUsed(handler_index);
-      return table.GetRangeHandler(handler_index);
+      uint32_t index = static_cast<uint32_t>(handler_index);
+      *data_out = table.GetRangeData(index);
+      table.MarkHandlerUsed(index);
+      return table.GetRangeHandler(index);
     }
     case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch: {
       return 0;

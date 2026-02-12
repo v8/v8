@@ -63,7 +63,7 @@ class ArrayHeaderBase<Super, true> : public Super {
   inline uint32_t ucapacity() const;
 
   inline int length() const;
-  inline int length(AcquireLoadTag tag) const;
+  inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
   inline void set_length(int value);
   inline void set_length(int value, ReleaseStoreTag tag);
 

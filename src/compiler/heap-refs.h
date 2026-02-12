@@ -1048,7 +1048,7 @@ class ArrayBoilerplateDescriptionRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   IndirectHandle<ArrayBoilerplateDescription> object() const;
 
-  int constants_elements_length() const;
+  uint32_t constants_elements_length() const;
 };
 
 class FixedArrayRef : public FixedArrayBaseRef {
@@ -1057,7 +1057,7 @@ class FixedArrayRef : public FixedArrayBaseRef {
 
   IndirectHandle<FixedArray> object() const;
 
-  OptionalObjectRef TryGet(JSHeapBroker* broker, int i) const;
+  OptionalObjectRef TryGet(JSHeapBroker* broker, uint32_t i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
@@ -1095,7 +1095,7 @@ class BytecodeArrayRef : public HeapObjectRef {
 
   // Exception handler table.
   Address handler_table_address() const;
-  int handler_table_size() const;
+  uint32_t handler_table_size() const;
 };
 
 class ScriptContextTableRef : public FixedArrayBaseRef {

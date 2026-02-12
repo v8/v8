@@ -70,7 +70,7 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
   Check(seen_jumps.IsSubsetOf(valid_offsets), "Invalid control-flow");
 
   HandlerTable table(*bytecode);
-  for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+  for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
     unsigned start = table.GetRangeStart(i);
     unsigned end = table.GetRangeEnd(i);
     unsigned handler = table.GetRangeHandler(i);

@@ -193,10 +193,10 @@ namespace {
 
 ZoneVector<Address> GetCFunctions(Tagged<FixedArray> function_overloads,
                                   Isolate* isolate, Zone* zone) {
-  const int len = function_overloads->length() /
-                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
+  const uint32_t len = function_overloads->ulength().value() /
+                       FunctionTemplateInfo::kFunctionOverloadEntrySize;
   ZoneVector<Address> c_functions = ZoneVector<Address>(len, zone);
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     c_functions[i] = v8::ToCData<kCFunctionTag>(
         isolate, function_overloads->get(
                      FunctionTemplateInfo::kFunctionOverloadEntrySize * i));
@@ -206,11 +206,11 @@ ZoneVector<Address> GetCFunctions(Tagged<FixedArray> function_overloads,
 
 ZoneVector<const CFunctionInfo*> GetCSignatures(
     Tagged<FixedArray> function_overloads, Isolate* isolate, Zone* zone) {
-  const int len = function_overloads->length() /
-                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
+  const uint32_t len = function_overloads->ulength().value() /
+                       FunctionTemplateInfo::kFunctionOverloadEntrySize;
   ZoneVector<const CFunctionInfo*> c_signatures =
       ZoneVector<const CFunctionInfo*>(len, zone);
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     c_signatures[i] = v8::ToCData<const CFunctionInfo*, kCFunctionInfoTag>(
         isolate, function_overloads->get(
                      FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1));
@@ -936,12 +936,12 @@ class FixedArrayBaseData : public HeapObjectData {
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
                      IndirectHandle<FixedArrayBase> object, ObjectDataKind kind)
       : HeapObjectData(broker, storage, object, kind),
-        length_(object->length(kAcquireLoad)) {}
+        length_(object->length(kAcquireLoad).value()) {}
 
   uint32_t length() const { return length_; }
 
  private:
-  int const length_;
+  uint32_t const length_;
 };
 
 class FixedArrayData : public FixedArrayBaseData {
@@ -1518,17 +1518,17 @@ StringRef StringRef::UnpackIfThin(JSHeapBroker* broker) {
   return *this;
 }
 
-int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
-  return object()->constant_elements()->length();
+uint32_t ArrayBoilerplateDescriptionRef::constants_elements_length() const {
+  return object()->constant_elements()->ulength().value();
 }
 
-OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker, int i) const {
+OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker,
+                                        uint32_t i) const {
   Handle<Object> value;
   {
     DisallowGarbageCollection no_gc;
-    CHECK_GE(i, 0);
     value = broker->CanonicalPersistentHandle(object()->get(i, kAcquireLoad));
-    if (i >= object()->length(kAcquireLoad)) {
+    if (i >= object()->length(kAcquireLoad).value()) {
       // Right-trimming happened.
       CHECK_LT(i, length());
       return {};
@@ -1553,8 +1553,8 @@ Address BytecodeArrayRef::handler_table_address() const {
   return reinterpret_cast<Address>(object()->handler_table()->begin());
 }
 
-int BytecodeArrayRef::handler_table_size() const {
-  return object()->handler_table()->length();
+uint32_t BytecodeArrayRef::handler_table_size() const {
+  return object()->handler_table()->ulength().value();
 }
 
 #define IF_ACCESS_FROM_HEAP_C(name)  \
@@ -2354,7 +2354,9 @@ OptionalFixedArrayBaseRef JSObjectRef::elements(JSHeapBroker* broker,
 }
 
 uint32_t FixedArrayBaseRef::length() const {
-  IF_ACCESS_FROM_HEAP_C(length);
+  if (data_->should_access_heap()) {
+    return object()->ulength().value();
+  }
   return data()->AsFixedArrayBase()->length();
 }
 

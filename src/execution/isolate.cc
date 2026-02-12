@@ -3043,7 +3043,7 @@ HandlerTable::CatchPrediction PredictExceptionFromBytecode(
   HandlerTable table(bytecode);
   int handler_index = table.LookupHandlerIndexForRange(code_offset);
   if (handler_index < 0) return HandlerTable::UNCAUGHT;
-  return table.GetRangePrediction(handler_index);
+  return table.GetRangePrediction(static_cast<uint32_t>(handler_index));
 }
 
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
