@@ -4150,7 +4150,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle64x2Test) {
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(8U, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(8, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -4165,7 +4165,7 @@ TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle64x2Test) {
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
-    EXPECT_EQ(8U, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(8, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
