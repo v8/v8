@@ -8252,47 +8252,49 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type)                               \
+#define LOAD_CASE(name, ctype, mtype, rep, type, opcode)                       \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
   }
-      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32);
-      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32);
-      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64);
-      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64);
-      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64);
-      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32);
-      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64);
-      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32);
-      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64);
+      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32, opcode);
+      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32, opcode);
+      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64, opcode);
+      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64, opcode);
+      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64, opcode);
+      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32, opcode);
+      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64, opcode);
+      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32, opcode);
+      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type)                              \
+#define STORE_CASE(name, ctype, mtype, rep, type, opcode)                      \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
   }
-      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32);
-      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32);
-      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64);
-      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64);
-      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64);
-      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32);
-      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64);
-      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32);
-      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64);
+      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32, opcode);
+      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32, opcode);
+      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64, opcode);
+      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64, opcode);
+      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64, opcode);
+      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32, opcode);
+      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64, opcode);
+      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32, opcode);
+      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef STORE_CASE
 
     case kExprMemorySize: {
@@ -8672,18 +8674,20 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     case kExprAtomicNotify:
     case kExprI32AtomicWait: {
       MachineType memtype = MachineType::Uint32();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
+                                false, is_rmw, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
     }
     case kExprI64AtomicWait: {
       MachineType memtype = MachineType::Uint64();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
+                                false, is_rmw, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8695,9 +8699,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation) \
   case kExpr##name: {                                                       \
     MachineType memtype = MachineType::Type();                              \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                   \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              false, Decoder::kNoValidation);               \
+                              false, is_rmw, Decoder::kNoValidation);       \
     optional->offset = imm.offset;                                          \
     *len += imm.length;                                                     \
     break;                                                                  \
@@ -8708,9 +8713,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_OP(name, Type, ctype, type, op_ctype, op_type)              \
   case kExpr##name: {                                                      \
     MachineType memtype = MachineType::Type();                             \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                  \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              false, Decoder::kNoValidation);              \
+                              false, is_rmw, Decoder::kNoValidation);      \
     optional->offset = imm.offset;                                         \
     *len += imm.length;                                                    \
     break;                                                                 \
