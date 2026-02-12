@@ -339,6 +339,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   DirectHandle<FixedArray> array = args.at<FixedArray>(0);
 
   int array_length = args.smi_value_at(1);
+  DCHECK_GE(array_length, 0);
 
   DirectHandle<String> special = args.at<String>(2);
 
@@ -377,7 +378,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
-                              array_length);
+                              static_cast<uint32_t>(array_length));
     return *answer;
   } else {
     DirectHandle<SeqTwoByteString> answer;
@@ -385,7 +386,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
-                              array_length);
+                              static_cast<uint32_t>(array_length));
     return *answer;
   }
 }
