@@ -40,7 +40,7 @@ RUNTIME_FUNCTION(Runtime_IterableForEach) {
   Handle<Object> iterable = args.at(0);
   Handle<JSReceiver> callback = args.at<JSReceiver>(1);
 
-  auto smi_visitor = [&](int32_t val) -> bool {
+  auto int_visitor = [&](int val) -> bool {
     HandleScope loop_scope(isolate);
     DirectHandle<Object> argv[] = {isolate->factory()->NewNumberFromInt(val)};
     return !Execution::Call(isolate, callback,
@@ -67,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_IterableForEach) {
                 .is_null();
   };
 
-  if (IterableForEach(isolate, iterable, smi_visitor, double_visitor,
+  if (IterableForEach(isolate, iterable, int_visitor, double_visitor,
                       generic_visitor)
           .is_null()) {
     return ReadOnlyRoots(isolate).exception();

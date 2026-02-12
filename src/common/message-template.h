@@ -456,6 +456,7 @@ namespace internal {
   T(TypedArraySetSourceTooLarge, "Source is too large")                        \
   T(TypedArrayTooLargeToSort,                                                  \
     "Custom comparefn not supported for huge TypedArrays")                     \
+  T(IterableTooLargeToSum, "Math.sumPrecise not supported for huge iterables") \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
   T(MustBePositive, "% must be positive")                                      \
