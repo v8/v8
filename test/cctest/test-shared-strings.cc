@@ -640,16 +640,18 @@ class ExternalResourceFactory {
   OneByteResource* CreateOneByte(const char* data, bool copy = true) {
     return CreateOneByte(data, strlen(data), copy);
   }
-  TwoByteResource* CreateTwoByte(const uint16_t* data, size_t length,
-                                 bool copy = true) {
+  TwoByteResource* CreateTwoByte(const uint16_t* data, size_t length) {
     TwoByteResource* res = new TwoByteResource(data, length);
     Register(res);
     return res;
   }
   TwoByteResource* CreateTwoByte(base::Vector<base::uc16> vector,
                                  bool copy = true) {
-    auto vec = copy ? vector.Clone() : vector;
-    return CreateTwoByte(vec.begin(), vec.size(), copy);
+    if (copy) {
+      vector = base::VectorOf(base::OwnedCopyOf(vector).ReleaseData().release(),
+                              vector.size());
+    }
+    return CreateTwoByte(vector.data(), vector.size());
   }
   void Register(OneByteResource* res) { one_byte_resources_.push_back(res); }
   void Register(TwoByteResource* res) { two_byte_resources_.push_back(res); }

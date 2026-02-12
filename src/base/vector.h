@@ -111,13 +111,6 @@ class Vector {
     return std::make_reverse_iterator(begin());
   }
 
-  // Returns a clone of this vector with a new backing store.
-  Vector<T> Clone() const {
-    T* result = new T[length_];
-    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
-    return Vector<T>(result, length_);
-  }
-
   void Truncate(size_t length) {
     DCHECK(length <= length_);
     length_ = length;
