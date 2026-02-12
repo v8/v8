@@ -269,10 +269,11 @@ void DumplingManager::LoadDumpPositionsFromFile() {
 }
 
 void DumplingManager::ResetLastFrame() {
-  dumpling_last_frame_ = {-1, "invalid_acc",
-                          -1, std::vector<std::string>(64),
-                          -1, std::vector<std::string>(128),
-                          -1};
+  dumpling_last_frame_ = {
+      -1, "invalid_acc",
+      -1, std::vector<std::string>(64, "Dumpling not initialized"),
+      -1, std::vector<std::string>(128, "Dumpling not initialized"),
+      -1};
 }
 
 void DumplingManager::FinishCurrentREPRLCycle() { dumpling_stream_.reset(); }

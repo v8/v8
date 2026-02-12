@@ -658,6 +658,26 @@ TEST_F(DumplingTest, InterpreterStringsArePrintedConsistently) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterEmptyStringsAreDumped) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const s = '';\n"
+      "foo(s);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 TEST_F(DumplingTest, TurboEscapedObject) {
   const char* program =
       "function foo(x) {\n"
