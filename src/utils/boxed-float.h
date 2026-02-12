@@ -171,6 +171,13 @@ class Float64 {
 #endif
         is_hole_nan();
   }
+  bool has_undefined_or_hole_nan_high_bits() const {
+    return
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        ((get_bits() >> 32) == kUndefinedNanUpper32) ||
+#endif
+        ((get_bits() >> 32) == kHoleNanUpper32);
+  }
 
   bool is_nan() const {
     // Even though {get_scalar()} might set the quiet NaN bit, it's ok here,
