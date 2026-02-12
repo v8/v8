@@ -153,7 +153,12 @@ MaybeDirectHandle<Object> IterableForEach(
     DirectHandle<JSArray> array = Cast<JSArray>(items);
     ElementsKind kind = array->GetElementsKind();
     // TODO(olivf): Move this as a helper into ElementsAccessor.
-    if (IsFastElementsKind(kind)) {
+    // Holey arrays are only supported if there are no properties on the lookup
+    // chain. This is approximated by checking for the array prototype and
+    // ensuring it has not elements.
+    if (IsFastElementsKind(kind) && (!IsHoleyElementsKind(kind) ||
+                                     (Protectors::IsNoElementsIntact(isolate) &&
+                                      array->HasArrayPrototype(isolate)))) {
       DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
       uint32_t len;
       if (Object::ToUint32(array->length(), &len)) {
@@ -331,7 +336,8 @@ MaybeDirectHandle<Object> IterableForEach(
 
   // Medium fast path for JSArrayIterator.
   if (IsJSArrayIterator(*iterator) &&
-      Protectors::IsArrayIteratorLookupChainIntact(isolate)) {
+      Protectors::IsArrayIteratorLookupChainIntact(isolate) &&
+      Protectors::IsNoElementsIntact(isolate)) {
     DirectHandle<JSArrayIterator> array_iterator =
         Cast<JSArrayIterator>(iterator);
     if (array_iterator->kind() == IterationKind::kValues) {
@@ -340,7 +346,12 @@ MaybeDirectHandle<Object> IterableForEach(
       if (IsJSArray(*iterated_object)) {
         DirectHandle<JSArray> array = Cast<JSArray>(iterated_object);
         ElementsKind kind = array->GetElementsKind();
-        if (IsFastElementsKind(kind)) {
+        // Holey arrays are only supported if there are no properties on the
+        // lookup chain.
+        if (IsFastElementsKind(kind) &&
+            (!IsHoleyElementsKind(kind) ||
+             (Protectors::IsNoElementsIntact(isolate) &&
+              array->HasArrayPrototype(isolate)))) {
           DirectHandle<FixedArrayBase> elements =
               handle(array->elements(), isolate);
           uint32_t len;
