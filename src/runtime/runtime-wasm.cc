@@ -2828,10 +2828,12 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
       handle(Cast<WasmContinuationObject>(args[0]), isolate);
   int num_bound_args = args.smi_value_at(1);
   wasm::StackMemory* stack = old_cont->stack();
+  // Order matters: bound arguments must be adjusted first so that they are
+  // visible to the GC potentially triggered by the allocation below.
+  stack->bind_arguments(num_bound_args);
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(stack);
   stack->set_current_continuation(*cont);
-  stack->bind_arguments(num_bound_args);
   return *cont;
 }
 
