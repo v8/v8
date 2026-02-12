@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <utility>
 
 namespace v8 {
 namespace bigint {
@@ -224,16 +225,16 @@ class Platform {
 // Returns r such that r < 0 if A < B; r > 0 if A > B; r == 0 if A == B.
 inline int Compare(Digits A, Digits B);
 
-// Z := X + Y
-inline void Add(RWDigits Z, Digits X, Digits Y);
+// Z := X + Y. Returns Z's top digit.
+inline digit_t Add(RWDigits Z, Digits X, Digits Y);
 // Addition of signed integers. Returns true if the result is negative.
 inline bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
                       bool y_negative);
 // Z := X + 1
 inline void AddOne(RWDigits Z, Digits X);
 
-// Z := X - Y. Requires X >= Y.
-inline void Subtract(RWDigits Z, Digits X, Digits Y);
+// Z := X - Y. Requires X >= Y. Returns Z's top digit.
+inline digit_t Subtract(RWDigits Z, Digits X, Digits Y);
 // Subtraction of signed integers. Returns true if the result is negative.
 inline bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
                            bool y_negative);
@@ -272,17 +273,18 @@ inline void AsUintN_Pos(RWDigits Z, Digits X, uint32_t n);
 // Same, but X is the absolute value of a negative BigInt.
 inline void AsUintN_Neg(RWDigits Z, Digits X, uint32_t n);
 
-// "Small" variants of "slow" operations. They return true if they handled
-// the given input.
+// "Small" variants of "slow" operations. They return a pair: if they handled
+// the given input, <true, Z[Z.len()-1]>; otherwise <false, undefined>.
 
 // Z := X * Y
-inline bool MultiplySmall(RWDigits& Z, Digits& X, Digits& Y);
+inline std::pair<bool, digit_t> MultiplySmall(RWDigits& Z, Digits& X,
+                                              Digits& Y);
 
 // Q := A / B
-inline bool DivideSmall(RWDigits& Q, Digits& A, Digits& B);
+inline std::pair<bool, digit_t> DivideSmall(RWDigits& Q, Digits& A, Digits& B);
 
 // R := A % B
-inline bool ModuloSmall(RWDigits& R, Digits& A, Digits& B);
+inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B);
 
 enum class Status { kOk, kInterrupted };
 

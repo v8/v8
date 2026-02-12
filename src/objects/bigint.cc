@@ -55,8 +55,14 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
   static MaybeHandle<BigInt> MakeImmutable(MaybeHandle<MutableBigInt> maybe);
   template <typename Isolate = v8::internal::Isolate>
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
+  static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result,
+                                      uint32_t length,
+                                      bigint::digit_t top_digit);
 
-  static void Canonicalize(Tagged<MutableBigInt> result);
+  V8_INLINE static void Canonicalize(Tagged<MutableBigInt> result);
+  V8_INLINE static void Canonicalize(Tagged<MutableBigInt> result,
+                                     uint32_t length,
+                                     bigint::digit_t top_digit);
   V8_NOINLINE static void CanonicalizeSlow(Tagged<MutableBigInt> result,
                                            uint32_t old_length);
 
@@ -297,10 +303,25 @@ Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   return Cast<BigInt>(result);
 }
 
+Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result,
+                                            uint32_t length,
+                                            bigint::digit_t top_digit) {
+  DCHECK_EQ(length, result->length());
+  DCHECK_IMPLIES(length > 0, top_digit == result->digit(length - 1));
+  if (top_digit == 0) {
+    MutableBigInt::CanonicalizeSlow(*result, length);
+  }
+  return Cast<BigInt>(result);
+}
+
 void MutableBigInt::CanonicalizeSlow(Tagged<MutableBigInt> result,
                                      uint32_t old_length) {
   uint32_t new_length = old_length;
-  while (new_length > 0 && result->digit(new_length - 1) == 0) new_length--;
+  if (new_length > 0) [[likely]] {
+    DCHECK_EQ(0, result->digit(new_length - 1));
+    new_length--;
+    while (new_length > 0 && result->digit(new_length - 1) == 0) new_length--;
+  }
   uint32_t to_trim = old_length - new_length;
   if (to_trim != 0) {
     Heap* heap = Isolate::Current()->heap();
@@ -332,7 +353,17 @@ void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
   if (old_length > 0 && result->digit(old_length - 1) != 0) [[likely]] {
     return;
   }
-  return CanonicalizeSlow(result, old_length);
+  CanonicalizeSlow(result, old_length);
+}
+
+void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result, uint32_t length,
+                                 bigint::digit_t top_digit) {
+  DCHECK_EQ(length, result->length());
+  DCHECK_IMPLIES(length > 0, result->digit(length - 1) == top_digit);
+  if (top_digit != 0) [[likely]] {
+    return;
+  }
+  CanonicalizeSlow(result, length);
 }
 
 template <typename IsolateT>
@@ -453,9 +484,10 @@ MaybeHandle<BigInt> BigInt::Multiply(Isolate* isolate, DirectHandle<BigInt> x,
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = result->rw_digits();
   bool result_sign = x->sign() != y->sign();
-  if (bigint::MultiplySmall(Z, X, Y)) [[likely]] {
+  auto [success, top_digit] = bigint::MultiplySmall(Z, X, Y);
+  if (success) [[likely]] {
     result->set_sign(result_sign);
-    return MutableBigInt::MakeImmutable(result);
+    return MutableBigInt::MakeImmutable(result, Z.len(), top_digit);
   }
   bigint::Status status = isolate->bigint_processor()->MultiplyLarge(Z, X, Y);
   if (status == bigint::Status::kInterrupted) {
@@ -493,9 +525,10 @@ MaybeHandle<BigInt> BigInt::Divide(Isolate* isolate, DirectHandle<BigInt> x,
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = quotient->rw_digits();
-  if (bigint::DivideSmall(Z, X, Y)) [[likely]] {
+  auto [success, top_digit] = bigint::DivideSmall(Z, X, Y);
+  if (success) [[likely]] {
     quotient->set_sign(result_sign);
-    return MutableBigInt::MakeImmutable(quotient);
+    return MutableBigInt::MakeImmutable(quotient, Z.len(), top_digit);
   }
 
   bigint::Status status = isolate->bigint_processor()->DivideLarge(Z, X, Y);
@@ -529,9 +562,10 @@ MaybeHandle<BigInt> BigInt::Remainder(Isolate* isolate, DirectHandle<BigInt> x,
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = remainder->rw_digits();
-  if (bigint::ModuloSmall(Z, X, Y)) [[likely]] {
+  auto [success, top_digit] = bigint::ModuloSmall(Z, X, Y);
+  if (success) [[likely]] {
     remainder->set_sign(x->sign());
-    return MutableBigInt::MakeImmutable(remainder);
+    return MutableBigInt::MakeImmutable(remainder, Z.len(), top_digit);
   }
 
   bigint::Status status = isolate->bigint_processor()->ModuloLarge(Z, X, Y);
@@ -1523,8 +1557,12 @@ void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
   Tagged<MutableBigInt> result =
       Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
-  bigint::Add(result->rw_digits(), x->digits(), y->digits());
-  MutableBigInt::Canonicalize(result);
+  bigint::RWDigits R = result->rw_digits();
+  bigint::digit_t top_digit = bigint::Add(R, x->digits(), y->digits());
+  // Our result size prediction for addition is currently not very precise,
+  // so the top digit is very often zero.
+  // TODO(jkummerow): Consider predicting the result size more precisely.
+  MutableBigInt::Canonicalize(result, R.len(), top_digit);
 }
 
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
@@ -1534,8 +1572,9 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
   Tagged<MutableBigInt> result =
       Cast<MutableBigInt>(Tagged<Object>(result_addr));
 
-  bigint::Subtract(result->rw_digits(), x->digits(), y->digits());
-  MutableBigInt::Canonicalize(result);
+  bigint::RWDigits R = result->rw_digits();
+  bigint::digit_t top_digit = bigint::Subtract(R, x->digits(), y->digits());
+  MutableBigInt::Canonicalize(result, R.len(), top_digit);
 }
 
 // Returns 0 if it succeeded to obtain the result of multiplication.
@@ -1551,8 +1590,9 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = result->rw_digits();
-  if (bigint::MultiplySmall(Z, X, Y)) [[likely]] {
-    MutableBigInt::Canonicalize(result);
+  auto [success, top_digit] = bigint::MultiplySmall(Z, X, Y);
+  if (success) [[likely]] {
+    MutableBigInt::Canonicalize(result, Z.len(), top_digit);
     return 0;
   }
 
@@ -1563,7 +1603,7 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
     return 1;
   }
 
-  MutableBigInt::Canonicalize(result);
+  MutableBigInt::Canonicalize(result, Z.len(), Z.msd());
   return 0;
 }
 
@@ -1579,8 +1619,9 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = result->rw_digits();
-  if (bigint::DivideSmall(Z, X, Y)) [[likely]] {
-    MutableBigInt::Canonicalize(result);
+  auto [success, top_digit] = bigint::DivideSmall(Z, X, Y);
+  if (success) [[likely]] {
+    MutableBigInt::Canonicalize(result, Z.len(), top_digit);
     return 0;
   }
 
@@ -1591,7 +1632,7 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
     return 1;
   }
 
-  MutableBigInt::Canonicalize(result);
+  MutableBigInt::Canonicalize(result, Z.len(), Z.msd());
   return 0;
 }
 
@@ -1605,8 +1646,9 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = result->rw_digits();
-  if (bigint::ModuloSmall(Z, X, Y)) [[likely]] {
-    MutableBigInt::Canonicalize(result);
+  auto [success, top_digit] = bigint::ModuloSmall(Z, X, Y);
+  if (success) [[likely]] {
+    MutableBigInt::Canonicalize(result, Z.len(), top_digit);
     return 0;
   }
 
@@ -1617,7 +1659,7 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
     return 1;
   }
 
-  MutableBigInt::Canonicalize(result);
+  MutableBigInt::Canonicalize(result, Z.len(), Z.msd());
   return 0;
 }
 

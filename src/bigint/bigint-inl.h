@@ -537,37 +537,49 @@ inline int Compare(Digits A, Digits B) {
   return CompareNoNormalize(A, B);
 }
 
-inline void Add(RWDigits Z, Digits X, Digits Y) {
+inline digit_t Add(RWDigits Z, Digits X, Digits Y) {
   if (X.len() < Y.len()) std::swap(X, Y);  // Now X.len() >= Y.len().
   CHECK(Z.len() >= X.len());
   uint32_t i = 0;
   digit_t carry = 0;
+  digit_t top = 0;
   for (; i < Y.len(); i++) {
-    Z[i] = digit_add3(X[i], Y[i], carry, &carry);
+    Z[i] = top = digit_add3(X[i], Y[i], carry, &carry);
   }
   for (; i < X.len(); i++) {
-    Z[i] = digit_add2(X[i], carry, &carry);
+    Z[i] = top = digit_add2(X[i], carry, &carry);
   }
   for (; i < Z.len(); i++) {
-    Z[i] = carry;
+    Z[i] = top = carry;
     carry = 0;
   }
+  return top;
 }
 
-inline void Subtract(RWDigits Z, Digits X, Digits Y) {
-  X.Normalize();
-  Y.Normalize();
+inline digit_t Subtract(RWDigits Z, Digits X, Digits Y) {
+  DCHECK(IsDigitNormalized(X));
+  DCHECK(IsDigitNormalized(Y));
   CHECK(Z.len() >= X.len() && X.len() >= Y.len());
   uint32_t i = 0;
   digit_t borrow = 0;
+  digit_t top = 0;
   for (; i < Y.len(); i++) {
-    Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
+    Z[i] = top = digit_sub2(X[i], Y[i], borrow, &borrow);
   }
   for (; i < X.len(); i++) {
-    Z[i] = digit_sub(X[i], borrow, &borrow);
+    Z[i] = top = digit_sub(X[i], borrow, &borrow);
   }
   DCHECK(borrow == 0);
-  for (; i < Z.len(); i++) Z[i] = 0;
+  for (; i < Z.len(); i++) [[unlikely]] {
+    Z[i] = top = 0;
+  }
+  return top;
+}
+
+inline void SubtractWithNormalization(RWDigits Z, Digits X, Digits Y) {
+  X.Normalize();
+  Y.Normalize();
+  Subtract(Z, X, Y);
 }
 
 inline bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
@@ -576,7 +588,9 @@ inline bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
     Add(Z, X, Y);
     return x_negative;
   }
-  if (GreaterThanOrEqual(X, Y)) {
+  X.Normalize();
+  Y.Normalize();
+  if (CompareNoNormalize(X, Y) >= 0) {
     Subtract(Z, X, Y);
     return x_negative;
   }
@@ -590,7 +604,9 @@ inline bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
     Add(Z, X, Y);
     return x_negative;
   }
-  if (GreaterThanOrEqual(X, Y)) {
+  X.Normalize();
+  Y.Normalize();
+  if (CompareNoNormalize(X, Y) >= 0) {
     Subtract(Z, X, Y);
     return x_negative;
   }
@@ -625,8 +641,8 @@ inline void Add(RWDigits X, digit_t y) {
   } while (carry != 0);
 }
 
-// Z := X * y, where y is a single digit.
-inline void MultiplySingle(RWDigits Z, Digits X, digit_t y) {
+// Z := X * y, where y is a single digit. Returns Z's top digit.
+inline digit_t MultiplySingle(RWDigits Z, Digits X, digit_t y) {
   DCHECK(y != 0);
   digit_t carry = 0;
   digit_t high = 0;
@@ -636,8 +652,12 @@ inline void MultiplySingle(RWDigits Z, Digits X, digit_t y) {
     Z[i] = digit_add3(low, high, carry, &carry);
     high = new_high;
   }
-  Z[X.len()] = carry + high;
-  for (uint32_t i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
+  digit_t top = carry + high;
+  Z[X.len()] = top;
+  for (uint32_t i = X.len() + 1; i < Z.len(); i++) [[unlikely]] {
+    Z[i] = top = 0;
+  }
+  return top;
 }
 
 #define BODY(min, max)                              \
@@ -652,12 +672,15 @@ inline void MultiplySingle(RWDigits Z, Digits X, digit_t y) {
   }                                                 \
   Z[i] = zi
 
-inline void MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
+inline digit_t MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
   DCHECK(IsDigitNormalized(X));
   DCHECK(IsDigitNormalized(Y));
   DCHECK(X.len() >= Y.len());
   DCHECK(Z.len() >= X.len() + Y.len());
-  if (X.len() == 0 || Y.len() == 0) return Z.Clear();
+  if (X.len() == 0 || Y.len() == 0) {
+    Z.Clear();
+    return 0;
+  }
   digit_t next, next_carry = 0, carry = 0;
   // Unrolled first iteration: it's trivial.
   Z[0] = digit_mul(X[0], Y[0], &next);
@@ -690,61 +713,90 @@ inline void MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
     BODY(min_x_index, max_x_index);
   }
   // Write the last digit, and zero out any extra space in Z.
-  Z[i++] = digit_add2(next, carry, &carry);
+  digit_t top = digit_add2(next, carry, &carry);
+  Z[i++] = top;
   DCHECK(carry == 0);
-  for (; i < Z.len(); i++) Z[i] = 0;
+  for (; i < Z.len(); i++) [[unlikely]] {
+    Z[i] = top = 0;
+  }
+  return top;
 }
 #undef BODY
 
-inline bool MultiplySmall(RWDigits& Z, Digits& X, Digits& Y) {
+inline std::pair<bool, digit_t> MultiplySmall(RWDigits& Z, Digits& X,
+                                              Digits& Y) {
   DCHECK(IsDigitNormalized(X));
   DCHECK(IsDigitNormalized(Y));
   if (X.len() == 0 || Y.len() == 0) {
     Z.Clear();
-    return true;
+    return {true, 0};
   }
   if (X.len() < Y.len()) std::swap(X, Y);
   if (Y.len() == 1) {
-    MultiplySingle(Z, X, Y[0]);
-    return true;
+    digit_t top = MultiplySingle(Z, X, Y[0]);
+    return {true, top};
   }
-  if (Y.len() >= config::kKaratsubaThreshold) return false;
-  MultiplySchoolbook(Z, X, Y);
-  return true;
+  if (Y.len() >= config::kKaratsubaThreshold) return {false, 0};
+  digit_t top = MultiplySchoolbook(Z, X, Y);
+  return {true, top};
 }
 
 // Computes Q(uotient) and remainder for A/b, such that
 // Q = (A - remainder) / b, with 0 <= remainder < b.
-// If Q.len == 0, only the remainder will be returned.
+// Returns Q's top digit.
 // Q may be the same as A for an in-place division.
-inline void DivideSingle(RWDigits Q, digit_t* remainder, Digits A, digit_t b) {
+inline digit_t DivideSingle(RWDigits Q, digit_t* remainder, Digits A,
+                            digit_t b) {
   DCHECK(b != 0);
   DCHECK(A.len() > 0);
-  *remainder = 0;
+  DCHECK(Q.len() >= A.len());
+  digit_t rem = 0;
+  digit_t top;
   uint32_t length = A.len();
-  if (Q.len() != 0) {
-    if (A[length - 1] >= b) {
-      DCHECK(Q.len() >= A.len());
-      for (uint32_t i = length; i-- > 0;) {
-        Q[i] = digit_div(*remainder, A[i], b, remainder);
-      }
-      for (uint32_t i = length; i < Q.len(); i++) Q[i] = 0;
-    } else {
-      DCHECK(Q.len() >= A.len() - 1);
-      *remainder = A[length - 1];
-      for (uint32_t i = length - 1; i-- > 0;) {
-        Q[i] = digit_div(*remainder, A[i], b, remainder);
-      }
-      for (uint32_t i = length - 1; i < Q.len(); i++) Q[i] = 0;
+  if (A[length - 1] >= b) {
+    DCHECK(Q.len() >= A.len());
+    uint32_t i = length - 1;
+    Q[i] = top = digit_div(rem, A[i], b, &rem);
+    while (i-- > 0) {
+      Q[i] = digit_div(rem, A[i], b, &rem);
     }
+    for (uint32_t j = length; j < Q.len(); j++) Q[j] = top = 0;
   } else {
-    for (uint32_t i = length; i-- > 0;) {
-      digit_div(*remainder, A[i], b, remainder);
+    DCHECK(Q.len() >= A.len() - 1);
+    rem = A[length - 1];
+    top = 0;
+    uint32_t i = length - 2;
+    if (i >= 0) [[likely]] {
+      Q[i] = top = digit_div(rem, A[i], b, &rem);
+      while (i-- > 0) {
+        Q[i] = digit_div(rem, A[i], b, &rem);
+      }
     }
+    for (uint32_t j = length - 1; j < Q.len(); j++) Q[j] = top = 0;
   }
+  *remainder = rem;
+  return top;
 }
 
-inline bool DivideSmall(RWDigits& Q, Digits& A, Digits& B) {
+inline digit_t ModSingle(Digits A, digit_t b) {
+  DCHECK(b != 0);
+  DCHECK(A.len() > 0);
+  digit_t rem = 0;
+  uint32_t length = A.len();
+  if (A[length - 1] >= b) {
+    for (uint32_t i = length; i-- > 0;) {
+      digit_div(rem, A[i], b, &rem);
+    }
+  } else {
+    rem = A[length - 1];
+    for (uint32_t i = length - 1; i-- > 0;) {
+      digit_div(rem, A[i], b, &rem);
+    }
+  }
+  return rem;
+}
+
+inline std::pair<bool, digit_t> DivideSmall(RWDigits& Q, Digits& A, Digits& B) {
   DCHECK(IsDigitNormalized(A));
   DCHECK(IsDigitNormalized(B));
   // This is a Release-mode check for security fuzzing purposes.
@@ -752,45 +804,47 @@ inline bool DivideSmall(RWDigits& Q, Digits& A, Digits& B) {
   int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
     Q.Clear();
-    return true;
+    return {true, 0};
   }
   if (cmp == 0) {
+    digit_t top = 1;
     Q[0] = 1;
-    for (uint32_t i = 1; i < Q.len(); i++) Q[i] = 0;
-    return true;
+    for (uint32_t i = 1; i < Q.len(); i++) Q[i] = top = 0;
+    return {true, top};
   }
   if (B.len() == 1) {
     digit_t remainder;
-    DivideSingle(Q, &remainder, A, B[0]);
-    return true;
+    digit_t top = DivideSingle(Q, &remainder, A, B[0]);
+    return {true, top};
   }
-  return false;
+  return {false, 0};
 }
 
-inline bool ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
+inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
   DCHECK(IsDigitNormalized(A));
   DCHECK(IsDigitNormalized(B));
   // This is a Release-mode check for security fuzzing purposes.
   CHECK(B.len() > 0);
   int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
-    for (uint32_t i = 0; i < B.len(); i++) R[i] = B[i];
-    for (uint32_t i = B.len(); i < R.len(); i++) R[i] = 0;
-    return true;
+    digit_t top;
+    for (uint32_t i = 0; i < B.len(); i++) R[i] = top = B[i];
+    for (uint32_t i = B.len(); i < R.len(); i++) R[i] = top = 0;
+    return {true, top};
   }
   if (cmp == 0) {
     R.Clear();
-    return true;
+    return {true, 0};
   }
   if (B.len() == 1) {
-    digit_t remainder;
-    RWDigits Q(nullptr, 0);
-    DivideSingle(Q, &remainder, A, B[0]);
-    R[0] = remainder;
-    for (uint32_t i = 1; i < R.len(); i++) R[i] = 0;
-    return true;
+    digit_t top = ModSingle(A, B[0]);
+    R[0] = top;
+    for (uint32_t i = 1; i < R.len(); i++) [[unlikely]] {
+      R[i] = top = 0;
+    }
+    return {true, top};
   }
-  return false;
+  return {false, 0};
 }
 
 inline uint32_t DivideResultLength(Digits A, Digits B) {

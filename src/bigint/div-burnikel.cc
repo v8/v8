@@ -128,7 +128,7 @@ void BZ::D3n2n(RWDigits Q, RWDigits R, Digits A1A2, Digits A3, Digits B) {
     // guarding this else-branch, and always has a one-digit result because
     // of this function's preconditions.
     RWDigits temp = R1;
-    Subtract(temp, A1, B1);
+    SubtractWithNormalization(temp, A1, B1);
     temp.Normalize();
     DCHECK(temp.len() <= 1);
     if (temp.len() > 0) r1_high = temp[0];

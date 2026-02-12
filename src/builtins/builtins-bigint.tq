@@ -278,7 +278,11 @@ macro BigIntMultiplyImpl(implicit context: Context)(x: BigInt, y: BigInt):
   const result = AllocateEmptyBigIntNoThrow(resultSign, xlength + ylength)
       otherwise BigIntTooBig;
 
-  if (CppAbsoluteMulAndCanonicalize(result, x, y) == 1) {
+  // Ordering the bigger input first is faster to do here than on the C++ side.
+  const status = xlength < ylength ?
+      CppAbsoluteMulAndCanonicalize(result, y, x) :
+      CppAbsoluteMulAndCanonicalize(result, x, y);
+  if (status == 1) {
     goto TerminationRequested;
   }
 
