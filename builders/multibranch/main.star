@@ -25,12 +25,6 @@ in_category(
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
-        name = "V8 Linux - full debug",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        barrier = BARRIER.NONE,
-        disable_resultdb_exports = True,
-    ),
-    main_multibranch_builder_pair(
         name = "V8 Linux - shared",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
