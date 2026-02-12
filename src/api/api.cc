@@ -2140,7 +2140,9 @@ Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
 }
 
 int PrimitiveArray::Length() const {
-  return Utils::OpenDirectHandle(this)->length();
+  uint32_t len = Utils::OpenDirectHandle(this)->ulength().value();
+  DCHECK_LE(len, i::kMaxInt);
+  return static_cast<int>(len);
 }
 
 void PrimitiveArray::Set(Isolate* v8_isolate, int index,
@@ -2148,10 +2150,11 @@ void PrimitiveArray::Set(Isolate* v8_isolate, int index,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   auto array = Utils::OpenDirectHandle(this);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  Utils::ApiCheck(index >= 0 && index < array->length(),
-                  "v8::PrimitiveArray::Set",
-                  "index must be greater than or equal to 0 and less than the "
-                  "array length");
+  Utils::ApiCheck(
+      index >= 0 && static_cast<uint32_t>(index) < array->ulength().value(),
+      "v8::PrimitiveArray::Set",
+      "index must be greater than or equal to 0 and less than the "
+      "array length");
   array->set(index, *Utils::OpenDirectHandle(*item));
 }
 
@@ -2159,10 +2162,11 @@ Local<Primitive> PrimitiveArray::Get(Isolate* v8_isolate, int index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   auto array = Utils::OpenDirectHandle(this);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  Utils::ApiCheck(index >= 0 && index < array->length(),
-                  "v8::PrimitiveArray::Get",
-                  "index must be greater than or equal to 0 and less than the "
-                  "array length");
+  Utils::ApiCheck(
+      index >= 0 && static_cast<uint32_t>(index) < array->ulength().value(),
+      "v8::PrimitiveArray::Get",
+      "index must be greater than or equal to 0 and less than the "
+      "array length");
   return ToApiHandle<Primitive>(i::direct_handle(array->get(index), i_isolate));
 }
 
@@ -2175,15 +2179,17 @@ void v8::PrimitiveArray::CheckCast(v8::Data* that) {
 }
 
 int FixedArray::Length() const {
-  return Utils::OpenDirectHandle(this)->length();
+  uint32_t len = Utils::OpenDirectHandle(this)->ulength().value();
+  DCHECK_LE(len, i::kMaxInt);
+  return static_cast<int>(len);
 }
 
 Local<Data> FixedArray::Get(int i) const {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
 #if V8_ENABLE_CHECKS
-  Utils::ApiCheck(i < self->length(), "v8::FixedArray::Get",
-                  "index out of bounds");
+  Utils::ApiCheck(i >= 0 && static_cast<uint32_t>(i) < self->ulength().value(),
+                  "v8::FixedArray::Get", "index out of bounds");
 #endif
   return ToApiHandle<Data>(i::direct_handle(self->get(i), i_isolate));
 }
@@ -2423,7 +2429,8 @@ Local<Module> Module::CreateSyntheticModule(
   i::DirectHandle<i::FixedArray> i_export_names =
       i_isolate->factory()->NewFixedArray(
           static_cast<int>(export_names.size()));
-  for (int i = 0; i < i_export_names->length(); ++i) {
+  uint32_t i_export_names_len = i_export_names->ulength().value();
+  for (uint32_t i = 0; i < i_export_names_len; ++i) {
     i::DirectHandle<i::String> str = i_isolate->factory()->InternalizeString(
         Utils::OpenDirectHandle(*export_names[i]));
     i_export_names->set(i, *str);
@@ -3067,7 +3074,8 @@ void ScriptOrigin::VerifyHostDefinedOptions() const {
                   "Host-defined options has to be a PrimitiveArray");
   auto options =
       Utils::OpenDirectHandle(*host_defined_options_.As<FixedArray>());
-  for (int i = 0; i < options->length(); i++) {
+  uint32_t options_len = options->ulength().value();
+  for (uint32_t i = 0; i < options_len; i++) {
     Utils::ApiCheck(i::IsPrimitive(options->get(i)), "ScriptOrigin()",
                     "PrimitiveArray can only contain primtive values");
   }
@@ -7225,17 +7233,18 @@ metrics::LongTaskStats metrics::LongTaskStats::Get(v8::Isolate* v8_isolate) {
 namespace {
 i::ValueHelper::InternalRepresentationType GetSerializedDataFromFixedArray(
     i::Isolate* i_isolate, i::Tagged<i::FixedArray> list, size_t index) {
-  if (index < static_cast<size_t>(list->length())) {
-    int int_index = static_cast<int>(index);
-    i::Tagged<i::Object> object = list->get(int_index);
+  uint32_t list_len = list->ulength().value();
+  if (index < list_len) {
+    uint32_t uint_index = static_cast<uint32_t>(index);
+    i::Tagged<i::Object> object = list->get(uint_index);
     if (!IsTheHole(object, i_isolate)) {
-      list->set_the_hole(i_isolate, int_index);
+      list->set_the_hole(i_isolate, uint_index);
       // Shrink the list so that the last element is not the hole (unless it's
       // the first element, because we don't want to end up with a non-canonical
       // empty FixedArray).
-      int last = list->length() - 1;
-      while (last >= 0 && list->is_the_hole(i_isolate, last)) last--;
-      if (last != -1) list->RightTrim(i_isolate, last + 1);
+      uint32_t last = list_len;
+      while (last > 0 && list->is_the_hole(i_isolate, last - 1)) last--;
+      if (last > 0) list->RightTrim(i_isolate, last);
       return i::Handle<i::Object>(object, i_isolate).repr();
     }
   }
