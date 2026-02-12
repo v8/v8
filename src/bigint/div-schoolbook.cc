@@ -15,63 +15,10 @@
 #include <optional>
 
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/div-helpers.h"
-#include "src/bigint/util.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/div-helpers-inl.h"
 
 namespace v8 {
 namespace bigint {
-
-// Computes Q(uotient) and remainder for A/b, such that
-// Q = (A - remainder) / b, with 0 <= remainder < b.
-// If Q.len == 0, only the remainder will be returned.
-// Q may be the same as A for an in-place division.
-void ProcessorImpl::DivideSingle(RWDigits Q, digit_t* remainder, Digits A,
-                                 digit_t b) {
-  DCHECK(b != 0);
-  DCHECK(A.len() > 0);
-  *remainder = 0;
-  uint32_t length = A.len();
-  if (Q.len() != 0) {
-    if (A[length - 1] >= b) {
-      DCHECK(Q.len() >= A.len());
-      for (uint32_t i = length; i-- > 0;) {
-        Q[i] = digit_div(*remainder, A[i], b, remainder);
-      }
-      for (uint32_t i = length; i < Q.len(); i++) Q[i] = 0;
-    } else {
-      DCHECK(Q.len() >= A.len() - 1);
-      *remainder = A[length - 1];
-      for (uint32_t i = length - 1; i-- > 0;) {
-        Q[i] = digit_div(*remainder, A[i], b, remainder);
-      }
-      for (uint32_t i = length - 1; i < Q.len(); i++) Q[i] = 0;
-    }
-  } else {
-    for (uint32_t i = length; i-- > 0;) {
-      digit_div(*remainder, A[i], b, remainder);
-    }
-  }
-}
-
-// Z += X. Returns the "carry" (0 or 1) after adding all of X's digits.
-inline digit_t InplaceAdd(RWDigits Z, Digits X) {
-  digit_t carry = 0;
-  for (uint32_t i = 0; i < X.len(); i++) {
-    Z[i] = digit_add3(Z[i], X[i], carry, &carry);
-  }
-  return carry;
-}
-
-// Z -= X. Returns the "borrow" (0 or 1) after subtracting all of X's digits.
-inline digit_t InplaceSub(RWDigits Z, Digits X) {
-  digit_t borrow = 0;
-  for (uint32_t i = 0; i < X.len(); i++) {
-    Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
-  }
-  return borrow;
-}
 
 // Returns whether (factor1 * factor2) > (high << kDigitBits) + low.
 bool ProductGreaterThan(digit_t factor1, digit_t factor2, digit_t high,
@@ -100,8 +47,8 @@ bool QLengthOK(Digits Q, Digits A, Digits B) {
 // If Q is present, its length must be at least A.len - B.len + 1.
 // If R is present, its length must be at least B.len.
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
-void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
-                                     Digits B) {
+void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
+                                     Digits& B) {
   DCHECK(B.len() >= 2);        // Use DivideSingle otherwise.
   DCHECK(A.len() >= B.len());  // No-op otherwise.
   DCHECK(Q.len() == 0 || QLengthOK(Q, A, B));
@@ -186,10 +133,11 @@ void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
       qhatv.Clear();
     } else {
       MultiplySingle(qhatv, B, qhat);
+      AddWorkEstimate(n);
     }
-    digit_t c = InplaceSub(U + j, qhatv);
+    digit_t c = InplaceSubAndReturnBorrow(U + j, qhatv);
     if (c != 0) {
-      c = InplaceAdd(U + j, B);
+      c = InplaceAddAndReturnCarry(U + j, B);
       U[j + n] = U[j + n] + c;
       qhat--;
     }

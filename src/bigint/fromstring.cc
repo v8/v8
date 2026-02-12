@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -316,7 +317,7 @@ void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
     for (uint32_t i = 0; i < Z.len(); i++) Z[i] = 0;
   } else if (IsPowerOfTwo(accumulator->radix_)) {
     FromStringBasePowerOfTwo(Z, accumulator);
-  } else if (accumulator->ResultLength() < kFromStringLargeThreshold) {
+  } else if (accumulator->ResultLength() < config::kFromStringLargeThreshold) {
     FromStringClassic(Z, accumulator);
   } else {
     FromStringLarge(Z, accumulator);

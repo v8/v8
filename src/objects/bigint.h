@@ -107,8 +107,10 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
-  static const uint32_t kLengthFieldBits = 30;
-  static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  // We intentionally use all available bits, so that decoding the length
+  // field is just a "shr" instruction (and needs no bit mask).
+  static const uint32_t kLengthFieldBits = 31;
+  static_assert(kMaxLength <= ((1u << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
   using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);

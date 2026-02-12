@@ -7399,21 +7399,18 @@ v8_source_set("fuzzer_support") {
 
 v8_source_set("v8_bigint") {
   sources = [
+    "src/bigint/bigint-inl.h",
     "src/bigint/bigint-internal.cc",
     "src/bigint/bigint-internal.h",
     "src/bigint/bigint.h",
-    "src/bigint/bitwise.cc",
-    "src/bigint/digit-arithmetic.h",
     "src/bigint/div-burnikel.cc",
-    "src/bigint/div-helpers.h",
+    "src/bigint/div-helpers-inl.h",
     "src/bigint/div-schoolbook.cc",
     "src/bigint/fromstring.cc",
     "src/bigint/mul-karatsuba.cc",
-    "src/bigint/mul-schoolbook.cc",
     "src/bigint/tostring.cc",
     "src/bigint/util.h",
-    "src/bigint/vector-arithmetic.cc",
-    "src/bigint/vector-arithmetic.h",
+    "src/bigint/vector-arithmetic-inl.h",
   ]
 
   if (v8_advanced_bigint_algorithms) {

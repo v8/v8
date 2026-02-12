@@ -2,28 +2,79 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BIGINT_DIV_HELPERS_H_
-#define V8_BIGINT_DIV_HELPERS_H_
+#ifndef V8_BIGINT_DIV_HELPERS_INL_H_
+#define V8_BIGINT_DIV_HELPERS_INL_H_
 
 #include <memory>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/bigint.h"
 #include "src/bigint/util.h"
 
 namespace v8 {
 namespace bigint {
 
-namespace {
+// These constants are primarily needed for Barrett division in div-barrett.cc,
+// and they're also needed by fast to-string conversion in tostring.cc.
+constexpr uint32_t DivideBarrettScratchSpace(uint32_t n) { return n + 2; }
+// Local values S and W need "n plus a few" digits; U needs 2*n "plus a few".
+// In all tested cases the "few" were either 2 or 3, so give 5 to be safe.
+// S and W are not live at the same time.
+constexpr uint32_t kInvertNewtonExtraSpace = 5;
+constexpr uint32_t InvertNewtonScratchSpace(uint32_t n) {
+  static_assert(3 * size_t{kMaxNumDigits} + 2 * kInvertNewtonExtraSpace <=
+                UINT32_MAX);
+  return 3 * n + 2 * kInvertNewtonExtraSpace;
+}
+constexpr uint32_t InvertScratchSpace(uint32_t n) {
+  return n < config::kNewtonInversionThreshold ? 2 * n
+                                               : InvertNewtonScratchSpace(n);
+}
 
-void Copy(RWDigits Z, Digits X) {
+// Z += X. Returns the "carry" (0 or 1) after adding all of X's digits.
+inline digit_t InplaceAddAndReturnCarry(RWDigits Z, Digits X) {
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_add3(Z[i], X[i], carry, &carry);
+  }
+  return carry;
+}
+
+// Z -= X. Returns the "borrow" (0 or 1) after subtracting all of X's digits.
+inline digit_t InplaceSubAndReturnBorrow(RWDigits Z, Digits X) {
+  digit_t borrow = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
+  }
+  return borrow;
+}
+
+// These add exactly Y's digits to the matching digits in X, storing the
+// result in (part of) Z, and return the carry/borrow.
+inline digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
+  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < Y.len(); i++) {
+    Z[i] = digit_add3(X[i], Y[i], carry, &carry);
+  }
+  return carry;
+}
+
+inline digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
+  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t borrow = 0;
+  for (uint32_t i = 0; i < Y.len(); i++) {
+    Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
+  }
+  return borrow;
+}
+
+inline void Copy(RWDigits Z, Digits X) {
   if (Z == X) return;
   uint32_t i = 0;
   for (; i < X.len(); i++) Z[i] = X[i];
   for (; i < Z.len(); i++) Z[i] = 0;
 }
-
-}  // namespace
 
 // Z := X << shift
 // Z and X may alias for an in-place shift.
@@ -147,4 +198,4 @@ class ShiftedDigits : public Digits {
 }  // namespace bigint
 }  // namespace v8
 
-#endif  // V8_BIGINT_DIV_HELPERS_H_
+#endif  // V8_BIGINT_DIV_HELPERS_INL_H_

@@ -8,22 +8,9 @@
 #include <memory>
 
 #include "src/bigint/bigint.h"
-#include "src/bigint/digit-arithmetic.h"
 
 namespace v8 {
 namespace bigint {
-
-constexpr uint32_t kKaratsubaThreshold = 34;
-constexpr uint32_t kToomThreshold = 193;
-constexpr uint32_t kFftThreshold = 1500;
-constexpr uint32_t kFftInnerThreshold = 200;
-
-constexpr uint32_t kBurnikelThreshold = 57;
-constexpr uint32_t kNewtonInversionThreshold = 50;
-// kBarrettThreshold is defined in bigint.h.
-
-constexpr uint32_t kToStringFastThreshold = 43;
-constexpr uint32_t kFromStringLargeThreshold = 300;
 
 class ProcessorImpl : public Processor {
  public:
@@ -33,8 +20,7 @@ class ProcessorImpl : public Processor {
   Status get_and_clear_status();
 
   void Multiply(RWDigits Z, Digits X, Digits Y);
-  void MultiplySingle(RWDigits Z, Digits X, digit_t y);
-  void MultiplySchoolbook(RWDigits Z, Digits X, Digits Y);
+  void MultiplyLarge(RWDigits& Z, Digits& X, Digits& Y);
 
   void MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y);
   void KaratsubaStart(RWDigits Z, Digits X, Digits Y, RWDigits scratch,
@@ -43,12 +29,8 @@ class ProcessorImpl : public Processor {
   void KaratsubaMain(RWDigits Z, Digits X, Digits Y, RWDigits scratch,
                      uint32_t n);
 
-  void Divide(RWDigits Q, Digits A, Digits B);
-  void DivideSingle(RWDigits Q, digit_t* remainder, Digits A, digit_t b);
-  void DivideSchoolbook(RWDigits Q, RWDigits R, Digits A, Digits B);
+  void DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A, Digits& B);
   void DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A, Digits B);
-
-  void Modulo(RWDigits R, Digits A, Digits B);
 
 #if V8_ADVANCED_BIGINT_ALGORITHMS
   void MultiplyToomCook(RWDigits Z, Digits X, Digits Y);
@@ -67,9 +49,9 @@ class ProcessorImpl : public Processor {
 
   // {out_length} initially contains the allocated capacity of {out}, and
   // upon return will be set to the actual length of the result string.
-  void ToString(char* out, uint32_t* out_length, Digits X, int radix,
+  void ToString(char* out, uint32_t* out_length, Digits& X, int radix,
                 bool sign);
-  void ToStringImpl(char* out, uint32_t* out_length, Digits X, int radix,
+  void ToStringImpl(char* out, uint32_t* out_length, Digits& X, int radix,
                     bool sign, bool use_fast_algorithm);
 
   void FromString(RWDigits Z, FromStringAccumulator* accumulator);
@@ -117,34 +99,6 @@ class ProcessorImpl : public Processor {
 
 // Prevent computations of scratch space and number of bits from overflowing.
 constexpr uint32_t kMaxNumDigits = UINT32_MAX / kDigitBits;
-// These constants are primarily needed for Barrett division in div-barrett.cc,
-// and they're also needed by fast to-string conversion in tostring.cc.
-constexpr uint32_t DivideBarrettScratchSpace(uint32_t n) { return n + 2; }
-// Local values S and W need "n plus a few" digits; U needs 2*n "plus a few".
-// In all tested cases the "few" were either 2 or 3, so give 5 to be safe.
-// S and W are not live at the same time.
-constexpr uint32_t kInvertNewtonExtraSpace = 5;
-constexpr uint32_t InvertNewtonScratchSpace(uint32_t n) {
-  static_assert(3 * size_t{kMaxNumDigits} + 2 * kInvertNewtonExtraSpace <=
-                UINT32_MAX);
-  return 3 * n + 2 * kInvertNewtonExtraSpace;
-}
-constexpr uint32_t InvertScratchSpace(uint32_t n) {
-  return n < kNewtonInversionThreshold ? 2 * n : InvertNewtonScratchSpace(n);
-}
-
-#define CHECK(cond)                                   \
-  if (!(cond)) {                                      \
-    std::cerr << __FILE__ << ":" << __LINE__ << ": "; \
-    std::cerr << "Assertion failed: " #cond "\n";     \
-    abort();                                          \
-  }
-
-#ifdef DEBUG
-#define DCHECK(cond) CHECK(cond)
-#else
-#define DCHECK(cond) (void(0))
-#endif
 
 #define USE(var) ((void)var)
 
@@ -169,22 +123,6 @@ class ScratchDigits : public RWDigits {
  private:
   Storage storage_;
 };
-
-// Z := X * y, where y is a single digit.
-inline void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
-  DCHECK(y != 0);
-  digit_t carry = 0;
-  digit_t high = 0;
-  for (uint32_t i = 0; i < X.len(); i++) {
-    digit_t new_high;
-    digit_t low = digit_mul(X[i], y, &new_high);
-    Z[i] = digit_add3(low, high, carry, &carry);
-    high = new_high;
-  }
-  AddWorkEstimate(X.len());
-  Z[X.len()] = carry + high;
-  for (uint32_t i = X.len() + 1; i < Z.len(); i++) Z[i] = 0;
-}
 
 }  // namespace bigint
 }  // namespace v8
