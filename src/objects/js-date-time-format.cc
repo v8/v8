@@ -123,11 +123,12 @@ Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(
 
 class PatternMap {
  public:
-  PatternMap(std::string pattern, std::string value)
-      : pattern(std::move(pattern)), value(std::move(value)) {}
+  template <size_t N, size_t M>
+  constexpr PatternMap(const char (&pattern)[N], const char (&value)[M])
+      : pattern(pattern), value(value) {}
   virtual ~PatternMap() = default;
-  std::string pattern;
-  std::string value;
+  const char* pattern;
+  const char* value;
 };
 
 #define BIT_FIELDS(V, _)      \
@@ -329,8 +330,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
   return build;
 }
 
-const std::vector<PatternData> CreateData(const char* digit2,
-                                          const char* numeric) {
+template <size_t N, size_t M>
+const std::vector<PatternData> CreateData(const char (&digit2)[N],
+                                          const char (&numeric)[M]) {
   return CreateCommonData(
       PatternData(Hour::kShift, DateTimeProperty::kHour,
                   {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
@@ -350,7 +352,9 @@ const std::vector<PatternData> CreateData(const char* digit2,
 
 class Pattern {
  public:
-  Pattern(const char* d1, const char* d2) : data(CreateData(d1, d2)) {}
+  template <size_t N, size_t M>
+  Pattern(const char (&d1)[N], const char (&d2)[M])
+      : data(CreateData(d1, d2)) {}
   virtual ~Pattern() = default;
   virtual const std::vector<PatternData>& Get() const { return data; }
 
@@ -791,8 +795,7 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
         if (pattern.find(pair.pattern) != std::string::npos) {
           Maybe<bool> maybe_create_property = JSReceiver::CreateDataProperty(
               isolate, options, GetPropertyString(*factory, item.property),
-              factory->NewStringFromAsciiChecked(pair.value.c_str()),
-              Just(kDontThrow));
+              factory->NewStringFromAsciiChecked(pair.value), Just(kDontThrow));
           DCHECK(maybe_create_property.FromJust());
           USE(maybe_create_property);
           break;
