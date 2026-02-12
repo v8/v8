@@ -40,6 +40,79 @@ bool QLengthOK(Digits Q, Digits A, Digits B) {
 }
 #endif
 
+// {DivideSchoolbook} below performs 2-by-1 digit divisions. On arm/arm64, there
+// is no matching machine instruction for that, and the fallback is slow.
+// Fortunately, the divisor is always the same, so a faster alternative is to
+// precompute its modular multiplicative inverse, and then replace the division
+// with a multiplication-based instruction sequence.
+// On x64 this is approximately as fast as using {digit_div} directly.
+// Note: this relies on {divisor} being left-shifted such that its most
+// significant bit is set, making this technique difficult to apply to
+// {DivideSingle}.
+class MultiplicativeDigitDiv {
+ public:
+  explicit MultiplicativeDigitDiv(digit_t divisor)
+      : divisor_(divisor), inverse_(ComputeInverse(divisor)) {
+    DCHECK((divisor >> (kDigitBits - 1)) == 1);
+  }
+
+  // Reference:
+  // https://gmplib.org/~tege/division-paper.pdf, "Algorithm 4".
+  digit_t div(digit_t high, digit_t low, digit_t* remainder) {
+    // Paper: u1 = high, u0 = low, d = divisor, v = inverse,
+    // "mod β" means "truncate to digit_t width".
+    // 1. <q1, q0> ← v*u1
+    digit_t q1;
+    digit_t q0 = digit_mul(high, inverse_, &q1);
+    // 2. <q1, q0> ← <q1, q0> + <u1, u0>
+    digit_t carry;
+    q0 = digit_add2(q0, low, &carry);
+    q1 = digit_add3(q1, high, carry, &carry);
+    // 3. q1 ← (q1 + 1) mod β
+    q1++;
+    // 4. r ← (u0 − q1*d) mod β
+    digit_t r = low - q1 * divisor_;
+    // 5. if r > q0:  // Unpredictable condition
+    if (r > q0) {
+      // 6. q1 ← (q1 − 1) mod β
+      q1--;
+      // 7. r ← (r + d) mod β
+      r += divisor_;
+    }
+    // 8 if r >= d:  // Unlikely condition
+    if (r >= divisor_) [[unlikely]] {
+      // 9. q1 ← q1 + 1
+      q1++;
+      // 10. r ← r − d
+      r -= divisor_;
+    }
+    // 11. return q1, r
+    *remainder = r;
+    return q1;
+  }
+
+ private:
+  static digit_t ComputeInverse(digit_t divisor) {
+    digit_t high = ~divisor;
+    digit_t low = ~digit_t{0};
+#if (__x86_64__ || __i386__) && (__GNUC__ || __clang__)
+    // Single {div} machine instruction via inline assembly.
+    digit_t remainder;
+    return digit_div(high, low, divisor, &remainder);
+#elif HAVE_TWODIGIT_T
+    // Clang-provided system library call.
+    return ((twodigit_t{high} << kDigitBits) | low) / divisor;
+#else
+    // Slow fallback (see {digit_div} implementation).
+    digit_t remainder;
+    return digit_div(high, low, divisor, &remainder);
+#endif
+  }
+
+  const digit_t divisor_;
+  const digit_t inverse_;
+};
+
 // Computes Q(uotient) and R(emainder) for A/B, such that
 // Q = (A - R) / B, with 0 <= R < B.
 // Both Q and R are optional: callers that are only interested in one of them
@@ -95,6 +168,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
   // Iterate over the dividend's digits (like the "grad school" algorithm).
   // {vn1} is the divisor's most significant digit.
   digit_t vn1 = B[n - 1];
+  MultiplicativeDigitDiv vn1_divisor(vn1);
   for (int j = m; j >= 0; j--) {
     // D3.
     // Estimate the current iteration's quotient digit (see Knuth for details).
@@ -108,7 +182,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
       // Estimate the current quotient digit by dividing the most significant
       // digits of dividend and divisor. The result will not be too small,
       // but could be a bit too large.
-      qhat = digit_div(ujn, U[j + n - 1], vn1, &rhat);
+      qhat = vn1_divisor.div(ujn, U[j + n - 1], &rhat);
 
       // Decrement the quotient estimate as needed by looking at the next
       // digit, i.e. by testing whether
@@ -129,17 +203,15 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
     // it from the dividend. If there was "borrow", then the quotient digit
     // was one too high, so we must correct it and undo one subtraction of
     // the (shifted) divisor.
-    if (qhat == 0) {
-      qhatv.Clear();
-    } else {
+    if (qhat != 0) {
       MultiplySingle(qhatv, B, qhat);
       AddWorkEstimate(n);
-    }
-    digit_t c = InplaceSubAndReturnBorrow(U + j, qhatv);
-    if (c != 0) {
-      c = InplaceAddAndReturnCarry(U + j, B);
-      U[j + n] = U[j + n] + c;
-      qhat--;
+      digit_t c = InplaceSubAndReturnBorrow(U + j, qhatv);
+      if (c != 0) {
+        c = InplaceAddAndReturnCarry(U + j, B);
+        U[j + n] = U[j + n] + c;
+        qhat--;
+      }
     }
 
     if (Q.len() != 0) {
