@@ -3880,12 +3880,8 @@ class TurboshaftGraphBuildingInterface
     result->op = cont;
   }
 
-  // Implements "resume" or "resume_throw" depending on the optional {exc_imm}
-  // argument.
-  void ResumeHelper(FullDecoder* decoder, const ContIndexImmediate& imm,
-                    base::Vector<HandlerCase> handlers, const Value& cont_ref,
-                    const Value args[], Value returns[],
-                    std::optional<TagIndexImmediate> exc_imm) {
+  std::pair<V<WordPtr>, base::Vector<compiler::turboshaft::EffectHandler>>
+  PrepareResume(base::Vector<HandlerCase> handlers, const Value& cont_ref) {
     V<WordPtr> stack = CheckContAndGetStack(cont_ref);
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
         __ output_graph().graph_zone()
@@ -3896,46 +3892,11 @@ class TurboshaftGraphBuildingInterface
       asm_handlers[i].tag_index = handlers[i].tag.index;
       asm_handlers[i].block = __ NewBlock();
     }
+    return {stack, asm_handlers};
+  }
 
-    // Reserve a stack buffer, move the tag params there and pass it to the
-    // target stack.
-    const FunctionSig* sig =
-        decoder->module_->signature(imm.cont_type->contfun_typeindex());
-    V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
-                                    MemoryRepresentation::UintPtr(),
-                                    StackMemory::arg_buffer_offset());
-    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
-      DCHECK_EQ(args[index].type, sig->GetParam(index));
-      this->Asm().StoreOffHeap(arg_buffer, args[index].op,
-                               MemoryRepresentationOffHeap(args[index].type),
-                               offset);
-    });
-
-    OpIndex result_buffer;
-    if (!exc_imm.has_value()) {
-      // Regular resume.
-      asm_.set_effect_handlers_for_next_call(asm_handlers);
-      result_buffer =
-          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
-                                      HandleEffects::kYes>(
-              decoder, {stack, arg_buffer},
-              CheckForException::kCatchInThisFrame);
-    } else {
-      // resume_throw.
-      V<FixedArray> array = EncodeExceptionArray(decoder, *exc_imm, args);
-      V<FixedArray> instance_tags =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
-                                        MemoryRepresentation::TaggedPointer());
-      V<WasmExceptionTag> tag = V<WasmExceptionTag>::Cast(
-          __ LoadFixedArrayElement(instance_tags, exc_imm->index));
-      asm_.set_effect_handlers_for_next_call(asm_handlers);
-      result_buffer =
-          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrow,
-                                      HandleEffects::kYes>(
-              decoder, {stack, tag, array, trusted_instance_data(false)},
-              CheckForException::kCatchInThisFrame);
-    }
-
+  void UnpackResumeReturns(const FunctionSig* sig, Value returns[],
+                           OpIndex result_buffer) {
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
       DCHECK_EQ(returns[index].type, sig->GetReturn(index));
       returns[index].op =
@@ -3947,7 +3908,26 @@ class TurboshaftGraphBuildingInterface
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    ResumeHelper(decoder, imm, handlers, cont_ref, args, returns, {});
+    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref);
+    // Reserve a stack buffer, move the tag params there and pass it to the
+    // target stack.
+    V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    StackMemory::arg_buffer_offset());
+    const FunctionSig* sig =
+        decoder->module_->signature(imm.cont_type->contfun_typeindex());
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
+      DCHECK_EQ(args[index].type, sig->GetParam(index));
+      this->Asm().StoreOffHeap(arg_buffer, args[index].op,
+                               MemoryRepresentationOffHeap(args[index].type),
+                               offset);
+    });
+    asm_.set_effect_handlers_for_next_call(asm_handlers);
+    V<WordPtr> result_buffer =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
+                                    HandleEffects::kYes>(
+            decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    UnpackResumeReturns(sig, returns, result_buffer);
   }
 
   void ResumeHandler(FullDecoder* decoder,
@@ -3988,15 +3968,38 @@ class TurboshaftGraphBuildingInterface
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers,
                    const Value& cont_ref, const Value args[], Value returns[]) {
-    ResumeHelper(decoder, cont_imm, handlers, cont_ref, args, returns, exc_imm);
+    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref);
+    V<FixedArray> array = EncodeExceptionArray(decoder, exc_imm, args);
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
+    V<WasmExceptionTag> tag = V<WasmExceptionTag>::Cast(
+        __ LoadFixedArrayElement(instance_tags, exc_imm.index));
+    asm_.set_effect_handlers_for_next_call(asm_handlers);
+    V<WordPtr> result_buffer =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrow,
+                                    HandleEffects::kYes>(
+            decoder, {stack, tag, array, trusted_instance_data(false)},
+            CheckForException::kCatchInThisFrame);
+    const FunctionSig* sig =
+        decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
+    UnpackResumeReturns(sig, returns, result_buffer);
   }
 
   void ResumeThrowRef(FullDecoder* decoder,
                       const wasm::ContIndexImmediate& cont_imm,
                       base::Vector<wasm::HandlerCase> handlers,
-                      const Value& cont, const Value& exn,
-                      const Value returns[]) {
-    UNIMPLEMENTED();
+                      const Value& cont_ref, const Value& exn,
+                      Value returns[]) {
+    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref);
+    asm_.set_effect_handlers_for_next_call(asm_handlers);
+    V<WordPtr> result_buffer =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrowRef,
+                                    HandleEffects::kYes>(
+            decoder, {stack, exn.op}, CheckForException::kCatchInThisFrame);
+    const FunctionSig* sig =
+        decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
+    UnpackResumeReturns(sig, returns, result_buffer);
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,

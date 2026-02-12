@@ -1767,6 +1767,19 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct WasmFXResumeThrowRef : public Descriptor<WasmFXResumeThrowRef> {
+    static constexpr auto kFunction = Builtin::kWasmFXResumeThrowRef;
+    // Target stack, and exnref.
+    using arguments_t = std::tuple<V<WordPtr>, V<Object>>;
+    // Return values buffer.
+    using results_t = std::tuple<V<WordPtr>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
   struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =

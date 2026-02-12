@@ -3924,6 +3924,52 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   __ Ret(lr);
 }
 
+void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack =
+      WasmFXResumeThrowRefDescriptor::GetRegisterParameter(0);
+  Register exnref = WasmFXResumeThrowRefDescriptor::GetRegisterParameter(1);
+  // If the target stack is in a suspended state, switch to it and throw the
+  // exception from there.
+  // If the stack has not been started yet, switching to it is invalid as it
+  // does not have a stack entry frame. Instead, retire it and throw the
+  // exception from the current stack.
+  // Both blocks exit with the arguments of the runtime call pushed on the
+  // stack.
+  Register scratch = x10;
+  __ Ldr(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
+  __ Cmp(scratch, Operand(kNullAddress));
+  Label throw_;
+  Label retire_and_throw;
+  __ B(eq, &retire_and_throw);
+  Label return_;
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               target_stack, &return_, no_reg, {target_stack, exnref});
+  // Switch to the target stack without restoring the PC.
+  LoadJumpBuffer(masm, target_stack, false, ip1);
+  __ PushArgument(exnref);
+  __ B(&throw_);
+
+  __ bind(&retire_and_throw);
+  __ PushArgument(exnref);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Mov(kCArgRegs[1], target_stack);
+    __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
+  }
+  __ bind(&throw_);
+  // Throw the exception.
+  __ Mov(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmReThrow);
+  __ Trap();
+  __ Bind(&return_, BranchTargetIdentifier::kBtiJump);
+  // Return the arg buffer.
+  __ Mov(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret(lr);
+}
+
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);

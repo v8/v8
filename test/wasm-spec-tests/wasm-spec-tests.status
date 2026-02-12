@@ -19,7 +19,6 @@
 
   # Implementation in progress.
   'proposals/stack-switching/stack-switching/cont': [FAIL],
-  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -131,11 +130,5 @@
 ['tsan == True', {
   'bulk-memory/memory_copy': [SKIP],
 }],  # tsan == True
-
-['variant == nooptimization', {
-  # No Liftoff implementation yet.
-  'proposals/stack-switching/stack-switching/cont': [FAIL],
-  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
-}],
 
 ]

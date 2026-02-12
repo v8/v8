@@ -4784,6 +4784,23 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return handler_iterator.length();
   }
 
+  void HandleEffects(base::Vector<HandlerCase> handlers,
+                     ContIndexImmediate imm) {
+    for (int i = 0; i < handlers.length(); ++i) {
+      if (handlers[i].kind == kOnSuspend) {
+        Value* tag_params =
+            PushValueTypes(handlers[i].tag.tag->sig->parameters());
+        Value* suspend_cont =
+            Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
+                                           suspend_cont, tag_params);
+        Drop(1 + static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
+        Control* target = control_at(handlers[i].maybe_depth.br.depth);
+        target->br_merge()->reached = true;
+      }
+    }
+  }
+
   DECODE(Resume) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
@@ -4814,20 +4831,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (size_t i = 0; i < handlers.size(); ++i) {
-        if (handlers[i].kind == kOnSuspend) {
-          Value* tag_params =
-              PushValueTypes(handlers[i].tag.tag->sig->parameters());
-          Value* suspend_cont =
-              Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
-                                             suspend_cont, tag_params);
-          Drop(1 +
-               static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
-          Control* target = control_at(handlers[i].maybe_depth.br.depth);
-          target->br_merge()->reached = true;
-        }
-      }
+      HandleEffects(handlers, imm);
     }
     return 1 + imm.length + table_length;
   }
@@ -4870,20 +4874,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        cont, args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (size_t i = 0; i < handlers.size(); ++i) {
-        if (handlers[i].kind == kOnSuspend) {
-          Value* tag_params =
-              PushValueTypes(handlers[i].tag.tag->sig->parameters());
-          Value* suspend_cont =
-              Push(ValueType::Ref(cont_imm.index, false, RefTypeKind::kCont));
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
-                                             suspend_cont, tag_params);
-          Drop(1 +
-               static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
-          Control* target = control_at(handlers[i].maybe_depth.br.depth);
-          target->br_merge()->reached = true;
-        }
-      }
+      HandleEffects(handlers, cont_imm);
     }
     return 1 + exc_imm.length + cont_imm.length + table_length;
   }
@@ -4893,9 +4884,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ContIndexImmediate cont_imm(this, this->pc_ + 1, validate);
     if (!this->ValidateCont(this->pc_ + 1, cont_imm)) return 0;
 
-    Value exn = Pop(kWasmExnRef);  // The exception to forward
-
     Value cont = Pop(ValueType::RefNull(cont_imm.heap_type()));
+
+    Value exn = Pop(kWasmExnRef);  // The exception to forward
 
     EffectHandlerTableImmediate handler_table_imm(
         this, this->pc_ + cont_imm.length + 1, validate);
@@ -4920,12 +4911,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (const HandlerCase& handler : handlers) {
-        if (handler.kind == kOnSuspend) {
-          Control* target = control_at(handler.maybe_depth.br.depth);
-          target->br_merge()->reached = true;
-        }
-      }
+      HandleEffects(handlers, cont_imm);
     }
     return 1 + cont_imm.length + table_length;
   }

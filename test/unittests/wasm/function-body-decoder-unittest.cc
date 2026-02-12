@@ -6359,15 +6359,15 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
 
   ExpectValidates(sigs.v_v(),
-                  {WASM_REF_FUNC(func_index),
-                   WASM_CONT_NEW(ToByte(cont1_index)), WASM_GEN_EXNREF(tag_v_v),
+                  {WASM_GEN_EXNREF(tag_v_v), WASM_REF_FUNC(func_index),
+                   WASM_CONT_NEW(ToByte(cont1_index)),
                    WASM_RESUME_THROW_REF(ToByte(cont1_index), 0), WASM_DROP});
 
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(tag_v_v),
+                    WASM_REF_FUNC(func_index),
                     WASM_CONT_NEW(ToByte(cont1_index)),
-                    WASM_GEN_EXNREF(tag_v_v),
                     WASM_RESUME_THROW_REF(ToByte(cont1_index), 1,
                                           WASM_ON_TAG(tag_i_i, 0)),
                     WASM_RETURN0),
@@ -6377,9 +6377,9 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
       sigs.v_v(),
       {WASM_BLOCK_X(
            sig2_index,
-           WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+           WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(tag_v_v),
+                        WASM_REF_FUNC(func_index),
                         WASM_CONT_NEW(ToByte(cont1_index)),
-                        WASM_GEN_EXNREF(tag_v_v),
                         WASM_RESUME_THROW_REF(ToByte(cont1_index), 2,
                                               WASM_ON_TAG(tag_i_i, 0),
                                               WASM_ON_TAG(tag_v_v, 1)),
@@ -6473,8 +6473,9 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
 
   ExpectFailure(
       sigs.v_v(),
-      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
-                    WASM_CONT_NEW(ToByte(cont_index)), WASM_GEN_EXNREF(vd_tag),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(vd_tag),
+                    WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
                     WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
                                           WASM_ON_TAG(tag_i_i, 0)),
                     WASM_RETURN0),
@@ -6483,14 +6484,13 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
 
   ExpectFailure(
       sigs.v_v(),
-      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_GEN_EXNREF(vd_tag),
-                    WASM_REF_FUNC(func_index),
-                    WASM_CONT_NEW(ToByte(cont_index)),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)), WASM_GEN_EXNREF(vd_tag),
                     WASM_RESUME_THROW_REF(ToByte(cont_index), 1,
                                           WASM_ON_TAG(tag_i_i, 0)),
                     WASM_RETURN0),
        WASM_DROP},
-      kAppendEnd, "expected type exnref, found cont.new");
+      kAppendEnd, "expected type (ref null 1), found block of type exnref");
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmSuspend) {

@@ -153,6 +153,7 @@ namespace v8::internal::wasm {
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
   V(WasmFXResume)                                                              \
   V(WasmFXResumeThrow)                                                         \
+  V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
