@@ -520,6 +520,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       InstructionOperand* temps, FlagsContinuation* cont);
 
   void EmitIdentity(turboshaft::OpIndex node);
+  void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============

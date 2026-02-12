@@ -2601,10 +2601,13 @@ void InstructionSelector::VisitTrapIf(OpIndex node) {
 }
 
 void InstructionSelector::EmitIdentity(OpIndex node) {
-  const Operation& op = Get(node);
-  MarkAsUsed(op.input(0));
+  EmitIdentity(node, Get(node).input(0));
+}
+
+void InstructionSelector::EmitIdentity(OpIndex node, OpIndex input) {
+  MarkAsUsed(input);
   MarkAsDefined(node);
-  SetRename(node, op.input(0));
+  SetRename(node, input);
 }
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,

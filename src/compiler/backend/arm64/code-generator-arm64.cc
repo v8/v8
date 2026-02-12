@@ -3575,12 +3575,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Shuffle4Helper(masm(), i, kFormat4S);
       break;
     }
-    case kArm64S64x2Reverse: {
-      Simd128Register dst = i.OutputSimd128Register().V16B(),
-                      src = i.InputSimd128Register(0).V16B();
-      __ Ext(dst, src, src, 8);
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipLeft, Uzp1);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128UnzipRight, Uzp2);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64S128ZipLeft, Zip1);
@@ -3590,11 +3584,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowZipRight, Zip2);
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipLeft, Uzp1);
       SIMD_LOW_BINOP_LANE_SIZE_CASE(kArm64S128LowUnzipRight, Uzp2);
-    case kArm64S8x16Concat: {
-      __ Ext(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
-             i.InputSimd128Register(1).V16B(), i.InputInt4(2));
-      break;
-    }
     case kArm64I8x16Swizzle: {
       __ Tbl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
              i.InputSimd128Register(1).V16B());
@@ -3626,11 +3615,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArm64S32x4Reverse: {
+    case kArm64S128Extract: {
       Simd128Register dst = i.OutputSimd128Register().V16B(),
-                      src = i.InputSimd128Register(0).V16B();
-      __ Rev64(dst.V4S(), src.V4S());
-      __ Ext(dst.V16B(), dst.V16B(), dst.V16B(), 8);
+                      src0 = i.InputSimd128Register(0).V16B(),
+                      src1 = i.InputSimd128Register(1).V16B();
+      __ Ext(dst, src0, src1, i.InputInt4(2));
       break;
     }
       SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev16, Rev16);

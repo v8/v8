@@ -5944,13 +5944,11 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
   static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
       CANONICAL_TO_INSTR(kS64x2Even, kArm64S128UnzipLeft, 64),
       CANONICAL_TO_INSTR(kS64x2Odd, kArm64S128UnzipRight, 64),
-      {CanonicalShuffle::kS64x2Reverse, kArm64S64x2Reverse},
       CANONICAL_TO_INSTR(kS64x2ReverseBytes, kArm64S128Rev64, 8),
       CANONICAL_TO_INSTR(kS32x4Even, kArm64S128UnzipLeft, 32),
       CANONICAL_TO_INSTR(kS32x4Odd, kArm64S128UnzipRight, 32),
       CANONICAL_TO_INSTR(kS32x4InterleaveLowHalves, kArm64S128ZipLeft, 32),
       CANONICAL_TO_INSTR(kS32x4InterleaveHighHalves, kArm64S128ZipRight, 32),
-      {CanonicalShuffle::kS32x4Reverse, kArm64S32x4Reverse},
       CANONICAL_TO_INSTR(kS32x4ReverseBytes, kArm64S128Rev32, 8),
       CANONICAL_TO_INSTR(kS32x2Reverse, kArm64S128Rev64, 32),
       CANONICAL_TO_INSTR(kS32x4TransposeEven, kArm64S128TransposeLeft, 32),
@@ -5986,6 +5984,7 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
   }
   return {};
 }
+
 using ShufflePair = std::pair<InstructionCode, InstructionCode>;
 std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
     CanonicalShuffle shuffle) {
@@ -6026,6 +6025,65 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
     }
   }
   return {};
+}
+
+template <size_t ShuffleSize>
+bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
+                         OpIndex input0, OpIndex input1,
+                         std::array<uint8_t, ShuffleSize> shuffle)
+  requires(ShuffleSize == kSimd128Size || ShuffleSize == kSimd128HalfSize)
+{
+  const CanonicalShuffle canonical =
+      wasm::SimdShuffle::TryMatchCanonical(shuffle);
+
+  if (canonical == CanonicalShuffle::kUnknown) return false;
+
+  Arm64OperandGenerator g(selector);
+  // 1-1 canonical shuffle matching.
+  if (auto instr_opcode = TryMapCanonicalShuffleToInstr(canonical);
+      instr_opcode.has_value()) {
+    selector->Emit(instr_opcode.value(), g.DefineAsRegister(node),
+                   g.UseRegister(input0), g.UseRegister(input1));
+    return true;
+  }
+
+  // Canonical shuffles that need a little more work.
+  switch (canonical) {
+    default:
+      break;
+    case CanonicalShuffle::kIdentity:
+      // Bypass normal shuffle code generation in this case.
+      selector->EmitIdentity(node, input0);
+      return true;
+    case CanonicalShuffle::kS32x4Reverse: {
+      InstructionOperand temp = g.TempSimd128Register();
+      selector->Emit(kArm64S128Rev64 | LaneSizeField::encode(32), temp,
+                     g.UseRegister(input0), g.UseRegister(input1));
+      selector->Emit(kArm64S128Extract, g.DefineAsRegister(node), temp, temp,
+                     g.UseImmediate(8));
+      return true;
+    }
+    case CanonicalShuffle::kS64x2Reverse:
+      selector->Emit(kArm64S128Extract, g.DefineAsRegister(node),
+                     g.UseRegister(input0), g.UseRegister(input1),
+                     g.UseImmediate(8));
+      return true;
+  }
+
+  if constexpr (ShuffleSize == kSimd128HalfSize) {
+    if (std::optional<ShufflePair> instr_opcodes =
+            TryMapCanonicalShuffleToShufflePair(canonical)) {
+      const InstructionCode opcode1 = instr_opcodes.value().first;
+      const InstructionCode opcode2 = instr_opcodes.value().second;
+      InstructionOperand temp = g.TempSimd128Register();
+      selector->Emit(opcode1, temp, g.UseRegister(input0),
+                     g.UseRegister(input1));
+      selector->Emit(opcode2, g.DefineAsRegister(node), temp, temp);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 template <int32_t lane_size>
@@ -6190,27 +6248,11 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
   OpIndex input1 = view.input(1);
   Arm64OperandGenerator g(this);
 
+  if (TryCanonicalShuffle(this, node, input0, input1, shuffle)) return;
+
   uint8_t shuffle64x1;
   if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
     EmitShuffle1<64>(this, node, input0, input1, shuffle64x1);
-    return;
-  }
-
-  const CanonicalShuffle canonical =
-      wasm::SimdShuffle::TryMatchCanonical(shuffle);
-
-  if (std::optional<InstructionCode> instr_opcode =
-          TryMapCanonicalShuffleToInstr(canonical)) {
-    Emit(instr_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1));
-    return;
-  } else if (std::optional<ShufflePair> instr_opcodes =
-                 TryMapCanonicalShuffleToShufflePair(canonical)) {
-    const InstructionCode opcode1 = instr_opcodes.value().first;
-    const InstructionCode opcode2 = instr_opcodes.value().second;
-    InstructionOperand temp = g.TempSimd128Register();
-    Emit(opcode1, temp, g.UseRegister(input0), g.UseRegister(input1));
-    Emit(opcode2, g.DefineAsRegister(node), temp, temp);
     return;
   }
 
@@ -6234,13 +6276,6 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
       DCHECK(is_swizzle);
       Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
-      return;
-    } else if (canonical == CanonicalShuffle::kIdentity) {
-      // Bypass normal shuffle code generation in this case.
-      // EmitIdentity
-      MarkAsUsed(input0);
-      MarkAsDefined(node);
-      SetRename(node, input0);
       return;
     }
   }
@@ -6277,22 +6312,16 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   OpIndex input1 = view.input(1);
   Arm64OperandGenerator g(this);
 
-  const CanonicalShuffle canonical =
-      wasm::SimdShuffle::TryMatchCanonical(shuffle);
+  if (TryCanonicalShuffle(this, node, input0, input1, shuffle)) return;
 
-  if (auto instr_opcode = TryMapCanonicalShuffleToInstr(canonical);
-      instr_opcode.has_value()) {
-    Emit(instr_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1));
-    return;
-  }
-
+  // Concat is also lowered with EXT.
   uint8_t offset;
   if (wasm::SimdShuffle::TryMatchConcat(shuffle.data(), &offset)) {
-    Emit(kArm64S8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
+    Emit(kArm64S128Extract, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1), g.UseImmediate(offset));
     return;
   }
+
   std::array<uint8_t, 2> shuffle64x2;
   int index = 0;
   if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle.data(),
@@ -6328,12 +6357,6 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
              g.DefineSameAsFirst(node), temp, g.UseRegister(input0),
              g.UseImmediate(from), g.UseImmediate(to));
       }
-    } else if (canonical == CanonicalShuffle::kIdentity) {
-      // Bypass normal shuffle code generation in this case.
-      // EmitIdentity
-      MarkAsUsed(input0);
-      MarkAsDefined(node);
-      SetRename(node, input0);
     } else {
       Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseRegister(input1),

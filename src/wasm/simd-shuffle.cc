@@ -59,6 +59,7 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
                                   const CanonicalShuffle>;
   static constexpr auto canonical_shuffle_list = std::to_array<CanonicalPair>({
       {expand<2>({0, 1}), CanonicalShuffle::kIdentity},
+      {expandHalf<1>({0}), CanonicalShuffle::kIdentity},
       {expand<2>({0, 2}), CanonicalShuffle::kS64x2Even},
       {expand<2>({1, 3}), CanonicalShuffle::kS64x2Odd},
       {expand<2>({1, 0}), CanonicalShuffle::kS64x2Reverse},
