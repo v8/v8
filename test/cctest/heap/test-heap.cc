@@ -2753,8 +2753,8 @@ TEST(OptimizedPretenuringAllocationFolding) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array();"
                  "function f() {"
@@ -2804,8 +2804,8 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2845,9 +2845,9 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   // Keep the nested literal alive while its root is freed
-  base::ScopedVector<char> source(1024);
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
   base::SNPrintF(
-      source,
+      source.as_vector(),
       "let number_elements = %d;"
       "let elements = new Array(number_elements);"
       "function f() {"
@@ -2888,8 +2888,8 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2935,8 +2935,8 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -2976,8 +2976,8 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -3017,8 +3017,8 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -3069,8 +3069,8 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -3121,8 +3121,8 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var number_elements = %d;"
                  "var elements = new Array(number_elements);"
                  "function f() {"
@@ -3983,8 +3983,8 @@ TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
            kDontAdaptArgumentsSentinel);
 
   constexpr int slow_path_length = JSArray::kMaxCopyElements + 20;
-  base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
+  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
+  base::SNPrintF(source.as_vector(),
                  "var length = %d;"
                  "var array = new Array(length);"
                  "var ro_array = Object.freeze(new Array(length));"

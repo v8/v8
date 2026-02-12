@@ -267,8 +267,8 @@ bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
 void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                      const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
-    v8::base::ScopedVector<char> buffer(10);
-    std::string_view str = i::IntToStringView(i, buffer);
+    auto buffer = v8::base::OwnedVector<char>::NewForOverwrite(10);
+    std::string_view str = i::IntToStringView(i, buffer.as_vector());
     // GetProperty requires a null-terminated string.
     const v8::HeapGraphNode* internal = GetProperty(
         isolate, node, v8::HeapGraphEdge::kInternal, std::string(str).c_str());
@@ -1311,12 +1311,12 @@ TEST(HeapSnapshotJSONSerialization) {
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
-  v8::base::ScopedVector<char> json(stream.size());
-  stream.WriteTo(json);
+  auto json = v8::base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
 
   // Verify that snapshot string is valid JSON.
   v8::internal::OneByteResource* json_res =
-      new v8::internal::OneByteResource(json);
+      new v8::internal::OneByteResource(json.as_vector());
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
   v8::Local<v8::Context> context = v8::Context::New(env.isolate());
@@ -4365,8 +4365,8 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  v8::base::ScopedVector<char> source(1024);
-  v8::base::SNPrintF(source,
+  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(source.as_vector(),
                      "var number_elements = %d;"
                      "var elements = new Array(number_elements);"
                      "function f() {"

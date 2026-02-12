@@ -716,10 +716,10 @@ TEST(SourceURLInStackTrace) {
       "}\n"
       "eval('(' + outer +')()%s');";
 
-  v8::base::ScopedVector<char> code(1024);
-  v8::base::SNPrintF(code, source, "//# sourceURL=eval_url");
+  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
-  v8::base::SNPrintF(code, source, "//@ sourceURL=eval_url");
+  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
 }
 
@@ -1092,10 +1092,10 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  v8::base::ScopedVector<char> code(1024);
-  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
-  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
+  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
 }
 
@@ -1137,10 +1137,10 @@ TEST(DynamicWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  v8::base::ScopedVector<char> code(1024);
-  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
-  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
+  v8::base::SNPrintF(code.as_vector(), source, "//@ sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
 }
 
@@ -1157,8 +1157,8 @@ TEST(DynamicWithSourceURLInStackTraceString) {
       "}\n"
       "outer()\n%s";
 
-  v8::base::ScopedVector<char> code(1024);
-  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  auto code = v8::base::OwnedVector<char>::NewForOverwrite(1024);
+  v8::base::SNPrintF(code.as_vector(), source, "//# sourceURL=source_url");
   v8::TryCatch try_catch(context.isolate());
   CompileRunWithOrigin(code.begin(), "", 0, 0);
   CHECK(try_catch.HasCaught());

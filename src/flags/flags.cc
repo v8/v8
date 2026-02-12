@@ -837,7 +837,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // Allocate argument array.
-  base::ScopedVector<char*> argv(argc);
+  auto argv = base::OwnedVector<char*>::NewForOverwrite(argc);
 
   // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()

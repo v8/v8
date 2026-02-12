@@ -5650,9 +5650,10 @@ void PreprocessExceptionTestCallback(v8::ExceptionPropagationMessage info) {
   String::Utf8Value property_name(isolate, info.GetPropertyName());
   String::Utf8Value message(isolate, message_value);
 
-  v8::base::ScopedVector<char> buf(256);
-  v8::base::SNPrintF(buf, "%s:%s:%s: %s", *interface_name, *property_name,
-                     ToString(info.GetExceptionContext()), *message);
+  auto buf = v8::base::OwnedVector<char>::NewForOverwrite(256);
+  v8::base::SNPrintF(buf.as_vector(), "%s:%s:%s: %s", *interface_name,
+                     *property_name, ToString(info.GetExceptionContext()),
+                     *message);
 
   std::ignore =
       exception->CreateDataProperty(context, message_key, v8_str(buf.data()));

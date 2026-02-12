@@ -3851,15 +3851,16 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 }
 
 void HeapSnapshotJSONSerializer::SerializeStrings() {
-  base::ScopedVector<const unsigned char*> sorted_strings(strings_.occupancy() +
-                                                          1);
+  auto sorted_strings =
+      base::OwnedVector<const unsigned char*>::NewForOverwrite(
+          strings_.occupancy() + 1);
   for (base::HashMap::Entry* entry = strings_.Start(); entry != nullptr;
        entry = strings_.Next(entry)) {
     int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
     sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);
   }
   writer_->AddString("\"<dummy>\"");
-  for (int i = 1; i < sorted_strings.length(); ++i) {
+  for (size_t i = 1; i < sorted_strings.size(); ++i) {
     writer_->AddCharacter(',');
     SerializeString(sorted_strings[i]);
     if (writer_->aborted()) return;

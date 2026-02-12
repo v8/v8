@@ -358,7 +358,8 @@ bool String::MakeExternal(Isolate* isolate,
     // Assert that the resource and the string are equivalent.
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
-    base::ScopedVector<base::uc16> smart_chars(str_length);
+    auto smart_chars =
+        base::OwnedVector<base::uc16>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -449,11 +450,12 @@ bool String::MakeExternal(Isolate* isolate,
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     if (this->IsTwoByteRepresentation()) {
-      base::ScopedVector<uint16_t> smart_chars(str_length);
+      auto smart_chars =
+          base::OwnedVector<uint16_t>::NewForOverwrite(str_length);
       String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
       DCHECK(String::IsOneByte(smart_chars.begin(), str_length));
     }
-    base::ScopedVector<char> smart_chars(str_length);
+    auto smart_chars = base::OwnedVector<char>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));

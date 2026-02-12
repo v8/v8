@@ -505,7 +505,8 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   CompilationEnv env = CompilationEnv::ForModule(native_module);
-  base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
+  auto func_wire_bytes =
+      base::OwnedVector<uint8_t>::NewForOverwrite(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.size());
   constexpr bool kIsShared = false;  // TODO(14616): Extend this.

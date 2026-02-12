@@ -138,8 +138,8 @@ FILE* PerfJitLogger::perf_output_handle_ = nullptr;
 void PerfJitLogger::OpenJitDumpFile() {
   size_t bufferSize = strlen(v8_flags.perf_prof_path) +
                       sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  base::ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
+  auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(bufferSize);
+  int size = SNPrintF(perf_dump_name.as_vector(), kFilenameFormatString,
                       v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);
 

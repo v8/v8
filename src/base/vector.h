@@ -187,16 +187,6 @@ V8_INLINE size_t hash_value(base::Vector<T> v) {
 }
 
 template <typename T>
-class V8_NODISCARD ScopedVector : public Vector<T> {
- public:
-  explicit ScopedVector(size_t length) : Vector<T>(new T[length], length) {}
-  ~ScopedVector() { delete[] this->begin(); }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
-};
-
-template <typename T>
 class OwnedVector {
  public:
   OwnedVector() = default;
