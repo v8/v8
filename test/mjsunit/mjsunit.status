@@ -679,9 +679,10 @@
 
   # --experimental-wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
+  'wasm/cont-bind': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
-  'wasm/cont-bind': [SKIP],
+  'wasm/wasmfx*': [SKIP],
 
   # --experimental-wasm-growable-stacks
   'regress/wasm/regress-421055121': [SKIP],

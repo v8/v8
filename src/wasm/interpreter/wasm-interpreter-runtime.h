@@ -268,8 +268,11 @@ class WasmInterpreterRuntime {
   void InitGlobalAddressCache();
   inline void InitMemoryAddresses();
   void InitIndirectFunctionTables();
-  bool CheckIndirectCallSignature(uint32_t table_index, uint32_t entry_index,
-                                  uint32_t sig_index) const;
+
+  enum class IndirectCallCheck { kValid, kInvalid, kNull };
+  IndirectCallCheck CheckIndirectCallSignature(uint32_t table_index,
+                                               uint32_t entry_index,
+                                               uint32_t sig_index) const;
 
   void StoreRefArgsIntoStackSlots(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                   const FunctionSig* sig);
