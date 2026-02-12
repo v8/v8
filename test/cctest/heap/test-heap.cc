@@ -6848,6 +6848,9 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
 #endif
 
   v8_flags.max_old_space_size = kHeapLimit / MB;
+  // The test timeouts on some platforms with the default 95% heap size
+  // threshold.
+  v8_flags.ineffective_gc_size_threshold = 0.8;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -6859,19 +6862,25 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   {
     v8::Isolate::Scope isolate_scope(isolate);
     PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
+    std::vector<Handle<FixedArray>> arrays;
     heap::InvokeMajorGC(heap);
 
     HandleScope scope(i_isolate);
-    while (heap->OldGenerationSizeOfObjects() <
-           heap->MaxOldGenerationSize() * 0.97) {
-      factory->NewFixedArray(100, AllocationType::kOld);
+    const size_t heap_threshold = heap->MaxOldGenerationSize() * 0.8;
+    while (heap->OldGenerationSizeOfObjects() < heap_threshold) {
+      arrays.push_back(factory->NewFixedArray(1000, AllocationType::kOld));
+      // This ensures OldGenerationSizeOfObjects() remains above the threshold
+      // even after a last resort GC.
+      if (heap->OldGenerationSizeOfObjects() >= heap_threshold) {
+        heap->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+      }
     }
     {
       int initial_ms_count = heap->ms_count();
       int ineffective_ms_start = initial_ms_count;
       while (heap->ms_count() < initial_ms_count + 10) {
         HandleScope inner_scope(i_isolate);
-        factory->NewFixedArray(30000, AllocationType::kOld);
+        arrays.push_back(factory->NewFixedArray(30000, AllocationType::kOld));
         if (heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3) {
           ineffective_ms_start = heap->ms_count() + 1;
         }
