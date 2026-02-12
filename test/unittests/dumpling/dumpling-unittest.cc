@@ -473,7 +473,7 @@ TEST_F(DumplingTest, InterpreterSanitizeStringValue) {
                          R"(x:<undefined>\s+)"
                          R"(n:1\s+)"
                          R"(m:0\s+)"
-                         R"(a0:<String\[11\]: #line1\\nline2>\s+)";
+                         R"(a0:line1\\nline2\s+)";
 
   RunInterpreterTest(program, expected);
 }
@@ -512,13 +512,12 @@ TEST_F(DumplingTest, InterpreterSanitizeCarriageReturn) {
                          R"(x:<undefined>\s+)"
                          R"(n:1\s+)"
                          R"(m:0\s+)"
-                         R"(a0:<String\[9\]: #row1\\rrow2>\s+)";
+                         R"(a0:row1\\rrow2\s+)";
 
   RunInterpreterTest(program, expected);
 }
 
 TEST_F(DumplingTest, InterpreterEmptyElements) {
-  // Test that an empty array prints no brackets at all.
   const char* program =
       "function foo(x) {\n"
       "  return x;\n"
@@ -561,6 +560,88 @@ TEST_F(DumplingTest, InterpreterHolesOnly) {
                          R"(n:1\s+)"
                          R"(m:0\s+)"
                          R"(a0:<JSArray>.*\}\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterStringEscaping) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo('line1\\nline2\\rline3\\\\end');\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:line1\\nline2\\rline3\\\\end\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterSanitizeHexAndUnicode) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo('\\x01' + '\\u1234');\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:\\x01\\u1234\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterConsecutiveUnicode) {
+  // We expect two consecutive unicode symbols to be printed exact same way.
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo('\\uD83D\\uDCA9');\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:\\ud83d\\udca9\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterStringsArePrintedConsistently) {
+  const char* program =
+      "function foo(x, y) {\n"
+      "  return x + y;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const s1 = 'constant';\n"
+      "let part1 = 'fooooooooo';\n"
+      "let part2 = 'barrrrrrrr';\n"
+      "let s2 = part1 + part2;\n"
+      "foo(s1, s2);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:2\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:constant\s+)"
+                         R"(a1:fooooooooobarrrrrrrr\s+)";
 
   RunInterpreterTest(program, expected);
 }

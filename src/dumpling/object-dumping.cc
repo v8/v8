@@ -18,18 +18,36 @@ namespace v8::internal {
 
 namespace {
 
-std::string SanitizeString(const char* input) {
-  std::string result;
-  for (const char* c = input; *c != '\0'; ++c) {
-    if (*c == '\n') {
-      result += "\\n";
-    } else if (*c == '\r') {
-      result += "\\r";
+void PrintSanitizedChar(uint16_t c, StringStream* accumulator) {
+  if (c == '\n') {
+    accumulator->Add("\\n");
+  } else if (c == '\r') {
+    accumulator->Add("\\r");
+  } else if (c == '\\') {
+    accumulator->Add("\\\\");
+  } else if (c >= 32 && c <= 126) {
+    accumulator->Put(static_cast<char>(c));
+  } else {
+    if (c <= 0xFF) {
+      accumulator->Add("\\x%02x", c);
     } else {
-      result += *c;
+      accumulator->Add("\\u%04x", c);
     }
   }
-  return result;
+}
+
+void PrintSanitizedCString(const char* input, StringStream* accumulator) {
+  for (const char* c = input; *c != '\0'; ++c) {
+    PrintSanitizedChar(*c, accumulator);
+  }
+}
+
+void FuzzingStringShortPrint(Tagged<String> string, StringStream* accumulator) {
+  int length = string->length();
+
+  for (int i = 0; i < length; i++) {
+    PrintSanitizedChar(string->Get(i), accumulator);
+  }
 }
 
 void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
@@ -103,9 +121,13 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
       accumulator->Add(", ");
     }
 
-    base::ScopedVector<char> name_buffer(100);
-    key_name->NameShortPrint(name_buffer);
-    accumulator->Add("%s", SanitizeString(name_buffer.begin()).c_str());
+    if (IsString(*key_name)) {
+      FuzzingStringShortPrint(Cast<String>(*key_name), accumulator);
+    } else {
+      base::ScopedVector<char> name_buffer(100);
+      key_name->NameShortPrint(name_buffer);
+      PrintSanitizedCString(name_buffer.begin(), accumulator);
+    }
 
     std::stringstream attributes_stream;
     attributes_stream << details.attributes();
@@ -292,8 +314,8 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
   if (IsString(obj, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    Cast<String>(obj)->StringShortPrint(&accumulator);
-    os << SanitizeString(accumulator.ToCString().get());
+    FuzzingStringShortPrint(Cast<String>(obj), &accumulator);
+    os << accumulator.ToCString().get();
     return;
   }
   if (IsJSObject(obj, cage_base)) {
