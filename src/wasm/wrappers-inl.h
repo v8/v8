@@ -580,9 +580,13 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   args[0] = instance;
   // Unpack continuation params.
   IterateWasmFXArgBuffer(sig_->parameters(), [&](size_t index, int offset) {
-    args[index + 1] = __ LoadOffHeap(arg_buffer, offset,
-                                     MemoryRepresentation::FromMachineType(
-                                         sig_->GetParam(index).machine_type()));
+    CanonicalValueType type = sig_->GetParam(index);
+    // On-stack refs are uncompressed.
+    MemoryRepresentation rep =
+        type.is_ref()
+            ? MemoryRepresentation::AnyUncompressedTagged()
+            : MemoryRepresentation::FromMachineType(type.machine_type());
+    args[index + 1] = __ LoadOffHeap(arg_buffer, offset, rep);
   });
 
   base::Vector<OpIndex> returns =
