@@ -9,6 +9,21 @@ ALL_VARIANT_FLAGS = {
     "verify_turboshaft": ["--verify-turboshaft"],
     "code_serializer": ["--cache=code"],
     "default": [],
+    "dumpling_test": [
+        "--no-sparkplug",
+        "--maglev-dumping",
+        "--turbofan-dumping",
+        "--predictable",
+        "--dump-out-filename=/dev/null",
+    ],
+    "dumpling_reference": [
+        "--no-maglev",
+        "--no-turbofan",
+        "--sparkplug-dumping",
+        "--interpreter-dumping",
+        "--predictable",
+        "--dump-out-filename=/dev/null",
+    ],
     "future": ["--future"],
     "gc_stats": ["--gc-stats=1"],
     # Alias of exhaustive variants, but triggering new test framework features.
@@ -157,6 +172,24 @@ kIncompatibleFlagsForNoTurbofan = [
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
+    "dumpling_test": [
+        "--always-sparkplug",
+        "--concurrent-recompilation",
+        "--lazy-compile-dispatcher",
+        "--parallel-compile-tasks-for-eager-toplevel",
+        "--parallel-compile-tasks-for-lazy",
+        "--stress-concurrent-allocation",
+        "--stress-concurrent-inlining",
+    ],
+    "dumpling_reference":
+        kIncompatibleFlagsForNoTurbofan + [
+            "--concurrent-recompilation",
+            "--lazy-compile-dispatcher",
+            "--parallel-compile-tasks-for-eager-toplevel",
+            "--parallel-compile-tasks-for-lazy",
+            "--stress-concurrent-allocation",
+            "--stress-concurrent-inlining",
+        ],
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
             "--track-field-types",

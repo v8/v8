@@ -483,8 +483,10 @@
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },
-    # TODO(https://crbug.com/479756613): Add tests.
-    'tests': [],
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'mjsunit', 'variant': 'dumpling_test', 'shards': 4},
+    ],
   },
   'v8_linux64_full_dbg': {
     'swarming_dimensions': {
@@ -1679,8 +1681,10 @@
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },
-    # TODO(https://crbug.com/479756613): Add tests.
-    'tests': [],
+    'tests': [
+      {'name': 'v8testing', 'variant': 'default'},
+      {'name': 'mjsunit', 'variant': 'dumpling_test', 'shards': 4},
+    ],
   },
   'V8 Linux64 - full debug': {
     'swarming_dimensions': {

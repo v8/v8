@@ -408,4 +408,10 @@
   'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
 }],  # 'ubsan'
 
+##############################################################################
+['dumpling', {
+  # Unexpected output.
+  'IsolateTest.DebugTraceMinimal': [FAIL],
+}],
+
 ]

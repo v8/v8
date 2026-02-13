@@ -3039,6 +3039,7 @@ action("v8_dump_build_config") {
     "dict_property_const_tracking=$v8_dict_property_const_tracking",
     "direct_handle=$v8_enable_direct_handle",
     "disassembler=$v8_enable_disassembler",
+    "dumpling=$v8_dumpling",
     "full_debug=$is_full_debug",
     "gdbjit=$v8_enable_gdbjit",
     "has_jitless=$v8_jitless",

@@ -194,4 +194,10 @@
   'wasm-finish-compilation': [PASS, FAIL],
 }],  # 'verify_predictable'
 
+##############################################################################
+['dumpling', {
+  # Unexpected output.
+  'wasm-debug-trace-minimal': [FAIL],
+}],
+
 ]

@@ -563,6 +563,7 @@ def build_config_content(cpu, icu):
         ("dict_property_const_tracking", "false"),
         ("direct_handle", "false"),
         ("disassembler", "false"),
+        ("dumpling", "false"),
         ("full_debug", "false"),
         ("gdbjit", "false"),
         ("has_jitless", "false"),
