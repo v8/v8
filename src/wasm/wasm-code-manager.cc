@@ -788,6 +788,13 @@ size_t ReservationSizeForWasmCode(size_t needed_size,
 size_t ReservationSizeForWrappers(size_t needed_size,
                                   size_t total_reserved_so_far) {
   needed_size = RoundUp<kCodeAlignment>(needed_size);
+
+#if defined(V8_OS_WIN64)
+  // On Win64, we need to reserve some pages at the beginning of an executable
+  // space. See {AddCodeSpace}.
+  needed_size += Heap::GetCodeRangeReservedAreaSize();
+#endif  // V8_OS_WIN64
+
   // Reserve the maximum of
   //   a) needed size
   //   c) 1/4 of current total reservation size (to grow exponentially)
