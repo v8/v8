@@ -2806,6 +2806,8 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   }
 
   // Clear old table to avoid dangling uses via in-sandbox corruption.
+  old_table->set_protected_uses(
+      *isolate->factory()->empty_protected_weak_fixed_array());
   for (uint32_t i = 0; i < old_length; ++i) {
     // Note: We pass `kNewEntry` here since the offheap data was already moved
     // to the new table and we do not want to update anything there.
