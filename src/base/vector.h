@@ -125,7 +125,8 @@ class Vector {
   }
 
   const Vector<T> operator+(size_t offset) const {
-    return SubVectorFrom(offset);
+    DCHECK_LE(offset, length_);
+    return Vector<T>(start_ + offset, length_ - offset);
   }
 
   Vector<T> operator+=(size_t offset) {

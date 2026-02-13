@@ -292,6 +292,11 @@ class TestingModuleBuilder {
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
 
+  // Data segment arrays that are normally allocated on the instance.
+  std::vector<uint8_t> data_segment_data_;
+  std::vector<Address> data_segment_starts_;
+  std::vector<uint32_t> data_segment_sizes_;
+
   const WasmGlobal* AddGlobal(ValueType type);
 
   DirectHandle<WasmInstanceObject> InitInstanceObject();

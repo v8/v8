@@ -211,9 +211,10 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, tiering_budget_array,
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, memory_bases_and_sizes,
                             TrustedFixedAddressArray,
                             kProtectedMemoryBasesAndSizesOffset)
-PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, data_segments,
-                            TrustedPodArray<wasm::WireBytesRef>,
-                            kProtectedDataSegmentsOffset)
+ACCESSORS(WasmTrustedInstanceData, data_segment_starts,
+          Tagged<FixedAddressArray>, kDataSegmentStartsOffset)
+ACCESSORS(WasmTrustedInstanceData, data_segment_sizes, Tagged<FixedUInt32Array>,
+          kDataSegmentSizesOffset)
 ACCESSORS(WasmTrustedInstanceData, element_segments, Tagged<FixedArray>,
           kElementSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,

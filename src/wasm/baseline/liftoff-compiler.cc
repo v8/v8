@@ -7123,21 +7123,23 @@ class LiftoffCompiler {
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     LiftoffRegList pinned;
 
-    Register segments_array =
+    Register seg_size_array =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_PROTECTED_PTR_INSTANCE_FIELD(segments_array, DataSegments, pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(seg_size_array, DataSegmentSizes, pinned);
 
-    // Scale and offset the seg_index for the array access.
-    int data_segments_offset =
-        wasm::ObjectAccess::ElementOffsetInTaggedTrustedPodArray<WireBytesRef>(
-            imm.index) +
-        WireBytesRef::LengthOffset();
+    LiftoffRegister seg_index =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    // Scale the seg_index for the array access.
+    __ LoadConstant(
+        seg_index,
+        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
+            imm.index)));
 
     // Set the length of the segment to '0' to drop it.
     LiftoffRegister null_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(null_reg, WasmValue(0));
-    __ Store(segments_array, no_reg, data_segments_offset, null_reg,
-             StoreType::kI32Store, pinned);
+    __ Store(seg_size_array, seg_index.gp(), 0, null_reg, StoreType::kI32Store,
+             pinned);
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,

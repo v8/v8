@@ -1159,17 +1159,16 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     // No chance of overflow due to the check above.
     uint32_t length_in_bytes = length * element_size;
 
-    wasm::WireBytesRef segment_source =
-        trusted_instance_data->data_segments()->get(segment_index);
-    if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
-                                    segment_source.length())) {
+    if (!base::IsInBounds<uint32_t>(
+            offset, length_in_bytes,
+            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    base::Vector<const uint8_t> source =
-        trusted_instance_data->native_module()->wire_bytes() +
-        segment_source.offset() + offset;
+    Address source =
+        trusted_instance_data->data_segment_starts()->get(segment_index) +
+        offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt,
                                                        element_type, source);
   } else {
@@ -1229,24 +1228,24 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // length.
     uint32_t length_in_bytes = length * element_type.value_kind_size();
 
-    wasm::WireBytesRef segment_source =
-        trusted_instance_data->data_segments()->get(segment_index);
-    if (!base::IsInBounds<uint32_t>(segment_offset, length_in_bytes,
-                                    segment_source.length())) {
+    if (!base::IsInBounds<uint32_t>(
+            segment_offset, length_in_bytes,
+            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    base::Vector<const uint8_t> wire_bytes =
-        trusted_instance_data->native_module()->wire_bytes();
-    const uint8_t* source =
-        wire_bytes.begin() + segment_source.offset() + segment_offset;
-    void* dest = reinterpret_cast<void*>(array->ElementAddress(array_index));
+    Address source =
+        trusted_instance_data->data_segment_starts()->get(segment_index) +
+        segment_offset;
+    Address dest = array->ElementAddress(array_index);
 #if V8_TARGET_BIG_ENDIAN
-    MemCopyAndSwitchEndianness(dest, source, length,
+    MemCopyAndSwitchEndianness(reinterpret_cast<void*>(dest),
+                               reinterpret_cast<void*>(source), length,
                                element_type.value_kind_size());
 #else
-    MemCopy(dest, source, length_in_bytes);
+    MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
+            length_in_bytes);
 #endif
     return *isolate->factory()->undefined_value();
   } else {
@@ -1354,8 +1353,9 @@ class PrototypesSetup : public wasm::Decoder {
     base::Vector<const uint8_t> name;
   };
 
-  PrototypesSetup(Isolate* isolate, base::Vector<const uint8_t> data)
-      : Decoder(data), isolate_(isolate) {
+  PrototypesSetup(Isolate* isolate, const uint8_t* data_begin,
+                  const uint8_t* data_end)
+      : Decoder(data_begin, data_end), isolate_(isolate) {
     // kLength == 0 may look weird, but it's what you'd get for
     // function wrapper(...args) { return wasm_func(this, ...args); }.
     static constexpr int kLength = 0;
@@ -1907,10 +1907,11 @@ class PrototypesSetup : public wasm::Decoder {
 
 class PrototypesSetup_Arrays : public PrototypesSetup {
  public:
-  PrototypesSetup_Arrays(Isolate* isolate, base::Vector<const uint8_t> data,
+  PrototypesSetup_Arrays(Isolate* isolate, const uint8_t* data_begin,
+                         const uint8_t* data_end,
                          DirectHandle<WasmArray> prototypes,
                          DirectHandle<WasmArray> functions)
-      : PrototypesSetup(isolate, data),
+      : PrototypesSetup(isolate, data_begin, data_end),
         prototypes_(prototypes),
         functions_(functions) {}
 
@@ -1947,14 +1948,12 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
 
 class PrototypesSetup_Sections : public PrototypesSetup {
  public:
-  PrototypesSetup_Sections(Isolate* isolate, base::Vector<const uint8_t> data,
-                           DirectHandle<FixedArray> prototypes,
-                           uint32_t prototypes_start_index,
-                           uint32_t prototypes_length,
-                           DirectHandle<FixedArray> functions,
-                           uint32_t functions_start_index,
-                           uint32_t functions_length)
-      : PrototypesSetup(isolate, data),
+  PrototypesSetup_Sections(
+      Isolate* isolate, const uint8_t* data_begin, const uint8_t* data_end,
+      DirectHandle<FixedArray> prototypes, uint32_t prototypes_start_index,
+      uint32_t prototypes_length, DirectHandle<FixedArray> functions,
+      uint32_t functions_start_index, uint32_t functions_length)
+      : PrototypesSetup(isolate, data_begin, data_end),
         prototypes_(prototypes),
         functions_(functions),
         prototype_start_index_(prototypes_start_index),
@@ -2052,14 +2051,15 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   // Arrays on the heap can move on GC, so we create an immovable copy of
   // the data we'll need to decode.
   uint32_t length = data->length();
-  base::OwnedVector<uint8_t> immovable_data;
-  if (length) {
-    immovable_data = base::OwnedCopyOf(
-        reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+  std::vector<uint8_t> immovable_data(size_t{length});
+  if (length != 0) {
+    memcpy(immovable_data.data(),
+           reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
   }
 
-  PrototypesSetup_Arrays decoder(isolate, immovable_data.as_vector(),
-                                 prototypes, functions);
+  PrototypesSetup_Arrays decoder(isolate, immovable_data.data(),
+                                 immovable_data.data() + length, prototypes,
+                                 functions);
   return decoder.SetupPrototypes(constructors);
 }
 
@@ -2106,21 +2106,18 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
                           MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
   }
 
-  wasm::WireBytesRef segment_source =
-      instance->data_segments()->get(data_segment_index);
-  if (!base::IsInBounds<uint32_t>(data_start, data_length,
-                                  segment_source.length())) {
+  if (!base::IsInBounds<uint32_t>(
+          data_start, data_length,
+          instance->data_segment_sizes()->get(data_segment_index))) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
-
-  base::Vector<const uint8_t> data =
-      instance->native_module()->wire_bytes().SubVector(
-          segment_source.offset() + data_start,
-          segment_source.offset() + data_start + data_length);
-
+  Address data_start_address =
+      instance->data_segment_starts()->get(data_segment_index) + data_start;
   PrototypesSetup_Sections decoder(
-      isolate, data, prototypes_segment, prototypes_start, prototypes_length,
+      isolate, reinterpret_cast<const uint8_t*>(data_start_address),
+      reinterpret_cast<const uint8_t*>(data_start_address + data_length),
+      prototypes_segment, prototypes_start, prototypes_length,
       functions_segment, functions_start, functions_length);
   return decoder.SetupPrototypes(constructors);
 }
@@ -2322,20 +2319,17 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
   unibrow::Utf8Variant variant =
       static_cast<unibrow::Utf8Variant>(args.positive_smi_value_at(4));
 
-  wasm::WireBytesRef segment_source =
-      trusted_instance_data->data_segments()->get(segment_index);
-  if (!base::IsInBounds<uint32_t>(offset, length, segment_source.length())) {
+  if (!base::IsInBounds<uint32_t>(
+          offset, length,
+          trusted_instance_data->data_segment_sizes()->get(segment_index))) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
-  base::Vector<const uint8_t> source =
-      trusted_instance_data->native_module()->wire_bytes().SubVector(
-          segment_source.offset() + offset,
-          segment_source.offset() + offset + length);
-
-  MaybeDirectHandle<String> result =
-      isolate->factory()->NewStringFromUtf8(source, variant);
+  Address source =
+      trusted_instance_data->data_segment_starts()->get(segment_index) + offset;
+  MaybeDirectHandle<String> result = isolate->factory()->NewStringFromUtf8(
+      {reinterpret_cast<const uint8_t*>(source), length}, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_exception());
     // Only instructions from the stringref proposal can set variant

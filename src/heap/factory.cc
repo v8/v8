@@ -2139,19 +2139,18 @@ DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
 
 DirectHandle<WasmArray> Factory::NewWasmArrayFromMemory(
     uint32_t length, DirectHandle<Map> map,
-    wasm::CanonicalValueType element_type, base::Vector<const uint8_t> source) {
+    wasm::CanonicalValueType element_type, Address source) {
   DCHECK(element_type.is_numeric());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
 #if V8_TARGET_BIG_ENDIAN
   MemCopyAndSwitchEndianness(reinterpret_cast<void*>(result->ElementAddress(0)),
-                             source.data(), length,
+                             reinterpret_cast<void*>(source), length,
                              element_type.value_kind_size());
 #else
-  size_t byte_length = length * element_type.value_kind_size();
-  DCHECK_LE(byte_length, source.size());
-  MemCopy(reinterpret_cast<void*>(result->ElementAddress(0)), source.data(),
-          byte_length);
+  MemCopy(reinterpret_cast<void*>(result->ElementAddress(0)),
+          reinterpret_cast<void*>(source),
+          length * element_type.value_kind_size());
 #endif
 
   return direct_handle(result, isolate());

@@ -4810,8 +4810,8 @@ TEST(HeapSnapshotWithWasmInstance) {
   CHECK_NOT_NULL(trusted_instance_data_node);
   CheckProperties(
       isolate, trusted_instance_data_node,
-      {"data_segments", "dispatch_table0", "dispatch_table_for_imports",
-       "dispatch_tables", "instance_object", "managed_native_module", "map",
+      {"dispatch_table0", "dispatch_table_for_imports", "dispatch_tables",
+       "instance_object", "managed_native_module", "map",
        "memory_bases_and_sizes", "native_context", "shared_part"});
 
   // "module_object" should be the same as the global "module".
