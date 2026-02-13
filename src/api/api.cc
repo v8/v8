@@ -9649,30 +9649,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  const uint64_t amount =
-      i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
-
-  if (change_in_bytes <= 0) {
-    return amount;
-  }
-
-#if V8_VERIFY_WRITE_BARRIERS
-  // Incrementing the number of allocated bytes may trigger GC.
-  i_isolate->main_thread_local_heap()
-      ->allocator()
-      ->ResetMostRecentYoungAllocation();
-#endif
-
-  if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
-    HandleExternalMemoryInterrupt();
-  }
-  return amount;
-}
-
-void Isolate::HandleExternalMemoryInterrupt() {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
-  heap->HandleExternalMemoryInterrupt();
+  return i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
 }
 
 bool Isolate::RetryCustomAllocate(std::function<bool()> allocate) {

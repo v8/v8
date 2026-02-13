@@ -2494,8 +2494,9 @@ DEFINE_BOOL(parallel_gc_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
-DEFINE_BOOL(ineffective_gc_includes_global, false,
-            "includes global size in out-of-memory failure near heap limit")
+DEFINE_BOOL(
+    enforce_global_heap_limit, false,
+    "Enforce global size by causing an out-of-memory failure above heap limit")
 DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(

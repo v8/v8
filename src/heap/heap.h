@@ -992,10 +992,7 @@ class Heap final {
   // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
-  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GCFlags gc_flags,
-      GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
+  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(AllocationSpace space);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.

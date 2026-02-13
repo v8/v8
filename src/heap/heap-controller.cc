@@ -14,7 +14,9 @@ namespace {
 
 size_t MaximumGlobalMemorySizeFromV8Size(size_t v8_limit,
                                          size_t physical_memory) {
-  const size_t kGlobalMemoryToV8Ratio = 8;
+  // Since the maximum v8_limit is 4Gb, this aligns with the common 16Gb
+  // allocator limit.
+  const size_t kGlobalMemoryToV8Ratio = 4;
   return std::min(static_cast<uint64_t>(
                       physical_memory > 0 ? physical_memory
                                           : std::numeric_limits<size_t>::max()),
@@ -404,7 +406,7 @@ void HeapLimits::SetMaximumSizes(size_t max_old_generation_size,
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
   max_global_memory_size_.store(
-      v8_flags.ineffective_gc_includes_global
+      v8_flags.enforce_global_heap_limit
           ? MaximumGlobalMemorySizeFromV8Size(max_old_generation_size,
                                               physical_memory)
           : GlobalMemorySizeFromV8Size(max_old_generation_size),

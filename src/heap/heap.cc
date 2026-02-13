@@ -1470,6 +1470,20 @@ void Heap::HandleExternalMemoryInterrupt() {
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
   uint64_t current = external_memory();
+  if (v8_flags.external_memory_accounted_in_global_limit) {
+    // Under `external_memory_accounted_in_global_limit`, external interrupt
+    // only triggers a check to allocation limits.
+    limits()->UpdateExternalMemoryLimitForInterrupt(current);
+    StartIncrementalMarkingIfAllocationLimitIsReached(
+        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+        kGCCallbackFlagsForExternalMemory);
+    if (incremental_marking()->IsMajorMarking() &&
+        AllocationLimitOvershotByLargeMargin()) {
+      CollectAllAvailableGarbage(
+          GarbageCollectionReason::kExternalMemoryPressure);
+    }
+    return;
+  }
   if (current > external_memory_hard_limit()) {
     TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
                  "external_memory_mb", static_cast<int>((current) / MB),
@@ -1480,15 +1494,6 @@ void Heap::HandleExternalMemoryInterrupt() {
         GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
                                      kGCCallbackFlagsForExternalMemory));
-    return;
-  }
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    // Under `external_memory_accounted_in_global_limit`, external interrupt
-    // only triggers a check to allocation limits.
-    limits()->UpdateExternalMemoryLimitForInterrupt(current);
-    StartIncrementalMarkingIfAllocationLimitIsReached(
-        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
-        kGCCallbackFlagsForExternalMemory);
     return;
   }
   uint64_t soft_limit = external_memory_soft_limit();
@@ -1787,7 +1792,11 @@ void Heap::CollectGarbage(
   }
 }
 
-bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
+bool Heap::ReachedHeapLimit() {
+  return !CanExpandOldGeneration(0) ||
+         (v8_flags.enforce_global_heap_limit &&
+          GlobalConsumedBytes() >= limits()->max_global_memory_size());
+}
 
 bool Heap::HasConsecutiveIneffectiveMarkCompact() const {
   return consecutive_ineffective_mark_compacts_.load(
@@ -2242,11 +2251,13 @@ void Heap::RestoreHeapLimit(size_t heap_limit) {
                             physical_memory());
 }
 
-void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
-                                   GarbageCollectionReason gc_reason,
-                                   const GCCallbackFlags gc_callback_flags) {
+void Heap::CollectGarbageWithRetry(AllocationSpace space) {
   std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return !ReachedHeapLimit(); },
+      [&]() {
+        // RetryCustomAllocate() already checks heap limits before calling
+        // the allocate function.
+        return true;
+      },
       space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
 }
 
@@ -3657,7 +3668,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   bool high_heap_ratio =
       (old_generation_size >= v8_flags.ineffective_gc_size_threshold *
                                   limits()->max_old_generation_size());
-  if (v8_flags.ineffective_gc_includes_global) {
+  if (v8_flags.enforce_global_heap_limit) {
     high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
                                            limits()->max_global_memory_size());
   }
@@ -7125,6 +7136,21 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
       limits()->external_memory_low_since_last_gc();
   if (total_after < low_since_mark_compact) {
     limits()->UpdateExternalMemoryLowSinceLastGC(total_after);
+  }
+
+  if (delta <= 0) {
+    return total_after;
+  }
+
+#if V8_VERIFY_WRITE_BARRIERS
+  // Incrementing the number of allocated bytes may trigger GC.
+  main_thread_local_heap()->allocator()->ResetMostRecentYoungAllocation();
+#endif
+
+  if (ReachedHeapLimit()) {
+    CollectGarbageWithRetry(OLD_SPACE);
+  } else if (total_after > external_memory_limit_for_interrupt()) {
+    HandleExternalMemoryInterrupt();
   }
   return total_after;
 }
