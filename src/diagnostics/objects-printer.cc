@@ -3134,8 +3134,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_starts, Brief);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, Brief);
+  PRINT_WASM_INSTANCE_FIELD(data_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(element_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);

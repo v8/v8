@@ -975,9 +975,12 @@ V8_OBJECT
 template <class T>
 class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
  public:
-  static DirectHandle<TrustedPodArray<T>> New(Isolate* isolate, int length);
-  static DirectHandle<TrustedPodArray<T>> New(LocalIsolate* isolate,
-                                              int length);
+  static DirectHandle<TrustedPodArray<T>> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kTrusted);
+  static DirectHandle<TrustedPodArray<T>> New(
+      LocalIsolate* isolate, int length,
+      AllocationType allocation = AllocationType::kTrusted);
 } V8_OBJECT_END;
 
 }  // namespace v8::internal

@@ -429,19 +429,17 @@ void ConstantExpressionInterface::ArrayNewSegment(
   CanonicalValueType result_type =
       rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
   if (element_type.is_numeric()) {
-    const WasmDataSegment& data_segment =
-        module_->data_segments[segment_imm.index];
     uint32_t length_in_bytes =
         length * array_imm.array_type->element_type().value_kind_size();
-
+    WireBytesRef segment_source = data->data_segments()->get(segment_imm.index);
     if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
-                                    data_segment.source.length())) {
+                                    segment_source.length())) {
       error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
       return;
     }
 
-    Address source =
-        data->data_segment_starts()->get(segment_imm.index) + offset;
+    base::Vector<const uint8_t> source =
+        data->native_module()->wire_bytes() + offset;
     DirectHandle<WasmArray> array_value =
         isolate_->factory()->NewWasmArrayFromMemory(length, rtt, element_type,
                                                     source);
@@ -449,8 +447,9 @@ void ConstantExpressionInterface::ArrayNewSegment(
   } else {
     const wasm::WasmElemSegment* elem_segment =
         &decoder->module_->elem_segments[segment_imm.index];
-    // A constant expression should not observe if a passive segment is dropped.
-    // However, it should consider active and declarative segments as empty.
+    // A constant expression should not observe if a passive segment_source is
+    // dropped. However, it should consider active and declarative segments as
+    // empty.
     if (!base::IsInBounds<size_t>(
             offset, length,
             elem_segment->status == WasmElemSegment::kStatusPassive

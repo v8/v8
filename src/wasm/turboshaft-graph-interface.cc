@@ -4640,13 +4640,15 @@ class TurboshaftGraphBuildingInterface
     // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
     bool shared = decoder->enabled_.has_shared() &&
                   decoder->module_->data_segments[imm.index].shared;
-    V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(shared), DataSegmentSizes,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedPodArray<WireBytesRef>> data_segment_sizes =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(shared),
+                                                DataSegments,
+                                                TrustedPodArray<WireBytesRef>);
     __ Store(data_segment_sizes, __ Word32Constant(0),
-             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
              compiler::kNoWriteBarrier,
-             FixedUInt32Array::OffsetOfElementAt(imm.index));
+             TrustedPodArray<WireBytesRef>::OffsetOfElementAt(imm.index) +
+                 WireBytesRef::LengthOffset());
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
