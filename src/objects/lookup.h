@@ -319,6 +319,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   enum class InterceptorState {
     kUninitialized,
     kSkipNonMasking,
+    kSkipNonMaskingOwnProperty,
     kProcessNonMasking
   };
 

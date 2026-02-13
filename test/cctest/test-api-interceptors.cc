@@ -559,12 +559,14 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   // Attempt to store to interceptor's prototype's RW property should trigger
@@ -601,7 +603,8 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 }
 
@@ -6383,6 +6386,40 @@ THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   CompileRun("outer.whatever = 4;");
   ExpectInt32("f(obj)", 239);
   ExpectInt32("f(outer)", 4);
+}
+
+THREADED_TEST(NonMaskingInterceptorOwnPropertyTransition) {
+  LocalContext context;
+  auto isolate = context.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor =
+      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()
+      ->Set(context.local(), v8_str("obj"), interceptor)
+      .FromJust();
+
+  // Need prototype property to force lookup failure during transition below.
+  CompileRun("Object.getPrototypeOf(obj).prop = 42;");
+
+  CompileRun(R"(
+    Object.defineProperty(obj, "prop", {
+      get: function () {
+        return 139;
+      }
+    });
+  )");
+  ExpectInt32("obj.prop", 139);
 }
 
 namespace {

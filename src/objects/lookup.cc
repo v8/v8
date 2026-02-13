@@ -98,9 +98,22 @@ void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
   do {
     Tagged<JSReceiver> maybe_holder = NextHolder(map);
     if (maybe_holder.is_null()) {
-      if (interceptor_state_ == InterceptorState::kSkipNonMasking) {
-        RestartLookupForNonMaskingInterceptors<is_element>();
-        return;
+      switch (interceptor_state_) {
+        case InterceptorState::kSkipNonMasking:
+          // If we've found a non-masking interceptor, but we're not checking
+          // the prototype chain, we need to do this now.
+          if (!check_prototype_chain()) {
+            interceptor_state_ = InterceptorState::kSkipNonMaskingOwnProperty;
+            continue;
+          }
+          [[fallthrough]];
+        // We're at the end of the chain, and haven't found anything, so
+        // non-masking interceptors can be applied.
+        case InterceptorState::kSkipNonMaskingOwnProperty:
+          RestartLookupForNonMaskingInterceptors<is_element>();
+          return;
+        default:
+          break;
       }
       state_ = NOT_FOUND;
       if (holder != *holder_) holder_ = direct_handle(holder, isolate_);
@@ -109,6 +122,32 @@ void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
     holder = maybe_holder;
     map = holder->map(isolate_);
     state_ = LookupInHolder<is_element>(map, holder);
+    if (interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty &&
+        IsFound()) {
+      // In theory we also need to check JSPROXY but since the iterator doesn't
+      // know which question to ask, we assume the lookup succeeds.
+      switch (state_) {
+        // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says a
+        // second interceptor on the prototype chain is invisible.
+        case INTERCEPTOR:
+          continue;
+        case ACCESS_CHECK: {
+          // If an access check fails, we assume the lookup succeeds.
+          if (HasAccess()) {
+            continue;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      // We need fully reset state, since this is not a true hit.
+      number_ = InternalIndex::NotFound();
+      property_details_ = PropertyDetails::Empty();
+      state_ = NOT_FOUND;
+      if (holder != *holder_) holder_ = direct_handle(holder, isolate_);
+      return;
+    }
   } while (!IsFound());
 
   holder_ = direct_handle(holder, isolate_);
@@ -1273,6 +1312,8 @@ bool LookupIterator::SkipInterceptor(Tagged<JSObject> holder) {
       case InterceptorState::kUninitialized:
         interceptor_state_ = InterceptorState::kSkipNonMasking;
         [[fallthrough]];
+      case InterceptorState::kSkipNonMaskingOwnProperty:
+        [[fallthrough]];
       case InterceptorState::kSkipNonMasking:
         return true;
       case InterceptorState::kProcessNonMasking:
@@ -1287,7 +1328,10 @@ Tagged<JSReceiver> LookupIterator::NextHolder(Tagged<Map> map) {
   if (map->prototype(isolate_) == ReadOnlyRoots(isolate_).null_value()) {
     return JSReceiver();
   }
-  if (!check_prototype_chain() && !IsJSGlobalProxyMap(map)) {
+  bool check_prototype_chain =
+      this->check_prototype_chain() ||
+      interceptor_state_ == InterceptorState::kSkipNonMaskingOwnProperty;
+  if (!check_prototype_chain && !IsJSGlobalProxyMap(map)) {
     return JSReceiver();
   }
   return Cast<JSReceiver>(map->prototype(isolate_));
