@@ -1206,8 +1206,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // we expect that the code is currently being executed. If 'isolate'
   // is nullptr, no caching occurs.
   WasmCode* LookupCode(Isolate* isolate, Address pc) const;
-  std::pair<WasmCode*, SafepointEntry> LookupCodeAndSafepoint(Isolate* isolate,
-                                                              Address pc);
+  // The referenced {SafepointEntry} is owned by the cache. The next call
+  // to this function must be assumed to invalidate the reference.
+  std::pair<WasmCode*, SafepointEntry&> LookupCodeAndSafepoint(Isolate* isolate,
+                                                               Address pc);
   void FlushCodeLookupCache(Isolate* isolate);
   size_t committed_code_space() const {
     return total_committed_code_space_.load();

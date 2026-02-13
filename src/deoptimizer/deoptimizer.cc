@@ -352,8 +352,9 @@ class ActivationsFinder : public ThreadVisitor {
                 isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           } else {
-            SafepointEntry safepoint = SafepointTable::FindEntry(
-                isolate, code, it.frame()->maybe_unauthenticated_pc());
+            Address pc = it.frame()->maybe_unauthenticated_pc();
+            SafepointTable table(isolate, pc, code);
+            SafepointEntry& safepoint = table.FindEntry_NoStackSlots(pc);
             trampoline_pc = safepoint.trampoline_pc();
           }
           // TODO(saelo): currently we have to use full pointer comparison as
@@ -423,8 +424,9 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
             MaglevSafepointTable::FindEntry(isolate, code, it.frame()->pc());
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       } else {
-        SafepointEntry safepoint = SafepointTable::FindEntry(
-            isolate, code, it.frame()->maybe_unauthenticated_pc());
+        Address pc = it.frame()->maybe_unauthenticated_pc();
+        SafepointTable table(isolate, pc, code);
+        SafepointEntry& safepoint = table.FindEntry_NoStackSlots(pc);
         safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       }
 

@@ -95,19 +95,6 @@ int Code::SourceStatementPosition(int offset) const {
   return position;
 }
 
-SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
-  DCHECK(!is_maglevved());
-  SafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
-MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
-                                                   Address pc) {
-  DCHECK(is_maglevved());
-  MaglevSafepointTable table(isolate, pc, *this);
-  return table.FindEntry(pc);
-}
-
 bool Code::IsIsolateIndependent(Isolate* isolate) {
   static constexpr int kModeMask =
       RelocInfo::AllRealModesMask() &

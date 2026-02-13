@@ -1709,29 +1709,36 @@ void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
   }
 }
 
-SafepointEntry GetSafepointEntryFromCodeCache(
+SafepointEntry& GetSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->safepoint_entry.is_initialized()) {
-    entry->safepoint_entry =
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer);
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    entry->ToSafepoint();
+    entry->safepoint_entry.CopyFrom(table.FindEntry(inner_pointer));
     DCHECK(entry->safepoint_entry.is_initialized());
   } else {
-    DCHECK_EQ(
-        entry->safepoint_entry,
-        SafepointTable::FindEntry(isolate, entry->code.value(), inner_pointer));
+#if DEBUG
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kSafepoint);
+    SafepointTable table(isolate, inner_pointer, entry->code.value());
+    DCHECK_EQ(entry->safepoint_entry, table.FindEntry(inner_pointer));
+#endif  // DEBUG
   }
   return entry->safepoint_entry;
 }
 
-MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
+MaglevSafepointEntry& GetMaglevSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
-    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
-  if (!entry->maglev_safepoint_entry.is_initialized()) {
+    InnerPointerToCodeCache::Entry* entry) {
+  if (!entry->safepoint_is_initialized()) {
+    entry->ToMaglevSafepoint();
     entry->maglev_safepoint_entry = MaglevSafepointTable::FindEntry(
         isolate, entry->code.value(), inner_pointer);
     DCHECK(entry->maglev_safepoint_entry.is_initialized());
   } else {
+    DCHECK_EQ(entry->safepoint_kind,
+              InnerPointerToCodeCache::Entry::kMaglevSafepoint);
     DCHECK_EQ(entry->maglev_safepoint_entry,
               MaglevSafepointTable::FindEntry(isolate, entry->code.value(),
                                               inner_pointer));
@@ -1819,7 +1826,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
       isolate(), maybe_unauthenticated_pc());
   wasm::WasmCode* wasm_code = pair.first;
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
 #else   // !V8_ENABLE_DRUMBRAKE
   std::unique_ptr<DrumBrakeWasmCode> interpreter_wasm_code;
   SafepointEntry safepoint_entry;
@@ -2080,7 +2087,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2094,7 +2101,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -2221,7 +2228,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
@@ -2381,12 +2388,12 @@ void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   const Address inner_pointer = maybe_unauthenticated_pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+  InnerPointerToCodeCache::Entry* entry =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
   CHECK(entry->code.has_value());
   Tagged<GcSafeCode> code = entry->code.value();
   DCHECK(code->is_turbofanned());
-  SafepointEntry safepoint_entry =
+  SafepointEntry& safepoint_entry =
       GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
 
 #ifdef DEBUG
@@ -3305,7 +3312,7 @@ int TurbofanJSFrame::FindReturnPCForTrampoline(Tagged<Code> code,
   DCHECK_EQ(code->kind(), CodeKind::TURBOFAN_JS);
   DCHECK(code->marked_for_deoptimization());
   SafepointTable safepoints(isolate(), pc(), code);
-  return safepoints.find_return_pc(trampoline_pc);
+  return safepoints.FindReturnPC(trampoline_pc);
 }
 
 Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
@@ -3318,14 +3325,15 @@ Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
   DCHECK(CodeKindCanDeoptimize(code->kind()));
 
   if (code->is_maglevved()) {
-    MaglevSafepointEntry safepoint_entry =
-        code->GetMaglevSafepointEntry(isolate(), pc);
+    MaglevSafepointTable table(isolate(), pc, code);
+    MaglevSafepointEntry safepoint_entry = table.FindEntry(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
     }
   } else {
-    SafepointEntry safepoint_entry = code->GetSafepointEntry(isolate(), pc);
+    SafepointTable table(isolate(), pc, code);
+    SafepointEntry& safepoint_entry = table.FindEntry_NoStackSlots(pc);
     if (safepoint_entry.has_deoptimization_index()) {
       *deopt_index = safepoint_entry.deoptimization_index();
       return code->deoptimization_data();
@@ -3663,7 +3671,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
                                                                  caller_pc());
-  SafepointEntry safepoint_entry = pair.second;
+  SafepointEntry& safepoint_entry = pair.second;
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
   while (tagged_register_indexes != 0) {
@@ -4249,13 +4257,13 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 
 }  // namespace
 
-InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
-InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
+InnerPointerToCodeCache::Entry* InnerPointerToCodeCache::GetCacheEntry(
+    Address inner_pointer) {
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
   uint32_t hash =
       ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
-  InnerPointerToCodeCacheEntry* entry = cache(index);
+  Entry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
     // Why this DCHECK holds is nontrivial:
     //
@@ -4276,11 +4284,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code.value()->is_maglevved()) {
-      entry->maglev_safepoint_entry.Reset();
-    } else {
-      entry->safepoint_entry.Reset();
-    }
+    entry->ResetSafepoint();
     entry->inner_pointer = inner_pointer;
   }
   return entry;

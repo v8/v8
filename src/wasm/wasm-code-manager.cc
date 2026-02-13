@@ -3051,7 +3051,7 @@ WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {
   }
 }
 
-std::pair<WasmCode*, SafepointEntry> WasmCodeManager::LookupCodeAndSafepoint(
+std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
     Isolate* isolate, Address pc) {
   auto* entry = isolate->wasm_code_look_up_cache()->GetCacheEntry(pc);
   WasmCode* code = entry->code;
@@ -3070,14 +3070,17 @@ std::pair<WasmCode*, SafepointEntry> WasmCodeManager::LookupCodeAndSafepoint(
     return !is_protected_instruction || code->for_debugging();
   };
   if (!entry->safepoint_entry.is_initialized() && expect_safepoint()) {
-    entry->safepoint_entry = SafepointTable{code}.TryFindEntry(pc);
-    CHECK(entry->safepoint_entry.is_initialized());
+    SafepointTable table{code};
+    entry->safepoint_entry.CopyFrom(table.FindEntry(pc));
+#if DEBUG
   } else if (expect_safepoint()) {
-    DCHECK_EQ(entry->safepoint_entry, SafepointTable{code}.TryFindEntry(pc));
+    SafepointTable table{code};
+    DCHECK_EQ(entry->safepoint_entry, table.FindEntry(pc));
   } else {
     DCHECK(!entry->safepoint_entry.is_initialized());
+#endif  // DEBUG
   }
-  return std::make_pair(code, entry->safepoint_entry);
+  return {code, entry->safepoint_entry};
 }
 
 void WasmCodeManager::FlushCodeLookupCache(Isolate* isolate) {
@@ -3119,8 +3122,9 @@ WasmCode* WasmCodeRefScope::AddRefIfNotDying(WasmCode* code) {
 }
 
 void WasmCodeLookupCache::Flush() {
-  for (int i = 0; i < kWasmCodeLookupCacheSize; i++)
-    cache_[i].pc.store(kNullAddress, std::memory_order_release);
+  for (CacheEntry& entry : cache_) {
+    entry.pc.store(kNullAddress, std::memory_order_release);
+  }
 }
 
 WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(
