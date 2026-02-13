@@ -37,8 +37,10 @@ class DumplingTest : public TestWithContext {
   void RunTurboTest(const char* program, const char* expected) {
     i::FlagScope<bool> turbo_dumping_flag_scope(&i::v8_flags.turbofan_dumping,
                                                 true);
-    i::FlagScope<bool> non_materialized_object_flag_scope(
-        &i::v8_flags.non_materialized_object_dumping, true);
+    // Should make it a bit easier to trigger turbofan
+    i::FlagScope<bool> no_lazy_feedback(&i::v8_flags.lazy_feedback_allocation,
+                                        false);
+
     RunDumplingTest(program, expected);
   }
 
@@ -709,6 +711,58 @@ TEST_F(DumplingTest, TurboEscapedObject) {
       R"regex((r\d+:\S*\s+)*)regex"
       // In some register, we have the non-materialized object
       R"(r\d+:<non-materialized>\s+)";
+
+  RunTurboTest(program, expected);
+}
+
+TEST_F(DumplingTest, TurboEscapedArgument) {
+  const char* program =
+      "function consume(obj, dynamicVal) {\n"
+      "  return obj.val + dynamicVal;\n"
+      "}\n"
+      "function foo(x) {\n"
+      "  return consume({val: 10}, x);\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(consume);\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "foo(1);\n"
+      "foo(2);\n"
+      "%OptimizeFunctionOnNextCall(foo);\n"
+      "foo(3);\n";
+
+  const char* expected = R"(---T\s+)"
+                         R"([\s\S]*)"
+                         R"(a0:<non-materialized>\s+)";
+
+  RunTurboTest(program, expected);
+}
+
+// The goal of this test is to not crash V8 and to have empty expected.
+TEST_F(DumplingTest, TurboEscapedRestParamsFunction) {
+  // This is basically a test that triggered the crash.
+  const char* program =
+      "const v0 = [];\n"
+      "function f1(a2, a3) {\n"
+      "    for (let i5 = 0;\n"
+      "        (() => {\n"
+      "            v0[i5];\n"
+      "            function f7(a8, a9, ...a10) {\n"
+      "                return a8;\n"
+      "            }\n"
+      "            return i5;\n"
+      "        })();\n"
+      "        ) {\n"
+      "    }\n"
+      "    return f1;\n"
+      "}\n"
+      "const v13 = f1();\n"
+      "%PrepareFunctionForOptimization(f1);\n"
+      "f1(v13, v13);\n"
+      "%OptimizeFunctionOnNextCall(f1);\n"
+      "f1();\n";
+
+  // We check that expected is fully empty.
+  const char* expected = R"(^$)";
 
   RunTurboTest(program, expected);
 }

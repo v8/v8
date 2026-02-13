@@ -1551,7 +1551,17 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
   DumplingFrameDescriptionFrame frame_view(
       frame_to_print, std::move(non_materialized_objects), isolate());
 
-  Tagged<JSFunction> function = frame_view.function();
+  ObjectOrNonMaterializedObject function_variant = frame_view.function();
+
+  // TODO(marja): stop skipping frames with non-materialzed funcs.
+  if (!std::holds_alternative<Tagged<Object>>(function_variant)) {
+    DeleteFrameDescriptions();
+    return;
+  }
+
+  Tagged<JSFunction> function =
+      Cast<JSFunction>(std::get<Tagged<Object>>(function_variant));
+
   int bytecode_offset = trans_frame->bytecode_offset().ToInt();
 
   DCHECK(compiled_code_->is_maglevved() || compiled_code_->is_turbofanned());

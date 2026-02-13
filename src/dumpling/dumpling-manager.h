@@ -27,8 +27,8 @@ typedef enum DumpFrameType {
 class DumplingJSFrame {
  public:
   virtual ObjectOrNonMaterializedObject GetRegisterValue(int reg_idx) = 0;
-  virtual Tagged<Object> GetParameter(int param_idx) = 0;
-  virtual Tagged<JSFunction> function() = 0;
+  virtual ObjectOrNonMaterializedObject GetParameter(int param_idx) = 0;
+  virtual ObjectOrNonMaterializedObject function() = 0;
 };
 
 class DumplingUnoptimizedJSFrame : public DumplingJSFrame {
@@ -39,10 +39,10 @@ class DumplingUnoptimizedJSFrame : public DumplingJSFrame {
   ObjectOrNonMaterializedObject GetRegisterValue(int reg_idx) override {
     return frame_->ReadInterpreterRegister(reg_idx);
   }
-  Tagged<Object> GetParameter(int param_idx) override {
+  ObjectOrNonMaterializedObject GetParameter(int param_idx) override {
     return frame_->GetParameter(param_idx);
   }
-  Tagged<JSFunction> function() override;
+  ObjectOrNonMaterializedObject function() override;
 
  private:
   UnoptimizedJSFrame* frame_;
@@ -65,28 +65,15 @@ class DumplingFrameDescriptionFrame : public DumplingJSFrame {
     return GetValueFromDescription(offset_from_fp);
   }
 
-  Tagged<Object> GetParameter(int param_idx) override {
+  ObjectOrNonMaterializedObject GetParameter(int param_idx) override {
     int offset_from_fp = CommonFrameConstants::kCallerSPOffset +
                          ((param_idx + 1) * kSystemPointerSize);
-    ObjectOrNonMaterializedObject value =
-        GetValueFromDescription(offset_from_fp);
-    // Parameter is not a non-materialized object.
-    CHECK(std::holds_alternative<Tagged<Object>>(value));
-    return std::get<Tagged<Object>>(value);
+    return GetValueFromDescription(offset_from_fp);
   }
-  Tagged<JSFunction> function() override;
+  ObjectOrNonMaterializedObject function() override;
 
  private:
   ObjectOrNonMaterializedObject GetValueFromDescription(int offset_from_fp);
-
-  Tagged<Object> function_slot_object() {
-    int offset_from_fp = StandardFrameConstants::kFunctionOffset;
-    ObjectOrNonMaterializedObject value =
-        GetValueFromDescription(offset_from_fp);
-    // Function is not a non-materialized object.
-    CHECK(std::holds_alternative<Tagged<Object>>(value));
-    return std::get<Tagged<Object>>(value);
-  }
 
   FrameDescription* frame_;
   absl::flat_hash_map<Address, TranslatedValue*> non_materialized_objects_;
@@ -109,7 +96,7 @@ class DumplingManager {
   void DoPrint(DumplingJSFrame* frame, Tagged<JSFunction> function,
                int bytecode_offset, DumpFrameType frame_dump_type,
                Handle<BytecodeArray> bytecode_array,
-               Handle<Object> accumulator);
+               ObjectOrNonMaterializedObject accumulator);
 
   // Need to make sure that dumps were flushed to the dump file.
   void FinishCurrentREPRLCycle();
