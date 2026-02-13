@@ -176,9 +176,9 @@ void JSObjectFuzzingPrintDictProperties(Tagged<JSObject> obj,
   }
 }
 
-void JSObjectFuzzingPrintPrototype(Tagged<JSObject> obj,
-                                   StringStream* accumulator, int depth) {
-  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(obj->map()->prototype());
+void JSObjectFuzzingPrintPrototype(Tagged<Map> map, StringStream* accumulator,
+                                   int depth) {
+  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(map->prototype());
 
   // This is to avoid printing Object.prototype
   if (proto->map()->instance_type() == JS_OBJECT_PROTOTYPE_TYPE) {
@@ -296,7 +296,7 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
       } else {
         JSObjectFuzzingPrintDictProperties(obj, accumulator, depth);
       }
-      JSObjectFuzzingPrintPrototype(obj, accumulator, depth);
+      JSObjectFuzzingPrintPrototype(obj->map(), accumulator, depth);
       JSObjectFuzzingPrintElements(obj, accumulator, depth);
     }
   }
@@ -305,7 +305,6 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
 void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
                             std::ostream& os) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-
   if (IsString(obj, cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
@@ -478,30 +477,17 @@ void DifferentialFuzzingPrint(ObjectOrNonMaterializedObject obj,
 
 std::string DifferentialFuzzingPrint(Tagged<Object> obj, int depth) {
   std::ostringstream os;
-
-  Tagged<HeapObject> heap_object;
-
-  DCHECK(!obj.IsCleared());
-
-  if (!IsAnyHole(obj) && IsNumber(obj)) {
-    static const int kBufferSize = 100;
-    char chars[kBufferSize];
-    base::Vector<char> buffer(chars, kBufferSize);
-    if (IsSmi(obj)) {
-      os << IntToStringView(obj.ToSmi().value(), buffer);
-    } else {
-      double number = Cast<HeapNumber>(obj)->value();
-      os << DoubleToStringView(number, buffer);
-    }
-  } else if (obj.GetHeapObjectIfWeak(&heap_object)) {
-    os << "[weak] ";
-    HeapObjectFuzzingPrint(heap_object, depth, os);
-  } else if (obj.GetHeapObjectIfStrong(&heap_object)) {
-    HeapObjectFuzzingPrint(heap_object, depth, os);
+  static const int kBufferSize = 100;
+  char chars[kBufferSize];
+  base::Vector<char> buffer(chars, kBufferSize);
+  if (IsSmi(obj)) {
+    os << IntToStringView(obj.ToSmi().value(), buffer);
+  } else if (IsHeapNumber(obj)) {
+    double number = Cast<HeapNumber>(obj)->value();
+    os << DoubleToStringView(number, buffer);
   } else {
-    UNREACHABLE();
+    HeapObjectFuzzingPrint(Tagged<HeapObject>::cast(obj), depth, os);
   }
-
   return os.str();
 }
 
