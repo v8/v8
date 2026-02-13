@@ -387,9 +387,9 @@ class RegExpBytecodeAnalysis;
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
                                const char* pattern);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
                                const char* pattern,
                                RegExpBytecodeAnalysis* analysis);
 

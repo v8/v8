@@ -55,7 +55,10 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   template <typename T>
   void EmitOperand(RegExpBytecodeOperandType type, T value, int offset);
 
-  int length() const { return pc_; }
+  uint32_t length() const {
+    DCHECK_GE(pc_, 0);
+    return static_cast<uint32_t>(pc_);
+  }
   void CopyBufferTo(uint8_t* a) const;
 
   ZoneMap<int, int>& jump_edges() { return jump_edges_; }

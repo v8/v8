@@ -1303,7 +1303,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
                     result.Succeeded())) {
       auto bytecode = CheckedCast<TrustedByteArray>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
-      RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),
+      RegExpBytecodeDisassemble(bytecode->begin(), bytecode->ulength().value(),
                                 pattern_cstring.get());
     }
 #endif
@@ -1565,8 +1565,9 @@ void RegExpResultsCache::Enter(Isolate* isolate,
   }
   // If the array is a reasonably short list of substrings, convert it into a
   // list of internalized strings.
-  if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
-    for (int i = 0; i < value_array->length(); i++) {
+  uint32_t value_array_len = value_array->ulength().value();
+  if (type == STRING_SPLIT_SUBSTRINGS && value_array_len < 100) {
+    for (uint32_t i = 0; i < value_array_len; i++) {
       DirectHandle<String> str(Cast<String>(value_array->get(i)), isolate);
       DirectHandle<String> internalized_str = factory->InternalizeString(str);
       value_array->set(i, *internalized_str);
@@ -1594,7 +1595,7 @@ void RegExpResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
   DCHECK(Smi::IsValid(last_match_index));
   if (!IsSlicedString(subject)) return;
   Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
-  DCHECK_EQ(cache->length(), kSize);
+  DCHECK_EQ(cache->ulength().value(), kSize);
   cache->set(kSubjectIndex, subject);
   cache->set(kPatternIndex, pattern);
   cache->set(kNumberOfMatchesIndex, Smi::FromInt(number_of_matches));
@@ -1609,7 +1610,7 @@ bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
                                                 int* last_match_index_out) {
   DisallowGarbageCollection no_gc;
   Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
-  DCHECK_EQ(cache->length(), kSize);
+  DCHECK_EQ(cache->ulength().value(), kSize);
 
   if (!IsSlicedString(subject)) return false;
   if (pattern != cache->get(kPatternIndex)) return false;

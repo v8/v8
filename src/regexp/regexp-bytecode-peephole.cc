@@ -843,7 +843,8 @@ bool RegExpBytecodePeephole::OptimizeBytecode(
   RegExpBytecodePeephole p(zone, src_writer, dst_writer);
 
   const uint8_t* bytecode = src_writer->buffer().data();
-  int length = src_writer->length();
+  // TODO(375937549): Convert length to uint32_t.
+  int length = static_cast<int>(src_writer->length());
 
   int old_pc = 0;
   bool did_optimize = false;
@@ -1122,7 +1123,7 @@ RegExpBytecodePeepholeOptimization::OptimizeBytecode(
   // The result is in the src_writer (not in dst, since the last pass did not
   // change anything).
   const uint8_t* optimized_bytecode = src_writer->buffer().data();
-  int optimized_length = src_writer->length();
+  uint32_t optimized_length = src_writer->length();
 
   DirectHandle<TrustedByteArray> array =
       isolate->factory()->NewTrustedByteArray(optimized_length);
@@ -1131,7 +1132,7 @@ RegExpBytecodePeepholeOptimization::OptimizeBytecode(
   if (any_pass_optimized && v8_flags.trace_regexp_peephole_optimization) {
     PrintF("Original Bytecode:\n");
     RegExpBytecodeDisassemble(original_bytecode->data(),
-                              static_cast<int>(original_bytecode->size()),
+                              static_cast<uint32_t>(original_bytecode->size()),
                               source->ToCString().get());
     PrintF("Optimized Bytecode:\n");
     RegExpBytecodeDisassemble(array->begin(), optimized_length,

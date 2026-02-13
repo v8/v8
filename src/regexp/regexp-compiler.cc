@@ -2899,10 +2899,10 @@ int BoyerMooreLookahead::GetSkipTable(
   const int kDontSkipArrayEntry = 1;
 
   std::memset(boolean_skip_table->begin(), kSkipArrayEntry,
-              boolean_skip_table->length());
+              boolean_skip_table->ulength().value());
   const bool fill_nibble_table = !nibble_table.is_null();
   if (fill_nibble_table) {
-    std::memset(nibble_table->begin(), 0, nibble_table->length());
+    std::memset(nibble_table->begin(), 0, nibble_table->ulength().value());
   }
 
   for (int i = max_lookahead; i >= min_lookahead; i--) {

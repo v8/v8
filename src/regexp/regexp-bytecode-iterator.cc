@@ -16,7 +16,7 @@ RegExpBytecodeIterator::RegExpBytecodeIterator(
     : RegExpBytecodeIterator(bytecode, 0) {}
 
 RegExpBytecodeIterator::RegExpBytecodeIterator(
-    DirectHandle<TrustedByteArray> bytecode, int offset)
+    DirectHandle<TrustedByteArray> bytecode, uint32_t offset)
     : bytecode_(bytecode),
       start_(bytecode->begin()),
       end_(bytecode->end()),
@@ -25,8 +25,7 @@ RegExpBytecodeIterator::RegExpBytecodeIterator(
       UpdatePointersCallback, this);
 #ifdef DEBUG
   if (V8_UNLIKELY(v8_flags.enable_slow_asserts)) {
-    DCHECK_GE(offset, 0);
-    DCHECK_LT(offset, bytecode->length());
+    DCHECK_LT(offset, bytecode->ulength().value());
     const uint8_t* start_with_offset = cursor_;
     cursor_ = start_;
     while (cursor_ < start_with_offset) advance();

@@ -31,8 +31,8 @@ uint8_t RegExpBytecodeIterator::current_size() const {
   return RegExpBytecodes::Size(current_bytecode());
 }
 
-int RegExpBytecodeIterator::current_offset() const {
-  return static_cast<int>(cursor_ - start_);
+uint32_t RegExpBytecodeIterator::current_offset() const {
+  return static_cast<uint32_t>(cursor_ - start_);
 }
 
 uint8_t* RegExpBytecodeIterator::current_address() const { return cursor_; }
