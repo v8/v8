@@ -215,6 +215,6 @@ const result2 = instance.exports.test(5, 0);  // else branch
 
 // This should have failed either on lazy compilation or (if lazy compilation
 // was disabled) on compilation above.
-// CHECK: # {{Debug check||Check}} failed: input{{s.size\(\)|_count}} <= std::numeric_limits
+// CHECK: # Check failed: inputs.size() <= std::numeric_limits
 // CHECK-NOT: Results:
 print('Results: ' + result1 + ', ' + result2);
