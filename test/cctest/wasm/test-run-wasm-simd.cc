@@ -10380,6 +10380,67 @@ TEST(RunWasmTurbofan_CallParameterRevecExpectFail) {
   CHECK_EQ(2.0f, r.Call());
 }
 
+TEST(RunWasmTurbofan_DidntTrowRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+
+  // Build a callee function that returns a Simd128 value.
+  ValueType param_types[1] = {kWasmS128};
+  FunctionSig sig(1, 0, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  std::array<uint8_t, kSimd128Size> one = {1};
+  t.Build({WASM_SIMD_CONSTANT(one)});
+
+  // Call function t twice. Adds up the return value to produce a reducer seed.
+  // Revectorization fails anyway due to unsupported DidntTrow operation.
+  TSSimd256VerifyScope ts_scope(r.zone(),
+                                TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                ExpectedResult::kFail);
+  r.Build({WASM_LOCAL_SET(
+               temp1, WASM_SIMD_BINOP(kExprI32x4Add,
+                                      WASM_CALL_FUNCTION0(t.function_index()),
+                                      WASM_CALL_FUNCTION0(t.function_index()))),
+           WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_LOCAL_GET(temp1))});
+  CHECK_EQ(2, r.Call());
+}
+
+TEST(RunWasmTurbofan_ProjectionRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  uint8_t param1 = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  // Build a callee function that returns multiple values, one of which is using
+  // Simd128 type.
+  ValueType param_types[3] = {kWasmS128, kWasmI32, kWasmI32};
+  FunctionSig sig(2, 1, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  std::array<uint8_t, kSimd128Size> one = {1};
+  t.Build({WASM_SIMD_CONSTANT(one), WASM_LOCAL_GET(0)});
+
+  // Call function t twice. The multiple return values will become Projection
+  // ops after drop. The Simd128 Projections will be identified as
+  // revectorization seed from inputs of I32x4Add. Revectorization fails due to
+  // unsupported Projection operation.
+  TSSimd256VerifyScope ts_scope(r.zone(),
+                                TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                ExpectedResult::kFail);
+#define CALL_FUNCTION_WITH_DROP \
+  WASM_CALL_FUNCTION(t.function_index(), WASM_LOCAL_GET(param1)), WASM_DROP
+
+  r.Build({WASM_LOCAL_SET(temp1, CALL_FUNCTION_WITH_DROP),
+           WASM_LOCAL_SET(temp2, CALL_FUNCTION_WITH_DROP),
+           WASM_SIMD_I32x4_EXTRACT_LANE(
+               0, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp1),
+                                  WASM_LOCAL_GET(temp2)))});
+  CHECK_EQ(2, r.Call(0));
+#undef CALL_FUNCTION_WITH_DROP
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
