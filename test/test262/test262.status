@@ -1100,4 +1100,13 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArray/prototype/subarray/BigInt/speciesctor-get-species-custom-ctor-invocation': [SKIP],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
