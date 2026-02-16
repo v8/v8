@@ -2853,6 +2853,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
+  // This is only maintained by the shared-space isolate, otherwise it is
+  // always null.
+  ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_ = 0;
 

@@ -670,6 +670,9 @@ enum ExternalPointerTag : uint16_t {
   kWasmFuncDataTag,
   kWasmManagedDataTag,
   kWasmNativeModuleTag,
+  kFirstSharedManagedExternalPointerTag,
+  kWasmFutexManagedObjectWaitListTag = kFirstSharedManagedExternalPointerTag,
+  kLastSharedManagedExternalPointerTag = kWasmFutexManagedObjectWaitListTag,
   kBackingStoreTag,
   kIcuBreakIteratorTag,
   kIcuUnicodeStringTag,
@@ -710,8 +713,6 @@ using ExternalPointerTagRange = TagRange<ExternalPointerTag>;
 
 constexpr ExternalPointerTagRange kAnyExternalPointerTagRange(
     kFirstExternalPointerTag, kLastExternalPointerTag);
-constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
-    kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyForeignExternalPointerTagRange(
     kFirstForeignExternalPointerTag, kLastForeignExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyInterceptorInfoExternalPointerTagRange(
@@ -724,12 +725,21 @@ constexpr ExternalPointerTagRange kAnyMaybeReadOnlyExternalPointerTagRange(
     kLastMaybeReadOnlyExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyManagedResourceExternalPointerTag(
     kFirstManagedResourceTag, kLastManagedResourceTag);
+constexpr ExternalPointerTagRange kAnySharedManagedExternalPointerTagRange(
+    kFirstSharedManagedExternalPointerTag,
+    kLastSharedManagedExternalPointerTag);
 
 // True if the external pointer must be accessed from the shared isolate's
 // external pointer table.
 V8_INLINE static constexpr bool IsSharedExternalPointerType(
     ExternalPointerTagRange tag_range) {
-  return kAnySharedExternalPointerTagRange.Contains(tag_range);
+  // This range should only be used together with
+  // kAnySharedManagedExternalPointerTagRange in this predicate. Therefore
+  // it is defined in this scope.
+  constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
+      kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
+  return kAnySharedExternalPointerTagRange.Contains(tag_range) ||
+         kAnySharedManagedExternalPointerTagRange.Contains(tag_range);
 }
 
 // True if the external pointer may live in a read-only object, in which case

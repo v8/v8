@@ -68,14 +68,16 @@ struct ManagedPtrDestructor
   ManagedPtrDestructor* next_ = nullptr;
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
+  bool shared_ = false;
   Address* global_handle_location_ = nullptr;
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 
   ManagedPtrDestructor(size_t estimated_size, void* shared_ptr_ptr,
-                       void (*destructor)(void*))
+                       void (*destructor)(void*), bool shared)
       : estimated_size_(estimated_size),
         shared_ptr_ptr_(shared_ptr_ptr),
-        destructor_(destructor) {}
+        destructor_(destructor),
+        shared_(shared) {}
 };
 
 // The GC finalizer of a managed object, which does not depend on

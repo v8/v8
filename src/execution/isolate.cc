@@ -4038,17 +4038,25 @@ char* Isolate::RestoreThread(char* from) {
 
 void Isolate::ReleaseSharedPtrs() {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
-  while (managed_ptr_destructors_head_) {
-    ManagedPtrDestructor* l = managed_ptr_destructors_head_;
-    ManagedPtrDestructor* n = nullptr;
-    managed_ptr_destructors_head_ = nullptr;
-    for (; l != nullptr; l = n) {
-      l->external_memory_accounter_.Decrease(
-          reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
-      l->destructor_(l->shared_ptr_ptr_);
-      n = l->next_;
-      delete l;
+
+  auto delete_pointers = [this](ManagedPtrDestructor** list) {
+    while (*list) {
+      ManagedPtrDestructor* l = *list;
+      ManagedPtrDestructor* n = nullptr;
+      *list = nullptr;
+      for (; l != nullptr; l = n) {
+        l->external_memory_accounter_.Decrease(
+            reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
+        l->destructor_(l->shared_ptr_ptr_);
+        n = l->next_;
+        delete l;
+      }
     }
+  };
+
+  delete_pointers(&managed_ptr_destructors_head_);
+  if (owns_shareable_data()) {
+    delete_pointers(&shared_managed_ptr_destructors_head_);
   }
 }
 
@@ -4062,27 +4070,51 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::MutexGuard lock(&managed_ptr_destructors_mutex_);
-  DCHECK_NULL(destructor->prev_);
-  DCHECK_NULL(destructor->next_);
-  if (managed_ptr_destructors_head_) {
-    managed_ptr_destructors_head_->prev_ = destructor;
+  auto add_to_list = [this, destructor](ManagedPtrDestructor** list) {
+    base::MutexGuard lock(&managed_ptr_destructors_mutex_);
+    DCHECK_NULL(destructor->prev_);
+    DCHECK_NULL(destructor->next_);
+    if (*list) {
+      (*list)->prev_ = destructor;
+    }
+    destructor->next_ = *list;
+    *list = destructor;
+  };
+
+  if (!destructor->shared_) {
+    add_to_list(&managed_ptr_destructors_head_);
+  } else if (is_shared_space_isolate()) {
+    // `shared_managed_ptr_destructors_head_` is only maintained by the
+    // shared-space isolate.
+    add_to_list(&shared_managed_ptr_destructors_head_);
+  } else {
+    shared_space_isolate()->RegisterManagedPtrDestructor(destructor);
   }
-  destructor->next_ = managed_ptr_destructors_head_;
-  managed_ptr_destructors_head_ = destructor;
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::MutexGuard lock(&managed_ptr_destructors_mutex_);
-  if (destructor->prev_) {
-    destructor->prev_->next_ = destructor->next_;
+  auto remove_from_list = [this, destructor](ManagedPtrDestructor** list) {
+    base::MutexGuard lock(&managed_ptr_destructors_mutex_);
+    if (destructor->prev_) {
+      destructor->prev_->next_ = destructor->next_;
+    } else {
+      DCHECK_EQ(destructor, *list);
+      *list = destructor->next_;
+    }
+    if (destructor->next_) destructor->next_->prev_ = destructor->prev_;
+    destructor->prev_ = nullptr;
+    destructor->next_ = nullptr;
+  };
+
+  if (!destructor->shared_) {
+    remove_from_list(&managed_ptr_destructors_head_);
+  } else if (is_shared_space_isolate()) {
+    // `shared_managed_ptr_destructors_head_` is only maintained by the
+    // shared-space isolate.
+    remove_from_list(&shared_managed_ptr_destructors_head_);
   } else {
-    DCHECK_EQ(destructor, managed_ptr_destructors_head_);
-    managed_ptr_destructors_head_ = destructor->next_;
+    shared_space_isolate()->UnregisterManagedPtrDestructor(destructor);
   }
-  if (destructor->next_) destructor->next_->prev_ = destructor->prev_;
-  destructor->prev_ = nullptr;
-  destructor->next_ = nullptr;
 }
 
 // static

@@ -709,6 +709,24 @@ class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class Foreign::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    ExternalPointerTagRange tag_range =
+        HeapLayout::InWritableSharedSpace(obj)
+            ? kAnySharedManagedExternalPointerTagRange
+            : kAnyForeignExternalPointerTagRange;
+    v->VisitExternalPointer(
+        obj, obj->RawExternalPointerField(kForeignAddressOffset, tag_range));
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return kSize;
+  }
+};
+
 template <typename Derived>
 class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {

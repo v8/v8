@@ -1671,7 +1671,8 @@ inline size_t hash_value(AllocationType kind) {
 
 inline constexpr bool IsSharedAllocationType(AllocationType kind) {
   return kind == AllocationType::kSharedOld ||
-         kind == AllocationType::kSharedMap;
+         kind == AllocationType::kSharedMap ||
+         kind == AllocationType::kSharedTrusted;
 }
 
 enum class RecordYoungSlot : bool {
