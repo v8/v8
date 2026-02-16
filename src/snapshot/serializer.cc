@@ -463,7 +463,8 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
     LOG(serializer_->isolate_,
-        CodeNameEvent(object_->address(), sink_->Position(), code_name));
+        CodeNameEvent(object_->address(), static_cast<int>(sink_->Position()),
+                      code_name));
   }
 
   if (map.SafeEquals(*object_)) {

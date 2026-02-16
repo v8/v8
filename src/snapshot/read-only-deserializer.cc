@@ -4,6 +4,8 @@
 
 #include "src/snapshot/read-only-deserializer.h"
 
+#include <limits>
+
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -95,6 +97,7 @@ class ReadOnlyHeapImageDeserializer final {
           const_cast<uint8_t*>(source_->data() + source_->position());
       ro::BitSet tagged_slots(data, tagged_slots_size_in_bits);
       DecodeTaggedSlots(start, tagged_slots);
+      CHECK_LE(tagged_slots.size_in_bytes(), std::numeric_limits<int>::max());
       source_->Advance(static_cast<int>(tagged_slots.size_in_bytes()));
     }
   }
@@ -179,9 +182,9 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
     // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
     // change it without also updating Memory.json.
-    const int bytes = source()->length();
+    const size_t bytes = source()->length();
     const double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Deserializing read-only space (%d bytes) took %0.3f ms]\n", bytes,
+    PrintF("[Deserializing read-only space (%zu bytes) took %0.3f ms]\n", bytes,
            ms);
   }
 }
