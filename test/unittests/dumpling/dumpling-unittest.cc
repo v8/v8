@@ -680,6 +680,132 @@ TEST_F(DumplingTest, InterpreterEmptyStringsAreDumped) {
   RunInterpreterTest(program, expected);
 }
 
+TEST_F(DumplingTest, InterpreterSparseArrayDictionaryMode) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [];\n"
+      "arr[0] = 10;\n"
+      "arr[5] = 20;\n"
+      "%NormalizeElements(arr);\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[10,1-4:the_hole,20,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterFrozenArray) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = Object.freeze([1, 2, 3]);\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1,2,3,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterSealedArrayWithHoles) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1, , 3];\n"
+      "Object.seal(arr);\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1,1-1:the_hole,3,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterDoubleArrayWithExplicitNaN) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [1.5, NaN, 2.5];\n"
+      "foo(arr);\n";
+
+  const char* expected = R"(---I\s+)"
+                         R"(b:0\s+)"
+                         R"(f:\d+\s+)"
+                         R"(x:<undefined>\s+)"
+                         R"(n:1\s+)"
+                         R"(m:0\s+)"
+                         R"(a0:<JSArray>.*\[1\.50*,NaN,2\.50*,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterNestedArrays) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = [[10], [20]];\n"
+      "foo(arr);\n";
+
+  const char* expected =
+      R"(---I\s+)"
+      R"(b:0\s+)"
+      R"(f:\d+\s+)"
+      R"(x:<undefined>\s+)"
+      R"(n:1\s+)"
+      R"(m:0\s+)"
+      R"(a0:<JSArray>.*\[<JSArray>.*\[10,\],<JSArray>.*\[20,\],\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
+TEST_F(DumplingTest, InterpreterDoubleArrayFilledWithUndefined) {
+  const char* program =
+      "function foo(x) {\n"
+      "  return x;\n"
+      "}\n"
+      "%PrepareFunctionForOptimization(foo);\n"
+      "const arr = ([1.1, 2.2, 3.3, 4.4]).fill();\n"
+      "foo(arr);\n";
+
+  const char* expected =
+      R"(---I\s+)"
+      R"(b:0\s+)"
+      R"(f:\d+\s+)"
+      R"(x:<undefined>\s+)"
+      R"(n:1\s+)"
+      R"(m:0\s+)"
+      R"(a0:<JSArray>.*\[<undefined>,<undefined>,<undefined>,<undefined>,\]\s+)";
+
+  RunInterpreterTest(program, expected);
+}
+
 TEST_F(DumplingTest, TurboEscapedObject) {
   const char* program =
       "function foo(x) {\n"

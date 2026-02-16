@@ -236,22 +236,98 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     }
   };
 
-  if (elements_kind == PACKED_SMI_ELEMENTS ||
-      elements_kind == HOLEY_SMI_ELEMENTS || elements_kind == PACKED_ELEMENTS ||
-      elements_kind == HOLEY_ELEMENTS) {
-    Tagged<FixedArray> elements = Cast<FixedArray>(obj->elements());
-    process_elements(elements, isolate, accumulator, [&](int i) {
-      return DifferentialFuzzingPrint(elements->get(i), depth - 1);
-    });
-  } else if (elements_kind == PACKED_DOUBLE_ELEMENTS ||
-             elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    if (obj->elements() == ReadOnlyRoots(isolate).empty_fixed_array()) {
-      return;
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
+    case HOLEY_ELEMENTS: {
+      Tagged<FixedArray> elements = Cast<FixedArray>(obj->elements());
+      process_elements(elements, isolate, accumulator, [&](int i) {
+        return DifferentialFuzzingPrint(elements->get(i), depth - 1);
+      });
+      break;
     }
-    Tagged<FixedDoubleArray> elements = Cast<FixedDoubleArray>(obj->elements());
-    process_elements(elements, isolate, accumulator, [&](int i) {
-      return std::to_string(elements->get_scalar(i));
-    });
+
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
+      if (obj->elements() == ReadOnlyRoots(isolate).empty_fixed_array()) {
+        return;
+      }
+      Tagged<FixedDoubleArray> elements =
+          Cast<FixedDoubleArray>(obj->elements());
+      process_elements(elements, isolate, accumulator, [&](int i) {
+        double number = elements->get_scalar(i);
+        if (IsUndefinedNan(number)) {
+          return std::string("<undefined>");
+        }
+        static const int kBufferSize = 100;
+        char chars[kBufferSize];
+        base::Vector<char> buffer(chars, kBufferSize);
+        return std::string(DoubleToStringView(number, buffer));
+      });
+      break;
+    }
+
+    case DICTIONARY_ELEMENTS: {
+      Tagged<NumberDictionary> dict = obj->element_dictionary();
+      ReadOnlyRoots roots(isolate);
+
+      struct Entry {
+        int index;
+        InternalIndex entry;
+      };
+      std::vector<Entry> sorted;
+      sorted.reserve(dict->NumberOfElements());
+
+      for (InternalIndex i : dict->IterateEntries()) {
+        Tagged<Object> key = dict->KeyAt(isolate, i);
+        if (!dict->IsKey(roots, key)) continue;
+        int index = Object::NumberValue(Cast<Number>(key));
+        sorted.push_back({index, i});
+      }
+
+      // We sort the entries by their index (key).
+      // This is required because dictionaries do not guarantee iteration order
+      // matches the index order.
+      std::sort(
+          sorted.begin(), sorted.end(),
+          [](const Entry& a, const Entry& b) { return a.index < b.index; });
+
+      bool printed_open_bracket = false;
+      int prev_index = -1;
+
+      for (const Entry& entry : sorted) {
+        if (!printed_open_bracket) {
+          accumulator->Add("[");
+          printed_open_bracket = true;
+        }
+
+        // Not really a hole, but to comply with output format have to do this.
+        if (entry.index > prev_index + 1) {
+          accumulator->Add("%d-%d:the_hole,", prev_index + 1, entry.index - 1);
+        }
+
+        Tagged<Object> value = dict->ValueAt(entry.entry);
+        accumulator->Add("%s,",
+                         DifferentialFuzzingPrint(value, depth - 1).c_str());
+
+        prev_index = entry.index;
+      }
+
+      if (printed_open_bracket) {
+        accumulator->Add("]");
+      }
+      break;
+    }
+
+    default:
+      break;
   }
 }
 
