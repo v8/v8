@@ -3032,6 +3032,8 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 
 RUNTIME_FUNCTION(Runtime_GetStringLengthAndUpdateFeedback) {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+  HandleScope scope(isolate);
+
   Handle<String> receiver = args.at<String>(0);
   int slot = args.tagged_index_value_at(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
