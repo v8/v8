@@ -2923,9 +2923,20 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
     Address field_address = RawFieldAddress(field_offset);
     switch (field.kind()) {
       case wasm::kI32:
-      case wasm::kWaitQueue:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
+      case wasm::kWaitQueue: {
+        os << base::ReadUnalignedValue<int32_t>(field_address) << ", ";
+        Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(
+            field_address + wasm::kWaitQueueManagedOffset);
+#if V8_COMPRESS_POINTERS
+        Address obj = V8HeapCompressionScheme::DecompressTagged(raw);
+#else
+        Address obj = raw;
+#endif
+        os << Brief(Tagged<Object>(obj));
+        break;
+      }
       case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;

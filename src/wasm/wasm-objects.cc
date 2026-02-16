@@ -20,6 +20,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
+#include "src/execution/futex-emulation.h"
 #include "src/logging/counters.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
@@ -2299,6 +2300,20 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   descriptor->set_described_rtt(*rtt);
   rtt->set_custom_descriptor(*descriptor);
   return descriptor;
+}
+
+void WasmStruct::AllocateWaitQueue(Isolate* isolate,
+                                   DirectHandle<WasmStruct> struct_value,
+                                   int32_t raw_field_offset) {
+  std::shared_ptr<FutexManagedObjectWaitList> ptr(
+      new FutexManagedObjectWaitList());
+  DirectHandle<Managed<FutexManagedObjectWaitList>> managed =
+      Managed<FutexManagedObjectWaitList>::From(
+          isolate, sizeof(FutexManagedObjectWaitList), ptr,
+          AllocationType::kSharedOld);
+  struct_value->SetTaggedFieldValue(
+      raw_field_offset + wasm::kWaitQueueManagedOffset, *managed,
+      UPDATE_WRITE_BARRIER);
 }
 
 wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {

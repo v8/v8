@@ -1574,6 +1574,10 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& struct_object, const FieldImmediate& field,                   \
     const Value& expected_value, const Value& new_value,                       \
     AtomicMemoryOrder order, Value* result)                                    \
+  F(StructWait, const Value& struct_obj, const FieldImmediate& imm,            \
+    const Value& expected_value, const Value& timeout_ns, Value* result)       \
+  F(StructNotify, const Value& struct_obj, const FieldImmediate& imm,          \
+    const Value& max_waiters, Value* result)                                   \
   F(ArrayGet, const Value& array_obj, const ArrayIndexImmediate& imm,          \
     const Value& index, bool is_signed, Value* result)                         \
   F(ArrayAtomicGet, const Value& array_obj, const ArrayIndexImmediate& imm,    \
@@ -2842,6 +2846,12 @@ class WasmDecoder : public Decoder {
                                  validate);
             (ios.Field(field), ...);
             return length + memory_order.length + field.length;
+          }
+          case kExprStructWait:
+          case kExprStructNotify: {
+            FieldImmediate field(decoder, pc + length, validate);
+            (ios.Field(field), ...);
+            return length + field.length;
           }
           case kExprArrayAtomicGet:
           case kExprArrayAtomicGetS:
@@ -7358,6 +7368,56 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             StructAtomicCompareExchange, opcode, struct_obj, field,
             expected_value, new_value, memory_order.order, result);
         return opcode_length + field.length + memory_order.length;
+      }
+      case kExprStructWait: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        FieldImmediate field(this, this->pc_ + opcode_length, validate);
+        if (!this->Validate(this->pc_ + opcode_length, field)) {
+          return 0;
+        }
+        const StructType* struct_type = field.struct_imm.struct_type;
+        ValueType field_type = struct_type->field(field.field_imm.index);
+        if (field_type != kWasmWaitQueue) {
+          this->DecodeError(
+              "%s: Field %d of type %d must be of type waitqueue, found %s "
+              "instead",
+              WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
+              field.field_imm.index, field_type.name().c_str());
+          return 0;
+        }
+
+        auto [struct_obj, expected_value, timeout_ns] =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()), kWasmI32,
+                kWasmI64);
+        Value* result = Push(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructWait, struct_obj, field,
+                                           expected_value, timeout_ns, result);
+        return opcode_length + field.length;
+      }
+      case kExprStructNotify: {
+        CHECK_PROTOTYPE_OPCODE(shared);
+        NON_CONST_ONLY
+        FieldImmediate field(this, this->pc_ + opcode_length, validate);
+        if (!this->Validate(this->pc_ + opcode_length, field)) {
+          return 0;
+        }
+        const StructType* struct_type = field.struct_imm.struct_type;
+        ValueType field_type = struct_type->field(field.field_imm.index);
+        if (field_type != kWasmWaitQueue) {
+          this->DecodeError(
+              "%s: Field %d of type %d must be of type waitqueue, found %s "
+              "instead",
+              WasmOpcodes::OpcodeName(opcode), field.struct_imm.index,
+              field.field_imm.index, field_type.name().c_str());
+          return 0;
+        }
+        auto [struct_obj, max_waiters] =
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()), kWasmI32);
+        Value* result = Push(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNotify, struct_obj, field,
+                                           max_waiters, result);
+        return opcode_length + field.length;
       }
       case kExprArrayAtomicGet: {
         CHECK_PROTOTYPE_OPCODE(shared);
