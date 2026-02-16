@@ -5397,8 +5397,11 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   void Send(const v8_inspector::StringView& string) {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     v8::HandleScope handle_scope(isolate_);
+    if (string.length() > size_t{v8::String::kMaxLength}) {
+      fprintf(stderr, "Response from inspector exceeds max string length.\n");
+      return;
+    }
     int length = static_cast<int>(string.length());
-    DCHECK_LT(length, v8::String::kMaxLength);
     Local<String> message =
         (string.is8Bit()
              ? v8::String::NewFromOneByte(
