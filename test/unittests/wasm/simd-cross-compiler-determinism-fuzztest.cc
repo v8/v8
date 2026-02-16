@@ -11,6 +11,14 @@
 
 namespace v8::internal::wasm {
 
+struct FuzzBinopOp {
+  uint8_t local_lhs;
+  uint8_t local_rhs;
+  bool use_positive_opcode;
+};
+
+#define MAX_NUM_FUZZ_BINOP_NODES 6
+
 class SimdCrossCompilerDeterminismTest
     : public fuzztest::PerFuzzTestFixtureAdapter<TestWithNativeContext> {
  public:
@@ -28,6 +36,10 @@ class SimdCrossCompilerDeterminismTest
                        std::array<uint8_t, kSimd128Size> shuffle4,
                        std::array<uint8_t, kSimd128Size> shuffle5,
                        int preconsumed_liftoff_regs, bool allow_avx);
+
+  void Test32x4BinopTree(WasmOpcode opcode, WasmOpcode additional_opcode,
+                         Simd128 input,
+                         std::vector<FuzzBinopOp> random_binop_ops);
 
   static constexpr int kMaxPreconsumedLiftoffRegs =
       kFpCacheRegList.GetNumRegsSet();
@@ -204,6 +216,96 @@ class SimdCrossCompilerDeterminismTest
 
     // Read result from memory.
     return memory[0];
+  }
+
+  // To test unary reduces, form the tree of binary ops on lanes that reduce
+  // down to the ReduceOp: (the ReduceOp is never named in the test)
+  template <typename Config>
+  int32_t Get32x4BinopTreeResult(
+      TestExecutionTier tier, WasmOpcode opcode, WasmOpcode additional_opcode,
+      Simd128 input, const std::vector<FuzzBinopOp>& random_binop_ops) {
+    // Explanation of how the random code generation works in this fuzzer:
+    // n === number_of_nodes_to_use
+    // 1 Simd128 input is given. This is extracted into each of its 4 32x4
+    // lanes. let nodes = array of said extracts' results. repeat n times:
+    //  Pick any two nodes, perform a binop between them.
+    //  There is an (nth root of 0.5) chance this is uses `opcode`,
+    //  otherwise it uses a random choice from `additional_opcodes`
+    //  The result of this binop is also added to the nodes array.
+    // The final binop's result is the return value.
+    // Each for each node, the value/connection represented there is stored to a
+    // local. 2 <= n <= 6, for a range of shapes. This aims to generate the
+    // positive case tree a reasonable amount of the time, and to generate very
+    // similar looking trees in terms of input lane selection, reusing
+    // intermediate results, and different binops interspersed. These
+    // differences are applied with independent probabilities, trying to cover
+    // many edge cases.
+
+    // Instantiate a runner with some memory for storing dynamic inputs and the
+    // result.
+    CommonWasmRunner<void> runner(isolate(), tier);
+    Simd128* memory = runner.builder().AddMemoryElems<Simd128>(1);
+
+    // Intermediate and final results, are stored in locals.
+    // NB: the indices of our locals are encoded as
+    // (locals+0, locals+1, ..., locals+9)
+    uint8_t locals_start = runner.AllocateLocals(10, kWasmI32);
+    auto locals_idx = [locals_start](uint8_t offset) -> uint8_t {
+      return static_cast<uint8_t>(locals_start + offset);
+    };
+
+    // Build the bytecode.
+    // Note: `kMaxBytecodeSize` is big enough to hold all bytes we generate
+    // below across all configuration. If the DCHECK below fails, increase it as
+    // necessary.
+    constexpr size_t kMaxBytecodeSize = 255;
+    base::SmallVector<uint8_t, kMaxBytecodeSize> bytecode;
+
+    // Push the memory index for the final store.
+    bytecode.insert(bytecode.end(), {WASM_ZERO});
+
+    for (uint8_t i = 0; i < 4; i++) {
+      // Load the one input register.
+      bytecode.insert(bytecode.end(),
+                      Config::template GetInput<0>(memory, input));
+      // Extract and store results to locals.
+      bytecode.insert(bytecode.end(), {WASM_SIMD_OP(kExprI32x4ExtractLane), i});
+      bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(i)});
+    }
+
+    uint8_t last_used_local = 3;
+    for (auto& op : random_binop_ops) {
+      uint8_t result = ++last_used_local;
+
+      bytecode.insert(bytecode.end(),
+                      {kExprLocalGet, locals_idx(op.local_lhs)});
+      bytecode.insert(bytecode.end(),
+                      {kExprLocalGet, locals_idx(op.local_rhs)});
+      bytecode.insert(
+          bytecode.end(),
+          {static_cast<uint8_t>(op.use_positive_opcode ? opcode
+                                                       : additional_opcode)});
+      bytecode.insert(bytecode.end(), {kExprLocalSet, locals_idx(result)});
+    }
+
+    // Store the result in memory.
+    bytecode.insert(bytecode.end(),
+                    {kExprLocalGet, locals_idx(last_used_local)});
+    bytecode.insert(bytecode.end(),
+                    {kExprI32StoreMem, ZERO_ALIGNMENT, ZERO_OFFSET});
+
+    // Explicitly return (ignoring left-over constants pushed above).
+    bytecode.push_back(kExprReturn);
+
+    // Compile.
+    DCHECK_GE(kMaxBytecodeSize, bytecode.size());
+    runner.Build(base::VectorOf(bytecode));
+
+    // Call Wasm.
+    runner.Call();
+
+    // Read result from memory.
+    return reinterpret_cast<int32_t*>(memory)[0];
   }
 };
 
@@ -585,5 +687,80 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestShuffleTree)
             0, SimdCrossCompilerDeterminismTest::kMaxPreconsumedLiftoffRegs),
         // allow_avx
         fuzztest::Arbitrary<bool>());
+
+void SimdCrossCompilerDeterminismTest::Test32x4BinopTree(
+    WasmOpcode opcode, WasmOpcode additional_opcode, Simd128 input,
+    std::vector<FuzzBinopOp> random_binop_ops) {
+  // Remember all values from all configurations.
+  int32_t results[] = {
+      // Liftoff does not special-handle SIMD constants, so we only test this
+      // one Liftoff mode (but with a dynamic amount of preconsumed registers).
+      Get32x4BinopTreeResult<InputLocations<kConstant>>(
+          TestExecutionTier::kLiftoff, opcode, additional_opcode, input,
+          random_binop_ops),
+
+      // Different Turbofan configs, embedding inputs as constants or having
+      // dynamic inputs.
+      // - input constant
+      Get32x4BinopTreeResult<InputLocations<kConstant>>(
+          TestExecutionTier::kTurbofan, opcode, additional_opcode, input,
+          random_binop_ops),
+      // - input dynamic
+      Get32x4BinopTreeResult<InputLocations<kDynamic>>(
+          TestExecutionTier::kTurbofan, opcode, additional_opcode, input,
+          random_binop_ops),
+  };
+
+  ASSERT_TRUE(AllResultsEqual<int32_t>(base::VectorOf(results)))
+      << absl::StrFormat("Operation %s on input %v\n",
+                         WasmOpcodes::OpcodeName(opcode), input)
+      << "Different results for different configs: "
+      << PrintCollection(base::VectorOf(results));
+}
+
+inline fuzztest::Domain<FuzzBinopOp> ArbitraryBinopStructure() {
+  return fuzztest::ConstructorOf<FuzzBinopOp>(
+      fuzztest::InRange(0, MAX_NUM_FUZZ_BINOP_NODES + 2),
+      fuzztest::InRange(0, MAX_NUM_FUZZ_BINOP_NODES + 2),
+      fuzztest::Map(
+          // 50% = 0.5 chance to use the positive opcode in 4 cases
+          // => 4throot(0.5) = 0.84 chance to use it per case
+          [](int p) { return p > 84; }, fuzztest::InRange(0, 100)));
+}
+
+constexpr std::array kPositiveScalarBinOps = {
+    kExprI32Add,
+};
+constexpr std::array kScalarBinOps = {
+    kExprI32Add,
+    kExprI32Sub,
+};
+
+// Test a tree of scalar binary operations, on assorted extractlane results.
+// This tests turboshaft machine optimization reductions,
+// such as AddReduce I32x4 (which goes to ADDV on arm64).
+V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, Test32x4BinopTree)
+    .WithDomains(
+        // positive opcode
+        fuzztest::ElementOf<WasmOpcode>(kPositiveScalarBinOps),
+        // additional opcode
+        fuzztest::ElementOf<WasmOpcode>(kScalarBinOps),
+        // input SIMD value
+        ArbitrarySimd(),
+        // code shape: vector of nodes
+        fuzztest::Filter(
+            [](const std::vector<FuzzBinopOp>& ops) {
+              for (size_t i = 0; i < ops.size(); ++i) {
+                if (ops[i].local_lhs > i + 3 || ops[i].local_rhs > i + 3) {
+                  return false;
+                }
+              }
+              return true;
+            },
+            fuzztest::VectorOf(ArbitraryBinopStructure())
+                .WithMinSize(2)
+                .WithMaxSize(MAX_NUM_FUZZ_BINOP_NODES)));
+
+#undef MAX_NUM_FUZZ_BINOP_NODES
 
 }  // namespace v8::internal::wasm

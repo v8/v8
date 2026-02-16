@@ -317,12 +317,13 @@ class WasmFunctionCompiler {
   }
   void Build(base::Vector<const uint8_t> bytes);
 
-  uint8_t AllocateLocal(ValueType type) {
-    uint32_t index = local_decls_.AddLocals(1, type);
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    uint32_t index = local_decls_.AddLocals(count, type);
     uint8_t result = static_cast<uint8_t>(index);
     DCHECK_EQ(index, result);
     return result;
   }
+  uint8_t AllocateLocal(ValueType type) { return AllocateLocals(1, type); }
 
   void SetSigIndex(ModuleTypeIndex sig_index) {
     function_->sig_index = sig_index;
@@ -391,6 +392,9 @@ class WasmRunnerBase {
 
   uint8_t AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
+  }
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    return functions_[0]->AllocateLocals(count, type);
   }
 
   uint32_t function_index() { return functions_[0]->function_index(); }

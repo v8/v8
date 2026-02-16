@@ -1119,6 +1119,20 @@ class MachineOptimizationReducer : public Next {
         x = left;
         return __ WordSub(x, y, rep);
       }
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+      if (rep == RegisterRepresentation::Word32() && __ data()->is_wasm()) {
+        const std::optional<OpIndex> reduce_input =
+            TryMatchAddReduce(left, right);
+        if (reduce_input.has_value()) {
+          V<Simd128> reduce_op = __ Simd128Reduce(
+              reduce_input.value(), Simd128ReduceOp::Kind::kI32x4AddReduce);
+          return V<Word>::Cast(__ Simd128ExtractLane(
+              reduce_op, Simd128ExtractLaneOp::Kind::kI32x4, 0));
+        }
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
     }
 
     // 0 / right  =>  0
@@ -1185,6 +1199,80 @@ class MachineOptimizationReducer : public Next {
     // For anything else, assume that it's not a heap object.
     return false;
   }
+
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+  std::optional<OpIndex> TryMatchAddReduce(OpIndex left, OpIndex right) {
+    // AddReduce I32x4:
+    // Iteratively check children, to make sure it's a valid tree that we
+    // can use for this optimisation. Save results as we go, so we can
+    // construct the return value right away.
+    OpIndex reduce_input = OpIndex::Invalid();
+    bool summed_lanes[4] = {false, false, false, false};
+    int num_lanes_filled = 0;
+    bool multiple_input_registers = false;
+    bool unknown_op_in_tree = false;
+    base::SmallVector<OpIndex, 4> children;
+    children.push_back(left);
+    children.push_back(right);
+    while (!children.empty()) {
+      const OpIndex child = children.back();
+      children.pop_back();
+      if (const WordBinopOp* child_binop =
+              matcher_.Get(child).TryCast<WordBinopOp>();
+          child_binop && child_binop->kind == WordBinopOp::Kind::kAdd) {
+        // explore add's children too
+        children.push_back(child_binop->left());
+        children.push_back(child_binop->right());
+        continue;
+      } else if (const Simd128ExtractLaneOp* child_extract =
+                     matcher_.Get(child).TryCast<Simd128ExtractLaneOp>();
+                 child_extract &&
+                 child_extract->kind == Simd128ExtractLaneOp::Kind::kI32x4) {
+        // check extract, and record to check future ones against
+        uint8_t lane = static_cast<int>(child_extract->lane);
+        if (!reduce_input.valid()) {
+          // no input register found yet: remember it and the lane
+          reduce_input = child_extract->input();
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input() &&
+                   !summed_lanes[lane]) {
+          // input is from the same register as others, and lane not already
+          // in the sum
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input()) {
+          // Same input, but a duplicate lane.
+          // Naive solution: Cancel the optimisation by incrementing
+          // num_lanes_filled.
+          num_lanes_filled += 1;
+          // Better solution: Add this with the result of addv if it meets
+          // conditions.
+        } else {
+          // An add from a different input.
+          // Naive solution: Cancel the optimisation
+          multiple_input_registers = true;
+        }
+      } else {
+        // Unknown op: Cancel the optimisation
+        unknown_op_in_tree = true;
+      }
+      break;
+    }
+    bool all_lanes_filled = summed_lanes[0] && summed_lanes[1] &&
+                            summed_lanes[2] && summed_lanes[3];
+    if (reduce_input.valid() && num_lanes_filled == 4 && all_lanes_filled &&
+        !multiple_input_registers && !unknown_op_in_tree) {
+      return reduce_input;
+    } else {
+      return std::nullopt;
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
 
   std::optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
                                         WordBinopOp::Kind kind,
