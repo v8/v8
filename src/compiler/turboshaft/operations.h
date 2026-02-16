@@ -4854,6 +4854,7 @@ struct CheckTurboshaftTypeOfOp
 
 struct CheckMaglevTypeOp : FixedArityOperationT<1, CheckMaglevTypeOp> {
   maglev::NodeType type;
+  bool allow_widening_smi_to_int32;
 
   static constexpr OpEffects effects =
       OpEffects().CanDependOnChecks().CanReadMemory().RequiredWhenUnused();
@@ -4866,10 +4867,13 @@ struct CheckMaglevTypeOp : FixedArityOperationT<1, CheckMaglevTypeOp> {
 
   V<Object> input() const { return Base::input<Object>(0); }
 
-  CheckMaglevTypeOp(V<Object> input, maglev::NodeType type)
-      : Base(input), type(type) {}
+  CheckMaglevTypeOp(V<Object> input, maglev::NodeType type,
+                    bool allow_widening_smi_to_int32)
+      : Base(input),
+        type(type),
+        allow_widening_smi_to_int32(allow_widening_smi_to_int32) {}
 
-  auto options() const { return std::tuple{type}; }
+  auto options() const { return std::tuple{type, allow_widening_smi_to_int32}; }
 };
 
 struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {

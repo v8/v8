@@ -3756,8 +3756,10 @@ void CheckMaglevType::SetValueLocationConstraints() {
 
 void CheckMaglevType::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kCheckMaglevType>(ValueInput(),
-                                            Smi::FromEnum(expected_type_));
+  __ CallBuiltin<Builtin::kCheckMaglevType>(
+      ValueInput(), Smi::FromEnum(expected_type_),
+      Smi::FromInt(allow_widening_smi_to_int32_ ==
+                   AllowWideningSmiToInt32::kAllow));
 }
 
 int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
@@ -8355,7 +8357,9 @@ void CheckInt32Condition::PrintParams(std::ostream& os) const {
 }
 
 void CheckMaglevType::PrintParams(std::ostream& os) const {
-  os << "(" << expected_type_ << ")";
+  os << "(" << expected_type_ << ", allow_widening_smi_to_int32 = "
+     << (allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow)
+     << ")";
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {

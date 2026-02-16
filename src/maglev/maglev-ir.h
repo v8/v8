@@ -7081,10 +7081,19 @@ class CheckCacheIndicesNotCleared
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
+enum class AllowWideningSmiToInt32 { kDontAllow, kAllow };
+
 class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
  public:
-  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type)
-      : Base(bitfield), expected_type_(expected_type) {}
+  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type,
+                           AllowWideningSmiToInt32 allow_widening_smi_to_int32)
+      : Base(bitfield),
+        expected_type_(expected_type),
+        allow_widening_smi_to_int32_(allow_widening_smi_to_int32) {
+    CHECK_IMPLIES(
+        allow_widening_smi_to_int32 == AllowWideningSmiToInt32::kAllow,
+        !IsEmptyNodeType(IntersectType(NodeType::kSmi, expected_type)));
+  }
 
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Call();
@@ -7092,16 +7101,22 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
   DECLARE_INPUT_TYPES(Tagged)
 
   NodeType expected_type() const { return expected_type_; }
+  bool allow_widening_smi_to_int32() const {
+    return allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow;
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{expected_type_}; }
+  auto options() const {
+    return std::tuple{expected_type_, allow_widening_smi_to_int32_};
+  }
 
  private:
   const NodeType expected_type_;
+  AllowWideningSmiToInt32 allow_widening_smi_to_int32_;
 };
 
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {

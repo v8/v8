@@ -4238,9 +4238,10 @@ class AssemblerOpInterface : public Next {
                                                   successful);
   }
 
-  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+  void CheckMaglevType(V<Object> input, maglev::NodeType type,
+                       bool allow_widening_smi_to_int32) {
     CHECK(v8_flags.maglev_assert_types);
-    ReduceIfReachableCheckMaglevType(input, type);
+    ReduceIfReachableCheckMaglevType(input, type, allow_widening_smi_to_int32);
   }
 
   // This is currently only usable during graph building on the main thread.

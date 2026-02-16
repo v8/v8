@@ -624,7 +624,8 @@ ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
             AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
       ValueNode* untagged;
-      GET_VALUE_OR_ABORT(untagged, BuildSmiUntag(value));
+      GET_VALUE_OR_ABORT(untagged,
+                         BuildSmiUntag(value, AllowWideningSmiToInt32::kAllow));
       return alternative.set_int32(untagged);
     }
     case ValueRepresentation::kUint32: {
@@ -1370,11 +1371,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
 }
 
 template <typename BaseT>
-ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
+ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(
+    ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
-  if (IsEmptyNodeType(GetType(node))) {
+  if (IsEmptyNodeType(GetType(node, allow_widening_smi_to_int32))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
   if (EnsureType(node, NodeType::kSmi)) {

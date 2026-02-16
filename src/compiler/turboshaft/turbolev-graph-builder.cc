@@ -2831,7 +2831,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckMaglevType* node,
                                 const maglev::ProcessingState& state) {
-    __ CheckMaglevType(Map(node->input(0)), node->expected_type());
+    __ CheckMaglevType(Map(node->input(0)), node->expected_type(),
+                       node->allow_widening_smi_to_int32());
     return maglev::ProcessResult::kContinue;
   }
 

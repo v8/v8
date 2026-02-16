@@ -1721,6 +1721,8 @@ TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
 TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto expected_type_smi = Parameter<Smi>(Descriptor::kType);
+  auto allow_widening_smi_to_int32 =
+      Parameter<Smi>(Descriptor::kAllowWideningSmiToInt32);
 
   TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
 
@@ -1770,7 +1772,28 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   CheckType(maglev::NodeType::kSmi);
 
   BIND(&is_heap_number);
-  CheckType(maglev::NodeType::kHeapNumber);
+  {
+    Label treat_as_heap_number(this), is_int32(this);
+    GotoIf(SmiEqual(allow_widening_smi_to_int32, SmiConstant(0)),
+           &treat_as_heap_number);
+
+    TNode<Float64T> value = LoadHeapNumberValue(heap_object);
+    TNode<Int32T> int32_value = Signed(TruncateFloat64ToWord32(value));
+    Branch(Float64Equal(value, ChangeInt32ToFloat64(int32_value)), &is_int32,
+           &treat_as_heap_number);
+
+    BIND(&is_int32);
+    TNode<Word32T> smi_or_heap_number =
+        Int32Constant(static_cast<int>(maglev::UnionType(
+            maglev::NodeType::kSmi, maglev::NodeType::kHeapNumber)));
+    // If expected_type allows either Smi or HeapNumber, we're done.
+    Branch(Word32NotEqual(Word32And(expected_type, smi_or_heap_number),
+                          Int32Constant(0)),
+           &done, &treat_as_heap_number);
+
+    BIND(&treat_as_heap_number);
+    CheckType(maglev::NodeType::kHeapNumber);
+  }
 
   BIND(&is_string);
   // TODO(477184397): Check String subtypes
