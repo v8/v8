@@ -480,7 +480,7 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
                                             bool caseSensitive, bool isRegex) {
   // TODO(dgozman): search may operate on StringView and avoid copying |text|.
   std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>> matches =
-      searchInTextByLinesImpl(this, toString16(text), toString16(query),
+      searchInTextByLinesImpl(m_inspector, toString16(text), toString16(query),
                               caseSensitive, isRegex);
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>> result;
   for (size_t i = 0; i < matches.size(); ++i)
