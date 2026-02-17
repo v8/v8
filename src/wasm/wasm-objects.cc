@@ -1088,10 +1088,12 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
     if (override_resizable.has_value()) {
-      new_buffer->set_is_resizable_by_js(*override_resizable ==
-                                         ResizableFlag::kResizable);
-      // GSABs read the byte length from the backing store.
-      new_buffer->set_byte_length(0);
+      bool resizable = *override_resizable == ResizableFlag::kResizable;
+      new_buffer->set_is_resizable_by_js(resizable);
+      if (resizable) {
+        // GSABs read the byte length from the backing store.
+        new_buffer->set_byte_length(0);
+      }
     }
   } else {
     new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
