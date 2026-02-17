@@ -4033,9 +4033,17 @@ class TurboshaftGraphBuildingInterface
                                       MemoryRepresentation::TaggedPointer());
     auto wanted_tag = V<WasmExceptionTag>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
-    V<WasmContinuationObject> cont = __ WasmCallRuntime(
-        decoder->zone(), Runtime::kWasmAllocateEmptyContinuation, {},
-        native_context);
+    compiler::turboshaft::Uninitialized<WasmContinuationObject>
+        uninitialized_cont = __ template Allocate<WasmContinuationObject>(
+            __ WordPtrConstant(WasmContinuationObject::kSize),
+            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
+    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
+    __ InitializeField(uninitialized_cont,
+                       AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
+    // The external pointer is initialized in the {suspend_wasmfx_stack} C call.
+    V<WasmContinuationObject> cont =
+        __ FinishInitialization(std::move(uninitialized_cont));
+
     auto [arg_size, arg_alignment] =
         GetBufferSizeAndAlignmentFor(sig->parameters());
     auto [return_size, return_alignment] =

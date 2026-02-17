@@ -2809,16 +2809,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   return *cont;
 }
 
-// For suspend: allocates an uninitialized continuation, to be initialized by
-// the suspend builtin with the current stack and register state.
-RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
-  DCHECK_EQ(0, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<WasmContinuationObject> cont =
-      isolate->factory()->NewWasmContinuationObject(nullptr);
-  return *cont;
-}
-
 // For cont.bind: invalidate the given continuation and create a new one for the
 // same stack.
 RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {

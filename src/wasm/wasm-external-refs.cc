@@ -1026,7 +1026,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   DCHECK(from->Contains(arg_buffer));
   from->set_arg_buffer(arg_buffer);
-  cont->set_stack(isolate, from);
+  cont->init_stack(isolate, from);
   from->set_current_continuation(cont);
   from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
