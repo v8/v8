@@ -4511,10 +4511,11 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 
   if (HasPrototypeTransitions()) {
     auto prototype_transitions = GetPrototypeTransitions();
-    int num_transitions = NumberOfPrototypeTransitions(prototype_transitions);
+    const uint32_t num_transitions =
+        NumberOfPrototypeTransitions(prototype_transitions);
     os << "\n   Prototype transitions #" << num_transitions << ": "
        << Brief(prototype_transitions);
-    for (int i = 0; i < num_transitions; i++) {
+    for (uint32_t i = 0; i < num_transitions; i++) {
       auto maybe = prototype_transitions->get(
           TransitionArray::kProtoTransitionHeaderSize + i);
       Tagged<HeapObject> target;

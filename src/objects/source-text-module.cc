@@ -136,12 +136,13 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     DirectHandle<SourceTextModule> module,
                                     int cell_index,
                                     DirectHandle<FixedArray> names) {
-  DCHECK_LT(0, names->length());
+  const uint32_t names_len = names->ulength().value();
+  DCHECK_LT(0, names_len);
   DirectHandle<Cell> cell = isolate->factory()->NewCell();
   module->regular_exports()->set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
-  for (int i = 0, n = names->length(); i < n; ++i) {
+  for (uint32_t i = 0; i < names_len; ++i) {
     DirectHandle<String> name(Cast<String>(names->get(i)), isolate);
     DCHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(isolate, exports, name, cell);
@@ -310,7 +311,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
     Handle<Cell> unique_cell;
     DirectHandle<FixedArray> special_exports(module->info()->special_exports(),
                                              isolate);
-    for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    const uint32_t special_exports_len = special_exports->ulength().value();
+    for (uint32_t i = 0; i < special_exports_len; ++i) {
       i::DirectHandle<i::SourceTextModuleInfoEntry> entry(
           i::Cast<i::SourceTextModuleInfoEntry>(special_exports->get(i)),
           isolate);
@@ -373,7 +375,8 @@ bool SourceTextModule::PrepareInstantiate(
                                            isolate);
   DirectHandle<FixedArray> requested_modules(module->requested_modules(),
                                              isolate);
-  for (int i = 0, length = module_requests->length(); i < length; ++i) {
+  const uint32_t module_requests_len = module_requests->ulength().value();
+  for (uint32_t i = 0; i < module_requests_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     DirectHandle<String> specifier(module_request->specifier(), isolate);
@@ -438,7 +441,8 @@ bool SourceTextModule::PrepareInstantiate(
   }
 
   // Recurse.
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -468,7 +472,8 @@ bool SourceTextModule::PrepareInstantiate(
   // the SourceTextModuleInfoEntry by that Cell (see ResolveExport).
   DirectHandle<FixedArray> special_exports(module_info->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     DirectHandle<Object> export_name(entry->export_name(), isolate);
@@ -614,7 +619,8 @@ bool SourceTextModule::FinishInstantiate(
                                            isolate);
   DirectHandle<FixedArray> requested_modules(module->requested_modules(),
                                              isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -651,7 +657,8 @@ bool SourceTextModule::FinishInstantiate(
   // Resolve imports.
   DirectHandle<FixedArray> regular_imports(module_info->regular_imports(),
                                            isolate);
-  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+  const uint32_t regular_imports_len = regular_imports->ulength().value();
+  for (uint32_t i = 0; i < regular_imports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(regular_imports->get(i)), isolate);
     Handle<String> name(Cast<String>(entry->import_name()), isolate);
@@ -669,7 +676,8 @@ bool SourceTextModule::FinishInstantiate(
   // Resolve indirect exports.
   DirectHandle<FixedArray> special_exports(module_info->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     Handle<Object> name(entry->export_name(), isolate);
@@ -709,7 +717,8 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
   ReadOnlyRoots roots(isolate);
   DirectHandle<FixedArray> special_exports(module->info()->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     if (!IsUndefined(entry->export_name(), roots)) {
@@ -1274,7 +1283,8 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
   UnorderedModuleSet evaluation_set(&zone);
   ZoneVector<Handle<Module>> eveluation_list(&zone);
   UnorderedModuleSet seen_modules(&zone);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
 
@@ -1442,7 +1452,8 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
       source_text_module->info()->module_requests(), isolate);
   DirectHandle<FixedArray> requested_modules(
       source_text_module->requested_modules(), isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
 
@@ -1489,7 +1500,8 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
       source_text_module->info()->module_requests(), isolate);
   DirectHandle<FixedArray> requested_modules(
       source_text_module->requested_modules(), isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -1571,8 +1583,8 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
   // The module isn't what we are looking for, continue looking in the graph.
   Tagged<FixedArray> requests = info()->module_requests();
   Tagged<FixedArray> requested = requested_modules();
-  int length = requested->length();
-  for (int i = 0; i < length; ++i) {
+  const uint32_t length = requested->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<ModuleRequest> request = Cast<ModuleRequest>(requests->get(i));
     if (request->phase() != ModuleImportPhase::kEvaluation) {
       continue;

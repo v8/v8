@@ -75,7 +75,7 @@ Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
   }
 }
 
-int JSFunction::length() { return shared()->length(); }
+uint32_t JSFunction::length() { return shared()->length(); }
 
 void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
                                      WriteBarrierMode mode) {

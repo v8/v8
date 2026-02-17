@@ -156,7 +156,8 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<WeakFixedArray> infos)
     : infos_(infos), index_(0) {}
 
 Tagged<SharedFunctionInfo> SharedFunctionInfo::ScriptIterator::Next() {
-  while (index_ < infos_->length()) {
+  const uint32_t infos_len = infos_->ulength().value();
+  while (index_ < infos_len) {
     Tagged<MaybeObject> raw = infos_->get(index_++);
     Tagged<HeapObject> heap_object;
     if (!raw.GetHeapObject(&heap_object) ||
@@ -197,7 +198,8 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     Tagged<Script> script = Cast<Script>(script_object);
     Tagged<WeakFixedArray> list = script->infos();
 #ifdef DEBUG
-    DCHECK_LT(function_literal_id, list->length());
+    DCHECK_LT(static_cast<uint32_t>(function_literal_id),
+              list->ulength().value());
     Tagged<MaybeObject> maybe_object = list->get(function_literal_id);
     Tagged<HeapObject> heap_object;
     if (maybe_object.GetHeapObjectIfWeak(&heap_object)) {
@@ -214,7 +216,7 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
     Tagged<WeakFixedArray> infos = old_script->infos();
-    if (function_literal_id < infos->length()) {
+    if (static_cast<uint32_t>(function_literal_id) < infos->ulength().value()) {
       Tagged<MaybeObject> raw = old_script->infos()->get(function_literal_id);
       Tagged<HeapObject> heap_object;
       if (raw.GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
@@ -475,8 +477,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCharacter('(');
   DirectHandle<FixedArray> args(
       Cast<Script>(shared->script())->wrapped_arguments(), isolate);
-  int argc = args->length();
-  for (int i = 0; i < argc; i++) {
+  const uint32_t argc = args->ulength().value();
+  for (uint32_t i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
     builder.AppendString(
         DirectHandle<String>(Cast<String>(args->get(i)), isolate));

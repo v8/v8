@@ -832,14 +832,17 @@ class SharedFunctionInfo
     ScriptIterator(const ScriptIterator&) = delete;
     ScriptIterator& operator=(const ScriptIterator&) = delete;
     V8_EXPORT_PRIVATE Tagged<SharedFunctionInfo> Next();
-    int CurrentIndex() const { return index_ - 1; }
+    uint32_t CurrentIndex() const {
+      DCHECK_GT(index_, 0);
+      return index_ - 1;
+    }
 
     // Reset the iterator to run on |script|.
     void Reset(Isolate* isolate, Tagged<Script> script);
 
    private:
     Handle<WeakFixedArray> infos_;
-    int index_;
+    uint32_t index_;
   };
 
   // Constants.

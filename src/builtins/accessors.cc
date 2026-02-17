@@ -347,7 +347,7 @@ void Accessors::FunctionLengthGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionLengthGetter);
   USE(isolate);
   auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
-  int length = function->length();
+  const uint32_t length = function->length();
   info.GetReturnValue().Set(length);
 }
 
@@ -731,7 +731,7 @@ void Accessors::BoundFunctionLengthGetter(
   DirectHandle<JSBoundFunction> function =
       Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
 
-  int length = 0;
+  uint32_t length = 0;
   if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
     return;
   }
@@ -779,7 +779,7 @@ void Accessors::WrappedFunctionLengthGetter(
   auto function =
       Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
 
-  int length = 0;
+  uint32_t length = 0;
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
     return;
   }

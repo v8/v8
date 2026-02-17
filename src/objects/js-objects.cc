@@ -491,7 +491,8 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   }
 
   // 4. Repeat for each element nextKey of keys in List order,
-  for (int i = 0; i < keys->length(); ++i) {
+  const uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Object> next_key(keys->get(i), isolate);
     if (!excluded_properties.empty() &&
         HasExcludedProperty(excluded_properties, next_key)) {
@@ -1168,11 +1169,11 @@ MaybeDirectHandle<Object> JSReceiver::DefineProperties(
       KeyAccumulator::GetKeys(isolate, props, KeyCollectionMode::kOwnOnly,
                               ALL_PROPERTIES));
   // 6. Let descriptors be an empty List.s
-  int capacity = keys->length();
+  const uint32_t capacity = keys->ulength().value();
   std::vector<PropertyDescriptor> descriptors(capacity);
   size_t descriptors_index = 0;
   // 7. Repeat for each element nextKey of keys in List order,
-  for (int i = 0; i < keys->length(); ++i) {
+  for (uint32_t i = 0; i < capacity; ++i) {
     DirectHandle<JSAny> next_key(Cast<JSAny>(keys->get(i)), isolate);
     // 7a. Let propDesc be props.[[GetOwnProperty]](nextKey).
     // 7b. ReturnIfAbrupt(propDesc).
@@ -2058,8 +2059,9 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Isolate* isolate,
   no_conf_no_write.set_configurable(false);
   no_conf_no_write.set_writable(false);
 
+  const uint32_t keys_len = keys->ulength().value();
   if (level == SEALED) {
-    for (int i = 0; i < keys->length(); ++i) {
+    for (uint32_t i = 0; i < keys_len; ++i) {
       DirectHandle<Object> key(keys->get(i), isolate);
       MAYBE_RETURN(DefineOwnProperty(isolate, receiver, key, &no_conf,
                                      Just(kThrowOnError)),
@@ -2068,7 +2070,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Isolate* isolate,
     return Just(true);
   }
 
-  for (int i = 0; i < keys->length(); ++i) {
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Object> key(keys->get(i), isolate);
     PropertyDescriptor current_desc;
     Maybe<bool> owned = JSReceiver::GetOwnPropertyDescriptor(
@@ -2101,7 +2103,8 @@ Maybe<bool> GenericTestIntegrityLevel(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, keys,
                              JSReceiver::OwnPropertyKeys(isolate, receiver));
 
-  for (int i = 0; i < keys->length(); ++i) {
+  const uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Object> key(keys->get(i), isolate);
     PropertyDescriptor current_desc;
     Maybe<bool> owned = JSReceiver::GetOwnPropertyDescriptor(
@@ -2318,7 +2321,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     count++;
   }
 
-  DCHECK_LE(count, values_or_entries->length());
+  DCHECK_LE(count, values_or_entries->ulength().value());
   *result = FixedArray::RightTrimOrEmpty(isolate, values_or_entries, count);
   return Just(true);
 }
@@ -2344,10 +2347,11 @@ MaybeDirectHandle<FixedArray> GetOwnValuesOrEntries(
       KeyAccumulator::GetKeys(isolate, object, KeyCollectionMode::kOwnOnly,
                               key_filter, GetKeysConversion::kConvertToString));
 
-  values_or_entries = isolate->factory()->NewFixedArray(keys->length());
-  int length = 0;
+  const uint32_t keys_len = keys->ulength().value();
+  values_or_entries = isolate->factory()->NewFixedArray(keys_len);
+  uint32_t length = 0;
 
-  for (int i = 0; i < keys->length(); ++i) {
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Name> key(Cast<Name>(keys->get(i)), isolate);
 
     if (filter & ONLY_ENUMERABLE) {
@@ -2374,7 +2378,7 @@ MaybeDirectHandle<FixedArray> GetOwnValuesOrEntries(
     values_or_entries->set(length, *value);
     length++;
   }
-  DCHECK_LE(length, values_or_entries->length());
+  DCHECK_LE(length, values_or_entries->ulength().value());
   return FixedArray::RightTrimOrEmpty(isolate, values_or_entries, length);
 }
 
@@ -3103,7 +3107,7 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   Tagged<Object> maybe_constructor = map->GetConstructor();
   if (!IsJSFunction(maybe_constructor)) return false;
   Tagged<JSObject> js_object = Cast<JSObject>(object);
-  if (js_object->elements()->length() != 0) return false;
+  if (js_object->elements()->ulength().value() != 0) return false;
   // Check that the object is not a key in a WeakMap (over-approximation).
   if (!IsUndefined(js_object->GetIdentityHash())) return false;
 
@@ -4462,9 +4466,9 @@ DirectHandle<NumberDictionary> CreateElementDictionary(
   if (!object->HasTypedArrayOrRabGsabTypedArrayElements() &&
       !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
-    int length = IsJSArray(*object)
-                     ? Smi::ToInt(Cast<JSArray>(object)->length())
-                     : object->elements()->length();
+    const uint32_t length = IsJSArray(*object)
+                                ? Smi::ToUInt(Cast<JSArray>(object)->length())
+                                : object->elements()->ulength().value();
     new_element_dictionary =
         length == 0 ? isolate->factory()->empty_slow_element_dictionary()
                     : object->GetElementsAccessor()->Normalize(isolate, object);
@@ -4740,9 +4744,9 @@ bool JSObject::HasEnumerableElements() {
     case PACKED_NONEXTENSIBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS: {
-      int length = IsJSArray(object)
-                       ? Smi::ToInt(Cast<JSArray>(object)->length())
-                       : object->elements()->length();
+      uint32_t length = IsJSArray(object)
+                            ? Smi::ToUInt(Cast<JSArray>(object)->length())
+                            : object->elements()->ulength().value();
       return length > 0;
     }
     case HOLEY_SMI_ELEMENTS:
@@ -4751,25 +4755,25 @@ bool JSObject::HasEnumerableElements() {
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       Tagged<FixedArray> elements = Cast<FixedArray>(object->elements());
-      int length = IsJSArray(object)
-                       ? Smi::ToInt(Cast<JSArray>(object)->length())
-                       : elements->length();
+      const uint32_t length = IsJSArray(object)
+                                  ? Smi::ToUInt(Cast<JSArray>(object)->length())
+                                  : elements->ulength().value();
       Isolate* isolate = Isolate::Current();
-      for (int i = 0; i < length; i++) {
+      for (uint32_t i = 0; i < length; i++) {
         if (!elements->is_the_hole(isolate, i)) return true;
       }
       return false;
     }
     case HOLEY_DOUBLE_ELEMENTS: {
-      int length = IsJSArray(object)
-                       ? Smi::ToInt(Cast<JSArray>(object)->length())
-                       : object->elements()->length();
+      const uint32_t length = IsJSArray(object)
+                                  ? Smi::ToUInt(Cast<JSArray>(object)->length())
+                                  : object->elements()->ulength().value();
       // Zero-length arrays would use the empty FixedArray...
       if (length == 0) return false;
       // ...so only cast to FixedDoubleArray otherwise.
       Tagged<FixedDoubleArray> elements =
           Cast<FixedDoubleArray>(object->elements());
-      for (int i = 0; i < length; i++) {
+      for (uint32_t i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) return true;
       }
       return false;
@@ -4802,7 +4806,7 @@ bool JSObject::HasEnumerableElements() {
           0) {
         return true;
       }
-      return object->elements()->length() > 0;
+      return object->elements()->ulength().value() > 0;
     case WASM_ARRAY_ELEMENTS:
       UNIMPLEMENTED();
 
@@ -5471,7 +5475,7 @@ void JSObject::ValidateElements(Isolate* isolate, Tagged<JSObject> object) {
 
 bool JSObject::WouldConvertToSlowElements(uint32_t index) {
   if (!HasFastElements()) return false;
-  uint32_t capacity = static_cast<uint32_t>(elements()->length());
+  const uint32_t capacity = elements()->ulength().value();
   uint32_t new_capacity;
   return ShouldConvertToSlowElements(*this, capacity, index, &new_capacity);
 }
@@ -5564,9 +5568,8 @@ Maybe<bool> JSObject::AddDataElement(Isolate* isolate,
                *object, Cast<NumberDictionary>(elements), index, &new_capacity)
                ? BestFittingFastElementsKind(*object)
                : dictionary_kind;
-  } else if (ShouldConvertToSlowElements(
-                 *object, static_cast<uint32_t>(elements->length()), index,
-                 &new_capacity)) {
+  } else if (ShouldConvertToSlowElements(*object, elements->ulength().value(),
+                                         index, &new_capacity)) {
     kind = dictionary_kind;
   }
 
@@ -5654,7 +5657,7 @@ void JSObject::TransitionElementsKind(Isolate* isolate,
   } else {
     DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
-    uint32_t c = static_cast<uint32_t>(object->elements()->length());
+    const uint32_t c = object->elements()->ulength().value();
     if (ElementsAccessor::ForKind(to_kind)
             ->GrowCapacityAndConvert(isolate, object, c)
             .IsNothing()) {
@@ -5670,13 +5673,14 @@ void JSObject::TransitionElementsKind(Isolate* isolate,
 }
 
 template <typename BackingStore>
-static int HoleyElementsUsage(Tagged<JSObject> object,
-                              Tagged<BackingStore> store) {
+static uint32_t HoleyElementsUsage(Tagged<JSObject> object,
+                                   Tagged<BackingStore> store) {
   Isolate* isolate = Isolate::Current();
-  int limit = IsJSArray(object) ? Smi::ToInt(Cast<JSArray>(object)->length())
-                                : store->length();
-  int used = 0;
-  for (int i = 0; i < limit; ++i) {
+  const uint32_t limit = IsJSArray(object)
+                             ? Smi::ToUInt(Cast<JSArray>(object)->length())
+                             : store->ulength().value();
+  uint32_t used = 0;
+  for (uint32_t i = 0; i < limit; ++i) {
     if (!store->is_the_hole(isolate, i)) ++used;
   }
   return used;
@@ -5692,8 +5696,8 @@ uint32_t JSObject::GetFastElementsUsage() {
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS:
-      return IsJSArray(*this) ? Smi::ToInt(Cast<JSArray>(*this)->length())
-                              : store->length();
+      return IsJSArray(*this) ? Smi::ToUInt(Cast<JSArray>(*this)->length())
+                              : store->ulength().value();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = Cast<SloppyArgumentsElements>(store)->arguments();
       [[fallthrough]];
@@ -5705,7 +5709,7 @@ uint32_t JSObject::GetFastElementsUsage() {
     case FAST_STRING_WRAPPER_ELEMENTS:
       return HoleyElementsUsage(*this, Cast<FixedArray>(store));
     case HOLEY_DOUBLE_ELEMENTS:
-      if (elements()->length() == 0) return 0;
+      if (elements()->ulength().value() == 0) return 0;
       return HoleyElementsUsage(*this, Cast<FixedDoubleArray>(store));
 
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:

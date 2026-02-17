@@ -1124,9 +1124,10 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
   // Check all entries have the same owner
   if (HasPrototypeTransitions()) {
     Tagged<WeakFixedArray> proto_trans = GetPrototypeTransitions();
-    int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
-    for (int i = 0; i < length; ++i) {
-      int index = TransitionArray::kProtoTransitionHeaderSize + i;
+    const uint32_t length =
+        TransitionArray::NumberOfPrototypeTransitions(proto_trans);
+    for (uint32_t i = 0; i < length; ++i) {
+      const uint32_t index = TransitionArray::kProtoTransitionHeaderSize + i;
       Tagged<MaybeObject> maybe_target = proto_trans->get(index);
       Tagged<HeapObject> target;
       if (maybe_target.GetHeapObjectIfWeak(&target)) {

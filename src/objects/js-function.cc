@@ -447,16 +447,16 @@ MaybeHandle<String> JSBoundFunction::GetName(
 }
 
 // static
-Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
-                                      DirectHandle<JSBoundFunction> function) {
-  int nof_bound_arguments = function->bound_arguments()->length();
+Maybe<uint32_t> JSBoundFunction::GetLength(
+    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
+  uint32_t nof_bound_arguments = function->bound_arguments()->ulength().value();
   while (IsJSBoundFunction(function->bound_target_function())) {
     function = direct_handle(
         Cast<JSBoundFunction>(function->bound_target_function()), isolate);
     // Make sure we never overflow {nof_bound_arguments}, the number of
     // arguments of a function is strictly limited by the max length of an
     // JSAarray, Smi::kMaxValue is thus a reasonably good overestimate.
-    int length = function->bound_arguments()->length();
+    const uint32_t length = function->bound_arguments()->ulength().value();
     if (V8_LIKELY(Smi::kMaxValue - nof_bound_arguments > length)) {
       nof_bound_arguments += length;
     } else {
@@ -466,19 +466,25 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   if (IsJSWrappedFunction(function->bound_target_function())) {
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
-    int target_length = 0;
+    uint32_t target_length = 0;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
                                JSWrappedFunction::GetLength(isolate, target));
-    int length = std::max(0, target_length - nof_bound_arguments);
+    uint32_t length = 0;
+    if (target_length > nof_bound_arguments) {
+      length = target_length - nof_bound_arguments;
+    }
     return Just(length);
   }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
   DirectHandle<JSFunction> target(
       Cast<JSFunction>(function->bound_target_function()), isolate);
-  int target_length = target->length();
+  const uint32_t target_length = target->length();
 
-  int length = std::max(0, target_length - nof_bound_arguments);
+  uint32_t length = 0;
+  if (target_length > nof_bound_arguments) {
+    length = target_length - nof_bound_arguments;
+  }
   return Just(length);
 }
 
@@ -511,9 +517,9 @@ MaybeHandle<String> JSWrappedFunction::GetName(
 }
 
 // static
-Maybe<int> JSWrappedFunction::GetLength(
+Maybe<uint32_t> JSWrappedFunction::GetLength(
     Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
-  STACK_CHECK(isolate, Nothing<int>());
+  STACK_CHECK(isolate, Nothing<uint32_t>());
   DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetLength(
@@ -729,9 +735,10 @@ void JSFunction::InitializeFeedbackCell(
   bool has_closure_feedback_cell_array =
       function->has_closure_feedback_cell_array();
   if (has_closure_feedback_cell_array) {
-    CHECK_EQ(
-        function->closure_feedback_cell_array()->length(),
-        function->shared()->feedback_metadata()->create_closure_slot_count());
+    CHECK_EQ(function->closure_feedback_cell_array()->ulength().value(),
+             static_cast<uint32_t>(function->shared()
+                                       ->feedback_metadata()
+                                       ->create_closure_slot_count()));
   }
 
   const bool needs_feedback_vector =

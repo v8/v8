@@ -118,12 +118,14 @@ void TransitionArray::SetPrototypeTransitions(
   WeakFixedArray::set(kPrototypeTransitionsIndex, transitions, kReleaseStore);
 }
 
-int TransitionArray::NumberOfPrototypeTransitions(
+uint32_t TransitionArray::NumberOfPrototypeTransitions(
     Tagged<WeakFixedArray> proto_transitions) {
   if (proto_transitions->ulength().value() == 0) return 0;
   Tagged<MaybeObject> raw =
       proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-  return raw.ToSmi().value();
+  int32_t transitions = raw.ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 Tagged<Name> TransitionArray::GetKey(int transition_number) {
@@ -572,8 +574,9 @@ void TransitionsAccessor::ForEachTransitionWithKey(
         if (transitions()->HasPrototypeTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetPrototypeTransitions();
-          int length = TransitionArray::NumberOfPrototypeTransitions(cache);
-          for (int i = 0; i < length; i++) {
+          const uint32_t length =
+              TransitionArray::NumberOfPrototypeTransitions(cache);
+          for (uint32_t i = 0; i < length; i++) {
             Tagged<MaybeObject> target =
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;

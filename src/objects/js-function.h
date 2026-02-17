@@ -48,8 +48,8 @@ class JSBoundFunction
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSBoundFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              DirectHandle<JSBoundFunction> function);
+  static Maybe<uint32_t> GetLength(Isolate* isolate,
+                                   DirectHandle<JSBoundFunction> function);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -70,8 +70,8 @@ class JSWrappedFunction
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSWrappedFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              DirectHandle<JSWrappedFunction> function);
+  static Maybe<uint32_t> GetLength(Isolate* isolate,
+                                   DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
   static MaybeDirectHandle<Object> Create(
       Isolate* isolate, DirectHandle<NativeContext> creation_context,
@@ -121,7 +121,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
   inline Tagged<JSGlobalProxy> global_proxy();
   inline Tagged<NativeContext> native_context();
-  inline int length();
+  inline uint32_t length();
 
   static Handle<String> GetName(Isolate* isolate,
                                 DirectHandle<JSFunction> function);

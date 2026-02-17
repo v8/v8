@@ -1731,10 +1731,10 @@ class PrototypesSetup : public wasm::Decoder {
         isolate_->native_context(), wasm::kConstructorFunctionContextLength);
     context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
     Builtin code = Builtin::kWasmConstructorWrapper;
-    int length = wasm_function->length();
+    const uint32_t length = wasm_function->length();
     DirectHandle<SharedFunctionInfo> sfi =
-        isolate_->factory()->NewSharedFunctionInfoForBuiltin(name, code, length,
-                                                             kDontAdapt);
+        isolate_->factory()->NewSharedFunctionInfoForBuiltin(
+            name, code, static_cast<int>(length), kDontAdapt);
     sfi->set_native(true);
     sfi->set_language_mode(LanguageMode::kStrict);
     DirectHandle<JSFunction> constructor =
