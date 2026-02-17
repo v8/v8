@@ -105,8 +105,6 @@ namespace v8::internal::wasm {
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmAllocateDescriptorStruct)                                              \
   V(WasmAllocateSharedStructWithRtt)                                           \
-  V(WasmAllocateWaitQueue)                                                     \
-  V(WasmManagedObjectWait)                                                     \
   V(WasmConfigureAllPrototypesOpt)                                             \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \

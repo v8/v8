@@ -219,33 +219,18 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
     if (!type.is_shared) mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
-  {
-    DisallowGarbageCollection no_gc;  // Must initialize fields first.
-
-    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-      int offset = struct_type->field_offset(i);
-      if (struct_type->field(i).is_numeric()) {
-        uint8_t* address =
-            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-        args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
-        if (struct_type->field(i) == kWasmWaitQueue) {
-          // We have to allocate the Managed part of waitqueue after finishing
-          // initialization of the fresh struct object. Therefore we initialize
-          // it with 0 here.
-          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
-                                   Smi::FromInt(0));
-        }
-      } else {
-        obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
-      }
-    }
-  }
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    if (struct_type->field(i) != kWasmWaitQueue) continue;
-    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
+    int offset = struct_type->field_offset(i);
+    if (struct_type->field(i).is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
+    } else {
+      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
+    }
   }
-
   result->runtime_value = WasmValue(
       obj,
       decoder->module_->canonical_type(
@@ -336,37 +321,22 @@ void ConstantExpressionInterface::StructNewDefault(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
   }
-
-  {
-    DisallowGarbageCollection no_gc;  // Must initialize fields first.
-
-    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-      int offset = struct_type->field_offset(i);
-      ValueType ftype = struct_type->field(i);
-      if (ftype.is_numeric()) {
-        uint8_t* address =
-            reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
-        DefaultValueForType(ftype, isolate_, module_)
-            .Packed(ftype)
-            .CopyTo(address);
-        if (struct_type->field(i) == kWasmWaitQueue) {
-          // We have to allocate the Managed part of waitqueue after finishing
-          // initialization of the fresh struct object. Therefore we initialize
-          // it with 0 here.
-          obj->SetTaggedFieldValue(offset + kWaitQueueManagedOffset,
-                                   Smi::FromInt(0));
-        }
-      } else {
-        TaggedField<Object, WasmStruct::kHeaderSize>::store(
-            *obj, offset,
-            *DefaultValueForType(ftype, isolate_, module_).to_ref());
-      }
-    }
-  }
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    if (struct_type->field(i) != kWasmWaitQueue) continue;
-    WasmStruct::AllocateWaitQueue(isolate_, obj, struct_type->field_offset(i));
+    int offset = struct_type->field_offset(i);
+    ValueType ftype = struct_type->field(i);
+    if (ftype.is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      DefaultValueForType(ftype, isolate_, module_)
+          .Packed(ftype)
+          .CopyTo(address);
+    } else {
+      TaggedField<Object, WasmStruct::kHeaderSize>::store(
+          *obj, offset,
+          *DefaultValueForType(ftype, isolate_, module_).to_ref());
+    }
   }
 
   result->runtime_value = WasmValue(

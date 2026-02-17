@@ -6658,54 +6658,6 @@ class LiftoffCompiler {
     __ PushRegister(field_kind, result_reg);
   }
 
-  void StructWait(FullDecoder* decoder, const Value& /* struct_obj */,
-                  const FieldImmediate& imm, const Value& /* expected_value */,
-                  const Value& /* timeout_ns */, Value* /* result */) {
-    VarState timeout_ns_i64 = __ PopVarState();
-
-    // Convert the timeout from I64 to a BigInt.
-    CallBuiltin(
-        kNeedI64RegPair ? Builtin::kI32PairToBigInt : Builtin::kI64ToBigInt,
-        MakeSig::Returns(kRef).Params(kI64), {timeout_ns_i64},
-        decoder->position());
-
-    // We need to pop these two values after the previous builtin call, because
-    // register VarStates will get spilled and registers will be overwritten by
-    // it.
-    VarState expected_value = __ PopVarState();
-    VarState struct_obj = __ PopVarState();
-
-    int offset = WasmStruct::kHeaderSize +
-                 imm.struct_imm.struct_type->field_offset(imm.field_imm.index);
-    // Null check happens within the builtin.
-    CallBuiltin(Builtin::kWasmManagedObjectWait,
-                MakeSig::Params(kRef, kI32, kI32, kRef),
-                {struct_obj, VarState{kI32, offset, 0}, expected_value,
-                 VarState{kRef, LiftoffRegister{kReturnRegister0}, 0}},
-                decoder->position());
-    __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
-  }
-
-  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
-                    const FieldImmediate& imm, const Value& /* max_waiters */,
-                    Value* /* result */) {
-    LiftoffRegList pinned;
-    LiftoffRegister max_waiters = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister struct_obj_reg = pinned.set(__ PopToRegister(pinned));
-
-    MaybeEmitNullCheck(decoder, struct_obj_reg.gp(), pinned, struct_obj.type);
-
-    int offset = WasmStruct::kHeaderSize +
-                 imm.struct_imm.struct_type->field_offset(imm.field_imm.index);
-
-    LiftoffRegister result = GenerateCCall(
-        kI32,
-        {VarState{kRefNull, struct_obj_reg, 0}, VarState{kI32, offset, 0},
-         VarState{kI32, max_waiters, 0}},
-        ExternalReference::wasm_managed_object_notify());
-    __ PushRegister(kI32, result);
-  }
-
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                       const Value& array_obj, const ArrayIndexImmediate& imm,
                       const Value& index_val, const Value& value_val,
@@ -7568,30 +7520,7 @@ class LiftoffCompiler {
       StoreObjectField(decoder, obj.gp(), no_reg, offset, value, false, pinned,
                        field_type.kind(), write_barrier);
       pinned.clear(value);
-      if (field_type == kWasmWaitQueue) {
-        // We have to allocate the Managed part of waitqueue after finishing
-        // initialization of the fresh struct object. Therefore we initialize it
-        // with 0 here.
-        LiftoffRegister zero_reg =
-            pinned.set(__ GetUnusedRegister(reg_class_for(kRef), pinned));
-        LoadSmi(zero_reg, 0);
-        StoreObjectField(decoder, obj.gp(), no_reg,
-                         offset + kWaitQueueManagedOffset, zero_reg, false,
-                         pinned, kRef, LiftoffAssembler::kSkipWriteBarrier);
-        pinned.clear(zero_reg);
-      }
     }
-
-    for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
-      i--;
-      if (imm.struct_type->field(i) != kWasmWaitQueue) continue;
-      int offset = imm.struct_type->field_offset(i);
-      // This will overwrite {kReturnRegister0} but it returns the {obj} back.
-      CallBuiltin(Builtin::kWasmAllocateWaitQueue, MakeSig::Params(kRef, kI32),
-                  {VarState{kRef, obj, 0}, VarState{kI32, offset, 0}},
-                  decoder->position());
-    }
-
     // If this assert fails then initialization of padding field might be
     // necessary.
     static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&

@@ -28,9 +28,6 @@ class Zone;
 
 namespace wasm {
 
-constexpr int kWaitQueueSizeLog2 = kTaggedSize == 4 ? 3 : 4;
-constexpr int kWaitQueueManagedOffset = kTaggedSize == 4 ? 4 : 8;
-
 // Format: kind, log2Size, code, machineType, shortName, typeName
 #define FOREACH_NUMERIC_VALUE_TYPE(V)    \
   V(I32, 2, I32, Int32, 'i', "i32")      \
@@ -41,7 +38,7 @@ constexpr int kWaitQueueManagedOffset = kTaggedSize == 4 ? 4 : 8;
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")      \
   V(F16, 1, F16, Float16, 'p', "f16")    \
-  V(WaitQueue, kWaitQueueSizeLog2, WaitQueue, Int32, 'w', "waitqueue")
+  V(WaitQueue, 2, WaitQueue, Int32, 'w', "waitqueue")
 
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \

@@ -323,43 +323,6 @@ Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
                            rel_timeout_ns, CallType::kIsWasm);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
-                                                     Tagged<HeapObject> object,
-                                                     int32_t offset,
-                                                     int32_t expected_value,
-                                                     int64_t rel_timeout_ns) {
-  VMState<ATOMICS_WAIT> state(isolate);
-  base::TimeDelta rel_timeout =
-      base::TimeDelta::FromNanoseconds(rel_timeout_ns);
-
-  FutexWaitListNode* node = isolate->futex_wait_list_node();
-
-  bool use_timeout = rel_timeout_ns >= 0;
-
-  base::TimeTicks timeout_time;
-  if (use_timeout) {
-    base::TimeTicks current_time = base::TimeTicks::Now();
-    timeout_time = current_time + rel_timeout;
-  }
-
-  // TODO(manoskouk): Do we need an atomic load here?
-  Tagged<Managed<FutexManagedObjectWaitList>> managed =
-      Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
-          object, offset + wasm::kWaitQueueManagedOffset));
-  const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
-  NoGarbageCollectionMutexGuard lock_guard(&wait_list->mutex_);
-
-  int32_t loaded_control_value =
-      reinterpret_cast<std::atomic<int32_t>*>(object->address() + offset)
-          ->load();
-
-  return *WaitSyncImpl<FutexManagedObjectWaitList>(
-      isolate, wait_list.get(), node, lock_guard, use_timeout, timeout_time,
-      expected_value, loaded_control_value, {});
-}
-#endif
-
 template <typename T>
 Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
                                     DirectHandle<JSArrayBuffer> array_buffer,
@@ -402,6 +365,8 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
+  DirectHandle<Object> result;
+
   FutexWaitList* wait_list = GetWaitList();
   FutexWaitListNode* node = isolate->futex_wait_list_node();
 
@@ -411,108 +376,103 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
     timeout_time = current_time + rel_timeout;
   }
 
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
+  // The following is not really a loop; the do-while construct makes it easier
+  // to break out early.
+  // Keep the code in the loop as minimal as possible, because this is all in
+  // the critical section.
+  do {
+    NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
 
-  std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
-  T loaded_value = p->load();
+    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
+    T loaded_value = p->load();
 #if defined(V8_TARGET_BIG_ENDIAN)
-  // If loading a Wasm value, it needs to be reversed on Big Endian platforms.
-  if (call_type == CallType::kIsWasm) {
-    DCHECK(sizeof(T) == kInt32Size || sizeof(T) == kInt64Size);
-    loaded_value = ByteReverse(loaded_value);
-  }
+    // If loading a Wasm value, it needs to be reversed on Big Endian platforms.
+    if (call_type == CallType::kIsWasm) {
+      DCHECK(sizeof(T) == kInt32Size || sizeof(T) == kInt64Size);
+      loaded_value = ByteReverse(loaded_value);
+    }
 #endif
-
-  return *WaitSyncImpl<FutexWaitList, T>(isolate, wait_list, node, lock_guard,
-                                         use_timeout, timeout_time, value,
-                                         loaded_value, {wait_location});
-}
-
-template <typename WaitList, typename T>
-DirectHandle<Object> FutexEmulation::WaitSyncImpl(
-    Isolate* isolate, WaitList* wait_list, FutexWaitListNode* node,
-    NoGarbageCollectionMutexGuard& lock_guard, bool use_timeout,
-    base::TimeTicks timeout_time, T value, T loaded_value,
-    std::optional<void*> wait_location) {
-  DirectHandle<Object> result;
-  if (loaded_value != value) {
-    DCHECK(!node->waiting_);
-    return direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue),
-                         isolate);
-  }
-
-  if (wait_location) node->wait_location_ = *wait_location;
-  node->waiting_ = true;
-  wait_list->AddNode(node);
-
-  while (true) {
-    if (V8_UNLIKELY(node->interrupted_)) {
-      // Reset the interrupted flag while still holding the mutex.
-      node->interrupted_ = false;
-
-      // Unlock the mutex here to prevent deadlock from lock ordering between
-      // mutex and mutexes locked by HandleInterrupts.
-      lock_guard.Unlock();
-
-      // Because the mutex is unlocked, we have to be careful about not
-      // dropping an interrupt. The notification can happen in three different
-      // places:
-      // 1) Before Wait is called: the notification will be dropped, but
-      //    interrupted_ will be set to 1. This will be checked below.
-      // 2) After interrupted has been checked here, but before mutex is
-      //    acquired: interrupted is checked in a loop, with mutex locked.
-      //    Because the wakeup signal also acquires mutex, we know it will not
-      //    be able to notify until mutex is released below, when waiting on
-      //    the condition variable.
-      // 3) After the mutex is released in the call to WaitFor(): this
-      //    notification will wake up the condition variable. node->waiting()
-      //    will be false, so we'll loop and then check interrupts.
-      Tagged<Object> interrupt_object =
-          isolate->stack_guard()->HandleInterrupts();
-
-      lock_guard.Lock();
-
-      if (IsExceptionHole(interrupt_object, isolate)) {
-        result = direct_handle(interrupt_object, isolate);
-        break;
-      }
-    }
-
-    if (V8_UNLIKELY(node->interrupted_)) {
-      // An interrupt occurred while the mutex was unlocked. Don't wait yet.
-      continue;
-    }
-
-    if (!node->waiting_) {
-      // We were woken via Wake.
-      result = direct_handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
+    if (loaded_value != value) {
+      result =
+          direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
       break;
     }
 
-    // No interrupts, now wait.
-    if (use_timeout) {
-      base::TimeTicks current_time = base::TimeTicks::Now();
-      if (current_time >= timeout_time) {
-        result =
-            direct_handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
+    node->wait_location_ = wait_location;
+    node->waiting_ = true;
+    wait_list->AddNode(node);
+
+    while (true) {
+      if (V8_UNLIKELY(node->interrupted_)) {
+        // Reset the interrupted flag while still holding the mutex.
+        node->interrupted_ = false;
+
+        // Unlock the mutex here to prevent deadlock from lock ordering between
+        // mutex and mutexes locked by HandleInterrupts.
+        lock_guard.Unlock();
+
+        // Because the mutex is unlocked, we have to be careful about not
+        // dropping an interrupt. The notification can happen in three different
+        // places:
+        // 1) Before Wait is called: the notification will be dropped, but
+        //    interrupted_ will be set to 1. This will be checked below.
+        // 2) After interrupted has been checked here, but before mutex is
+        //    acquired: interrupted is checked in a loop, with mutex locked.
+        //    Because the wakeup signal also acquires mutex, we know it will not
+        //    be able to notify until mutex is released below, when waiting on
+        //    the condition variable.
+        // 3) After the mutex is released in the call to WaitFor(): this
+        //    notification will wake up the condition variable. node->waiting()
+        //    will be false, so we'll loop and then check interrupts.
+        Tagged<Object> interrupt_object =
+            isolate->stack_guard()->HandleInterrupts();
+
+        lock_guard.Lock();
+
+        if (IsExceptionHole(interrupt_object, isolate)) {
+          result = direct_handle(interrupt_object, isolate);
+          break;
+        }
+      }
+
+      if (V8_UNLIKELY(node->interrupted_)) {
+        // An interrupt occurred while the mutex was unlocked. Don't wait yet.
+        continue;
+      }
+
+      if (!node->waiting_) {
+        // We were woken via Wake.
+        result = direct_handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
 
-      base::TimeDelta time_until_timeout = timeout_time - current_time;
-      DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
-      bool wait_for_result =
-          node->cond_.WaitFor(wait_list->mutex(), time_until_timeout);
-      USE(wait_for_result);
-    } else {
-      node->cond_.Wait(wait_list->mutex());
+      // No interrupts, now wait.
+      if (use_timeout) {
+        base::TimeTicks current_time = base::TimeTicks::Now();
+        if (current_time >= timeout_time) {
+          result =
+              direct_handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
+          break;
+        }
+
+        base::TimeDelta time_until_timeout = timeout_time - current_time;
+        DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
+        bool wait_for_result =
+            node->cond_.WaitFor(wait_list->mutex(), time_until_timeout);
+        USE(wait_for_result);
+      } else {
+        node->cond_.Wait(wait_list->mutex());
+      }
+
+      // Spurious wakeup, interrupt or timeout.
     }
 
-    // Spurious wakeup, interrupt or timeout.
-  }
+    node->waiting_ = false;
+    wait_list->RemoveNode(node);
+  } while (false);
+  DCHECK(!node->waiting_);
 
-  node->waiting_ = false;
-  wait_list->RemoveNode(node);
-  return result;
+  return *result;
 }
 
 namespace {
@@ -763,43 +723,6 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 
   return num_waiters_woken;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-int FutexEmulation::Wake(Address raw_object, int32_t offset,
-                         uint32_t num_waiters_to_wake) {
-  DisallowGarbageCollection no_gc;
-  int num_waiters_woken = 0;
-
-  // TODO(manoskouk): Do we need an atomic load here?
-  Tagged<Managed<FutexManagedObjectWaitList>> managed =
-      Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
-          Cast<HeapObject>(Tagged<Object>(raw_object)),
-          offset + wasm::kWaitQueueManagedOffset));
-  const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
-
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-
-  FutexWaitListNode* node = wait_list->head_;
-  while (node && num_waiters_to_wake > 0) {
-    DCHECK(!node->IsAsync());
-    if (!node->waiting_) {
-      node = node->next_;
-      continue;
-    }
-    node->waiting_ = false;
-
-    // WaitSyncImpl will remove the node from the list.
-    node->cond_.NotifyOne();
-    node = node->next_;
-    if (num_waiters_to_wake != kWakeAll) {
-      --num_waiters_to_wake;
-    }
-    num_waiters_woken++;
-  }
-
-  return num_waiters_woken;
-}
-#endif
 
 void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   DCHECK(node->IsAsync());
