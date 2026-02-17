@@ -932,7 +932,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
     if (receiver->HasSlowArgumentsElements(isolate_)) {
       Tagged<SloppyArgumentsElements> parameter_map =
           Cast<SloppyArgumentsElements>(receiver->elements(isolate_));
-      uint32_t length = parameter_map->length();
+      const uint32_t length = parameter_map->ulength().value();
       if (number_.is_found() && number_.as_uint32() < length) {
         parameter_map->set_mapped_entries(
             number_.as_int(), ReadOnlyRoots(isolate_).the_hole_value());
@@ -1605,7 +1605,8 @@ std::optional<Tagged<Object>> ConcurrentLookupIterator::TryGetOwnCowElement(
   // The former is the source of truth, but due to concurrent reads it may not
   // match the given `array_elements`.
   if (index >= static_cast<size_t>(array_length)) return {};
-  if (index >= static_cast<size_t>(array_elements->length())) return {};
+  if (index >= static_cast<size_t>(array_elements->ulength().value()))
+    return {};
 
   Tagged<Object> result = array_elements->get(static_cast<int>(index));
 
@@ -1653,10 +1654,11 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
     Tagged<FixedArray> elements_fixed_array = Cast<FixedArray>(elements);
-    if (index >= static_cast<uint32_t>(elements_fixed_array->length())) {
+    if (index >= elements_fixed_array->ulength().value()) {
       return kGaveUp;
     }
-    Tagged<Object> result = elements_fixed_array->get(static_cast<int>(index));
+    Tagged<Object> result =
+        elements_fixed_array->get(static_cast<uint32_t>(index));
     if (IsHoleyElementsKindForRead(elements_kind) &&
         result == ReadOnlyRoots(isolate).the_hole_value()) {
       return kNotPresent;

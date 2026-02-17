@@ -193,7 +193,7 @@ void DeoptimizationData::Verify(Handle<BytecodeArray> bytecode) const {
     return;
   }
 #endif  // V8_USE_ZLIB
-  for (int i = 0; i < DeoptCount(); ++i) {
+  for (uint32_t i = 0; i < DeoptCount(); ++i) {
     // Check the frame count and identify the bailout id of the top compilation
     // unit.
     int idx = TranslationIndex(i).value();
@@ -249,7 +249,7 @@ void print_pc(std::ostream& os, int pc) {
 }  // namespace
 
 void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
-  if (length() == 0) {
+  if (ulength().value() == 0) {
     os << "Deoptimization Input Data invalidated by lazy deoptimization\n";
     return;
   }
@@ -261,7 +261,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
     os << " " << Brief(Cast<i::SharedFunctionInfo>(info)) << "\n";
   }
   os << "\n";
-  int deopt_count = DeoptCount();
+  const uint32_t deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
 #ifdef DEBUG
@@ -272,7 +272,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
     if (v8_flags.print_code_verbose) os << "  commands";
     os << "\n";
   }
-  for (int i = 0; i < deopt_count; i++) {
+  for (uint32_t i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
        << GetBytecodeOffsetOrBuiltinContinuationId(i).ToInt() << "  "
 #ifdef DEBUG
@@ -329,7 +329,8 @@ DeoptTranslationIterator::DeoptTranslationIterator(
 DeoptimizationFrameTranslation::Iterator::Iterator(
     Tagged<DeoptimizationFrameTranslation> buffer, int index)
     : DeoptTranslationIterator(
-          base::Vector<uint8_t>(buffer->begin(), buffer->length()), index) {}
+          base::Vector<uint8_t>(buffer->begin(), buffer->ulength().value()),
+          index) {}
 
 int32_t DeoptTranslationIterator::NextOperand() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {

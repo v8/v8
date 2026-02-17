@@ -352,7 +352,7 @@ class TransitionArray : public WeakFixedArray {
   static const int kPrototypeTransitionsIndex = 0;
   static const int kSideStepTransitionsIndex = 1;
   static const int kTransitionLengthIndex = 2;
-  static const int kFirstIndex = 3;
+  static const uint32_t kFirstIndex = 3;
 
   // Layout of map transition entries in full transition arrays.
   static const int kEntryKeyIndex = 0;

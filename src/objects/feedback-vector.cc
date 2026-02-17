@@ -735,8 +735,9 @@ InlineCacheState FeedbackNexus::ic_state() const {
           Tagged<Object> extra_object = extra.GetHeapObjectAssumeStrong();
           Tagged<WeakFixedArray> extra_array =
               Cast<WeakFixedArray>(extra_object);
-          return extra_array->length() > 2 ? InlineCacheState::POLYMORPHIC
-                                           : InlineCacheState::MONOMORPHIC;
+          return extra_array->ulength().value() > 2
+                     ? InlineCacheState::POLYMORPHIC
+                     : InlineCacheState::MONOMORPHIC;
         }
       }
       // TODO(1393773): Remove once the issue is solved.
@@ -1479,10 +1480,11 @@ void FeedbackIterator::Advance() {
 void FeedbackIterator::AdvancePolymorphic() {
   CHECK(!done_);
   CHECK_EQ(state_, kPolymorphic);
-  int length = polymorphic_feedback_->length();
+  const uint32_t length = polymorphic_feedback_->ulength().value();
   Tagged<HeapObject> heap_object;
 
-  while (index_ < length) {
+  DCHECK_GE(index_, 0);
+  while (static_cast<uint32_t>(index_) < length) {
     if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
       Tagged<MaybeObject> handler =
           polymorphic_feedback_->get(index_ + kHandlerOffset);

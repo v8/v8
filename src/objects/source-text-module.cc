@@ -454,7 +454,7 @@ bool SourceTextModule::PrepareInstantiate(
 
   // Set up local exports.
   // TODO(neis): Create regular_exports array here instead of in factory method?
-  for (int i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
+  for (uint32_t i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
     int cell_index = module_info->RegularExportCellIndex(i);
     DirectHandle<FixedArray> export_names(
         module_info->RegularExportExportNames(i), isolate);

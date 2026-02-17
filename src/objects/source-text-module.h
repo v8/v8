@@ -255,7 +255,7 @@ class SourceTextModuleInfo : public FixedArray {
   inline Tagged<FixedArray> namespace_imports() const;
 
   // Accessors for [regular_exports].
-  int RegularExportCount() const;
+  uint32_t RegularExportCount() const;
   Tagged<String> RegularExportLocalName(int i) const;
   int RegularExportCellIndex(int i) const;
   Tagged<FixedArray> RegularExportExportNames(int i) const;

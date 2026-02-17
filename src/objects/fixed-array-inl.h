@@ -247,9 +247,9 @@ void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
 
   DCHECK_GE(len, 0);
   DCHECK(dst->IsInBounds(dst_index));
-  DCHECK_LE(dst_index + len, dst->length());
+  DCHECK_LE(dst_index + len, dst->ulength().value());
   DCHECK(src->IsInBounds(src_index));
-  DCHECK_LE(src_index + len, src->length());
+  DCHECK_LE(src_index + len, src->ulength().value());
 
   DisallowGarbageCollection no_gc;
   SlotType dst_slot(&dst->objects()[dst_index]);
@@ -500,7 +500,7 @@ inline int WeakArrayList::AllocatedSize() const {
 
 template <class D, class S, class P>
 bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
-  return static_cast<unsigned>(index) < static_cast<unsigned>(this->length());
+  return static_cast<unsigned>(index) < this->ulength().value();
 }
 
 template <class D, class S, class P>
@@ -535,18 +535,19 @@ auto PrimitiveArrayBase<D, S, P>::begin() const -> const ElementMemberT* {
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::end() -> ElementMemberT* {
-  return &values()[this->length()];
+  return &values()[this->ulength().value()];
 }
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::end() const -> const ElementMemberT* {
-  return &values()[this->length()];
+  return &values()[this->ulength().value()];
 }
 
 template <class D, class S, class P>
 int PrimitiveArrayBase<D, S, P>::DataSize() const {
-  int data_size = SizeFor(this->length()) - sizeof(Header);
-  DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(this->length() * kElementSize));
+  int data_size = SizeFor(this->ulength().value()) - sizeof(Header);
+  DCHECK_EQ(data_size,
+            OBJECT_POINTER_ALIGN(this->ulength().value() * kElementSize));
   return data_size;
 }
 
@@ -857,14 +858,16 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
 
 uint32_t ByteArray::get_int(int offset) const {
   DCHECK(IsInBounds(offset));
-  DCHECK_LE(offset + sizeof(uint32_t), length());
+  DCHECK_LE(static_cast<uint32_t>(offset) + sizeof(uint32_t),
+            ulength().value());
   return base::ReadUnalignedValue<uint32_t>(
       reinterpret_cast<Address>(&values()[offset]));
 }
 
 void ByteArray::set_int(int offset, uint32_t value) {
   DCHECK(IsInBounds(offset));
-  DCHECK_LE(offset + sizeof(uint32_t), length());
+  DCHECK_LE(static_cast<uint32_t>(offset) + sizeof(uint32_t),
+            ulength().value());
   base::WriteUnalignedValue<uint32_t>(
       reinterpret_cast<Address>(&values()[offset]), value);
 }
@@ -893,14 +896,16 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
 
 uint32_t TrustedByteArray::get_int(int offset) const {
   DCHECK(IsInBounds(offset));
-  DCHECK_LE(offset + sizeof(uint32_t), length());
+  DCHECK_LE(static_cast<uint32_t>(offset) + sizeof(uint32_t),
+            ulength().value());
   return base::ReadUnalignedValue<uint32_t>(
       reinterpret_cast<Address>(&values()[offset]));
 }
 
 void TrustedByteArray::set_int(int offset, uint32_t value) {
   DCHECK(IsInBounds(offset));
-  DCHECK_LE(offset + sizeof(uint32_t), length());
+  DCHECK_LE(static_cast<uint32_t>(offset) + sizeof(uint32_t),
+            ulength().value());
   base::WriteUnalignedValue<uint32_t>(
       reinterpret_cast<Address>(&values()[offset]), value);
 }

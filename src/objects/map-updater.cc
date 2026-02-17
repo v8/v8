@@ -1136,8 +1136,9 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
       split_map->instance_descriptors(isolate_)
               ->enum_cache()
               ->keys()
-              ->length() > 0 ||
-      old_descriptors_->enum_cache()->keys()->length() > 0;
+              ->ulength()
+              .value() > 0 ||
+      old_descriptors_->enum_cache()->keys()->ulength().value() > 0;
 
   // Deprecated part of the transition tree is no longer reachable, so replace
   // current instance descriptors in the "survived" part of the tree with

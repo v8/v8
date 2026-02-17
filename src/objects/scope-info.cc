@@ -1365,9 +1365,10 @@ template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
 template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
-int SourceTextModuleInfo::RegularExportCount() const {
-  DCHECK_EQ(regular_exports()->length() % kRegularExportLength, 0);
-  return regular_exports()->length() / kRegularExportLength;
+uint32_t SourceTextModuleInfo::RegularExportCount() const {
+  uint32_t len = regular_exports()->ulength().value();
+  DCHECK_EQ(len % kRegularExportLength, 0);
+  return len / kRegularExportLength;
 }
 
 Tagged<String> SourceTextModuleInfo::RegularExportLocalName(int i) const {

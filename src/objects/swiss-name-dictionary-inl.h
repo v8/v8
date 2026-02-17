@@ -760,9 +760,11 @@ SwissNameDictionary::probe(uint32_t hash, int capacity) {
       swiss_table::H1(hash), static_cast<uint32_t>(non_zero_capacity - 1));
 }
 
-ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, Tagged<ByteArray>,
-                   MetaTablePointerOffset(), true,
-                   value->length() >= kMetaTableEnumerationDataStartIndex)
+ACCESSORS_CHECKED2(
+    SwissNameDictionary, meta_table, Tagged<ByteArray>,
+    MetaTablePointerOffset(), true,
+    value->ulength().value() >=
+        static_cast<uint32_t>(kMetaTableEnumerationDataStartIndex))
 
 }  // namespace v8::internal
 
