@@ -476,14 +476,16 @@ class TraceConfigParser {
  public:
   static void FillTraceConfig(v8::Isolate* isolate,
                               platform::tracing::TraceConfig* trace_config,
-                              const char* json_str) {
+                              base::Vector<char> json_str) {
     HandleScope outer_scope(isolate);
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
     HandleScope inner_scope(isolate);
 
-    Local<String> source =
-        String::NewFromUtf8(isolate, json_str).ToLocalChecked();
+    int length = base::checked_cast<int>(json_str.size());
+    Local<String> source = String::NewFromUtf8(isolate, json_str.data(),
+                                               NewStringType::kNormal, length)
+                               .ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = result.As<v8::Object>();
     // Try reading 'trace_config' property from a full chrome trace config.
@@ -523,7 +525,7 @@ class TraceConfigParser {
 }  // namespace
 
 static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
-    v8::Isolate* isolate, const char* json_str) {
+    v8::Isolate* isolate, base::Vector<char> json_str) {
   platform::tracing::TraceConfig* trace_config =
       new platform::tracing::TraceConfig();
   TraceConfigParser::FillTraceConfig(isolate, trace_config, json_str);
@@ -1923,13 +1925,13 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   TryCatch try_catch(isolate);
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
-  int length = 0;
-  std::unique_ptr<char[]> data(ReadChars(absolute_path.c_str(), &length));
-  if (length == 0) {
+  base::OwnedVector<char> data = ReadChars(absolute_path.c_str());
+  if (data.data() == nullptr) {
     printf("Error reading '%s'\n", file_name);
     base::OS::ExitProcess(1);
   }
-  std::stringstream stream(data.get());
+  // TODO(C++23): Replace with std::ispanstream once Clang supports it.
+  std::stringstream stream(std::string(data.data(), data.size()));
   std::string line;
   while (std::getline(stream, line, '\n')) {
     for (int r = 0; r < DeserializationRunCount(); ++r) {
@@ -5185,42 +5187,40 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
-char* Shell::ReadChars(const char* name, int* size_out) {
+base::OwnedVector<char> Shell::ReadChars(const char* name) {
   if (options.read_from_tcp_port >= 0) {
-    return ReadCharsFromTcpPort(name, size_out);
+    return ReadCharsFromTcpPort(name);
   }
 
   FILE* file = base::OS::FOpen(name, "rb");
-  if (file == nullptr) return nullptr;
+  if (file == nullptr) return {};
 
   fseek(file, 0, SEEK_END);
   size_t size = ftell(file);
   rewind(file);
 
-  char* chars = new char[size + 1];
-  chars[size] = '\0';
+  char* chars = new char[size];
   for (size_t i = 0; i < size;) {
     i += fread(&chars[i], 1, size - i, file);
     if (ferror(file)) {
       base::Fclose(file);
       delete[] chars;
-      return nullptr;
+      return {};
     }
   }
   base::Fclose(file);
-  *size_out = base::checked_cast<int>(size);
-  return chars;
+  return base::OwnedVector<char>(std::unique_ptr<char[]>(chars), size);
 }
 
 MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
                                             const char* name) {
-  int length;
-  std::unique_ptr<char[]> data(ReadChars(name, &length));
+  base::OwnedVector<char> data = ReadChars(name);
 
-  if (data.get() == nullptr) {
+  if (data.data() == nullptr) {
     return MaybeLocal<PrimitiveArray>();
   }
-  std::stringstream stream(data.get());
+  // TODO(C++23): Replace with std::ispanstream once Clang supports it.
+  std::stringstream stream(std::string(data.data(), data.size()));
   std::string line;
   std::vector<std::string> lines;
   while (std::getline(stream, line, '\n')) {
@@ -5248,14 +5248,13 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
                 "char and uint8_t should both have 1 byte");
   Isolate* isolate = info.GetIsolate();
   String::Utf8Value filename(isolate, info[0]);
-  int length;
   if (*filename == nullptr) {
     ThrowError(isolate, "Error loading file");
     return;
   }
 
-  uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
-  if (data == nullptr) {
+  base::OwnedVector<char> data = ReadChars(*filename);
+  if (data.data() == nullptr) {
     std::ostringstream error_msg;
     error_msg << "Error reading file \""
               << std::string_view{*filename,
@@ -5264,9 +5263,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ThrowError(isolate, error_msg.str());
     return;
   }
-  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, length);
-  memcpy(buffer->GetBackingStore()->Data(), data, length);
-  delete[] data;
+  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data.size());
+  memcpy(buffer->GetBackingStore()->Data(), data.data(), data.size());
 
   info.GetReturnValue().Set(buffer);
 }
@@ -7415,11 +7413,10 @@ int Shell::Main(int argc, char* argv[]) {
       if (options.trace_enabled) {
         platform::tracing::TraceConfig* trace_config;
         if (options.trace_config) {
-          int size = 0;
-          char* trace_config_json_str = ReadChars(options.trace_config, &size);
+          base::OwnedVector<char> trace_config_json_str =
+              ReadChars(options.trace_config);
           trace_config = tracing::CreateTraceConfigFromJSON(
-              isolate, trace_config_json_str);
-          delete[] trace_config_json_str;
+              isolate, trace_config_json_str.as_vector());
         } else {
           trace_config =
               platform::tracing::TraceConfig::CreateDefaultTraceConfig();
