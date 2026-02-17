@@ -291,7 +291,8 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
 
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless) {
-      Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+      Tagged<ProtectedWeakFixedArray> uses =
+          new_dispatch_table->protected_uses();
       int used_length = GetUsedLength(uses);
       for (int i = kReservedSlotOffset; i < used_length; i += 2) {
         if (uses->get(i).IsCleared()) continue;

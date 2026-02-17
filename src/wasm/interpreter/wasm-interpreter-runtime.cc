@@ -2410,10 +2410,13 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
 }
 
 DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
+  bool type_is_shared = module_->types[type_index].is_shared;
+  DirectHandle<WasmTrustedInstanceData> data =
+      type_is_shared
+          ? direct_handle(wasm_trusted_instance_data()->shared_part(), isolate_)
+          : wasm_trusted_instance_data();
   DirectHandle<Map> rtt{
-      TrustedCast<Map>(
-          wasm_trusted_instance_data()->managed_object_maps()->get(type_index)),
-      isolate_};
+      TrustedCast<Map>(data->managed_object_maps()->get(type_index)), isolate_};
   return rtt;
 }
 
@@ -2429,10 +2432,11 @@ WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
       struct_type};
 }
 
-std::pair<DirectHandle<WasmArray>, const ArrayType*>
+WasmInterpreterRuntime::ArrayNewResult
 WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
                                               uint32_t array_index) const {
   const ArrayType* array_type = GetArrayType(array_index);
+  const bool is_shared = module_->type(ModuleTypeIndex{array_index}).is_shared;
   if (V8_UNLIKELY(static_cast<int>(length) < 0 ||
                   static_cast<int>(length) >
                       WasmArray::MaxLength(array_type))) {
@@ -2442,7 +2446,8 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
   DirectHandle<Map> rtt = RttCanon(array_index);
   return {
       {isolate_->factory()->NewWasmArrayUninitialized(length, rtt), isolate_},
-      array_type};
+      array_type,
+      is_shared};
 }
 
 WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,

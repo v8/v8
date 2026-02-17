@@ -166,8 +166,15 @@ class WasmInterpreterRuntime {
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
   std::pair<DirectHandle<WasmStruct>, const StructType*> StructNewUninitialized(
       uint32_t index) const;
-  std::pair<DirectHandle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
-      uint32_t length, uint32_t array_index) const;
+
+  struct ArrayNewResult {
+    DirectHandle<WasmArray> array;
+    const ArrayType* type;
+    bool is_shared;
+  };
+  ArrayNewResult ArrayNewUninitialized(uint32_t length,
+                                       uint32_t array_index) const;
+
   WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
                               uint32_t offset, uint32_t length);
   bool WasmArrayInitSegment(uint32_t segment_index, WasmRef wasm_array,
