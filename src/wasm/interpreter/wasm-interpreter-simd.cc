@@ -284,7 +284,8 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
     MemoryAccessImmediate imm(decoder, code->at(pc + *len), 64, false, is_rmw,
                               Decoder::kNoValidation);
-    optional->offset = imm.offset;
+    optional->memory_access.offset = imm.offset;
+    optional->memory_access.memory_index = imm.mem_index;
     *len += imm.length;
   } else if (opcode == kExprS128Const) {
     Simd128Immediate imm(decoder, code->at(pc + *len), kNoValidate);
@@ -322,6 +323,7 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
     }
 
     optional->simd_loadstore_lane.offset = mem_imm.offset;
+    optional->simd_loadstore_lane.memory_index = mem_imm.mem_index;
     optional->simd_loadstore_lane.lane = lane_imm.lane;
     *len += lane_imm.length;
   } else if (WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {

@@ -1087,9 +1087,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     if (module_->num_imported_mutable_globals > 0) {
       detected_features_->add_mutable_globals();
@@ -1225,9 +1222,6 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (module_->memories.size() > 1) {
       detected_features_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        error("Multiple memories not supported in Wasm jitless mode");
-      }
     }
     UpdateComputedMemoryInformation();
   }

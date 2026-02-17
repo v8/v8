@@ -2235,10 +2235,6 @@ class WasmDecoder : public Decoder {
     size_t num_memories = module_->memories.size();
     if (imm.index > 0 || imm.length > 1) {
       this->detected_->add_multi_memory();
-      if (v8_flags.wasm_jitless) {
-        DecodeError(pc, "Multiple memories not supported in Wasm jitless mode");
-        return false;
-      }
     }
 
     if (!VALIDATE(imm.index < num_memories)) {

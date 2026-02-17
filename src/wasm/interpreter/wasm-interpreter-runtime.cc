@@ -325,7 +325,6 @@ WasmInterpreterRuntime::WasmInterpreterRuntime(
       trap_pc_(0),
       current_thread_(nullptr),
       fuzzer_start_time_(base::TimeTicks::Now()),
-      memory_start_(nullptr),
       instruction_table_(kInstructionTable),
       generic_wasm_to_js_interpreter_wrapper_fn_(
           GeneratedCode<WasmToJSCallSig>::FromAddress(isolate, {}))
@@ -364,7 +363,7 @@ void WasmInterpreterRuntime::InitGlobalAddressCache() {
 
 // static
 void WasmInterpreterRuntime::UpdateMemoryAddress(
-    DirectHandle<WasmInstanceObject> instance) {
+    DirectHandle<WasmInstanceObject> instance, uint32_t memory_index) {
   Isolate* isolate = Isolate::Current();
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
@@ -372,13 +371,13 @@ void WasmInterpreterRuntime::UpdateMemoryAddress(
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
+  DCHECK_LT(memory_index, wasm_runtime->module_->memories.size());
   wasm_runtime->InitMemoryAddresses();
 }
 
-int32_t WasmInterpreterRuntime::MemoryGrow(uint32_t delta_pages) {
+int32_t WasmInterpreterRuntime::MemoryGrow(uint32_t memory_index,
+                                           uint32_t delta_pages) {
   HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-  // TODO(paolosev@microsoft.com): Support multiple memories.
-  uint32_t memory_index = 0;
   DirectHandle<WasmMemoryObject> memory(
       wasm_trusted_instance_data()->memory_object(memory_index), isolate_);
   int32_t result = WasmMemoryObject::Grow(isolate_, memory, delta_pages);
@@ -530,14 +529,14 @@ void WasmInterpreterRuntime::TableFill(const uint8_t*& current_code,
 
 bool WasmInterpreterRuntime::MemoryInit(const uint8_t*& current_code,
                                         uint32_t data_segment_index,
-                                        uint64_t dst, uint64_t src,
-                                        uint64_t size) {
+                                        uint32_t memory_index, uint64_t dst,
+                                        uint64_t src, uint64_t size) {
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   Address dst_addr;
   uint64_t src_max =
       trusted_data->data_segment_sizes()->get(data_segment_index);
-  if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
+  if (!BoundsCheckMemRange(memory_index, dst, &size, &dst_addr) ||
       !base::IsInBounds(src, size, src_max)) {
     SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
@@ -551,12 +550,13 @@ bool WasmInterpreterRuntime::MemoryInit(const uint8_t*& current_code,
 }
 
 bool WasmInterpreterRuntime::MemoryCopy(const uint8_t*& current_code,
-                                        uint64_t dst, uint64_t src,
-                                        uint64_t size) {
+                                        uint32_t dst_memory_index,
+                                        uint32_t src_memory_index, uint64_t dst,
+                                        uint64_t src, uint64_t size) {
   Address dst_addr;
   Address src_addr;
-  if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
-      !BoundsCheckMemRange(src, &size, &src_addr)) {
+  if (!BoundsCheckMemRange(dst_memory_index, dst, &size, &dst_addr) ||
+      !BoundsCheckMemRange(src_memory_index, src, &size, &src_addr)) {
     SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
@@ -567,10 +567,10 @@ bool WasmInterpreterRuntime::MemoryCopy(const uint8_t*& current_code,
 }
 
 bool WasmInterpreterRuntime::MemoryFill(const uint8_t*& current_code,
-                                        uint64_t dst, uint32_t value,
-                                        uint64_t size) {
+                                        uint32_t memory_index, uint64_t dst,
+                                        uint32_t value, uint64_t size) {
   Address dst_addr;
-  if (!BoundsCheckMemRange(dst, &size, &dst_addr)) {
+  if (!BoundsCheckMemRange(memory_index, dst, &size, &dst_addr)) {
     SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
@@ -845,13 +845,12 @@ bool WasmInterpreterRuntime::AllowsAtomicsWait() const {
 }
 
 int32_t WasmInterpreterRuntime::AtomicNotify(uint64_t buffer_offset,
+                                             uint32_t memory_index,
                                              int32_t val) {
   if (module_->memories.empty() || !module_->memories[0].is_shared) {
     return 0;
   } else {
     HandleScope handle_scope(isolate_);
-    // TODO(paolosev@microsoft.com): Support multiple memories.
-    uint32_t memory_index = 0;
     DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
         isolate_,
         direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
@@ -863,6 +862,7 @@ int32_t WasmInterpreterRuntime::AtomicNotify(uint64_t buffer_offset,
 }
 
 int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
+                                              uint32_t memory_index,
                                               int32_t val, int64_t timeout) {
   // We might handle interrupts (for example from a debugger) here while we are
   // locked in the futex. We need to make sure that the current activation is
@@ -870,8 +870,6 @@ int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
   current_thread_->SetCurrentFrame(current_frame_);
 
   HandleScope handle_scope(isolate_);
-  // TODO(paolosev@microsoft.com): Support multiple memories.
-  uint32_t memory_index = 0;
   DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
       isolate_,
       direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
@@ -885,6 +883,7 @@ int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
 }
 
 int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
+                                              uint32_t memory_index,
                                               int64_t val, int64_t timeout) {
   // We might handle interrupts (for example from a debugger) here while we are
   // locked in the futex. We need to make sure that the current activation is
@@ -892,8 +891,6 @@ int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
   current_thread_->SetCurrentFrame(current_frame_);
 
   HandleScope handle_scope(isolate_);
-  // TODO(paolosev@microsoft.com): Support multiple memories.
-  uint32_t memory_index = 0;
   DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
       isolate_,
       direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),

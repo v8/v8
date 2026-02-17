@@ -660,21 +660,6 @@
   # --experimental-wasm-extended-const
   'wasm/extended-constants': [SKIP],
 
-  # Multiple memories
-  'regress/wasm/regress-1518257': [SKIP],
-  'regress/wasm/regress-1523740': [SKIP],
-  'regress/wasm/regress-343035068': [SKIP],
-  'regress/wasm/regress-382816108': [SKIP],
-  'wasm/atomic-wait-multi-memory': [SKIP],
-  'wasm/generate-random-module*': [SKIP],
-  'wasm/js-api': [SKIP],
-  'wasm/memory-copy-inline': [SKIP],
-  'wasm/memory-copy-outline': [SKIP],
-  'wasm/memory-fill-inline': [SKIP],
-  'wasm/memory-fill-outline': [SKIP],
-  'wasm/memory-huge-constant-index': [SKIP],
-  'wasm/multi-memory*': [SKIP],
-
   # --experimental-wasm-stack-switching
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/jspi*': [SKIP],
@@ -891,6 +876,7 @@
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/inlining-multi-instance': [SKIP],
   'wasm/inlining-mutable-instance-fields': [SKIP],
+  'wasm/memory-huge-constant-index': [SKIP],
   'wasm/nan-constant': [SKIP],
   'wasm/recognize-imports': [SKIP],
   'wasm/regress-471363817': [SKIP],
@@ -901,6 +887,7 @@
   # Tests using %WasmGenerateRandomModule() (require compilation)
   'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],
+  'wasm/generate-random-module*': [SKIP],
 
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
