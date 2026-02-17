@@ -206,7 +206,9 @@ declare_args() {
   # GC.
   cppgc_enable_slim_write_barrier = true
 
-  # Enable pointer compression in cppgc.
+  # Enable pointer compression in cppgc. Note: this is automatically turned on
+  # by cppgc_enable_caged_heap on 64-bit platforms. To unconditionally disable
+  # pointer compression, set cppgc_enable_caged_heap = false.
   cppgc_enable_pointer_compression = false
 
   # Enable support for larger cages, up to 16GB.
