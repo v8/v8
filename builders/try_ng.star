@@ -122,7 +122,7 @@ trybot_pair(
     name = "v8_linux64_cfi_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-    build_timeout = 2700,
+    build_timeout = 3600,
 )
 
 trybot_pair(
