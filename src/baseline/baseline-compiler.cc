@@ -21,6 +21,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
@@ -293,6 +294,8 @@ BaselineCompiler::BaselineCompiler(
           CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
+      allow_sparkplug_plus_(v8_flags.sparkplug_plus &&
+                            local_isolate->is_short_builtin_calls_enabled()),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
       label_tags_(2 * bytecode_->length(), &zone_) {
   // Empirically determined expected size of the offset table at the 95th %ile,
@@ -1043,7 +1046,7 @@ void BaselineCompiler::VisitMov() {
 }
 
 void BaselineCompiler::VisitGetNamedProperty() {
-  if (v8_flags.sparkplug_plus) {
+  if (allow_sparkplug_plus_) {
     CallBuiltin<Builtin::kLoadICUninitializedBaseline>(
         RegisterOperand(0),        // object
         Constant<Name>(1),         // name
@@ -1735,7 +1738,7 @@ void BaselineCompiler::VisitTestEqualStrict() {
       iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
-  if (v8_flags.sparkplug_plus) {
+  if (allow_sparkplug_plus_) {
 #define TYPED_STRICTEQUAL_CASE(type)                         \
   case CompareOperationFeedback::Type::k##type:              \
     CallBuiltin<Builtin::kStrictEqual_##type##_Baseline>(    \
