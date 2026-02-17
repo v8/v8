@@ -102,7 +102,7 @@ InspectorIsolateData::~InspectorIsolateData() {
     session_ids_for_cleanup_.insert(pair.first);
   }
 
-  context_group_by_session_.clear();
+  context_group_by_session_id_.clear();
   sessions_.clear();
 
   for (int session_id : session_ids_for_cleanup_) {
@@ -216,7 +216,7 @@ std::optional<int> InspectorIsolateData::ConnectSession(
       waiting_for_debugger_
           ? v8_inspector::V8Inspector::kWaitingForDebugger
           : v8_inspector::V8Inspector::kNotWaitingForDebugger);
-  context_group_by_session_[sessions_[session_id].get()] = context_group_id;
+  context_group_by_session_id_[session_id] = context_group_id;
   return session_id;
 }
 
@@ -229,7 +229,7 @@ std::vector<uint8_t> InspectorIsolateData::DisconnectSession(
     return {};
   }
 
-  context_group_by_session_.erase(it->second.get());
+  context_group_by_session_id_.erase(session_id);
   std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
 
@@ -449,7 +449,7 @@ void InspectorIsolateData::FreeContext(v8::Local<v8::Context> context) {
 std::vector<int> InspectorIsolateData::GetSessionIds(int context_group_id) {
   std::vector<int> result;
   for (auto& it : sessions_) {
-    if (context_group_by_session_[it.second.get()] == context_group_id)
+    if (context_group_by_session_id_[it.first] == context_group_id)
       result.push_back(it.first);
   }
   return result;
