@@ -1526,6 +1526,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
     CHECK(!construct_as_builtin());
   } else {
     if (builtin_id() != Builtin::kCompileLazy &&
+#if V8_ENABLE_WEBASSEMBLY
+        builtin_id() != Builtin::kWasmMethodWrapper &&
+#endif  // V8_ENABLE_WEBASSEMBLY
         builtin_id() != Builtin::kEmptyFunction) {
       CHECK(construct_as_builtin());
     } else {

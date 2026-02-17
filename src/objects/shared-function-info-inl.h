@@ -496,7 +496,11 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
   bool uses_builtins_construct_stub = false;
   if (HasBuiltinId()) {
     Builtin id = builtin_id();
-    if (id != Builtin::kCompileLazy && id != Builtin::kEmptyFunction) {
+    if (id != Builtin::kCompileLazy &&
+#if V8_ENABLE_WEBASSEMBLY
+        id != Builtin::kWasmMethodWrapper &&
+#endif
+        id != Builtin::kEmptyFunction) {
       uses_builtins_construct_stub = true;
     }
   } else if (IsApiFunction()) {
