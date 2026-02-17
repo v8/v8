@@ -628,8 +628,11 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
     for (; j < length_; j++) {
       DCHECK(temp_[j] == 0);
     }
-    if (carry != 0) {
-      DCHECK(zi < Z.len());
+    // Only concurrent in-sandbox corruption can cause carries beyond Z.len().
+    // So guard the store with a bounds check, but have a DCHECK so tests can
+    // detect any implementation bugs leading to an unexpected situation.
+    DCHECK(carry == 0 || zi < Z.len());
+    if (carry != 0 && zi < Z.len()) {
       Z[zi] = carry;
     }
   }
