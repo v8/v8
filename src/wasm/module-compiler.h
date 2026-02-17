@@ -246,7 +246,7 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmEnabledFeatures enabled_features_;
   WasmDetectedFeatures detected_features_;
-  CompileTimeImports compile_imports_;
+  const CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
   base::TimeTicks compilation_finished_time_;
   // Copy of the module wire bytes, moved into the {new_native_module_} on its

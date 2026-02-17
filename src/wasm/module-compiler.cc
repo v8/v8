@@ -2571,7 +2571,7 @@ void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   DCHECK_NULL(new_native_module_);
   new_native_module_ = GetWasmEngine()->NewUnownedNativeModule(
-      enabled_features_, detected_features_, std::move(compile_imports_),
+      enabled_features_, detected_features_, compile_imports_,
       std::move(module), code_size_estimate);
   new_native_module_->SetWireBytes(std::move(bytes_copy_));
   new_native_module_->compilation_state()->set_compilation_id(compilation_id_);
