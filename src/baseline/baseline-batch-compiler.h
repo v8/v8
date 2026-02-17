@@ -19,7 +19,7 @@ class ConcurrentBaselineCompiler;
 
 class BaselineBatchCompiler {
  public:
-  static const int kInitialQueueSize = 32;
+  static const uint32_t kInitialQueueSize = 32;
 
   explicit BaselineBatchCompiler(Isolate* isolate);
   ~BaselineBatchCompiler();

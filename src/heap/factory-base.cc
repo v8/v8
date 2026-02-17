@@ -195,7 +195,7 @@ Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
-    int length, bool shared) {
+    uint32_t length, bool shared) {
   if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length, shared);
 }
@@ -257,7 +257,7 @@ Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
 
 template <typename Impl>
 Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
-    Tagged<Map> map, int length, AllocationType allocation) {
+    Tagged<Map> map, uint32_t length, AllocationType allocation) {
   // Zero-length case must be handled outside.
   DCHECK_LT(0, length);
   DCHECK(ReadOnlyHeap::Contains(map));
@@ -276,13 +276,13 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 
 template <typename Impl>
 Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   return WeakFixedArray::New(isolate(), length, allocation);
 }
 
 template <typename Impl>
 Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
-    int length) {
+    uint32_t length) {
   // TODO(saelo): Move this check to TrustedWeakFixedArray::New once we have a
   // RO trusted space.
   if (length == 0) return empty_trusted_weak_fixed_array();
@@ -291,7 +291,7 @@ Handle<TrustedWeakFixedArray> FactoryBase<Impl>::NewTrustedWeakFixedArray(
 
 template <typename Impl>
 Handle<ProtectedWeakFixedArray> FactoryBase<Impl>::NewProtectedWeakFixedArray(
-    int length) {
+    uint32_t length) {
   // TODO(saelo): Move this check to ProtectedWeakFixedArray::New once we have
   // a RO trusted space.
   if (length == 0) return empty_protected_weak_fixed_array();
@@ -313,7 +313,7 @@ Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
 
 template <typename Impl>
 DirectHandle<DeoptimizationLiteralArray>
-FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
+FactoryBase<Impl>::NewDeoptimizationLiteralArray(uint32_t length) {
   return TrustedCast<DeoptimizationLiteralArray>(
       NewTrustedWeakFixedArray(length));
 }
@@ -430,7 +430,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 template <typename Impl>
 DirectHandle<SloppyArgumentsElements>
 FactoryBase<Impl>::NewSloppyArgumentsElements(
-    int length, DirectHandle<Context> context,
+    uint32_t length, DirectHandle<Context> context,
     DirectHandle<FixedArray> arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
       Cast<SloppyArgumentsElements>(AllocateRawWithImmortalMap(
@@ -655,9 +655,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
 template <typename Impl>
 Handle<ObjectBoilerplateDescription>
-FactoryBase<Impl>::NewObjectBoilerplateDescription(int boilerplate,
-                                                   int all_properties,
-                                                   int index_keys,
+FactoryBase<Impl>::NewObjectBoilerplateDescription(uint32_t boilerplate,
+                                                   uint32_t all_properties,
+                                                   uint32_t index_keys,
                                                    bool has_seen_proto) {
   return ObjectBoilerplateDescription::New(
       isolate(), boilerplate, all_properties, index_keys, has_seen_proto,
@@ -705,8 +705,12 @@ Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
     DirectHandle<FixedArray> raw_strings,
     DirectHandle<FixedArray> cooked_strings) {
-  DCHECK_EQ(raw_strings->length(), cooked_strings->length());
-  DCHECK_LT(0, raw_strings->length());
+#ifdef DEBUG
+  const uint32_t raw_strings_len = raw_strings->ulength().value();
+  const uint32_t cooked_strings_len = cooked_strings->ulength().value();
+  DCHECK_EQ(raw_strings_len, cooked_strings_len);
+  DCHECK_LT(0, raw_strings_len);
+#endif
   auto result = NewStructInternal<TemplateObjectDescription>(
       TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -1126,9 +1130,9 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   // LINT.IfChange(CheckPreallocatedNumberStrings)
   {
     DCHECK_EQ(kPreallocatedNumberStringTableSize,
-              preallocated_number_string_table()->length());
+              preallocated_number_string_table()->ulength().value());
     int index = number.value();
-    if (static_cast<unsigned>(index) < kPreallocatedNumberStringTableSize) {
+    if (static_cast<uint32_t>(index) < kPreallocatedNumberStringTableSize) {
       return handle(
           Cast<String>(preallocated_number_string_table()->get(index)),
           isolate());

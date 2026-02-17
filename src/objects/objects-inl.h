@@ -1738,6 +1738,10 @@ bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(
 
 int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 
+SafeHeapObjectSize HeapObjectLayout::SafeSize() const {
+  return Tagged<HeapObject>(this)->SafeSize();
+}
+
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
   DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,

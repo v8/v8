@@ -1142,7 +1142,8 @@ int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
   if (!IsWeakFixedArray(obj, cage_base)) return false;
-  if (Cast<WeakFixedArray>(obj)->length() != NormalizedMapCache::kEntries) {
+  if (Cast<WeakFixedArray>(obj)->ulength().value() !=
+      NormalizedMapCache::kEntries) {
     return false;
   }
   return true;

@@ -1030,10 +1030,12 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetWrappedSharedFunctionInfo(Smi::zero());
   }
 
+  const uint32_t protected_deopt_literals_len =
+      static_cast<uint32_t>(protected_deoptimization_literals_.size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       isolate()->factory()->NewProtectedFixedArray(
-          static_cast<int>(protected_deoptimization_literals_.size()));
-  for (unsigned i = 0; i < protected_deoptimization_literals_.size(); i++) {
+          protected_deopt_literals_len);
+  for (uint32_t i = 0; i < protected_deopt_literals_len; i++) {
     IndirectHandle<TrustedObject> object =
         protected_deoptimization_literals_[i];
     CHECK(!object.is_null());
@@ -1041,10 +1043,11 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetProtectedLiteralArray(*protected_literals);
 
+  const uint32_t deopt_literals_len =
+      static_cast<uint32_t>(deoptimization_literals_.size());
   DirectHandle<DeoptimizationLiteralArray> literals =
-      isolate()->factory()->NewDeoptimizationLiteralArray(
-          static_cast<int>(deoptimization_literals_.size()));
-  for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
+      isolate()->factory()->NewDeoptimizationLiteralArray(deopt_literals_len);
+  for (uint32_t i = 0; i < deopt_literals_len; i++) {
     DirectHandle<Object> object = deoptimization_literals_[i].Reify(isolate());
     CHECK(!object.is_null());
     literals->set(i, *object);

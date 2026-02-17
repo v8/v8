@@ -2062,10 +2062,10 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
       static_cast<int>(graph_->inlined_functions().size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       local_isolate->factory()->NewProtectedFixedArray(
-          protected_deopt_literals_.size());
+          static_cast<uint32_t>(protected_deopt_literals_.size()));
   DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals_.size());
+          static_cast<uint32_t>(deopt_literals_.size()));
   DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);

@@ -1422,7 +1422,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
 
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
-  int length = static_cast<int>(element_stack_.size() - start);
+  const uint32_t length = static_cast<uint32_t>(element_stack_.size() - start);
 
   ElementsKind kind = PACKED_SMI_ELEMENTS;
   for (size_t i = start; i < element_stack_.size(); i++) {
@@ -1442,10 +1442,10 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
       (kind == PACKED_DOUBLE_ELEMENTS)
           ? FixedDoubleArray::New(
                 isolate(), length,
-                [this, start](int i) {
+                [this, start](uint32_t i) {
                   return Object::NumberValue(*element_stack_[start + i]);
                 })
-          : FixedArray::New(isolate(), length, [this, start](int i) {
+          : FixedArray::New(isolate(), length, [this, start](uint32_t i) {
               return *element_stack_[start + i];
             });
   return inner_scope.CloseAndEscape(

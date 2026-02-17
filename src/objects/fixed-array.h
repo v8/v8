@@ -44,8 +44,8 @@ class ArrayHeaderBase<Super, false> : public Super {
  public:
   inline int capacity() const;
   inline int capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(int value);
-  inline void set_capacity(int value, ReleaseStoreTag tag);
+  inline void set_capacity(uint32_t value);
+  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
   // TODO(leszeks): Make this private.
  public:
@@ -64,13 +64,13 @@ class ArrayHeaderBase<Super, true> : public Super {
 
   inline int length() const;
   inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
-  inline void set_length(int value);
-  inline void set_length(int value, ReleaseStoreTag tag);
+  inline void set_length(uint32_t value);
+  inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
   inline int capacity() const;
   inline int capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(int value);
-  inline void set_capacity(int value, ReleaseStoreTag tag);
+  inline void set_capacity(uint32_t value);
+  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
   // TODO(leszeks): Make this private.
  public:
@@ -205,7 +205,7 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
  protected:
   template <class IsolateT>
   static Handle<Derived> Allocate(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
@@ -234,12 +234,12 @@ V8_OBJECT class FixedArray
  public:
   template <class IsolateT>
   static inline Handle<FixedArray> New(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
   template <class IsolateT, typename ElementsCallback>
   static inline Handle<FixedArray> New(
-      IsolateT* isolate, int length, ElementsCallback elements_callback,
+      IsolateT* isolate, uint32_t length, ElementsCallback elements_callback,
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
 
@@ -259,7 +259,7 @@ V8_OBJECT class FixedArray
     requires(
         std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
   V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
-      Isolate* isolate, HandleType<FixedArray> array, int index,
+      Isolate* isolate, HandleType<FixedArray> array, uint32_t index,
       DirectHandle<Object> value);
 
   // Right-trim the array.
@@ -292,7 +292,7 @@ V8_OBJECT class FixedArray
 
  private:
   inline static Handle<FixedArray> Resize(
-      Isolate* isolate, DirectHandle<FixedArray> xs, int new_capacity,
+      Isolate* isolate, DirectHandle<FixedArray> xs, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 } V8_OBJECT_END;
@@ -323,7 +323,7 @@ V8_OBJECT class TrustedFixedArray
  public:
   template <class IsolateT>
   static inline Handle<TrustedFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kTrusted);
 
   DECL_PRINTER(TrustedFixedArray)
@@ -357,7 +357,8 @@ V8_OBJECT class ProtectedFixedArray
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
   // Smi::zero().
   template <class IsolateT>
-  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate, int capacity,
+  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate,
+                                                uint32_t capacity,
                                                 bool shared = false);
 
   DECL_PRINTER(ProtectedFixedArray)
@@ -454,7 +455,7 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
  protected:
   template <class IsolateT>
   static Handle<Derived> Allocate(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -479,11 +480,11 @@ V8_OBJECT class FixedDoubleArray
   // empty_fixed_array.
   template <class IsolateT>
   static inline Handle<FixedArrayBase> New(
-      IsolateT* isolate, int length,
+      IsolateT* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
   template <class IsolateT, typename ElementsCallback>
   static inline Handle<FixedArrayBase> New(
-      IsolateT* isolate, int length, ElementsCallback elements_callback,
+      IsolateT* isolate, uint32_t length, ElementsCallback elements_callback,
       AllocationType allocation = AllocationType::kYoung);
 
   // Setter and getter for elements.
@@ -533,7 +534,7 @@ V8_OBJECT class WeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       MaybeDirectHandle<Object> initial_value = {});
 
@@ -562,7 +563,7 @@ V8_OBJECT class TrustedWeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<TrustedWeakFixedArray> New(IsolateT* isolate,
-                                                  int capacity);
+                                                  uint32_t capacity);
 
   DECL_PRINTER(TrustedWeakFixedArray)
   DECL_VERIFIER(TrustedWeakFixedArray)
@@ -592,7 +593,7 @@ V8_OBJECT class ProtectedWeakFixedArray
  public:
   template <class IsolateT>
   static inline Handle<ProtectedWeakFixedArray> New(IsolateT* isolate,
-                                                    int capacity);
+                                                    uint32_t capacity);
   DECL_PRINTER(ProtectedWeakFixedArray)
   DECL_VERIFIER(ProtectedWeakFixedArray)
 

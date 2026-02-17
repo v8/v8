@@ -861,7 +861,7 @@ class ScriptContextTable
   using Shape = ScriptContextTableShape;
 
   static Handle<ScriptContextTable> New(
-      Isolate* isolate, int capacity,
+      Isolate* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung);
 
   inline int length(AcquireLoadTag) const;

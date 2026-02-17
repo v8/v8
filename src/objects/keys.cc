@@ -379,9 +379,11 @@ void FastKeyAccumulator::Prepare() {
 namespace {
 
 Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
-                                      Handle<FixedArray> array, int length) {
-  DCHECK_LE(length, array->length());
-  if (array->length() == length) return array;
+                                      Handle<FixedArray> array,
+                                      uint32_t length) {
+  const uint32_t array_len = array->ulength().value();
+  DCHECK_LE(length, array_len);
+  if (array_len == length) return array;
   return isolate->factory()->CopyFixedArrayUpTo(array, length);
 }
 
@@ -398,7 +400,8 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   int enum_length = map->EnumLength();
   if (enum_length != kInvalidEnumCacheSentinel) {
     DCHECK(map->OnlyHasSimpleProperties());
-    DCHECK_LE(enum_length, keys->length());
+    DCHECK_GE(enum_length, 0);
+    DCHECK_LE(static_cast<uint32_t>(enum_length), keys->ulength().value());
     DCHECK_EQ(enum_length, map->NumberOfEnumerableProperties());
     isolate->counters()->enum_cache_hits()->Increment();
     return ReduceFixedArrayTo(isolate, keys, enum_length);
@@ -409,10 +412,12 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
 
   // Check if there's already a shared enum cache on the {map}s
   // DescriptorArray with sufficient number of entries.
-  if (enum_length <= keys->length()) {
+  DCHECK_GE(enum_length, 0);
+  if (static_cast<uint32_t>(enum_length) <= keys->ulength().value()) {
     if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
     isolate->counters()->enum_cache_hits()->Increment();
-    return ReduceFixedArrayTo(isolate, keys, enum_length);
+    return ReduceFixedArrayTo(isolate, keys,
+                              static_cast<uint32_t>(enum_length));
   }
 
   return FastKeyAccumulator::InitializeFastPropertyEnumCache(isolate, map,
@@ -682,7 +687,8 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
   if (is_for_in_ && own_keys.is_identical_to(result)) {
     // Don't leak the enumeration cache without the receiver since it might get
     // trimmed otherwise.
-    return isolate_->factory()->CopyFixedArrayUpTo(result, result->length());
+    return isolate_->factory()->CopyFixedArrayUpTo(result,
+                                                   result->ulength().value());
   }
   return result;
 }

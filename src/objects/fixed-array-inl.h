@@ -39,7 +39,9 @@ namespace v8::internal {
 
 template <class S>
 int detail::ArrayHeaderBase<S, false>::capacity() const {
-  return capacity_.load().value();
+  int capacity = capacity_.load().value();
+  DCHECK_GE(capacity, 0);
+  return capacity;
 }
 
 template <class S>
@@ -48,12 +50,12 @@ int detail::ArrayHeaderBase<S, false>::capacity(AcquireLoadTag tag) const {
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, false>::set_capacity(int value) {
+void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value) {
   capacity_.store(this, Smi::FromInt(value));
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, false>::set_capacity(int value,
+void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value,
                                                      ReleaseStoreTag tag) {
   capacity_.Release_Store(this, Smi::FromInt(value));
 }
@@ -79,14 +81,14 @@ SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length(
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, true>::set_length(int value) {
-  length_.store(this, Smi::FromInt(value));
+void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value) {
+  length_.store(this, Smi::FromUInt(value));
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, true>::set_length(int value,
+void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value,
                                                   ReleaseStoreTag tag) {
-  length_.Release_Store(this, Smi::FromInt(value));
+  length_.Release_Store(this, Smi::FromUInt(value));
 }
 
 template <class S>
@@ -105,12 +107,12 @@ int detail::ArrayHeaderBase<S, true>::capacity(AcquireLoadTag tag) const {
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, true>::set_capacity(int value) {
+void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value) {
   set_length(value);
 }
 
 template <class S>
-void detail::ArrayHeaderBase<S, true>::set_capacity(int value,
+void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value,
                                                     ReleaseStoreTag tag) {
   set_length(value, tag);
 }
@@ -305,10 +307,10 @@ TaggedArrayBase<D, S, P>::RawFieldOfElementAt(uint32_t index) const {
 
 // static
 template <class IsolateT>
-Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, uint32_t length,
                                    AllocationType allocation,
                                    AllocationHint hint) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
+  if (V8_UNLIKELY(length > FixedArrayBase::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         length);
@@ -327,11 +329,11 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
 
 // static
 template <class IsolateT, typename ElementsCallback>
-Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, uint32_t length,
                                    ElementsCallback elements_callback,
                                    AllocationType allocation,
                                    AllocationHint hint) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
+  if (V8_UNLIKELY(length > FixedArrayBase::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         length);
@@ -346,7 +348,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
       allocation == AllocationType::kYoung
           ? WriteBarrierMode::SKIP_WRITE_BARRIER
           : WriteBarrierMode::UPDATE_WRITE_BARRIER;
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     result->set(i, elements_callback(i), write_barrier);
   }
   return result;
@@ -355,13 +357,12 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
 // static
 template <class IsolateT>
 Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
-                                                 int capacity,
+                                                 uint32_t capacity,
                                                  AllocationType allocation) {
   DCHECK(allocation == AllocationType::kTrusted ||
          allocation == AllocationType::kSharedTrusted);
 
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  TrustedFixedArray::kMaxLength)) {
+  if (V8_UNLIKELY(capacity > TrustedFixedArray::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         capacity);
@@ -381,10 +382,9 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
 // static
 template <class IsolateT>
 Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
-                                                     int capacity,
+                                                     uint32_t capacity,
                                                      bool shared) {
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  ProtectedFixedArray::kMaxLength)) {
+  if (V8_UNLIKELY(capacity > ProtectedFixedArray::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         capacity);
@@ -403,12 +403,11 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
 template <class D, class S, class P>
 template <class IsolateT>
 Handle<D> TaggedArrayBase<D, S, P>::Allocate(
-    IsolateT* isolate, int capacity,
+    IsolateT* isolate, uint32_t capacity,
     std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation, AllocationHint hint) {
   // Note 0-capacity is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-capacity instances.
-  DCHECK_GE(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
   DCHECK(!no_gc_out->has_value());
 
@@ -486,11 +485,11 @@ void FixedArray::CopyElements(Isolate* isolate, uint32_t dst_index,
 // static
 Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
                                       DirectHandle<FixedArray> xs,
-                                      int new_capacity,
+                                      uint32_t new_capacity,
                                       AllocationType allocation,
                                       WriteBarrierMode mode) {
   Handle<FixedArray> ys = New(isolate, new_capacity, allocation);
-  int elements_to_copy = std::min(new_capacity, xs->capacity());
+  const uint32_t elements_to_copy = std::min(new_capacity, xs->ucapacity());
   FixedArray::CopyElements(isolate, *ys, 0, *xs, 0, elements_to_copy, mode);
   return ys;
 }
@@ -561,9 +560,9 @@ inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
 
 // static
 template <class IsolateT>
-Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
+Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, uint32_t length,
                                              AllocationType allocation) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+  if (V8_UNLIKELY(length > kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         length);
@@ -577,10 +576,10 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
 
 // static
 template <class IsolateT, typename ElementsCallback>
-Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
+Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, uint32_t length,
                                              ElementsCallback elements_callback,
                                              AllocationType allocation) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+  if (V8_UNLIKELY(length > kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         length);
@@ -591,7 +590,7 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<FixedDoubleArray> array =
       Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     array->set(i, elements_callback(i));
   }
   return array;
@@ -601,12 +600,11 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
 template <class D, class S, class P>
 template <class IsolateT>
 Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
-    IsolateT* isolate, int length,
+    IsolateT* isolate, uint32_t length,
     std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation) {
   // Note 0-length is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-length instances.
-  DCHECK_GE(length, 0);
   DCHECK_LE(length, kMaxLength);
   DCHECK(!no_gc_out->has_value());
 
@@ -701,9 +699,9 @@ void FixedDoubleArray::FillWithHoles(uint32_t from, uint32_t to) {
 // static
 template <class IsolateT>
 Handle<WeakFixedArray> WeakFixedArray::New(
-    IsolateT* isolate, int capacity, AllocationType allocation,
+    IsolateT* isolate, uint32_t capacity, AllocationType allocation,
     MaybeDirectHandle<Object> initial_value) {
-  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
+  CHECK_LE(capacity, kMaxCapacity);
 
   if (V8_UNLIKELY(capacity == 0)) {
     return isolate->factory()->empty_weak_fixed_array();
@@ -722,9 +720,8 @@ Handle<WeakFixedArray> WeakFixedArray::New(
 
 template <class IsolateT>
 Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
-                                                         int capacity) {
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  TrustedFixedArray::kMaxLength)) {
+                                                         uint32_t capacity) {
+  if (V8_UNLIKELY(capacity > TrustedFixedArray::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         capacity);
@@ -738,10 +735,9 @@ Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
 }
 
 template <class IsolateT>
-Handle<ProtectedWeakFixedArray> ProtectedWeakFixedArray::New(IsolateT* isolate,
-                                                             int capacity) {
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  TrustedFixedArray::kMaxLength)) {
+Handle<ProtectedWeakFixedArray> ProtectedWeakFixedArray::New(
+    IsolateT* isolate, uint32_t capacity) {
+  if (V8_UNLIKELY(capacity > TrustedFixedArray::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
         capacity);
@@ -827,8 +823,9 @@ DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
   DCHECK_LE(capacity, kMaxCapacity);
 
   std::optional<DisallowGarbageCollection> no_gc;
-  DirectHandle<ArrayList> result =
-      Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
+  // TODO(375937549): Convert to uint32_t.
+  DirectHandle<ArrayList> result = Cast<ArrayList>(
+      Allocate(isolate, static_cast<uint32_t>(capacity), &no_gc, allocation));
   result->set_length(0);
   ReadOnlyRoots roots{isolate};
   MemsetTagged(result->RawFieldOfFirstElement(), roots.undefined_value(),
@@ -848,8 +845,9 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
-  Handle<ByteArray> result =
-      Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation));
+  // TODO(375937549): Convert to uint32_t.
+  Handle<ByteArray> result = Cast<ByteArray>(
+      Allocate(isolate, static_cast<uint32_t>(length), &no_gc, allocation));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(&result->values()[length], 0, padding_size);
@@ -883,8 +881,9 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedByteArray> result = TrustedCast<TrustedByteArray>(
-      Allocate(isolate, length, &no_gc, allocation_type));
+  // TODO(375937549): Convert to uint32_t
+  Handle<TrustedByteArray> result = TrustedCast<TrustedByteArray>(Allocate(
+      isolate, static_cast<uint32_t>(length), &no_gc, allocation_type));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(&result->values()[length], 0, padding_size);

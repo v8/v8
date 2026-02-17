@@ -550,18 +550,19 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
 template <typename T>
 DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
                                           DirectHandle<JSFunction> callee,
-                                          T parameters, int argument_count) {
+                                          T parameters,
+                                          uint32_t argument_count) {
   CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   DCHECK(callee->shared()->has_simple_parameters());
   DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
-  int parameter_count =
+  const uint32_t parameter_count =
       callee->shared()->internal_formal_parameter_count_without_receiver();
   if (argument_count > 0) {
     if (parameter_count > 0) {
-      int mapped_count = std::min(argument_count, parameter_count);
+      const uint32_t mapped_count = std::min(argument_count, parameter_count);
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
@@ -578,7 +579,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
       result->set_elements(*parameter_map);
 
       // Loop over the actual parameters backwards.
-      int index = argument_count - 1;
+      uint32_t index = argument_count - 1;
       while (index >= mapped_count) {
         // These go directly in the arguments array and have no
         // corresponding slot in the parameter map.
@@ -591,7 +592,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
 
       // First mark all mappable slots as unmapped and copy the values into the
       // arguments object.
-      for (int i = 0; i < mapped_count; i++) {
+      for (uint32_t i = 0; i < mapped_count; i++) {
         arguments->set(i, parameters[i]);
         parameter_map->set_mapped_entries(
             i, *isolate->factory()->the_hole_value());
@@ -602,7 +603,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
       ReadOnlyRoots roots{isolate};
       for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
         if (!scope_info->ContextLocalIsParameter(i)) continue;
-        int parameter = scope_info->ContextLocalParameterNumber(i);
+        const uint32_t parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(roots, parameter);
         Tagged<Smi> slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
@@ -614,7 +615,7 @@ DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
       DirectHandle<FixedArray> elements = isolate->factory()->NewFixedArray(
           argument_count, AllocationType::kYoung);
       result->set_elements(*elements);
-      for (int i = 0; i < argument_count; ++i) {
+      for (uint32_t i = 0; i < argument_count; ++i) {
         elements->set(i, parameters[i]);
       }
     }
@@ -657,7 +658,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   auto arguments = GetCallerArguments(isolate);
   HandleArguments argument_getter({arguments.data(), arguments.size()});
   return *NewSloppyArguments(isolate, callee, argument_getter,
-                             static_cast<int>(arguments.size()));
+                             static_cast<uint32_t>(arguments.size()));
 }
 
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {

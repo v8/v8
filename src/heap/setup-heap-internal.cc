@@ -1300,7 +1300,7 @@ bool Heap::CreateReadOnlyObjects() {
     }
 
     // This code duplicates FactoryBase::SmiToNumber.
-    for (int i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
+    for (uint32_t i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
       std::string_view string = IntToStringView(i, buffer);
       Handle<String> str = factory->InternalizeString(
           base::OneByteVector(string.data(), string.length()));

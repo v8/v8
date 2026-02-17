@@ -866,7 +866,7 @@ int GetGeneratorBytecodeOffset(
 
 class CallSiteBuilder {
  public:
-  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
+  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, uint32_t limit,
                   Handle<Object> caller)
       : isolate_(isolate),
         mode_(mode),
@@ -878,7 +878,7 @@ class CallSiteBuilder {
     // framework and library code, and stack depth tends to be more than
     // a dozen frames, so we over-allocate a bit here to avoid growing
     // the elements array in the common case.
-    elements_ = isolate->factory()->NewFixedArray(std::min(64, limit));
+    elements_ = isolate->factory()->NewFixedArray(std::min(64u, limit));
   }
 
   void SetPrevFrameAsConstructCall() {
@@ -1132,8 +1132,8 @@ class CallSiteBuilder {
 
   Isolate* isolate_;
   const FrameSkipMode mode_;
-  int index_ = 0;
-  const int limit_;
+  uint32_t index_ = 0;
+  const uint32_t limit_;
   const Handle<Object> caller_;
   bool skip_next_frame_;
   bool skipped_prev_frame_ = false;
@@ -1422,7 +1422,7 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  CallSiteBuilder builder(isolate, mode, limit, caller);
+  CallSiteBuilder builder(isolate, mode, static_cast<uint32_t>(limit), caller);
   VisitStack(isolate, &builder);
 
   // If --async-stack-traces are enabled and the "current microtask" is a
@@ -1640,8 +1640,8 @@ class StackFrameBuilder {
  private:
   Isolate* isolate_;
   Handle<FixedArray> frames_;
-  int index_;
-  int limit_;
+  uint32_t index_;
+  uint32_t limit_;
 };
 
 }  // namespace
@@ -1650,7 +1650,7 @@ DirectHandle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
     int limit, StackTrace::StackTraceOptions options) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
-  StackFrameBuilder builder(this, limit);
+  StackFrameBuilder builder(this, static_cast<uint32_t>(limit));
   VisitStack(this, &builder, options);
   auto frames = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,

@@ -1171,7 +1171,7 @@ class NormalizedMapCache : public WeakFixedArray {
   friend bool IsNormalizedMapCache(Tagged<HeapObject> obj,
                                    PtrComprCageBase cage_base);
 
-  static const int kEntries = 64;
+  static const uint32_t kEntries = 64;
 
   static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
                              Tagged<HeapObject> prototype);

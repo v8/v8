@@ -355,7 +355,7 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
 DirectHandle<Object> ScriptCacheKey::AsHandle(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   DirectHandle<WeakFixedArray> array =
-      isolate->factory()->NewWeakFixedArray(kEnd);
+      isolate->factory()->NewWeakFixedArray(static_cast<uint32_t>(kEnd));
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(IsScript(shared->script()));

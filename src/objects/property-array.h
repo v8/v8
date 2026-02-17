@@ -28,7 +28,7 @@ class PropertyArray
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
-  inline void initialize_length(int length);
+  inline void initialize_length(uint32_t length);
 
   inline void SetHash(int hash);
   inline int Hash() const;

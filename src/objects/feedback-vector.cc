@@ -218,16 +218,19 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
-  int length = shared->feedback_metadata()->create_closure_slot_count();
-  if (length == 0) {
+  const int int_length =
+      shared->feedback_metadata()->create_closure_slot_count();
+  if (int_length == 0) {
     return isolate->factory()->empty_closure_feedback_cell_array();
   }
+  DCHECK_GE(int_length, 0);
+  const uint32_t length = static_cast<uint32_t>(int_length);
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
@@ -240,7 +243,7 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   std::optional<DisallowGarbageCollection> no_gc;
   auto result = Allocate(isolate, length, &no_gc, allocation);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     result->set(i, *cells[i]);
   }
 
@@ -518,7 +521,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
-DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
+DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(uint32_t length) {
   DCHECK(config()->can_write());
   DirectHandle<WeakFixedArray> array =
       config()->isolate()->factory()->NewWeakFixedArray(length);
@@ -990,11 +993,12 @@ void FeedbackNexus::ConfigureCloneObject(
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
-                               kCloneObjectPolymorphicEntrySize;
+      const uint32_t kMaxElements = v8_flags.max_valid_polymorphic_map_count *
+                                    kCloneObjectPolymorphicEntrySize;
       DirectHandle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
-      int i = 0;
-      for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
+      const uint32_t array_len = array->ulength().value();
+      uint32_t i = 0;
+      for (; i < array_len; i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
         DirectHandle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
@@ -1004,7 +1008,7 @@ void FeedbackNexus::ConfigureCloneObject(
           break;
       }
 
-      if (i >= array->length()) {
+      if (i >= array_len) {
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
@@ -1013,9 +1017,9 @@ void FeedbackNexus::ConfigureCloneObject(
         }
 
         // Grow polymorphic feedback array.
-        DirectHandle<WeakFixedArray> new_array = CreateArrayOfSize(
-            array->length() + kCloneObjectPolymorphicEntrySize);
-        for (int j = 0; j < array->length(); ++j) {
+        DirectHandle<WeakFixedArray> new_array =
+            CreateArrayOfSize(array_len + kCloneObjectPolymorphicEntrySize);
+        for (uint32_t j = 0; j < array_len; ++j) {
           new_array->set(j, array->get(j));
         }
         SetFeedback(*new_array);
@@ -1113,11 +1117,12 @@ void FeedbackNexus::ConfigureMonomorphic(
 
 void FeedbackNexus::ConfigurePolymorphic(
     DirectHandle<Name> name, MapsAndHandlers const& maps_and_handlers) {
-  int receiver_count = static_cast<int>(maps_and_handlers.size());
+  const uint32_t receiver_count =
+      static_cast<uint32_t>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  int current = 0;
+  uint32_t current = 0;
 
   for (; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];

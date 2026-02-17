@@ -9450,7 +9450,7 @@ TNode<Object> CodeStubAssembler::TryMatchRootRange(TNode<Int32T> value,
 TNode<String> CodeStubAssembler::TryMatchPreallocatedNumberString(
     TNode<Int32T> value, Label* bailout) {
   GotoIf(Uint32GreaterThanOrEqual(
-             value, Int32Constant(kPreallocatedNumberStringTableSize)),
+             value, Uint32Constant(kPreallocatedNumberStringTableSize)),
          bailout);
 
   TNode<FixedArray> table =

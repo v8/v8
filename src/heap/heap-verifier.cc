@@ -355,7 +355,8 @@ void HeapVerification::Verify() {
 #if V8_ENABLE_WEBASSEMBLY
   // wasm_canonical_rtts holds weak references to maps or (strong) undefined.
   Tagged<WeakFixedArray> canonical_rtts = heap()->wasm_canonical_rtts();
-  for (int i = 0, e = canonical_rtts->length(); i < e; ++i) {
+  const uint32_t canonical_rtts_len = canonical_rtts->ulength().value();
+  for (uint32_t i = 0, e = canonical_rtts_len; i < e; ++i) {
     Tagged<MaybeObject> maybe_rtt = canonical_rtts->get(i);
     if (maybe_rtt.IsCleared()) continue;
     CHECK(maybe_rtt.IsWeak());

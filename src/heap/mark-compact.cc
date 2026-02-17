@@ -3958,11 +3958,13 @@ bool MarkCompactCollector::CompactTransitionArray(
   // array disappeared during GC.
   int old_capacity_in_entries = transitions->Capacity();
   if (transition_index < old_capacity_in_entries) {
-    int old_capacity = transitions->length();
+    const uint32_t old_capacity = transitions->ulength().value();
     static_assert(TransitionArray::kEntryKeyIndex == 0);
-    DCHECK_EQ(TransitionArray::ToKeyIndex(old_capacity_in_entries),
+    DCHECK_EQ(static_cast<uint32_t>(
+                  TransitionArray::ToKeyIndex(old_capacity_in_entries)),
               old_capacity);
-    int new_capacity = TransitionArray::ToKeyIndex(transition_index);
+    const uint32_t new_capacity =
+        static_cast<uint32_t>(TransitionArray::ToKeyIndex(transition_index));
     heap_->RightTrimArray(transitions, new_capacity, old_capacity);
     transitions->SetNumberOfTransitions(transition_index);
   }
@@ -4011,15 +4013,15 @@ void TrimEnumCache(Heap* heap, Tagged<Map> map,
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
   Tagged<EnumCache> enum_cache = descriptors->enum_cache();
-
+  DCHECK_GE(live_enum, 0);
   Tagged<FixedArray> keys = enum_cache->keys();
-  int keys_length = keys->length();
-  if (live_enum >= keys_length) return;
+  const uint32_t keys_length = keys->ulength().value();
+  if (static_cast<uint32_t>(live_enum) >= keys_length) return;
   heap->RightTrimArray(keys, live_enum, keys_length);
 
   Tagged<FixedArray> indices = enum_cache->indices();
-  int indices_length = indices->length();
-  if (live_enum >= indices_length) return;
+  const uint32_t indices_length = indices->ulength().value();
+  if (static_cast<uint32_t>(live_enum) >= indices_length) return;
   heap->RightTrimArray(indices, live_enum, indices_length);
 }
 

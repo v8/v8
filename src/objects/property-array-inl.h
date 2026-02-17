@@ -131,7 +131,7 @@ SafeHeapObjectSize PropertyArray::ulength() const {
   return SafeHeapObjectSize(static_cast<uint32_t>(length()));
 }
 
-void PropertyArray::initialize_length(int len) {
+void PropertyArray::initialize_length(uint32_t len) {
   DCHECK(LengthField::is_valid(len));
   set_length_and_hash(len);
 }

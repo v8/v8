@@ -154,7 +154,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length,
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(uint32_t length,
                                                      bool shared = false);
 
   // Allocates a fixed array-like object with given map and initialized with
@@ -180,22 +180,22 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values. Length must be > 0.
   Handle<WeakFixedArray> NewWeakFixedArrayWithMap(
-      Tagged<Map> map, int length,
+      Tagged<Map> map, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
   // The function returns a pre-allocated empty weak fixed array for length = 0.
   Handle<WeakFixedArray> NewWeakFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a trusted weak fixed array in trusted space, initialized with
   // zeros.
-  Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(int length);
+  Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(uint32_t length);
 
   // Allocates a protected weak fixed array in trusted space, initialized with
   // zeros.
-  Handle<ProtectedWeakFixedArray> NewProtectedWeakFixedArray(int length);
+  Handle<ProtectedWeakFixedArray> NewProtectedWeakFixedArray(uint32_t length);
 
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
@@ -206,7 +206,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation_type = AllocationType::kTrusted);
 
   DirectHandle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(
-      int length);
+      uint32_t length);
   DirectHandle<DeoptimizationFrameTranslation>
   NewDeoptimizationFrameTranslation(int length);
 
@@ -227,7 +227,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
-      int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
+      uint32_t boilerplate, uint32_t all_properties, uint32_t index_keys,
+      bool has_seen_proto);
 
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
@@ -252,7 +253,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       ScriptEventType event_type = ScriptEventType::kCreate);
 
   DirectHandle<SloppyArgumentsElements> NewSloppyArgumentsElements(
-      int length, DirectHandle<Context> context,
+      uint32_t length, DirectHandle<Context> context,
       DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   DirectHandle<ArrayList> NewArrayList(

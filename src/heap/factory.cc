@@ -437,6 +437,7 @@ DirectHandle<Hole> Factory::NewHole() {
   UNREACHABLE();
 }
 
+// TODO(375937549): Convert length to uint32_t.
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
@@ -446,7 +447,7 @@ DirectHandle<PropertyArray> Factory::NewPropertyArray(
   result->set_map_after_allocation(isolate(), *property_array_map(),
                                    SKIP_WRITE_BARRIER);
   Tagged<PropertyArray> array = Cast<PropertyArray>(result);
-  array->initialize_length(length);
+  array->initialize_length(static_cast<uint32_t>(length));
   MemsetTagged(array->data_start(), read_only_roots().undefined_value(),
                length);
   return direct_handle(array, isolate());
@@ -800,7 +801,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
     DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
   DCHECK_LE(start, end);
-  DCHECK_LE(end, array->length());
+  DCHECK_LE(end, array->ulength().value());
   // {end - start} can never be more than what the Utf8Decoder can handle.
   static_assert(ByteArray::kMaxLength <= kMaxInt);
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
@@ -1383,7 +1384,7 @@ DirectHandle<Context> Factory::NewScriptContext(
 }
 
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
-  static constexpr int kInitialCapacity = 0;
+  static constexpr uint32_t kInitialCapacity = 0;
   return ScriptContextTable::New(isolate(), kInitialCapacity);
 }
 
@@ -2341,9 +2342,11 @@ DirectHandle<PropertyCell> Factory::NewProtector() {
       direct_handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
+// TODO(375937549): Convert number_of_transitions and slack to uint32_t.
 DirectHandle<TransitionArray> Factory::NewTransitionArray(
     int number_of_transitions, int slack) {
-  int capacity = TransitionArray::LengthFor(number_of_transitions + slack);
+  const uint32_t capacity = static_cast<uint32_t>(
+      TransitionArray::LengthFor(number_of_transitions + slack));
   DirectHandle<TransitionArray> array = Cast<TransitionArray>(
       NewWeakFixedArrayWithMap(read_only_roots().transition_array_map(),
                                capacity, AllocationType::kOld));
@@ -2648,7 +2651,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   SLOW_DCHECK(clone->GetElementsKind() == source->GetElementsKind());
   Tagged<FixedArrayBase> elements = source->elements();
   // Update elements if necessary.
-  if (elements->length() > 0) {
+  if (elements->ulength().value() > 0) {
     Tagged<FixedArrayBase> elem;
     if (elements->map() == *fixed_cow_array_map()) {
       elem = elements;
@@ -2688,12 +2691,13 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
 namespace {
 template <typename T>
-void initialize_length(Tagged<T> array, int length) {
+void initialize_length(Tagged<T> array, uint32_t length) {
   array->set_length(length);
 }
 
 template <>
-void initialize_length<PropertyArray>(Tagged<PropertyArray> array, int length) {
+void initialize_length<PropertyArray>(Tagged<PropertyArray> array,
+                                      uint32_t length) {
   array->initialize_length(length);
 }
 
@@ -2709,7 +2713,7 @@ inline void InitEmbedderFields(Tagged<JSObject> obj,
 template <typename T>
 Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
                                     AllocationType allocation) {
-  int len = src->length();
+  const uint32_t len = src->ulength().value();
   Tagged<HeapObject> new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
   new_object->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
@@ -2842,10 +2846,9 @@ DirectHandle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayUpTo(DirectHandle<FixedArray> array,
-                                               int new_len,
+                                               uint32_t new_len,
                                                AllocationType allocation) {
-  DCHECK_LE(0, new_len);
-  DCHECK_LE(new_len, array->length());
+  DCHECK_LE(new_len, array->ulength().value());
   if (new_len == 0) return empty_fixed_array();
   Tagged<HeapObject> heap_object = AllocateRawFixedArray(new_len, allocation);
   DisallowGarbageCollection no_gc;
@@ -2860,14 +2863,14 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(DirectHandle<FixedArray> array,
 }
 
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
-  if (array->length() == 0) return array;
+  if (array->ulength().value() == 0) return array;
   return CopyArrayWithMap(DirectHandle<FixedArray>(array),
                           direct_handle(array->map(), isolate()));
 }
 
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
-  int len = array->length();
+  const uint32_t len = array->ulength().value();
   if (len == 0) return array;
   Handle<FixedDoubleArray> result =
       Cast<FixedDoubleArray>(NewFixedDoubleArray(len));
@@ -3359,10 +3362,12 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
   return array;
 }
 
+// TODO(375937549): Convert length to uint32_t.
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
     int length, AllocationType allocation) {
-  DCHECK(length <= elements->length());
+  DCHECK_GE(length, 0);
+  DCHECK_LE(static_cast<uint32_t>(length), elements->ulength().value());
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
   Tagged<Map> map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map.is_null()) {
@@ -3388,18 +3393,19 @@ DirectHandle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
     DirectHandle<FixedArray> cooked_strings,
     DirectHandle<FixedArray> raw_strings, int function_literal_id,
     int slot_id) {
-  DirectHandle<JSArray> raw_object =
-      NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
-                             raw_strings->length(), AllocationType::kOld);
+  const uint32_t raw_strings_len = raw_strings->ulength().value();
+  DirectHandle<JSArray> raw_object = NewJSArrayWithElements(
+      raw_strings, PACKED_ELEMENTS, raw_strings_len, AllocationType::kOld);
   JSObject::SetIntegrityLevel(isolate(), raw_object, FROZEN, kThrowOnError)
       .ToChecked();
 
   DirectHandle<NativeContext> native_context = isolate()->native_context();
+  const uint32_t cooked_strings_len = cooked_strings->ulength().value();
   auto template_object =
       Cast<TemplateLiteralObject>(NewJSArrayWithUnverifiedElements(
           direct_handle(native_context->js_array_template_literal_object_map(),
                         isolate()),
-          cooked_strings, cooked_strings->length(), AllocationType::kOld));
+          cooked_strings, cooked_strings_len, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<TemplateLiteralObject> raw_template_object = *template_object;
   DCHECK_EQ(raw_template_object->map(),
@@ -3566,9 +3572,11 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
       ObjectHashTable::New(isolate(), module_info->RegularExportCount());
   DirectHandle<FixedArray> regular_exports =
       NewFixedArray(module_info->RegularExportCount());
-  DirectHandle<FixedArray> regular_imports =
-      NewFixedArray(module_info->regular_imports()->length());
-  int requested_modules_length = module_info->module_requests()->length();
+  const uint32_t regular_imports_len =
+      module_info->regular_imports()->ulength().value();
+  DirectHandle<FixedArray> regular_imports = NewFixedArray(regular_imports_len);
+  const uint32_t requested_modules_length =
+      module_info->module_requests()->ulength().value();
   DirectHandle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
@@ -3607,8 +3615,10 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   ReadOnlyRoots roots(isolate());
 
+  const uint32_t exports_len = export_names->ulength().value();
   DirectHandle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
+      ObjectHashTable::New(isolate(), exports_len);
+
   DirectHandle<Foreign> evaluation_steps_foreign =
       NewForeign<kSyntheticModuleTag>(
           reinterpret_cast<Address>(evaluation_steps));

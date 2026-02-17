@@ -97,7 +97,9 @@ V8_OBJECT class HeapObjectLayout {
   inline EarlyReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Returns the heap object's size in bytes
+  // TODO(375937549): Replace all callsites of Size() with SafeSize().
   inline int Size() const;
+  inline SafeHeapObjectSize SafeSize() const;
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

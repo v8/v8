@@ -5739,8 +5739,8 @@ TEST(ScriptIterator) {
 // This is the same as Factory::NewByteArray, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateByteArrayForTest(
-    Heap* heap, int length, AllocationType allocation_type) {
-  DCHECK(length >= 0 && length <= ByteArray::kMaxLength);
+    Heap* heap, uint32_t length, AllocationType allocation_type) {
+  DCHECK_LE(length, ByteArray::kMaxLength);
   int size = ByteArray::SizeFor(length);
   Tagged<HeapObject> result;
   {
@@ -5789,13 +5789,13 @@ HEAP_TEST(Regress587004) {
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
                                 CompleteSweepingReason::kTesting);
   Tagged<ByteArray> byte_array;
-  const int M = 256;
+  const uint32_t M = 256;
   // Don't allow old space expansion. The test works without this flag too,
   // but becomes very slow.
   heap->set_force_oom(true);
   while (
       AllocateByteArrayForTest(heap, M, AllocationType::kOld).To(&byte_array)) {
-    for (int j = 0; j < M; j++) {
+    for (uint32_t j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
   }
@@ -5821,7 +5821,7 @@ HEAP_TEST(Regress589413) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // Fill the new space with byte arrays with elements looking like pointers.
-  const int M = 256;
+  const uint32_t M = 256;
   Tagged<ByteArray> byte_array;
   NormalPage* young_page = nullptr;
   while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
@@ -5833,7 +5833,7 @@ HEAP_TEST(Regress589413) {
     if (!young_page) young_page = NormalPage::FromHeapObject(byte_array);
     if (NormalPage::FromHeapObject(byte_array) != young_page) break;
 
-    for (int j = 0; j < M; j++) {
+    for (uint32_t j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
     }
     // Add the array in root set.
@@ -5852,7 +5852,7 @@ HEAP_TEST(Regress589413) {
     // Make sure the byte arrays will be promoted on the next GC.
     heap::InvokeMinorGC(heap);
     // This number is close to large free list category threshold.
-    const int N = 0x3EEE;
+    const uint32_t N = 0x3EEE;
 
     std::vector<Tagged<FixedArray>> arrays;
     std::set<NormalPage*> pages;
@@ -5892,7 +5892,7 @@ HEAP_TEST(Regress589413) {
       // slots are recorded for them.
       for (size_t j = 0; j < arrays.size(); j++) {
         array = arrays[j];
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
           array->set(i, *ec_obj);
         }
       }

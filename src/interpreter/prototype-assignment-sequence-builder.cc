@@ -18,7 +18,7 @@ template <typename IsolateT>
 void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
     IsolateT* isolate, Handle<Script> script) {
   if (!boilerplate_description_.is_null()) return;
-  int prop_sz = static_cast<int>(properties_.size());
+  const uint32_t prop_sz = static_cast<uint32_t>(properties_.size());
   Handle<ObjectBoilerplateDescription> boilerplate_description =
       isolate->factory()->NewObjectBoilerplateDescription(prop_sz, prop_sz, 0,
                                                           false);

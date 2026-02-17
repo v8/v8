@@ -329,7 +329,7 @@ TEST(WeakArraysBasic) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
 
-  const int length = 4;
+  const uint32_t length = 4;
   IndirectHandle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
@@ -337,7 +337,7 @@ TEST(WeakArraysBasic) {
 
   CHECK(HeapLayout::InYoungGeneration(*array));
 
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<HeapObject> heap_object;
     CHECK(array->get(i).GetHeapObjectIfStrong(&heap_object));
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());

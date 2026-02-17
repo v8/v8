@@ -23,9 +23,9 @@ template <template <typename> typename HandleType>
       std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
 HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                               HandleType<FixedArray> array,
-                                              int index,
+                                              uint32_t index,
                                               DirectHandle<Object> value) {
-  int len = array->length();
+  const uint32_t len = array->ulength().value();
   if (index >= len) {
     int new_capacity = FixedArray::NewCapacityForIndex(index, len);
     array = Cast<FixedArray>(FixedArray::Resize(isolate, array, new_capacity));
@@ -39,10 +39,10 @@ HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
 }
 
 template DirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, DirectHandle<FixedArray> array, int index,
+    Isolate* isolate, DirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 template IndirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, IndirectHandle<FixedArray> array, int index,
+    Isolate* isolate, IndirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 
 void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
@@ -124,7 +124,7 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
 DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
                                                  DirectHandle<ArrayList> array,
                                                  AllocationType allocation) {
-  int length = array->length();
+  const uint32_t length = array->ulength().value();
   if (length == 0) return isolate->factory()->empty_fixed_array();
 
   DirectHandle<FixedArray> result =

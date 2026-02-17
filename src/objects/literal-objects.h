@@ -64,8 +64,9 @@ class ObjectBoilerplateDescription
 
   template <class IsolateT>
   static inline Handle<ObjectBoilerplateDescription> New(
-      IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
-      bool has_seen_proto, AllocationType allocation = AllocationType::kYoung);
+      IsolateT* isolate, uint32_t boilerplate, uint32_t all_properties,
+      uint32_t index_keys, bool has_seen_proto,
+      AllocationType allocation = AllocationType::kYoung);
 
   // ObjectLiteral::Flags for nested object literals.
   inline int flags() const;

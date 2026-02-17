@@ -3305,7 +3305,7 @@ void Heap::OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
 }
 
 Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
-                                                int elements_to_trim) {
+                                                uint32_t elements_to_trim) {
   if (elements_to_trim == 0) {
     // This simplifies reasoning in the rest of the function.
     return object;
@@ -3316,7 +3316,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // is added.
   DCHECK(IsFixedArray(object) || IsFixedDoubleArray(object));
   const int element_size = IsFixedArray(object) ? kTaggedSize : kDoubleSize;
-  const int bytes_to_trim = elements_to_trim * element_size;
+  const uint32_t bytes_to_trim = elements_to_trim * element_size;
   Tagged<Map> map = object->map();
 
   // For now this trick is only applied to fixed arrays which may be in new
@@ -3329,8 +3329,8 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   static_assert(offsetof(FixedArrayBase, length_) == kTaggedSize);
   static_assert(sizeof(FixedArrayBase) == 2 * kTaggedSize);
 
-  const int len = object->length();
-  DCHECK(elements_to_trim <= len);
+  const uint32_t len = object->ulength().value();
+  DCHECK_LE(elements_to_trim, len);
 
   // Calculate location of new array start.
   Address old_start = object.address();
@@ -3352,7 +3352,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   RELAXED_WRITE_FIELD(object, bytes_to_trim,
                       Tagged<Object>(MapWord::FromMap(map).ptr()));
   RELAXED_WRITE_FIELD(object, bytes_to_trim + kTaggedSize,
-                      Smi::FromInt(len - elements_to_trim));
+                      Smi::FromUInt(len - elements_to_trim));
 
   Tagged<FixedArrayBase> new_object =
       Cast<FixedArrayBase>(HeapObject::FromAddress(new_start));

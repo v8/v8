@@ -11,7 +11,7 @@ namespace v8::internal::wasm {
 
 // static
 DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
-                                                         int capacity) {
+                                                         uint32_t capacity) {
   // Probing depends on bit-masking the hashes, so the capacity needs to be
   // a power of two.
   DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -72,7 +72,7 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
   uint32_t cache_len = cache->ulength().value();
   if (cache_len == 0) {
     // Lazy initialization.
-    static constexpr int kInitialCapacity = 16;
+    static constexpr uint32_t kInitialCapacity = 16;
     DirectHandle<WeakFixedArray> new_cache = New(isolate, kInitialCapacity);
     isolate->heap()->SetJSToWasmWrappers(*new_cache);
     return *new_cache;
