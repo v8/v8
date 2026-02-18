@@ -38,15 +38,18 @@ namespace v8::internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 template <class S>
-int detail::ArrayHeaderBase<S, false>::capacity() const {
+SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity() const {
   int capacity = capacity_.load().value();
   DCHECK_GE(capacity, 0);
-  return capacity;
+  return SafeHeapObjectSize(static_cast<uint32_t>(capacity));
 }
 
 template <class S>
-int detail::ArrayHeaderBase<S, false>::capacity(AcquireLoadTag tag) const {
-  return capacity_.Acquire_Load().value();
+SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity(
+    AcquireLoadTag tag) const {
+  int capacity = capacity_.Acquire_Load().value();
+  DCHECK_GE(capacity, 0);
+  return SafeHeapObjectSize(static_cast<uint32_t>(capacity));
 }
 
 template <class S>
@@ -92,18 +95,14 @@ void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value,
 }
 
 template <class S>
-int detail::ArrayHeaderBase<S, true>::capacity() const {
-  return length();
+SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::capacity() const {
+  return ulength();
 }
 
 template <class S>
-uint32_t detail::ArrayHeaderBase<S, true>::ucapacity() const {
-  return static_cast<uint32_t>(capacity());
-}
-
-template <class S>
-int detail::ArrayHeaderBase<S, true>::capacity(AcquireLoadTag tag) const {
-  return length(tag).value();
+SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::capacity(
+    AcquireLoadTag tag) const {
+  return length(tag);
 }
 
 template <class S>
@@ -119,7 +118,7 @@ void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value,
 
 template <class D, class S, class P>
 bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
-  return static_cast<unsigned>(index) < static_cast<unsigned>(this->capacity());
+  return static_cast<uint32_t>(index) < this->capacity().value();
 }
 
 template <class D, class S, class P>
@@ -266,9 +265,9 @@ void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
 
   DCHECK_GE(len, 0);
   DCHECK(dst->IsInBounds(dst_index));
-  DCHECK_LE(dst_index + len, dst->capacity());
+  DCHECK_LE(dst_index + len, dst->capacity().value());
   DCHECK(src->IsInBounds(src_index));
-  DCHECK_LE(src_index + len, src->capacity());
+  DCHECK_LE(src_index + len, src->capacity().value());
 
   DisallowGarbageCollection no_gc;
   SlotType dst_slot(&dst->objects()[dst_index]);
@@ -277,8 +276,9 @@ void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
 }
 
 template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate, int new_capacity) {
-  int old_capacity = this->capacity();
+void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate,
+                                         uint32_t new_capacity) {
+  const uint32_t old_capacity = this->capacity().value();
   CHECK_GT(new_capacity, 0);  // Due to possible canonicalization.
   CHECK_LE(new_capacity, old_capacity);
   if (new_capacity == old_capacity) return;
@@ -290,7 +290,7 @@ void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate, int new_capacity) {
 // visitors need to read the length with acquire semantics.
 template <class D, class S, class P>
 int TaggedArrayBase<D, S, P>::AllocatedSize() const {
-  return SizeFor(this->capacity(kAcquireLoad));
+  return SizeFor(static_cast<int>(this->capacity(kAcquireLoad).value()));
 }
 
 template <class D, class S, class P>
@@ -427,11 +427,11 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
 
 // static
 template <class D, class S, class P>
-constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
-                                                            int old_capacity) {
+constexpr uint32_t TaggedArrayBase<D, S, P>::NewCapacityForIndex(
+    uint32_t index, uint32_t old_capacity) {
   DCHECK_GE(index, old_capacity);
   // Note this is currently based on JSObject::NewElementsCapacity.
-  int capacity = old_capacity;
+  uint32_t capacity = old_capacity;
   do {
     capacity = capacity + (capacity >> 1) + 16;
   } while (capacity <= index);
@@ -489,7 +489,8 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
                                       AllocationType allocation,
                                       WriteBarrierMode mode) {
   Handle<FixedArray> ys = New(isolate, new_capacity, allocation);
-  const uint32_t elements_to_copy = std::min(new_capacity, xs->ucapacity());
+  const uint32_t elements_to_copy =
+      std::min(new_capacity, xs->capacity().value());
   FixedArray::CopyElements(isolate, *ys, 0, *xs, 0, elements_to_copy, mode);
   return ys;
 }
@@ -810,8 +811,8 @@ SafeHeapObjectSize ArrayList::ulength() const {
   return SafeHeapObjectSize(static_cast<uint32_t>(length()));
 }
 
-void ArrayList::set_length(int value) {
-  length_.store(this, Smi::FromInt(value));
+void ArrayList::set_length(uint32_t value) {
+  length_.store(this, Smi::FromUInt(value));
 }
 
 // static

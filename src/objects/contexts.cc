@@ -79,18 +79,17 @@ Handle<ScriptContextTable> ScriptContextTable::Add(
     DirectHandle<Context> script_context, bool ignore_duplicates) {
   DCHECK(script_context->IsScriptContext());
 
-  int old_length = table->length(kAcquireLoad);
-  int new_length = old_length + 1;
-  DCHECK_LE(0, old_length);
+  const int int_old_length = table->length(kAcquireLoad);
+  DCHECK_LE(0, int_old_length);
+  const uint32_t old_length = static_cast<uint32_t>(int_old_length);
+  const uint32_t new_length = old_length + 1;
 
   Handle<ScriptContextTable> result = table;
-  // TODO(375937549): Convert to uint32_t.
-  int old_capacity = table->capacity();
+  const uint32_t old_capacity = table->capacity().value();
   DCHECK_LE(old_length, old_capacity);
   if (old_length == old_capacity) {
-    int new_capacity = NewCapacityForIndex(old_length, old_capacity);
-    DCHECK_GE(new_capacity, 0);
-    auto new_table = New(isolate, static_cast<uint32_t>(new_capacity));
+    const uint32_t new_capacity = NewCapacityForIndex(old_length, old_capacity);
+    auto new_table = New(isolate, new_capacity);
     new_table->set_length(old_length, kReleaseStore);
     new_table->set_names_to_context_index(table->names_to_context_index());
     CopyElements(isolate, *new_table, 0, *table, 0, old_length);

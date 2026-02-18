@@ -8423,7 +8423,7 @@ i::DirectHandle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
   int max_length =
       (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
-  int result_index = 0;
+  uint32_t result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::Hole> hash_table_hole =
@@ -8525,7 +8525,7 @@ i::DirectHandle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
   int max_length = (capacity - offset) * (collect_key_values ? 2 : 1);
   if (max_length == 0) return factory->NewJSArray(0);
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(max_length);
-  int result_index = 0;
+  uint32_t result_index = 0;
   {
     i::DisallowGarbageCollection no_gc;
     i::Tagged<i::Hole> hash_table_hole =

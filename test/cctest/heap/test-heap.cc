@@ -6231,8 +6231,9 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   for (int i = 1; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       previous -= kTaggedSize * i;
-      int old_capacity = array->capacity();
-      int new_capacity = old_capacity - i;
+      const uint32_t old_capacity = array->capacity().value();
+      CHECK_GE(old_capacity, i);
+      const uint32_t new_capacity = old_capacity - i;
       isolate->heap()->RightTrimArray(*array, new_capacity, old_capacity);
       filler = HeapObject::FromAddress(previous);
       CHECK(IsFreeSpaceOrFiller(filler));

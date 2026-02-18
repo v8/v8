@@ -85,9 +85,11 @@ void ObjectBoilerplateDescription::set_value(int index, Tagged<Object> value) {
   set(ValueIndex(index), value);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int ObjectBoilerplateDescription::boilerplate_properties_count() const {
-  DCHECK_EQ(0, capacity() % kElementsPerEntry);
-  return capacity() / kElementsPerEntry;
+  const uint32_t cap = capacity().value();
+  DCHECK_EQ(0, cap % kElementsPerEntry);
+  return static_cast<int>(cap / kElementsPerEntry);
 }
 
 //

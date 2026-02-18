@@ -19,7 +19,7 @@
 namespace v8::internal {
 
 uint32_t SmiStringCache::capacity() const {
-  return Super::capacity() / kEntrySize;
+  return Super::capacity().value() / kEntrySize;
 }
 
 InternalIndex SmiStringCache::GetEntryFor(Tagged<Smi> number) const {
@@ -107,7 +107,7 @@ DirectHandle<SmiStringCache> SmiStringCache::New(IsolateT* isolate,
 // Clears all entried in the table.
 void SmiStringCache::Clear() {
   Relaxed_MemsetTagged(RawFieldOfFirstElement(), kEmptySentinel,
-                       Super::capacity());
+                       Super::capacity().value());
 }
 
 // static

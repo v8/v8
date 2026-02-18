@@ -32,6 +32,7 @@ namespace v8::internal {
 // error.
 // This could be larger, but the next power of two up would push the maximum
 // byte size of FixedDoubleArray out of int32 range.
+// TODO(375937549): Convert all constant values to uint32_t.
 static constexpr int kMaxFixedArrayCapacity =
     V8_LOWER_LIMITS_MODE_BOOL ? (16 * 1024 * 1024) : (128 * 1024 * 1024);
 
@@ -42,8 +43,8 @@ class ArrayHeaderBase;
 V8_OBJECT template <class Super>
 class ArrayHeaderBase<Super, false> : public Super {
  public:
-  inline int capacity() const;
-  inline int capacity(AcquireLoadTag tag) const;
+  inline SafeHeapObjectSize capacity() const;
+  inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const;
   inline void set_capacity(uint32_t value);
   inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
@@ -60,15 +61,14 @@ class ArrayHeaderBase<Super, true> : public Super {
   // The function returns an alias instead of uint32_t to incrementally convert
   // callsites without missing any implicit casts.
   inline SafeHeapObjectSize ulength() const;
-  inline uint32_t ucapacity() const;
 
   inline int length() const;
   inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
   inline void set_length(uint32_t value);
   inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
-  inline int capacity() const;
-  inline int capacity(AcquireLoadTag tag) const;
+  inline SafeHeapObjectSize capacity() const;
+  inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const;
   inline void set_capacity(uint32_t value);
   inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
 
@@ -177,7 +177,7 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
-  inline void RightTrim(Isolate* isolate, int new_capacity);
+  inline void RightTrim(Isolate* isolate, uint32_t new_capacity);
 
   inline int AllocatedSize() const;
   static inline constexpr int SizeFor(int capacity) {
@@ -210,7 +210,8 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
       AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
 
-  static constexpr int NewCapacityForIndex(int index, int old_capacity);
+  static constexpr uint32_t NewCapacityForIndex(uint32_t index,
+                                                uint32_t old_capacity);
 
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
@@ -264,7 +265,7 @@ V8_OBJECT class FixedArray
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
-  V8_EXPORT_PRIVATE void RightTrim(Isolate* isolate, int new_capacity);
+  V8_EXPORT_PRIVATE void RightTrim(Isolate* isolate, uint32_t new_capacity);
   // Right-trims the array, and canonicalizes length 0 to empty_fixed_array.
   template <template <typename> typename HandleType>
     requires(
@@ -748,7 +749,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   // TODO(375937549): Convert usages to uint32_t.
   inline int length() const;
-  inline void set_length(int value);
+  inline void set_length(uint32_t value);
   // The function returns an alias instead of uint32_t to incrementally convert
   // callsites without missing any implicit casts.
   inline SafeHeapObjectSize ulength() const;
@@ -770,7 +771,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   // Right-trim the array.
   // Invariant: 0 < new_length <= length()
-  void RightTrim(Isolate* isolate, int new_capacity);
+  void RightTrim(Isolate* isolate, uint32_t new_capacity);
 
   DECL_PRINTER(ArrayList)
   DECL_VERIFIER(ArrayList)

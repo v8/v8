@@ -3430,7 +3430,7 @@ void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
                           uint32_t old_capacity_raw) {
   int new_capacity = new_capacity_raw;
   int old_capacity = old_capacity_raw;
-  DCHECK_EQ(old_capacity, object->capacity());
+  DCHECK_EQ(old_capacity_raw, object->capacity().value());
   DCHECK_LT(new_capacity, old_capacity);
   DCHECK_GE(new_capacity, 0);
 

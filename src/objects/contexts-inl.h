@@ -30,8 +30,11 @@ namespace internal {
 
 #include "torque-generated/src/objects/contexts-tq-inl.inc"
 
+// TODO(375937549): Convert to uint32_t.
 int ScriptContextTable::length(AcquireLoadTag) const {
-  return length_.Acquire_Load().value();
+  int len = length_.Acquire_Load().value();
+  DCHECK_GE(len, 0);
+  return len;
 }
 void ScriptContextTable::set_length(int value, ReleaseStoreTag) {
   length_.Release_Store(this, Smi::FromInt(value));

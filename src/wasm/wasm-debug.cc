@@ -1320,7 +1320,7 @@ MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
   auto array = Cast<FixedArray>(break_points);
   DirectHandle<FixedArray> break_points_hit =
       isolate->factory()->NewFixedArray(array->length());
-  int break_points_hit_count = 0;
+  uint32_t break_points_hit_count = 0;
   uint32_t array_len = array->ulength().value();
   for (uint32_t i = 0; i < array_len; ++i) {
     DirectHandle<BreakPoint> break_point(Cast<BreakPoint>(array->get(i)),

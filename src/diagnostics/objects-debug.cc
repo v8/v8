@@ -884,13 +884,16 @@ void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
 
 void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   CHECK(IsSmi(length_.load()));
-  CHECK_GE(capacity(), kMinCapacity);
-  CHECK_LE(capacity(), kMaxCapacity);
-  CHECK_GE(number_of_capture_registers(), kMinCapacity);
-  CHECK_LE(number_of_capture_registers(), capacity());
+  const uint32_t cap = capacity().value();
+  const uint32_t capture_registers =
+      static_cast<uint32_t>(number_of_capture_registers());
+  CHECK_GE(cap, kMinCapacity);
+  CHECK_LE(cap, static_cast<uint32_t>(kMaxCapacity));
+  CHECK_GE(capture_registers, kMinCapacity);
+  CHECK_LE(capture_registers, cap);
   CHECK(IsString(last_subject()));
   Object::VerifyPointer(isolate, last_input());
-  for (int i = 0; i < capacity(); ++i) {
+  for (uint32_t i = 0; i < cap; ++i) {
     CHECK(IsSmi(get(i)));
   }
 }
@@ -958,9 +961,9 @@ void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
 void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
   CHECK(IsSmi(capacity_.load()));
   CHECK(IsSmi(length_.load()));
-  int len = length(kAcquireLoad);
+  const int len = length(kAcquireLoad);
   CHECK_LE(0, len);
-  CHECK_LE(len, capacity());
+  CHECK_LE(static_cast<uint32_t>(len), capacity().value());
   CHECK(IsNameToIndexHashTable(names_to_context_index()));
   for (int i = 0; i < len; ++i) {
     Tagged<Context> o = get(i);
@@ -971,11 +974,11 @@ void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
 }
 
 void ArrayList::ArrayListVerify(Isolate* isolate) {
-  CHECK_LE(0, length());
-  CHECK_LE(length(), capacity());
-  CHECK_IMPLIES(capacity() == 0,
-                this == ReadOnlyRoots(isolate).empty_array_list());
-  for (int i = 0; i < capacity(); ++i) {
+  const uint32_t len = ulength().value();
+  const uint32_t cap = capacity().value();
+  CHECK_LE(len, cap);
+  CHECK_IMPLIES(cap == 0, this == ReadOnlyRoots(isolate).empty_array_list());
+  for (uint32_t i = 0; i < cap; ++i) {
     Object::VerifyPointer(isolate, get(i));
   }
 }
@@ -1913,8 +1916,10 @@ void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
 void JSDisposableStackBase::JSDisposableStackBaseVerify(Isolate* isolate) {
   CHECK(IsJSDisposableStackBase(*this));
   JSObjectVerify(isolate);
-  CHECK_EQ(length() % 3, 0);
-  CHECK_GE(stack()->capacity(), length());
+  const int len = length();
+  const uint32_t cap = stack()->capacity().value();
+  CHECK_EQ(len % 3, 0);
+  CHECK_GE(cap, static_cast<uint32_t>(len));
 }
 
 void JSSyncDisposableStack::JSSyncDisposableStackVerify(Isolate* isolate) {

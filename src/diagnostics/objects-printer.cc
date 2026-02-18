@@ -1171,13 +1171,13 @@ void TemplateObjectDescription::TemplateObjectDescriptionPrint(
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
   PrintHeader(os, "ObjectBoilerplateDescription");
-  os << "\n - capacity: " << capacity();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
   os << "\n - backing_store_size: " << backing_store_size();
   os << "\n - flags: " << flags();
   os << "\n - elements:";
   PrintFixedArrayElements<ObjectBoilerplateDescription>(
-      os, this, ucapacity(),
-      [](Tagged<ObjectBoilerplateDescription> xs, uint32_t i) {
+      os, this, cap, [](Tagged<ObjectBoilerplateDescription> xs, uint32_t i) {
         return xs->get(i);
       });
   os << "\n";
@@ -1232,8 +1232,9 @@ void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
 
 void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintHeader(os, "ArrayList");
-  uint32_t len = ulength().value();
-  os << "\n - capacity: " << capacity();
+  const uint32_t len = ulength().value();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
   os << "\n - length: " << len;
   os << "\n - elements:";
   PrintFixedArrayElements<ArrayList>(
@@ -1244,12 +1245,14 @@ void ArrayList::ArrayListPrint(std::ostream& os) {
 
 void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
   PrintHeader(os, "ScriptContextTable");
-  os << "\n - capacity: " << capacity();
-  os << "\n - length: " << length(kAcquireLoad);
+  const int len = length(kAcquireLoad);
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
+  os << "\n - length: " << len;
   os << "\n - names_to_context_index: " << names_to_context_index();
   os << "\n - elements:";
   PrintFixedArrayElements<ScriptContextTable>(
-      os, this, static_cast<uint32_t>(length(kAcquireLoad)),
+      os, this, static_cast<uint32_t>(len),
       [](Tagged<ScriptContextTable> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
@@ -1258,13 +1261,14 @@ void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
 
 void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   PrintHeader(os, "RegExpMatchInfo");
-  os << "\n - capacity: " << capacity();
+  const uint32_t cap = capacity().value();
+  os << "\n - capacity: " << cap;
   os << "\n - number_of_capture_registers: " << number_of_capture_registers();
   os << "\n - last_subject: " << last_subject();
   os << "\n - last_input: " << last_input();
   os << "\n - captures:";
   PrintFixedArrayElements<RegExpMatchInfo>(
-      os, this, ucapacity(), [](Tagged<RegExpMatchInfo> xs, uint32_t i) {
+      os, this, cap, [](Tagged<RegExpMatchInfo> xs, uint32_t i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -3938,7 +3942,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
       os << "<ScriptContextTable["
-         << Cast<ScriptContextTable>(*this)->capacity() << "]>";
+         << Cast<ScriptContextTable>(*this)->capacity().value() << "]>";
       break;
     case HASH_TABLE_TYPE:
       os << "<HashTable[" << Cast<FixedArray>(*this)->length() << "]>";

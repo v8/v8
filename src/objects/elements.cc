@@ -906,7 +906,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static void DecreaseLength(Isolate* isolate,
                              Tagged<BackingStore> backing_store,
                              uint32_t old_length, uint32_t length) {
-    uint32_t capacity = backing_store->ucapacity();
+    const uint32_t capacity = backing_store->capacity().value();
     // It's possible we got here through left-trimming, which would have reduced
     // the capacity.
     if (V8_UNLIKELY(2 * length + JSObject::kMinAddedElementsCapacity <=
@@ -915,11 +915,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       // Do not trim from short arrays to prevent frequent trimming on
       // repeated pop operations.
       // Leave some space to allow for subsequent push operations.
-      uint32_t new_capacity =
+      const uint32_t new_capacity =
           length + 1 == old_length ? (capacity + length) / 2 : length;
       DCHECK_LT(new_capacity, capacity);
       isolate->heap()->RightTrimArray(backing_store, new_capacity, capacity);
-      capacity = new_capacity;
     }
   }
 
