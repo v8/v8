@@ -474,6 +474,9 @@ class ShellOptions {
       "mock-arraybuffer-allocator-limit", 0};
   DisallowReassignment<bool> multi_mapped_mock_allocator = {
       "multi-mapped-mock-allocator", false};
+  // This flag enables a bare-bones InspectorClient implementation in the shell.
+  // It is only a harness for basic tests in `test/debugger`, and not shipped
+  // in production. `test/inspector` uses the `inspector-test` binary instead.
   DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
