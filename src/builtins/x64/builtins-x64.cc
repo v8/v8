@@ -785,12 +785,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ cmpq(rsp, __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-  __ j(below, &stack_overflow);
-
   // ----------- S t a t e -------------
   //  -- rdx    : the JSGeneratorObject to resume
   //  -- rdi    : generator function
@@ -803,14 +797,17 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Register return_address = r11;
   Register params_array = rbx;
 
-  __ PopReturnAddressTo(return_address);
-
   // Compute actual arguments count value as a formal parameter count without
   // receiver, loaded from the dispatch table entry or shared function info.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
   __ movl(r15, FieldOperand(rdi, JSFunction::kDispatchHandleOffset));
   __ LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, argc, r15);
+
+  Label stack_overflow;
+  __ StackOverflowCheck(argc, &stack_overflow, Label::kFar);
+
+  __ PopReturnAddressTo(return_address);
 
   // Сopy the function arguments from the generator object's register file.
   {

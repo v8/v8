@@ -620,31 +620,29 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ CompareStackLimit(esp, StackLimitKind::kRealStackLimit);
-  __ j(below, &stack_overflow);
+  // Copy the function arguments from the generator object's register file.
+  // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ movzx_w(
+      ecx, FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ dec(ecx);  // Exclude receiver.
 
-  // Pop return address.
-  __ PopReturnAddressTo(eax);
+  Label stack_overflow;
+  __ StackOverflowCheck(ecx, edi /* scratch */, &stack_overflow, true);
 
   // ----------- S t a t e -------------
   //  -- eax    : return address
   //  -- edx    : the JSGeneratorObject to resume
-  //  -- edi    : generator function
   //  -- esi    : generator context
+  //  -- ecx    : parameter count
   // -----------------------------------
+
+  // Pop return address.
+  __ PopReturnAddressTo(eax);
 
   {
     __ movd(xmm0, ebx);
 
-    // Copy the function arguments from the generator object's register file.
-    // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
-    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ movzx_w(ecx, FieldOperand(
-                        ecx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ dec(ecx);  // Exclude receiver.
     __ mov(ebx,
            FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
     {

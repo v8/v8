@@ -472,13 +472,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
                       &prepare_step_in_suspended_generator);
   __ Bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ LoadStackLimit(x10, StackLimitKind::kRealStackLimit);
-  __ Cmp(sp, x10);
-  __ B(lo, &stack_overflow);
-
   Register argc = kJavaScriptCallArgCountRegister;
 
   // Compute actual arguments count value as a formal parameter count without
@@ -501,6 +494,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   static_assert(JSParameterCount(0) == 1);  // argc includes receiver
   __ Add(x11, argc, 1);
   __ Bic(x11, x11, 1);
+
+  // Check if we have enough stack space to push all arguments.
+  Label stack_overflow;
+  __ StackOverflowCheck(x11, &stack_overflow);
   __ Claim(x11);
 
   // Store padding (which might be replaced by the last argument).
