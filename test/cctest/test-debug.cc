@@ -40,6 +40,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/sandboxable-thread.h"
 #include "src/utils/utils.h"
@@ -7021,4 +7022,128 @@ TEST(DebugSetBreakpointWrappedScriptFailCompile) {
   v8::debug::Location location(0, 0);
   delegate.script()->SetBreakpoint(condition, &location, &id);
 }
+
+class PromiseAllExceptionDelegate : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType exception_type) override {
+    exception_count++;
+    if (is_uncaught) uncaught_count++;
+    v8::Isolate* isolate = CcTest::isolate();
+    last_promise.Reset(isolate, promise);
+    if (!exception.IsEmpty() && exception->IsObject()) {
+      v8::Local<v8::Object> exc_obj = exception.As<v8::Object>();
+      v8::MaybeLocal<v8::Value> maybe_msg =
+          exc_obj->Get(paused_context, v8_str(isolate, "message"));
+      if (!maybe_msg.IsEmpty()) {
+        v8::Local<v8::Value> msg = maybe_msg.ToLocalChecked();
+        if (msg->IsString()) {
+          v8::String::Utf8Value utf8(isolate, msg);
+          last_exception_message = std::string(*utf8);
+        }
+      }
+    }
+  }
+
+  int exception_count = 0;
+  int uncaught_count = 0;
+  v8::Global<v8::Value> last_promise;
+  std::string last_exception_message;
+};
+
+static void EmptyPromiseCatchHandler(
+    const v8::FunctionCallbackInfo<v8::Value>&) {}
+
+// This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
+// promise-all-uncaught.js.
+TEST(PerformPromiseAllUncaughtDebug) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  PromiseAllExceptionDelegate delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, false, true);
+
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  v8::Local<v8::Promise> p1 = resolver->GetPromise();
+  resolver->Resolve(context, v8::Undefined(isolate)).ToChecked();
+
+  const char* expected_message = "uncaught";
+
+  const char* handler_source =
+      "function handler() { throw new Error('uncaught'); }";
+  v8::Local<v8::Function> throwing_handler =
+      CompileFunction(isolate, handler_source, "handler");
+  v8::Local<v8::Promise> p2 =
+      p1->Then(context, throwing_handler).ToLocalChecked();
+
+  i::Handle<i::JSPromise> i_p2 = v8::Utils::OpenHandle(*p2);
+  i::DirectHandleVector<i::JSPromise> promises(i_isolate);
+  promises.push_back(i_p2);
+  i::Handle<i::JSPromise> aggregate =
+      i::JSPromise::PerformPromiseAll(i_isolate, promises).ToHandleChecked();
+  v8::Local<v8::Promise> v8_aggregate = v8::Utils::ToLocal(aggregate);
+
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+
+  CHECK_EQ(1, delegate.exception_count);
+  CHECK_EQ(1, delegate.uncaught_count);
+  CHECK_EQ(expected_message, delegate.last_exception_message);
+  CHECK_EQ(v8::Promise::kRejected, v8_aggregate->State());
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+}
+
+// This is the C++ equivalent of test/debugger/debug/es6/debug-promises/
+// promise-all-caught.js.
+TEST(PerformPromiseAllCaughtDebug) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  PromiseAllExceptionDelegate delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  const char* expected_message = "caught";
+
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  v8::Local<v8::Promise> p1 = resolver->GetPromise();
+
+  const char* handler_source =
+      "function handler() { throw new Error('caught'); }";
+  v8::Local<v8::Function> throwing_handler =
+      CompileFunction(isolate, handler_source, "handler");
+  v8::Local<v8::Promise> p2 =
+      p1->Then(context, throwing_handler).ToLocalChecked();
+  i::Handle<i::JSPromise> i_p2 = v8::Utils::OpenHandle(*p2);
+  i::DirectHandleVector<i::JSPromise> promises(i_isolate);
+  promises.push_back(i_p2);
+  i::Handle<i::JSPromise> aggregate =
+      i::JSPromise::PerformPromiseAll(i_isolate, promises).ToHandleChecked();
+  v8::Local<v8::Promise> v8_aggregate = v8::Utils::ToLocal(aggregate);
+  v8::Local<v8::Function> catch_handler =
+      v8::Function::New(context, EmptyPromiseCatchHandler).ToLocalChecked();
+  USE(v8_aggregate->Catch(context, catch_handler).ToLocalChecked());
+  resolver->Resolve(context, v8::Undefined(isolate)).ToChecked();
+
+  v8::MicrotasksScope::PerformCheckpoint(isolate);
+
+  CHECK_EQ(1, delegate.exception_count);
+  CHECK_EQ(0, delegate.uncaught_count);
+  CHECK_EQ(expected_message, delegate.last_exception_message);
+  CHECK_EQ(v8::Promise::kRejected, v8_aggregate->State());
+
+  v8::debug::SetDebugDelegate(isolate, nullptr);
+}
+
 }  // namespace

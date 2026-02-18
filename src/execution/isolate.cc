@@ -6824,6 +6824,7 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
 
   switch (phase) {
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kEvaluation:
       if (host_import_module_dynamically_callback_ == nullptr &&
           host_import_module_with_phase_dynamically_callback_ == nullptr) {
@@ -6839,8 +6840,6 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         return NewRejectedPromise(this, api_context, exception);
       }
       break;
-    case ModuleImportPhase::kDefer:
-      UNREACHABLE();
   }
 
   DirectHandle<String> specifier_str;
@@ -6902,8 +6901,9 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
             MaybeDirectHandle<JSPromise>());
       }
       break;
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kSource:
-      CHECK(v8_flags.js_source_phase_imports);
+      CHECK(v8_flags.js_source_phase_imports || v8_flags.js_defer_import_eval);
       CHECK_NOT_NULL(host_import_module_with_phase_dynamically_callback_);
       API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           this, promise,

@@ -729,14 +729,6 @@
 ####
 
 ####
-# import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
-[ALWAYS, {
-  'language/import/import-defer/deferred-namespace-object/identity': [SKIP],
-}],
-# end import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
-####
-
-####
 # import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
 [ALWAYS, {
   'staging/sm/class/superCallOrder': [FAIL],
@@ -801,68 +793,6 @@
 # import test262@bc5c14176e2b11a78859571eb693f028c8822458
 [ALWAYS, {
  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-arrow-function-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-arrow-function-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-function-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-function-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-function-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-gen-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-async-gen-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-block-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-block-labeled-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-do-while-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-else-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-function-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-if-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/nested-while-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/catch/top-level-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
- 'language/expressions/dynamic-import/import-defer/import-defer-async-module/main': [SKIP],
- 'language/expressions/dynamic-import/import-defer/import-defer-transitive-async-module/main': [SKIP],
- 'language/expressions/dynamic-import/import-defer/sync-dependency-of-deferred-async-module/main': [SKIP],
- 'language/expressions/dynamic-import/import-defer/sync/main': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-arrow-assignment-expression-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-arrow-assignment-expression-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-arrow-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-arrow-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-await-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-return-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-arrow-function-return-await-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-await-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-return-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-function-return-await-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-gen-await-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-async-gen-await-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-block-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-block-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-block-labeled-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-block-labeled-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-do-while-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-do-while-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-else-braceless-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-else-braceless-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-else-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-else-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-function-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-function-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-function-return-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-function-return-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-if-braceless-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-if-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-if-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-while-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-while-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-with-expression-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-with-expression-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-with-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/nested-with-import-defer-script-code-valid': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/top-level-import-defer-empty-str-is-valid-assign-expr': [SKIP],
- 'language/expressions/dynamic-import/syntax/valid/top-level-import-defer-script-code-valid': [SKIP],
 }],
 # end import test262@bc5c14176e2b11a78859571eb693f028c8822458
 ###

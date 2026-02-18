@@ -1113,6 +1113,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSPromise> NewJSPromiseWithoutHook();
   Handle<JSPromise> NewJSPromise();
 
+  DirectHandle<Context> CreatePromiseAllResolveElementContext(
+      DirectHandle<PromiseCapability> capability);
+  DirectHandle<Context> CreatePromiseResolvingFunctionsContext(
+      DirectHandle<JSPromise> promise);
+  DirectHandle<JSFunction> CreatePromiseAllResolveElementFunction(
+      DirectHandle<Context> context, int index);
+  DirectHandle<PromiseCapability> CreatePromiseCapabilityObject(
+      DirectHandle<JSPromise> promise, DirectHandle<JSFunction> resolve,
+      DirectHandle<JSFunction> reject);
+
   Tagged<HeapObject> NewForTest(DirectHandle<Map> map,
                                 AllocationType allocation) {
     return New(map, allocation);

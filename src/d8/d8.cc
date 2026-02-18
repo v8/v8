@@ -1745,6 +1745,7 @@ void Shell::DoHostImportModuleDynamically(void* data) {
         global_result_promise.Reset(isolate, module_resolver->GetPromise());
         break;
       }
+      case v8::ModuleImportPhase::kDefer:
       case v8::ModuleImportPhase::kEvaluation: {
         Local<Module> root_module;
         auto module_it = module_data->module_map.find(
@@ -1760,17 +1761,25 @@ void Shell::DoHostImportModuleDynamically(void* data) {
                 ->InstantiateModule(realm, ResolveModuleCallback,
                                     ResolveModuleSourceCallback)
                 .FromMaybe(false)) {
-          MaybeLocal<Value> maybe_result = root_module->Evaluate(realm);
-          if (maybe_result.IsEmpty()) break;
-          global_result_promise.Reset(
-              isolate, maybe_result.ToLocalChecked().As<Promise>());
-          global_namespace_or_source.Reset(isolate,
-                                           root_module->GetModuleNamespace());
+          if (phase == v8::ModuleImportPhase::kEvaluation) {
+            MaybeLocal<Value> maybe_result = root_module->Evaluate(realm);
+            if (maybe_result.IsEmpty()) break;
+            global_result_promise.Reset(
+                isolate, maybe_result.ToLocalChecked().As<Promise>());
+            global_namespace_or_source.Reset(
+                isolate, root_module->GetModuleNamespace(phase));
+          } else {
+            DCHECK_EQ(phase, ModuleImportPhase::kDefer);
+            MaybeLocal<Value> maybe_result =
+                root_module->EvaluateForImportDefer(realm);
+            if (maybe_result.IsEmpty()) break;
+            global_result_promise.Reset(
+                isolate, maybe_result.ToLocalChecked().As<Promise>());
+            global_namespace_or_source.Reset(
+                isolate, root_module->GetModuleNamespace(phase));
+          }
         }
         break;
-      }
-      default: {
-        UNREACHABLE();
       }
     }
   }

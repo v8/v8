@@ -13,6 +13,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/base/bits.h"
 #include "src/builtins/accessors.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -4699,6 +4700,67 @@ Handle<JSPromise> Factory::NewJSPromise() {
   isolate()->RunAllPromiseHooks(PromiseHookType::kInit, promise,
                                 undefined_value());
   return promise;
+}
+
+DirectHandle<Context> Factory::CreatePromiseAllResolveElementContext(
+    DirectHandle<PromiseCapability> capability) {
+  DirectHandle<Context> context = isolate()->factory()->NewBuiltinContext(
+      isolate()->native_context(),
+      PromiseBuiltins::PromiseAllResolveElementContextSlots::
+          kPromiseAllResolveElementLength);
+  context->SetNoCell(PromiseBuiltins::PromiseAllResolveElementContextSlots::
+                         kPromiseAllResolveElementRemainingSlot,
+                     Smi::FromInt(1));
+  context->SetNoCell(PromiseBuiltins::PromiseAllResolveElementContextSlots::
+                         kPromiseAllResolveElementCapabilitySlot,
+                     *capability);
+  context->SetNoCell(PromiseBuiltins::PromiseAllResolveElementContextSlots::
+                         kPromiseAllResolveElementValuesSlot,
+                     *empty_fixed_array());
+  return context;
+}
+
+DirectHandle<Context> Factory::CreatePromiseResolvingFunctionsContext(
+    DirectHandle<JSPromise> promise) {
+  DirectHandle<Context> context = isolate()->factory()->NewBuiltinContext(
+      isolate()->native_context(),
+      PromiseBuiltins::PromiseResolvingFunctionContextSlot::
+          kPromiseContextLength);
+  context->SetNoCell(
+      PromiseBuiltins::PromiseResolvingFunctionContextSlot::kPromiseSlot,
+      *promise);
+  context->SetNoCell(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
+                         kAlreadyResolvedSlot,
+                     *false_value());
+  context->SetNoCell(
+      PromiseBuiltins::PromiseResolvingFunctionContextSlot::kDebugEventSlot,
+      *false_value());
+  DCHECK_EQ(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
+                kPromiseContextLength,
+            Context::MIN_CONTEXT_SLOTS + 3);
+  return context;
+}
+
+DirectHandle<JSFunction> Factory::CreatePromiseAllResolveElementFunction(
+    DirectHandle<Context> context, int index) {
+  DirectHandle<SharedFunctionInfo> sfi = direct_handle(
+      isolate()->heap()->promise_all_resolve_element_closure_shared_fun(),
+      isolate());
+  DirectHandle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate(), sfi, context}.Build();
+  function->set_raw_properties_or_hash(Smi::FromInt(index));
+  return function;
+}
+
+DirectHandle<PromiseCapability> Factory::CreatePromiseCapabilityObject(
+    DirectHandle<JSPromise> promise, DirectHandle<JSFunction> resolve,
+    DirectHandle<JSFunction> reject) {
+  Handle<PromiseCapability> capability = Cast<PromiseCapability>(
+      NewStruct(PROMISE_CAPABILITY_TYPE, AllocationType::kYoung));
+  capability->set_promise(*promise);
+  capability->set_resolve(*resolve);
+  capability->set_reject(*reject);
+  return capability;
 }
 
 bool Factory::CanAllocateInReadOnlySpace() {
