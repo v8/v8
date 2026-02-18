@@ -247,6 +247,9 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
                           // by the arm64 dual stack issues mentioned below.
     case kArchComment:
     case kArchDeoptimize:
+#if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchJmp:
     case kArchBinarySearchSwitch:
     case kArchRet:

@@ -954,6 +954,11 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
@@ -2592,6 +2597,19 @@ void InstructionSelector::VisitTrapIf(OpIndex node) {
   // trap node will be lowered (replaced) before instruction selection.
   // Therefore any TrapIf node has only one input.
   DCHECK_EQ(trap_if.input_count, 1);
+
+  uint32_t constant_condition;
+  if (MatchIntegralWord32Constant(trap_if.condition(), &constant_condition)) {
+    if ((constant_condition == 0 && trap_if.negated) ||
+        (constant_condition == 1 && !trap_if.negated)) {
+      OperandGenerator g(this);
+      InstructionOperand input =
+          g.TempImmediate(static_cast<int32_t>(trap_if.trap_id));
+      Emit(kArchTrap, 0, nullptr, 1, &input);
+      return;
+    }
+  }
+
   FlagsContinuation cont = FlagsContinuation::ForTrap(
       trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
   VisitWordCompareZero(node, trap_if.condition(), &cont);

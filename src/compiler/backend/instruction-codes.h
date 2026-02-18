@@ -155,6 +155,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   IF_HARDWARE_SANDBOX(V, ArchSwitchSandboxMode)                            \
   V(ArchComment)                                                           \
   V(ArchDeoptimize)                                                        \
+  IF_WASM(V, ArchTrap)                                                     \
   V(ArchRet)                                                               \
   V(ArchFramePointer)                                                      \
   V(ArchRootPointer)                                                       \
@@ -463,7 +464,7 @@ using BranchHintField = StackCheckField::Next<bool, 1>;
 // back fixes that add new opcodes.
 // It is OK to temporarily reduce the required slack if we have a tracking bug
 // to reduce the number of used opcodes again.
-static_assert(ArchOpcodeField::kMax - kLastArchOpcode >= 15,
+static_assert(ArchOpcodeField::kMax - kLastArchOpcode >= 14,
               "We are running close to the number of available opcodes.");
 
 }  // namespace compiler
