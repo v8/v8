@@ -4055,7 +4055,7 @@ void Isolate::ReleaseSharedPtrs() {
   };
 
   delete_pointers(&managed_ptr_destructors_head_);
-  if (owns_shareable_data()) {
+  if (is_shared_space_isolate()) {
     delete_pointers(&shared_managed_ptr_destructors_head_);
   }
 }
