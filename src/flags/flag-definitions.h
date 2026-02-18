@@ -2671,9 +2671,6 @@ DEFINE_BOOL(memory_pool, true,
 DEFINE_BOOL(
     memory_pool_share_memory_on_teardown, true,
     "Share memory on Isolate teardown using other Isolate's task runners")
-DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
-            "discard the memory pool before invoking the GC on memory pressure "
-            "or last resort GCs")
 DEFINE_BOOL(memory_pool_release_on_malloc_failures, false,
             "discard the memory pool on malloc retries")
 DEFINE_SIZE_T(memory_pool_timeout, 8, "Release pooled pages after X seconds.")

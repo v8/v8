@@ -1346,18 +1346,32 @@ namespace {
 
 // Frees caches when under memory pressure. The method assumes that callsites
 // are close to crashing and will very aggressively free memory.
-void FreeCachesOnMemoryPressure(Isolate* isolate) {
+void FreeCachesOnMemoryPressure(Isolate* isolate,
+                                GarbageCollectionReason gc_reason) {
   isolate->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate->ClearSerializerData();
   isolate->compilation_cache()->Clear();
-
   // TODO(ishell): consider trimming number to string caches to initial size.
 
+  // These GC types signal almost crashing state and should result in purging
+  // all caches somehow possible.
+  const bool emergency_or_memory_pressure_gc =
+      gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kMemoryPressure;
+
   if (auto* memory_pool = IsolateGroup::current()->memory_pool()) {
-    if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
+    if (emergency_or_memory_pressure_gc) {
+      memory_pool->ReleaseAllImmediately();
+    } else {
       memory_pool->ReleaseImmediately(isolate);
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (emergency_or_memory_pressure_gc && v8_flags.flush_liftoff_code) {
+    wasm::GetWasmEngine()->FlushLiftoffCode();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 }  // anonymous namespace
@@ -1395,7 +1409,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
 
-  FreeCachesOnMemoryPressure(isolate());
+  FreeCachesOnMemoryPressure(isolate(), gc_reason);
 
   GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
   GCCallbackFlags gc_callback_flags =
@@ -1445,7 +1459,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
         tracer()->AverageMarkCompactMutatorUtilization());
   }
 
-  FlushLiftoffCode(gc_reason);
   CompleteArrayBufferSweeping();
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
@@ -4100,7 +4113,8 @@ class MemoryPressureInterruptTask : public CancelableTask {
 
 void Heap::CheckMemoryPressure() {
   if (HighMemoryPressure()) {
-    FreeCachesOnMemoryPressure(isolate());
+    FreeCachesOnMemoryPressure(isolate(),
+                               GarbageCollectionReason::kMemoryPressure);
   }
   // Reset the memory pressure level to avoid recursive GCs triggered by
   // CheckMemoryPressure from AdjustAmountOfExternalMemory called by
@@ -4130,7 +4144,6 @@ void Heap::CollectGarbageOnMemoryPressure() {
   double start = MonotonicallyIncreasingTimeInMs();
   CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                     kGCCallbackFlagCollectAllAvailableGarbage);
-  FlushLiftoffCode(gc_reason);
   CompleteArrayBufferSweeping();
   double end = MonotonicallyIncreasingTimeInMs();
 
@@ -4174,17 +4187,6 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
           std::make_unique<MemoryPressureInterruptTask>(this));
     }
   }
-}
-
-void Heap::FlushLiftoffCode(GarbageCollectionReason gc_reason) {
-#if V8_ENABLE_WEBASSEMBLY
-  const bool should_flush =
-      gc_reason == GarbageCollectionReason::kLastResort ||
-      gc_reason == GarbageCollectionReason::kMemoryPressure;
-  if (should_flush && v8_flags.flush_liftoff_code) {
-    wasm::GetWasmEngine()->FlushLiftoffCode();
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,

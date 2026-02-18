@@ -1888,7 +1888,6 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
   void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
