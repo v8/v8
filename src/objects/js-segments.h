@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -22,7 +23,6 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
-class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -53,9 +53,9 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
+  DECL_ACCESSORS(icu_iterator_with_text,
+                 Tagged<Managed<IcuBreakIteratorWithText>>)
   DECL_ACCESSORS(raw_string, Tagged<String>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
 
   DECL_PRINTER(JSSegments)
 

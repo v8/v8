@@ -1049,9 +1049,6 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       case kIcuBreakIteratorTag:
         name = "system / Managed<icu::BreakIterator>";
         break;
-      case kIcuUnicodeStringTag:
-        name = "system / Managed<icu::UnicodeString>";
-        break;
       case kIcuListFormatterTag:
         name = "system / Managed<icu::ListFormatter>";
         break;
@@ -1075,6 +1072,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         break;
       case kIcuCollatorTag:
         name = "system / Managed<icu::Collator>";
+        break;
+      case kIcuBreakIteratorWithTextTag:
+        name = "system / Managed<IcuBreakIteratorWithText>";
         break;
       case kDisplayNamesInternalTag:
         name = "system / Managed<DisplayNamesInternal>";

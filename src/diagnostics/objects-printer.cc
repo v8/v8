@@ -3574,8 +3574,8 @@ void JSRawJson::JSRawJsonPrint(std::ostream& os) {
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - break iterator: " << Brief(break_iterator());
-  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - bound adopt text: " << Brief(bound_adopt_text());
   os << "\n - bound first: " << Brief(bound_first());
   os << "\n - bound next: " << Brief(bound_next());
@@ -3662,7 +3662,8 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(std::ostream& os) {
 
 void JSSegmentIterator::JSSegmentIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegmentIterator");
-  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   os << "\n";
 }
@@ -3677,8 +3678,8 @@ void JSSegmenter::JSSegmenterPrint(std::ostream& os) {
 
 void JSSegments::JSSegmentsPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSegments");
-  os << "\n - icu break iterator: " << Brief(icu_break_iterator());
-  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - icu break iterator with text: "
+     << Brief(icu_iterator_with_text());
   os << "\n - granularity: " << GranularityAsString(Isolate::Current());
   JSObjectPrintBody(os, *this);
 }

@@ -10,9 +10,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "src/api/api-inl.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
@@ -53,6 +55,7 @@
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/timezone.h"
+#include "unicode/unistr.h"
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
@@ -229,6 +232,37 @@ MaybeDirectHandle<T> New(Isolate* isolate, DirectHandle<JSFunction> constructor,
   return T::New(isolate, map, locales, options, method_name);
 }
 }  // namespace
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(
+    std::unique_ptr<icu::BreakIterator> iterator)
+    : iterator_(std::move(iterator)) {
+  DCHECK_NOT_NULL(iterator_);
+  DCHECK_EQ(iterator_->getText().getLength(), 0);
+}
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(
+    Isolate* isolate, std::unique_ptr<icu::BreakIterator> iterator,
+    DirectHandle<String> string)
+    : iterator_(std::move(iterator)) {
+  DCHECK_NOT_NULL(iterator_);
+  SetText(isolate, string);
+}
+
+IcuBreakIteratorWithText::IcuBreakIteratorWithText(IcuBreakIteratorWithText&&)
+    V8_NOEXCEPT = default;
+
+IcuBreakIteratorWithText& IcuBreakIteratorWithText::operator=(
+    IcuBreakIteratorWithText&&) V8_NOEXCEPT = default;
+
+IcuBreakIteratorWithText::~IcuBreakIteratorWithText() = default;
+
+void IcuBreakIteratorWithText::SetText(Isolate* isolate,
+                                       DirectHandle<String> string) {
+  string = String::Flatten(isolate, string);
+  text_.reset(Intl::ToICUUnicodeString(isolate, string).clone());
+  DCHECK_NOT_NULL(text_);
+  iterator_->setText(*text_);
+}
 
 const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
@@ -2614,20 +2648,6 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
 
   return Just(
       Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions});
-}
-
-DirectHandle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
-    Isolate* isolate, DirectHandle<String> text,
-    icu::BreakIterator* break_iterator) {
-  text = String::Flatten(isolate, text);
-  std::shared_ptr<icu::UnicodeString> u_text{static_cast<icu::UnicodeString*>(
-      Intl::ToICUUnicodeString(isolate, text).clone())};
-
-  DirectHandle<Managed<icu::UnicodeString>> new_u_text =
-      Managed<icu::UnicodeString>::From(isolate, 0, u_text);
-
-  break_iterator->setText(*u_text);
-  return new_u_text;
 }
 
 // ecma262 #sec-string.prototype.normalize
