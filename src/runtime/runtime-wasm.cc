@@ -806,39 +806,6 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
                                     timeout_ns->AsInt64());
 }
 
-RUNTIME_FUNCTION(Runtime_WasmManagedObjectWait) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  Tagged<HeapObject> object = Cast<HeapObject>(args[0]);
-  int field_offset = args.smi_value_at(1);
-  int32_t expected_value = static_cast<int32_t>(args.number_value_at(2));
-  Tagged<BigInt> timeout_ns = Cast<BigInt>(args[3]);
-
-  if (!v8_flags.experimental_wasm_skip_null_checks &&
-      object == ReadOnlyRoots(isolate).wasm_null()) {
-    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapNullDereference);
-  }
-
-  if (!HeapLayout::InAnySharedSpace(object) || !isolate->allow_atomics_wait()) {
-    return ThrowWasmError(
-        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        {isolate->factory()->NewStringFromAsciiChecked("struct.wait")});
-  }
-
-  return FutexEmulation::WaitWasmManagedObject(
-      isolate, object, field_offset, expected_value, timeout_ns->AsInt64());
-}
-
-RUNTIME_FUNCTION(Runtime_WasmAllocateWaitQueue) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<WasmStruct> struct_value(Cast<WasmStruct>(args[0]), isolate);
-  int raw_field_offset = args.smi_value_at(1);
-
-  WasmStruct::AllocateWaitQueue(isolate, struct_value, raw_field_offset);
-  return Smi::FromInt(0);
-}
-
 namespace {
 Tagged<Object> ThrowTableOutOfBounds(
     Isolate* isolate,

@@ -1239,14 +1239,9 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
     }
     for (uint32_t i = 0; i < type->field_count(); i++) {
+      if (!type->field(i).is_ref()) continue;
       int offset = static_cast<int>(type->field_offset(i));
-      if (type->field(i).is_ref()) {
-        v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
-      } else if (type->field(i) == wasm::kWasmWaitQueue) {
-        v->VisitPointer(
-            wasm_struct,
-            wasm_struct->RawField(offset + wasm::kWaitQueueManagedOffset));
-      }
+      v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
     }
   }
 

@@ -1011,17 +1011,6 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanAllocate();
   };
 
-  struct WasmAllocateWaitQueue : public Descriptor<WasmAllocateWaitQueue> {
-    static constexpr auto kFunction = Builtin::kWasmAllocateWaitQueue;
-    using arguments_t = std::tuple<V<WasmStruct>, V<Word32>>;
-    using results_t = std::tuple<V<WasmStruct>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanAllocate();
-  };
-
   struct WasmGetOwnProperty : public Descriptor<WasmGetOwnProperty> {
     static constexpr auto kFunction = Builtin::kWasmGetOwnProperty;
     using arguments_t = std::tuple<V<Object>, V<Symbol>>;
@@ -1259,18 +1248,6 @@ struct BuiltinCallDescriptor {
   struct WasmI64AtomicWait : public Descriptor<WasmI64AtomicWait> {
     static constexpr auto kFunction = Builtin::kWasmI64AtomicWait;
     using arguments_t = std::tuple<V<Word32>, V<WordPtr>, V<BigInt>, V<BigInt>>;
-    using results_t = std::tuple<V<Word32>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct WasmManagedObjectWait : public Descriptor<WasmManagedObjectWait> {
-    static constexpr auto kFunction = Builtin::kWasmManagedObjectWait;
-    using arguments_t =
-        std::tuple<V<HeapObject>, V<Word32>, V<Word32>, V<BigInt>>;
     using results_t = std::tuple<V<Word32>>;
 
     static constexpr bool kNeedsFrameState = false;

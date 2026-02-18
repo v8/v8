@@ -44,9 +44,6 @@ extern runtime WasmI32AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
-extern runtime WasmManagedObjectWait(Context, HeapObject, Smi, Number, BigInt):
-    Smi;
-extern runtime WasmAllocateWaitQueue(Context, WasmStruct, Smi): Smi;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
 extern runtime WasmAllocateDescriptorStruct(
@@ -745,23 +742,6 @@ builtin WasmI64AtomicWait(
       SmiFromInt32(memIndex), UintPtr53ToNumber(offset), expectedValue,
       timeout);
   return Unsigned(SmiToInt32(result));
-}
-
-builtin WasmManagedObjectWait(
-    object: HeapObject, fieldOffset: int32, expectedValue: int32,
-    timeout: BigInt): uint32 {
-  const result: Smi = runtime::WasmManagedObjectWait(
-      LoadContextFromFrame(), object, SmiFromInt32(fieldOffset),
-      ChangeInt32ToTagged(expectedValue), timeout);
-  return Unsigned(SmiToInt32(result));
-}
-
-// It's convenient for Liftoff to return {structValue} back.
-builtin WasmAllocateWaitQueue(structValue: WasmStruct, rawFieldOffset: int32):
-    WasmStruct {
-  runtime::WasmAllocateWaitQueue(
-      LoadContextFromFrame(), structValue, SmiFromInt32(rawFieldOffset));
-  return structValue;
 }
 
 // Type feedback collection support for `call_ref` and `call_indirect`.

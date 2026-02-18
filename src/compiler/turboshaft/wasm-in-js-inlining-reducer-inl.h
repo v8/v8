@@ -800,18 +800,6 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void StructWait(FullDecoder* decoder, const Value& struct_obj,
-                  const FieldImmediate& imm, const Value& expected_value,
-                  const Value& timeout_ns, Value* result) {
-    Bailout(decoder);
-  }
-
-  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
-                    const FieldImmediate& imm, const Value& max_waiters,
-                    Value* result) {
-    Bailout(decoder);
-  }
-
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
                       const Value& array_obj, const ArrayIndexImmediate& imm,
                       const Value& index, const Value& value,
