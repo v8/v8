@@ -8134,6 +8134,7 @@ class TurboshaftGraphBuildingInterface
           IF_NOT (LIKELY(sigs_match)) {
             __ TrapIf(__ Word32Equal(-1, loaded_sig), TrapId::kTrapNullFunc);
             __ TrapIf(1, TrapId::kTrapFuncSigMismatch);
+            __ Unreachable();
           }
         } else {
           __ TrapIfNot(sigs_match, TrapId::kTrapFuncSigMismatch);
