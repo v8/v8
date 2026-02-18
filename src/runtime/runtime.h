@@ -713,6 +713,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowWasmStackOverflow, 0, 1)                                \
   F(WasmI32AtomicWait, 4, 1)                                     \
   F(WasmI64AtomicWait, 5, 1)                                     \
+  F(WasmManagedObjectWait, 4, 1)                                 \
+  F(WasmAllocateWaitQueue, 2, 1)                                 \
   F(WasmMemoryGrow, 2, 1)                                        \
   F(WasmStackGuard, 1, 1)                                        \
   F(WasmStackGuardLoop, 0, 1)                                    \

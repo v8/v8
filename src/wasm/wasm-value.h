@@ -82,6 +82,8 @@ class WasmValue {
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
+  // TODO(manoskouk): Do we have to somehow also represent a waitqueue's Managed
+  // object?
   static WasmValue WaitQueue(int32_t value) {
     return WasmValue(reinterpret_cast<const uint8_t*>(&value), kWasmWaitQueue);
   }
