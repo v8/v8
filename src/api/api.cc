@@ -5951,35 +5951,9 @@ Local<v8::String> v8::String::InternalizeString(Isolate* v8_isolate) {
   return Utils::ToLocal(isolate->factory()->InternalizeString(str));
 }
 
-void v8::String::VerifyExternalStringResource(
-    v8::String::ExternalStringResource* value) const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  const v8::String::ExternalStringResource* expected = nullptr;
-
-  if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-  }
-
-  if (i::StringShape(str).IsExternalTwoByte()) {
-    const void* resource = i::Cast<i::ExternalTwoByteString>(str)->resource();
-    expected = reinterpret_cast<const ExternalStringResource*>(resource);
-  } else {
-    uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-      bool is_one_byte;
-      auto resource = GetExternalResourceFromForwardingTable(
-          str, raw_hash_field, &is_one_byte);
-      if (!is_one_byte) {
-        expected = reinterpret_cast<const ExternalStringResource*>(resource);
-      }
-    }
-  }
-  CHECK_EQ(expected, value);
-}
-
 void v8::String::VerifyExternalStringResourceBase(
-    v8::String::ExternalStringResourceBase* value, Encoding encoding) const {
+    const v8::String::ExternalStringResourceBase* value,
+    Encoding encoding) const {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
   const v8::String::ExternalStringResourceBase* expected;
@@ -6012,34 +5986,6 @@ void v8::String::VerifyExternalStringResourceBase(
   }
   CHECK_EQ(expected, value);
   CHECK_EQ(expectedEncoding, encoding);
-}
-
-String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-
-  if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-  }
-
-  if (i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
-    i::Address value =
-        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
-            isolate, str.ptr(), i::Internals::kStringResourceOffset);
-    return reinterpret_cast<String::ExternalStringResource*>(value);
-  } else {
-    uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-      bool is_one_byte;
-      auto resource = GetExternalResourceFromForwardingTable(
-          str, raw_hash_field, &is_one_byte);
-      if (!is_one_byte) {
-        return reinterpret_cast<ExternalStringResource*>(resource);
-      }
-    }
-  }
-  return nullptr;
 }
 
 void String::ExternalStringResource::UpdateDataCache() {
@@ -6077,10 +6023,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
       static_cast<Encoding>(type & i::Internals::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    Isolate* isolate = i::Internals::GetCurrentIsolateForSandbox();
-    i::Address value =
-        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
-            isolate, string, i::Internals::kStringResourceOffset);
+    i::Address value = i::Cast<i::ExternalString>(str)->resource_as_address();
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   } else {
     uint32_t raw_hash_field = str->raw_hash_field();
@@ -6095,28 +6038,28 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   return resource;
 }
 
+v8::String::ExternalStringResource* v8::String::GetExternalStringResourceSlow()
+    const {
+  String::Encoding encoding;
+  ExternalStringResourceBase* resource =
+      GetExternalStringResourceBaseSlow(&encoding);
+  if (V8_LIKELY(encoding == Encoding::TWO_BYTE_ENCODING)) {
+    return reinterpret_cast<ExternalStringResource*>(resource);
+  } else {
+    return nullptr;
+  }
+}
+
 const v8::String::ExternalOneByteStringResource*
-v8::String::GetExternalOneByteStringResource() const {
-  i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  if (i::StringShape(str).IsExternalOneByte()) {
-    return i::Cast<i::ExternalOneByteString>(str)->resource();
-  } else if (i::IsThinString(str)) {
-    str = i::Cast<i::ThinString>(str)->actual();
-    if (i::StringShape(str).IsExternalOneByte()) {
-      return i::Cast<i::ExternalOneByteString>(str)->resource();
-    }
+v8::String::GetExternalOneByteStringResourceSlow() const {
+  String::Encoding encoding;
+  ExternalStringResourceBase* resource =
+      GetExternalStringResourceBaseSlow(&encoding);
+  if (V8_LIKELY(encoding == Encoding::ONE_BYTE_ENCODING)) {
+    return reinterpret_cast<ExternalOneByteStringResource*>(resource);
+  } else {
+    return nullptr;
   }
-  uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
-  if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
-    bool is_one_byte;
-    auto resource = GetExternalResourceFromForwardingTable(str, raw_hash_field,
-                                                           &is_one_byte);
-    if (is_one_byte) {
-      return reinterpret_cast<ExternalOneByteStringResource*>(resource);
-    }
-  }
-  return nullptr;
 }
 
 Local<Value> Symbol::Description(Isolate* v8_isolate) const {

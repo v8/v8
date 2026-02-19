@@ -1258,6 +1258,11 @@ class Internals {
     return representation == kExternalTwoByteRepresentationTag;
   }
 
+  V8_INLINE static bool IsExternalOneByteString(int instance_type) {
+    int representation = (instance_type & kStringRepresentationAndEncodingMask);
+    return representation == kExternalOneByteRepresentationTag;
+  }
+
   V8_INLINE static constexpr bool CanHaveInternalField(int instance_type) {
     static_assert(kJSObjectType + 1 == kFirstJSApiObjectType);
     static_assert(kJSObjectType < kLastJSApiObjectType);
