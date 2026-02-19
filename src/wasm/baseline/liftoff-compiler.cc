@@ -2034,8 +2034,7 @@ class LiftoffCompiler {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const HandlerCase> handlers,
+  void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
                      size_t handler_index, Value* cont, Value* tag_params) {
     // "Resume" bails out before this can be reached.
     UNREACHABLE();
@@ -2064,6 +2063,10 @@ class LiftoffCompiler {
               const Value args[], Value returns[]) {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: switch");
   }
+
+  void BeginEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
+
+  void EndEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {

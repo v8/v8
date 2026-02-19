@@ -18,12 +18,14 @@
 #include "src/deoptimizer/translated-state.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/execution/frames.h"
+#include "src/flags/flags.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
 #include "src/utils/utils.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-deopt-data.h"
@@ -1145,8 +1147,9 @@ CodeGenerator::GenerateWasmEffectHandler() {
   auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
       effect_handlers_.size());
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
-    handlers[i] = {effect_handlers_[i].pc_offset, effect_handlers_[i].tag_index,
-                   effect_handlers_[i].handler->pos()};
+    const EffectHandlerInfo& old_handler = effect_handlers_[i];
+    handlers[i] = {old_handler.pc_offset, old_handler.tag_and_kind,
+                   old_handler.is_switch() ? 0 : old_handler.handler->pos()};
   }
   return handlers;
 }
@@ -1175,11 +1178,17 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     // Start from the first handler, order matters.
     for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
          handler_idx += 2) {
-      RpoNumber handler_rpo =
-          i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
-      int tag_index = i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32();
-      effect_handlers_.push_back(
-          {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+      wasm::EffectHandlerTagIndex tag_index = wasm::EffectHandlerTagIndex(
+          i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32());
+
+      if (!tag_index.is_switch()) {
+        RpoNumber handler_rpo =
+            i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
+        effect_handlers_.emplace_back(tag_index, GetLabel(handler_rpo),
+                                      masm()->pc_offset());
+      } else {
+        effect_handlers_.emplace_back(tag_index, nullptr, masm()->pc_offset());
+      }
     }
     index = index - 2 * num_handlers - 1;
   }

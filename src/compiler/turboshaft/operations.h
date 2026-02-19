@@ -37,6 +37,7 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -4386,8 +4387,11 @@ struct CallOp : OperationT<CallOp> {
 };
 
 struct EffectHandler {
-  int tag_index;
+  wasm::EffectHandlerTagIndex tag_and_kind;
   Block* block;
+
+  bool is_switch() const { return tag_and_kind.is_switch(); }
+  uint32_t tag_index() const { return tag_and_kind.index(); }
 };
 
 // Catch an exception from the first operation of the `successor` block and
@@ -4733,13 +4737,15 @@ struct fast_hash<SwitchOp::Case> {
 inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
   switch (op.opcode) {
     case Opcode::kCheckException: {
-      auto& casted = op.Cast<CheckExceptionOp>();
-      base::SmallVector<Block*, 4> res{casted.didnt_throw_block};
-      if (casted.catch_block) {
-        res.push_back(casted.catch_block);
+      auto& cast = op.Cast<CheckExceptionOp>();
+      base::SmallVector<Block*, 4> res{cast.didnt_throw_block};
+      if (cast.catch_block) {
+        res.push_back(cast.catch_block);
       }
-      for (auto& effect_handler : casted.effect_handlers) {
-        res.push_back(effect_handler.block);
+      for (auto& effect_handler : cast.effect_handlers) {
+        if (!effect_handler.is_switch()) {
+          res.push_back(effect_handler.block);
+        }
       }
       return res;
     }

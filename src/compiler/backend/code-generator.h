@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -399,9 +400,15 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   };
 
   struct EffectHandlerInfo {
-    int tag_index;
+    wasm::EffectHandlerTagIndex tag_and_kind;
     Label* handler;
     int pc_offset;
+
+    bool is_switch() const { return tag_and_kind.is_switch(); }
+
+    EffectHandlerInfo(wasm::EffectHandlerTagIndex tag_index, Label* handler,
+                      int pc_offset)
+        : tag_and_kind(tag_index), handler(handler), pc_offset(pc_offset) {}
   };
 
   friend class OutOfLineCode;

@@ -82,6 +82,18 @@ builder.addFunction("resume_next_handle_tag1", kSig_v_v)
         kExprDrop,
         kExprUnreachable,
     ]).exportFunc();
+builder.addFunction("resume_next_handle_switch0", kSig_v_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprCallFunction, get_next_index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 2,
+            kOnSuspend, tag0_index, 0,
+            kOnSwitch, tag0_index,
+          kExprUnreachable,
+        kExprEnd,
+        kExprDrop,
+    ]).exportFunc();
 builder.addFunction("resume_next_twice", kSig_v_v)
     .addBody([
         kExprBlock, kWasmRef, cont_index,
@@ -350,6 +362,17 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag0
   ];
   instance.exports.resume_next_handle_tag0();
+})();
+
+(function TestSwitch() {
+  print(arguments.callee.name);
+
+  // Check unaffected by switch tag
+  instance.exports.call_stack.value = [
+      instance.exports.resume_next_handle_tag1,
+      instance.exports.suspend_tag0
+  ];
+  instance.exports.resume_next_handle_switch0();
 })();
 
 (function TestSuspendError() {

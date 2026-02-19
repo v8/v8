@@ -1062,9 +1062,9 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
     auto trusted_instance_data =
         TrustedCast<WasmTrustedInstanceData>(trusted_instance_data_obj);
     for (const auto& handler : effect_handlers) {
-      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index);
+      auto tag = trusted_instance_data->tags_table()->get(handler.tag_index());
       if (wasm_code->instruction_start() + handler.call_offset == target_pc &&
-          tag == wanted_tag) {
+          !handler.is_switch() && tag == wanted_tag) {
         found = true;
         to->jmpbuf()->pc =
             wasm_code->instruction_start() + handler.handler_offset;

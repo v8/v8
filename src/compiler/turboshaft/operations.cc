@@ -24,6 +24,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/objects/code-inl.h"
@@ -1200,7 +1201,10 @@ std::ostream& operator<<(std::ostream& os, EffectHandler h) {
 std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
-    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    if (h.is_switch())
+      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+    else
+      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
   }
   return os;
 }

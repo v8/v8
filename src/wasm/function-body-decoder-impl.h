@@ -14,8 +14,6 @@
 
 #include <inttypes.h>
 
-#include <optional>
-
 #include "src/base/bounds.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -1021,8 +1019,8 @@ class EffectHandlerTableIterator {
 
   HandlerCase next() {
     DCHECK(has_next());
-    uint8_t kind =
-        static_cast<CatchKind>(decoder_->read_u8<ValidationTag>(pc_));
+    SwitchKind kind =
+        static_cast<SwitchKind>(decoder_->read_u8<ValidationTag>(pc_));
     pc_ += 1;
     TagIndexImmediate tag = TagIndexImmediate(decoder_, pc_, ValidationTag{});
     pc_ += tag.length;
@@ -1035,7 +1033,7 @@ class EffectHandlerTableIterator {
     }
     index_++;
 
-    return HandlerCase{static_cast<SwitchKind>(kind), tag, maybe_depth};
+    return HandlerCase{kind, tag, maybe_depth};
   }
 
   // Length, including the length of the {EffectHandlerTableImmediate}, but not
@@ -1525,8 +1523,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
-  F(ResumeHandler, base::Vector<const HandlerCase> handlers,                   \
-    size_t handler_index, const Value* cont_ref, Value* tag_params)            \
+  F(ResumeHandler, const wasm::HandlerCase& handler, size_t handler_index,     \
+    const Value* cont_ref, Value* tag_params)                                  \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value& cont, const Value args[], const Value returns[])              \
@@ -1538,6 +1536,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(Switch, const TagIndexImmediate& tag_imm,                                  \
     const ContIndexImmediate& con_imm, const Value& cont_ref,                  \
     const Value args[], Value returns[])                                       \
+  F(BeginEffectHandlers)                                                       \
+  F(EndEffectHandlers)                                                         \
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence)                                                               \
@@ -4796,19 +4796,22 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   void HandleEffects(base::Vector<HandlerCase> handlers,
                      ContIndexImmediate imm) {
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(BeginEffectHandlers);
     for (int i = 0; i < handlers.length(); ++i) {
       if (handlers[i].kind == kOnSuspend) {
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
         Value* suspend_cont =
             Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
+        const HandlerCase& handler = handlers[i];
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
         Drop(1 + static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
         Control* target = control_at(handlers[i].maybe_depth.br.depth);
         target->br_merge()->reached = true;
       }
     }
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(EndEffectHandlers);
   }
 
   DECODE(Resume) {

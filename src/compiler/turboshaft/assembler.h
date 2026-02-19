@@ -1481,7 +1481,9 @@ class ReducerBase : public Next {
       Asm().AddPredecessor(saved_current_block, catch_block, true);
     }
     for (auto& effect_handler : effect_handlers) {
-      Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      if (!effect_handler.is_switch()) {
+        Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      }
     }
     return new_opindex;
   }

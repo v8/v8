@@ -717,8 +717,11 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const wasm::HandlerCase> handlers,
+  void BeginEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void EndEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void ResumeHandler(FullDecoder* decoder, const wasm::HandlerCase& handler,
                      size_t handler_index, Value* cont_val, Value* tag_params) {
     Bailout(decoder);
   }

@@ -2258,8 +2258,14 @@ void InstructionSelector::VisitCall(
   if (!effect_handlers.empty()) {
     flags |= CallDescriptor::kHasEffectHandler;
     for (auto& handler : effect_handlers) {
-      buffer.instruction_args.push_back(g.Label(handler.block));
-      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
+      if (!handler.is_switch()) {
+        buffer.instruction_args.push_back(g.Label(handler.block));
+      } else {
+        buffer.instruction_args.push_back(g.UseImmediate(0));
+      }
+
+      buffer.instruction_args.push_back(
+          g.UseImmediate(handler.tag_and_kind.raw_value()));
     }
     buffer.instruction_args.push_back(
         g.UseImmediate(static_cast<int>(effect_handlers.size())));

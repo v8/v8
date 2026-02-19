@@ -939,8 +939,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                 ->template AllocateVector<EffectHandler>(
                     op.effect_handlers.size());
         for (int i = 0; i < op.effect_handlers.length(); ++i) {
-          output_handlers[i].tag_index = op.effect_handlers[i].tag_index;
-          output_handlers[i].block = MapToNewGraph(op.effect_handlers[i].block);
+          output_handlers[i].tag_and_kind = op.effect_handlers[i].tag_and_kind;
+          if (!op.effect_handlers[i].is_switch()) {
+            output_handlers[i].block =
+                MapToNewGraph(op.effect_handlers[i].block);
+          } else
+            output_handlers[i].block = nullptr;
         }
         Asm().set_effect_handlers_for_next_call(output_handlers);
       }

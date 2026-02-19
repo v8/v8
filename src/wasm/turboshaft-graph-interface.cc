@@ -12,6 +12,7 @@
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/data-view-ops.h"
+#include "src/common/checks.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/dataview-lowering-reducer.h"
@@ -19,6 +20,7 @@
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/flags/flags.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/torque-defined-classes.h"
 #include "src/trap-handler/trap-handler.h"
@@ -3891,8 +3893,10 @@ class TurboshaftGraphBuildingInterface
             -> AllocateVector<compiler::turboshaft::EffectHandler>(
                              handlers.size());
     for (size_t i = 0; i < handlers.size(); ++i) {
-      if (handlers[i].kind != kOnSuspend) UNIMPLEMENTED();
-      asm_handlers[i].tag_index = handlers[i].tag.index;
+      DCHECK(handlers[i].tag.index >= 0 &&
+             handlers[i].tag.index < kV8MaxWasmTags);
+      asm_handlers[i].tag_and_kind.encode(
+          handlers[i].kind == wasm::SwitchKind::kSwitch, handlers[i].tag.index);
       asm_handlers[i].block = __ NewBlock();
     }
     return {stack, asm_handlers};
@@ -3933,13 +3937,8 @@ class TurboshaftGraphBuildingInterface
     UnpackResumeReturns(sig, returns, result_buffer);
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const HandlerCase> handlers,
+  void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
                      size_t handler_index, Value* cont_val, Value* tag_params) {
-    if (handler_index == 0) {
-      resume_return_block_ = __ NewBlock();
-      __ Goto(resume_return_block_);
-    }
     __ Bind(asm_.effect_handlers_for_next_call()[handler_index].block);
     // Reuse the "CatchBlockBegin" pseudo op to mark the beginning of an effect
     // handler block. It works the same way but generates the continuation
@@ -3948,7 +3947,7 @@ class TurboshaftGraphBuildingInterface
     OpIndex arg_buffer = __ WasmFXArgBuffer();
 
     // Unpack tag params.
-    const FunctionSig* sig = handlers[handler_index].tag.tag->sig;
+    const FunctionSig* sig = handler.tag.tag->sig;
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(tag_params[index].type, sig->GetParam(index));
       tag_params[index].op = this->Asm().LoadOffHeap(
@@ -3958,12 +3957,8 @@ class TurboshaftGraphBuildingInterface
 
     instance_cache_.ReloadCachedMemory();
     cont_val->op = cont;
-    DCHECK_EQ(kOnSuspend, handlers[handler_index].kind);
-    BrOrRet(decoder, handlers[handler_index].maybe_depth.br.depth);
-    if (handler_index == handlers.size() - 1) {
-      asm_.clear_effect_handlers();
-      __ Bind(resume_return_block_);
-    }
+    DCHECK_EQ(kOnSuspend, handler.kind);
+    BrOrRet(decoder, handler.maybe_depth.br.depth);
   }
 
   void ResumeThrow(FullDecoder* decoder,
@@ -4009,6 +4004,16 @@ class TurboshaftGraphBuildingInterface
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
     UNIMPLEMENTED();
+  }
+
+  void BeginEffectHandlers(FullDecoder* decoder) {
+    resume_return_block_ = __ NewBlock();
+    __ Goto(resume_return_block_);
+  }
+
+  void EndEffectHandlers(FullDecoder* decoder) {
+    asm_.clear_effect_handlers();
+    __ Bind(resume_return_block_);
   }
 
   MemoryRepresentation MemoryRepresentationFor(ValueType type) {
