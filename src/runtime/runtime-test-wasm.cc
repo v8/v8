@@ -777,7 +777,8 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   int func_index = func_data->function_index();
   wasm::NativeModule* native_module = trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
-  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
+      static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
@@ -801,7 +802,8 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   int func_index = func_data->function_index();
   wasm::NativeModule* native_module = trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
-  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
+      static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
@@ -943,9 +945,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -963,9 +966,10 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -982,9 +986,10 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -1001,9 +1006,10 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
@@ -1059,8 +1065,8 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
   const wasm::WasmModule* module =
       func_data->instance_data()->native_module()->module();
   uint32_t func_index = func_data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      func_data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
