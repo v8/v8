@@ -1192,11 +1192,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ B(exit->label());
       break;
     }
-#if V8_ENABLE_WEBASSEMBLY
-    case kArchTrap:
-      __ B(zone()->New<WasmOutOfLineTrap>(this, instr)->entry());
-      break;
-#endif  // V8_ENABLE_WEBASSEMBLY
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
