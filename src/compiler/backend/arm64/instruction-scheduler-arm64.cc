@@ -103,6 +103,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float16RoundTiesEven:
     case kArm64Float16RoundTruncate:
     case kArm64Float16RoundUp:
+    case kArm64Float32Move:
+    case kArm64Float32MoveU32:
     case kArm64Float32Cmp:
     case kArm64Float32Add:
     case kArm64Float32Sub:
@@ -162,6 +164,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float64InsertHighWord32:
     case kArm64Float64Mod:
     case kArm64Float64MoveU64:
+    case kArm64Float64Move:
     case kArm64U64MoveFloat64:
     case kArm64Float64SilenceNaN:
 #if V8_ENABLE_WEBASSEMBLY
