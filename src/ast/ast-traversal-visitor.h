@@ -31,6 +31,11 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
  public:
   explicit AstTraversalVisitor(Isolate* isolate, AstNode* root = nullptr);
   explicit AstTraversalVisitor(uintptr_t stack_limit, AstNode* root = nullptr);
+  ~AstTraversalVisitor() {
+    // This is a guard against forgotten handling of stack overflows,
+    // the visitor must call ClearStackOverflow() if it was handled.
+    CHECK_WITH_MSG(!HasStackOverflow(), "Unhandled stack overflow");
+  }
   AstTraversalVisitor(const AstTraversalVisitor&) = delete;
   AstTraversalVisitor& operator=(const AstTraversalVisitor&) = delete;
 
