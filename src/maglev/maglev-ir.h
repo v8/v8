@@ -7090,9 +7090,6 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
       : Base(bitfield),
         expected_type_(expected_type),
         allow_widening_smi_to_int32_(allow_widening_smi_to_int32) {
-    CHECK_IMPLIES(
-        allow_widening_smi_to_int32 == AllowWideningSmiToInt32::kAllow,
-        !IsEmptyNodeType(IntersectType(NodeType::kSmi, expected_type)));
   }
 
   static constexpr OpProperties kProperties =
