@@ -486,10 +486,11 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
   query_counter = 0;
   CHECK(v8_run_bool("obj.hasOwnProperty('enum');"));
   CHECK(v8_run_bool("obj.hasOwnProperty('not_enum');"));
-  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
-  // on the object first and calls the query callback only if the property
-  // was not found.
-  CHECK_EQ(0, query_counter);
+  if (interceptor_is_object && masking) {
+    CHECK_EQ(2, query_counter);
+  } else {
+    CHECK_EQ(0, query_counter);
+  }
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('x');"));
@@ -538,8 +539,11 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
   // Either the property already existed on the object or it was added
   // by the last store.
   CHECK(v8_run_bool("obj.hasOwnProperty('prop_rw');"));
-  CHECK_EQ(0, query_counter);  // not triggered, since it's on the object
-
+  if (interceptor_is_object && masking) {
+    CHECK_EQ(1, query_counter);
+  } else {
+    CHECK_EQ(0, query_counter);
+  }
   // Attempt to store to interceptor's RO property should trigger query
   // and since it's RO the store shouldn't happen.
 
@@ -583,10 +587,8 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
-  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
-  // on the object first and calls the query callback only if the property
-  // was not found.
-  if (interceptor_is_object) CHECK_EQ(0, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   // Attempt to store to interceptor's prototype's RO property should not
@@ -6825,4 +6827,62 @@ THREADED_TEST(Regress42204611) {
   //   2. The definer when trying to intercept the define itself,
   //   3. The setter when applying the property descriptor.
   CHECK_EQ(calls, std::vector<std::string>({"getter", "definer", "setter"}));
+}
+
+namespace {
+
+v8::Intercepted ThrowingQueryCallback(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  auto throw_on_query = *GetData<bool>(info);
+  if (!throw_on_query) return v8::Intercepted::kNo;
+  auto isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  if (v8_str("foo")->Equals(context, property).FromJust()) {
+    isolate->ThrowException(v8_str("interceptor exception"));
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
+}
+
+}  // namespace
+
+THREADED_TEST(HasOwnPropertyWithInterceptorThrow) {
+  LocalContext env;
+  auto isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  auto fun_templ = v8::FunctionTemplate::New(isolate);
+  auto instance_templ = fun_templ->InstanceTemplate();
+  bool throw_on_query;
+  auto data = MakeData(isolate, &throw_on_query);
+  instance_templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, ThrowingQueryCallback, nullptr, nullptr, data,
+      v8::PropertyHandlerFlags::kNone));
+  auto function = fun_templ->GetFunction(env.local()).ToLocalChecked();
+  auto obj = function->NewInstance(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust();
+
+  // Turn off throw while installing property behind masking interceptor.
+  throw_on_query = false;
+  CHECK(obj->Set(env.local(), v8_str("foo"), v8_num(42)).FromJust());
+  throw_on_query = true;
+
+  // Check hasOwnProperty via api.
+  {
+    v8::TryCatch try_catch(isolate);
+    v8::Maybe<bool> result = obj->HasOwnProperty(env.local(), v8_str("foo"));
+    CHECK(result.IsNothing());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->StrictEquals(v8_str("interceptor exception")));
+  }
+  // Check hasOwnProperty via js.
+  {
+    v8::TryCatch try_catch(isolate);
+    v8::Local<v8::Value> result = CompileRun(R"(
+      var r;
+      try { r = obj.hasOwnProperty('foo'); } catch(e) { r = e; }
+      r;
+    )");
+    CHECK(result->StrictEquals(v8_str("interceptor exception")));
+  }
 }

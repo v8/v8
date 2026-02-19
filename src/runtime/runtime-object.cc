@@ -170,52 +170,17 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
   DirectHandle<JSAny> object = args.at<JSAny>(0);
 
-  if (IsJSModuleNamespace(*object)) {
-    LookupIterator it(isolate, object, key, LookupIterator::OWN);
-    PropertyDescriptor desc;
-    Maybe<bool> result = JSReceiver::GetOwnPropertyDescriptor(&it, &desc);
-    if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
-    return isolate->heap()->ToBoolean(result.FromJust());
-
-  } else if (IsJSObject(*object)) {
-    DirectHandle<JSObject> js_obj = Cast<JSObject>(object);
-    // Fast case: either the key is a real named property or it is not
-    // an array index and there are no interceptors or hidden
-    // prototypes.
-    // TODO(jkummerow): Make JSReceiver::HasOwnProperty fast enough to
-    // handle all cases directly (without this custom fast path).
-    {
-      LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-      LookupIterator it(isolate, js_obj, key, js_obj, c);
-      Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-      if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-      DCHECK(!isolate->has_exception());
-      if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
+  if (IsJSReceiver(*object)) {
+    DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(object);
+    Maybe<bool> maybe;
+    if (key.is_element()) {
+      maybe = JSReceiver::HasOwnProperty(isolate, receiver, key.index());
+    } else {
+      maybe = JSReceiver::HasOwnProperty(isolate, receiver, key.name());
     }
-
-    Tagged<Map> map = js_obj->map();
-    if (!IsJSGlobalProxyMap(map) &&
-        (key.is_element() && key.index() <= JSObject::kMaxElementIndex
-             ? !map->has_indexed_interceptor()
-             : !map->has_named_interceptor())) {
-      return ReadOnlyRoots(isolate).false_value();
-    }
-
-    // Slow case.
-    LookupIterator it(isolate, js_obj, key, js_obj, LookupIterator::OWN);
-    Maybe<bool> maybe = JSReceiver::HasProperty(&it);
     if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
     DCHECK(!isolate->has_exception());
     return isolate->heap()->ToBoolean(maybe.FromJust());
-
-  } else if (IsJSProxy(*object)) {
-    LookupIterator it(isolate, object, key, Cast<JSProxy>(object),
-                      LookupIterator::OWN);
-    Maybe<PropertyAttributes> attributes =
-        JSReceiver::GetPropertyAttributes(&it);
-    if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
-    return isolate->heap()->ToBoolean(attributes.FromJust() != ABSENT);
-
   } else if (IsString(*object)) {
     return isolate->heap()->ToBoolean(
         key.is_element()

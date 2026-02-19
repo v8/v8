@@ -154,7 +154,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> object,
       DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
-      Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, DirectHandle<JSReceiver> object, size_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSReceiver> receiver, const char* key);
@@ -298,7 +298,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
                            DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
-                           uint32_t index);
+                           size_t index);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetElementAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,

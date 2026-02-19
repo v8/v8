@@ -265,8 +265,8 @@ TEST_F(InterceptorLoggingTest, DispatchTest) {
 
   EXPECT_EQ(Run("Object.prototype.hasOwnProperty.call(obj, 'a')"),
             "named query");
-  // TODO(cbruni): Fix once hasOnwProperty is fixed (https://crbug.com/872628)
-  EXPECT_EQ(Run("Object.prototype.hasOwnProperty.call(obj, '42')"), "");
+  EXPECT_EQ(Run("Object.prototype.hasOwnProperty.call(obj, '42')"),
+            "indexed query");
 }
 }  // namespace
 }  // namespace internal

@@ -1013,7 +1013,7 @@ Maybe<bool> JSReceiver::HasPropertyOrElement(Isolate* isolate,
 
 Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
                                        DirectHandle<JSReceiver> object,
-                                       uint32_t index) {
+                                       size_t index) {
   if (IsJSObject(*object)) {  // Shortcut.
     LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
     return HasProperty(&it);
@@ -1042,7 +1042,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index) {
+    Isolate* isolate, DirectHandle<JSReceiver> object, size_t index) {
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
