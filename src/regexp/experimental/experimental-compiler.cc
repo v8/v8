@@ -477,7 +477,9 @@ class FilterGroupsCompileVisitor final : private RegExpVisitor {
       can_compile_node_ = false;
       node->body()->Accept(this, nullptr);
     } else {
-      if (node->CaptureRegisters().is_empty()) {
+      // TODO(v8:10765): Handle stack overflow instead of passing unlimited max
+      // depth here and below.
+      if (node->CaptureRegisters(StackLimiter(kMaxInt)).is_empty()) {
         return nullptr;
       }
 
@@ -512,7 +514,7 @@ class FilterGroupsCompileVisitor final : private RegExpVisitor {
       can_compile_node_ = false;
       node->body()->Accept(this, nullptr);
     } else {
-      if (node->CaptureRegisters().is_empty()) {
+      if (node->CaptureRegisters(StackLimiter(kMaxInt)).is_empty()) {
         return nullptr;
       }
 
@@ -1056,7 +1058,8 @@ class CompileVisitor : private RegExpVisitor {
     // clear registers in the first node->min() repetitions.
     // Later, and if node->min() == 0, we don't have to clear registers before
     // the first optional repetition.
-    Interval body_registers = node->body()->CaptureRegisters();
+    Interval body_registers =
+        node->body()->CaptureRegisters(StackLimiter(kMaxInt));
     auto emit_body = [&]() {
       if (v8_flags.experimental_regexp_engine_capture_group_opt) {
         assembler_.SetQuantifierToClock(RemapQuantifier(node->index()));

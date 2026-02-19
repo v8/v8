@@ -58,22 +58,43 @@ class Interval {
   Interval() : from_(kNone), to_(kNone - 1) {}  // '- 1' for branchless size().
   Interval(int from, int to) : from_(from), to_(to) {}
   Interval Union(Interval that) {
+    if (!is_valid()) return *this;
+    if (!that.is_valid()) return that;
     if (that.from_ == kNone) return *this;
     if (from_ == kNone) return that;
     return Interval(std::min(from_, that.from_), std::max(to_, that.to_));
   }
 
   static Interval Empty() { return Interval(); }
+  static Interval Invalid() { return Interval(kInvalid, kInvalid); }
 
-  bool Contains(int value) const { return (from_ <= value) && (value <= to_); }
-  bool is_empty() const { return from_ == kNone; }
-  int from() const { return from_; }
-  int to() const { return to_; }
-  int size() const { return to_ - from_ + 1; }
+  bool Contains(int value) const {
+    DCHECK(is_valid());
+    return (from_ <= value) && (value <= to_);
+  }
+  bool is_empty() const {
+    DCHECK(is_valid());
+    return from_ == kNone;
+  }
+  bool is_valid() const { return from_ != kInvalid; }
+  int from() const {
+    DCHECK(is_valid());
+    return from_;
+  }
+  int to() const {
+    DCHECK(is_valid());
+    return to_;
+  }
+  int size() const {
+    DCHECK(is_valid());
+    return to_ - from_ + 1;
+  }
 
   static constexpr int kNone = -1;
 
  private:
+  static constexpr int kInvalid = -2;
+
   int from_;
   int to_;
 };
@@ -184,6 +205,25 @@ inline bool operator!=(const CharacterRange& lhs, const CharacterRange& rhs) {
   return !operator==(lhs, rhs);
 }
 
+class StackLimiter {
+ public:
+  explicit StackLimiter(int budget) : budget_(budget) {}
+
+  // Remember to decrement, not copy.
+  StackLimiter(StackLimiter& other) = delete;
+  StackLimiter(const StackLimiter& other) = delete;
+  StackLimiter& operator=(const StackLimiter&) = delete;
+  StackLimiter(StackLimiter&&) = delete;
+  StackLimiter& operator=(StackLimiter&&) = delete;
+
+  StackLimiter operator-(int value) { return StackLimiter(budget_ - value); }
+
+  bool IsOverflowed();
+
+ private:
+  int budget_;
+};
+
 #define DECL_BOILERPLATE(Name)                                             \
   void* Accept(RegExpVisitor* visitor, void* data) override;               \
   RegExpNode* ToNodeImpl(RegExpCompiler* compiler, RegExpNode* on_success) \
@@ -206,7 +246,9 @@ class RegExpTree : public ZoneObject {
   virtual int max_match() = 0;
   // Returns the interval of registers used for captures within this
   // expression.
-  virtual Interval CaptureRegisters() { return Interval::Empty(); }
+  virtual Interval CaptureRegisters(StackLimiter limiter) {
+    return Interval::Empty();
+  }
   virtual void AppendToText(RegExpText* text, Zone* zone);
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
@@ -221,7 +263,7 @@ class RegExpDisjunction final : public RegExpTree {
 
   DECL_BOILERPLATE(Disjunction);
 
-  Interval CaptureRegisters() override;
+  Interval CaptureRegisters(StackLimiter limiter) override;
   bool IsCertainlyAnchoredAtStart(int budget) override;
   bool IsCertainlyAnchoredAtEnd(int budget) override;
   int min_match() override { return min_match_; }
@@ -243,7 +285,7 @@ class RegExpAlternative final : public RegExpTree {
 
   DECL_BOILERPLATE(Alternative);
 
-  Interval CaptureRegisters() override;
+  Interval CaptureRegisters(StackLimiter limiter) override;
   bool IsCertainlyAnchoredAtStart(int budget) override;
   bool IsCertainlyAnchoredAtEnd(int budget) override;
   int min_match() override { return min_match_; }
@@ -583,7 +625,7 @@ class RegExpQuantifier final : public RegExpTree {
   static RegExpNode* ToNode(int min, int max, bool is_greedy, RegExpTree* body,
                             RegExpCompiler* compiler, RegExpNode* on_success,
                             bool not_at_start = false);
-  Interval CaptureRegisters() override;
+  Interval CaptureRegisters(StackLimiter limiter) override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
   int min() const { return min_; }
@@ -620,7 +662,7 @@ class RegExpCapture final : public RegExpTree {
                             RegExpCompiler* compiler, RegExpNode* on_success);
   bool IsCertainlyAnchoredAtStart(int budget) override;
   bool IsCertainlyAnchoredAtEnd(int budget) override;
-  Interval CaptureRegisters() override;
+  Interval CaptureRegisters(StackLimiter limiter) override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
   RegExpTree* body() { return body_; }
@@ -663,7 +705,7 @@ class RegExpGroup final : public RegExpTree {
   }
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
-  Interval CaptureRegisters() override { return body_->CaptureRegisters(); }
+  Interval CaptureRegisters(StackLimiter limiter) override;
   RegExpTree* body() const { return body_; }
   RegExpFlags flags() const { return flags_; }
 
@@ -689,7 +731,7 @@ class RegExpLookaround final : public RegExpTree {
 
   DECL_BOILERPLATE(Lookaround);
 
-  Interval CaptureRegisters() override;
+  Interval CaptureRegisters(StackLimiter limiter) override;
   bool IsCertainlyAnchoredAtStart(int budget) override;
   int min_match() override { return 0; }
   int max_match() override { return 0; }
