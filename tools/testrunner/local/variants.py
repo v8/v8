@@ -153,8 +153,12 @@ ALL_VARIANT_FLAGS = {
     # Trigger stress sampling allocation profiler with sample interval = 2^14
     "stress_sampling": ["--stress-sampling-allocation-profiler=16384"],
     "no_wasm_traps": ["--no-wasm-trap-handler"],
-    "instruction_scheduling": ["--turbo-instruction-scheduling"],
-    "stress_instruction_scheduling": ["--turbo-stress-instruction-scheduling"],
+    "instruction_scheduling": [
+        "--turbo-instruction-scheduling", "--no-liftoff"
+    ],
+    "stress_instruction_scheduling": [
+        "--turbo-stress-instruction-scheduling", "--no-liftoff"
+    ],
     # Google3 variants.
     "google3_icu": [],
     "google3_noicu": [],
@@ -233,6 +237,18 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "stress": [
         # 'stress' disables Liftoff, which conflicts with flags that require
         # Liftoff support.
+        "--liftoff-only",
+        "--wasm-dynamic-tiering"
+    ],
+    "instruction_scheduling": [
+        # instruction_scheduling disables Liftoff, which conflicts with flags
+        # that require Liftoff support.
+        "--liftoff-only",
+        "--wasm-dynamic-tiering"
+    ],
+    "stress_instruction_scheduling": [
+        # instruction_scheduling disables Liftoff, which conflicts with flags
+        # that require Liftoff support.
         "--liftoff-only",
         "--wasm-dynamic-tiering"
     ],

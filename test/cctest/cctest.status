@@ -753,10 +753,10 @@
 }],
 
 ################################################################################
-['variant == stress or variant == wasm_assert_types', {
-  # The 'stress' variants sets the '--no-liftoff' flag, which means that Wasm
-  # compiles directly to TurboFan. This makes the cache no longer incremental,
-  # and these tests don't make sense.
+['variant == stress or variant == wasm_assert_types or variant == instruction_scheduling or variant == stress_instruction_scheduling', {
+  # The 'stress' variant (and the other listed variants) sets the '--no-liftoff'
+  # flag, which means that Wasm compiles directly to TurboFan. This makes the
+  # cache no longer incremental, and these tests don't make sense.
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
