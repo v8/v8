@@ -570,6 +570,16 @@ bool IncrementalMarking::ShouldWaitForTask() {
         wait_for_task ? "Delaying" : "Not delaying",
         (completion_task_timeout_ - now).InMillisecondsF());
   }
+  if (V8_UNLIKELY(heap_->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCShouldWaitForTask", "value",
+        [this, wait_for_task, now](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("wait_for_task", wait_for_task);
+          dict.Add("remaining",
+                   (completion_task_timeout_ - now).InMillisecondsF());
+        });
+  }
   return wait_for_task;
 }
 
@@ -621,6 +631,32 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
             ? optional_time_to_current_task->InMillisecondsF()
             : NAN,
         allowed_overshoot.InMillisecondsF());
+  }
+  if (V8_UNLIKELY(heap_->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTryInitializeTaskTimeout",
+        "value",
+        [this, allowed_overshoot, delaying, now, kMinAllowedOvershoot,
+         kAllowedOvershootPercentBasedOnWalltime,
+         optional_avg_time_to_marking_task,
+         optional_time_to_current_task](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("delaying", delaying);
+          dict.Add("allowed_overshoot", allowed_overshoot.InMillisecondsF());
+          dict.Add("min_allowed_overshoot",
+                   kMinAllowedOvershoot.InMillisecondsF());
+          dict.Add("walltime", (now - start_time_).InMillisecondsF());
+          dict.Add("allowed_overshoot_based_on_walltime",
+                   kAllowedOvershootPercentBasedOnWalltime);
+          if (optional_avg_time_to_marking_task.has_value()) {
+            dict.Add("avg_time_to_marking_task",
+                     optional_avg_time_to_marking_task->InMillisecondsF());
+          }
+          if (optional_time_to_current_task.has_value()) {
+            dict.Add("time_to_current_task",
+                     optional_time_to_current_task->InMillisecondsF());
+          }
+        });
   }
   return delaying;
 }

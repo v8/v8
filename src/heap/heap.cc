@@ -2901,18 +2901,38 @@ void Heap::EvaluateOldSpaceLocalPretenuring(
       (static_cast<double>(size_of_objects_after_gc) * 100) /
       static_cast<double>(size_of_objects_before_gc);
 
-  if (old_generation_survival_rate < kOldSurvivalRateLowThreshold) {
+  const bool reset_allocation_sites =
+      old_generation_survival_rate < kOldSurvivalRateLowThreshold;
+
+  if (reset_allocation_sites) {
     // Too many objects died in the old generation, pretenuring of wrong
     // allocation sites may be the cause for that. We have to deopt all
     // dependent code registered in the allocation sites to re-evaluate
     // our pretenuring decisions.
     ResetAllAllocationSitesDependentCode(AllocationType::kOld);
-    if (v8_flags.trace_pretenuring) {
+    if (V8_UNLIKELY(v8_flags.trace_pretenuring)) {
       PrintF(
           "Deopt all allocation sites dependent code due to low survival "
           "rate in the old generation %f\n",
           old_generation_survival_rate);
     }
+  }
+
+  if (is_gc_tracing_category_enabled()) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+        "V8.GCEvaluateOldSpaceLocalPretenuring", "value",
+        [reset_allocation_sites, old_generation_survival_rate,
+         size_of_objects_before_gc, size_of_objects_after_gc,
+         threshold = kOldSurvivalRateLowThreshold](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("reset_allocation_sites", reset_allocation_sites);
+          dict.Add("old_generation_survival_rate",
+                   old_generation_survival_rate);
+          dict.Add("size_of_objects_before_gc", size_of_objects_before_gc);
+          dict.Add("size_of_objects_after_gc", size_of_objects_after_gc);
+          dict.Add("threshold", threshold);
+        });
   }
 }
 
