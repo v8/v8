@@ -2200,6 +2200,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputFloat32Register(1));
       break;
     }
+    case kArm64Float32Move:
+      __ Fmov(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
+    case kArm64Float32MoveU32:
+      __ Fmov(i.OutputFloat32Register(), i.InputRegister32(0));
+      break;
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputFloat64OrFPZeroRegister(0), i.InputDoubleRegister(1));
@@ -2415,6 +2421,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64InsertHighWord32:
       DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 1, i.InputRegister32(1));
+      break;
+    case kArm64Float64Move:
+      __ Fmov(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Float64MoveU64:
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
