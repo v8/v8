@@ -3334,6 +3334,15 @@ StackTrace::CurrentScriptIdsAndContexts(
   return {frame_data.data(), written};
 }
 
+v8::MemorySpan<v8::StackTrace::ScriptData> StackTrace::CurrentScriptData(
+    Isolate* v8_isolate, v8::MemorySpan<ScriptData> frame_data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+
+  size_t written = i_isolate->CurrentScriptData(frame_data);
+  return {frame_data.data(), written};
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {

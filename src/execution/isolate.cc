@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-inl.h"
@@ -1742,10 +1743,7 @@ class CurrentScriptIdsAndContextsStackVisitor {
     // Frames that are subject to debugging always have a valid script object. A
     // valid script object should have a valid id.
     auto script_handle = Cast<Script>(summary.script());
-    int script_id = script_handle->id();
-    if (script_handle->has_eval_from_shared()) {
-      script_id = GetRootScriptId(*script_handle);
-    }
+    int script_id = GetRootScriptId(*script_handle);
 
     Handle<NativeContext> context =
         handle(summary.native_context()->native_context(), isolate_);
@@ -1774,8 +1772,63 @@ class CurrentScriptIdsAndContextsStackVisitor {
     }
     return cur->id();
   }
+
   Isolate* const isolate_;
   v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
+  size_t cur_frame_ = 0;
+};
+
+class CurrentScriptDataStackVisitor {
+ public:
+  CurrentScriptDataStackVisitor(
+      Isolate* isolate, v8::MemorySpan<StackTrace::ScriptData> frame_data)
+      : isolate_(isolate), frame_data_(frame_data) {
+    DCHECK_LT(0, frame_data.size());
+  }
+
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    if (!summary.IsJavaScript()) return true;
+    if (!summary.is_subject_to_debugging()) return true;
+
+    auto script_handle = Cast<Script>(summary.script());
+    int script_id = GetRootScriptId(*script_handle);
+
+    DirectHandle<NativeContext> context =
+        handle(summary.native_context()->native_context(), isolate_);
+    if (context.is_null() || script_id <= 0) return true;
+
+    frame_data_[cur_frame_].function =
+        Utils::ToLocal(summary.AsJavaScript().function());
+    frame_data_[cur_frame_].context = Utils::ToLocal(context).As<v8::Context>();
+    frame_data_[cur_frame_].id = script_id;
+
+    cur_frame_ += 1;
+
+    return cur_frame_ < frame_data_.size();
+  }
+
+  size_t FrameCount() const { return cur_frame_; }
+
+ private:
+  int GetRootScriptId(Tagged<Script> script) {
+    Tagged<Script> cur = script;
+    while (cur->has_eval_from_shared()) {
+      Tagged<Object> maybe_sfi = cur->eval_from_shared();
+      if (!IsSharedFunctionInfo(maybe_sfi)) break;
+      Tagged<Object> maybe_script =
+          Cast<SharedFunctionInfo>(maybe_sfi)->script();
+      if (!IsScript(maybe_script)) break;
+      cur = Cast<Script>(maybe_script);
+    }
+    return cur->id();
+  }
+
+  Isolate* const isolate_;
+  v8::MemorySpan<StackTrace::ScriptData> frame_data_;
   size_t cur_frame_ = 0;
 };
 
@@ -1825,6 +1878,17 @@ size_t Isolate::CurrentScriptIdsAndContexts(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptIdsAndContextsStackVisitor visitor(this, frame_data);
   VisitStack(this, &visitor);
+  return visitor.FrameCount();
+}
+
+size_t Isolate::CurrentScriptData(
+    v8::MemorySpan<StackTrace::ScriptData> frame_data) {
+  if (frame_data.size() == 0) return 0;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+
+  CurrentScriptDataStackVisitor visitor(this, frame_data);
+  // CurrentScriptData should only expose frames from the same origin.
+  VisitStack(this, &visitor, StackTrace::kDetailed, true);
   return visitor.FrameCount();
 }
 
