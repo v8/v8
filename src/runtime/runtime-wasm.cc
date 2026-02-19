@@ -2590,7 +2590,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
               .GetHeapObjectAssumeWeak()),
       isolate);
   DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
-      wasm::kWasmI8, length, initial_value, map);
+      wasm::kWasmI8, length, initial_value, map, SKIP_WRITE_BARRIER);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
     return {reinterpret_cast<char*>(array->ElementAddress(0)), length};

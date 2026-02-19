@@ -2096,7 +2096,8 @@ Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
 DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
                                               uint32_t length,
                                               wasm::WasmValue initial_value,
-                                              DirectHandle<Map> map) {
+                                              DirectHandle<Map> map,
+                                              WriteBarrierMode write_barrier) {
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
   if (element_type.is_numeric()) {
@@ -2112,7 +2113,7 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
     }
   } else {
     for (uint32_t i = 0; i < length; i++) {
-      result->SetTaggedElement(i, initial_value.to_ref());
+      result->SetTaggedElement(i, initial_value.to_ref(), write_barrier);
     }
   }
   return direct_handle(result, isolate());
@@ -2120,7 +2121,7 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
 
 DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
-    DirectHandle<Map> map) {
+    DirectHandle<Map> map, WriteBarrierMode write_barrier) {
   uint32_t length = static_cast<uint32_t>(elements.size());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
@@ -2133,7 +2134,7 @@ DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     }
   } else {
     for (uint32_t i = 0; i < length; i++) {
-      result->SetTaggedElement(i, elements[i].to_ref());
+      result->SetTaggedElement(i, elements[i].to_ref(), write_barrier);
     }
   }
   return direct_handle(result, isolate());

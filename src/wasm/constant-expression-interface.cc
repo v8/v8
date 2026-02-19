@@ -217,7 +217,9 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
-    if (!type.is_shared) mode = SKIP_WRITE_BARRIER;  // Object is in new space.
+    if (!type.is_shared && !v8_flags.single_generation) {
+      mode = SKIP_WRITE_BARRIER;  // Object is in new space.
+    }
   }
   {
     DisallowGarbageCollection no_gc;  // Must initialize fields first.
@@ -357,6 +359,7 @@ void ConstantExpressionInterface::StructNewDefault(
                                    Smi::FromInt(0));
         }
       } else {
+        // No write barrier needed, as read-only-space objects never move.
         TaggedField<Object, WasmStruct::kHeaderSize>::store(
             *obj, offset,
             *DefaultValueForType(ftype, isolate_, module_).to_ref());
@@ -381,6 +384,29 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                            const Value& initial_value,
                                            Value* result) {
   if (!generate_value()) return;
+  bool in_old_space =
+      decoder->module_->type(imm.index).is_shared || v8_flags.single_generation;
+  ArrayNewImpl(decoder, imm, length, initial_value, result,
+               in_old_space && imm.array_type->element_type().is_ref()
+                   ? UPDATE_WRITE_BARRIER
+                   : SKIP_WRITE_BARRIER);
+}
+
+void ConstantExpressionInterface::ArrayNewDefault(
+    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
+    Value* result) {
+  if (!generate_value()) return;
+  Value initial_value(decoder->pc(), imm.array_type->element_type());
+  initial_value.runtime_value = DefaultValueForType(
+      imm.array_type->element_type(), isolate_, decoder->module_);
+  // We can skip the write barriers because default values live in RO-space.
+  return ArrayNewImpl(decoder, imm, length, initial_value, result,
+                      SKIP_WRITE_BARRIER);
+}
+
+void ConstantExpressionInterface::ArrayNewImpl(
+    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
+    const Value& initial_value, Value* result, WriteBarrierMode write_barrier) {
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
   DirectHandle<Map> rtt{
@@ -391,21 +417,11 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
     return;
   }
   result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArray(imm.array_type->element_type(),
-                                        length.runtime_value.to_u32(),
-                                        initial_value.runtime_value, rtt),
+      isolate_->factory()->NewWasmArray(
+          imm.array_type->element_type(), length.runtime_value.to_u32(),
+          initial_value.runtime_value, rtt, write_barrier),
       decoder->module_->canonical_type(
           ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
-}
-
-void ConstantExpressionInterface::ArrayNewDefault(
-    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
-    Value* result) {
-  if (!generate_value()) return;
-  Value initial_value(decoder->pc(), imm.array_type->element_type());
-  initial_value.runtime_value = DefaultValueForType(
-      imm.array_type->element_type(), isolate_, decoder->module_);
-  return ArrayNew(decoder, imm, length, initial_value, result);
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(
@@ -422,12 +438,17 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
-                    array_imm.array_type, element_values, rtt),
-                decoder->module_->canonical_type(
-                    ValueType::Ref(array_imm.heap_type())
-                        .AsExactIfEnabled(decoder->enabled_)));
+  bool in_old_space = decoder->module_->type(array_imm.index).is_shared ||
+                      v8_flags.single_generation;
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmArrayFromElements(
+          array_imm.array_type, element_values, rtt,
+          in_old_space && array_imm.array_type->element_type().is_ref()
+              ? UPDATE_WRITE_BARRIER
+              : SKIP_WRITE_BARRIER),
+      decoder->module_->canonical_type(
+          ValueType::Ref(array_imm.heap_type())
+              .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to

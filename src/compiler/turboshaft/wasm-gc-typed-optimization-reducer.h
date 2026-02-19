@@ -493,7 +493,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
                    struct_set.type_index, struct_set.field_index,
-                   kWithoutNullCheck, struct_set.memory_order);
+                   kWithoutNullCheck, struct_set.memory_order,
+                   struct_set.write_barrier);
       return OpIndex::Invalid();
     }
     goto no_change;

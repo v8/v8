@@ -41,9 +41,12 @@ namespace v8::internal::wasm {
 
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
+using compiler::kFullWriteBarrier;
+using compiler::kNoWriteBarrier;
 using compiler::MemoryAccessKind;
 using compiler::Operator;
 using compiler::TrapId;
+using compiler::WriteBarrierKind;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
@@ -4904,7 +4907,7 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 {});
+                 {}, FieldImmediateToWriteBarrier(field));
   }
 
   void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
@@ -4915,7 +4918,7 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 memory_order);
+                 memory_order, FieldImmediateToWriteBarrier(field));
   }
 
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -4961,7 +4964,8 @@ class TurboshaftGraphBuildingInterface
       DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ StructSet(struct_object.op, new_value, struct_type,
                    field.struct_imm.index, field.field_imm.index,
-                   compiler::kWithoutNullCheck, {});
+                   compiler::kWithoutNullCheck, {},
+                   FieldImmediateToWriteBarrier(field));
       return;
     }
 
@@ -5016,7 +5020,8 @@ class TurboshaftGraphBuildingInterface
       IF (__ Word64Equal(old_value, expected_value.op)) {
         __ StructSet(struct_object.op, new_value.op, struct_type,
                      field.struct_imm.index, field.field_imm.index,
-                     compiler::kWithoutNullCheck, {});
+                     compiler::kWithoutNullCheck, {},
+                     FieldImmediateToWriteBarrier(field));
       }
       return;
     }
@@ -5070,16 +5075,24 @@ class TurboshaftGraphBuildingInterface
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {
-    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
-                              V<Word32>::Cast(length.op),
-                              V<Any>::Cast(initial_value.op));
+    bool in_old_space = decoder->module_->type(imm.index).is_shared ||
+                        v8_flags.single_generation;
+    result->op =
+        ArrayNewImpl(decoder, imm.index, imm.array_type,
+                     V<Word32>::Cast(length.op), V<Any>::Cast(initial_value.op),
+                     in_old_space && imm.array_type->element_type().is_ref()
+                         ? kFullWriteBarrier
+                         : kNoWriteBarrier);
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, Value* result) {
     V<Any> initial_value = DefaultValue(imm.array_type->element_type());
+    // No need for a write barrier, since DefaultValue can only be a RO-space
+    // object.
     result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
-                              V<Word32>::Cast(length.op), initial_value);
+                              V<Word32>::Cast(length.op), initial_value,
+                              kNoWriteBarrier);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -5107,7 +5120,8 @@ class TurboshaftGraphBuildingInterface
     auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
     BoundsCheckArray(array_value, index.op, array_obj.type);
     __ ArraySet(array_value, V<Word32>::Cast(index.op), V<Any>::Cast(value.op),
-                imm.array_type->element_type(), {});
+                imm.array_type->element_type(), {},
+                ArrayIndexImmediateToWriteBarrier(imm));
   }
 
   void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
@@ -5116,7 +5130,8 @@ class TurboshaftGraphBuildingInterface
     auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
     BoundsCheckArray(array_value, index.op, array_obj.type);
     __ ArraySet(array_value, V<Word32>::Cast(index.op), V<Any>::Cast(value.op),
-                imm.array_type->element_type(), memory_order);
+                imm.array_type->element_type(), memory_order,
+                ArrayIndexImmediateToWriteBarrier(imm));
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -5158,7 +5173,8 @@ class TurboshaftGraphBuildingInterface
       }
       DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ ArraySet(array_value, index.op, new_value,
-                  imm.array_type->element_type(), {});
+                  imm.array_type->element_type(), {},
+                  ArrayIndexImmediateToWriteBarrier(imm));
       return;
     }
 
@@ -5207,7 +5223,8 @@ class TurboshaftGraphBuildingInterface
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.op)) {
         __ ArraySet(array_value, index.op, new_value.op,
-                    imm.array_type->element_type(), {});
+                    imm.array_type->element_type(), {},
+                    ArrayIndexImmediateToWriteBarrier(imm));
       }
       return;
     }
@@ -5294,7 +5311,8 @@ class TurboshaftGraphBuildingInterface
           WHILE(__ Word32Constant(1)) {
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
-            __ ArraySet(dst_array, dst_index_loop, value, element_type, {});
+            __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
+                        ArrayIndexImmediateToWriteBarrier(src_imm));
 
             IF_NOT (__ Uint32LessThan(src_index.op, src_index_loop)) BREAK;
 
@@ -5308,7 +5326,8 @@ class TurboshaftGraphBuildingInterface
           WHILE(__ Word32Constant(1)) {
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
-            __ ArraySet(dst_array, dst_index_loop, value, element_type, {});
+            __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
+                        ArrayIndexImmediateToWriteBarrier(src_imm));
 
             IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
 
@@ -5323,7 +5342,6 @@ class TurboshaftGraphBuildingInterface
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
                  const Value& array, const Value& index, const Value& value,
                  const Value& length) {
-    const bool emit_write_barrier = imm.array_type->element_type().is_ref();
     auto array_value = V<WasmArrayNullable>::Cast(array.op);
     V<WasmArray> array_not_null = BoundsCheckArrayWithLength(
         array_value, index.op, length.op,
@@ -5331,7 +5349,7 @@ class TurboshaftGraphBuildingInterface
                                  : compiler::kWithoutNullCheck);
     ArrayFillImpl(array_not_null, V<Word32>::Cast(index.op),
                   V<Any>::Cast(value.op), V<Word32>::Cast(length.op),
-                  imm.array_type, emit_write_barrier);
+                  imm.array_type, ArrayIndexImmediateToWriteBarrier(imm));
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -5344,10 +5362,14 @@ class TurboshaftGraphBuildingInterface
     bool shared = decoder->module_->type(array_imm.index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type, shared);
+    WriteBarrierKind write_barrier =
+        (shared || v8_flags.single_generation) && element_type.is_ref()
+            ? kFullWriteBarrier
+            : kNoWriteBarrier;
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
-      __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type,
-                  {});
+      __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type, {},
+                  write_barrier);
     }
     result->op = array;
   }
@@ -8813,14 +8835,15 @@ class TurboshaftGraphBuildingInterface
 
   V<HeapObject> ArrayNewImpl(FullDecoder* decoder, ModuleTypeIndex index,
                              const ArrayType* array_type, V<Word32> length,
-                             V<Any> initial_value) {
+                             V<Any> initial_value,
+                             WriteBarrierKind write_barrier) {
     // Initialize the array header.
     bool shared = decoder->module_->type(index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
-                  array_type, false);
+                  array_type, write_barrier);
     return array;
   }
 
@@ -8880,11 +8903,15 @@ class TurboshaftGraphBuildingInterface
       struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
     }
 
-    // TODO(jkummerow): If the struct is in new-space (i.e. it is not shared
-    // and not a descriptor), we could skip the write barrier.
+    bool in_old_space =
+        type.is_shared || type.is_descriptor() || v8_flags.single_generation;
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
+      bool field_is_ref = imm.struct_type->field(i).is_ref();
       __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
-                   compiler::kWithoutNullCheck, {});
+                   compiler::kWithoutNullCheck, {},
+                   in_old_space && field_is_ref && has_nondefault_args
+                       ? kFullWriteBarrier
+                       : kNoWriteBarrier);
       // We have to allocate the Managed part of waitqueue after finishing
       // initialization of the fresh struct object. Therefore we initialize it
       // with 0 here.
@@ -8923,7 +8950,7 @@ class TurboshaftGraphBuildingInterface
 
   void ArrayFillImpl(V<WasmArray> array, V<Word32> index, V<Any> value,
                      OpIndex length, const wasm::ArrayType* type,
-                     bool emit_write_barrier) {
+                     WriteBarrierKind write_barrier) {
     wasm::ValueType element_type = type->element_type();
 
     // Initialize the array. Use an external function for large arrays with
@@ -8942,9 +8969,9 @@ class TurboshaftGraphBuildingInterface
             MachineType::Uint32(),        MachineType::Uint32(),
             MachineType::Uint32(),        MachineType::Pointer()};
         MachineSignature sig(0, 6, arg_types);
+        int write_barrier_bool = write_barrier == kFullWriteBarrier ? 1 : 0;
         CallC(&sig, ExternalReference::wasm_array_fill(),
-              {array, index, length,
-               __ Word32Constant(emit_write_barrier ? 1 : 0),
+              {array, index, length, __ Word32Constant(write_barrier_bool),
                __ Word32Constant(element_type.raw_bit_field()), stack_slot});
         GOTO(done);
       }
@@ -8953,7 +8980,8 @@ class TurboshaftGraphBuildingInterface
     ScopedVar<Word32> current_index(this, index);
 
     WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
-      __ ArraySet(array, current_index, value, type->element_type(), {});
+      __ ArraySet(array, current_index, value, type->element_type(), {},
+                  write_barrier);
       current_index = __ Word32Add(current_index, 1);
     }
 
@@ -9225,6 +9253,18 @@ class TurboshaftGraphBuildingInterface
       set_no_liftoff_inlining_budget(
           inlinee_decoder.interface().no_liftoff_inlining_budget());
     }
+  }
+
+  WriteBarrierKind FieldImmediateToWriteBarrier(const FieldImmediate& field) {
+    return field.struct_imm.struct_type->field(field.field_imm.index).is_ref()
+               ? kFullWriteBarrier
+               : kNoWriteBarrier;
+  }
+
+  WriteBarrierKind ArrayIndexImmediateToWriteBarrier(
+      const ArrayIndexImmediate& array) {
+    return array.array_type->element_type().is_ref() ? kFullWriteBarrier
+                                                     : kNoWriteBarrier;
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

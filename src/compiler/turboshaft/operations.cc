@@ -2131,7 +2131,7 @@ void StructSetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -2153,7 +2153,7 @@ void ArraySetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY

@@ -7542,6 +7542,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   wasm::ModuleTypeIndex type_index;
   int field_index;
   std::optional<AtomicMemoryOrder> memory_order;
+  WriteBarrierKind write_barrier;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -7559,13 +7560,15 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
               const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
               int field_index, CheckForNull null_check,
-              std::optional<AtomicMemoryOrder> memory_order)
+              std::optional<AtomicMemoryOrder> memory_order,
+              WriteBarrierKind write_barrier)
       : Base(object, value),
         null_check(null_check),
         type(type),
         type_index(type_index),
         field_index(field_index),
-        memory_order(memory_order) {}
+        memory_order(memory_order),
+        write_barrier(write_barrier) {}
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
   V<Any> value() const { return input(1); }
@@ -7585,7 +7588,8 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, type_index, field_index, null_check, memory_order};
+    return std::tuple{type,       type_index,   field_index,
+                      null_check, memory_order, write_barrier};
   }
 
   void PrintOptions(std::ostream& os) const;
@@ -7729,6 +7733,7 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   wasm::ValueType element_type;
   std::optional<AtomicMemoryOrder> memory_order;
+  WriteBarrierKind write_barrier;
 
   // ArraySetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -7739,10 +7744,12 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
              wasm::ValueType element_type,
-             std::optional<AtomicMemoryOrder> memory_order)
+             std::optional<AtomicMemoryOrder> memory_order,
+             WriteBarrierKind write_barrier)
       : Base(array, index, value),
         element_type(element_type),
-        memory_order(memory_order) {}
+        memory_order(memory_order),
+        write_barrier(write_barrier) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -7757,7 +7764,9 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
                                   RepresentationFor(element_type)});
   }
 
-  auto options() const { return std::tuple{element_type, memory_order}; }
+  auto options() const {
+    return std::tuple{element_type, memory_order, write_barrier};
+  }
   void PrintOptions(std::ostream& os) const;
 };
 

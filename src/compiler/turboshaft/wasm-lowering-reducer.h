@@ -269,7 +269,8 @@ class WasmLoweringReducer : public Next {
                             const wasm::StructType* type,
                             wasm::ModuleTypeIndex type_index, int field_index,
                             CheckForNull null_check,
-                            std::optional<AtomicMemoryOrder> memory_order) {
+                            std::optional<AtomicMemoryOrder> memory_order,
+                            WriteBarrierKind write_barrier) {
     // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
     // WasmNull to 8 bytes.
     bool requires_aligned_access =
@@ -295,10 +296,10 @@ class WasmLoweringReducer : public Next {
     //  - if {value} is always an i31: kNoWriteBarrier
     //  - if {value} is never an i31: kPointerWriteBarrier
     // And apply the same logic to ArraySet.
-    __ Store(
-        object, value, store_kind, repr,
-        type->field(field_index).is_ref() ? kFullWriteBarrier : kNoWriteBarrier,
-        field_offset(type, field_index));
+    DCHECK_IMPLIES(write_barrier == kFullWriteBarrier,
+                   type->field(field_index).is_ref());
+    __ Store(object, value, store_kind, repr, write_barrier,
+             field_offset(type, field_index));
 
     return OpIndex::Invalid();
   }
@@ -357,14 +358,15 @@ class WasmLoweringReducer : public Next {
 
   V<None> REDUCE(ArraySet)(V<WasmArrayNullable> array, V<Word32> index,
                            V<Any> value, wasm::ValueType element_type,
-                           std::optional<AtomicMemoryOrder> memory_order) {
+                           std::optional<AtomicMemoryOrder> memory_order,
+                           WriteBarrierKind write_barrier) {
     StoreOp::Kind store_kind = StoreOp::Kind::TaggedBase();
     if (memory_order.has_value()) {
       store_kind = store_kind.Atomic();
     }
+    DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
     __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
-             RepresentationFor(element_type, true),
-             element_type.is_ref() ? kFullWriteBarrier : kNoWriteBarrier,
+             RepresentationFor(element_type, true), write_barrier,
              WasmArray::kHeaderSize, element_type.value_kind_size_log2());
     return {};
   }

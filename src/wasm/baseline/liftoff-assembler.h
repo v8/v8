@@ -11,6 +11,7 @@
 #include "src/base/bits.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -723,18 +724,13 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
                                                int offset_imm);
 #endif
-  enum SkipWriteBarrier : bool {
-    kSkipWriteBarrier = true,
-    kNoSkipWriteBarrier = false
-  };
   enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,
                                Register stored_value, LiftoffRegList pinned);
-  inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
-                                 int32_t offset_imm, Register src,
-                                 LiftoffRegList pinned,
-                                 uint32_t* protected_store_pc = nullptr,
-                                 SkipWriteBarrier = kNoSkipWriteBarrier);
+  inline void StoreTaggedPointer(
+      Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+      LiftoffRegList pinned, uint32_t* protected_store_pc = nullptr,
+      compiler::WriteBarrierKind = compiler::kFullWriteBarrier);
   inline void AtomicStoreTaggedPointer(Register dst_addr, Register offset_reg,
                                        int32_t offset_imm, Register src,
                                        LiftoffRegList pinned,

@@ -5065,9 +5065,10 @@ class AssemblerOpInterface : public Next {
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
-                 std::optional<AtomicMemoryOrder> memory_order) {
+                 std::optional<AtomicMemoryOrder> memory_order,
+                 WriteBarrierKind write_barrier) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check, memory_order);
+                               null_check, memory_order, write_barrier);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5100,8 +5101,10 @@ class AssemblerOpInterface : public Next {
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
-                std::optional<AtomicMemoryOrder> memory_order) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
+                std::optional<AtomicMemoryOrder> memory_order,
+                WriteBarrierKind write_barrier) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
+                              write_barrier);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
