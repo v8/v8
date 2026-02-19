@@ -7680,6 +7680,7 @@ struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
     DCHECK_LT(field_index, type->field_count());
     DCHECK(type->field(field_index) == wasm::kWasmI32 ||
            type->field(field_index) == wasm::kWasmI64 ||
+           type->field(field_index) == wasm::kWasmWaitQueue ||
            (type->field(field_index).is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());

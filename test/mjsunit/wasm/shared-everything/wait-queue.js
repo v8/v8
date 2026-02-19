@@ -43,6 +43,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kAtomicPrefix, kExprStructAtomicSet, kAtomicSeqCst, struct, 0])
     .exportFunc();
 
+  builder.addFunction("atomic_add",
+                      makeSig([struct_type, kWasmI32], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kAtomicPrefix, kExprStructAtomicAdd, kAtomicSeqCst, struct, 0])
+    .exportFunc();
+
+  builder.addFunction("atomic_cmpxchg",
+                      makeSig([struct_type, kWasmI32, kWasmI32], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2,
+              kAtomicPrefix, kExprStructAtomicCompareExchange, kAtomicSeqCst,
+              struct, 0])
+    .exportFunc();
+
   builder.addFunction("get_i32", makeSig([struct_type], [kWasmI32]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 1])
     .exportFunc();
@@ -65,6 +78,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Make sure setting the waitqueue's control value does not overwrite the next
   // field.
   assertEquals(i32_value, wasm.get_i32(struct_obj));
+
+  let value3 = 5;
+  assertEquals(value2, wasm.atomic_add(struct_obj, value3));
+  let value4 = -1;
+  assertEquals(value2 + value3,
+               wasm.atomic_cmpxchg(struct_obj, value2 + value3, value4));
+  assertEquals(value4, wasm.atomic_cmpxchg(struct_obj, value0, value0));  // nop
+  assertEquals(value4, wasm.atomic_get(struct_obj));
 })();
 
 (function TestWaitNotify() {

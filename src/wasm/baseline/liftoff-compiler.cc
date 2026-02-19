@@ -6506,7 +6506,7 @@ class LiftoffCompiler {
       if (__ cache_state()->is_used(value)) {
         result_reg =
             pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
-        __ Move(result_reg, value, field_kind);
+        __ Move(result_reg, value, unpacked(field_kind));
         pinned.clear(value);
         value = result_reg;
       }
@@ -6562,7 +6562,7 @@ class LiftoffCompiler {
     if (implicit_check) {
       RegisterProtectedInstruction(decoder, protected_load_pc);
     }
-    __ PushRegister(field_kind, result_reg);
+    __ PushRegister(unpacked(field_kind), result_reg);
   }
 
   void StructAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
@@ -6656,7 +6656,7 @@ class LiftoffCompiler {
     if (implicit_check) {
       RegisterProtectedInstruction(decoder, protected_load_pc);
     }
-    __ PushRegister(field_kind, result_reg);
+    __ PushRegister(unpacked(field_kind), result_reg);
   }
 
   void StructWait(FullDecoder* decoder, const Value& /* struct_obj */,

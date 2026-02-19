@@ -7313,6 +7313,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType field_type = struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      field_type == kWasmWaitQueue ||
                       (opcode == kExprStructAtomicExchange &&
                        IsSubtypeOf(field_type.AsNonShared(), kWasmAnyRef,
                                    this->module_)))) {
@@ -7323,8 +7324,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         auto [struct_obj, field_value] =
-            Pop(ValueType::RefNull(field.struct_imm.heap_type()), field_type);
-        Value* result = Push(field_type);
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()),
+                field_type.Unpacked());
+        Value* result = Push(field_type.Unpacked());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructAtomicRMW, opcode, struct_obj,
                                            field, field_value,
                                            memory_order.order, result);
@@ -7352,6 +7354,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         ValueType field_type = struct_type->field(field.field_imm.index);
         if (!VALIDATE(field_type == kWasmI32 || field_type == kWasmI64 ||
+                      field_type == kWasmWaitQueue ||
                       IsSubtypeOf(field_type.AsNonShared(), kWasmEqRef,
                                   this->module_))) {
           this->DecodeError("%s: Field %d of type %d has invalid type %s ",
@@ -7361,9 +7364,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         auto [struct_obj, expected_value, new_value] =
-            Pop(ValueType::RefNull(field.struct_imm.heap_type()), field_type,
-                field_type);
-        Value* result = Push(field_type);
+            Pop(ValueType::RefNull(field.struct_imm.heap_type()),
+                field_type.Unpacked(), field_type.Unpacked());
+        Value* result = Push(field_type.Unpacked());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(
             StructAtomicCompareExchange, opcode, struct_obj, field,
             expected_value, new_value, memory_order.order, result);
