@@ -5886,6 +5886,7 @@ class LiftoffCompiler {
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value* /* args */) {
+    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
