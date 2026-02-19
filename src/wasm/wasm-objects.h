@@ -1515,10 +1515,6 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
       DirectHandle<Object> first_field);
   DECL_ACCESSORS(described_rtt, Tagged<Map>)
 
-  // The RTT on descriptor structs can have a prototype when exposed to JS.
-  static DirectHandle<JSObject> AllocatePrototype(
-      Isolate* isolate, DirectHandle<JSPrototype> parent);
-
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
   inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

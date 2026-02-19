@@ -162,8 +162,6 @@ constexpr char kCallTargetsString[] = "metadata.code.call_targets";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {

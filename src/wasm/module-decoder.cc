@@ -69,8 +69,6 @@ const char* SectionName(SectionCode code) {
       return kBranchHintsString;
     case kCompilationPrioritySectionCode:
       return kCompilationPriorityString;
-    case kDescriptorsSectionCode:
-      return kDescriptorsString;
     default:
       return "<unknown>";
   }

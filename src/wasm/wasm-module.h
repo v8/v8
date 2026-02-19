@@ -793,8 +793,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Position and size of the name section (payload only, i.e. without section
   // ID and length).
   WireBytesRef name_section = {0, 0};
-  // Position and size of the descriptors section.
-  WireBytesRef descriptors_section = {0, 0};
   // Set by the singleton TypeNamesProvider to avoid duplicate work.
   mutable std::atomic<bool> canonical_typenames_decoded = false;
   // Set to true if this module has wasm-gc types in its type section.

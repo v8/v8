@@ -726,6 +726,9 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK_EQ(immediate_supertype_map(),
                wasm_type_info()->supertypes(subtyping_depth));
     }
+    // For the time being, installing prototypes requires the "js interop" flag,
+    // not just "custom descriptors".
+    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.experimental_wasm_js_interop);
   }
 #endif
 
