@@ -28,7 +28,7 @@ namespace {
 static constexpr int kMinMementoCount = 100;
 
 double GetPretenuringRatioThreshold(size_t new_space_capacity) {
-  static constexpr double kScavengerPretenureRatio = 0.85;
+  static constexpr double kScavengerPretenureRatio = 0.80;
   // MinorMS allows for a much larger new space, thus we require a lower
   // survival rate for pretenuring.
   static constexpr double kMinorMSPretenureMaxRatio = 0.8;
