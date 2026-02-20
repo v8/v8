@@ -38,7 +38,7 @@ namespace internal {
 namespace {
 
 struct OptionData {
-  Handle<String> (Factory::*object_key)();
+  Handle<InternalizedString> (Factory::*object_key)();
   const char* key;
   const std::span<const std::string_view> possible_values;
   bool is_bool_value;

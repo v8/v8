@@ -38,6 +38,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-disposable-stack.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/trusted-object.h"
@@ -2674,9 +2675,11 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   CHECK(IsSmi(length_.load()));
   CHECK(IsSmi(backing_store_size_.load()));
   CHECK(IsSmi(flags_.load()));
-  // The keys of the boilerplate should not be thin strings. The values can be.
+  // The keys of the boilerplate should either be internalized strings, or
+  // numbers. Exceptionally, during initialization, they can also be undefined.
   for (int i = 0; i < boilerplate_properties_count(); ++i) {
-    CHECK(!IsThinString(name(i), isolate));
+    CHECK((
+        Is<UnionOf<InternalizedString, Number, Undefined>>(get(NameIndex(i)))));
   }
 }
 

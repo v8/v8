@@ -27,7 +27,7 @@ void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
     PrototypeAssignment pair = properties_.at(i);
     const AstRawString* key_str = pair.first;
 
-    DirectHandle<Object> key = Cast<Object>(key_str->string());
+    DirectHandle<InternalizedString> key = key_str->string();
     DirectHandle<Object> value =
         GetBoilerplateValue(pair.second, isolate, script);
     boilerplate_description->set_key_value(position++, *key, *value);

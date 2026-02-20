@@ -766,34 +766,34 @@ Handle<String> FactoryBase<Impl>::MakeOrFindTwoCharacterString(uint16_t c1,
 
 template <typename Impl>
 template <class StringTableKey>
-Handle<String> FactoryBase<Impl>::InternalizeStringWithKey(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeStringWithKey(
     StringTableKey* key) {
   return indirect_handle(isolate()->string_table()->LookupKey(isolate(), key),
                          isolate());
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         OneByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         TwoByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         SeqOneByteSubStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<Factory>::InternalizeStringWithKey(
+    Handle<InternalizedString> FactoryBase<Factory>::InternalizeStringWithKey(
         SeqTwoByteSubStringKey* key);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<LocalFactory>::InternalizeStringWithKey(
-        OneByteStringKey* key);
+    Handle<InternalizedString> FactoryBase<
+        LocalFactory>::InternalizeStringWithKey(OneByteStringKey* key);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> FactoryBase<LocalFactory>::InternalizeStringWithKey(
-        TwoByteStringKey* key);
+    Handle<InternalizedString> FactoryBase<
+        LocalFactory>::InternalizeStringWithKey(TwoByteStringKey* key);
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::InternalizeString(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
     base::Vector<const uint8_t> string, bool convert_encoding) {
   SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
                                    convert_encoding);
@@ -801,7 +801,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::InternalizeString(
+Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
     base::Vector<const uint16_t> string, bool convert_encoding) {
   SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
                                     convert_encoding);
@@ -809,7 +809,7 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 }
 
 template <typename Impl>
-Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
+Handle<InternalizedString> FactoryBase<Impl>::NewOneByteInternalizedString(
     base::Vector<const uint8_t> str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
@@ -818,11 +818,11 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length());
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>
-Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
+Handle<InternalizedString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
@@ -831,11 +831,11 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length() * base::kUC16Size);
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>
-DirectHandle<SeqOneByteString>
+DirectHandle<InternalizedString>
 FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
   DirectHandle<SeqOneByteString> result =
@@ -844,7 +844,7 @@ FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
   CopyChars(
       result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
       str.begin(), str.length());
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 template <typename Impl>

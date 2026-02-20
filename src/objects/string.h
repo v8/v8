@@ -210,7 +210,7 @@ V8_OBJECT class String : public Name {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, Tagged<String> canonical);
+  void MakeThin(IsolateT* isolate, Tagged<InternalizedString> canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -1099,8 +1099,8 @@ struct ObjectTraits<ConsString> {
 // ThinStrings can be thought of as "one-part cons strings".
 V8_OBJECT class ThinString : public String {
  public:
-  inline Tagged<String> actual() const;
-  inline void set_actual(Tagged<String> value,
+  inline Tagged<InternalizedString> actual() const;
+  inline void set_actual(Tagged<InternalizedString> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<HeapObject> unchecked_actual() const;
@@ -1127,7 +1127,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<String> actual_;
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>

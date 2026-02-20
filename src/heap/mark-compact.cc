@@ -2966,7 +2966,8 @@ class FullStringForwardingTableCleaner final
     if (!IsHeapObject(forward)) {
       return;
     }
-    Tagged<String> forward_string = Cast<String>(forward);
+    Tagged<InternalizedString> forward_string =
+        Cast<InternalizedString>(forward);
 
     // Mark the forwarded string to keep it alive.
     if (MarkingHelper::GetLivenessMode(heap_, forward_string) !=

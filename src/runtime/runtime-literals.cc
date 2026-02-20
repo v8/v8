@@ -409,8 +409,8 @@ Handle<JSObject> CreateObjectLiteral(
   int length = object_boilerplate_description->boilerplate_properties_count();
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index++) {
-    DirectHandle<Object> key(object_boilerplate_description->name(index),
-                             isolate);
+    DirectHandle<ObjectBoilerplateDescription::KeyT> key(
+        object_boilerplate_description->name(index), isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
     if (IsHeapObject(*value)) {
@@ -433,7 +433,7 @@ Handle<JSObject> CreateObjectLiteral(
                                               NONE)
           .Check();
     } else {
-      DirectHandle<String> name = Cast<String>(key);
+      DirectHandle<String> name = Cast<InternalizedString>(key);
       DCHECK(!name->AsArrayIndex(&element_index));
       JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
           .Check();

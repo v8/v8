@@ -452,25 +452,23 @@ uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
 }  // namespace
 
 StringTableInsertionKey::StringTableInsertionKey(
-    Isolate* isolate, DirectHandle<String> string,
+    Isolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
-    LocalIsolate* isolate, DirectHandle<String> string,
+    LocalIsolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 template <typename IsolateT>
@@ -629,12 +627,12 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         // TODO(leszeks): This handle patching is ugly, consider adding an
         // explicit internalized string bytecode. Also, the new thin string
         // should be dead, try immediately freeing it.
-        DirectHandle<String> string = Cast<String>(obj);
+        DirectHandle<InternalizedString> string = Cast<InternalizedString>(obj);
 
         StringTableInsertionKey key(
             isolate(), string,
             DeserializingUserCodeOption::kIsDeserializingUserCode);
-        Tagged<String> result =
+        Tagged<InternalizedString> result =
             *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {

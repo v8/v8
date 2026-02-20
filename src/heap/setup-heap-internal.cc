@@ -385,7 +385,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_AND_SET_ROOT(Undefined, undefined_value, sizeof(Undefined));
     ALLOCATE_AND_SET_ROOT(Null, null_value, sizeof(Null));
-    ALLOCATE_AND_SET_ROOT(SeqOneByteString, empty_string,
+    ALLOCATE_AND_SET_ROOT(InternalizedString, empty_string,
                           SeqOneByteString::SizeFor(0));
     ALLOCATE_AND_SET_ROOT(False, false_value, sizeof(False));
     ALLOCATE_AND_SET_ROOT(True, true_value, sizeof(True));
@@ -479,7 +479,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     empty_string->set_map_after_allocation(
         isolate(), roots.unchecked_internalized_one_byte_string_map(),
         SKIP_WRITE_BARRIER);
-    empty_string->clear_padding_destructively(0);
+    Cast<SeqOneByteString>(empty_string)->clear_padding_destructively(0);
     empty_string->set_length(0);
     empty_string->set_raw_hash_field(String::kEmptyHashField);
   }

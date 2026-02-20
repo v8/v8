@@ -44,7 +44,8 @@ class RootVisitor;
 
 // Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
 // the ROOT_LIST-compatible entry
-#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) V(String, name, name)
+#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) \
+  V(InternalizedString, name, name)
 
 // Produces (String, name, CamelCase) entries
 #define EXTRA_IMPORTANT_INTERNALIZED_STRING_ROOT_LIST(V) \

@@ -1331,8 +1331,9 @@ class JsonParser<Char>::NamedPropertyIterator {
   base::Vector<const Char> GetKeyChars() {
     return parser_.GetKeyChars(it_->string);
   }
-  Handle<String> GetKey(Handle<String> expected_key_hint) {
-    return parser_.MakeString(it_->string, expected_key_hint);
+  Handle<InternalizedString> GetKey(Handle<String> expected_key_hint) {
+    return Cast<InternalizedString>(
+        parser_.MakeString(it_->string, expected_key_hint));
   }
   Handle<Object> GetValue(bool will_revisit_value) {
     // Revisiting values is free, so we don't need to cache the value anywhere.

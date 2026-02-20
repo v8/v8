@@ -61,6 +61,7 @@ class ObjectBoilerplateDescription
                                 ObjectBoilerplateDescriptionShape>;
  public:
   using Shape = ObjectBoilerplateDescriptionShape;
+  using KeyT = UnionOf<InternalizedString, Number>;
 
   template <class IsolateT>
   static inline Handle<ObjectBoilerplateDescription> New(
@@ -77,11 +78,10 @@ class ObjectBoilerplateDescription
 
   inline int boilerplate_properties_count() const;
 
-  inline Tagged<Object> name(int index) const;
+  inline Tagged<KeyT> name(int index) const;
   inline Tagged<Object> value(int index) const;
 
-  inline void set_key_value(int index, Tagged<Object> key,
-                            Tagged<Object> value);
+  inline void set_key_value(int index, Tagged<KeyT> key, Tagged<Object> value);
   inline void set_value(int index, Tagged<Object> value);
 
   DECL_VERIFIER(ObjectBoilerplateDescription)

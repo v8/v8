@@ -59,16 +59,18 @@ void ObjectBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
-  return get(NameIndex(index));
+Tagged<ObjectBoilerplateDescription::KeyT> ObjectBoilerplateDescription::name(
+    int index) const {
+  return Cast<ObjectBoilerplateDescription::KeyT>(get(NameIndex(index)));
 }
 
 Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
   return get(ValueIndex(index));
 }
 
-void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
-                                                 Tagged<Object> value) {
+void ObjectBoilerplateDescription::set_key_value(
+    int index, Tagged<ObjectBoilerplateDescription::KeyT> key,
+    Tagged<Object> value) {
   DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
   set(NameIndex(index), key);
   set(ValueIndex(index), value);

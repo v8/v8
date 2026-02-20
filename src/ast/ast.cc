@@ -682,12 +682,14 @@ void ObjectLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     // in at runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    DirectHandle<Object> key =
-        key_literal->AsArrayIndex(&element_index)
-            ? isolate->factory()
-                  ->template NewNumberFromUint<AllocationType::kOld>(
-                      element_index)
-            : Cast<Object>(key_literal->AsRawPropertyName()->string());
+    DirectHandle<ObjectBoilerplateDescription::KeyT> key;
+    if (key_literal->AsArrayIndex(&element_index)) {
+      key =
+          isolate->factory()->template NewNumberFromUint<AllocationType::kOld>(
+              element_index);
+    } else {
+      key = key_literal->AsRawPropertyName()->string();
+    }
     DirectHandle<Object> value =
         GetBoilerplateValue(property->value(), isolate);
     boilerplate_description->set_key_value(position++, *key, *value);

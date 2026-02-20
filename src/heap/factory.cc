@@ -953,21 +953,21 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-DirectHandle<String> Factory::NewInternalizedStringImpl(
+DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
     DirectHandle<String> string, int len, uint32_t hash_field) {
   if (string->IsOneByteRepresentation()) {
     DirectHandle<SeqOneByteString> result =
         AllocateRawOneByteInternalizedString(len, hash_field);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
-    return result;
+    return Cast<InternalizedString>(result);
   }
 
   DirectHandle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(len, hash_field);
   DisallowGarbageCollection no_gc;
   String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
-  return result;
+  return Cast<InternalizedString>(result);
 }
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
@@ -1012,7 +1012,7 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
 }
 
 template <class StringClass>
-DirectHandle<StringClass> Factory::InternalizeExternalString(
+DirectHandle<InternalizedString> Factory::InternalizeExternalString(
     DirectHandle<String> string) {
   DirectHandle<Map> map =
       GetInPlaceInternalizedStringMap(string->map()).ToHandleChecked();
@@ -1025,12 +1025,12 @@ DirectHandle<StringClass> Factory::InternalizeExternalString(
   external_string->set_raw_hash_field(cast_string->raw_hash_field());
   external_string->SetResource(isolate(), nullptr);
   isolate()->heap()->RegisterExternalString(external_string);
-  return direct_handle(external_string, isolate());
+  return direct_handle(Cast<InternalizedString>(external_string), isolate());
 }
 
-template DirectHandle<ExternalOneByteString> Factory::InternalizeExternalString<
+template DirectHandle<InternalizedString> Factory::InternalizeExternalString<
     ExternalOneByteString>(DirectHandle<String>);
-template DirectHandle<ExternalTwoByteString> Factory::InternalizeExternalString<
+template DirectHandle<InternalizedString> Factory::InternalizeExternalString<
     ExternalTwoByteString>(DirectHandle<String>);
 
 StringTransitionStrategy Factory::ComputeSharingStrategyForString(

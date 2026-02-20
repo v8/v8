@@ -218,14 +218,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
 
-  Handle<String> InternalizeString(base::Vector<const char> str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(base::Vector<const char> str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::Vector<const uint8_t>::cast(str),
                              convert_encoding);
   }
 
-  Handle<String> InternalizeString(const char* str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(const char* str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::OneByteVector(str), convert_encoding);
   }
 
@@ -339,8 +339,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  DirectHandle<String> NewInternalizedStringImpl(DirectHandle<String> string,
-                                                 int len, uint32_t hash_field);
+  DirectHandle<InternalizedString> NewInternalizedStringImpl(
+      DirectHandle<String> string, int len, uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
   //
@@ -359,7 +359,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
   template <class StringClass>
-  DirectHandle<StringClass> InternalizeExternalString(
+  DirectHandle<InternalizedString> InternalizeExternalString(
       DirectHandle<String> string);
 
   // Compute the sharing strategy for the input string.

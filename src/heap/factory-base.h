@@ -300,19 +300,19 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(base::Vector<const uint8_t> string,
-                                   bool convert_encoding = false);
-  Handle<String> InternalizeString(base::Vector<const uint16_t> string,
-                                   bool convert_encoding = false);
+  Handle<InternalizedString> InternalizeString(
+      base::Vector<const uint8_t> string, bool convert_encoding = false);
+  Handle<InternalizedString> InternalizeString(
+      base::Vector<const uint16_t> string, bool convert_encoding = false);
 
   template <class StringTableKey>
-  Handle<String> InternalizeStringWithKey(StringTableKey* key);
+  Handle<InternalizedString> InternalizeStringWithKey(StringTableKey* key);
 
-  Handle<SeqOneByteString> NewOneByteInternalizedString(
+  Handle<InternalizedString> NewOneByteInternalizedString(
       base::Vector<const uint8_t> str, uint32_t raw_hash_field);
-  Handle<SeqTwoByteString> NewTwoByteInternalizedString(
+  Handle<InternalizedString> NewTwoByteInternalizedString(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
-  DirectHandle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
+  DirectHandle<InternalizedString> NewOneByteInternalizedStringFromTwoByte(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
@@ -357,6 +357,16 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT HandleType<String>::MaybeType NewConsString(
       HandleType<String> left, HandleType<String> right,
       AllocationType allocation = AllocationType::kYoung);
+  template <template <typename> typename HandleType, typename LString,
+            typename RString>
+    requires(std::is_convertible_v<HandleType<LString>, DirectHandle<String>> &&
+             std::is_convertible_v<HandleType<RString>, DirectHandle<String>>)
+  V8_WARN_UNUSED_RESULT HandleType<String>::MaybeType NewConsString(
+      HandleType<LString> left, HandleType<RString> right,
+      AllocationType allocation = AllocationType::kYoung) {
+    return NewConsString(static_cast<HandleType<String>>(left),
+                         static_cast<HandleType<String>>(right), allocation);
+  }
 
   V8_WARN_UNUSED_RESULT Handle<String> NewConsString(
       DirectHandle<String> left, DirectHandle<String> right, int length,
