@@ -903,6 +903,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kGlobalQueueMicrotask:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.enable_queue_microtask);
 
+    // --js-iterator-join
+    case Builtin::kIteratorPrototypeJoin:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_join);
+
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants
     case Builtin::kLocalePrototypeVariants:
