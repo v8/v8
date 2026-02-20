@@ -212,6 +212,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<Object> microtask_data =
         LoadObjectField(microtask, offsetof(CallbackTask, data_));
 
+    // For C++ microtasks the current context is kind or random, however
+    // setting it to NoContext currently breaks things on Blink side.
     TNode<Context> microtask_context = current_context;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -228,26 +230,18 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // But from our current measurements it doesn't seem to be a
     // serious performance problem, even if the microtask is full
     // of CallHandlerTasks (which is not a realistic use case anyways).
-    TVARIABLE(Object, var_exception);
-    Label if_exception(this, Label::kDeferred);
-    {
-      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallRuntime(Runtime::kRunMicrotaskCallback, microtask_context,
-                  microtask_callback, microtask_data);
-    }
+
+    // Don't create a try-catch block around this call because this function
+    // is guaranteed to throw only termination exception which would anyway
+    // bubble up to Execution::TryRunMicrotasks() to shut it down.
+    CallRuntime(Runtime::kRunMicrotaskCallback, microtask_context,
+                microtask_callback, microtask_data);
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     Goto(&done);
-
-    BIND(&if_exception);
-    {
-      // Report unhandled microtask exceptions in respective native context.
-      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
-                  var_exception.value());
-      Goto(&done);
-    }
   }
 
   BIND(&is_promise_resolve_thenable_job);

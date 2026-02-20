@@ -20886,7 +20886,25 @@ static void IncrementCounterMicrotask(void* data) {
   microtask_callback_count++;
 }
 
-TEST(RunMicrotasksIgnoresThrownExceptionsFromApi) {
+namespace {
+
+class MockPlatform final : public TestPlatform {
+ public:
+  bool dump_without_crashing_called() const {
+    return dump_without_crashing_called_;
+  }
+
+  void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
+
+ private:
+  bool dump_without_crashing_called_ = false;
+};
+
+}  // namespace
+
+TEST_WITH_PLATFORM(RunMicrotasksIgnoresThrownExceptionsFromApi, MockPlatform) {
+  // Avoid hitting a CHECK failure upon exception thrown from C++ microtask.
+  i::v8_flags.ignore_exceptions_in_cpp_microtasks = true;
   LocalContext env;
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -20896,7 +20914,9 @@ TEST(RunMicrotasksIgnoresThrownExceptionsFromApi) {
     CHECK(!isolate->IsExecutionTerminating());
     isolate->EnqueueMicrotask(ThrowExceptionMicrotask);
     isolate->EnqueueMicrotask(IncrementCounterMicrotask);
+    CHECK(!platform.dump_without_crashing_called());
     isolate->PerformMicrotaskCheckpoint();
+    CHECK(platform.dump_without_crashing_called());
     CHECK_EQ(1, microtask_callback_count);
     CHECK(!try_catch.HasCaught());
   }
@@ -23530,22 +23550,6 @@ TEST(ThrowOnJavascriptExecution) {
   CompileRun("1+1");
   CHECK(try_catch.HasCaught());
 }
-
-namespace {
-
-class MockPlatform final : public TestPlatform {
- public:
-  bool dump_without_crashing_called() const {
-    return dump_without_crashing_called_;
-  }
-
-  void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
-
- private:
-  bool dump_without_crashing_called_ = false;
-};
-
-}  // namespace
 
 TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   LocalContext context;
