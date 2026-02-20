@@ -45,7 +45,8 @@ inline bool FlagsMightEnableMaglevTracing() {
          v8_flags.trace_maglev_inlining || v8_flags.trace_turbo_inlining ||
          v8_flags.trace_maglev_object_tracking ||
          v8_flags.trace_maglev_phi_untagging ||
-         v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation;
+         v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation ||
+         v8_flags.trace_maglev_kna;
 }
 
 struct CompilationFlags {

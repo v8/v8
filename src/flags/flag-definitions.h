@@ -694,6 +694,9 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
                             "Enable Maglev range value analysis pass")
 DEFINE_BOOL(trace_maglev_range_analysis, false,
             "Trace Maglev range value analysis pass")
+DEFINE_BOOL(trace_maglev_kna, false, "Trace Maglev known node aspects")
+DEFINE_BOOL(maglev_use_unreliable_maps, true,
+            "Use unreliable unstable maps in Maglev")
 DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")

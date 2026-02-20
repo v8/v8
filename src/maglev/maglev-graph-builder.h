@@ -2036,6 +2036,8 @@ class MaglevGraphBuilder {
 
   // When set, inline only small functions.
   bool only_inline_small_ = false;
+
+  friend class MapInference;
 };
 
 template <bool is_possible_map_change>

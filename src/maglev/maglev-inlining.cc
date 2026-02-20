@@ -242,7 +242,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // TODO(victorgomes): Check if we should maintain this. We could also clear
   // unstable maps here.
   call_site->caller_details.known_node_aspects
-      ->MarkAnyMapForAnyNodeIsUnstable();
+      ->MarkSideEffectsRequireInvalidation();
 
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
