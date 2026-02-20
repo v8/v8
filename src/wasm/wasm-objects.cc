@@ -420,7 +420,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
     case wasm::GenericKind::kExternString:
       break;
   }
-  UNREACHABLE();
+  UNREACHABLE();  // Safely catches corrupted values read from the sandbox.
 }
 
 DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
@@ -450,6 +450,7 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
     DCHECK(module->has_signature(element_type));
     // Fall through.
   } else {
+    bool is_func = false;
     switch (unsafe_type.generic_kind()) {
       case wasm::GenericKind::kStringViewWtf8:
       case wasm::GenericKind::kStringViewWtf16:
@@ -471,13 +472,17 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
         return entry;
       case wasm::GenericKind::kFunc:
         // Placeholder; handled below.
+        is_func = true;
         break;
       case wasm::GenericKind::kBottom:
       case wasm::GenericKind::kTop:
       case wasm::GenericKind::kVoid:
       case wasm::GenericKind::kExternString:
-        UNREACHABLE();
+        break;
     }
+    // The code below is sandbox-safe, but we can be more explicit about
+    // rejecting corruption (invalid {unsafe_type}) here.
+    if (!is_func) UNREACHABLE();
   }
 
   // {entry} is not a valid entry in the table. It has to be a placeholder
@@ -3728,8 +3733,12 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     case GenericKind::kTop:
     case GenericKind::kBottom:
     case GenericKind::kExternString:
-      UNREACHABLE();
+      break;
   }
+  // Safely catch any corrupted values read from the sandbox. As of this
+  // writing, callers ensure as well that no invalid types get here, but
+  // it doesn't hurt to be explicit for future robustness.
+  UNREACHABLE();
 }
 
 // Utility which canonicalizes {expected} in addition.
