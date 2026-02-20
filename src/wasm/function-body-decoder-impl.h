@@ -1063,11 +1063,12 @@ class EffectHandlerTableIterator {
 struct MemoryAccessImmediate {
   uint32_t alignment;
   uint32_t mem_index;
-  AtomicMemoryOrder memory_order;
   uint64_t offset;
-  const WasmMemory* memory = nullptr;
 
+  const WasmMemory* memory = nullptr;
   uint32_t length;
+
+  AtomicMemoryOrder memory_order;
 
   template <typename ValidationTag>
   V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
