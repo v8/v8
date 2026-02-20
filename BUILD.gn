@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
+import("//build/config/c++/c++.gni")
 import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
@@ -782,6 +783,9 @@ assert(!v8_enable_pointer_compression_8gb || v8_enable_pointer_compression,
 
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
+
+assert(!v8_enable_sandbox || use_safe_libcxx,
+       "The sandbox requires libc++ hardening")
 
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
