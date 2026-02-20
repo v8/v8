@@ -1892,7 +1892,6 @@ AsmType* AsmJsParser::ShiftExpression() {
 #define HANDLE_CASE(op, opcode, name, result)                        \
   case TOK(op): {                                                    \
     EXPECT_TOKENn(TOK(op));                                          \
-    heap_access_shift_position_ = kNoHeapAccessShift;                \
     AsmType* b = nullptr;                                            \
     RECURSEn(b = AdditiveExpression());                              \
     if (!(a->IsA(AsmType::Intish()) && b->IsA(AsmType::Intish()))) { \
@@ -1900,6 +1899,8 @@ AsmType* AsmJsParser::ShiftExpression() {
     }                                                                \
     current_function_builder_->Emit(kExpr##opcode);                  \
     a = AsmType::result();                                           \
+    /* Must happen after the RECURSE call to unset its state! */     \
+    heap_access_shift_position_ = kNoHeapAccessShift;                \
     continue;                                                        \
   }
         HANDLE_CASE(SHL, I32Shl, "<<", Signed);
