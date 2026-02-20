@@ -11,7 +11,6 @@
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -509,7 +508,7 @@ RUNTIME_FUNCTION(Runtime_SetGeneratorScopeVariableValue) {
   DirectHandle<Object> new_value = args.at(3);
   ScopeIterator it(isolate, gen);
   bool res = SetScopeVariableValue(&it, index, variable_name, new_value);
-  return isolate->heap()->ToBoolean(res);
+  return ReadOnlyRoots(isolate).boolean_value(res);
 }
 
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {

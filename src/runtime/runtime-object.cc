@@ -12,7 +12,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/map-updater.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
@@ -180,9 +179,10 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     }
     if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
     DCHECK(!isolate->has_exception());
-    return isolate->heap()->ToBoolean(maybe.FromJust());
+    return ReadOnlyRoots(isolate).boolean_value(maybe.FromJust());
+
   } else if (IsString(*object)) {
-    return isolate->heap()->ToBoolean(
+    return ReadOnlyRoots(isolate).boolean_value(
         key.is_element()
             ? key.index() < static_cast<size_t>(Cast<String>(*object)->length())
             : key.name()->Equals(ReadOnlyRoots(isolate).length_string()));
@@ -210,10 +210,10 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
 
     switch (it.state()) {
       case LookupIterator::NOT_FOUND:
-        return isolate->heap()->ToBoolean(false);
+        return ReadOnlyRoots(isolate).boolean_value(false);
       case LookupIterator::DATA:
-        return isolate->heap()->ToBoolean(it.constness() ==
-                                          PropertyConstness::kConst);
+        return ReadOnlyRoots(isolate).boolean_value(it.constness() ==
+                                                    PropertyConstness::kConst);
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
       case LookupIterator::ACCESS_CHECK:
@@ -234,7 +234,8 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
-  return isolate->heap()->ToBoolean(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+  return ReadOnlyRoots(isolate).boolean_value(
+      V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 }
 
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
@@ -532,7 +533,7 @@ RUNTIME_FUNCTION(Runtime_ObjectIsExtensible) {
           ? JSReceiver::IsExtensible(isolate, Cast<JSReceiver>(object))
           : Just(false);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_JSReceiverPreventExtensionsThrow) {
@@ -763,7 +764,7 @@ Tagged<Object> DeleteProperty(Isolate* isolate, DirectHandle<Object> object,
   Maybe<bool> result =
       Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 }  // namespace
@@ -818,7 +819,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   // Lookup the {name} on {receiver}.
   Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-  return isolate->heap()->ToBoolean(maybe.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(maybe.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
@@ -1043,7 +1044,7 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   auto obj = Cast<HeapObject>(args[0]);
-  return isolate->heap()->ToBoolean(
+  return ReadOnlyRoots(isolate).boolean_value(
       IsFastPackedElementsKind(obj->map()->elements_kind()));
 }
 
@@ -1051,7 +1052,7 @@ RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSReceiver(obj));
+  return ReadOnlyRoots(isolate).boolean_value(IsJSReceiver(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_GetFunctionName) {
@@ -1282,7 +1283,7 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   Maybe<bool> result = JSReceiver::HasInPrototypeChain(
       isolate, Cast<JSReceiver>(object), prototype);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 // ES6 section 7.4.7 CreateIterResultObject ( value, done )
