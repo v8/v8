@@ -8947,6 +8947,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // Reset known state that is cleared by BeginLoop, but is known to be true on
   // the first iteration, and will be re-checked at the end of the loop.
 
+  // Reload node_info which may have changed in BeginLoop.
+  if (node_info != nullptr) {
+    node_info = known_node_aspects().TryGetInfoFor(receiver);
+    DCHECK_NOT_NULL(node_info);
+  }
+
   // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
     DCHECK(node_info);
