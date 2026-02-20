@@ -655,13 +655,10 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
 template <typename Impl>
 Handle<ObjectBoilerplateDescription>
-FactoryBase<Impl>::NewObjectBoilerplateDescription(uint32_t boilerplate,
-                                                   uint32_t all_properties,
-                                                   uint32_t index_keys,
-                                                   bool has_seen_proto) {
+FactoryBase<Impl>::NewObjectBoilerplateDescription(
+    uint32_t boilerplate, uint32_t backing_store_size) {
   return ObjectBoilerplateDescription::New(
-      isolate(), boilerplate, all_properties, index_keys, has_seen_proto,
-      AllocationType::kOld);
+      isolate(), boilerplate, backing_store_size, AllocationType::kOld);
 }
 
 template <typename Impl>

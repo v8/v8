@@ -12,6 +12,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/base/numbers/double.h"
+#include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -477,36 +478,195 @@ void ObjectLiteralBoilerplateBuilder::InitDepthAndFlags() {
                     ((2 * elements) >= max_element_index));
 }
 
+namespace {
+
+// Deduplicate boilerplate properties.
+//
+// Collect boileterplate properties deduplicated by key, to avoid storing to
+// the same key multiple times. Preserve the key order, but only keep the
+// property from the last seen instance of that key (effectively, store-store
+// eliminate the properties preserving insertion order).
+//
+// There are two optimisations here:
+//
+//   1. Object literals are expected to be small, so we avoid the hashmap and
+//      use a linear scan when below a size threshold
+//   2. Object literals are not expected to have duplicates, so we avoid
+//      allocating the deduplicated properties vector until we encounter a
+//      duplicate
+class PropertyDeduplicator {
+ public:
+  PropertyDeduplicator(const ZonePtrList<ObjectLiteral::Property>* properties,
+                       uint32_t boilerplate_properties)
+      : properties_(properties),
+        boilerplate_properties_(boilerplate_properties) {
+    if (use_hash_map()) {
+      table_.emplace(8, LiteralMatcher(Literal::Match));
+    }
+  }
+
+  base::Vector<ObjectLiteral::Property*> properties_for_boilerplate() {
+    if (has_seen_duplicate_) {
+      DCHECK_EQ(deduplicated_properties_.size(), position_);
+      return base::VectorOf(deduplicated_properties_);
+    }
+    return properties_->ToVector();
+  }
+
+  int boilerplate_property_count() const {
+    return has_seen_duplicate_
+               ? static_cast<int>(deduplicated_properties_.size())
+               : static_cast<int>(boilerplate_properties_);
+  }
+
+  bool AddProperty(ObjectLiteral::Property* property, int current_index) {
+    DCHECK_EQ(property, properties_->at(current_index));
+    Literal* key = property->key()->AsLiteral();
+    int duplicate_index = TryFindDuplicate(key, current_index);
+    if (duplicate_index != -1) {
+      MaybeInitializeDeduplicatedVector(current_index);
+      deduplicated_properties_[duplicate_index] = property;
+      return false;
+    }
+    AddDeduplicatedProperty(property);
+    return true;
+  }
+
+ private:
+  int TryFindDuplicate(Literal* key, int current_index) {
+    if (use_hash_map()) {
+      uint32_t hash = key->Hash();
+      auto* entry = table_->LookupOrInsert(key, hash, []() { return -1; });
+      int duplicate_index = entry->value;
+      if (duplicate_index == -1) {
+        entry->value = position_;
+      }
+      return duplicate_index;
+    }
+
+    // Linear scan, either through the deduplicated_boilerplate_properties
+    // vector if it was already initialised, or the properties if not.
+    if (has_seen_duplicate_) {
+      // Vector exists, scan it.
+      for (int j = 0; j < static_cast<int>(deduplicated_properties_.size());
+           ++j) {
+        ObjectLiteral::Property* prev_prop = deduplicated_properties_[j];
+        if (Literal::Match(prev_prop->key()->AsLiteral(), key)) {
+          return j;
+        }
+      }
+    } else {
+      // Vector doesn't exist yet, scan the original properties.
+      bool has_proto = false;
+      for (int j = 0; j < current_index; ++j) {
+        ObjectLiteral::Property* prev_prop = properties_->at(j);
+        if (prev_prop->IsPrototype()) {
+          has_proto = true;
+          continue;
+        }
+        DCHECK(!prev_prop->is_computed_name());
+
+        if (Literal::Match(prev_prop->key()->AsLiteral(), key)) {
+          // Since the deduplicated_properties array doesn't include the
+          // prototype (if any), we need to correct the duplicate index in
+          // case a proto was observed.
+          return j - (has_proto ? 1 : 0);
+        }
+      }
+    }
+    return -1;
+  }
+
+  void MaybeInitializeDeduplicatedVector(int current_index) {
+    if (has_seen_duplicate_) return;
+
+    // Lazy initialise the deduplicated_boilerplate_properties vector.
+    has_seen_duplicate_ = true;
+    DCHECK_EQ(deduplicated_properties_.size(), 0);
+    deduplicated_properties_.reserve(position_);
+    for (int j = 0; j < current_index; ++j) {
+      ObjectLiteral::Property* p = properties_->at(j);
+      if (p->IsPrototype()) continue;
+      DCHECK(!p->is_computed_name());
+      deduplicated_properties_.push_back(p);
+    }
+    DCHECK_EQ(deduplicated_properties_.size(), position_);
+  }
+
+  void AddDeduplicatedProperty(ObjectLiteral::Property* property) {
+    if (has_seen_duplicate_) {
+      // Only push if we've been forced to instantiate the vector.
+      deduplicated_properties_.push_back(property);
+    }
+    position_++;
+  }
+
+  bool use_hash_map() const {
+    return boilerplate_properties_ > kMaxLinearScanThreshold;
+  }
+
+  const ZonePtrList<ObjectLiteral::Property>* properties_;
+  uint32_t boilerplate_properties_;
+  bool has_seen_duplicate_ = false;
+  int position_ = 0;
+
+  base::SmallVector<ObjectLiteral::Property*, 8> deduplicated_properties_;
+
+  using LiteralMatcher =
+      base::HashEqualityThenKeyMatcher<void*, bool (*)(void*, void*)>;
+  std::optional<base::TemplateHashMapImpl<void*, int, LiteralMatcher,
+                                          base::DefaultAllocationPolicy>>
+      table_;
+
+  static constexpr int kMaxLinearScanThreshold = 16;
+};
+
+}  // namespace
+
 template <typename IsolateT>
 void ObjectLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
-  int index_keys = 0;
-  bool has_seen_proto = false;
-  for (int i = 0; i < properties()->length(); i++) {
-    ObjectLiteral::Property* property = properties()->at(i);
-    if (property->IsPrototype()) {
-      has_seen_proto = true;
-      continue;
-    }
-    if (property->is_computed_name()) continue;
+  PropertyDeduplicator deduplicator(properties(), boilerplate_properties_);
+  int backing_store_size = 0;
+  bool saw_computed_name = false;
 
-    Literal* key = property->key()->AsLiteral();
-    if (!key->IsPropertyName()) index_keys++;
-  }
-
-  Handle<ObjectBoilerplateDescription> boilerplate_description =
-      isolate->factory()->NewObjectBoilerplateDescription(
-          boilerplate_properties_, properties()->length(), index_keys,
-          has_seen_proto);
-
-  int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->IsPrototype()) continue;
 
-    if (static_cast<uint32_t>(position) == boilerplate_properties_) {
+    if (property->is_computed_name()) {
+      saw_computed_name = true;
+      backing_store_size++;
+      continue;
+    }
+
+    Literal* key = property->key()->AsLiteral();
+    if (saw_computed_name) {
+      // Past the computed names, duplicates don't matter.
+      if (key->IsPropertyName()) backing_store_size++;
+      continue;
+    }
+
+    DCHECK(!property->is_computed_name());
+    if (deduplicator.AddProperty(property, i)) {
+      if (key->IsPropertyName()) backing_store_size++;
+    }
+  }
+
+  base::Vector<ObjectLiteral::Property*> properties_for_boilerplate =
+      deduplicator.properties_for_boilerplate();
+  int boilerplate_property_count = deduplicator.boilerplate_property_count();
+
+  Handle<ObjectBoilerplateDescription> boilerplate_description =
+      isolate->factory()->NewObjectBoilerplateDescription(
+          boilerplate_property_count, backing_store_size);
+
+  int position = 0;
+  for (ObjectLiteral::Property* property : properties_for_boilerplate) {
+    if (property->IsPrototype()) continue;
+    if (position == boilerplate_property_count) {
       DCHECK(property->is_computed_name());
       break;
     }

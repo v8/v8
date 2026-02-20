@@ -27,16 +27,10 @@ namespace v8::internal {
 // static
 template <class IsolateT>
 Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
-    IsolateT* isolate, uint32_t boilerplate, uint32_t all_properties,
-    uint32_t index_keys, bool has_seen_proto, AllocationType allocation) {
-  DCHECK_GE(all_properties, index_keys);
-
+    IsolateT* isolate, uint32_t boilerplate, uint32_t backing_store_size,
+    AllocationType allocation) {
   const uint32_t capacity = boilerplate * kElementsPerEntry;
   CHECK_LE(capacity, kMaxCapacity);
-
-  DCHECK_GE(all_properties - index_keys, (has_seen_proto ? 1 : 0));
-  const uint32_t backing_store_size =
-      all_properties - index_keys - (has_seen_proto ? 1 : 0);
 
   // Note we explicitly do NOT canonicalize to the
   // empty_object_boilerplate_description here since `flags` may be modified

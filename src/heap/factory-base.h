@@ -225,10 +225,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationType allocation = AllocationType::kOld);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
-  // calculates the number of properties we need to store in the backing store.
+  // records the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
-      uint32_t boilerplate, uint32_t all_properties, uint32_t index_keys,
-      bool has_seen_proto);
+      uint32_t boilerplate, uint32_t backing_store_size);
 
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(

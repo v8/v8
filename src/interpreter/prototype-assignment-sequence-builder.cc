@@ -20,8 +20,7 @@ void ProtoAssignmentSeqBuilder::BuildBoilerplateDescription(
   if (!boilerplate_description_.is_null()) return;
   const uint32_t prop_sz = static_cast<uint32_t>(properties_.size());
   Handle<ObjectBoilerplateDescription> boilerplate_description =
-      isolate->factory()->NewObjectBoilerplateDescription(prop_sz, prop_sz, 0,
-                                                          false);
+      isolate->factory()->NewObjectBoilerplateDescription(prop_sz, prop_sz);
 
   int position = 0;
   for (size_t i = 0; i < properties_.size(); i++) {
