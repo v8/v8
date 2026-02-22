@@ -1095,7 +1095,6 @@
   'intl402/Temporal/PlainMonthDay/from/dangi-leap-month-codes-common': [SKIP],
   'intl402/Temporal/PlainMonthDay/from/islamic-civil-month-codes': [SKIP],
   'intl402/Temporal/PlainMonthDay/from/islamic-tbla-month-codes': [SKIP],
-  'staging/Intl402/Temporal/old/datetime-toLocaleString': [SKIP],
   'staging/sm/String/string-upper-lower-mapping': [SKIP],
 }],
 # End roll-watcher patch
@@ -1106,6 +1105,31 @@
 [ALWAYS, {
   'built-ins/TypedArray/prototype/subarray/BigInt/speciesctor-get-species-custom-ctor-invocation': [SKIP],
   'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Promise/allKeyed/extensible': [SKIP],
+  'built-ins/Promise/allKeyed/length': [SKIP],
+  'built-ins/Promise/allKeyed/name': [SKIP],
+  'built-ins/Promise/allKeyed/not-a-constructor': [SKIP],
+  'built-ins/Promise/allKeyed/prop-desc': [SKIP],
+  'built-ins/Promise/allKeyed/proto': [SKIP],
+  'built-ins/Promise/allSettledKeyed/extensible': [SKIP],
+  'built-ins/Promise/allSettledKeyed/length': [SKIP],
+  'built-ins/Promise/allSettledKeyed/name': [SKIP],
+  'built-ins/Promise/allSettledKeyed/not-a-constructor': [SKIP],
+  'built-ins/Promise/allSettledKeyed/prop-desc': [SKIP],
+  'built-ins/Promise/allSettledKeyed/proto': [SKIP],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-weekday-long': [SKIP],
+  'language/import/import-bytes/bytes-from-empty': [SKIP],
+  'language/import/import-bytes/bytes-from-js': [SKIP],
+  'language/import/import-bytes/bytes-from-json': [SKIP],
+  'language/import/import-bytes/bytes-from-png': [SKIP],
+  'language/import/import-bytes/bytes-from-txt': [SKIP],
 }],
 # End roll-watcher patch
 ####

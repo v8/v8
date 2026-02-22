@@ -84,6 +84,10 @@ upsert
 # https://github.com/tc39/proposal-immutable-arraybuffer
 immutable-arraybuffer
 
+# Import Bytes
+# https://github.com/tc39/proposal-import-bytes
+import-bytes
+
 # Non-extensible Applies to Private
 # https://github.com/tc39/proposal-nonextensible-applies-to-private
 nonextensible-applies-to-private
@@ -91,6 +95,10 @@ nonextensible-applies-to-private
 # Joint Iteration
 # https://github.com/tc39/proposal-joint-iteration
 joint-iteration
+
+# Await Dictionary
+# https://github.com/tc39/proposal-await-dictionary
+await-dictionary
 
 ## Standard language features
 #
