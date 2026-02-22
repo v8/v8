@@ -118,13 +118,14 @@ declare_args() {
   # DrumBrake builtins for Load/Store instruction handlers on x64 component
   # builds because of the different calling convention.
   # Windows component builds are also affected to support cross-compilation.
-  # On arm64, the builtins use the standard AAPCS64 calling convention, so
-  # component builds work without this restriction.
+  # While arm64 uses the standard AAPCS64 calling convention, component builds
+  # work without this restriction only on iOS due to platform-specific
+  # build constraints.
   v8_drumbrake_bounds_checks =
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
-      !(is_win || is_linux || is_mac) ||
+      !(is_win || is_linux || is_mac || is_ios) ||
       (v8_current_cpu != "x64" && v8_current_cpu != "arm64") || !is_clang ||
-      (is_component_build && v8_current_cpu == "x64")
+      (is_component_build && target_os != "ios")
 
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
