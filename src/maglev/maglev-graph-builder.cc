@@ -1542,19 +1542,19 @@ DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
   return caller_details_->deopt_frame;
 }
 
-namespace {
-DeoptFrame* RecursivelyWrapDeoptFrameWithContinuations(
-    Zone* zone, const DeoptFrame& frame,
+DeoptFrame* MaglevGraphBuilder::RecursivelyWrapDeoptFrameWithContinuations(
+    const DeoptFrame& frame,
     const MaglevGraphBuilder::LazyDeoptFrameScope* parent_scope) {
   if (!parent_scope) {
-    return zone->New<DeoptFrame>(frame);
+    return zone()->New<DeoptFrame>(frame);
   }
 
-  return zone->New<DeoptFrame>(parent_scope->data(),
-                               RecursivelyWrapDeoptFrameWithContinuations(
-                                   zone, frame, parent_scope->parent()));
+  AddDeoptUseToScopeData(parent_scope->data());
+
+  return zone()->New<DeoptFrame>(parent_scope->data(),
+                                 RecursivelyWrapDeoptFrameWithContinuations(
+                                     frame, parent_scope->parent()));
 }
-}  // namespace
 
 DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
   if (in_prologue_) {
@@ -1581,7 +1581,7 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
       latest_checkpointed_frame_ = zone()->New<DeoptFrame>(
           deopt_scope->data(),
           RecursivelyWrapDeoptFrameWithContinuations(
-              zone(), *latest_checkpointed_frame_, deopt_scope->parent()));
+              *latest_checkpointed_frame_, deopt_scope->parent()));
     }
   }
   return latest_checkpointed_frame_;
@@ -1603,7 +1603,8 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(bool can_throw) {
                          result_location, result_size);
 }
 
-void MaglevGraphBuilder::AddDeoptUseToScopeData(DeoptFrame::FrameData& data) {
+void MaglevGraphBuilder::AddDeoptUseToScopeData(
+    const DeoptFrame::FrameData& data) {
   switch (data.tag()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
