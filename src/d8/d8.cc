@@ -3147,13 +3147,14 @@ bool Shell::HasOnProfileEndListener(Isolate* isolate) {
 }
 
 void Shell::ResetOnProfileEndListener(Isolate* isolate) {
-  // If the inspector is enabled, then the installed console is not the
-  // D8Console.
-  if (options.enable_inspector) return;
   {
     base::MutexGuard lock_guard(&profiler_end_callback_lock_);
     profiler_end_callback_.erase(isolate);
   }
+
+  // If the inspector is enabled, then the installed console is not the
+  // D8Console.
+  if (options.enable_inspector) return;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   D8Console* console =
