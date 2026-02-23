@@ -102,14 +102,12 @@ StackMemory::StackSegment::~StackSegment() {
 
 void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate,
                           ThreadLocalTop* thread) {
-  if (has_frames()) {
-    StackFrameIterator it =
-        IsActive() ? StackFrameIterator(isolate, thread,
-                                        StackFrameIterator::FirstStackOnly{})
-                   : StackFrameIterator(isolate, this);
-    for (; !it.done(); it.Advance()) {
-      it.frame()->Iterate(v);
-    }
+  StackFrameIterator it =
+      IsActive() ? StackFrameIterator(isolate, thread,
+                                      StackFrameIterator::FirstStackOnly{})
+                 : StackFrameIterator(isolate, this);
+  for (; !it.done(); it.Advance()) {
+    it.frame()->Iterate(v);
   }
   if (v8_flags.experimental_wasm_wasmfx) {
     v->VisitRootPointer(
