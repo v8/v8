@@ -59,7 +59,8 @@ V8_EXPORT_PRIVATE const char* RegExpErrorString(RegExpError error);
 
 inline constexpr bool RegExpErrorIsStackOverflow(RegExpError error) {
   return error == RegExpError::kStackOverflow ||
-         error == RegExpError::kAnalysisStackOverflow;
+         error == RegExpError::kAnalysisStackOverflow ||
+         error == RegExpError::kTooLarge;
 }
 
 }  // namespace internal

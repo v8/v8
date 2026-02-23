@@ -742,9 +742,6 @@ template <class CharT>
 void RegExpParserImpl<CharT>::Advance() {
   if (has_next()) {
     if (GetCurrentStackPosition() < stack_limit_) {
-      if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("Aborting on stack overflow");
-      }
       ReportError(RegExpError::kStackOverflow);
     } else {
       current_ = ReadNext<true>();

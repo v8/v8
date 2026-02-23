@@ -150,6 +150,10 @@ template bool RegExp::VerifySyntax<base::uc16>(
 MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
     Isolate* isolate, RegExpFlags flags, DirectHandle<String> pattern,
     RegExpError error) {
+  if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions &&
+                  RegExpErrorIsStackOverflow(error))) {
+    FATAL("Aborting on stack overflow");
+  }
   base::Vector<const char> error_data =
       base::CStrVector(RegExpErrorString(error));
   DirectHandle<String> error_text =
@@ -675,9 +679,6 @@ bool RegExpImpl::CompileIrregexpFromSource(
   // compilation) here in advance.
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("Aborting on stack overflow");
-    }
     RegExp::ThrowRegExpException(isolate, re_data,
                                  RegExpError::kAnalysisStackOverflow);
     return false;
@@ -1317,10 +1318,6 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   if (result.error != RegExpError::kNone) {
-    if (v8_flags.correctness_fuzzer_suppressions &&
-        result.error == RegExpError::kStackOverflow) {
-      FATAL("Aborting on stack overflow");
-    }
     data->error = result.error;
   }
 

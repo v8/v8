@@ -339,9 +339,6 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_ = macro_assembler;
 
   auto ReportError = [this]() {
-    if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("Aborting on excess zone allocation");
-    }
     macro_assembler_->AbortedCodeGeneration();
     return CompilationResult::RegExpTooBig();
   };
@@ -3789,9 +3786,6 @@ class Analysis : public NodeVisitor {
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
-      if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("Analysis: Aborting on stack overflow");
-      }
       fail(RegExpError::kAnalysisStackOverflow);
       return;
     }
