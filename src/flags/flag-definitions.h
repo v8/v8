@@ -2507,6 +2507,10 @@ DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
 DEFINE_BOOL(
     enforce_global_heap_limit, false,
     "Enforce global size by causing an out-of-memory failure above heap limit")
+// Since the maximum v8_limit is 4Gb, this aligns with
+// ArrayBuffer::kMaxByteLength.
+DEFINE_INT(maximum_global_heap_limit_factor, 8,
+           "Ratio from v8 to global maximum heap size")
 DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(

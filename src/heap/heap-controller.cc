@@ -4,6 +4,7 @@
 
 #include "src/heap/heap-controller.h"
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/spaces.h"
 #include "src/tracing/trace-event.h"
@@ -12,15 +13,10 @@ namespace v8 {
 namespace internal {
 namespace {
 
-size_t MaximumGlobalMemorySizeFromV8Size(size_t v8_limit,
-                                         size_t physical_memory) {
-  // Since the maximum v8_limit is 4Gb, this aligns with the common 16Gb
-  // allocator limit.
-  const size_t kGlobalMemoryToV8Ratio = 4;
-  return std::min(static_cast<uint64_t>(
-                      physical_memory > 0 ? physical_memory
-                                          : std::numeric_limits<size_t>::max()),
-                  static_cast<uint64_t>(v8_limit) * kGlobalMemoryToV8Ratio);
+size_t MaximumGlobalMemorySizeFromV8Size(size_t v8_limit) {
+  return base::saturated_cast<size_t>(
+      static_cast<uint64_t>(v8_limit) *
+      v8_flags.maximum_global_heap_limit_factor);
 }
 
 }  // namespace
@@ -407,8 +403,7 @@ void HeapLimits::SetMaximumSizes(size_t max_old_generation_size,
                                  std::memory_order_relaxed);
   max_global_memory_size_.store(
       v8_flags.enforce_global_heap_limit
-          ? MaximumGlobalMemorySizeFromV8Size(max_old_generation_size,
-                                              physical_memory)
+          ? MaximumGlobalMemorySizeFromV8Size(max_old_generation_size)
           : GlobalMemorySizeFromV8Size(max_old_generation_size),
       std::memory_order_relaxed);
 }
