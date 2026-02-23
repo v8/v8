@@ -6887,9 +6887,11 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
         }
       }
       int consecutive_ineffective_ms = heap->ms_count() - ineffective_ms_start;
-      CHECK_IMPLIES(
-          consecutive_ineffective_ms >= 4,
-          heap->tracer()->AverageMarkCompactMutatorUtilization() >= 0.3);
+      if (heap->tracer()->AverageMarkCompactMutatorUtilization() < 0.3) {
+        // The threshold for consecutive MC is 4, but CollectAllAvailableGarbage
+        // can run 2 cycles which counts as 1 "ineffective MC".
+        CHECK_LE(consecutive_ineffective_ms, 8);
+      }
     }
   }
   isolate->Dispose();
