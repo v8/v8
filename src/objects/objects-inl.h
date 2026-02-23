@@ -1621,7 +1621,9 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
                            UPDATE_WRITE_BARRIER);
   } else {
     DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
+#if V8_VERIFY_WRITE_BARRIERS
     DCHECK(!WriteBarrier::IsRequired(*this, value));
+#endif
   }
 #endif
 }
