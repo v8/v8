@@ -15153,11 +15153,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
 }
 
 template <CreateArgumentsType type>
-ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
+ReduceResult MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
   auto arguments = BuildVirtualArgumentsObject<type>();
   ValueNode* allocation;
-  GET_VALUE(allocation,
-            BuildInlinedAllocation(arguments, AllocationType::kYoung));
+  GET_VALUE_OR_ABORT(allocation,
+                     BuildInlinedAllocation(arguments, AllocationType::kYoung));
   return allocation;
 }
 
@@ -15399,9 +15399,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateMappedArguments() {
   if (!shared.object()->has_duplicate_parameters()) {
     if (((is_inline() && CanAllocateInlinedArgumentElements()) ||
          (!is_inline() && CanAllocateSloppyArgumentElements()))) {
-      SetAccumulator(BuildAndAllocateArgumentsObject<
-                     CreateArgumentsType::kMappedArguments>());
-      return ReduceResult::Done();
+      return SetAccumulator(BuildAndAllocateArgumentsObject<
+                            CreateArgumentsType::kMappedArguments>());
     } else if (!is_inline()) {
       SetAccumulator(
           BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
@@ -15416,9 +15415,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateMappedArguments() {
 
 ReduceResult MaglevGraphBuilder::VisitCreateUnmappedArguments() {
   if (!is_inline() || CanAllocateInlinedArgumentElements()) {
-    SetAccumulator(BuildAndAllocateArgumentsObject<
-                   CreateArgumentsType::kUnmappedArguments>());
-    return ReduceResult::Done();
+    return SetAccumulator(BuildAndAllocateArgumentsObject<
+                          CreateArgumentsType::kUnmappedArguments>());
   }
   // Generic fallback.
   SetAccumulator(
@@ -15428,9 +15426,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateUnmappedArguments() {
 
 ReduceResult MaglevGraphBuilder::VisitCreateRestParameter() {
   if (!is_inline() || CanAllocateInlinedArgumentElements()) {
-    SetAccumulator(
+    return SetAccumulator(
         BuildAndAllocateArgumentsObject<CreateArgumentsType::kRestParameter>());
-    return ReduceResult::Done();
   }
   // Generic fallback.
   SetAccumulator(

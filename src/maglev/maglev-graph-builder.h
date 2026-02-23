@@ -1534,7 +1534,7 @@ class MaglevGraphBuilder {
   template <CreateArgumentsType type>
   VirtualObject* BuildVirtualArgumentsObject();
   template <CreateArgumentsType type>
-  ValueNode* BuildAndAllocateArgumentsObject();
+  ReduceResult BuildAndAllocateArgumentsObject();
 
   bool CanAllocateSloppyArgumentElements();
   bool CanAllocateInlinedArgumentElements();
