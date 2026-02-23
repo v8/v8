@@ -694,6 +694,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
         // really create aliases. (and also, they don't write so it's

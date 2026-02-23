@@ -4162,6 +4162,15 @@ class AssemblerOpInterface : public Next {
                  TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
+
+  void WasmTrap(TrapId trap_id) {
+    WasmTrap(OptionalV<turboshaft::FrameState>{}, trap_id);
+  }
+
+  void WasmTrap(OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+    ReduceIfReachableWasmTrap(frame_state, trap_id);
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void MajorGCForCompilerTesting() {

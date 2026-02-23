@@ -211,7 +211,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Return)                                           \
   V(Branch)                                           \
   V(Switch)                                           \
-  V(Deoptimize)
+  V(Deoptimize)                                       \
+  IF_WASM(V, WasmTrap)
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 #define TURBOSHAFT_CPED_OPERATION_LIST(V) \
@@ -4072,6 +4073,53 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   auto options() const { return std::tuple{negated, trap_id}; }
 };
 
+struct WasmTrapOp : OperationT<WasmTrapOp> {
+  const TrapId trap_id;
+
+  static constexpr OpEffects effects =
+      OpEffects()
+          // Traps must not float above a protective check.
+          .CanDependOnChecks()
+          // This will always leave the current function. (It will always trap
+          // and cannot be caught in Wasm.)
+          .CanLeaveCurrentFunction();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  OptionalV<FrameState> frame_state() const {
+    return input_count > 0 ? input<FrameState>(0)
+                           : OptionalV<FrameState>::Nullopt();
+  }
+
+  WasmTrapOp(OptionalV<FrameState> frame_state, const TrapId trap_id)
+      : Base(frame_state.valid() ? 1 : 0), trap_id(trap_id) {
+    if (frame_state.valid()) {
+      input(0) = frame_state.value();
+    }
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(frame_state()), trap_id);
+  }
+
+  static WasmTrapOp& New(Graph* graph, OptionalV<FrameState> frame_state,
+                         const TrapId trap_id) {
+    return Base::New(graph, frame_state.valid() ? 1 : 0, frame_state, trap_id);
+  }
+
+  void Validate(const Graph& graph) const {
+    if (frame_state().valid()) {
+      DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
+    }
+  }
+  auto options() const { return std::tuple{trap_id}; }
+};
+
 struct MemoryCopyOp : FixedArityOperationT<3, MemoryCopyOp> {
   // Depends on one or more bounds checks.
   static constexpr OpEffects effects =
@@ -4761,6 +4809,9 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
     case Opcode::kTailCall:
     case Opcode::kDeoptimize:
     case Opcode::kUnreachable:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       return base::SmallVector<Block*, 4>{};
     case Opcode::kSwitch: {
       auto& casted = op.Cast<SwitchOp>();

@@ -1376,7 +1376,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       turboshaft::OpIndex call, turboshaft::Block* exception_handler = {},
       base::Vector<turboshaft::EffectHandler> wasm_effect_handlers = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
+#if V8_ENABLE_WEBASSEMBLY
   void VisitTrapIf(turboshaft::OpIndex node);
+  void VisitWasmTrap(turboshaft::OpIndex node);
+#endif  // V8_ENABLE_WEBASSEMBLY
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,

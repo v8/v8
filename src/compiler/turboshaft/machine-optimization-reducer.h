@@ -1939,8 +1939,7 @@ class MachineOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
-        Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
-        __ Unreachable();
+        __ WasmTrap(frame_state, trap_id);
       }
       // `TrapIf` doesn't produce a value.
       return V<None>::Invalid();

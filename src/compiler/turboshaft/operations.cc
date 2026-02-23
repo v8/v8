@@ -2355,6 +2355,9 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
     case Opcode::kTailCall:
     case Opcode::kUnreachable:
     case Opcode::kReturn:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       UNREACHABLE();
 
 #define NON_TERMINATOR_CASE(op) case Opcode::k##op:

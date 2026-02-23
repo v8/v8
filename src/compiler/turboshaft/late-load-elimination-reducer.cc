@@ -222,6 +222,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kComparison:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
 #endif
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't

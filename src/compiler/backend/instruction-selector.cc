@@ -1379,6 +1379,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+    if (operation.Is<WasmTrapOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
       return rmw->memory_access_kind ==
              MemoryAccessKind::kProtectedByTrapHandler;
@@ -2596,33 +2597,26 @@ void InstructionSelector::VisitSelect(OpIndex node) {
   VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitWasmTrap(OpIndex node) {
+  const WasmTrapOp& trap = Cast<WasmTrapOp>(node);
+  OperandGenerator g(this);
+  InstructionOperand input =
+      g.TempImmediate(static_cast<int32_t>(trap.trap_id));
+  Emit(kArchTrap, 0, nullptr, 1, &input);
+}
+
+void InstructionSelector::VisitTrapIf(OpIndex node) {
   const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
   // trap node will be lowered (replaced) before instruction selection.
   // Therefore any TrapIf node has only one input.
   DCHECK_EQ(trap_if.input_count, 1);
-
-  uint32_t constant_condition;
-  if (MatchIntegralWord32Constant(trap_if.condition(), &constant_condition)) {
-    if ((constant_condition == 0 && trap_if.negated) ||
-        (constant_condition == 1 && !trap_if.negated)) {
-      OperandGenerator g(this);
-      InstructionOperand input =
-          g.TempImmediate(static_cast<int32_t>(trap_if.trap_id));
-      Emit(kArchTrap, 0, nullptr, 1, &input);
-      return;
-    }
-  }
-
   FlagsContinuation cont = FlagsContinuation::ForTrap(
       trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
   VisitWordCompareZero(node, trap_if.condition(), &cont);
-#else
-  UNREACHABLE();
-#endif
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::EmitIdentity(OpIndex node) {
   EmitIdentity(node, Get(node).input(0));
@@ -2764,6 +2758,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       return VisitUnreachable(node);
     case Opcode::kStaticAssert:
       return VisitStaticAssert(node);
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+      return VisitWasmTrap(node);
+#endif
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
@@ -2792,6 +2790,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
     case Opcode::kCheckException:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;

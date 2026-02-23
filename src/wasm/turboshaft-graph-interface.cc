@@ -956,8 +956,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    __ TrapIfNot(__ Word32Constant(0), GetTrapIdForTrap(reason));
-    __ Unreachable();
+    __ WasmTrap(GetTrapIdForTrap(reason));
   }
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
