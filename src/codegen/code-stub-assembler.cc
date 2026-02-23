@@ -9596,7 +9596,7 @@ TNode<String> CodeStubAssembler::SmiToString(TNode<Smi> smi_input,
 
     if (bailout) {
       // Bailout when the cache is not full-size and the entry is occupied.
-      const int kInitialCacheSize =
+      const uint32_t kInitialCacheSize =
           SmiStringCache::kInitialSize * SmiStringCache::kEntrySize;
       GotoIfNot(Word32Equal(cache_length, Uint32Constant(kInitialCacheSize)),
                 &store_to_cache);
@@ -20156,10 +20156,12 @@ TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> capacity) {
 
     intptr_t capacity_constant;
     if (ToParameterConstant(capacity, &capacity_constant)) {
-      CHECK_LE(capacity_constant, ArrayList::kMaxCapacity);
+      CHECK_LE(capacity_constant,
+               static_cast<intptr_t>(ArrayList::kMaxCapacity));
     } else {
       Label if_out_of_memory(this, Label::kDeferred), next(this);
-      Branch(SmiGreaterThan(capacity, SmiConstant(ArrayList::kMaxCapacity)),
+      Branch(SmiGreaterThan(
+                 capacity, SmiConstant(Smi::FromUInt(ArrayList::kMaxCapacity))),
              &if_out_of_memory, &next);
 
       BIND(&if_out_of_memory);

@@ -888,7 +888,7 @@ void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   const uint32_t capture_registers =
       static_cast<uint32_t>(number_of_capture_registers());
   CHECK_GE(cap, kMinCapacity);
-  CHECK_LE(cap, static_cast<uint32_t>(kMaxCapacity));
+  CHECK_LE(cap, kMaxCapacity);
   CHECK_GE(capture_registers, kMinCapacity);
   CHECK_LE(capture_registers, cap);
   CHECK(IsString(last_subject()));

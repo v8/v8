@@ -707,6 +707,7 @@ constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
 
 // static
 constexpr int SwissNameDictionary::MaxCapacity() {
+  // TODO(375937549): Convert to uint32_t.
   constexpr int kConstSize =
       SwissNameDictionary::DataTableStartOffset() + sizeof(ByteArray::Header) +
       // Size for present and deleted element count at max capacity:
@@ -722,7 +723,8 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       sizeof(uint32_t);
 
   constexpr int result =
-      (kMaxFixedArrayCapacity * kTaggedSize - kConstSize) / kPerEntrySize;
+      (static_cast<int>(kMaxFixedArrayCapacity) * kTaggedSize - kConstSize) /
+      kPerEntrySize;
   static_assert(Smi::kMaxValue >= result);
 
   return result;

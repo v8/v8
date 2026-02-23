@@ -1031,14 +1031,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     // and remove the check isolate->context().is_null().
     if (IsDoubleElementsKind(kind())) {
       if (!isolate->context().is_null() &&
-          !base::IsInRange(capacity, 0, FixedDoubleArray::kMaxLength)) {
+          !base::IsInRange(capacity, 0u, FixedDoubleArray::kMaxLength)) {
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
       new_elements = isolate->factory()->NewFixedDoubleArray(capacity);
     } else {
       if (!isolate->context().is_null() &&
-          !base::IsInRange(capacity, 0, FixedArray::kMaxLength)) {
+          !base::IsInRange(capacity, 0u, FixedArray::kMaxLength)) {
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
@@ -1082,7 +1082,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         DCHECK(
             (IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
             (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
-        uint32_t capacity = object->elements()->ulength().value();
+        const uint32_t capacity = object->elements()->ulength().value();
         // Since the max length of FixedArray and FixedDoubleArray is the same,
         // we can safely assume that element conversion with the same capacity
         // will succeed.

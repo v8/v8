@@ -245,6 +245,7 @@ InternalIndex Map::LastAdded() const {
   return InternalIndex(number_of_own_descriptors - 1);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int Map::NumberOfOwnDescriptors() const {
   return Bits3::NumberOfOwnDescriptorsBits::decode(
       release_acquire_bit_field3());

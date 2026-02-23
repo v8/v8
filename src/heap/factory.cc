@@ -804,7 +804,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->ulength().value());
   // {end - start} can never be more than what the Utf8Decoder can handle.
-  static_assert(ByteArray::kMaxLength <= kMaxInt);
+  static_assert(ByteArray::kMaxLength <= static_cast<uint32_t>(kMaxInt));
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
     const uint8_t* contents = reinterpret_cast<const uint8_t*>(array->begin());
     return {contents + start, end - start};
@@ -3897,7 +3897,8 @@ MaybeDirectHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     base::Vector<DirectHandle<Object>> bound_args,
     DirectHandle<JSPrototype> prototype) {
   DCHECK(IsCallable(*target_function));
-  static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
+  static_assert(static_cast<uint32_t>(Code::kMaxArguments) <=
+                FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {
     THROW_NEW_ERROR(isolate(),
                     NewRangeError(MessageTemplate::kTooManyArguments));

@@ -1164,8 +1164,7 @@ MaybeDirectHandle<FixedArray> CreateListFromArrayLikeFastPath(
     } else if (IsJSTypedArray(*object)) {
       DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(object);
       size_t length = array->GetLength();
-      if (array->IsDetachedOrOutOfBounds() ||
-          length > static_cast<size_t>(FixedArray::kMaxLength)) {
+      if (array->IsDetachedOrOutOfBounds() || length > FixedArray::kMaxLength) {
         return MaybeDirectHandle<FixedArray>();
       }
       static_assert(FixedArray::kMaxLength <=
@@ -1203,7 +1202,7 @@ MaybeDirectHandle<FixedArray> Object::CreateListFromArrayLike(
                              Object::GetLengthFromArrayLike(isolate, receiver));
   uint32_t len;
   if (!Object::ToUint32(*raw_length_number, &len) ||
-      len > static_cast<uint32_t>(FixedArray::kMaxLength)) {
+      len > FixedArray::kMaxLength) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kInvalidArrayLength));
   }

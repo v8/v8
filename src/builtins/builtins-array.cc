@@ -1661,13 +1661,13 @@ MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
     return {};
   }
   // We shouldn't overflow when adding another len.
-  const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+  const uint32_t kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
   static_assert(FixedArray::kMaxLength < kHalfOfMaxInt);
   static_assert(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
   USE(kHalfOfMaxInt);
 
   int n_arguments = args->length();
-  int result_len = 0;
+  uint32_t result_len = 0;
   {
     DisallowGarbageCollection no_gc;
     // Iterate through all the arguments performing checks
@@ -1688,8 +1688,7 @@ MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       }
       // The Array length is guaranteed to be <= kHalfOfMaxInt thus we won't
       // overflow.
-      result_len += Smi::ToInt(array->length());
-      DCHECK_GE(result_len, 0);
+      result_len += Smi::ToUInt(array->length());
       // Throw an Error if we overflow the FixedArray limits
       if (FixedDoubleArray::kMaxLength < result_len ||
           FixedArray::kMaxLength < result_len) {

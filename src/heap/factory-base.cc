@@ -1350,7 +1350,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
     int length, AllocationType allocation) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
+  if (length < 0 || static_cast<uint32_t>(length) > FixedArray::kMaxLength) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 length);
     UNREACHABLE();
@@ -1361,7 +1361,8 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWeakArrayList(
     int capacity, AllocationType allocation) {
-  if (capacity < 0 || capacity > WeakArrayList::kMaxCapacity) {
+  if (capacity < 0 ||
+      static_cast<uint32_t>(capacity) > WeakArrayList::kMaxCapacity) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 capacity);
     UNREACHABLE();

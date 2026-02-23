@@ -821,11 +821,11 @@ DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
                                        AllocationType allocation) {
   if (capacity == 0) return isolate->factory()->empty_array_list();
 
+  // TODO(375937549): Convert capacity to uint32_t.
   DCHECK_GT(capacity, 0);
-  DCHECK_LE(capacity, kMaxCapacity);
+  DCHECK_LE(static_cast<uint32_t>(capacity), kMaxCapacity);
 
   std::optional<DisallowGarbageCollection> no_gc;
-  // TODO(375937549): Convert to uint32_t.
   DirectHandle<ArrayList> result = Cast<ArrayList>(
       Allocate(isolate, static_cast<uint32_t>(capacity), &no_gc, allocation));
   result->set_length(0);
@@ -839,7 +839,7 @@ DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
 template <class IsolateT>
 Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
                                  AllocationType allocation) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+  if (V8_UNLIKELY(static_cast<uint32_t>(length) > kMaxLength)) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 length);
   } else if (V8_UNLIKELY(length == 0)) {
@@ -879,7 +879,7 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
                                                AllocationType allocation_type) {
   DCHECK(allocation_type == AllocationType::kTrusted ||
          allocation_type == AllocationType::kSharedTrusted);
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+  if (V8_UNLIKELY(static_cast<uint32_t>(length) > kMaxLength)) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 length);
   }

@@ -776,7 +776,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
       array->HasFastElements(cage_base) && !array->HasHoleyElements(cage_base);
 
   if (should_serialize_densely) {
-    DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
+    DCHECK_LE(length, FixedArray::kMaxLength);
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
@@ -1916,8 +1916,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // V8. As an additional sanity check, since each entry will take at least one
   // byte to encode, if there are fewer bytes than that we can also fail fast.
   uint32_t length;
-  if (!ReadVarint<uint32_t>().To(&length) ||
-      length > static_cast<uint32_t>(FixedArray::kMaxLength) ||
+  if (!ReadVarint<uint32_t>().To(&length) || length > FixedArray::kMaxLength ||
       length > static_cast<size_t>(end_ - position_)) {
     return MaybeDirectHandle<JSArray>();
   }

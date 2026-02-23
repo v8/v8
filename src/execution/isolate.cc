@@ -3231,8 +3231,9 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
 void Isolate::PrintCurrentStackTrace(
     std::ostream& out,
     PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
-  DirectHandle<FixedArray> frames = CaptureSimpleStackTrace(
-      this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
+  DirectHandle<FixedArray> frames =
+      CaptureSimpleStackTrace(this, static_cast<int>(FixedArray::kMaxLength),
+                              SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
   uint32_t frames_len = frames->ulength().value();

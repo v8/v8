@@ -32,8 +32,7 @@ namespace v8::internal {
 // error.
 // This could be larger, but the next power of two up would push the maximum
 // byte size of FixedDoubleArray out of int32 range.
-// TODO(375937549): Convert all constant values to uint32_t.
-static constexpr int kMaxFixedArrayCapacity =
+static constexpr uint32_t kMaxFixedArrayCapacity =
     V8_LOWER_LIMITS_MODE_BOOL ? (16 * 1024 * 1024) : (128 * 1024 * 1024);
 
 namespace detail {
@@ -180,6 +179,7 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   inline void RightTrim(Isolate* isolate, uint32_t new_capacity);
 
   inline int AllocatedSize() const;
+  // TODO(375937549): Convert to use uint32_t.
   static inline constexpr int SizeFor(int capacity) {
     return sizeof(Header) + capacity * kElementSize;
   }
@@ -194,13 +194,14 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   // Maximal allowed capacity, in number of elements. Chosen s.t. the byte size
   // fits into a Smi which is necessary for being able to create a free space
   // filler.
-  static constexpr int kMaxCapacity = kMaxFixedArrayCapacity;
-  static_assert(SizeFor(kMaxCapacity) <= FreeSpace::kMaxSizeInBytes);
+  static constexpr uint32_t kMaxCapacity = kMaxFixedArrayCapacity;
+  static_assert(SizeFor(static_cast<int>(kMaxCapacity)) <=
+                FreeSpace::kMaxSizeInBytes);
 
   // Maximally allowed length for regular (non large object space) object.
   static constexpr int kMaxRegularCapacity =
       (kMaxRegularHeapObjectSize - sizeof(Header)) / kElementSize;
-  static_assert(kMaxRegularCapacity < kMaxCapacity);
+  static_assert(static_cast<uint32_t>(kMaxRegularCapacity) < kMaxCapacity);
 
  protected:
   template <class IsolateT>
@@ -288,7 +289,8 @@ V8_OBJECT class FixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kMaxLength = FixedArray::kMaxCapacity;
+  static constexpr uint32_t kMaxLength = FixedArray::kMaxCapacity;
+  // TODO(375937549): Convert kMaxRegularLength constants to uint32_t.
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
  private:
@@ -332,7 +334,7 @@ V8_OBJECT class TrustedFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kMaxLength = TrustedFixedArray::kMaxCapacity;
+  static constexpr uint32_t kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       TrustedFixedArray::kMaxRegularCapacity;
 } V8_OBJECT_END;
@@ -367,7 +369,7 @@ V8_OBJECT class ProtectedFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kMaxLength = Super::kMaxCapacity;
+  static constexpr uint32_t kMaxLength = Super::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       ProtectedFixedArray::kMaxRegularCapacity;
 } V8_OBJECT_END;
@@ -391,7 +393,7 @@ class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
  public:
   static constexpr int kLengthOffset = HeapObject::kHeaderSize;
   static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
-  static constexpr int kMaxLength = FixedArray::kMaxCapacity;
+  static constexpr uint32_t kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
@@ -424,6 +426,7 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
   inline void set(int index, ElementMemberT value);
 
   inline int AllocatedSize() const;
+  // TODO(375937549): Convert to use uint32_t.
   static inline constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
   }
@@ -445,13 +448,14 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
   // Maximal allowed length, in number of elements. Chosen s.t. the byte size
   // fits into a Smi which is necessary for being able to create a free space
   // filler.
-  static constexpr int kMaxLength = kMaxFixedArrayCapacity;
-  static_assert(SizeFor(kMaxLength) <= FreeSpace::kMaxSizeInBytes);
+  static constexpr uint32_t kMaxLength = kMaxFixedArrayCapacity;
+  static_assert(SizeFor(static_cast<int>(kMaxLength)) <=
+                FreeSpace::kMaxSizeInBytes);
 
   // Maximally allowed length for regular (non large object space) object.
   static constexpr int kMaxRegularLength =
       (kMaxRegularHeapObjectSize - sizeof(Header)) / kElementSize;
-  static_assert(kMaxRegularLength < kMaxLength);
+  static_assert(static_cast<uint32_t>(kMaxRegularLength) < kMaxLength);
 
  protected:
   template <class IsolateT>
@@ -679,8 +683,8 @@ class WeakArrayList
   // TODO(jgruber): The kMaxLength could be larger (`(Smi::kMaxValue -
   // sizeof(Header)) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
-  static constexpr int kMaxCapacity = kMaxFixedArrayCapacity;
-  static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
+  static constexpr uint32_t kMaxCapacity = kMaxFixedArrayCapacity;
+  static_assert(Smi::IsValid(SizeFor(static_cast<int>(kMaxCapacity))));
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, int length,

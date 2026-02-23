@@ -4832,7 +4832,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       }
     }
   }
-  if (index < 0 || index >= FixedArray::kMaxLength) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
@@ -4865,7 +4865,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
-  if (index < 0 || index >= FixedArray::kMaxLength) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
 

@@ -2238,19 +2238,21 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                             isolate);
 
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  uint32_t number_of_own_descriptors =
+      static_cast<uint32_t>(map->NumberOfOwnDescriptors());
   size_t number_of_own_elements =
       object->GetElementsAccessor()->GetCapacity(*object, object->elements());
 
-  if (number_of_own_elements >
-      static_cast<size_t>(FixedArray::kMaxLength - number_of_own_descriptors)) {
+  if (number_of_own_elements + number_of_own_descriptors >
+      FixedArray::kMaxLength) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidArrayLength));
     return Nothing<bool>();
   }
   // The static cast is safe after the range check right above.
-  Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
-      static_cast<int>(number_of_own_descriptors + number_of_own_elements));
+  Handle<FixedArray> values_or_entries =
+      isolate->factory()->NewFixedArray(static_cast<uint32_t>(
+          number_of_own_descriptors + number_of_own_elements));
   uint32_t count = 0;
 
   if (object->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
