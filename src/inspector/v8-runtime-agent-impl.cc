@@ -1112,18 +1112,14 @@ Response V8RuntimeAgentImpl::enable() {
   m_session->reportAllContexts(this);
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
-  // reportMessage() may call back into JavaScript for some of the ValueMirrors
-  // and that JavaScript could add more log messages, invalidating iterators
-  // used here, hence we need to guard against that.
-  // See http://crbug.com/446941355 for more details.
+  // The message queue can be cleared by a getter during message formatting.
+  // Make a copy of the message to avoid a UAF.
   const auto& messages = storage->messages();
   const size_t size = messages.size();
   for (size_t i = 0; i < size; ++i) {
-    if (size < messages.size()) {
-      // Also guard against the case where the message queue was cleared.
-      break;
-    }
-    if (!reportMessage(messages[i].get(), false)) {
+    if (i >= messages.size()) break;
+    V8ConsoleMessage message = *messages[i];
+    if (!reportMessage(&message, false)) {
       break;
     }
   }
