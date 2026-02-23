@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/turboshaft/optimize-phase.h"
+#include "src/compiler/turboshaft/memory-optimization-phase.h"
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/copying-phase.h"
@@ -20,7 +20,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void OptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
+void MemoryOptimizationPhase::Run(PipelineData* data, Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(),
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::CopyingPhase<turboshaft::IfElseCascadeToSwitchReducer,

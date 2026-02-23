@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_PHASE_H_
-#define V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_PHASE_H_
+#ifndef V8_COMPILER_TURBOSHAFT_LOAD_ELIMINATION_PHASE_H_
+#define V8_COMPILER_TURBOSHAFT_LOAD_ELIMINATION_PHASE_H_
 
 #include "src/compiler/turboshaft/phase.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-struct StoreStoreEliminationPhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS(StoreStoreElimination)
+struct LoadEliminationPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(LoadElimination)
 
   void Run(PipelineData* data, Zone* temp_zone);
 };
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_STORE_STORE_ELIMINATION_PHASE_H_
+#endif  // V8_COMPILER_TURBOSHAFT_LOAD_ELIMINATION_PHASE_H_

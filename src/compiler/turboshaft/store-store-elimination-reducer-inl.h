@@ -456,7 +456,9 @@ class StoreStoreEliminationReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(StoreStoreElimination)
 
   void Analyze() {
-    analysis_.Run(eliminable_stores_, mergeable_store_pairs_);
+    if (v8_flags.turbo_store_elimination) {
+      analysis_.Run(eliminable_stores_, mergeable_store_pairs_);
+    }
     Next::Analyze();
   }
 

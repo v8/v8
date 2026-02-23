@@ -19,14 +19,14 @@
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
+#include "src/compiler/turboshaft/load-elimination-phase.h"
 #include "src/compiler/turboshaft/loop-peeling-phase.h"
 #include "src/compiler/turboshaft/loop-unrolling-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
-#include "src/compiler/turboshaft/optimize-phase.h"
+#include "src/compiler/turboshaft/memory-optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
-#include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/turbolev-frontend-pipeline.h"
 #include "src/compiler/turboshaft/turbolev-graph-builder.h"
@@ -225,11 +225,9 @@ class V8_EXPORT_PRIVATE Pipeline {
       RUN_MAYBE_ABORT(turboshaft::LoopUnrollingPhase);
     }
 
-    if (v8_flags.turbo_store_elimination) {
-      RUN_MAYBE_ABORT(turboshaft::StoreStoreEliminationPhase);
-    }
+    RUN_MAYBE_ABORT(turboshaft::LoadEliminationPhase);
 
-    RUN_MAYBE_ABORT(turboshaft::OptimizePhase);
+    RUN_MAYBE_ABORT(turboshaft::MemoryOptimizationPhase);
 
     if (v8_flags.turboshaft_typed_optimizations) {
       RUN_MAYBE_ABORT(turboshaft::TypedOptimizationsPhase);
