@@ -204,8 +204,7 @@ bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
 bool SameValue(ValueNode* before, ValueNode* after) {
   // Nodes from loop headers can contain identities since the KnownNodeAspects
   // constructor used in CloneForLoopHeader does not unwrap them.
-  return before == after ||
-         (before && before->Is<Identity>() && before->input_node(0) == after);
+  return before == after || (before && before->UnwrapIdentities() == after);
 }
 
 }  // namespace
