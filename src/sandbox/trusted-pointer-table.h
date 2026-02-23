@@ -182,6 +182,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // entry accessible.
   inline void Publish(TrustedPointerHandle handle, IndirectPointerTag tag);
 
+  // Undo earlier publishing, making the entry inaccessible.
+  inline void Unpublish(TrustedPointerHandle handle);
+
   // Checks whether the given entry currently has the "unpublished" tag.
   inline bool IsUnpublished(TrustedPointerHandle handle) const;
 

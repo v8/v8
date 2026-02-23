@@ -132,6 +132,23 @@ void ExposedTrustedObject::Publish(IsolateForSandbox isolate) {
 #endif
 }
 
+void ExposedTrustedObject::Unpublish(IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK(IsPublished(isolate));
+  // Currently only non-shared objects can be unpublished. We could change that
+  // in the future, which would probably require a new shared+unpublished tag.
+  DCHECK(!HeapLayout::InAnySharedSpace(*this));
+
+  InstanceType instance_type = map()->instance_type();
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, false);
+  IndirectPointerHandle handle =
+      ACQUIRE_READ_UINT32_FIELD(*this, kSelfIndirectPointerOffset);
+  TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
+  table.Unpublish(handle);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 bool ExposedTrustedObject::IsPublished(IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   InstanceType instance_type = map()->instance_type();

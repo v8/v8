@@ -169,6 +169,11 @@ void TrustedPointerTable::Publish(TrustedPointerHandle handle,
   at(index).Publish(tag);
 }
 
+void TrustedPointerTable::Unpublish(TrustedPointerHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  at(index).Unpublish();
+}
+
 bool TrustedPointerTable::IsUnpublished(TrustedPointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
   return at(index).HasPointer(kUnpublishedIndirectPointerTag);
