@@ -1657,7 +1657,13 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
             CHECK(chunk->InNewLargeObjectSpace() ||
                   chunk->Metadata(isolate)->is_quarantined());
           } else {
-            Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
+            // Take the map from {map_word} (unless it is a forwarding address)
+            // to avoid a double load of the map word for that object. Parallel
+            // scavenging tasks could install a forwarding pointer in-between
+            // both loads.
+            Tagged<HeapObject> forwarded_map = map_word.IsForwardingAddress()
+                                                   ? forwarded->map(cage_base)
+                                                   : map_word.ToMap();
             // The map might be forwarded as well.
             MapWord fwd_map_map_word =
                 forwarded_map->map_word(cage_base, kRelaxedLoad);
