@@ -378,10 +378,9 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
 
 uint32_t TestingModuleBuilder::AddPassiveDataSegment(
     base::Vector<const uint8_t> bytes) {
-  uint32_t index = static_cast<uint32_t>(module_->data_segments.size());
+  int index = static_cast<int>(module_->data_segments.size());
   DCHECK_EQ(index, module_->data_segments.size());
-  DCHECK_EQ(index, data_segment_starts_.size());
-  DCHECK_EQ(index, data_segment_sizes_.size());
+  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -392,35 +391,19 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   // to validate the segment index, during function compilation.
   module_->num_declared_data_segments = index + 1;
 
-  Address old_data_address =
-      reinterpret_cast<Address>(data_segment_data_.data());
-  size_t old_data_size = data_segment_data_.size();
-  data_segment_data_.resize(old_data_size + bytes.size());
-  Address new_data_address =
-      reinterpret_cast<Address>(data_segment_data_.data());
-
-  memcpy(data_segment_data_.data() + old_data_size, bytes.begin(),
-         bytes.size());
-
-  // The data_segment_data_ offset may have moved, so update all the starts.
-  for (Address& start : data_segment_starts_) {
-    start += new_data_address - old_data_address;
+  DirectHandle<TrustedPodArray<WireBytesRef>> new_data_segments =
+      TrustedPodArray<WireBytesRef>::New(isolate_, index + 1);
+  for (int i = 0; i < index; ++i) {
+    new_data_segments->set(i, trusted_instance_data_->data_segments()->get(i));
   }
-  data_segment_starts_.push_back(new_data_address + old_data_size);
-  data_segment_sizes_.push_back(static_cast<uint32_t>(bytes.size()));
 
-  // The vector pointers may have moved, so update the instance object.
-  uint32_t size = static_cast<uint32_t>(data_segment_sizes_.size());
-  DirectHandle<FixedAddressArray> data_segment_starts =
-      FixedAddressArray::New(isolate_, size);
-  MemCopy(data_segment_starts->begin(), data_segment_starts_.data(),
-          size * sizeof(Address));
-  trusted_instance_data_->set_data_segment_starts(*data_segment_starts);
-  DirectHandle<FixedUInt32Array> data_segment_sizes =
-      FixedUInt32Array::New(isolate_, size);
-  MemCopy(data_segment_sizes->begin(), data_segment_sizes_.data(),
-          size * sizeof(uint32_t));
-  trusted_instance_data_->set_data_segment_sizes(*data_segment_sizes);
+  uint32_t new_segment_offset = AddBytes(bytes);
+  DCHECK_LE(bytes.size(), kMaxUInt32);
+  new_data_segments->set(
+      index,
+      WireBytesRef{new_segment_offset, static_cast<uint32_t>(bytes.size())});
+
+  trusted_instance_data_->set_data_segments(*new_data_segments);
   return index;
 }
 
