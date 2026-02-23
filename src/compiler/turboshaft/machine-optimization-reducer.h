@@ -891,7 +891,7 @@ class MachineOptimizationReducer : public Next {
             V<Word> x, y;
             int64_t k;
             if (right_value_signed == -1 &&
-                matcher_.MatchBitwiseAnd(left, &x, &y, rep) &&
+                matcher_.MatchBitwiseXor(left, &x, &y, rep) &&
                 matcher_.MatchIntegralWordConstant(y, rep, &k) && k == -1) {
               return x;
             }
