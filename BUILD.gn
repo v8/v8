@@ -1255,6 +1255,9 @@ config("features") {
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
   }
+  if (v8_use_host_cpu_arm_features) {
+    defines += [ "V8_USE_HOST_CPU_ARM_FEATURES" ]
+  }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }

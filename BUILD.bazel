@@ -170,6 +170,11 @@ v8_flag(
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 
+v8_flag(
+    name = "v8_use_host_cpu_arm_features",
+    default = True,
+)
+
 # Default setting for v8_enable_maglev
 selects.config_setting_group(
     name = "maglev_by_default",
@@ -515,6 +520,7 @@ v8_config(
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
+        "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
     },
     defines = [
         "GOOGLE3",

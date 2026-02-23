@@ -102,6 +102,16 @@ declare_args() {
   # Enable Wasm interpreter tracing.
   v8_enable_drumbrake_tracing = false
 
+  # Use host CPU ARM features when compiling ARM/ARM64 snapshots
+  # (using mksnapshot). When true, use both CPU features from
+  # the target's CPU, and the host's CPU.
+  # Since mksnapshot's output runs on the target device, this is not
+  # desirable in general to take the CPU features of the host compiler.
+  # However, the default is true in order to preserve existing behavior,
+  # and ensure all necessary CPU features are available in certain scenarios
+  #(where target and host have the same CPU architecture but different CPUs).
+  v8_use_host_cpu_arm_features = true
+
   # On non-Desktop platforms, enable explicit bounds checks in the Wasm
   # interpreter, where the bounds checking is done in the instruction handler,
   # not using an unhandled exception filter (which also doesn't work with

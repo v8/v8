@@ -214,7 +214,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatureSet command_line = CpuFeaturesFromCommandLine();
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= command_line & CpuFeaturesFromCompiler();
+#endif
     return;
   }
 
