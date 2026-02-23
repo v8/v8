@@ -318,9 +318,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
-  V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_sum_precise, "Math.sumPrecise")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
+  V(js_immutable_arraybuffer, "Immutable ArrayBuffer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -352,7 +351,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
   V(js_upsert, "upsert")                                                     \
-  V(js_iterator_sequencing, "iterator sequencing")
+  V(js_iterator_sequencing, "iterator sequencing")                           \
+  V(js_sum_precise, "Math.sumPrecise")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
