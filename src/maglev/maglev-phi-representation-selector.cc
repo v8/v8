@@ -1178,6 +1178,44 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    CheckMaglevType* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  DCHECK_EQ(input_index, 0);
+  NodeType expected_type = node->expected_type();
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+      // Int32/Uint32 phis can have HeapNumber inputs, if either the HeapNumber
+      // is actually a 32-bit integer, or we've untagged a phi based on
+      // TruncatedInt32.
+
+      // Retagging a Int32/Uint32 phi can produce an integer outside of Smi
+      // range, but if this is covered by AllowWideningSmiToInt32::kAllow below.
+      if (NodeTypeCanBe(expected_type, NodeType::kHeapNumber)) {
+        expected_type = RemoveType(UnionType(expected_type, NodeType::kSmi),
+                                   NodeType::kHeapNumber);
+
+        node->set_expected_type(expected_type);
+        node->set_allow_widening_smi_to_int32(AllowWideningSmiToInt32::kAllow);
+      }
+      break;
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      break;
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  node->change_input(input_index,
+                     EnsurePhiTagged(phi, reducer_.current_block(),
+                                     BasicBlockPosition::Start(), state));
+  return ProcessResult::kContinue;
+}
+
 void MaglevPhiRepresentationSelector::PostProcessBasicBlock(BasicBlock* block) {
   DCHECK_EQ(block, reducer_.current_block());
   reducer_.FlushNodesToBlock();

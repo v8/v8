@@ -7098,8 +7098,14 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
   DECLARE_INPUT_TYPES(Tagged)
 
   NodeType expected_type() const { return expected_type_; }
+  void set_expected_type(NodeType expected_type) {
+    expected_type_ = expected_type;
+  }
   bool allow_widening_smi_to_int32() const {
     return allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow;
+  }
+  void set_allow_widening_smi_to_int32(AllowWideningSmiToInt32 allow) {
+    allow_widening_smi_to_int32_ = allow;
   }
 
   int MaxCallStackArgs() const;
@@ -7112,7 +7118,7 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
   }
 
  private:
-  const NodeType expected_type_;
+  NodeType expected_type_;
   AllowWideningSmiToInt32 allow_widening_smi_to_int32_;
 };
 
