@@ -698,6 +698,11 @@ bool RegExpImpl::CompileIrregexpFromSource(
                                      compile_data.error));
     return false;
   }
+
+  // The capture_count cannot change in any valid scenario. Prevent corrupted
+  // pattern strings from generating invalid regexp code.
+  SBXCHECK_EQ(compile_data.capture_count, re_data->capture_count());
+
   const bool can_be_zero_length = compile_data.tree->min_match() == 0;
   re_data->set_can_be_zero_length(can_be_zero_length);
   compile_data.compilation_target = compilation_target;
