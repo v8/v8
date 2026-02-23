@@ -707,6 +707,8 @@ void f16x8_qfms_wrapper(Address data) {
 namespace {
 inline uint8_t* EffectiveAddress(Tagged<WasmTrustedInstanceData> trusted_data,
                                  uint32_t mem_index, uintptr_t index) {
+  // `index` was bounds-checked in the caller.
+  DCHECK_LE(index, trusted_data->memory_size(mem_index));
   return trusted_data->memory_base(mem_index) + index;
 }
 
@@ -721,6 +723,16 @@ constexpr int32_t kMemOpSuccess = 1;
 constexpr int32_t kOutOfBounds = 0;
 }  // namespace
 
+void data_drop_wrapper(Address trusted_data_addr, uint32_t segment_index) {
+  DisallowGarbageCollection no_gc;
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+
+  // The segment index was statically validated so we do not need a bounds check
+  // here.
+  trusted_data->data_segments()->set(segment_index, WireBytesRef{});
+}
+
 int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint32_t src, uint32_t seg_index,
                             uint32_t size) {
@@ -731,13 +743,15 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  uint32_t seg_size = trusted_data->data_segment_sizes()->get(seg_index);
-  if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
+  WireBytesRef segment_source = trusted_data->data_segments()->get(seg_index);
+  if (!base::IsInBounds<uint32_t>(src, size, segment_source.length())) {
+    return kOutOfBounds;
+  }
 
-  uint8_t* seg_start = reinterpret_cast<uint8_t*>(
-      trusted_data->data_segment_starts()->get(seg_index));
-  std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), seg_start + src,
-              size);
+  base::Vector<const uint8_t> wire_bytes =
+      trusted_data->native_module()->wire_bytes();
+  const uint8_t* start = wire_bytes.data() + segment_source.offset() + src;
+  std::memcpy(EffectiveAddress(trusted_data, mem_index, dst), start, size);
   return kMemOpSuccess;
 }
 

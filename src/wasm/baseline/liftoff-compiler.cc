@@ -7173,25 +7173,20 @@ class LiftoffCompiler {
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    // TODO(14616): Fix sharedness.
+    CHECK(!decoder->module_->data_segments[imm.index].shared);
+
     LiftoffRegList pinned;
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
+    }
 
-    Register seg_size_array =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(seg_size_array, DataSegmentSizes, pinned);
-
-    LiftoffRegister seg_index =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // Scale the seg_index for the array access.
-    __ LoadConstant(
-        seg_index,
-        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
-            imm.index)));
-
-    // Set the length of the segment to '0' to drop it.
-    LiftoffRegister null_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(null_reg, WasmValue(0));
-    __ Store(seg_size_array, seg_index.gp(), 0, null_reg, StoreType::kI32Store,
-             pinned);
+    GenerateCCall(kVoid,
+                  {{kIntPtrKind, LiftoffRegister{instance_data}, 0},
+                   {kI32, static_cast<int32_t>(imm.index), 0}},
+                  ExternalReference::wasm_data_drop());
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,

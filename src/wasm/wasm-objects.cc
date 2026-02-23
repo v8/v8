@@ -1627,16 +1627,16 @@ int ImportedFunctionEntry::function_index_in_called_module() {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 // static
-constexpr std::array<uint16_t, WasmTrustedInstanceData::kTaggedFieldsCount>
+constexpr decltype(WasmTrustedInstanceData::kTaggedFieldOffsets)
     WasmTrustedInstanceData::kTaggedFieldOffsets;
 // static
-constexpr std::array<const char*, WasmTrustedInstanceData::kTaggedFieldsCount>
+constexpr decltype(WasmTrustedInstanceData::kTaggedFieldNames)
     WasmTrustedInstanceData::kTaggedFieldNames;
 // static
-constexpr std::array<uint16_t, 6>
+constexpr decltype(WasmTrustedInstanceData::kProtectedFieldOffsets)
     WasmTrustedInstanceData::kProtectedFieldOffsets;
 // static
-constexpr std::array<const char*, 6>
+constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
     WasmTrustedInstanceData::kProtectedFieldNames;
 
 void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
@@ -1697,6 +1697,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
   AllocationType allocation =
       shared ? AllocationType::kSharedOld : AllocationType::kYoung;
+  AllocationType trusted_allocation =
+      shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted;
 
   int num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports =
@@ -1717,11 +1719,9 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<FixedAddressArray> imported_mutable_globals =
       FixedAddressArray::New(isolate, num_imported_mutable_globals, allocation);
 
-  int num_data_segments = module->num_declared_data_segments;
-  DirectHandle<FixedAddressArray> data_segment_starts =
-      FixedAddressArray::New(isolate, num_data_segments, allocation);
-  DirectHandle<FixedUInt32Array> data_segment_sizes =
-      FixedUInt32Array::New(isolate, num_data_segments, allocation);
+  DirectHandle<TrustedPodArray<wasm::WireBytesRef>> data_segments =
+      TrustedPodArray<wasm::WireBytesRef>::New(
+          isolate, module->num_declared_data_segments, trusted_allocation);
 
 #if V8_ENABLE_DRUMBRAKE
   DirectHandle<FixedInt32Array> imported_function_indices =
@@ -1733,9 +1733,8 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<FixedArray> memory_objects =
       isolate->factory()->NewFixedArray(num_memories, allocation);
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
-      TrustedFixedAddressArray::New(
-          isolate, 2 * num_memories,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted);
+      TrustedFixedAddressArray::New(isolate, 2 * num_memories,
+                                    trusted_allocation);
 
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
@@ -1772,8 +1771,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_dispatch_table0(*empty_dispatch_table);
     trusted_data->set_dispatch_tables(*empty_protected_fixed_array);
     trusted_data->set_shared_part(*trusted_data);  // TODO(14616): Good enough?
-    trusted_data->set_data_segment_starts(*data_segment_starts);
-    trusted_data->set_data_segment_sizes(*data_segment_sizes);
+    trusted_data->set_data_segments(*data_segments);
     trusted_data->set_element_segments(empty_fixed_array);
     trusted_data->set_managed_native_module(*trusted_managed_native_module);
     trusted_data->set_globals_start(empty_backing_store_buffer);
@@ -1842,7 +1840,6 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 void WasmTrustedInstanceData::InitDataSegmentArrays(
     const wasm::NativeModule* native_module) {
   const WasmModule* module = native_module->module();
-  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   uint32_t num_data_segments = module->num_declared_data_segments;
   // The number of declared data segments will be zero if there is no DataCount
   // section. These arrays will not be allocated nor initialized in that case,
@@ -1853,17 +1850,12 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
          num_data_segments == module->data_segments.size());
   for (uint32_t i = 0; i < num_data_segments; ++i) {
     const wasm::WasmDataSegment& segment = module->data_segments[i];
-    // Initialize the pointer and size of passive segments.
-    auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
-                                             segment.source.end_offset());
-    data_segment_starts()->set(i,
-                               reinterpret_cast<Address>(source_bytes.begin()));
     // Set the active segments to being already dropped, since memory.init on
     // a dropped passive segment and an active segment have the same
     // behavior.
-    data_segment_sizes()->set(
-        static_cast<int>(i),
-        segment.active ? 0 : static_cast<uint32_t>(source_bytes.size()));
+    uint32_t length = segment.active ? 0 : segment.source.length();
+    data_segments()->set(i,
+                         wasm::WireBytesRef{segment.source.offset(), length});
   }
 }
 

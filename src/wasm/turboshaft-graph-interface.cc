@@ -4653,15 +4653,13 @@ class TurboshaftGraphBuildingInterface
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     // TODO(14616): Data segments aren't available during streaming compilation.
     // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
-    bool shared = decoder->enabled_.has_shared() &&
-                  decoder->module_->data_segments[imm.index].shared;
-    V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(shared), DataSegmentSizes,
-        MemoryRepresentation::TaggedPointer());
-    __ Store(data_segment_sizes, __ Word32Constant(0),
-             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
-             compiler::kNoWriteBarrier,
-             FixedUInt32Array::OffsetOfElementAt(imm.index));
+    // TODO(14616): Fix sharedness.
+    CHECK(!decoder->module_->data_segments[imm.index].shared);
+    auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
+                                                       MachineType::Uint32());
+    CallC(&sig, ExternalReference::wasm_data_drop(),
+          {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
+           __ Word32Constant(imm.index)});
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,

@@ -359,6 +359,7 @@ enum class IsolateFieldId : uint8_t;
           "wasm::f16x8_demote_f64x2_zero_wrapper")                             \
   IF_WASM(V, wasm_f16x8_qfma, "wasm::f16x8_qfma_wrapper")                      \
   IF_WASM(V, wasm_f16x8_qfms, "wasm::f16x8_qfms_wrapper")                      \
+  IF_WASM(V, wasm_data_drop, "wasm::data_drop")                                \
   IF_WASM(V, wasm_memory_init, "wasm::memory_init")                            \
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \

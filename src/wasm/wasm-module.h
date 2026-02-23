@@ -56,7 +56,7 @@ inline std::ostream& operator<<(std::ostream& os, AddressType address_type) {
   return os << AddressTypeToStr(address_type);
 }
 
-// Reference to a string in the wire bytes.
+// Reference to a byte range in the wire bytes.
 class WireBytesRef {
  public:
   constexpr WireBytesRef() = default;

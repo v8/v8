@@ -820,7 +820,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> map, WriteBarrierMode write_barrier);
   DirectHandle<WasmArray> NewWasmArrayFromMemory(
       uint32_t length, DirectHandle<Map> map,
-      wasm::CanonicalValueType element_type, Address source);
+      wasm::CanonicalValueType element_type,
+      base::Vector<const uint8_t> source);
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   DirectHandle<Object> NewWasmArrayFromElementSegment(

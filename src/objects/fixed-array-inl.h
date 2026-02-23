@@ -998,22 +998,22 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 
 // static
 template <class T>
-DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
-                                                         int length) {
+DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(
+    Isolate* isolate, int length, AllocationType allocation_type) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return TrustedCast<TrustedPodArray<T>>(
-      isolate->factory()->NewTrustedByteArray(byte_length));
+      isolate->factory()->NewTrustedByteArray(byte_length, allocation_type));
 }
 
 // static
 template <class T>
-DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
-                                                         int length) {
+DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(
+    LocalIsolate* isolate, int length, AllocationType allocation_type) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return TrustedCast<TrustedPodArray<T>>(
-      isolate->factory()->NewTrustedByteArray(byte_length));
+      isolate->factory()->NewTrustedByteArray(byte_length, allocation_type));
 }
 
 }  // namespace v8::internal
