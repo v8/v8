@@ -2630,6 +2630,9 @@
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
   'wasm/bulk-memory': [SKIP],
 
+  # Stack overflow:
+  'regress/regress-484904778': [SKIP],
+
   # TODO(b/201757247):
   'array-constructor-feedback': [FAIL],
   'compiler/deopt-pretenure': [FAIL],
