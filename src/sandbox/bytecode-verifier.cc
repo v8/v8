@@ -261,6 +261,8 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   switch (id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTriggerTierUp:
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
