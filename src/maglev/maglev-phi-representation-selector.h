@@ -248,11 +248,18 @@ class MaglevPhiRepresentationSelector {
   ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
                                    int input_index,
                                    const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBoolean* node, Phi* phi, int input_index,
+                                   const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(ToBooleanLogicalNot* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(NodeBase* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
 
   void EnsurePhiInputsTagged(Phi* phi);
 
+  ProcessResult UpdateNodePhiInputForToBoolean(ValueNode* node, Phi* phi,
+                                               int input_index, bool flip);
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.

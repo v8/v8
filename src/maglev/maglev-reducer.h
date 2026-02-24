@@ -272,8 +272,8 @@ class MaglevReducer {
 
   static enum CheckType GetCheckType(NodeType type, ValueNode* target) {
     if (NodeTypeIs(type, NodeType::kAnyHeapObject)) {
-      if (auto phi = target->TryCast<Phi>()) {
-        phi->SetUseRequiresHeapObject();
+      if (target && target->Is<Phi>()) {
+        target->Cast<Phi>()->SetUseRequiresHeapObject();
       }
       return CheckType::kOmitHeapObjectCheck;
     } else {

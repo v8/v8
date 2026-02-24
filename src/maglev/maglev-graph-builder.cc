@@ -13990,8 +13990,13 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     }
     return value;
   }
+  // Note that we don't pass {value} to GetCheckType since
+  // PhiRepresentationSelection has a special-case to optimize
+  // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
+  // don't need to preserve HeapObjectness here.
+  constexpr ValueNode* kTargetForCheckType = nullptr;
   return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-      {value}, GetCheckType(value_type, value));
+      {value}, GetCheckType(value_type, kTargetForCheckType));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(

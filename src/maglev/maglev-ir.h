@@ -3346,6 +3346,9 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
   DECLARE_UNOP(Int32)
 
   constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
+  void set_flip(bool value) {
+    set_bitfield(FlipBitField::update(bitfield(), value));
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3517,6 +3520,9 @@ class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {
   DECLARE_UNOP(Float64)
 
   constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
+  void set_flip(bool value) {
+    set_bitfield(FlipBitField::update(bitfield(), value));
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

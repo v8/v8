@@ -1357,6 +1357,62 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+// When a ToBoolean/ToBooleanLogicalNot has an untagged Int32/Float64 Phi as
+// input, we convert it to a Int32ToBoolean/Float6ToBoolean to avoid retagging
+// the Phi. Note that it's not only for performance but also has a correctness
+// aspect: the CheckType of the ToBoolean could become wrong because of phi
+// untagging because retagging Float64s can produce Smis due to
+// canonicalization.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    ToBoolean* node, Phi* phi, int input_index, const ProcessingState* state) {
+  return UpdateNodePhiInputForToBoolean(node, phi, input_index,
+                                        /*flip=*/false);
+}
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    ToBooleanLogicalNot* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  return UpdateNodePhiInputForToBoolean(node, phi, input_index,
+                                        /*flip=*/true);
+}
+
+// When a BranchIfToBooleanTrue has an untagged Int32/Float64 Phi as input, we
+// convert it to a BranchIfInt32ToBooleanTrue/BranchIfFloat6ToBooleanTrue to
+// avoid retagging the Phi.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
+    ValueNode* node, Phi* phi, int input_index, bool flip) {
+  DCHECK_EQ(input_index, 0);
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<Int32ToBoolean>()->set_flip(flip);
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kFloat64:
+      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kHoleyFloat64: {
+      // Note that the ToBoolean of the_hole is False, and
+      // UnsafeHoleyFloat64ToFloat64(the_hole) produces NaN, whose ToBoolean is
+      // also False.
+      ValueNode* input =
+          AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
+              reducer_.current_block(), BasicBlockPosition::Start(), {phi});
+      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      node->set_input(0, input);
+      return ProcessResult::kContinue;
+    }
+
+    case ValueRepresentation::kTagged:
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+}
+
 // {node} was using {phi} without any untagging, which means that it was using
 // {phi} as a tagged value, so, if we've untagged {phi}, we need to re-tag it
 // for {node}.
