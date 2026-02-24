@@ -2982,6 +2982,10 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) { __ Trap(); }
 
 void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) { __ Trap(); }
 
+void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
+  __ Trap();
+}
+
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) { __ Trap(); }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) { __ Trap(); }
