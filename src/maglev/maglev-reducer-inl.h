@@ -1160,6 +1160,9 @@ MaglevReducer<BaseT>::TryGetFloat64OrHoleyFloat64Constant(
     case Opcode::kInt32Constant:
       return Float64{
           static_cast<double>(value->Cast<Int32Constant>()->value())};
+    case Opcode::kUint32Constant:
+      return Float64{
+          static_cast<double>(value->Cast<Uint32Constant>()->value())};
     case Opcode::kSmiConstant:
       return Float64{
           static_cast<double>(value->Cast<SmiConstant>()->value().value())};
