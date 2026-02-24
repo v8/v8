@@ -2949,71 +2949,6 @@ TEST_F(TurboshaftInstructionSelectorTest, ExtractLaneZero) {
   }
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, ReplaceLaneZero) {
-  constexpr uint8_t zero_data[kSimd128Size] = {0};
-  constexpr uint8_t non_zero_data[kSimd128Size] = {1};
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Float32());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.F16x8ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Float32());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.F32x4ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(kArm64Float32Move, s[0]->arch_opcode());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Float32());
-    OpIndex zero = m.Simd128Constant(non_zero_data);
-    m.Return(m.F32x4ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Float64());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.F64x2ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(kArm64Float64Move, s[0]->arch_opcode());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Int32());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.I8x16ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Int32());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.I16x8ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Int32());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.I32x4ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(kArm64Float32MoveU32, s[0]->arch_opcode());
-  }
-  {
-    StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
-    OpIndex zero = m.Simd128Constant(zero_data);
-    m.Return(m.I64x2ReplaceLane(zero, m.Parameter(0), 0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    ASSERT_EQ(kArm64Float64MoveU64, s[0]->arch_opcode());
-  }
-}
-
 TEST_F(TurboshaftInstructionSelectorTest, I32x4AddPairwise) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128(),
                   MachineType::Simd128());
@@ -5091,41 +5026,6 @@ TEST_F(TurboshaftInstructionSelectorTest, MoveLane) {
     EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(config.from_lane, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(config.into_lane, s.ToInt32(s[0]->InputAt(3)));
-  }
-}
-
-TEST_F(TurboshaftInstructionSelectorTest, MoveLaneZero) {
-  struct MoveLaneConfig {
-    Simd128MoveLaneOp::Kind kind;
-    int expected_size;
-    InstructionCode expected_opcode;
-  };
-  std::array configs = std::to_array<MoveLaneConfig>({
-      {Simd128MoveLaneOp::Kind::kI32x4, 1, kArm64Float32MoveU32},
-      {Simd128MoveLaneOp::Kind::kI64x2, 1, kArm64Float64MoveU64},
-      {Simd128MoveLaneOp::Kind::kF32x4, 1, kArm64Float32Move},
-      {Simd128MoveLaneOp::Kind::kF64x2, 1, kArm64Float64Move},
-      {Simd128MoveLaneOp::Kind::kI8x16, 2, kArm64S128MoveLane},
-      {Simd128MoveLaneOp::Kind::kI16x8, 2, kArm64S128MoveLane},
-  });
-
-  const MachineType type = MachineType::Simd128();
-  for (const auto& config : configs) {
-    StreamBuilder m(this, type, type);
-    uint8_t data[kSimd128Size] = {0};
-    OpIndex zero = m.Simd128Constant(data);
-    m.Return(m.Simd128MoveLane(zero, m.Parameter(0), config.kind, 0, 0));
-    Stream s = m.Build();
-    ASSERT_EQ(config.expected_size, s.size());
-    if (s.size() == 1) {
-      EXPECT_EQ(config.expected_opcode, s[0]->arch_opcode());
-      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
-    } else {
-      EXPECT_EQ(config.expected_opcode, s[1]->arch_opcode());
-      EXPECT_EQ(kArm64S128Const, s[0]->arch_opcode());
-      EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
-      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(1)));
-    }
   }
 }
 

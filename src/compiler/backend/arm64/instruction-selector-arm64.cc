@@ -243,94 +243,24 @@ void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
               OpIndex node) {
   Arm64OperandGenerator g(selector);
   const Simd128ExtractLaneOp& op = selector->Cast<Simd128ExtractLaneOp>(node);
-  if (op.lane == 0 && (op.kind == Simd128ExtractLaneOp::Kind::kF32x4 ||
-                       op.kind == Simd128ExtractLaneOp::Kind::kF64x2)) {
+  if (op.lane == 0 && selector->CanCover(node, op.input()) &&
+      (op.kind == Simd128ExtractLaneOp::Kind::kF32x4 ||
+       op.kind == Simd128ExtractLaneOp::Kind::kF64x2)) {
     // Lane 0 of a Neon register is aliased by scalar S and D registers.
-    if (selector->CanCover(node, op.input())) {
-      selector->Emit(kArchNop, g.DefineSameAsFirst(node),
-                     g.UseRegister(op.input()));
-    } else if (op.kind == Simd128ExtractLaneOp::Kind::kF32x4) {
-      selector->Emit(kArm64Float32Move, g.DefineAsRegister(node),
-                     g.UseRegister(op.input()));
-    } else {
-      selector->Emit(kArm64Float64Move, g.DefineAsRegister(node),
-                     g.UseRegister(op.input()));
-    }
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node),
+                   g.UseRegister(op.input()));
   } else {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()),
                    g.UseImmediate(op.lane));
   }
 }
 
-namespace {
-bool isSimdZero(InstructionSelector* selector, OpIndex node) {
-  const Operation& op = selector->Get(node);
-  if (auto constant = op.TryCast<Simd128ConstantOp>()) {
-    return constant->IsZero();
-  }
-  return false;
-}
-
-std::optional<InstructionCode> CanBeScalarMove(InstructionSelector* selector,
-                                               Simd128ReplaceLaneOp::Kind kind,
-                                               OpIndex node) {
-  if (isSimdZero(selector, node)) {
-    // TODO(sparker): Support I16 and F16.
-    switch (kind) {
-      default:
-        break;
-      case Simd128ReplaceLaneOp::Kind::kI32x4:
-        return kArm64Float32MoveU32;
-      case Simd128ReplaceLaneOp::Kind::kI64x2:
-        return kArm64Float64MoveU64;
-      case Simd128ReplaceLaneOp::Kind::kF32x4:
-        return kArm64Float32Move;
-      case Simd128ReplaceLaneOp::Kind::kF64x2:
-        return kArm64Float64Move;
-    }
-  }
-  return {};
-}
-
-}  // namespace
-
 void VisitRRIR(InstructionSelector* selector, InstructionCode opcode,
                OpIndex node) {
   const Simd128ReplaceLaneOp& op = selector->Cast<Simd128ReplaceLaneOp>(node);
   Arm64OperandGenerator g(selector);
-
-  if (op.lane == 0) {
-    if (auto scalar_opcode = CanBeScalarMove(selector, op.kind, op.into())) {
-      // If we're replacing lane zero, of a simd vector of zeros, we can just
-      // do a scalar mov instead as this will zero the remaining contents of
-      // the aliasing Neon register.
-      selector->Emit(scalar_opcode.value(), g.DefineAsRegister(node),
-                     g.UseRegister(op.new_lane()));
-      return;
-    }
-  }
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.into()),
                  g.UseImmediate(op.lane), g.UseUniqueRegister(op.new_lane()));
-}
-
-void VisitRRII(InstructionSelector* selector, InstructionCode opcode,
-               OpIndex node) {
-  const Simd128MoveLaneOp& op = selector->Cast<Simd128MoveLaneOp>(node);
-  Arm64OperandGenerator g(selector);
-
-  if (op.into_lane == 0 && op.from_lane == 0) {
-    if (auto scalar_opcode = CanBeScalarMove(selector, op.kind, op.into())) {
-      // If we're replacing lane zero, of a simd vector of zeros, we can just
-      // do a scalar mov instead as this will zero the remaining contents of
-      // the aliasing Neon register.
-      selector->Emit(scalar_opcode.value(), g.DefineAsRegister(node),
-                     g.UseRegister(op.from()));
-      return;
-    }
-  }
-  selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(op.into()),
-                 g.UseRegister(op.from()), g.UseImmediate(op.from_lane),
-                 g.UseImmediate(op.into_lane));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -5196,10 +5126,14 @@ SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
 SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_MOVE_LANE(Type, LaneSize)                              \
-  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) {         \
-    VisitRRII(this, kArm64S128MoveLane | LaneSizeField::encode(LaneSize), \
-              node);                                                      \
+#define SIMD_VISIT_MOVE_LANE(Type, LaneSize)                      \
+  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) { \
+    Arm64OperandGenerator g(this);                                \
+    const Simd128MoveLaneOp& op = Cast<Simd128MoveLaneOp>(node);  \
+    Emit(kArm64S128MoveLane | LaneSizeField::encode(LaneSize),    \
+         g.DefineSameAsFirst(node), g.UseRegister(op.into()),     \
+         g.UseRegister(op.from()), g.UseImmediate(op.from_lane),  \
+         g.UseImmediate(op.into_lane));                           \
   }
 SIMD_VISIT_MOVE_LANE(I8x16, 8)
 SIMD_VISIT_MOVE_LANE(I16x8, 16)
@@ -5882,6 +5816,17 @@ void InstructionSelector::VisitI32x4AddPairwise(OpIndex node) {
   Emit(kArm64IAddp | LaneSizeField::encode(32), g.DefineAsRegister(node),
        g.UseRegister(Get(node).input(0)), g.UseRegister(Get(node).input(1)));
 }
+
+namespace {
+bool isSimdZero(InstructionSelector* selector, OpIndex node) {
+  const Operation& op = selector->Get(node);
+  if (auto constant = op.TryCast<Simd128ConstantOp>()) {
+    return constant->IsZero();
+  }
+  return false;
+}
+
+}  // namespace
 
 #define VISIT_SIMD_CM(Type, T, CmOp, CmOpposite, LaneSize)                   \
   void InstructionSelector::Visit##Type##CmOp(OpIndex node) {                \
