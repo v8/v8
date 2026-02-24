@@ -44,8 +44,6 @@
 
 namespace v8::internal {
 class HeapObject;
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           AbortReason reason);
 }  // namespace v8::internal
 namespace v8::internal::compiler {
 class CallDescriptor;

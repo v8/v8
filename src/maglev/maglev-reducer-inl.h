@@ -571,7 +571,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
-              {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+              {value}, NumberConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
       if (node_info->is_smi()) {
@@ -580,7 +580,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-              {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
+              {value}, NumberConversionMode::kCanonicalizeSmi));
     }
 
     case ValueRepresentation::kIntPtr:

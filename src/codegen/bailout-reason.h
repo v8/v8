@@ -206,6 +206,10 @@ inline bool IsTerminalBailoutReasonForTurbofan(BailoutReason reason) {
   }
 }
 
+inline std::ostream& operator<<(std::ostream& os, AbortReason reason) {
+  return os << GetAbortReason(reason);
+}
+
 }  // namespace internal
 }  // namespace v8
 

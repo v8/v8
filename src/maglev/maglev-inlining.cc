@@ -433,7 +433,7 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
       // re-tagged version of this node will indeed be Smis (and not Smi-sized
       // HeapNumbers).
       node->Cast<Float64ToTagged>()->SetMode(
-          Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+          NumberConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kHoleyFloat64:
       node->OverwriteWith<HoleyFloat64ToTagged>();
@@ -442,7 +442,7 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
       // re-tagged version of this node will indeed be Smis (and not Smi-sized
       // HeapNumbers).
       node->Cast<HoleyFloat64ToTagged>()->SetMode(
-          HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+          NumberConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kIntPtr:
       node->OverwriteWith<IntPtrToNumber>();

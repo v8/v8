@@ -198,6 +198,24 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, NumberConversionMode mode) {
+  switch (mode) {
+    case NumberConversionMode::kForceHeapNumber:
+      return os << "kForceHeapNumber";
+    case NumberConversionMode::kCanonicalizeSmi:
+      return os << "kCanonicalizeSmi";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
+  switch (mode) {
+    case StringEqualInputMode::kOnlyStrings:
+      return os << "kOnlyStrings";
+    case StringEqualInputMode::kStringsOrOddballs:
+      return os << "kStringsOrOddballs";
+  }
+}
+
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
 bool Phi::is_unmerged_loop_phi() const {
@@ -8241,10 +8259,6 @@ void Abort::PrintParams(std::ostream& os) const {
   os << "(" << GetAbortReason(reason()) << ")";
 }
 
-void AssertInt32::PrintParams(std::ostream& os) const {
-  os << "(" << condition_ << ")";
-}
-
 void AssertRangeInt32::PrintParams(std::ostream& os) const {
   os << "(" << range_ << ")";
 }
@@ -8362,33 +8376,12 @@ void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
   os << ")";
 }
 
-void CheckInt32Condition::PrintParams(std::ostream& os) const {
-  os << "(" << condition() << ", " << deoptimize_reason() << ")";
-}
-
 void CheckMaglevType::PrintParams(std::ostream& os) const {
   os << "(" << expected_type_ << ")";
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(" << index_ << ")";
-}
-
-void CheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
-  os << "(" << conversion_type() << ")";
-}
-
-void UnsafeNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
-  os << "(" << conversion_type() << ")";
-}
-
-void TruncateCheckedNumberOrOddballToInt32::PrintParams(
-    std::ostream& os) const {
-  os << "(" << conversion_type() << ")";
-}
-
-void TruncateUnsafeNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
-  os << "(" << conversion_type() << ")";
 }
 
 void LoadTaggedField::PrintParams(std::ostream& os) const {
@@ -8479,6 +8472,7 @@ void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
+  os << ", maybe_smi:" << value_can_be_smi();
   os << ")";
 }
 
@@ -8517,18 +8511,10 @@ void ConstantGapMove::PrintParams(std::ostream& os) const {
   os << " → " << target() << ")";
 }
 
-void Float64Compare::PrintParams(std::ostream& os) const {
-  os << "(" << operation() << ")";
-}
-
 void Float64ToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }
-}
-
-void Int32Compare::PrintParams(std::ostream& os) const {
-  os << "(" << operation() << ")";
 }
 
 void Int32ToBoolean::PrintParams(std::ostream& os) const {
@@ -8637,10 +8623,6 @@ void CallRuntime::PrintParams(std::ostream& os) const {
   os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
-void TestTypeOf::PrintParams(std::ostream& os) const {
-  os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
-}
-
 void ReduceInterruptBudgetForLoop::PrintParams(std::ostream& os) const {
   os << "(" << amount() << ")";
 }
@@ -8680,10 +8662,6 @@ void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {
 
 void AllocateElementsArray::PrintParams(std::ostream& os) const {
   os << "(" << elements_kind_ << ", " << allocation_type_ << ")";
-}
-
-void UnsafeNumberOrOddballToHoleyFloat64::PrintParams(std::ostream& os) const {
-  os << "(" << conversion_type() << ")";
 }
 
 std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
