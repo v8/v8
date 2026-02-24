@@ -34,12 +34,6 @@
 #include "src/objects/objects-inl.h"
 #endif
 
-namespace v8::internal {
-std::ostream& operator<<(std::ostream& os, AbortReason reason) {
-  return os << GetAbortReason(reason);
-}
-}  // namespace v8::internal
-
 namespace v8::internal::compiler::turboshaft {
 
 void Operation::Print() const { std::cout << *this << "\n"; }

@@ -1704,6 +1704,14 @@ static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
 enum class TypedArrayAccessMode { kRead, kWrite };
+inline std::ostream& operator<<(std::ostream& os, TypedArrayAccessMode mode) {
+  switch (mode) {
+    case TypedArrayAccessMode::kRead:
+      return os << "kRead";
+    case TypedArrayAccessMode::kWrite:
+      return os << "kWrite";
+  }
+}
 
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,

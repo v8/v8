@@ -2798,6 +2798,24 @@ inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt(
   return unwrapped;
 }
 
+namespace detail {
+template <typename NodeT>
+concept HasOptions = requires(NodeT node) { node.options(); };
+
+template <class... T, size_t... I>
+static void PrintOptionsHelper(std::ostream& os,
+                               const std::tuple<T...>& options,
+                               std::index_sequence<I...>) {
+  os << "[";
+  bool first = true;
+  USE(first);
+  ((first ? (first = false, os << std::get<I>(options))
+          : os << ", " << std::get<I>(options)),
+   ...);
+  os << "]";
+}
+}  // namespace detail
+
 // Mixin for a node with known class (and therefore known opcode and static
 // properties), but possibly unknown numbers of inputs.
 template <typename BaseNode, typename Derived>
@@ -2822,7 +2840,18 @@ class NodeTMixin : public BaseNode {
     return NodeBase::New<Derived>(zone, input_count, std::forward<Args>...);
   }
 
-  void PrintParams(std::ostream&) const {}
+  void PrintParams(std::ostream& os) const {
+    if constexpr (detail::HasOptions<Derived>) {
+      const auto& options = static_cast<const Derived*>(this)->options();
+      constexpr size_t options_count =
+          std::tuple_size<std::remove_reference_t<decltype(options)>>::value;
+      if (options_count == 0) {
+        return;
+      }
+      detail::PrintOptionsHelper(os, options,
+                                 std::make_index_sequence<options_count>());
+    }
+  }
 
  protected:
   template <typename... Args>
@@ -3301,7 +3330,6 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{operation()}; }
   NodeType type() const { return NodeType::kBoolean; }
@@ -3473,7 +3501,6 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{operation()}; }
   NodeType type() const { return NodeType::kBoolean; }
@@ -4005,40 +4032,47 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
   };
 
-#define DEFINE_TO_TAGGED(name, from_repr, node_type)                   \
-  class name : public FixedInputValueNodeT<1, name> {                  \
-   public:                                                             \
-    /* TODO(454485895): Consider removing kForceHeapNumber since    */ \
-    /* it is now unused.                                            */ \
-    enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };  \
-    explicit name(uint64_t bitfield, ConversionMode mode)              \
-        : Base(ConversionModeBitField::update(bitfield, mode)) {}      \
-                                                                       \
-    static constexpr OpProperties kProperties =                        \
-        OpProperties::CanAllocate() | OpProperties::DeferredCall() |   \
-        OpProperties::ConversionNode();                                \
-    DECLARE_INPUTS(Value)                                              \
-    DECLARE_INPUT_TYPES(from_repr)                                     \
-    constexpr NodeType type() const { return NodeType::k##node_type; } \
-    void SetMode(ConversionMode mode) {                                \
-      set_bitfield(ConversionModeBitField::update(bitfield(), mode));  \
-    }                                                                  \
-    ConversionMode conversion_mode() const {                           \
-      return ConversionModeBitField::decode(bitfield());               \
-    }                                                                  \
-                                                                       \
-    Range range() const { return input_node(0)->GetStaticRange(); }    \
-    int MaxCallStackArgs() const { return 0; }                         \
-    void SetValueLocationConstraints();                                \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
-    auto options() const { return std::tuple{conversion_mode()}; }     \
-                                                                       \
-   private:                                                            \
-    bool canonicalize_smi() {                                          \
-      return ConversionModeBitField::decode(bitfield()) ==             \
-             ConversionMode::kCanonicalizeSmi;                         \
-    }                                                                  \
-    using ConversionModeBitField = NextBitField<ConversionMode, 1>;    \
+enum class NumberConversionMode { kCanonicalizeSmi, kForceHeapNumber };
+std::ostream& operator<<(std::ostream& os, NumberConversionMode mode);
+
+#define DEFINE_TO_TAGGED(name, from_repr, node_type)                      \
+  class name : public FixedInputValueNodeT<1, name> {                     \
+   public:                                                                \
+    /* TODO(454485895): Consider removing kForceHeapNumber since    */    \
+    /* it is now unused.                                            */    \
+                                                                          \
+    explicit name(uint64_t bitfield, NumberConversionMode mode)           \
+        : Base(ConversionModeBitField::update(bitfield, mode)) {}         \
+                                                                          \
+    static constexpr OpProperties kProperties =                           \
+        OpProperties::CanAllocate() | OpProperties::DeferredCall() |      \
+        OpProperties::ConversionNode();                                   \
+    DECLARE_INPUTS(Value)                                                 \
+    DECLARE_INPUT_TYPES(from_repr)                                        \
+    constexpr NodeType type() const { return NodeType::k##node_type; }    \
+    void SetMode(NumberConversionMode mode) {                             \
+      set_bitfield(ConversionModeBitField::update(bitfield(), mode));     \
+    }                                                                     \
+    NumberConversionMode conversion_mode() const {                        \
+      return ConversionModeBitField::decode(bitfield());                  \
+    }                                                                     \
+                                                                          \
+    Range range() const { return input_node(0)->GetStaticRange(); }       \
+    int MaxCallStackArgs() const { return 0; }                            \
+    void SetValueLocationConstraints();                                   \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);          \
+    auto options() const { return std::tuple{conversion_mode()}; }        \
+                                                                          \
+   private:                                                               \
+    bool canonicalize_smi() {                                             \
+      return ConversionModeBitField::decode(bitfield()) ==                \
+             NumberConversionMode::kCanonicalizeSmi;                      \
+    }                                                                     \
+    bool force_heap_number() {                                            \
+      return ConversionModeBitField::decode(bitfield()) ==                \
+             NumberConversionMode::kForceHeapNumber;                      \
+    }                                                                     \
+    using ConversionModeBitField = NextBitField<NumberConversionMode, 1>; \
   };
 
 #define DEFINE_PURE_CONV(name, from_repr, to_repr, node_type, ...)        \
@@ -4160,7 +4194,6 @@ class CheckedNumberOrOddballToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
@@ -4234,7 +4267,6 @@ class UnsafeNumberOrOddballToFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
@@ -4255,7 +4287,6 @@ class UnsafeNumberOrOddballToHoleyFloat64
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
@@ -4379,7 +4410,6 @@ class TruncateUnsafeNumberOrOddballToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -4456,7 +4486,6 @@ class TruncateCheckedNumberOrOddballToInt32
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
@@ -4537,6 +4566,7 @@ class ToBooleanLogicalNot
 // objects which are then compared with pointer equality (they will never be
 // equal to a String and they're equal to each other if the pointers are equal).
 enum class StringEqualInputMode { kOnlyStrings, kStringsOrOddballs };
+std::ostream& operator<<(std::ostream& os, const StringEqualInputMode cond);
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
  public:
   explicit StringEqual(uint64_t bitfield, StringEqualInputMode input_mode)
@@ -4643,7 +4673,6 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{literal_}; }
   NodeType type() const { return NodeType::kBoolean; }
@@ -6538,7 +6567,6 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{condition_, reason_}; }
 
@@ -7011,7 +7039,6 @@ class CheckDetectableCallable
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream& out) const {}
 
   auto options() const { return std::tuple{check_type()}; }
 
@@ -7240,7 +7267,6 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
 
   auto options() const { return std::tuple{condition(), deoptimize_reason()}; }
 
@@ -8469,7 +8495,6 @@ class LoadDoubleDataViewElement
                                                                        \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
-    void PrintParams(std::ostream&) const {}                           \
                                                                        \
     auto options() const { return std::tuple{elements_kind_}; }        \
                                                                        \
@@ -8510,7 +8535,6 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
                                                                               \
     void SetValueLocationConstraints();                                       \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
-    void PrintParams(std::ostream&) const {}                                  \
                                                                               \
     auto options() const { return std::tuple{typed_array_, elements_kind_}; } \
                                                                               \

@@ -1755,7 +1755,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
     if (HoleyFloat64ToTagged* conversion_node =
             alt->TryCast<HoleyFloat64ToTagged>()) {
       DCHECK_EQ(conversion_node->conversion_mode(),
-                HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+                NumberConversionMode::kCanonicalizeSmi);
     }
 #endif  // DEBUG
     return BuildCheckSmi(alt, !value->Is<Phi>());

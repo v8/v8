@@ -1391,8 +1391,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // It's important to use kCanonicalizeSmi for Float64ToTagged, as
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
-            block, pos, {phi},
-            Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+            block, pos, {phi}, NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kHoleyFloat64:
@@ -1403,8 +1402,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-            block, pos, {phi},
-            HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+            block, pos, {phi}, NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kInt32:
