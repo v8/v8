@@ -3209,14 +3209,18 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
 
       // Get the correct function in the optimized frame.
       CHECK(!translated_values->IsMaterializedObject());
+      Tagged<Object> function_obj = translated_values->GetRawValue();
+      CHECK(IsJSFunction(function_obj));
       DirectHandle<JSFunction> function =
-          Cast<JSFunction>(translated_values->GetValue());
+          Cast<JSFunction>(direct_handle(function_obj, isolate()));
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
       static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
-      DirectHandle<Object> receiver = translated_values->GetValue();
+      Tagged<Object> receiver_obj = translated_values->GetRawValue();
+      CHECK_NE(receiver_obj, ReadOnlyRoots(isolate()).arguments_marker());
+      DirectHandle<Object> receiver = direct_handle(receiver_obj, isolate());
       translated_values++;
 
       // Determine the underlying code object and the position within it from
