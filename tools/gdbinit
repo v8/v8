@@ -380,6 +380,95 @@ def v8_stop_handler(event):
 gdb.events.stop.connect(v8_stop_handler)
 end
 
+python
+import gdb
+import re
+from gdb.FrameDecorator import FrameDecorator
+
+NAMESPACE_RE = re.compile(r'v8::internal::compiler::turboshaft::')
+
+def starts_with_pattern(text):
+  # (regex, bracket-depth, need-rerun)
+  patterns = [
+    (r"^[a-zA-Z_][a-zA-Z0-9_]*Reducer<\[\.\.\.\]>::ReduceInputGraphOperation<[a-z_A-Z0-9]+, [^<]+<", 1, False),
+    (r"^[a-zA-Z_][a-zA-Z0-9_]*Reducer<", 1, True),
+    (r"^UniformReducerAdapter<\[\.\.\.\]>::ReduceInputGraphOperation<[a-z_A-Z0-9]+, UniformReducerAdapter<", 1, False),
+    (r"^UniformReducerAdapter<\[\.\.\.\]>::ReduceOperation<\(Opcode\)\d+, UniformReducerAdapter<", 1, False),
+    (r"^UniformReducerAdapter<", 1, True),
+    (r"^OutputGraphAssembler<", 1, False),
+    (r"^[a-z_A-Z0-9]+Op::Explode<\[\.\.\.\]>\(OutputGraphAssembler<\[\.\.\.\]>::.*, OutputGraphAssembler<", 1, True),
+    (r"^[a-z_A-Z0-9]+Op::Explode<\[\.\.\.\]>\(OutputGraphAssembler<", 1, True),
+    (r"^[a-z_A-Z0-9]+Op::Explode<", 1, True),
+    (r"^GraphEmitter<", 1, False),
+    (r"^GraphVisitor<", 1, False),
+  ]
+
+  for p in patterns:
+      match = re.match(p[0], text)
+      if match:
+          return match.group(0), p[1], p[2]
+  return None
+
+def skip_template_args(text, prefix, depth):
+    if not text.startswith(prefix):
+        return text
+    if not prefix.endswith("<"):
+        return text
+
+    start_bracket = len(prefix)
+    for i in range(start_bracket, len(text)):
+        if text[i] == '<':
+            depth += 1
+        elif text[i] == '>':
+            depth -= 1
+            if depth == 0:
+                return text[:start_bracket] + "[...]" + text[i:]
+    return text
+
+class TurboshaftFrameDecorator(FrameDecorator):
+    def __init__(self, f_obj):
+        super(TurboshaftFrameDecorator, self).__init__(f_obj)
+
+    def function(self):
+        # Get the original symbol name (e.g., 'my_namespace::MyClass::my_function')
+        name = self.inferior_frame().name()
+        if not name:
+            return None
+
+        # Strip all namespaces (e.g., 'v8::internal::compiler::turboshaft::GraphEmitter' -> 'GraphEmitter')
+        short_name = NAMESPACE_RE.sub('', name)
+
+        # Simplify known Reducer, Visitor, Assembler, etc patterns.
+        last_pattern = None
+        while True:
+            pattern = starts_with_pattern(short_name)
+            if not pattern:
+                break
+            if pattern == last_pattern:
+                break
+            prefix, depth, rerun = pattern
+            short_name = skip_template_args(short_name, prefix, depth)
+            if not rerun:
+                break
+            last_pattern = pattern
+
+        return short_name
+
+class TurboshaftBacktrace():
+    def __init__(self):
+        self.name = "TurboshaftBacktrace"
+        self.enabled = False
+        self.priority = 100
+        gdb.frame_filters[self.name] = self
+
+    def filter(self, frame_iter):
+        # Maps every frame found by GDB to our decorator
+        return map(TurboshaftFrameDecorator, frame_iter)
+
+# Initialize the filter
+TurboshaftBacktrace()
+end
+
 # Code imported from chromium/src/tools/gdb/gdbinit
 python
 
@@ -457,7 +546,7 @@ def newobj_handler(event):
   # https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
   # https://crbug.com/603286#c35
   add_debug_file_directory(compile_dir)
-  
+
   global src_dir
   if not src_dir:
     set_src_dir(compile_dir)
@@ -603,7 +692,7 @@ def GetStaticRoot(ptr):
 def InterpretTaggedPointer(pointer):
   if (pointer & 0x1) == 0:
     return f"Smi: {pointer >> 1}"
-  
+
   static_root = GetStaticRoot(pointer)
   if static_root is not None:
     return f"{static_root}"
@@ -633,7 +722,7 @@ class TaggedPrinter(object):
     pointer = int(self.ptr)
     fmt = f"Tagged<{self.pointee_type}>{{0x{pointer:02x}}}"
     if (label := InterpretTaggedPointer(pointer)) is not None:
-      fmt += f" ({label})"          
+      fmt += f" ({label})"
     return fmt
 
 
@@ -679,7 +768,7 @@ class HandlePrinter(object):
         fmt += f"0x{pointer:02x}"
         if (label := InterpretTaggedPointer(pointer)) is not None:
           fmt += f" ({label})"
-          
+
     return fmt
 
 

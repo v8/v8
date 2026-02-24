@@ -33,6 +33,8 @@
 namespace v8::internal::compiler::turboshaft {
 
 using MaybeVariable = std::optional<Variable>;
+enum class CanHavePhis { kNo, kYes };
+enum class ForCloning { kNo, kYes };
 
 V8_EXPORT_PRIVATE int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {
@@ -533,9 +535,6 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
   }
-
-  enum class CanHavePhis { kNo, kYes };
-  enum class ForCloning { kNo, kYes };
 
   template <CanHavePhis can_have_phis, ForCloning for_cloning,
             bool trace_reduction>
