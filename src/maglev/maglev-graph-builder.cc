@@ -5370,7 +5370,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsSmi()) {
-    RETURN_IF_ABORT(GetAccumulatorSmi());
+    RETURN_IF_ABORT(GetAccumulatorSmi(UseReprHintRecording::kDoNotRecord));
   } else {
     if (field_representation.IsHeapObject()) {
       // Emit a map check for the field type, if needed, otherwise just a
