@@ -297,12 +297,10 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
 }
 #endif
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList /* pinned */, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   UseScratchRegisterScope temps(this);
   Operand offset_op =
       offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
@@ -328,7 +326,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
 
   if (v8_flags.disable_write_barriers) return;
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
