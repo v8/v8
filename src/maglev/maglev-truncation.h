@@ -302,6 +302,12 @@ class TruncationProcessor {
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
+  bool IsUnsafeIntConstant(ValueNode* node, int index) {
+    ValueNode* input = node->input_node(index);
+    return IsConstantNode(input->opcode()) &&
+           !input->GetStaticRange().IsSafeInt();
+  }
+
   bool IsSafeIntInputOrPhi(ValueNode* node, int index) {
     ValueNode* input = node->input_node(index);
     if (input->Is<Phi>()) return true;
@@ -310,7 +316,8 @@ class TruncationProcessor {
   }
 
   void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
-    if (!node->can_truncate_to_int32()) {
+    if (!node->can_truncate_to_int32() || IsUnsafeIntConstant(node, 0) ||
+        IsUnsafeIntConstant(node, 1)) {
       // Don't truncate this node.
       node->OverwriteWith<Float64Add>();
       return;
