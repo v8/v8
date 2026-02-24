@@ -3009,6 +3009,51 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Uxtw(result.W(), result.W());
 }
 
+void MacroAssembler::Float64Mod(VRegister out, VRegister left,
+                                VRegister right) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(left, d0);
+  DCHECK_EQ(right, d1);
+  DCHECK_EQ(out, d0);
+
+  Label slow, done_mod;
+  {
+    UseScratchRegisterScope temps(this);
+    VRegister d_temp = temps.AcquireD();
+    Register x_scratch = temps.AcquireX();
+
+    // Check if left is a positive integer.
+    Fcvtzu(x_scratch, left);
+    Scvtf(d_temp, x_scratch);
+    Fcmp(left, d_temp);
+    B(ne, &slow);
+    Fcmp(left, 0.0);
+    B(le, &slow);
+
+    // Check if right is a positive integer.
+    Fcvtzu(x_scratch, right);
+    Scvtf(d_temp, x_scratch);
+    Fcmp(right, d_temp);
+    B(ne, &slow);
+    Fcmp(right, 0.0);
+    B(le, &slow);
+
+    // Both are positive integers.
+    Fdiv(d_temp, left, right);
+    Frintz(d_temp, d_temp);
+    Fmsub(out, d_temp, right, left);
+    B(&done_mod);
+  }
+
+  Bind(&slow);
+  {
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
+    CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  }
+
+  Bind(&done_mod);
+}
+
 void MacroAssembler::Prologue() {
   ASM_CODE_COMMENT(this);
   Push<MacroAssembler::kSignLR>(lr, fp);

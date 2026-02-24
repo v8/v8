@@ -1188,6 +1188,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                          DoubleRegister double_input, StubCallMode stub_mode,
                          LinkRegisterStatus lr_status);
 
+  void Float64Mod(VRegister out, VRegister left, VRegister right);
+
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
 
   inline void Fcvtzs(const Register& rd, const VRegister& fn);

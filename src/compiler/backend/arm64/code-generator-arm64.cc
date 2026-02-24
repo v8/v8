@@ -2227,13 +2227,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputDoubleRegister(1));
       break;
     case kArm64Float64Mod: {
-      // TODO(turbofan): implement directly.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      DCHECK_EQ(d0, i.InputDoubleRegister(0));
-      DCHECK_EQ(d1, i.InputDoubleRegister(1));
-      DCHECK_EQ(d0, i.OutputDoubleRegister());
-      // TODO(turbofan): make sure this saves all relevant registers.
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+      // TODO(marja): We can generate better code for constant inputs and for
+      // inputs which are guaranteed to be integers.
+      __ Float64Mod(d0, d0, d1);
       break;
     }
     case kArm64Float32Max: {
