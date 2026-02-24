@@ -20903,8 +20903,6 @@ class MockPlatform final : public TestPlatform {
 }  // namespace
 
 TEST_WITH_PLATFORM(RunMicrotasksIgnoresThrownExceptionsFromApi, MockPlatform) {
-  // Avoid hitting a CHECK failure upon exception thrown from C++ microtask.
-  i::v8_flags.ignore_exceptions_in_cpp_microtasks = true;
   LocalContext env;
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);

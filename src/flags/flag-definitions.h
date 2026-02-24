@@ -857,11 +857,6 @@ DEFINE_BOOL(
     enable_enumerated_keyed_access_bytecode, true,
     "enable generating GetEnumeratedKeyedProperty bytecode for keyed access")
 
-DEFINE_BOOL(
-    ignore_exceptions_in_cpp_microtasks, false,
-    "Ignore exceptions thrown from C++ microtask callbacks and just report "
-    "a soft crash instead")
-
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")

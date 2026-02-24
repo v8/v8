@@ -96,6 +96,17 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
     if (isolate->is_execution_terminating()) {
       return ReadOnlyRoots(isolate).exception();
     }
+    if (isolate->exception() ==
+        ReadOnlyRoots(isolate).illegal_access_string()) {
+      // This might be thrown by Isolate::ThrowIllegalOperation() when V8
+      // tries to execute JS code while it's not allowed and embedder asked
+      // to throw an exception in such a case. See
+      // v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE.
+      // Suppress this exception for C++ microtask while recording a dump
+      // at the caller of ThrowIllegalOperation().
+      isolate->clear_exception();
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
     // C++ callbacks must catch exceptions thrown during execution, otherwise
     // it's not possible to figure out the context in which the uncaught
     // exception should be reported.
@@ -103,9 +114,6 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
     isolate->PushParamsAndContinue(
         reinterpret_cast<void*>(callback), data,
         reinterpret_cast<void*>(isolate->exception().ptr()));
-    // The above call should record all required information for debugging
-    // but if it didn't for some reason do crash here.
-    CHECK(v8_flags.ignore_exceptions_in_cpp_microtasks);
     isolate->clear_exception();
   }
   return ReadOnlyRoots(isolate).undefined_value();
