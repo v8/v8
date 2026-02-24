@@ -554,8 +554,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
       }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<Int32ToNumber>({value}));
+      return alternative.set_tagged(AddNewNodeNoInputConversion<Int32ToNumber>(
+          {value}, NumberConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kUint32: {
       if (NodeTypeIsSmi(node_info->type())) {

@@ -239,6 +239,9 @@ class MaglevPhiRepresentationSelector {
   ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
                                    Phi* phi, int input_index,
                                    const ProcessingState* state);
+  ProcessResult UpdateNodePhiInput(StoreTaggedFieldWithWriteBarrier* node,
+                                   Phi* phi, int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node,
                                    Phi* phi, int input_index,
                                    const ProcessingState* state);

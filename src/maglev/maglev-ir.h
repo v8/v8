@@ -4124,7 +4124,6 @@ DEFINE_CHECKED_CONV(CheckedSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
 DEFINE_CHECKED_CONV(CheckedUint32ToInt32, Uint32, Int32, Number)
 
 // TODO(victorgomes): Shouldn't these actually be prefixed by Change?
-DEFINE_TO_NUMBER(Int32ToNumber, Int32)
 DEFINE_TO_NUMBER(IntPtrToNumber, IntPtr)
 DEFINE_TO_NUMBER(Uint32ToNumber, Uint32)
 
@@ -4132,6 +4131,7 @@ DEFINE_TO_NUMBER(Uint32ToNumber, Uint32)
 // Float64ToNumber?
 DEFINE_TO_TAGGED(Float64ToTagged, Float64, Number)
 DEFINE_TO_TAGGED(HoleyFloat64ToTagged, HoleyFloat64, NumberOrOddball)
+DEFINE_TO_TAGGED(Int32ToNumber, Int32, Number)
 
 // CheckedSmiSizedInt32 is a check disguised as a conversion node so we can use
 // it to override untagging conversions.
@@ -9580,6 +9580,13 @@ class Phi : public ValueNodeT<Phi> {
   void set_uses_require_31_bit_value() {
     set_bitfield(bitfield() | Requires31BitValueFlag::encode(true));
   }
+  void SetUseRequiresHeapObject();
+  bool uses_require_heap_object() const {
+    return RequiresHeapObjectFlag::decode(bitfield());
+  }
+  void set_uses_require_heap_object() {
+    set_bitfield(bitfield() | RequiresHeapObjectFlag::encode(true));
+  }
 
   // Check if a phi has cleared the loop.
   bool is_unmerged_loop_phi() const;
@@ -9589,7 +9596,8 @@ class Phi : public ValueNodeT<Phi> {
 
   using HasKeyFlag = NextBitField<bool, 1>;
   using Requires31BitValueFlag = HasKeyFlag::Next<bool, 1>;
-  using LoopPhiAfterLoopFlag = Requires31BitValueFlag::Next<bool, 1>;
+  using RequiresHeapObjectFlag = Requires31BitValueFlag::Next<bool, 1>;
+  using LoopPhiAfterLoopFlag = RequiresHeapObjectFlag::Next<bool, 1>;
 
   const interpreter::Register owner_;
 

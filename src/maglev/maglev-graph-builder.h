@@ -612,8 +612,8 @@ class MaglevGraphBuilder {
     return reducer_.TryGetConstant<T>(node, constant_node);
   }
 
-  enum CheckType GetCheckType(NodeType type) {
-    return reducer_.GetCheckType(type);
+  enum CheckType GetCheckType(NodeType type, ValueNode* target) {
+    return reducer_.GetCheckType(type, target);
   }
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);

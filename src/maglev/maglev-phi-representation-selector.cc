@@ -135,6 +135,17 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
 
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
+  if (node->uses_require_31_bit_value() && node->uses_require_heap_object()) {
+    // Some uses expect a Smi from this Phi and other uses expect a HeapObject
+    // (it's likely that those uses are on different control paths). We thus
+    // just skip this untagging. We could still untag and properly retag
+    // correctly on a per-use basis, but we currently don't have fine-enough
+    // knowledge of which uses require which representation exactly.
+    TRACE_UNTAGGING(
+        "  Skipping because uses require both 31-bit and HeapObject");
+    return ProcessPhiResult::kNone;
+  }
+
   // {input_mask} represents the ValueRepresentation that {node} could have,
   // based on the ValueRepresentation of its inputs.
   ValueRepresentationSet input_reprs;
@@ -1261,6 +1272,28 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   return ProcessResult::kContinue;
 }
 
+// StoreTaggedFieldWithWriteBarrier tracks whether its value input can be a Smi
+// or not, in order to elide the smi-check from its write-barrier when its input
+// is definitely not a Smi. However, because we do HeapNumber canonicalization
+// in Float64ToTagged, it's possible that its input is a HeapNumber that got
+// untagged to Float64 and that will become a Smi when we retag.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    StoreTaggedFieldWithWriteBarrier* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
+
+  if (input_index == StoreTaggedFieldWithWriteBarrier::kValueIndex &&
+      phi->value_representation() != ValueRepresentation::kTagged) {
+    // This store could be storing a Smi, since Int32 phis will be tagged to Smi
+    // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
+    // this doesn't lose precision.
+    static constexpr bool kRetaggedPhiCouldBeSmi = true;
+    node->set_can_be_smi(kRetaggedPhiCouldBeSmi);
+  }
+
+  return ProcessResult::kContinue;
+}
+
 // If the input of a StoreFixedArrayElementNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
@@ -1391,7 +1424,10 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // It's important to use kCanonicalizeSmi for Float64ToTagged, as
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
-            block, pos, {phi}, NumberConversionMode::kCanonicalizeSmi);
+            block, pos, {phi},
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kHoleyFloat64:
@@ -1402,7 +1438,10 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-            block, pos, {phi}, NumberConversionMode::kCanonicalizeSmi);
+            block, pos, {phi},
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kInt32:
@@ -1410,19 +1449,16 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         tagged =
             AddNewNodeNoInputConversion<CheckedSmiTagInt32>(block, pos, {phi});
       } else {
-        tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {phi});
-      }
-      break;
-    case ValueRepresentation::kUint32:
-      if (force_smi) {
-        tagged =
-            AddNewNodeNoInputConversion<CheckedSmiTagUint32>(block, pos, {phi});
-      } else {
-        tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
+        tagged = AddNewNodeNoInputConversion<Int32ToNumber>(
+            block, pos, {phi},
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
+    case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
