@@ -146,6 +146,10 @@ in_category(
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
     ),
+)
+
+in_category(
+    "Sandbox",
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -165,6 +169,30 @@ in_category(
         name = "V8 Clusterfuzz Linux64 ASAN fuzzilli sandbox testing - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-fuzzilli-sandbox-testing"}},
+    ),
+    clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 ASAN arm64 fuzzilli sandbox testing - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-arm64-fuzzilli-sandbox-testing"}},
+    ),
+    clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 arm64 fuzzilli sandbox testing - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-fuzzilli-sandbox-testing"}},
+    ),
+    v8_builder(
+        name = "V8 Linux64 - sandbox testing",
+        parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
+        bucket = "ci",
+        properties = {"builder_group": "client.v8.clusterfuzz"},
+        barrier = BARRIER.TREE_CLOSER,
+    ),
+    v8_builder(
+        name = "V8 Linux64 ASAN - sandbox testing",
+        parent_builder = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
+        bucket = "ci",
+        properties = {"builder_group": "client.v8.clusterfuzz"},
+        barrier = BARRIER.NONE,
     ),
 )
 
@@ -189,21 +217,7 @@ in_category(
 )
 
 in_category(
-    "Tests",
-    v8_builder(
-        name = "V8 Linux64 - sandbox testing",
-        parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
-        bucket = "ci",
-        properties = {"builder_group": "client.v8.clusterfuzz"},
-        barrier = BARRIER.TREE_CLOSER,
-    ),
-    v8_builder(
-        name = "V8 Linux64 ASAN - sandbox testing",
-        parent_builder = "V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder",
-        bucket = "ci",
-        properties = {"builder_group": "client.v8.clusterfuzz"},
-        barrier = BARRIER.NONE,
-    ),
+    "NumFuzz",
     v8_builder(
         name = "V8 NumFuzz",
         parent_builder = "V8 Clusterfuzz Linux64 - release builder",

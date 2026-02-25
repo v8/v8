@@ -152,6 +152,20 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_arm64_asan_fuzzilli_sandbox_testing_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"default_targets": ["v8_clusterfuzz"]},
+)
+
+try_builder(
+    name = "v8_linux64_arm64_fuzzilli_sandbox_testing_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"default_targets": ["v8_clusterfuzz"]},
+)
+
+try_builder(
     name = "v8_linux64_arm64_no_wasm_compile_dbg",
     cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
