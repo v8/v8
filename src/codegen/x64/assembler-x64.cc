@@ -840,34 +840,19 @@ void Assembler::arithmetic_op(uint8_t opcode, Register reg, Register rm_reg,
                               int size) {
   EnsureSpace ensure_space(this);
   DCHECK_EQ(opcode & 0xC6, 2);
-  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
-    // Swap reg and rm_reg and change opcode operand order.
-    emit_rex(rm_reg, reg, size);
-    emit(opcode ^ 0x02);
-    emit_modrm(rm_reg, reg);
-  } else {
-    emit_rex(reg, rm_reg, size);
-    emit(opcode);
-    emit_modrm(reg, rm_reg);
-  }
+  emit_rex(reg, rm_reg, size);
+  emit(opcode);
+  emit_modrm(reg, rm_reg);
 }
 
 void Assembler::arithmetic_op_16(uint8_t opcode, Register reg,
                                  Register rm_reg) {
   EnsureSpace ensure_space(this);
   DCHECK_EQ(opcode & 0xC6, 2);
-  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
-    // Swap reg and rm_reg and change opcode operand order.
-    emit(0x66);
-    emit_optional_rex_32(rm_reg, reg);
-    emit(opcode ^ 0x02);
-    emit_modrm(rm_reg, reg);
-  } else {
-    emit(0x66);
-    emit_optional_rex_32(reg, rm_reg);
-    emit(opcode);
-    emit_modrm(reg, rm_reg);
-  }
+  emit(0x66);
+  emit_optional_rex_32(reg, rm_reg);
+  emit(opcode);
+  emit_modrm(reg, rm_reg);
 }
 
 void Assembler::arithmetic_op_16(uint8_t opcode, Register reg, Operand rm_reg) {
@@ -892,22 +877,12 @@ void Assembler::arithmetic_op_8(uint8_t opcode, Register reg, Operand op) {
 void Assembler::arithmetic_op_8(uint8_t opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
   DCHECK_EQ(opcode & 0xC6, 2);
-  if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
-    // Swap reg and rm_reg and change opcode operand order.
-    if (!rm_reg.is_byte_register() || !reg.is_byte_register()) {
-      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
-      emit_rex_32(rm_reg, reg);
-    }
-    emit(opcode ^ 0x02);
-    emit_modrm(rm_reg, reg);
-  } else {
-    if (!reg.is_byte_register() || !rm_reg.is_byte_register()) {
-      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
-      emit_rex_32(reg, rm_reg);
-    }
-    emit(opcode);
-    emit_modrm(reg, rm_reg);
+  if (!reg.is_byte_register() || !rm_reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg, rm_reg);
   }
+  emit(opcode);
+  emit_modrm(reg, rm_reg);
 }
 
 void Assembler::immediate_arithmetic_op(uint8_t subcode, Register dst,
@@ -2012,15 +1987,9 @@ void Assembler::emit_mov(Register dst, Operand src, int size) {
 
 void Assembler::emit_mov(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) {
-    emit_rex(src, dst, size);
-    emit(0x89);
-    emit_modrm(src, dst);
-  } else {
-    emit_rex(dst, src, size);
-    emit(0x8B);
-    emit_modrm(dst, src);
-  }
+  emit_rex(dst, src, size);
+  emit(0x8B);
+  emit_modrm(dst, src);
 
 #if defined(V8_OS_WIN_X64)
   if (xdata_encoder_ && dst == rbp && src == rsp) {
@@ -2585,14 +2554,10 @@ void Assembler::emit_xchg(Register dst, Register src, int size) {
     Register other = src == rax ? dst : src;
     emit_rex(other, size);
     emit(0x90 | other.low_bits());
-  } else if (dst.low_bits() == 4) {
+  } else {
     emit_rex(dst, src, size);
     emit(0x87);
     emit_modrm(dst, src);
-  } else {
-    emit_rex(src, dst, size);
-    emit(0x87);
-    emit_modrm(src, dst);
   }
 }
 
@@ -2658,7 +2623,6 @@ void Assembler::testw(Operand op, Register reg) {
 
 void Assembler::emit_test(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) std::swap(dst, src);
   if (size == sizeof(int16_t)) {
     emit(0x66);
     size = sizeof(int32_t);
@@ -3152,20 +3116,11 @@ void Assembler::movq(XMMRegister dst, XMMRegister src) {
   // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  if (dst.low_bits() == 4) {
-    // Avoid unnecessary SIB byte.
-    emit(0xF3);
-    emit_optional_rex_32(dst, src);
-    emit(0x0F);
-    emit(0x7E);
-    emit_sse_operand(dst, src);
-  } else {
-    emit(0x66);
-    emit_optional_rex_32(src, dst);
-    emit(0x0F);
-    emit(0xD6);
-    emit_sse_operand(src, dst);
-  }
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x7E);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::movdqa(Operand dst, XMMRegister src) {
@@ -3341,18 +3296,10 @@ void Assembler::movsd(XMMRegister dst, Operand src) {
 void Assembler::movaps(XMMRegister dst, XMMRegister src) {
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) {
-    // Try to avoid an unnecessary SIB byte.
-    emit_optional_rex_32(src, dst);
-    emit(0x0F);
-    emit(0x29);
-    emit_sse_operand(src, dst);
-  } else {
-    emit_optional_rex_32(dst, src);
-    emit(0x0F);
-    emit(0x28);
-    emit_sse_operand(dst, src);
-  }
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x28);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::movaps(XMMRegister dst, Operand src) {
@@ -3388,20 +3335,11 @@ void Assembler::shufpd(XMMRegister dst, XMMRegister src, uint8_t imm8) {
 void Assembler::movapd(XMMRegister dst, XMMRegister src) {
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) {
-    // Try to avoid an unnecessary SIB byte.
-    emit(0x66);
-    emit_optional_rex_32(src, dst);
-    emit(0x0F);
-    emit(0x29);
-    emit_sse_operand(src, dst);
-  } else {
-    emit(0x66);
-    emit_optional_rex_32(dst, src);
-    emit(0x0F);
-    emit(0x28);
-    emit_sse_operand(dst, src);
-  }
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x28);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::movupd(XMMRegister dst, Operand src) {
@@ -4579,18 +4517,10 @@ void Assembler::pause() {
 
 void Assembler::movups(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
-  if (src.low_bits() == 4) {
-    // Try to avoid an unnecessary SIB byte.
-    emit_optional_rex_32(src, dst);
-    emit(0x0F);
-    emit(0x11);
-    emit_sse_operand(src, dst);
-  } else {
-    emit_optional_rex_32(dst, src);
-    emit(0x0F);
-    emit(0x10);
-    emit_sse_operand(dst, src);
-  }
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x10);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::movups(XMMRegister dst, Operand src) {
