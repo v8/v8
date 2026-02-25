@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --no-maglev --allow-natives-syntax
-// Flags: --maglev-truncated-int32-phis --turbofan --turbolev
+// Flags: --turbolev-truncated-int32-phis --turbofan --turbolev
 
 // In this example, during feedback collection, we provide inputs that cause
 // `phi` to always be a Smi, which means that `phi | 0` will have Smi

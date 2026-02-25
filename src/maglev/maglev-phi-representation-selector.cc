@@ -67,7 +67,9 @@ MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
     : graph_(graph),
       reducer_(this, graph),
       phi_taggings_(zone()),
-      predecessors_(zone()) {}
+      predecessors_(zone()),
+      enable_truncated_int32_phis_(
+          graph->compilation_info()->flags().enable_truncated_int32_phis) {}
 
 BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -413,7 +415,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
-  } else if (v8_flags.maglev_truncated_int32_phis && is_turbolev() &&
+  } else if (enable_truncated_int32_phis_ &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,

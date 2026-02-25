@@ -308,8 +308,6 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
-  bool is_turbolev() const { return graph_->compilation_info()->is_turbolev(); }
-
   Graph* graph_;
 
   MaglevReducer<MaglevPhiRepresentationSelector> reducer_;
@@ -322,6 +320,8 @@ class MaglevPhiRepresentationSelector {
   ZoneVector<Snapshot> predecessors_;
 
   absl::flat_hash_map<BasicBlock::Id, Snapshot> snapshots_;
+
+  bool enable_truncated_int32_phis_;
 
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
