@@ -3659,11 +3659,11 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
     IncludeGuardScope builtin_definitions_include_guard(
         builtin_definitions, builtin_definitions_file_name);
 
-    builtin_definitions
-        << "\n"
-           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, "
-           "ASM) "
-           "\\\n";
+    builtin_definitions << "\n"
+                           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, "
+                           "TFJ, TFC_TSA, TFC, TFS, TFH, "
+                           "ASM) "
+                           "\\\n";
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
@@ -3731,7 +3731,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           interface_descriptors << "};\n\n";
         }
       } else {
-        builtin_definitions << "TFJ(" << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        if (builtin->SupportsTSA()) {
+          builtin_definitions << "TFJ_TSA(" << builtin->ExternalName();
+        } else {
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+          builtin_definitions << "TFJ(" << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
         if (builtin->IsVarArgsJavaScript()) {
           builtin_definitions << ", kDontAdaptArgumentsSentinel";
         } else {

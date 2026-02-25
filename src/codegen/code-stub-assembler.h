@@ -60,8 +60,6 @@ class CodeStubAssembler;
 class StatsCounter;
 class StubCache;
 
-enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
-
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"

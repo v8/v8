@@ -2309,7 +2309,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, \
                      ASM)                                                     \
   BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)             \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                            \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                             \
   BUILTIN_LIST_DUMPLING(ASM)                                                  \
@@ -2323,7 +2323,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, BCH_TSA, BCH, \
                            ASM)                                            \
   BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                         \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                          \
   BUILTIN_LIST_DUMPLING(ASM)                                               \

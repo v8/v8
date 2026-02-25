@@ -253,7 +253,13 @@ struct WordWithBits : public Any {
 
 using Word32 = WordWithBits<32>;
 using Word64 = WordWithBits<64>;
-using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
+#ifdef V8_TARGET_ARCH_64_BIT
+static_assert(Is64());
+using WordPtr = Word64;
+#else
+static_assert(!Is64());
+using WordPtr = Word32;
+#endif
 
 template <size_t Bits>
 struct FloatWithBits : public Any {  // FloatAny {

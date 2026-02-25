@@ -3021,6 +3021,8 @@ enum class CallJumpMode { kCall, kTailCall };
 
 constexpr uint32_t kPreallocatedNumberStringTableSize = 100;
 
+enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
+
 enum class SilenceNanMode {
   kSilenceUndefined,
   kPreserveUndefined,

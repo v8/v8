@@ -173,8 +173,6 @@ class StringBuiltinsReducer : public Next {
       }
     }
 
-    __ Unreachable();
-
     BIND(done, return_value);
     return return_value;
   }
@@ -480,8 +478,6 @@ class StringBuiltinsReducer : public Next {
       }
     }
 
-    __ Unreachable();
-
     BIND(done, return_value);
     return return_value;
   }
@@ -662,8 +658,6 @@ class StringBuiltinsReducer : public Next {
         GOTO(*if_fail);
       }
     }
-
-    __ Unreachable();
 
     BIND(done, result);
     return result;

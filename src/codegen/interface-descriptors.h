@@ -17,9 +17,9 @@
 namespace v8 {
 namespace internal {
 
-#define TORQUE_BUILTIN_LIST_TFC(V)                               \
-  BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, V, \
-                           IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define TORQUE_BUILTIN_LIST_TFC(V)                                            \
+  BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+                           V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define INTERFACE_DESCRIPTOR_LIST(V)                            \
   V(Abort)                                                      \

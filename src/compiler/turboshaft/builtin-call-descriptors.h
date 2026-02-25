@@ -381,6 +381,19 @@ struct builtin : CallDescriptorBuilder {
   DECLARE_NUMBER_TO_STRING(Number, Number)
 #undef DECLARE_NUMBER_TO_STRING
 
+  struct ToInteger : public Descriptor<ToInteger> {
+    static constexpr auto kFunction = Builtin::kToInteger;
+    struct Arguments : ArgumentsBase {
+      ARG(V<JSAny>, input)
+    };
+    using returns_t = std::tuple<V<Number>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
   struct ToString : public Descriptor<ToString> {
     static constexpr auto kFunction = Builtin::kToString;
     struct Arguments : ArgumentsBase {
