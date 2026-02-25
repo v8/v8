@@ -86,13 +86,27 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  // Insert a range of strings. Only for use during isolate deserialization.
-  void InsertForIsolateDeserialization(
-      Isolate* isolate,
-      const base::Vector<DirectHandle<InternalizedString>>& strings);
+  // Insert a single string during read-only deserialization.
+  // The string must be an InternalizedString from the read-only heap.
+  void InsertForReadOnlyDeserialization(Isolate* isolate,
+                                        Tagged<InternalizedString> string);
 
   // Insert the single empty string. Only for use during heap bootstrapping.
   void InsertEmptyStringForBootstrapping(Isolate* isolate);
+
+  // For snapshot serialization: get the raw hash table data.
+  // Returns capacity, number_of_elements, and pointer to elements array.
+  void GetSerializedData(int* capacity, int* number_of_elements,
+                         const Tagged_t** elements) const;
+
+  // For snapshot deserialization (no-rehash case): initialize from raw data.
+  // The elements array is copied into a newly allocated Data structure.
+  // The blob may contain deleted markers where non-RO strings were zapped;
+  // number_of_deleted_elements tracks these for correct bookkeeping.
+  void InitializeFromSerializedData(Isolate* isolate, int capacity,
+                                    int number_of_elements,
+                                    int number_of_deleted_elements,
+                                    const Tagged_t* elements);
 
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
@@ -110,6 +124,8 @@ class V8_EXPORT_PRIVATE StringTable {
   class OffHeapStringHashSet;
   class Data;
 
+  void Verify(Isolate* isolate);
+  void VerifyConsistentCounts(Isolate* isolate) const;
   Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::atomic<Data*> data_;

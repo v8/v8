@@ -78,6 +78,13 @@ class OffHeapHashTableBase {
   int number_of_elements() const { return number_of_elements_; }
   int number_of_deleted_elements() const { return number_of_deleted_elements_; }
 
+  // For snapshot deserialization: set the element/deleted counts directly
+  // after copying the elements array.
+  void set_number_of_elements(int count) { number_of_elements_ = count; }
+  void set_number_of_deleted_elements(int count) {
+    number_of_deleted_elements_ = count;
+  }
+
   OffHeapObjectSlot slot(InternalIndex index, int offset = 0) const {
     DCHECK_LT(offset, Derived::kEntrySize);
     return OffHeapObjectSlot(

@@ -6,6 +6,8 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk-constants.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/visit-object.h"
 #include "src/objects/free-space-inl.h"
@@ -166,6 +168,16 @@ class ObjectPreProcessor final {
   Isolate* const isolate_;
   ExternalReferenceEncoder extref_encoder_;
 };
+
+// Returns true if the object will need post-processing during deserialization.
+bool NeedsPostProcessing(Isolate* isolate, Tagged<HeapObject> o) {
+  const InstanceType itype = o->map()->instance_type();
+#define V(TYPE) \
+  if (InstanceTypeChecker::Is##TYPE(itype)) return true;
+  RO_POST_PROCESS_TYPE_LIST(V)
+#undef V
+  return false;
+}
 
 struct ReadOnlySegmentForSerialization {
   ReadOnlySegmentForSerialization(Isolate* isolate, const ReadOnlyPage* page,
@@ -393,14 +405,55 @@ class ReadOnlyHeapImageSerializer {
       EmitAllocatePage(page);
     }
 
-    // Now write the page contents.
+#if V8_STATIC_ROOTS_BOOL && V8_ENABLE_SANDBOX
+    // With static roots + sandbox we emit the entire RO space as a single
+    // contiguous image blob at the end of the payload, instead of
+    // per-segment inline data. The blob contains full pages (including
+    // pre-populated MemoryChunk headers), with unmapped bodies (holes,
+    // WasmNull, filler) zeroed. This prepares for future mmap-based
+    // deserialization.
+    // The sandbox is required because without it the MemoryChunk header
+    // contains a raw BasePage* pointer that can't be predicted at
+    // serialization time.
+
+    EmitReadOnlyRootsTable();
+    EmitPostProcessRanges();
+
+    // Build the blob.
+    std::vector<uint8_t> blob = BuildRoSpaceImageBlob(ro_space);
+    uint32_t blob_size = static_cast<uint32_t>(blob.size());
+
+    // The blob goes at the very end of the payload (no Pad() after it).
+    // We store offset-from-end so the deserializer can find it without
+    // knowing the total payload size at bytecode-write time.
+    // Since the blob is last, offset_from_end == blob_size.
+    sink_->Put(Bytecode::kRoSpaceImage, "ro space image");
+    sink_->PutUint32(blob_size, "blob offset from end");
+    sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
+    sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
+
+    // Pad to page alignment within the payload, then write the blob.
+    // The snapshot blob header is padded so that this payload starts at a
+    // page-aligned offset within the blob. When the blob is compiled into
+    // the binary with alignas(kTargetMinimumOSPageSize), the blob will be
+    // at an absolute page-aligned address.
+    size_t aligned_blob_start = RoundUp(
+        sink_->Position(), static_cast<size_t>(kTargetMinimumOSPageSize));
+    sink_->PutN(aligned_blob_start - sink_->Position(), 0,
+                "blob alignment padding");
+    sink_->PutRaw(blob.data(), static_cast<int>(blob_size),
+                  "ro space image blob");
+#else
+    // Legacy path: emit per-segment inline data.
     for (const ReadOnlyPage* page : ro_space->pages()) {
       SerializePage(page);
     }
 
     EmitReadOnlyRootsTable();
+    EmitPostProcessRanges();
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
     sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
+#endif
   }
 
   uint32_t IndexOf(const ReadOnlyPage* page) {
@@ -422,6 +475,49 @@ class ReadOnlyHeapImageSerializer {
       auto page_addr = page->ChunkAddress();
       sink_->PutUint32(V8HeapCompressionScheme::CompressAny(page_addr),
                        "page start offset");
+    }
+  }
+
+  void EmitPostProcessRanges() {
+    // Use 4KB granules to minimize scanning of non-post-process objects.
+    // Objects are attributed to the granule where they start.
+    static constexpr size_t kGranuleSize = 4 * KB;
+
+    ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+    for (const ReadOnlyPage* page : ro_space->pages()) {
+      const size_t page_size = page->HighWaterMark() - page->area_start();
+      const size_t num_granules = (page_size + kGranuleSize - 1) / kGranuleSize;
+
+      // Track first/end for each granule.
+      std::vector<Address> granule_first(num_granules, kNullAddress);
+      std::vector<Address> granule_end(num_granules, kNullAddress);
+
+      ReadOnlyPageObjectIterator it(page, page->area_start());
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        if (NeedsPostProcessing(isolate_, o)) {
+          size_t idx = (o.address() - page->area_start()) / kGranuleSize;
+          DCHECK_LT(idx, num_granules);
+          if (granule_first[idx] == kNullAddress) {
+            granule_first[idx] = o.address();
+          }
+          granule_end[idx] = o.address() + o->Size();
+        }
+      }
+
+      // Emit a range for each granule that has post-process objects.
+      for (size_t i = 0; i < num_granules; i++) {
+        if (granule_first[i] != kNullAddress) {
+          sink_->Put(Bytecode::kPostProcessRange, "post-process range");
+          sink_->PutUint30(IndexOf(page), "page index");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_first[i] - page->area_start()),
+              "first offset");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_end[i] - page->area_start()),
+              "end offset");
+        }
+      }
     }
   }
 
@@ -535,6 +631,120 @@ class ReadOnlyHeapImageSerializer {
     }
   }
 
+#if V8_ENABLE_SANDBOX
+  // Write the MemoryChunk header for a page in the blob and verify it
+  // matches the live page's header.
+  // The layout is: [MainThreadFlags (uintptr_t)] [metadata_index (uint32_t)]
+  // For RO pages with contiguous compressed RO space:
+  //   flags = NO_FLAGS (0)
+  //   metadata_index = kMainCageMetadataOffset + (page_offset >> kPageSizeBits)
+  static void PopulatePageHeader(uint8_t* page_start, size_t page_cage_offset,
+                                 const ReadOnlyPage* page) {
+    static constexpr size_t kFlagsOffset = 0;
+    static constexpr size_t kFlagsSize = sizeof(uintptr_t);
+    static constexpr size_t kMetadataIndexOffset = kFlagsSize;
+
+    // Flags are 0 (NO_FLAGS) for contiguous compressed RO space.
+    // The blob is zero-initialized so flags are already correct.
+    // Verify the live page also has zero flags.
+    MemoryChunk* live_chunk = MemoryChunk::FromAddress(page->ChunkAddress());
+    uintptr_t live_flags;
+    memcpy(&live_flags, reinterpret_cast<uint8_t*>(live_chunk) + kFlagsOffset,
+           kFlagsSize);
+    DCHECK_EQ(0u, live_flags);
+
+    // metadata_index immediately follows flags.
+    uint32_t metadata_index =
+        static_cast<uint32_t>(MemoryChunkConstants::kMainCageMetadataOffset +
+                              (page_cage_offset >> kPageSizeBits));
+    memcpy(page_start + kMetadataIndexOffset, &metadata_index,
+           sizeof(metadata_index));
+
+    // Verify our computed metadata_index matches the live page's.
+    uint32_t live_metadata_index;
+    memcpy(&live_metadata_index,
+           reinterpret_cast<uint8_t*>(live_chunk) + kMetadataIndexOffset,
+           sizeof(live_metadata_index));
+    DCHECK_EQ(metadata_index, live_metadata_index);
+  }
+
+  // Build a single contiguous blob containing the full RO space image.
+  // The blob contains complete pages at their natural cage-relative offsets.
+  // Unmapped bodies (holes, WasmNull, filler past high-water-mark) are zeroed
+  // for good gzip compression. Page headers are pre-populated with the correct
+  // flags (0) and metadata index so the mmap path won't need to write them.
+  std::vector<uint8_t> BuildRoSpaceImageBlob(ReadOnlySpace* ro_space) {
+    DCHECK(V8_STATIC_ROOTS_BOOL);
+    const auto& pages = ro_space->pages();
+    DCHECK(!pages.empty());
+
+    // First page is at cage base (offset 0).
+    Address cage_base = pages.front()->ChunkAddress();
+    // Blob covers from the cage base to the last page's high water mark.
+    const ReadOnlyPage* last_page = pages.back();
+    size_t blob_size = (last_page->ChunkAddress() - cage_base) +
+                       (last_page->HighWaterMark() - last_page->ChunkAddress());
+
+    // Allocate zero-initialized blob.
+    std::vector<uint8_t> blob(blob_size, 0);
+
+    size_t header_size =
+        MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
+
+    // Pass 1: Populate headers and copy area content into the blob, skipping
+    // unmapped bodies (hole/WasmNull payloads) which may have been
+    // decommitted at runtime. The blob has zeros there from initialization.
+    for (const ReadOnlyPage* page : pages) {
+      size_t page_offset = page->ChunkAddress() - cage_base;
+      PopulatePageHeader(blob.data() + page_offset, page_offset, page);
+
+      uint8_t* page_area_in_blob = blob.data() + page_offset + header_size;
+      Address area_start = page->area_start();
+      Address segment_start = area_start;
+
+      ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::kNo);
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        std::optional<UnmappedBody> unmapped = GetUnmappedBody(o);
+        if (unmapped && unmapped->size > 0) {
+          if (segment_start < unmapped->start) {
+            MemCopy(page_area_in_blob + (segment_start - area_start),
+                    reinterpret_cast<void*>(segment_start),
+                    unmapped->start - segment_start);
+          }
+          segment_start = unmapped->start + unmapped->size;
+        }
+      }
+      Address high_water_mark = page->HighWaterMark();
+      if (segment_start < high_water_mark) {
+        MemCopy(page_area_in_blob + (segment_start - area_start),
+                reinterpret_cast<void*>(segment_start),
+                high_water_mark - segment_start);
+      }
+    }
+
+    // Pass 2: Pre-process all objects in the blob copy (encode external
+    // pointers etc.).
+    for (const ReadOnlyPage* page : pages) {
+      size_t page_offset = page->ChunkAddress() - cage_base;
+      uint8_t* page_area_in_blob = blob.data() + page_offset + header_size;
+      Address area_start = page->area_start();
+
+      ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::kNo);
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        size_t o_offset = o.ptr() - area_start;
+        Address o_in_blob =
+            reinterpret_cast<Address>(page_area_in_blob) + o_offset;
+        pre_processor_.PreProcessIfNeeded(
+            Cast<HeapObject>(Tagged<Object>(o_in_blob)));
+      }
+    }
+
+    return blob;
+  }
+#endif  // V8_COMPRESS_POINTERS
+
   void EmitReadOnlyRootsTable() {
     sink_->Put(Bytecode::kReadOnlyRootsTable, "read only roots table");
     if (!V8_STATIC_ROOTS_BOOL) {
@@ -574,7 +784,13 @@ void ReadOnlySerializer::Serialize() {
       CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);
     }
   }
+
+  // In the blob path the blob is the last thing in the payload and provides
+  // sufficient read-ahead bytes for GetUint30. In the legacy path we need
+  // explicit Pad() nops.
+#if !(V8_STATIC_ROOTS_BOOL && V8_ENABLE_SANDBOX)
   Pad();
+#endif
 }
 
 }  // namespace internal

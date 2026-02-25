@@ -121,9 +121,17 @@ class SnapshotImpl : public AllStatic {
   }
 
   // The read-only snapshot is placed first, right after the header.
+  // Padded so that the RO snapshot payload (after the SnapshotData header)
+  // starts at a page-aligned offset within the blob. Combined with
+  // alignas(kTargetMinimumOSPageSize) on the compiled-in blob_data[] array,
+  // this ensures the RO space image is at an absolute page-aligned address.
   static uint32_t ReadOnlySnapshotOffset(int num_contexts) {
-    return POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
-                              num_contexts * kInt32Size);
+    uint32_t min_offset = POINTER_SIZE_ALIGN(kFirstContextOffsetOffset +
+                                             num_contexts * kInt32Size);
+    // Round up so that min_offset + SnapshotData::kHeaderSize is page-aligned.
+    return static_cast<uint32_t>(RoundUp(min_offset + SnapshotData::kHeaderSize,
+                                         kTargetMinimumOSPageSize) -
+                                 SnapshotData::kHeaderSize);
   }
 
   static uint32_t ContextSnapshotOffsetOffset(int index) {

@@ -3974,11 +3974,16 @@ class StringTableVerifier : public RootVisitor {
   Isolate* isolate_;
 };
 
+void StringTable::Verify(Isolate* isolate) {
+  StringTableVerifier verifier(isolate);
+  IterateElements(&verifier);
+  VerifyConsistentCounts(isolate);
+}
+
 void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
   CHECK_EQ(isolate->string_table(), this);
   if (!isolate->OwnsStringTables()) return;
-  StringTableVerifier verifier(isolate);
-  IterateElements(&verifier);
+  Verify(isolate);
 }
 
 #endif  // VERIFY_HEAP

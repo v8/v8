@@ -83,6 +83,14 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
     return base::Vector<const uint8_t>(data_, size_);
   }
 
+  // The data header consists of uint32_t-sized entries:
+  // [0] magic number and (internal) external reference count
+  // [1] payload length
+  // ... serialized payload
+  static const uint32_t kPayloadLengthOffset =
+      SerializedData::kMagicNumberOffset + kUInt32Size;
+  static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
+
  protected:
   // Empty constructor used by SnapshotCompression so it can manually allocate
   // memory.
@@ -93,12 +101,6 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   // SnapshotData.
   void Resize(uint32_t size) { size_ = size; }
 
-  // The data header consists of uint32_t-sized entries:
-  // [0] magic number and (internal) external reference count
-  // [1] payload length
-  // ... serialized payload
-  static const uint32_t kPayloadLengthOffset = kMagicNumberOffset + kUInt32Size;
-  static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
 };
 
 }  // namespace internal

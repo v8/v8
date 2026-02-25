@@ -288,6 +288,8 @@ class RootVisitor;
   V(HashSeedWrapper, hash_seed, HashSeed)                                      \
   V(FixedArray, preallocated_number_string_table,                              \
     PreallocatedNumberStringTable)                                             \
+  /* Table of 256x256 two-character one-byte strings. Index = c1*256 + c2. */  \
+  V(FixedArray, two_char_string_table, TwoCharOneByteStringTable)              \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
 // TODO(saelo): ideally, these would be read-only roots (and then become part
@@ -590,7 +592,8 @@ enum class RootIndex : uint16_t {
   kLastSmiRoot = kLastRoot,
 
   kFirstBuiltinWithSfiRoot = kProxyRevokeSharedFun,
-  kLastBuiltinWithSfiRoot = kFirstBuiltinWithSfiRoot + BUILTINS_WITH_SFI_ROOTS_LIST(COUNT_ROOT) - 1,
+  kLastBuiltinWithSfiRoot =
+      kFirstBuiltinWithSfiRoot + BUILTINS_WITH_SFI_ROOTS_LIST(COUNT_ROOT) - 1,
 #undef COUNT_ROOT
 };
 // clang-format on

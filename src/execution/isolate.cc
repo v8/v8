@@ -6312,6 +6312,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_ENABLE_SANDBOX
   }
 
+  // Create the string table early so it can be populated during read-only
+  // deserialization when we iterate the RO heap.
+  if (OwnsStringTables()) {
+    string_table_ = std::make_unique<StringTable>(this);
+    string_forwarding_table_ = std::make_unique<StringForwardingTable>(this);
+  }
+
   {
     // LocalHeap initialization requires the TLS variable to be set already.
     // However, we can't move SetIsolateThreadLocals here because the marking
@@ -6327,10 +6334,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   DCHECK_EQ(current_data->isolate(), this);
   SetIsolateThreadLocals(this, current_data);
 
-  if (OwnsStringTables()) {
-    string_table_ = std::make_unique<StringTable>(this);
-    string_forwarding_table_ = std::make_unique<StringForwardingTable>(this);
-  } else {
+  if (!OwnsStringTables()) {
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK(has_shared_space());
     DCHECK(!is_shared_space_isolate());

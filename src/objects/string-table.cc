@@ -759,30 +759,23 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
       isolate, string, source, start);
 }
 
-void StringTable::InsertForIsolateDeserialization(
-    Isolate* isolate,
-    const base::Vector<DirectHandle<InternalizedString>>& strings) {
-  DCHECK_EQ(NumberOfElements(), 0);
+void StringTable::InsertForReadOnlyDeserialization(
+    Isolate* isolate, Tagged<InternalizedString> string) {
+  base::MutexGuard table_write_guard(&write_mutex_);
 
-  const int length = static_cast<int>(strings.size());
-  {
-    base::MutexGuard table_write_guard(&write_mutex_);
+  Data* const data = EnsureCapacity(isolate, 1);
 
-    Data* const data = EnsureCapacity(isolate, length);
-
-    for (const DirectHandle<InternalizedString>& s : strings) {
-      StringTableInsertionKey key(
-          isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
-      InternalIndex entry =
-          data->table().FindEntryOrInsertionEntry(isolate, &key, key.hash());
-
-      DirectHandle<String> inserted_string = key.GetHandleForInsertion(isolate);
-      DCHECK_IMPLIES(v8_flags.shared_string_table, inserted_string->IsShared());
-      data->table().AddAt(isolate, entry, *inserted_string);
-    }
+  uint32_t hash = string->EnsureHash();
+  InternalIndex entry = data->table().FindInsertionEntry(isolate, hash);
+  // FindInsertionEntry returns the first non-key slot, which may be empty or
+  // deleted. After InitializeFromSerializedData, non-RO string positions are
+  // replaced with deleted_element(), so we may land on a deleted slot.
+  if (data->table().GetKey(isolate, entry) ==
+      OffHeapStringHashSet::deleted_element()) {
+    data->table().OverwriteDeletedAt(isolate, entry, string);
+  } else {
+    data->table().AddAt(isolate, entry, string);
   }
-
-  DCHECK_EQ(NumberOfElements(), length);
 }
 
 void StringTable::InsertEmptyStringForBootstrapping(Isolate* isolate) {
@@ -843,6 +836,68 @@ void StringTable::NotifyElementsRemoved(int count) {
   DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
   data_.load(std::memory_order_relaxed)->table().ElementsRemoved(count);
 }
+
+void StringTable::GetSerializedData(int* capacity, int* number_of_elements,
+                                    const Tagged_t** elements) const {
+  Data* data = data_.load(std::memory_order_acquire);
+  const OffHeapStringHashSet& table = data->table();
+  *capacity = table.capacity();
+  *number_of_elements = table.number_of_elements();
+  // The elements_ array is at the end of the OffHeapStringHashSet structure.
+  // slot(0).address() gives us the address of the first element.
+  *elements =
+      reinterpret_cast<const Tagged_t*>(table.slot(InternalIndex(0)).address());
+}
+
+void StringTable::InitializeFromSerializedData(Isolate* isolate, int capacity,
+                                               int number_of_elements,
+                                               int number_of_deleted_elements,
+                                               const Tagged_t* elements) {
+  DCHECK_EQ(NumberOfElements(), 0);
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+
+    // Allocate a new Data with the given capacity.
+    std::unique_ptr<Data> new_data = Data::New(capacity);
+    OffHeapStringHashSet& table = new_data->table();
+
+    // Copy the elements array directly.
+    Tagged_t* dest =
+        reinterpret_cast<Tagged_t*>(table.slot(InternalIndex(0)).address());
+    memcpy(dest, elements, capacity * sizeof(Tagged_t));
+
+    // Set the element counts. The blob contains deleted markers where non-RO
+    // strings were zapped by the serializer; those will be overwritten as the
+    // non-RO strings are reinserted.
+    table.set_number_of_elements(number_of_elements);
+    table.set_number_of_deleted_elements(number_of_deleted_elements);
+
+    // Replace the current data with the new one.
+    delete data_.load(std::memory_order_relaxed);
+    data_.store(new_data.release(), std::memory_order_release);
+  }
+  DCHECK_EQ(NumberOfElements(), number_of_elements);
+}
+
+#ifdef VERIFY_HEAP
+void StringTable::VerifyConsistentCounts(Isolate* isolate) const {
+  Data* data = data_.load(std::memory_order_acquire);
+  const OffHeapStringHashSet& table = data->table();
+  int counted_elements = 0;
+  int counted_deleted = 0;
+  for (int i = 0; i < table.capacity(); i++) {
+    Tagged<Object> key = table.GetKey(isolate, InternalIndex(i));
+    if (key == OffHeapStringHashSet::empty_element()) continue;
+    if (key == OffHeapStringHashSet::deleted_element()) {
+      counted_deleted++;
+    } else {
+      counted_elements++;
+    }
+  }
+  CHECK_EQ(counted_elements, table.number_of_elements());
+  CHECK_EQ(counted_deleted, table.number_of_deleted_elements());
+}
+#endif  // VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace v8

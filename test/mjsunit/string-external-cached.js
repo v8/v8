@@ -88,11 +88,13 @@ function test() {
   }
 
   // Test adding external strings
+  // Note: Two-character one-byte strings with chars 0-127 are now in read-only
+  // space, so we use 3+ character base strings here.
   var long_ascii = createExternalizableString('MCsquared');
   var long_twobyte = createExternalizableString('MCsquare\u1234');
-  var min_short_ascii = 'E='.padEnd(kExternalStringMinOneByteLength, '.');
+  var min_short_ascii = 'E=='.padEnd(kExternalStringMinOneByteLength, '.');
   var min_short_twobyte =
-      'E=\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234');
+      'E==\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234');
   var short_ascii = createExternalizableString(min_short_ascii);
   var short_twobyte = createExternalizableString(min_short_twobyte);
   try {  // String can only be externalized once
@@ -109,7 +111,7 @@ function test() {
   assertEquals(
       min_short_twobyte + 'MCsquare\u1234', short_twobyte + long_twobyte);
   assertFalse(isOneByteString(short_twobyte + long_twobyte));
-  assertEquals("E=MCsquared", "E=" + long_ascii);
+  assertEquals("E==MCsquared", "E==" + long_ascii);
   assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + 'MCsquared');
   assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + long_ascii);
   assertFalse(isOneByteString(short_twobyte + long_ascii));

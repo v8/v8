@@ -545,6 +545,35 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                           kStringEncodingMask),
            &two_byte);
     // One-byte sequential string case
+    {
+      // Check for two single-character strings with chars < 128.
+      // These are preallocated in read-only space.
+      Label allocate_one_byte(this);
+      GotoIfNot(Word32Equal(new_length, Uint32Constant(2)), &allocate_one_byte);
+
+      // Both strings are length 1, load the characters.
+      TNode<Uint8T> c1 =
+          Load<Uint8T>(var_left.value(),
+                       IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                      kHeapObjectTag));
+      TNode<Uint8T> c2 =
+          Load<Uint8T>(var_right.value(),
+                       IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                      kHeapObjectTag));
+
+      // Check both chars are in the preallocated table range.
+      TNode<Uint32T> c1_uint32 = ReinterpretCast<Uint32T>(c1);
+      TNode<Uint32T> c2_uint32 = ReinterpretCast<Uint32T>(c2);
+      TNode<Uint32T> limit = Uint32Constant(String::kTwoCharStringTableLimit);
+      GotoIf(Uint32GreaterThanOrEqual(c1_uint32, limit), &allocate_one_byte);
+      GotoIf(Uint32GreaterThanOrEqual(c2_uint32, limit), &allocate_one_byte);
+
+      // Look up in preallocated table.
+      result = LookupTwoCharOneByteString(c1, c2);
+      Goto(&done);
+
+      BIND(&allocate_one_byte);
+    }
     result = AllocateNonEmptySeqOneByteString(new_length);
     CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
@@ -1731,7 +1760,6 @@ TF_BUILTIN(StringSubstring, StringBuiltinsAssembler) {
 
   Return(SubString(string, from, to));
 }
-
 
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.

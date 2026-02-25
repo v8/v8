@@ -104,4 +104,22 @@ constexpr int kMinimumOSPageSize = 64 * 1024;
 constexpr int kMinimumOSPageSize = 4 * 1024;
 #endif
 
+// The minimal supported page size of the target OS. Same as kMinimumOSPageSize
+// for native builds. For cross-compilation (e.g. mksnapshot for a different
+// target), this uses the target's page size instead of the host's.
+// Used for aligning the snapshot blob so that the RO space image within it
+// is page-aligned on the target.
+#if (defined(V8_TARGET_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)) ||    \
+    (defined(V8_TARGET_OS_ANDROID) &&                                    \
+     (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_X64))) ||  \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_OS_IOS)
+constexpr int kTargetMinimumOSPageSize = 16 * 1024;
+#elif defined(V8_TARGET_OS_LINUX) && !defined(V8_TARGET_OS_ANDROID) && \
+    (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64))
+constexpr int kTargetMinimumOSPageSize = 64 * 1024;
+#else
+constexpr int kTargetMinimumOSPageSize = 4 * 1024;
+#endif
+
 #endif  // V8_BASE_BUILD_CONFIG_H_
