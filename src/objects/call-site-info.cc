@@ -368,8 +368,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     if (details.IsDontEnum()) continue;
     Tagged<Object> value;
     if (details.location() == PropertyLocation::kField) {
-      auto field_index = FieldIndex::ForPropertyIndex(
-          map, details.field_index(), details.representation());
+      auto field_index = FieldIndex::ForDetails(map, details);
       if (field_index.is_double()) continue;
       value = receiver->RawFastPropertyAt(isolate, field_index);
     } else {

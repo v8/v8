@@ -864,10 +864,12 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
     LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
     // LoadField.
     if (handler_kind == LoadHandler::Kind::kField) {
-      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      int storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
       bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+      return GetLoadICHandlerForStorageOffset(storage_offset, is_inobject,
+                                              is_double);
     }
   } else {
     Tagged<HeapObject> heap_object;

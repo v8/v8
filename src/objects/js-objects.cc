@@ -50,6 +50,7 @@
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
+#include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -379,8 +380,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         if (details.kind() == PropertyKind::kData) {
           CHECK_EQ(details.location(), PropertyLocation::kField);
           Representation representation = details.representation();
-          FieldIndex index = FieldIndex::ForPropertyIndex(
-              *map, details.field_index(), representation);
+          FieldIndex index = FieldIndex::ForDetails(*map, details);
           prop_value =
               JSObject::FastPropertyAt(isolate, from, representation, index);
         } else {
@@ -2289,8 +2289,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
               direct_handle(descriptors->GetStrongValue(index), isolate);
         } else {
           Representation representation = details.representation();
-          FieldIndex field_index = FieldIndex::ForPropertyIndex(
-              *map, details.field_index(), representation);
+          FieldIndex field_index = FieldIndex::ForDetails(*map, details);
           prop_value = JSObject::FastPropertyAt(isolate, object, representation,
                                                 field_index);
         }
@@ -3310,11 +3309,14 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
       }
     }
     DCHECK(!(representation.IsDouble() && IsSmi(*value)));
-    int target_index = new_descriptors->GetFieldIndex(i);
-    if (target_index < inobject) {
+    int target_offset = new_descriptors->GetOffsetInWords(i);
+    if (details.is_in_object()) {
+      int target_index =
+          target_offset - new_map->GetInObjectPropertiesStartInWords();
       inobject_props->set(target_index, *value);
     } else {
-      array->set(target_index - inobject, *value);
+      int target_index = PropertyArray::OffsetInWordsToIndex(target_offset);
+      array->set(target_index, *value);
     }
   }
 
@@ -3328,11 +3330,14 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     } else {
       value = isolate->factory()->uninitialized_value();
     }
-    int target_index = new_descriptors->GetFieldIndex(i);
-    if (target_index < inobject) {
+    int target_offset = new_descriptors->GetOffsetInWords(i);
+    if (details.is_in_object()) {
+      int target_index =
+          target_offset - new_map->GetInObjectPropertiesStartInWords();
       inobject_props->set(target_index, *value);
     } else {
-      array->set(target_index - inobject, *value);
+      int target_index = PropertyArray::OffsetInWordsToIndex(target_offset);
+      array->set(target_index, *value);
     }
   }
 
@@ -4033,7 +4038,9 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
       IsTransitionableFastElementsKind(old_map->elements_kind());
 
   // Fill in the instance descriptor and the fields.
-  int current_offset = 0;
+  int instance_size_in_words = new_map->instance_size_in_words();
+  FieldStorageLocation field_storage = FieldStorageLocation::First(
+      new_map->GetInObjectPropertiesStartInWords(), instance_size_in_words);
   int descriptor_index = 0;
   for (int i = 0; i < iteration_length; i++) {
     Tagged<Name> k;
@@ -4082,13 +4089,11 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
       // TODO(v8:11248): Consider always setting constness to kMutable
       // once all prototypes stay in dictionary mode and we are not interested
       // in tracking constness for fast mode properties anymore.
-
       d = Descriptor::DataField(
-          key, current_offset, details.attributes(), constness,
+          key, field_storage, details.attributes(), constness,
           // TODO(verwaest): value->OptimalRepresentation();
           Representation::Tagged(),
-          MaybeObjectDirectHandle(FieldType::Any(isolate)),
-          current_offset < inobject_props);
+          MaybeObjectDirectHandle(FieldType::Any(isolate)));
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       d = Descriptor::AccessorConstant(key, direct_handle(value, isolate),
@@ -4096,18 +4101,20 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
     }
     details = d.GetDetails();
     if (details.location() == PropertyLocation::kField) {
-      if (current_offset < inobject_props) {
-        object->InObjectPropertyAtPut(current_offset, value,
-                                      UPDATE_WRITE_BARRIER);
+      if (field_storage.is_in_object) {
+        object->InObjectPropertyPutAtOffset(
+            field_storage.offset_in_words * kTaggedSize, value,
+            UPDATE_WRITE_BARRIER);
       } else {
-        int offset = current_offset - inobject_props;
-        fields->set(offset, value);
+        int property_array_index =
+            PropertyArray::OffsetInWordsToIndex(field_storage.offset_in_words);
+        fields->set(property_array_index, value);
       }
-      current_offset += details.field_width_in_words();
+      field_storage = field_storage.Next(instance_size_in_words,
+                                         details.field_width_in_words());
     }
     descriptors->Set(InternalIndex(descriptor_index++), &d);
   }
-  DCHECK_EQ(current_offset, number_of_fields);
   DCHECK_EQ(descriptor_index, number_of_elements);
 
   descriptors->Sort();

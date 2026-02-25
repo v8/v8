@@ -13,6 +13,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/property-details.h"
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-compact-set.h"
 
@@ -929,11 +930,11 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int instance_size() const;
   InstanceType instance_type() const;
   int GetInObjectProperties() const;
-  int GetInObjectPropertiesStartInWords() const;
+  uint8_t GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
   int GetInObjectPropertyOffset(int index) const;
   int constructor_function_index() const;
-  int NextFreePropertyIndex() const;
+  FieldStorageLocation NextFreeFieldStorageLocation() const;
   int UnusedPropertyFields() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;

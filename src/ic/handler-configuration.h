@@ -107,10 +107,10 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   using IsInobjectBits = IsWasmStructBits::Next<bool, 1>;
   using IsDoubleBits = IsInobjectBits::Next<bool, 1>;
   // +1 here is to cover all possible JSObject header sizes.
-  using FieldIndexBits =
+  using StorageOffsetInWordsBits =
       IsDoubleBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  static_assert(FieldIndexBits::kLastUsedBit < kSmiValueSize);
+  static_assert(StorageOffsetInWordsBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField and IsWasmStructBits is 1.
@@ -180,6 +180,10 @@ V8_OBJECT class LoadHandler final : public DataHandler {
 
   // Creates a Smi-handler for loading a field from fast object.
   static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);
+  static inline Handle<Smi> LoadField(Isolate* isolate, int offset_in_words,
+                                      bool is_in_object, bool is_double);
+  static inline Tagged<Smi> LoadField(int offset_in_words, bool is_in_object,
+                                      bool is_double);
 
   // Creates a Smi-handler for loading a cached constant from fast
   // prototype object.
@@ -312,10 +316,10 @@ V8_OBJECT class StoreHandler final : public DataHandler {
   using IsInobjectBits = DescriptorBits::Next<bool, 1>;
   using RepresentationBits = IsInobjectBits::Next<Representation::Kind, 3>;
   // +1 here is to cover all possible JSObject header sizes.
-  using FieldIndexBits =
+  using StorageOffsetInWordsBits =
       RepresentationBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  static_assert(FieldIndexBits::kLastUsedBit < kSmiValueSize);
+  static_assert(StorageOffsetInWordsBits::kLastUsedBit < kSmiValueSize);
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,

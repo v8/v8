@@ -4,6 +4,7 @@
 
 #include "src/objects/property.h"
 
+#include "src/base/macros.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/name-inl.h"
@@ -61,12 +62,12 @@ Descriptor::Descriptor(DirectHandle<Name> key,
                        const MaybeObjectDirectHandle& value, PropertyKind kind,
                        PropertyAttributes attributes, PropertyLocation location,
                        PropertyConstness constness,
-                       Representation representation, int field_index,
+                       Representation representation, int field_offset,
                        bool in_object)
     : key_(key),
       value_(value),
       details_(kind, attributes, location, constness, representation,
-               field_index, in_object) {
+               field_offset, in_object) {
   DCHECK(IsUniqueName(*key));
   DCHECK_IMPLIES(key->IsAnyPrivate(), !details_.IsEnumerable());
 }
@@ -80,22 +81,23 @@ Descriptor::Descriptor(DirectHandle<Name> key,
 }
 
 Descriptor Descriptor::DataField(Isolate* isolate, DirectHandle<Name> key,
-                                 int field_index, PropertyAttributes attributes,
+                                 int field_offset,
+                                 PropertyAttributes attributes,
                                  Representation representation,
                                  bool in_object) {
-  return DataField(key, field_index, attributes, PropertyConstness::kMutable,
+  return DataField(key, field_offset, attributes, PropertyConstness::kMutable,
                    representation,
                    MaybeObjectDirectHandle(FieldType::Any(isolate)), in_object);
 }
 
 Descriptor Descriptor::DataField(
-    DirectHandle<Name> key, int field_index, PropertyAttributes attributes,
+    DirectHandle<Name> key, int field_offset, PropertyAttributes attributes,
     PropertyConstness constness, Representation representation,
     const MaybeObjectDirectHandle& wrapped_field_type, bool in_object) {
   DCHECK(IsSmi(*wrapped_field_type) || IsWeak(*wrapped_field_type));
   PropertyDetails details(PropertyKind::kData, attributes,
                           PropertyLocation::kField, constness, representation,
-                          field_index, in_object);
+                          field_offset, in_object);
   return Descriptor(key, wrapped_field_type, details);
 }
 
@@ -136,8 +138,8 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << (kind() == PropertyKind::kData ? "data" : "accessor");
   if (location() == PropertyLocation::kField) {
     os << " field";
-    if (mode & kPrintFieldIndex) {
-      os << " " << field_index();
+    if (mode & kPrintOffsetInWords) {
+      os << " " << field_offset();
     }
     if (mode & kPrintRepresentation) {
       os << ":" << representation().Mnemonic();

@@ -156,9 +156,10 @@ class JSModuleNamespace
       DirectHandle<Object> key, PropertyDescriptor* desc,
       Maybe<ShouldThrow> should_throw);
 
-  // In-object fields.
+  // In-object fields. These indices represent both the in-object field index,
+  // as well as the descriptor index.
   enum {
-    kToStringTagFieldIndex,
+    kToStringTagIndex,
     kInObjectFieldCount,
   };
 
@@ -175,12 +176,6 @@ class JSDeferredModuleNamespace
                                                       JSModuleNamespace> {
  public:
   DECL_PRINTER(JSDeferredModuleNamespace)
-
-  // In-object fields.
-  enum {
-    kToStringTagFieldIndex,
-    kInObjectFieldCount,
-  };
 
   static void EvaluateModuleSync(
       Isolate* isolate, DirectHandle<JSDeferredModuleNamespace> holder);

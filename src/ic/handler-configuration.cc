@@ -560,8 +560,8 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
         os << "kField, is in object = "
            << LoadHandler::IsInobjectBits::decode(raw_handler)
            << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
-           << ", field index = "
-           << LoadHandler::FieldIndexBits::decode(raw_handler);
+           << ", storage offset in words = "
+           << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler);
       }
       break;
     }
@@ -617,8 +617,8 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
          << ", is in object = "
          << StoreHandler::IsInobjectBits::decode(raw_handler)
          << ", representation = " << representation.Mnemonic()
-         << ", field index = "
-         << StoreHandler::FieldIndexBits::decode(raw_handler);
+         << ", storage offset in words = "
+         << StoreHandler::StorageOffsetInWordsBits::decode(raw_handler);
       break;
     }
     case StoreHandler::Kind::kAccessorFromPrototype:

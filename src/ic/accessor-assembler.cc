@@ -421,9 +421,11 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
                                         Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
   Comment("LoadField");
-  TNode<IntPtrT> index =
-      Signed(DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
-  TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+  TNode<IntPtrT> offset_in_words =
+      Signed(DecodeWordFromWord32<LoadHandler::StorageOffsetInWordsBits>(
+          handler_word));
+  TNode<IntPtrT> offset =
+      IntPtrMul(offset_in_words, IntPtrConstant(kTaggedSize));
 
   TNode<BoolT> is_inobject =
       IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
@@ -1423,9 +1425,10 @@ void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
       is_inobject, [&]() { return holder; },
       [&]() { return LoadFastProperties(holder, true); });
 
-  TNode<UintPtrT> index =
-      DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
+  TNode<UintPtrT> offset_in_words =
+      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
+          handler_word);
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
 
   StoreSharedObjectField(property_storage, offset, shared_value.value());
 
@@ -1820,21 +1823,17 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     CheckFieldType(descriptors, descriptor_name_index, representation, value,
                    slow);
 
-    TNode<UintPtrT> field_index =
-        DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-    field_index = Unsigned(
-        IntPtrAdd(field_index,
-                  Unsigned(LoadMapInobjectPropertiesStartInWords(object_map))));
-    TNode<IntPtrT> instance_size_in_words =
-        LoadMapInstanceSizeInWords(object_map);
+    TNode<UintPtrT> field_word_offset =
+        DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
+    TNode<BoolT> is_in_object =
+        IsSetWord32<PropertyDetails::InObjectField>(details);
 
     Label inobject(this), backing_store(this);
-    Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
-           &backing_store);
+    Branch(is_in_object, &inobject, &backing_store);
 
     BIND(&inobject);
     {
-      TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
+      TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
       Label tagged_rep(this), double_rep(this);
       Branch(
           Word32Equal(representation, Int32Constant(Representation::kDouble)),
@@ -1870,8 +1869,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&backing_store);
     {
-      TNode<IntPtrT> backing_store_index =
-          Signed(IntPtrSub(field_index, instance_size_in_words));
+      // TODO(leszeks): The field_word_offset already represents the offset
+      // inside the property array, we could do a direct (scaled) access to the
+      // property array.
+      TNode<IntPtrT> backing_store_index = Signed(
+          IntPtrSub(field_word_offset,
+                    IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
 
       if (do_transitioning_store) {
         // Allocate mutable heap number before extending properties backing
@@ -1950,33 +1953,32 @@ void AccessorAssembler::StoreJSSharedStructField(
 
   Label done(this);
 
-  TNode<UintPtrT> field_index =
-      DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-  field_index = Unsigned(IntPtrAdd(
-      field_index,
-      Unsigned(LoadMapInobjectPropertiesStartInWords(shared_struct_map))));
-
-  TNode<IntPtrT> instance_size_in_words =
-      LoadMapInstanceSizeInWords(shared_struct_map);
+  TNode<UintPtrT> field_word_offset =
+      DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
+  TNode<BoolT> is_in_object =
+      IsSetWord32<PropertyDetails::InObjectField>(details);
 
   TVARIABLE(Object, shared_value, maybe_local_value);
   SharedValueBarrier(context, &shared_value);
 
   Label inobject(this), backing_store(this);
-  Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
-         &backing_store);
+  Branch(is_in_object, &inobject, &backing_store);
 
   BIND(&inobject);
   {
-    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
+    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
     StoreSharedObjectField(shared_struct, field_offset, shared_value.value());
     Goto(&done);
   }
 
   BIND(&backing_store);
   {
-    TNode<IntPtrT> backing_store_index =
-        Signed(IntPtrSub(field_index, instance_size_in_words));
+    // TODO(leszeks): The field_word_offset already represents the offset
+    // inside the property array, we could do a direct (scaled) access to the
+    // property array.
+    TNode<IntPtrT> backing_store_index = Signed(
+        IntPtrSub(field_word_offset,
+                  IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
 
     CSA_DCHECK(
         this,
@@ -2396,9 +2398,10 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
       is_inobject, [&]() { return holder; },
       [&]() { return LoadFastProperties(holder, true); });
 
-  TNode<UintPtrT> index =
-      DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
+  TNode<UintPtrT> offset_in_words =
+      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
+          handler_word);
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
 
   // For Double fields, we want to mutate the current double-value
   // field rather than changing it to point at a new HeapNumber.
@@ -3450,10 +3453,10 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
   {
     TNode<IntPtrT> offset;
     TNode<HeapObject> holder;
-    int target_handler =
-        LoadHandler::KindBits::encode(LoadHandler::Kind::kField);
 
     if (field_index != kNotSpecifiedFieldIndex) {
+      Tagged<Smi> target_handler;
+
       // Specified field index.
       DCHECK_GE(field_index, 0);
       // Currently we only support handlers for loading non-double fields with
@@ -3463,17 +3466,13 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
       int field_offset;
       if (field_location == FieldLocation::kInObject) {
         field_offset = JSObject::kHeaderSize + field_index * kTaggedSize;
-        target_handler |=
-            LoadHandler::IsInobjectBits::encode(true) |
-            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
-
       } else {
         DCHECK_EQ(field_location, FieldLocation::kOutOfObject);
-        field_offset =
-            OFFSET_OF_DATA_START(FixedArray) + field_index * kTaggedSize;
-        target_handler |=
-            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
+        field_offset = PropertyArray::OffsetOfElementAt(field_index);
       }
+      target_handler = LoadHandler::LoadField(
+          field_offset / kTaggedSize,
+          field_location == FieldLocation::kInObject, false);
 
       GotoIfNot(TaggedEqual(var_handler.value(), SmiConstant(target_handler)),
                 &miss);
@@ -3496,19 +3495,17 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
         mask |= LoadHandler::IsInobjectBits::kMask;
       }
       // Compute target_handler.
-      if (field_location == FieldLocation::kInObject) {
-        target_handler |= LoadHandler::IsInobjectBits::encode(true);
-      }
-      if (field_kind == FieldKind::kDouble) {
-        target_handler |= LoadHandler::IsDoubleBits::encode(true);
-      }
+      Tagged<Smi> target_handler = LoadHandler::LoadField(
+          /* ignored */ 0, field_location == FieldLocation::kInObject,
+          field_kind == FieldKind::kDouble);
 
       GotoIfNot(Word32Equal(Word32And(handler_word, Int32Constant(mask)),
-                            Int32Constant(target_handler)),
+                            Int32Constant(target_handler.value())),
                 &miss);
-      TNode<IntPtrT> index = Signed(
-          DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
-      offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+      TNode<IntPtrT> offset_in_words =
+          Signed(DecodeWordFromWord32<LoadHandler::StorageOffsetInWordsBits>(
+              handler_word));
+      offset = TimesTaggedSize(offset_in_words);
 
       if (field_location == FieldLocation::kInObject) {
         holder = CAST(receiver);

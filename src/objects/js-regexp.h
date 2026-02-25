@@ -107,13 +107,10 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kLastIndexOffset = kHeaderSize;
+  static constexpr int kInObjectFieldCount = 1;
 
   // The initial value of the last_index field on a new JSRegExp instance.
   static constexpr int kInitialLastIndexValue = 0;
-
-  // In-object fields.
-  static constexpr int kLastIndexFieldIndex = 0;
-  static constexpr int kInObjectFieldCount = 1;
 
   // The actual object size including in-object fields.
   static constexpr int kSize = kHeaderSize + kInObjectFieldCount * kTaggedSize;
@@ -324,16 +321,8 @@ class JSRegExpResult
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
   // instance type as JSArray.
 
-  // Indices of in-object properties.
-  static constexpr int kIndexIndex = 0;
-  static constexpr int kInputIndex = 1;
-  static constexpr int kGroupsIndex = 2;
-
-  // Private internal only fields.
-  static constexpr int kNamesIndex = 3;
-  static constexpr int kRegExpInputIndex = 4;
-  static constexpr int kRegExpLastIndex = 5;
-  static constexpr int kInObjectPropertyCount = 6;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSArray::kHeaderSize) / kTaggedSize;
 
   static constexpr int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
 
@@ -344,11 +333,8 @@ class JSRegExpResultWithIndices
     : public TorqueGeneratedJSRegExpResultWithIndices<JSRegExpResultWithIndices,
                                                       JSRegExpResult> {
  public:
-  static_assert(
-      JSRegExpResult::kInObjectPropertyCount == 6,
-      "JSRegExpResultWithIndices must be a subclass of JSRegExpResult");
-  static constexpr int kIndicesIndex = 6;
-  static constexpr int kInObjectPropertyCount = 7;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSRegExpResult::kHeaderSize) / kTaggedSize;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices)
 };
@@ -367,9 +353,8 @@ class JSRegExpResultIndices
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       DirectHandle<Object> maybe_names);
 
-  // Indices of in-object properties.
-  static constexpr int kGroupsIndex = 0;
-  static constexpr int kInObjectPropertyCount = 1;
+  static constexpr int kInObjectPropertyCount =
+      (kSize - JSArray::kHeaderSize) / kTaggedSize;
 
   // Descriptor index of groups.
   static constexpr int kGroupsDescriptorIndex = 1;

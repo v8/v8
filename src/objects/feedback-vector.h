@@ -913,9 +913,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
     return vector()->GetLanguageMode(slot());
   }
 
-  static inline Builtin GetLoadICHandlerForFieldIndex(int field_index,
-                                                      bool is_inobject,
-                                                      bool is_double);
+  static inline Builtin GetLoadICHandlerForStorageOffset(int storage_offset,
+                                                         bool is_inobject,
+                                                         bool is_double);
 
   InlineCacheState ic_state() const;
   static Builtin ic_handler(Tagged<MaybeObject> feedback_extra,

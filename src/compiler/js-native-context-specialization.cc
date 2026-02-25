@@ -40,6 +40,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/property-details.h"
 #include "src/objects/string.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -4238,21 +4239,25 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // for intermediate states of chains of property additions. That makes
   // it unclear what the best approach is here.
   DCHECK_EQ(map.UnusedPropertyFields(), 0);
-  int in_object_length = map.GetInObjectProperties();
-  int length = map.NextFreePropertyIndex() - in_object_length;
-  // Under normal circumstances, NextFreePropertyIndex() will always be larger
-  // than GetInObjectProperties(). However, an attacker able to corrupt heap
-  // memory can break this invariant, in which case we'll get confused here,
-  // potentially causing a sandbox violation. This CHECK defends against that.
+  FieldStorageLocation offset = map.NextFreeFieldStorageLocation();
+  DCHECK(!offset.is_in_object);
+  int length =
+      offset.offset_in_words - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+  // Under normal circumstances, NextFreeFieldStorageLocation()'s offset will
+  // always be larger than OFFSET_OF_DATA_START(FixedArray) / kTaggedSize.
+  // However, an attacker able to corrupt heap memory can break this invariant,
+  // in which case we'll get confused here, potentially causing a sandbox
+  // violation. This CHECK defends against that.
   SBXCHECK_GE(length, 0);
   int new_length = length + JSObject::kFieldsAdded;
 
   // Find the descriptor index corresponding to the first out-of-object
   // property.
   DescriptorArrayRef descs = map.instance_descriptors(broker());
-  InternalIndex first_out_of_object_descriptor(in_object_length);
+  InternalIndex first_out_of_object_descriptor(map.GetInObjectProperties());
   InternalIndex number_of_descriptors(descs.object()->number_of_descriptors());
-  for (InternalIndex i(in_object_length); i < number_of_descriptors; ++i) {
+  for (InternalIndex i = first_out_of_object_descriptor;
+       i < number_of_descriptors; ++i) {
     PropertyDetails details = descs.GetPropertyDetails(i);
     // Skip over non-field properties.
     if (details.location() != PropertyLocation::kField) {
@@ -4260,7 +4265,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     }
     // Skip over in-object fields.
     // TODO(leszeks): We could make this smarter, like a binary search.
-    if (details.field_index() < in_object_length) {
+    if (details.is_in_object()) {
       continue;
     }
     first_out_of_object_descriptor = i;
@@ -4280,7 +4285,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       ++descriptor;
       details = descs.GetPropertyDetails(descriptor);
     }
-    DCHECK_EQ(i, details.field_index() - in_object_length);
+    DCHECK(!details.is_in_object());
+    DCHECK_EQ(i, PropertyArray::OffsetInWordsToIndex(details.field_offset()));
     Representation repr = details.representation();
     MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
     dependencies()->DependOnFieldRepresentation(map, field_owner_map,

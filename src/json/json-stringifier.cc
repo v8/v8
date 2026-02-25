@@ -1043,9 +1043,9 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
         if (raw_json_obj->HasInitialLayout(isolate_)) {
           // Fast path: the object returned by JSON.rawJSON has its initial map
           // intact.
-          raw_json = Cast<String>(handle(
-              raw_json_obj->InObjectPropertyAt(JSRawJson::kRawJsonInitialIndex),
-              isolate_));
+          raw_json = Cast<String>(handle(raw_json_obj->InObjectPropertyAtOffset(
+                                             JSRawJson::kRawJsonInitialOffset),
+                                         isolate_));
         } else {
           // Slow path: perform a property get for "rawJSON". Because raw JSON
           // objects are created frozen, it is still guaranteed that there will
@@ -2809,7 +2809,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
     const uint16_t descriptor_idx = static_cast<uint16_t>(i.as_uint32());
 
     Tagged<Name> name = descriptors->GetKey(i);
-    int property_index;
+    Tagged<JSAny> property;
     if constexpr (fast_iterable_state != FastIterableState::kJsonFast) {
       if (V8_UNLIKELY(IsSymbol(name))) {
         if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
@@ -2829,19 +2829,25 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         return SLOW_PATH;
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      property_index = details.field_index();
+      const bool is_inobject = details.is_in_object();
+      if (is_inobject) {
+        int offset = details.field_offset() * kTaggedSize;
+        property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
+      } else {
+        if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
+          descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
+        }
+        int index_in_property_array =
+            PropertyArray::OffsetInWordsToIndex(details.field_offset());
+        property = obj->property_array(cage_base)->get(cage_base,
+                                                       index_in_property_array);
+      }
     } else {
-      DCHECK_EQ(descriptor_idx, descriptors->GetDetails(i).field_index());
-      property_index = descriptor_idx;
-    }
-    const bool is_inobject = property_index < in_object_properties;
-    Tagged<JSAny> property;
-    if (is_inobject) {
-      int offset = (in_object_properties_start + property_index) * kTaggedSize;
+      DCHECK(descriptors->GetDetails(i).is_in_object());
+      DCHECK_EQ(descriptor_idx + in_object_properties_start,
+                descriptors->GetDetails(i).field_offset());
+      int offset = (in_object_properties_start + descriptor_idx) * kTaggedSize;
       property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
-    } else {
-      property_index -= in_object_properties;
-      property = obj->property_array(cage_base)->get(cage_base, property_index);
     }
 
     DCHECK(IsInternalizedString(name));

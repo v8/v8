@@ -117,9 +117,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(PropertyLocation::kField, details.location());
         DCHECK_EQ(PropertyKind::kData, details.kind());
-        FieldIndex index = FieldIndex::ForPropertyIndex(
-            copy->map(isolate), details.field_index(),
-            details.representation());
+        FieldIndex index = FieldIndex::ForDetails(copy->map(isolate), details);
+
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);

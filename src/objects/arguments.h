@@ -35,9 +35,9 @@ class JSSloppyArgumentsObject
     : public TorqueGeneratedJSSloppyArgumentsObject<JSSloppyArgumentsObject,
                                                     JSArgumentsObject> {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static const int kCalleeIndex = kLengthIndex + 1;
+  // Offsets of in-object properties.
+  static const int kLengthOffset = kHeaderSize;
+  static const int kCalleeOffset = kLengthOffset + kTaggedSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
@@ -49,9 +49,8 @@ class JSStrictArgumentsObject
     : public TorqueGeneratedJSStrictArgumentsObject<JSStrictArgumentsObject,
                                                     JSArgumentsObject> {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static_assert(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
+  // Offsets of in-object properties.
+  static const int kLengthOffset = kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);

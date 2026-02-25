@@ -137,15 +137,15 @@ DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
     // Fast case for regular accessor properties.
     DirectHandle<JSObject> result = factory->NewJSObjectFromMap(
         isolate->accessor_property_descriptor_map());
-    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
-                                  *get());
-    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kSetIndex,
-                                  *set());
-    result->InObjectPropertyAtPut(
-        JSAccessorPropertyDescriptor::kEnumerableIndex,
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kGetOffset, *get());
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kSetOffset, *set());
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kEnumerableOffset,
         ReadOnlyRoots(isolate).boolean_value(enumerable()));
-    result->InObjectPropertyAtPut(
-        JSAccessorPropertyDescriptor::kConfigurableIndex,
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kConfigurableOffset,
         ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }
@@ -153,16 +153,16 @@ DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
     // Fast case for regular data properties.
     DirectHandle<JSObject> result =
         factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
-                                  *value());
-    result->InObjectPropertyAtPut(
-        JSDataPropertyDescriptor::kWritableIndex,
+    result->InObjectPropertyPutAtOffset(JSDataPropertyDescriptor::kValueOffset,
+                                        *value());
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kWritableOffset,
         ReadOnlyRoots(isolate).boolean_value(writable()));
-    result->InObjectPropertyAtPut(
-        JSDataPropertyDescriptor::kEnumerableIndex,
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kEnumerableOffset,
         ReadOnlyRoots(isolate).boolean_value(enumerable()));
-    result->InObjectPropertyAtPut(
-        JSDataPropertyDescriptor::kConfigurableIndex,
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kConfigurableOffset,
         ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }

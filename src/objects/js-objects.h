@@ -838,8 +838,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Tagged<Object> InObjectPropertyAt(int index);
-  inline Tagged<Object> InObjectPropertyAtPut(
+  inline Tagged<Object> InObjectPropertyAtOffset(int offset);
+  inline Tagged<Object> InObjectPropertyPutAtIndex(
+      int index, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> InObjectPropertyPutAtOffset(
       int index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -1120,12 +1123,6 @@ class JSAccessorPropertyDescriptor : public JSObject {
                                 JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
 
-  // Indices of in-object properties.
-  static const int kGetIndex = 0;
-  static const int kSetIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAccessorPropertyDescriptor);
 };
@@ -1148,12 +1145,6 @@ class JSDataPropertyDescriptor : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kWritableIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataPropertyDescriptor);
@@ -1178,10 +1169,6 @@ class JSIteratorResult : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_ITERATOR_RESULT_FIELDS)
 #undef JS_ITERATOR_RESULT_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kDoneIndex = 1;
 
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };

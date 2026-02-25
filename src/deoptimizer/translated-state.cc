@@ -2486,9 +2486,10 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
     Representation representation = descriptors->GetDetails(i).representation();
     if (index.is_inobject() &&
         (representation.IsDouble() || representation.IsHeapObject())) {
-      CHECK_GE(index.index(), OFFSET_OF_DATA_START(FixedArray) / kTaggedSize);
-      int array_index =
-          index.index() * kTaggedSize - OFFSET_OF_DATA_START(FixedArray);
+      CHECK_GE(index.offset_in_words(),
+               OFFSET_OF_DATA_START(FixedArray) / kTaggedSize);
+      int array_index = index.offset_in_words() * kTaggedSize -
+                        OFFSET_OF_DATA_START(FixedArray);
       raw_object_storage->set(array_index, kStoreHeapObject);
     }
   }

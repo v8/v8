@@ -2852,8 +2852,8 @@ DirectHandle<WasmExceptionPackage> WasmExceptionPackage::New(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   DirectHandle<JSObject> exception =
       isolate->factory()->NewJSObject(exception_cons);
-  exception->InObjectPropertyAtPut(kTagIndex, *exception_tag);
-  exception->InObjectPropertyAtPut(kValuesIndex, *values);
+  exception->InObjectPropertyPutAtIndex(kTagIndex, *exception_tag);
+  exception->InObjectPropertyPutAtIndex(kValuesIndex, *values);
   return Cast<WasmExceptionPackage>(exception);
 }
 

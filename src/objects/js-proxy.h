@@ -133,11 +133,6 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
 class JSProxyRevocableResult
     : public TorqueGeneratedJSProxyRevocableResult<JSProxyRevocableResult,
                                                    JSObject> {
- public:
-  // Indices of in-object properties.
-  static const int kProxyIndex = 0;
-  static const int kRevokeIndex = 1;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxyRevocableResult);
 };

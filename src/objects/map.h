@@ -250,10 +250,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [inobject_properties_start_or_constructor_function_index]:
   // Provides access to the inobject properties start offset in words in case of
   // JSObject maps, or the constructor function index in case of primitive maps.
-  DECL_INT_ACCESSORS(inobject_properties_start_or_constructor_function_index)
+  DECL_UINT8_ACCESSORS(inobject_properties_start_or_constructor_function_index)
 
   // Get/set the in-object property area start offset in words in the object.
-  inline int GetInObjectPropertiesStartInWords() const;
+  inline uint8_t GetInObjectPropertiesStartInWords() const;
+  inline void SetInObjectPropertiesStartInWords(uint8_t value);
   inline void SetInObjectPropertiesStartInWords(int value);
   // Count of properties allocated in the object (JSObject only).
   inline int GetInObjectProperties() const;
@@ -914,8 +915,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
                                               int inobject_properties);
 
-  // Returns the next free property index (only valid for FAST MODE).
-  int NextFreePropertyIndex() const;
+  // Returns the next free property offset (only valid for FAST MODE).
+  FieldStorageLocation NextFreeFieldStorageLocation() const;
 
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
@@ -976,9 +977,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   void DictionaryMapVerify(Isolate* isolate);
 #endif
 #if defined(DEBUG) || defined(VERIFY_HEAP)
-  void VerifyDescriptorInObjectBits(Isolate* isolate,
-                                    Tagged<DescriptorArray> descriptors,
-                                    int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void VerifyDescriptorInObjectBits(
+      Isolate* isolate, Tagged<DescriptorArray> descriptors,
+      int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void VerifyPropertyDetailsInObjectBits(
+      PropertyDetails details);
 #endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)

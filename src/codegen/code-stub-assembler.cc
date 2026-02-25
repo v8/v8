@@ -12163,75 +12163,51 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
          &if_in_field, &if_in_descriptor);
   BIND(&if_in_field);
   {
-    TNode<IntPtrT> field_index =
-        Signed(DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details));
+    TNode<IntPtrT> field_offset_in_words = Signed(
+        DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details));
     TNode<Uint32T> representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
     // TODO(ishell): support WasmValues.
     CSA_DCHECK(this, Word32NotEqual(representation,
                                     Int32Constant(Representation::kWasmValue)));
-    field_index =
-        IntPtrAdd(field_index, LoadMapInobjectPropertiesStartInWords(map));
-    TNode<IntPtrT> instance_size_in_words = LoadMapInstanceSizeInWords(map);
 
-    Label if_inobject(this), if_backing_store(this);
-    TVARIABLE(Float64T, var_double_value);
-    Label rebox_double(this, &var_double_value);
-    Branch(UintPtrLessThan(field_index, instance_size_in_words), &if_inobject,
-           &if_backing_store);
-    BIND(&if_inobject);
+    TNode<BoolT> is_in_object =
+        IsSetWord32<PropertyDetails::InObjectField>(details);
+
+    Label load_field(this), load_property_array(this);
+    TVARIABLE(HeapObject, var_storage, object);
+    Branch(is_in_object, &load_field, &load_property_array);
+
+    BIND(&load_property_array);
+    {
+      var_storage = LoadFastProperties(CAST(object), true);
+      CSA_DCHECK(this, UintPtrLessThan(
+                           IntPtrSub(field_offset_in_words,
+                                     IntPtrConstant(PropertyArray::kHeaderSize /
+                                                    kTaggedSize)),
+                           LoadPropertyArrayLength(CAST(var_storage.value()))));
+      Goto(&load_field);
+    }
+
+    BIND(&load_field);
     {
       Comment("if_inobject");
-      TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
+      TNode<IntPtrT> field_byte_offset = TimesTaggedSize(field_offset_in_words);
+      *var_value = LoadObjectField(var_storage.value(), field_byte_offset);
 
-      Label if_double(this), if_tagged(this);
+      Label if_double(this);
       Branch(Word32NotEqual(representation,
                             Int32Constant(Representation::kDouble)),
-             &if_tagged, &if_double);
-      BIND(&if_tagged);
-      {
-        *var_value = LoadObjectField(object, field_offset);
-        Goto(&done);
-      }
-      BIND(&if_double);
-      {
-        TNode<HeapNumber> heap_number =
-            CAST(LoadObjectField(object, field_offset));
-        var_double_value = LoadHeapNumberValue(heap_number);
-        Goto(&rebox_double);
-      }
-    }
-    BIND(&if_backing_store);
-    {
-      Comment("if_backing_store");
-      TNode<HeapObject> properties = LoadFastProperties(CAST(object), true);
-      field_index = Signed(IntPtrSub(field_index, instance_size_in_words));
-      TNode<Object> value =
-          LoadPropertyArrayElement(CAST(properties), field_index);
+             &done, &if_double);
 
-      Label if_double(this), if_tagged(this);
-      Branch(Word32NotEqual(representation,
-                            Int32Constant(Representation::kDouble)),
-             &if_tagged, &if_double);
-      BIND(&if_tagged);
-      {
-        *var_value = value;
-        Goto(&done);
-      }
       BIND(&if_double);
       {
-        var_double_value = LoadHeapNumberValue(CAST(value));
-        Goto(&rebox_double);
+        TNode<Float64T> double_value =
+            LoadHeapNumberValue(CAST(var_value->value()));
+        *var_value = AllocateHeapNumberWithValue(double_value);
+        Goto(&done);
       }
-    }
-    BIND(&rebox_double);
-    {
-      Comment("rebox_double");
-      TNode<HeapNumber> heap_number =
-          AllocateHeapNumberWithValue(var_double_value.value());
-      *var_value = heap_number;
-      Goto(&done);
     }
   }
   BIND(&if_in_descriptor);

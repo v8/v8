@@ -195,7 +195,7 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
     descriptors = factory->NewDescriptorArray(num_descriptors, 0,
                                               AllocationType::kSharedOld);
 
-    int special_slots = 0;
+    InternalIndex descriptor_index(0);
 
     // Store the registry key if the map is registered. This must be the first
     // slot if present. The registry depends on this for rehashing.
@@ -204,8 +204,8 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_registry_key_symbol(), registry_key,
           ALL_ATTRIBUTES_MASK);
-      DCHECK_EQ(0, special_slots);
-      descriptors->Set(InternalIndex(special_slots++), &d);
+      DCHECK_EQ(InternalIndex(0), descriptor_index);
+      descriptors->Set(descriptor_index++, &d);
     }
 
     // Elements in shared structs are only supported as a dictionary. Create the
@@ -229,20 +229,25 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_elements_template_symbol(),
           elements_template, ALL_ATTRIBUTES_MASK);
-      descriptors->Set(InternalIndex(special_slots++), &d);
+      descriptors->Set(descriptor_index++, &d);
     }
 
-    DCHECK_LE(special_slots, kSpecialSlots);
+    DCHECK_LE(descriptor_index.as_uint32(), kSpecialSlots);
 
     int field_index = 0;
     for (DirectHandle<Name> field_name : field_names) {
+      bool is_inobject = field_index < in_object_properties;
+      int field_offset =
+          is_inobject ? JSSharedStruct::kHeaderSize + field_index * kTaggedSize
+                      : FixedArray::OffsetOfElementAt(field_index -
+                                                      in_object_properties);
       // Shared structs' fields need to be aligned, so make it all tagged.
       PropertyDetails details(
           PropertyKind::kData, SEALED, PropertyLocation::kField,
-          PropertyConstness::kMutable, Representation::Tagged(), field_index,
-          field_index < in_object_properties);
-      descriptors->Set(InternalIndex(special_slots + field_index), *field_name,
-                       FieldType::Any(), details);
+          PropertyConstness::kMutable, Representation::Tagged(), field_offset,
+          is_inobject);
+      descriptors->Set(descriptor_index++, *field_name, FieldType::Any(),
+                       details);
       field_index++;
     }
     DCHECK_EQ(field_index, num_fields);

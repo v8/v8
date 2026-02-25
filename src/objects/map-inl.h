@@ -323,7 +323,7 @@ void Map::set_instance_size(int size_in_bytes) {
   set_instance_size_in_words(size_in_words);
 }
 
-int Map::inobject_properties_start_or_constructor_function_index() const {
+uint8_t Map::inobject_properties_start_or_constructor_function_index() const {
   // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
   // when TSAN sees the map's store synchronization.
   return RELAXED_READ_BYTE_FIELD(
@@ -331,21 +331,23 @@ int Map::inobject_properties_start_or_constructor_function_index() const {
 }
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
-    int value) {
-  CHECK_LE(static_cast<unsigned>(value), kMaxUInt8);
+    uint8_t value) {
   RELAXED_WRITE_BYTE_FIELD(
-      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset,
-      static_cast<uint8_t>(value));
+      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset, value);
 }
 
-int Map::GetInObjectPropertiesStartInWords() const {
+uint8_t Map::GetInObjectPropertiesStartInWords() const {
   DCHECK(IsJSObjectMap(*this));
   return inobject_properties_start_or_constructor_function_index();
 }
 
-void Map::SetInObjectPropertiesStartInWords(int value) {
+void Map::SetInObjectPropertiesStartInWords(uint8_t value) {
   CHECK(IsJSObjectMap(*this));
   set_inobject_properties_start_or_constructor_function_index(value);
+}
+
+void Map::SetInObjectPropertiesStartInWords(int value) {
+  SetInObjectPropertiesStartInWords(base::checked_cast<uint8_t>(value));
 }
 
 bool Map::HasOutOfObjectProperties() const {
@@ -868,6 +870,11 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
   if (details.location() == PropertyLocation::kField) {
     DCHECK_GT(UnusedPropertyFields(), 0);
     AccountAddedPropertyField();
+#ifdef DEBUG
+    // Verify after accounting the added field, to make sure we have the
+    // expected UsedInstanceSize.
+    VerifyPropertyDetailsInObjectBits(details);
+#endif
   }
 
 // This function does not support appending double field descriptors and

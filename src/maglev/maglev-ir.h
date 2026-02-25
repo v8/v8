@@ -7812,30 +7812,28 @@ class PolymorphicAccessInfo {
   }
 
   size_t hash_value() const {
-    size_t hash = base::hash_value(kind_);
-    hash = base::hash_combine(hash, base::hash_value(representation_.kind()));
-    for (auto map : maps()) {
-      hash = base::hash_combine(hash, map.hash_value());
-    }
+    base::Hasher hasher;
+    hasher.Add(kind_);
+    hasher.Add(representation_.kind());
+    hasher.AddRange(maps());
+
     switch (kind_) {
       case kNotFound:
       case kStringLength:
         break;
       case kModuleExport:
       case kConstant:
-        hash = base::hash_combine(hash, constant_.hash_value());
+        hasher.Add(constant_);
         break;
       case kConstantDouble:
-        hash = base::hash_combine(hash, base::hash_value(constant_double_));
+        hasher.Add(constant_double_);
         break;
       case kDataLoad:
-        hash = base::hash_combine(
-            hash, base::hash_value(data_load_.holder_.hash_value()));
-        hash = base::hash_combine(
-            hash, base::hash_value(data_load_.field_index_.index()));
+        hasher.Add(data_load_.holder_);
+        hasher.Add(data_load_.field_index_.bit_field());
         break;
     }
-    return hash;
+    return hasher.hash();
   }
 
  private:

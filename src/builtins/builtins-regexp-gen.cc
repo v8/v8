@@ -150,8 +150,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndexBeforeSmiCheck(
     TNode<JSRegExp> regexp) {
   // Load the in-object field.
-  static const int field_offset =
-      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+  static const int field_offset = JSRegExp::kLastIndexOffset;
   return LoadObjectField(regexp, field_offset);
 }
 
@@ -165,8 +164,7 @@ TNode<JSAny> RegExpBuiltinsAssembler::SlowLoadLastIndex(TNode<Context> context,
 void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
                                                  TNode<Smi> value) {
   // Store the in-object field.
-  static const int field_offset =
-      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+  static const int field_offset = JSRegExp::kLastIndexOffset;
   StoreObjectField(regexp, field_offset, value);
 }
 

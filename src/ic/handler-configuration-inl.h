@@ -57,11 +57,22 @@ Tagged<Smi> LoadHandler::LoadGeneric() {
 }
 
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
+  return LoadField(isolate, field_index.offset_in_words(),
+                   field_index.is_inobject(), field_index.is_double());
+}
+
+Handle<Smi> LoadHandler::LoadField(Isolate* isolate, int offset_in_words,
+                                   bool is_in_object, bool is_double) {
+  return handle(LoadField(offset_in_words, is_in_object, is_double), isolate);
+}
+
+Tagged<Smi> LoadHandler::LoadField(int offset_in_words, bool is_in_object,
+                                   bool is_double) {
   int config = KindBits::encode(Kind::kField) |
-               IsInobjectBits::encode(field_index.is_inobject()) |
-               IsDoubleBits::encode(field_index.is_double()) |
-               FieldIndexBits::encode(field_index.index());
-  return handle(Smi::FromInt(config), isolate);
+               IsInobjectBits::encode(is_in_object) |
+               IsDoubleBits::encode(is_double) |
+               StorageOffsetInWordsBits::encode(offset_in_words);
+  return Smi::FromInt(config);
 }
 
 DirectHandle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
@@ -262,7 +273,7 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                IsInobjectBits::encode(field_index.is_inobject()) |
                RepresentationBits::encode(representation.kind()) |
                DescriptorBits::encode(descriptor) |
-               FieldIndexBits::encode(field_index.index());
+               StorageOffsetInWordsBits::encode(field_index.offset_in_words());
   return handle(Smi::FromInt(config), isolate);
 }
 

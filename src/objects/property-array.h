@@ -68,6 +68,9 @@ class PropertyArray
     return kHeaderSize + length * kTaggedSize;
   }
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
+  static constexpr int OffsetInWordsToIndex(int offset_in_words) {
+    return offset_in_words - kHeaderSize / kTaggedSize;
+  }
 
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
@@ -90,6 +93,9 @@ class PropertyArray
 
   TQ_OBJECT_CONSTRUCTORS(PropertyArray)
 };
+
+static_assert(FieldStorageLocation::kFirstOutOfObjectOffsetInWords ==
+              PropertyArray::OffsetOfElementAt(0) / kTaggedSize);
 
 }  // namespace internal
 }  // namespace v8

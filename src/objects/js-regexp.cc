@@ -372,9 +372,9 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
   if (IsJSFunction(constructor) &&
       Cast<JSFunction>(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                  Smi::FromInt(kInitialLastIndexValue),
-                                  SKIP_WRITE_BARRIER);
+    regexp->InObjectPropertyPutAtOffset(JSRegExp::kLastIndexOffset,
+                                        Smi::FromInt(kInitialLastIndexValue),
+                                        SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(

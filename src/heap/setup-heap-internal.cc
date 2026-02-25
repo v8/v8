@@ -876,7 +876,9 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     DirectHandle<DescriptorArray> descriptors =
         factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
     Descriptor length_descriptor = Descriptor::DataField(
-        factory->length_string(), JSSharedArray::kLengthFieldIndex,
+        factory->length_string(),
+        shared_array_map->GetInObjectPropertyOffset(
+            JSSharedArray::kLengthFieldIndex),
         ALL_ATTRIBUTES_MASK, PropertyConstness::kConst, Representation::Smi(),
         MaybeObjectDirectHandle(FieldType::Any(isolate())), true);
     descriptors->Set(InternalIndex(0), &length_descriptor);

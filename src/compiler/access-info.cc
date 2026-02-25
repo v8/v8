@@ -638,7 +638,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   DirectHandle<DescriptorArray> descriptors =
       map.instance_descriptors(broker()).object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
-  int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) {
     // The ICs collect feedback in PREMONOMORPHIC state already,
@@ -648,8 +647,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // here and fall back to use the regular IC logic instead.
     return Invalid();
   }
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
-                                                        details_representation);
+  FieldIndex field_index = FieldIndex::ForDetails(*map.object(), details);
   // Private brands are used when loading private methods, which are stored in a
   // BlockContext, an internal object.
   Type field_type = name.object()->IsPrivateBrand() ? Type::OtherInternal()
@@ -1421,12 +1419,11 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // TODO(bmeurer): Handle transition to data constant?
   if (details.location() != PropertyLocation::kField) return Invalid();
 
-  int const index = details.field_index();
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) return Invalid();
 
-  FieldIndex field_index = FieldIndex::ForPropertyIndex(
-      *transition_map.object(), index, details_representation);
+  FieldIndex field_index =
+      FieldIndex::ForDetails(*transition_map.object(), details);
   Type field_type = Type::NonInternal();
   OptionalMapRef field_map;
 

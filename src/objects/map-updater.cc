@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
@@ -843,6 +844,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   DirectHandle<DescriptorArray> target_descriptors(
       target_map_->instance_descriptors(isolate_), isolate_);
   int in_object_field_count = target_map_->GetInObjectProperties();
+  int target_in_object_start = target_map_->GetInObjectPropertiesStartInWords();
 
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as the old descriptor
@@ -865,13 +867,13 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   // the root descriptors are either not modified at all or already more
   // general than we requested. Take |root_nof| entries as is.
   // 0 -> |root_nof|
-  int current_offset = 0;
+  int current_field_index = 0;
   for (InternalIndex i : InternalIndex::Range(root_nof)) {
     PropertyDetails old_details = old_descriptors_->GetDetails(i);
     if (old_details.location() == PropertyLocation::kField) {
       DCHECK_EQ(old_details.is_in_object(),
-                current_offset < in_object_field_count);
-      current_offset += old_details.field_width_in_words();
+                current_field_index < in_object_field_count);
+      current_field_index += old_details.field_width_in_words();
     }
 #ifdef DEBUG
     // Ensuring FindRootMap gave us a compatible root map.
@@ -944,16 +946,24 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
       MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
+      bool is_in_object = current_field_index < in_object_field_count;
+      int offset_in_words;
+      if (is_in_object) {
+        offset_in_words = target_in_object_start + current_field_index;
+      } else {
+        offset_in_words = PropertyArray::OffsetOfElementAt(
+                              current_field_index - in_object_field_count) /
+                          kTaggedSize;
+      }
       if (next_kind == PropertyKind::kData) {
-        d = Descriptor::DataField(key, current_offset, next_attributes,
-                                  next_constness, next_representation,
-                                  wrapped_type,
-                                  current_offset < in_object_field_count);
+        d = Descriptor::DataField(
+            key, FieldStorageLocation(offset_in_words, is_in_object),
+            next_attributes, next_constness, next_representation, wrapped_type);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
       }
-      current_offset += d.GetDetails().field_width_in_words();
+      current_field_index += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, next_location);
@@ -991,16 +1001,24 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
       MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
+      bool is_in_object = current_field_index < in_object_field_count;
+      int offset_in_words;
+      if (is_in_object) {
+        offset_in_words = target_in_object_start + current_field_index;
+      } else {
+        offset_in_words = PropertyArray::OffsetOfElementAt(
+                              current_field_index - in_object_field_count) /
+                          kTaggedSize;
+      }
       if (next_kind == PropertyKind::kData) {
-        d = Descriptor::DataField(key, current_offset, next_attributes,
-                                  next_constness, next_representation,
-                                  wrapped_type,
-                                  current_offset < in_object_field_count);
+        d = Descriptor::DataField(
+            key, FieldStorageLocation(offset_in_words, is_in_object),
+            next_attributes, next_constness, next_representation, wrapped_type);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
       }
-      current_offset += d.GetDetails().field_width_in_words();
+      current_field_index += d.GetDetails().field_width_in_words();
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, next_location);
@@ -1295,10 +1313,9 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
 
     DCHECK_IMPLIES(IsClass(*new_type), new_representation.IsHeapObject());
     MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(new_type));
-    Descriptor d = Descriptor::DataField(
-        name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-        new_constness, new_representation, wrapped_type,
-        details.is_in_object());
+    Descriptor d = Descriptor::DataField(name, details.storage_location(),
+                                         details.attributes(), new_constness,
+                                         new_representation, wrapped_type);
     DCHECK_EQ(descriptors->GetKey(descriptor), *d.key_);
     descriptors->Replace(descriptor, &d);
   }
