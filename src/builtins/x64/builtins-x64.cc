@@ -3357,7 +3357,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(target_stack.is_valid());
     __ Move(kCArgRegs[1], target_stack);
-    bool is_return = fn == ExternalReference::wasm_return_stack();
+    bool is_return = (fn == ExternalReference::wasm_return_jspi_stack() ||
+                      fn == ExternalReference::wasm_return_wasmfx_stack());
     DCHECK_IMPLIES(is_return, maybe_suspender == no_reg);
     int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
     __ PrepareCallCFunction(num_args);
@@ -3396,8 +3397,8 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   Register parent = tmp2;
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   // Switch stack!
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {promise, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
+               nullptr, no_reg, {promise, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false);
 }
 
@@ -4108,8 +4109,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   Register parent = rcx;
   DCHECK_NE(arg_buffer, parent);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {parent, arg_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_return_wasmfx_stack(), parent,
+               nullptr, no_reg, {parent, arg_buffer});
   LoadJumpBuffer(masm, parent, true);
   __ Trap();
 }

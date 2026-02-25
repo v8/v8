@@ -207,7 +207,8 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
                              Address cont_raw, Address return_buffer,
                              const CanonicalSig* sig);
-void return_stack(Isolate* isolate, wasm::StackMemory* to);
+void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to);
+void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to);
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
