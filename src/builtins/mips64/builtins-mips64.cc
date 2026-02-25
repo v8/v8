@@ -359,13 +359,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(a6));
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ LoadStackLimit(kScratchReg,
-                    MacroAssembler::StackLimitKind::kRealStackLimit);
-  __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
-
   // ----------- S t a t e -------------
   //  -- a1    : the JSGeneratorObject to resume
   //  -- a4    : generator function
@@ -390,6 +383,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ li(t1, Operand(JSParameterCount(0)));
   __ slt(t3, argc, t1);
   __ movn(argc, t1, t3);
+
+  // Check if we have enough stack space to push all arguments.
+  Label stack_overflow;
+  __ StackOverflowCheck(argc, t1, t3, &stack_overflow);
 
   {
     Label done_loop, loop;
