@@ -111,6 +111,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmSuspendingObject)    \
   IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmStackObject)         \
   IF_WASM(V, WasmTableObject)         \
   IF_WASM(V, WasmTagObject)           \
   IF_WASM(V, WasmTypeInfo)            \

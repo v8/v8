@@ -3096,6 +3096,12 @@ void WasmSuspendingObject::WasmSuspendingObjectPrint(std::ostream& os) {
 
 void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmContinuationObject");
+  os << "\n - stack_obj: " << Brief(stack_obj());
+  os << "\n";
+}
+
+void WasmStackObject::WasmStackObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmStackObject");
   os << "\n - stack: " << (stack() == nullptr ? -1 : stack()->id());
   os << "\n";
 }

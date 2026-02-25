@@ -2003,14 +2003,25 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObjectInitialized() {
 }
 
 DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
-    wasm::StackMemory* stack) {
+    DirectHandle<WasmStackObject> stack_obj) {
   Tagged<Map> map = *wasm_continuation_object_map();
   Tagged<WasmContinuationObject> obj =
       Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kYoung, map));
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
-  cont->init_stack(IsolateForSandbox(isolate()), stack);
+  cont->set_stack_obj(*stack_obj);
   return cont;
+}
+
+DirectHandle<WasmStackObject> Factory::NewWasmStackObject(
+    wasm::StackMemory* stack) {
+  Tagged<Map> map = *wasm_stack_object_map();
+  Tagged<WasmStackObject> obj =
+      Cast<WasmStackObject>(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kYoung, map));
+  DirectHandle<WasmStackObject> result(obj, isolate());
+  result->init_stack(isolate(), stack);
+  return result;
 }
 
 DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(

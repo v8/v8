@@ -1040,7 +1040,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   DCHECK(from->Contains(arg_buffer));
   from->set_arg_buffer(arg_buffer);
-  cont->init_stack(isolate, from);
+  cont->set_stack_obj(from->stack_obj());
   from->set_current_continuation(cont);
   from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
@@ -1127,13 +1127,9 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
 }
 
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
-  // TODO(thibaudm): We should clear the EPT entry(ies) for this stack here to
-  // avoid UAF. Unlike JSPI, we don't have a single trusted object that owns the
-  // stack. It could be referenced from multiple continuation objects.
-  // Continuation objects could point to a single heap object that owns the
-  // stack instead, and we would clear the unique EPT on return. This has also
-  // been measured to improve performance by avoiding unnecessary EPT entry
-  // management.
+  // Clear the external stack pointer from the WasmStackObject to avoid UAFs.
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  from->stack_obj()->set_stack(isolate, nullptr);
   return_stack(isolate, to);
 }
 

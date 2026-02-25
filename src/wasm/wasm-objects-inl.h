@@ -66,6 +66,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspenderObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspendingObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStackObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTableObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTagObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
@@ -841,7 +842,7 @@ int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
 EXTERNAL_POINTER_ACCESSORS(WasmSuspenderObject, stack, wasm::StackMemory*,
                            kStackOffset, kWasmStackMemoryTag)
 
-EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, stack, wasm::StackMemory*,
+EXTERNAL_POINTER_ACCESSORS(WasmStackObject, stack, wasm::StackMemory*,
                            kStackOffset, kWasmStackMemoryTag)
 
 TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,

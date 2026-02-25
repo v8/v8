@@ -1632,12 +1632,20 @@ class WasmContinuationObject
     : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
                                                    HeapObject> {
  public:
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmContinuationObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  using BodyDescriptor = FixedBodyDescriptorFor<WasmContinuationObject>;
   DECL_PRINTER(WasmContinuationObject)
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+};
+
+class WasmStackObject
+    : public TorqueGeneratedWasmStackObject<WasmStackObject, HeapObject> {
+ public:
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmStackObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PRINTER(WasmStackObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmStackObject)
 };
 
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {

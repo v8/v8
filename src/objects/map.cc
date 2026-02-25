@@ -472,6 +472,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmStruct;
     case WASM_CONTINUATION_OBJECT_TYPE:
       return kVisitWasmContinuationObject;
+    case WASM_STACK_OBJECT_TYPE:
+      return kVisitWasmStackObject;
     case WASM_SUSPENDING_OBJECT_TYPE:
       return kVisitWasmSuspendingObject;
     case WASM_TABLE_OBJECT_TYPE:

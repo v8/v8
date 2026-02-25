@@ -180,6 +180,12 @@ extern class WasmSuspenderObject extends ExposedTrustedObject {
 }
 
 extern class WasmContinuationObject extends HeapObject {
+  stack_obj: WasmStackObject;
+}
+
+// Wrapper around the C++ StackMemory object.
+// 1:N relationship with WasmContinuationObject.
+extern class WasmStackObject extends HeapObject {
   stack: ExternalPointer;
 }
 

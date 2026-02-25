@@ -160,6 +160,7 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
   IF_WASM(V, Map, wasm_suspender_object_map, WasmSuspenderObjectMap)           \
   IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
+  IF_WASM(V, Map, wasm_stack_object_map, WasmStackObjectMap)                   \
   IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap)  \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \

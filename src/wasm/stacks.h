@@ -90,6 +90,8 @@ class StackMemory {
   void set_current_continuation(Tagged<WasmContinuationObject> cont) {
     current_cont_ = cont;
   }
+  void set_stack_obj(Tagged<WasmStackObject> stack) { stack_obj_ = stack; }
+  Tagged<WasmStackObject> stack_obj() { return stack_obj_; }
   bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
@@ -264,6 +266,7 @@ class StackMemory {
   // WasmFX specific fields below.
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  Tagged<WasmStackObject> stack_obj_ = {};
   // Param type vector, to know which bound arguments are references and need to
   // be visited by the GC. The memory is owned by the type canonicalizer.
   base::Vector<const CanonicalValueType> param_types_;

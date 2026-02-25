@@ -3836,8 +3836,15 @@ class TurboshaftGraphBuildingInterface
     // 1. Null check.
     __ TrapIf(__ IsNull(cont_ref.op, cont_ref.type),
               TrapId::kTrapNullDereference);
+    V<WasmStackObject> stack_obj =
+        __ Load(cont_ref.op, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(),
+                WasmContinuationObject::kStackObjOffset);
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
-        cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
+        stack_obj, WasmStackObject::kStackOffset, kWasmStackMemoryTag);
+    __ TrapIf(__ Equal(stack, __ WordPtrConstant(0),
+                       RegisterRepresentation::WordPtr()),
+              TrapId::kTrapResume);
     // 2. Validity check: only the continuation that was created when this stack
     // was suspended for the last time can be used to resume it.
     V<WasmContinuationObject> stack_cont = __ Load(
