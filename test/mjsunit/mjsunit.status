@@ -1648,6 +1648,9 @@
   # counters are shared across isolates.
   'wasm/wasm-code-coverage': [SKIP],
 
+  # JSON.parse is not supported with --shared-string-table and multiple isolates
+  'shared-memory/regress-crbug-1395117': [SKIP],
+
 }],  # 'isolates'
 
 ##############################################################################
@@ -2976,6 +2979,9 @@
 ##############################################################################
 ['variant == code_serializer', {
   'compiler/fast-api-calls-nested': [SKIP],
+  # JSON.parse with --shared-string-table is not supported on background
+  # threads right now.
+  'shared-memory/regress-crbug-1395117': [SKIP],
 }],  # variant == code_serializer
 
 ##############################################################################
