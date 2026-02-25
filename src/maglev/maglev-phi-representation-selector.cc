@@ -303,6 +303,19 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  + use_reprs  : " << use_reprs << " (all uses)");
   }
 
+  bool has_ignored_tagged_use = false;
+  if (!input_reprs.contains_any({ValueRepresentation::kFloat64,
+                                 ValueRepresentation::kHoleyFloat64})) {
+    // If we don't have any Float64/HoleyFloat64 inputs, we ignore Tagged uses
+    // because retagging should be cheap. This isn't fully accurate: it's
+    // possible for Int32 phis to not fit in Smi range, but we're trying to be
+    // optimistic here!
+    use_reprs.Remove(UseRepresentation::kTagged);
+    // We need to remember that we removed a Tagged use when we later consider
+    // untagging to TruncatedInt32: tagged uses prevent this untagging.
+    has_ignored_tagged_use = true;
+  }
+
   TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
 
   if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging &&
@@ -323,9 +336,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     // them later). We also ignore phis that are used as Uint32, because this is
     // a fairly rare case and supporting it doesn't improve performance all that
     // much but will increase code complexity.
-    // TODO(dmercadier): consider taking into account where those Tagged uses
-    // are: Tagged uses outside of a loop or for a Return could probably be
-    // ignored.
     TRACE_UNTAGGING("  => Leaving tagged [incompatible uses]");
     EnsurePhiInputsTagged(node);
     return default_result;
@@ -415,7 +425,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
-  } else if (enable_truncated_int32_phis_ &&
+  } else if (enable_truncated_int32_phis_ && !has_ignored_tagged_use &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,
