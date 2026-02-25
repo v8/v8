@@ -76,9 +76,9 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_WEBASSEMBLY
-    bool generating_bultins =
+    bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_bultins) {
+    if (generating_builtins) {
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -124,9 +124,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_WEBASSEMBLY
-    bool generating_bultins =
+    bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_bultins) {
+    if (generating_builtins) {
       // Check if machine has simd enabled, if so push vector registers. If not
       // then only push double registers.
       Label no_simd, done;

@@ -748,7 +748,7 @@ WasmInterpreter::WasmInterpreter(
   // need to use explicit bound checks; memory guard pages only work with 32-bit
   // memories. This could be implemented by allocating a different dispatch
   // table for each instance (probably in the WasmInterpreterRuntime object) and
-  // patching the entries of Load/Store instructions with bultin handlers only
+  // patching the entries of Load/Store instructions with builtin handlers only
   // for instances related to modules that have 32-bit memories. 64-bit memories
   // are not supported yet by DrumBrake.
   base::CallOnce(&init_instruction_table_once, &InitInstructionTableOnce,
