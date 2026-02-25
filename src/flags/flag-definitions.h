@@ -688,6 +688,7 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 
 DEFINE_BOOL(turbolev_truncated_int32_phis, false,
             "Enable truncated to int32 representation in the phi selector")
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_truncated_int32_phis)
 
 DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
                             "Enable Maglev range value analysis pass")
