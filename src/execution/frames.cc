@@ -3174,7 +3174,12 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
     // summary which is a bit more aware of maglev behaviour and can e.g. handle
     // more compact safepointed frame information for both function entry and
     // loop stack checks.
-    if (code->is_maglevved()) {
+    //
+    // Isolate::BuildMinimalStack() can trigger this code path from a regular
+    // heap allocation site in Turbofan. Heap allocation sites do not have a
+    // DeoptimizationEntry in general. Instead of crashing we simply report here
+    // just one frame.
+    if (code->is_maglevved() || never_allocate) {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());

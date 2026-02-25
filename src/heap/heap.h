@@ -2077,8 +2077,8 @@ class Heap final {
   void FinalizePartialMap(Tagged<Map> map);
 
   void set_force_oom(bool value) { force_oom_ = value; }
-  void set_force_gc_on_next_allocation() {
-    force_gc_on_next_allocation_ = true;
+  void set_force_gc_on_next_allocation(bool value) {
+    force_gc_on_next_allocation_ = value;
   }
 
   // Helper for IsPendingAllocation.
@@ -2520,6 +2520,7 @@ class Heap final {
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
+  FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
   friend class HeapInternalsBase;
 };
 

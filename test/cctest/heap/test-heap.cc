@@ -1302,7 +1302,7 @@ HEAP_TEST(Regress10560) {
     // Just check bytecode isn't flushed still
     CHECK(function->shared()->is_compiled());
 
-    heap->set_force_gc_on_next_allocation();
+    heap->set_force_gc_on_next_allocation(true);
 
     // Allocate feedback vector.
     IsCompiledScope is_compiled_scope(
