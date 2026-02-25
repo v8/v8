@@ -565,12 +565,10 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
   Ld(dst, src_op);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   static_assert(kTaggedSize == kInt64Size);
   Register scratch = kScratchReg2;
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
@@ -585,7 +583,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
