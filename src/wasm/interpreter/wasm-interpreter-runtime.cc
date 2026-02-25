@@ -534,18 +534,20 @@ bool WasmInterpreterRuntime::MemoryInit(const uint8_t*& current_code,
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       wasm_trusted_instance_data();
   Address dst_addr;
-  uint64_t src_max =
-      trusted_data->data_segment_sizes()->get(data_segment_index);
+  wasm::WireBytesRef segment_source =
+      trusted_data->data_segments()->get(data_segment_index);
   if (!BoundsCheckMemRange(memory_index, dst, &size, &dst_addr) ||
-      !base::IsInBounds(src, size, src_max)) {
+      !base::IsInBounds(src, size,
+                        static_cast<uint64_t>(segment_source.length()))) {
     SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
 
-  Address src_addr =
-      trusted_data->data_segment_starts()->get(data_segment_index) + src;
+  base::Vector<const uint8_t> wire_bytes =
+      trusted_data->native_module()->wire_bytes();
+  const uint8_t* src_addr = wire_bytes.data() + segment_source.offset() + src;
   std::memmove(reinterpret_cast<void*>(dst_addr),
-               reinterpret_cast<void*>(src_addr), size);
+               reinterpret_cast<const void*>(src_addr), size);
   return true;
 }
 

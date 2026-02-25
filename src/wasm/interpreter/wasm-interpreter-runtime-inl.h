@@ -119,7 +119,7 @@ inline size_t WasmInterpreterRuntime::GetMemorySize() const {
 }
 
 inline void WasmInterpreterRuntime::DataDrop(uint32_t index) {
-  wasm_trusted_instance_data()->data_segment_sizes()->set(index, 0);
+  wasm_trusted_instance_data()->data_segments()->set(index, WireBytesRef{});
 }
 
 inline void WasmInterpreterRuntime::ElemDrop(uint32_t index) {
