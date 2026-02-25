@@ -10648,7 +10648,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       // objects. Thus, we have to insert CheckSmis here, before falling through
       // to the Object case.
       for (ValueNode*& arg : args) {
-        RETURN_IF_ABORT(BuildCheckSmi(arg));
+        RETURN_IF_ABORT(BuildCheckSmi(arg, !arg->Is<Phi>()));
       }
       return ReduceResult::Done();
     }
