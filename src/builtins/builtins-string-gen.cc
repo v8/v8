@@ -1652,32 +1652,14 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       [=, this] { return ToUint32(context, limit); });
   const TNode<String> separator_string = ToString_Inline(context, separator);
 
-  Label return_empty_array(this);
+  Label return_empty_array(this), return_subject_as_array(this);
 
   // Shortcut for {limit} == 0.
   GotoIf(TaggedEqual(limit_number, smi_zero), &return_empty_array);
 
   // ECMA-262 says that if {separator} is undefined, the result should
   // be an array of size 1 containing the entire string.
-  {
-    Label next(this);
-    GotoIfNot(IsUndefined(separator), &next);
-
-    const ElementsKind kind = PACKED_ELEMENTS;
-    const TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
-
-    TNode<Smi> length = SmiConstant(1);
-    TNode<IntPtrT> capacity = IntPtrConstant(1);
-    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
-
-    TNode<FixedArray> fixed_array = CAST(LoadElements(result));
-    StoreFixedArrayElement(fixed_array, 0, subject_string);
-
-    args.PopAndReturn(result);
-
-    BIND(&next);
-  }
+  GotoIf(IsUndefined(separator), &return_subject_as_array);
 
   // If the separator string is empty then return the elements in the subject.
   {
@@ -1694,10 +1676,23 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<JSAny> result =
-      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
-                         separator_string, limit_number);
-  args.PopAndReturn(result);
+  // Fast path for a separator that does not occur in the subject string.
+  {
+    Label next(this);
+    const TNode<Smi> index =
+        CAST(CallBuiltin(Builtin::kStringIndexOf, context, subject_string,
+                         separator_string, smi_zero));
+    Branch(SmiEqual(index, SmiConstant(-1)), &return_subject_as_array, &next);
+
+    BIND(&next);
+  }
+
+  {
+    const TNode<JSAny> result =
+        CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                           separator_string, limit_number);
+    args.PopAndReturn(result);
+  }
 
   BIND(&return_empty_array);
   {
@@ -1707,10 +1702,25 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     TNode<Smi> length = smi_zero;
     TNode<IntPtrT> capacity = IntPtrConstant(0);
-    TNode<JSArray> result_array =
-        AllocateJSArray(kind, array_map, capacity, length);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
 
-    args.PopAndReturn(result_array);
+    args.PopAndReturn(result);
+  }
+
+  BIND(&return_subject_as_array);
+  {
+    const ElementsKind kind = PACKED_ELEMENTS;
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
+
+    TNode<Smi> length = SmiConstant(1);
+    TNode<IntPtrT> capacity = IntPtrConstant(1);
+    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
+
+    TNode<FixedArray> fixed_array = CAST(LoadElements(result));
+    StoreFixedArrayElement(fixed_array, 0, subject_string);
+
+    args.PopAndReturn(result);
   }
 }
 
