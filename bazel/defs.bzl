@@ -466,6 +466,7 @@ def _mksnapshot(ctx):
     ctx.actions.run(
         outputs = outs,
         inputs = [],
+        mnemonic = "V8Mksnapshot",
         arguments = [
             "--embedded_variant=Default",
             "--target_os",
