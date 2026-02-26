@@ -449,11 +449,21 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
   V(shr, 0x5)                     \
   V(sar, 0x7)
 
+#ifdef V8_ENABLE_APX_F
 // CCMP & CTEST instructions on operands/registers/immediate in APX
 // with kInt8Size, kInt16Size, kInt32Size and kInt64Size.
 #define ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(V) \
   V(ccmp)                                         \
   V(ctest)
+
+// CMOV instructions on operands/registers/ndd in APX
+// with kInt16Size, kInt32Size and kInt64Size.
+#define ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(V) \
+  V(cfcmov)                                    \
+  V(cmov)
+
+#define ASSEMBLER_CMOV_INSTRUCTION_LIST(V) V(cfcmov)
+#endif  // V8_ENABLE_APX_F
 
 // Partial Constant Pool
 // Different from complete constant pool (like arm does), partial constant pool
@@ -677,6 +687,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
 
+#ifdef V8_ENABLE_APX_F
 #define DECLARE_CONDITIONAL_INSTRUCTION(instruction)                \
   template <class P1, class P2>                                     \
   void instruction##b(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
@@ -699,6 +710,45 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(DECLARE_CONDITIONAL_INSTRUCTION)
 #undef DECLARE_CONDITIONAL_INSTRUCTION
+
+#define DECLARE_CMOV_NDD_INSTRUCTION(instruction)                 \
+  /* 3-operand APX version (ndd) */                               \
+  template <class P1, class P2>                                   \
+  void instruction##w(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt16Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##l(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt32Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##q(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt64Size);              \
+  }
+  ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(DECLARE_CMOV_NDD_INSTRUCTION)
+#undef DECLARE_CMOV_NDD_INSTRUCTION
+
+#define DECLARE_CMOV_INSTRUCTION(instruction)       \
+  /* 2-operand Legacy/APX version */                \
+  template <class P1, class P2>                     \
+  void instruction##w(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt16Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##l(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt32Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##q(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt64Size);     \
+  }
+  ASSEMBLER_CMOV_INSTRUCTION_LIST(DECLARE_CMOV_INSTRUCTION)
+#undef DECLARE_CMOV_INSTRUCTION
+#endif  // V8_ENABLE_APX_F
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -3103,6 +3153,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                   int size) {
     immediate_ctest_op(0x0, dst, src, dcc, scc, size);
   }
+
+  // CMOVcc
+  void emit_cmov(Condition cc, Register ndd, Register reg, Register rm,
+                 int size);
+  void emit_cmov(Condition cc, Register ndd, Register reg, Operand rm,
+                 int size);
+  // CFCMOVcc
+  void emit_cfcmov(Condition cc, Register reg, Register rm, int size);
+  void emit_cfcmov(Condition cc, Register reg, Operand rm, int size);
+  void emit_cfcmov(Condition cc, Operand rm, Register reg, int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Register rm,
+                   int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Operand rm,
+                   int size);
 #endif  // V8_ENABLE_APX_F
 
   void emit_dec(Register dst, int size);

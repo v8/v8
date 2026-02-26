@@ -5036,6 +5036,80 @@ void Assembler::jmpabs(Immediate64 target) {
   emit(0xA1);
   emit(target);
 }
+
+void Assembler::emit_cmov(Condition cc, Register ndd, Register reg, Register rm,
+                          int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(ndd, reg, rm, pp, w, kNoFlagUpdate,
+                                   kOldDataDest);
+  emit(0x40 + cc);
+  emit_modrm(reg, rm);
+}
+
+void Assembler::emit_cmov(Condition cc, Register ndd, Register reg, Operand rm,
+                          int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(ndd, reg, rm, pp, w, kNoFlagUpdate,
+                                   kOldDataDest);
+  emit(0x40 + cc);
+  emit_operand(reg, rm);
+}
+
+void Assembler::emit_cfcmov(Condition cc, Register reg, Register rm, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(rax /*place holder*/, reg, rm, pp, w,
+                                   kFlagUpdate, kOldDataDest);
+  emit(0x40 + cc);
+  emit_modrm(reg, rm);
+}
+
+void Assembler::emit_cfcmov(Condition cc, Register reg, Operand rm, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(rax /*place holder*/, reg, rm, pp, w,
+                                   kFlagUpdate, kOldDataDest);
+  emit(0x40 + cc);
+  emit_operand(reg, rm);
+}
+
+void Assembler::emit_cfcmov(Condition cc, Operand rm, Register reg, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(rax /*place holder*/, reg, rm, pp, w,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0x40 + cc);
+  emit_operand(reg, rm);
+}
+
+void Assembler::emit_cfcmov(Condition cc, Register ndd, Register reg,
+                            Register rm, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(ndd, reg, rm, pp, w, kNoFlagUpdate,
+                                   kNewDataDest);
+  emit(0x40 + cc);
+  emit_modrm(reg, rm);
+}
+
+void Assembler::emit_cfcmov(Condition cc, Register ndd, Register reg,
+                            Operand rm, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  emit_legacy_extended_evex_prefix(ndd, reg, rm, pp, w, kNoFlagUpdate,
+                                   kNewDataDest);
+  emit(0x40 + cc);
+  emit_operand(reg, rm);
+}
 #endif  // V8_ENABLE_APX_F
 
 }  // namespace internal

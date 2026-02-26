@@ -3544,6 +3544,83 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F_CTEST) {
       0x62, 0xf4, 0x94, 0x0e, 0xf7, 0x44, 0x24, 0x08, 0x07, 0x00, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
+
+TEST_F(AssemblerX64Test, AssemblerX64APX_F_CMOV) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  Operand mem(rsp, 8);
+
+  // cfcload
+  __ cfcmovw(below, rax, rbx);
+  __ cfcmovw(greater_equal, rax, mem);
+
+  __ cfcmovl(below, rax, r13);
+  __ cfcmovl(greater_equal, r13, mem);
+
+  __ cfcmovq(below, r12, r13);
+  __ cfcmovq(greater_equal, r12, mem);
+
+  // cfcstore
+  __ cfcmovw(greater_equal, mem, rax);
+  __ cfcmovl(greater_equal, mem, r13);
+  __ cfcmovq(below, mem, r12);
+
+  // cfcsel
+  __ cfcmovw(below_equal, r10, r11, r13);
+  __ cfcmovl(below_equal, r11, r12, mem);
+  __ cfcmovq(greater_equal, rax, r10, mem);
+
+  // csel
+  __ cmovw(below_equal, rax, r11, r13);
+  __ cmovl(below_equal, rax, r12, mem);
+  __ cmovq(greater_equal, rax, r10, mem);
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {// cfcmovb ax, bx
+                        0x62, 0xf4, 0x7d, 0x08, 0x42, 0xc3,
+                        // cfcmovnl ax, word ptr [rsp+0x8]
+                        0x62, 0xf4, 0x7d, 0x08, 0x4d, 0x44, 0x24, 0x08,
+                        // cfcmovb eax, r13d
+                        0x62, 0xd4, 0x7c, 0x08, 0x42, 0xc5,
+                        // cfcmovnl r13d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x7c, 0x08, 0x4d, 0x6c, 0x24, 0x08,
+                        // cfcmovb r12, r13
+                        0x62, 0x54, 0xfc, 0x08, 0x42, 0xe5,
+                        // cfcmovnl r12, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x08, 0x4d, 0x64, 0x24, 0x08,
+                        // cmovnl ax, ax, word ptr [rsp+0x8]
+                        0x62, 0xf4, 0x7d, 0x18, 0x4d, 0x44, 0x24, 0x08,
+                        // cmovnl eax, r13d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x7c, 0x18, 0x4d, 0x6c, 0x24, 0x08,
+                        // cmovb rax, r12, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x18, 0x42, 0x64, 0x24, 0x08,
+                        // cfcmovbe r10w, r11w, r13w
+                        0x62, 0x54, 0x2d, 0x1c, 0x46, 0xdd,
+                        // cfcmovbe r11d, r12d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x24, 0x1c, 0x46, 0x64, 0x24, 0x08,
+                        // cfcmovnl rax, r10, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x1c, 0x4d, 0x54, 0x24, 0x08,
+                        // cfcmovbe r13w, r11w
+                        0x62, 0x54, 0x7d, 0x0c, 0x46, 0xdd,
+                        // cfcmovbe dword ptr [rsp+0x8], r12d
+                        0x62, 0x74, 0x7c, 0x0c, 0x46, 0x64, 0x24, 0x08,
+                        // cfcmovnl qword ptr [rsp+0x8], r10
+                        0x62, 0x74, 0xfc, 0x0c, 0x4d, 0x54, 0x24, 0x08};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
 #endif  // V8_ENABLE_APX_F
 
 #undef __
