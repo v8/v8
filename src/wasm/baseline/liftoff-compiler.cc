@@ -8047,9 +8047,12 @@ class LiftoffCompiler {
           LiftoffRegister expected = tmp2;
           LOAD_TAGGED_PTR_INSTANCE_FIELD(actual, WellKnownImports, pinned);
           int field_offset =
-              wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                   matcher.function_index());
-          __ LoadFullPointer(actual, actual, field_offset);
+          // TODO(clemensb): Introduce `LoadTaggedPointerWithoutDecompressing`
+          // and use it here and elsewhere where we only compare the loaded
+          // value against another reference or Smi.
+          __ LoadTaggedPointer(actual, actual, no_reg, field_offset);
           LoadSmi(expected,
                   static_cast<int>(WellKnownImport::kConfigureAllPrototypes));
 
