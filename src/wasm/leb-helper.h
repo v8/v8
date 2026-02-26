@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -76,6 +78,21 @@ class LEBHelper {
       }
       *((*dest)++) = static_cast<uint8_t>(val & 0x7F);
     }
+  }
+
+  // Read a 32-bit unsigned LEB from {src}, updating {src} to point after
+  // the last uint8_t read. No safety checks.
+  static uint32_t read_u32v(const uint8_t** src) {
+    uint32_t shift = 0;
+    uint8_t byte = *(*src)++;
+    uint32_t result = byte & 0x7f;
+    while (byte & 0x80) {
+      byte = *((*src)++);
+      shift += 7;
+      DCHECK_LE(shift, 28);
+      result = result | ((byte & 0x7f) << shift);
+    }
+    return result;
   }
 
   // TODO(titzer): move core logic for decoding LEBs from decoder.h to here.

@@ -28,6 +28,7 @@
 #include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-deopt-data.h"
 #endif
 
@@ -1142,16 +1143,28 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   return result;
 }
 
-base::OwnedVector<wasm::WasmCode::EffectHandler>
-CodeGenerator::GenerateWasmEffectHandler() {
-  auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
-      effect_handlers_.size());
+base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
+  size_t size = 0;
   for (size_t i = 0; i < effect_handlers_.size(); ++i) {
-    const EffectHandlerInfo& old_handler = effect_handlers_[i];
-    handlers[i] = {old_handler.pc_offset, old_handler.tag_and_kind,
-                   old_handler.is_switch() ? 0 : old_handler.handler->pos()};
+    size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].pc_offset);
+    size += wasm::LEBHelper::sizeof_u32v(
+        effect_handlers_[i].tag_and_kind.raw_value());
+    if (!effect_handlers_[i].tag_and_kind.is_switch()) {
+      size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].handler->pos());
+    }
   }
-  return handlers;
+  auto bytes = base::OwnedVector<uint8_t>::New(size);
+  uint8_t* ptr = bytes.data();
+  for (size_t i = 0; i < effect_handlers_.size(); ++i) {
+    wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].pc_offset);
+    wasm::LEBHelper::write_u32v(&ptr,
+                                effect_handlers_[i].tag_and_kind.raw_value());
+    if (!effect_handlers_[i].tag_and_kind.is_switch()) {
+      wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].handler->pos());
+    }
+  }
+  DCHECK_EQ(ptr, bytes.end());
+  return bytes;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

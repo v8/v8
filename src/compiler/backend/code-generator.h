@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<uint8_t> GenerateWasmDeoptimizationData();
-  base::OwnedVector<wasm::WasmCode::EffectHandler> GenerateWasmEffectHandler();
+  base::OwnedVector<uint8_t> GenerateWasmEffectHandlers();
 #endif
 
   base::OwnedVector<uint8_t> GetSourcePositionTable();

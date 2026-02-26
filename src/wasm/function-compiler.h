@@ -85,6 +85,7 @@ struct WasmCompilationResult {
   base::OwnedVector<uint8_t> inlining_positions;
   base::OwnedVector<uint8_t> protected_instructions_data;
   base::OwnedVector<uint8_t> deopt_data;
+  base::OwnedVector<uint8_t> effect_handlers;
   std::unique_ptr<AssumptionsJournal> assumptions;
   std::unique_ptr<LiftoffFrameDescriptionForDeopt> liftoff_frame_descriptions;
   int func_index = kAnonymousFuncIndex;
@@ -92,7 +93,6 @@ struct WasmCompilationResult {
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
-  base::OwnedVector<const WasmCode::EffectHandler> effect_handlers;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
