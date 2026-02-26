@@ -372,7 +372,8 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
 
   // JsonParser with --shared-string-table is currently not supported on worker
   // threads due to known issues (see crbug.com/486551890).
-  DCHECK_IMPLIES(v8_flags.shared_string_table,
+  // We still allow fuzzers to explore this path further.
+  DCHECK_IMPLIES(v8_flags.shared_string_table && !v8_flags.fuzzing,
                  isolate->is_shared_space_isolate());
 
   if (StringShape(*source_).IsExternal()) {
