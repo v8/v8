@@ -267,12 +267,15 @@ class MarkCompactCollector final {
   // fixpoint iteration doesn't finish within a few iterations.
   void MarkTransitiveClosureLinear();
 
-  // Drains ephemeron and marking worklists. Single iteration of the
-  // fixpoint iteration.
-  bool ProcessEphemerons();
+  // Drains marking worklists for both V8 and the embedder in a loop until the
+  // transitive closure is reached. Is used by both
+  // `MarkTransitiveClosureUntilFixpoint` and `MarkTransitiveClosureLinear`.
+  template <MarkingWorklistProcessingMode mode =
+                MarkingWorklistProcessingMode::kDefault>
+  bool ReachTransitiveClosureWithEmbedder();
 
-  // Perform Wrapper Tracing if in use.
-  void PerformWrapperTracing();
+  // Perform wrapper tracing if in use.
+  void ProcessCppHeapWorklist();
 
   // Retain dying maps for `v8_flags.retain_maps_for_n_gc` garbage collections
   // to increase chances of reusing of map transition tree in future.
