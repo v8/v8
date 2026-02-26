@@ -1132,6 +1132,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       loop_effects_stack_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
+      unobserved_map_stores_(zone()),
+      unobserved_context_slot_stores_(zone()),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->AllocateArray<BasicBlockRef>(
           bytecode().length() + (is_inline() ? 1 : 0))),
@@ -1149,8 +1151,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
-      catch_block_stack_(zone()),
-      unobserved_context_slot_stores_(zone()) {
+      catch_block_stack_(zone()) {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     current_inlining_tree_debug_info_ = zone()->New<InliningTreeDebugInfo>(
         zone(), compilation_unit->shared_function_info(), caller_details);
@@ -1190,6 +1191,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     }
     unobserved_context_slot_stores_ =
         caller_details->unobserved_context_slot_stores;
+    unobserved_map_stores_ = caller_details->unobserved_map_stores;
   }
 
   CHECK_IMPLIES(compilation_unit_->is_osr(), graph_->is_osr());
@@ -5301,7 +5303,20 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
 ReduceResult MaglevGraphBuilder::BuildStoreMap(ValueNode* object,
                                                compiler::MapRef map,
                                                StoreMap::Kind kind) {
-  RETURN_IF_ABORT(AddNewNode<StoreMap>({object}, map, kind));
+  auto it = unobserved_map_stores_.find(object);
+  if (it != unobserved_map_stores_.end()) {
+    StoreMap* last_store = it->second;
+    // We can elide the last store if the new map is a transition from it.
+    if (map.GetBackPointer(broker()).equals(last_store->map())) {
+      MarkNodeDead(last_store);
+    }
+    unobserved_map_stores_.erase(it);
+  }
+
+  ReduceResult result = AddNewNode<StoreMap>({object}, map, kind);
+  RETURN_IF_ABORT(result);
+  unobserved_map_stores_[object] = result.node()->Cast<StoreMap>();
+
   NodeType object_type = StaticTypeForMap(map, broker());
   NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
@@ -8583,7 +8598,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
           call_aspects, loop_effects_, unobserved_context_slot_stores_,
-          catch_details, GetLoopDepth(), peeled_iteration_count_,
+          unobserved_map_stores_, catch_details, GetLoopDepth(),
+          peeled_iteration_count_,
           /* is_eager_inline */ false, /* is_small_function */ false,
           call_frequency, current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
@@ -8629,8 +8645,8 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
       arguments_vector, deopt_frame,
       current_interpreter_frame_.known_node_aspects(), loop_effects_,
-      unobserved_context_slot_stores_, catch_block_details, GetLoopDepth(),
-      peeled_iteration_count_,
+      unobserved_context_slot_stores_, unobserved_map_stores_,
+      catch_block_details, GetLoopDepth(), peeled_iteration_count_,
       /* is_eager_inline */ true, /* is_small_function */ true, call_frequency,
       current_inlining_tree_debug_info_);
 
@@ -8649,6 +8665,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Propagate back (or reset) builder state.
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
+  unobserved_map_stores_ = inner_graph_builder.unobserved_map_stores_;
   latest_checkpointed_frame_ = nullptr;
   ClearCurrentAllocationBlock();
 
@@ -17967,15 +17984,15 @@ std::optional<BasicBlock*> MaglevGraphBuilder::FinishBlock(
     return {};
   }
 
-  // Clear unobserved context slot stores when there is any controlflow.
-  // TODO(olivf): More precision could be achieved by tracking dominating
-  // stores within known_node_aspects. For this we could use a stack of
-  // stores, which we push on split and pop on merge.
-  unobserved_context_slot_stores_.clear();
-
   // TODO(olivf): Support allocation folding across control flow.
   ClearCurrentAllocationBlock();
   current_interpreter_frame_.virtual_objects().Snapshot();
+
+  // Clear unobserved context slot stores when there isn't any controlflow.
+  // TODO(olivf): We could make this more accurate by keeping track of
+  // post-dominating stores, e.g. through a backwards pass instead of forwards.
+  unobserved_context_slot_stores_.clear();
+  unobserved_map_stores_.clear();
 
   BasicBlock* block = current_block();
   reducer_.FlushNodesToBlock();

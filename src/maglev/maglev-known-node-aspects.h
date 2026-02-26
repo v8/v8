@@ -476,6 +476,16 @@ class KnownNodeAspects {
 
   void Merge(const KnownNodeAspects& other, Zone* zone);
 
+  // Cached property loads.
+
+  // Maps key->object->value, so that stores to a key can invalidate all loads
+  // of that key (in case the objects are aliasing).
+  using LoadedPropertyMap =
+      ZoneMap<PropertyKey, ZoneMap<ValueNode*, ValueNode*>>;
+
+  using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
+  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
+
   // If IsCompatibleWithLoopHeader(other) returns true, it means that
   // Merge(other) would not remove any information from `this`.
   bool IsCompatibleWithLoopHeader(const KnownNodeAspects& other) const;
@@ -488,16 +498,6 @@ class KnownNodeAspects {
 
   VirtualObjectList& virtual_objects() { return virtual_objects_; }
   const VirtualObjectList& virtual_objects() const { return virtual_objects_; }
-
-  // Cached property loads.
-
-  // Maps key->object->value, so that stores to a key can invalidate all loads
-  // of that key (in case the objects are aliasing).
-  using LoadedPropertyMap =
-      ZoneMap<PropertyKey, ZoneMap<ValueNode*, ValueNode*>>;
-
-  using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
-  using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
 
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
                                    PropertyKey name) {
