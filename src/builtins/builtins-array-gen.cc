@@ -1542,19 +1542,17 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_other);
   {
+    GotoIf(InstanceTypeEqual(array_type, JS_DETACHED_TYPED_ARRAY_TYPE),
+           &if_detached_typed_array);
     // We cannot enter here with either JSArray's or JSTypedArray's.
     CSA_DCHECK(this, Word32BinaryNot(IsJSArrayInstanceType(array_type)));
-    CSA_DCHECK(this,
-               Word32BinaryNot(
-                   IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(array_type)));
-
-    Label if_oob(this);
+    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArrayInstanceType(array_type)));
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
         CallBuiltin(Builtin::kToLength, context,
                     GetProperty(context, array, factory()->length_string())));
-    GotoIfNumberGreaterThanOrEqual(index, length, &if_oob);
+    GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
 
     // Detached typed array must have length 0.
     CSA_DCHECK(this, Word32BinaryNot(InstanceTypeEqual(
@@ -1568,11 +1566,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result, &if_generic);
-
-    BIND(&if_oob);
-    GotoIf(InstanceTypeEqual(array_type, JS_DETACHED_TYPED_ARRAY_TYPE),
-           &if_detached_typed_array);
-    Goto(&set_done);
   }
 
   BIND(&set_done);

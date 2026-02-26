@@ -1910,7 +1910,9 @@ bool JSTypedArrayRef::is_on_heap() const {
 }
 
 size_t JSTypedArrayRef::length(JSHeapBroker* broker) const {
-  DCHECK_NE(map(broker).instance_type(), JS_DETACHED_TYPED_ARRAY_TYPE);
+  if (map(broker).instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE) {
+    return 0;
+  }
   return object()->byte_length() /
          ElementsKindToByteSize(elements_kind(broker));
 }

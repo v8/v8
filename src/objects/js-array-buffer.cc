@@ -184,6 +184,7 @@ void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
       MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
   JSObject::MigrateToMap(isolate, typed_array, new_map);
   typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
+  typed_array->WriteBoundedSizeField(kRawByteLengthOffset, 0);
   // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
 }
 
