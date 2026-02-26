@@ -35,7 +35,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "include/cppgc/garbage-collected.h"
 #include "include/v8-exception.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
@@ -75,14 +74,12 @@ class EvaluateCallback {
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
 };
 
-class InjectedScript final : public cppgc::GarbageCollected<InjectedScript> {
+class InjectedScript final {
  public:
   InjectedScript(InspectedContext*, int sessionId);
   ~InjectedScript();
   InjectedScript(const InjectedScript&) = delete;
   InjectedScript& operator=(const InjectedScript&) = delete;
-
-  void Trace(cppgc::Visitor* visitor) const {}
 
   InspectedContext* context() const { return m_context; }
 

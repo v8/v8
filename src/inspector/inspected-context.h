@@ -9,9 +9,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "include/cppgc/allocation.h"
-#include "include/cppgc/garbage-collected.h"
-#include "include/cppgc/persistent.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
 #include "src/base/macros.h"
@@ -40,13 +37,11 @@ enum class V8InternalValueType {
   kPrivateMethod
 };
 
-class InspectedContext : public cppgc::GarbageCollected<InspectedContext> {
+class InspectedContext {
  public:
   ~InspectedContext();
   InspectedContext(const InspectedContext&) = delete;
   InspectedContext& operator=(const InspectedContext&) = delete;
-
-  void Trace(cppgc::Visitor* visitor) const {}
 
   static int contextId(v8::Local<v8::Context>);
 
@@ -73,7 +68,7 @@ class InspectedContext : public cppgc::GarbageCollected<InspectedContext> {
   V8InternalValueType getInternalType(v8::Local<v8::Object> object);
 
  private:
-  friend class cppgc::MakeGarbageCollectedTrait<InspectedContext>;
+  friend class V8InspectorImpl;
   InspectedContext(V8InspectorImpl*, const V8ContextInfo&, int contextId);
 
   class ContextCollectedCallbacks;
@@ -88,7 +83,7 @@ class InspectedContext : public cppgc::GarbageCollected<InspectedContext> {
   const String16 m_auxData;
   const internal::V8DebuggerId m_uniqueId;
   std::unordered_set<int> m_reportedSessionIds;
-  std::unordered_map<int, cppgc::Persistent<InjectedScript>> m_injectedScripts;
+  std::unordered_map<int, std::unique_ptr<InjectedScript>> m_injectedScripts;
   WeakCallbackData* m_weakCallbackData;
   v8::Global<v8::debug::EphemeronTable> m_internalObjects;
 };
