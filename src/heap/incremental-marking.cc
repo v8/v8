@@ -423,11 +423,18 @@ void IncrementalMarking::StartPointerTableBlackAllocation() {
 #ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(true);
   heap()->trusted_pointer_space()->set_allocate_black(true);
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->shared_trusted_pointer_space()->set_allocate_black(true);
-  }
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(true);
+
+  // Enable black allocation for shared spaces we own.
+  if (isolate()->is_shared_space_isolate()) {
+#ifdef V8_COMPRESS_POINTERS
+    isolate()->shared_external_pointer_space()->set_allocate_black(true);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+    isolate()->shared_trusted_pointer_space()->set_allocate_black(true);
+#endif  // V8_ENABLE_SANDBOX
+  }
 }
 
 void IncrementalMarking::StopPointerTableBlackAllocation() {
@@ -438,12 +445,18 @@ void IncrementalMarking::StopPointerTableBlackAllocation() {
 #ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(false);
   heap()->trusted_pointer_space()->set_allocate_black(false);
-  if (isolate()->is_shared_space_isolate()) {
-    heap()->isolate()->shared_trusted_pointer_space()->set_allocate_black(
-        false);
-  }
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(false);
+
+  // Disable black allocation for shared spaces we own.
+  if (isolate()->is_shared_space_isolate()) {
+#ifdef V8_COMPRESS_POINTERS
+    isolate()->shared_external_pointer_space()->set_allocate_black(false);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+    isolate()->shared_trusted_pointer_space()->set_allocate_black(false);
+#endif  // V8_ENABLE_SANDBOX
+  }
 }
 
 std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
