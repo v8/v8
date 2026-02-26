@@ -4056,6 +4056,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   // TODO(saelo): can the offset computation be done more efficiently?
   Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
   Ldr(destination, MemOperand(scratch, destination));
   if (tag != 0) {
     Mov(scratch, Immediate(tag));

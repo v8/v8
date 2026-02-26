@@ -2222,6 +2222,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag) {
   TNode<RawPtrT> table = LoadCodePointerTableBase();
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
   TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
   if (tag != 0) {
     entry = UncheckedCast<UintPtrT>(WordXor(entry, UintPtrConstant(tag)));

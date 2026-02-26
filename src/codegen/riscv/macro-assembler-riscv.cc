@@ -457,7 +457,8 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   SrlWord(destination, destination, kCodePointerHandleShift);
   SllWord(destination, destination, kCodePointerTableEntrySizeLog2);
   AddWord(scratch, scratch, destination);
-  LoadWord(destination, MemOperand(scratch, 0));
+  LoadWord(destination,
+           MemOperand(scratch, kCodePointerTableEntryEntrypointOffset));
   if (tag != 0) {
     li(scratch, Operand(tag));
     Xor(destination, destination, scratch);

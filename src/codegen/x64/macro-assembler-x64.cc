@@ -944,7 +944,8 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   movl(destination, field_operand);
   shrl(destination, Immediate(kCodePointerHandleShift));
   shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
-  movq(destination, Operand(kScratchRegister, destination, times_1, 0));
+  movq(destination, Operand(kScratchRegister, destination, times_1,
+                            kCodePointerTableEntryEntrypointOffset));
   if (tag != 0) {
     // Can this be improved?
     movq(kScratchRegister, Immediate64(tag));

@@ -626,6 +626,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   Ld_wu(destination, field_operand);
   srli_d(destination, destination, kCodePointerHandleShift);
   slli_d(destination, destination, kCodePointerTableEntrySizeLog2);
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
   Ld_d(destination, MemOperand(scratch, destination));
   if (tag != 0) {
     li(scratch, Operand(tag));
