@@ -938,27 +938,17 @@ using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
 using FixedInt64Array = FixedIntegerArrayBase<int64_t, ByteArray>;
 using FixedUInt64Array = FixedIntegerArrayBase<uint64_t, ByteArray>;
 
-// Use with care! Raw addresses on the heap are not safe in combination with
-// the sandbox. However, this can for example be used to store sandboxed
-// pointers, which is safe.
 V8_OBJECT
-template <typename Base>
-class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
-  using Underlying = FixedIntegerArrayBase<Address, Base>;
+class TrustedFixedAddressArray
+    : public FixedIntegerArrayBase<Address, TrustedByteArray> {
+  using Underlying = FixedIntegerArrayBase<Address, TrustedByteArray>;
 
  public:
-  // Get/set a sandboxed pointer from this array.
-  inline Address get_sandboxed_pointer(int index) const;
-  inline void set_sandboxed_pointer(int index, Address value);
-
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
   template <typename... MoreArgs>
-  static inline DirectHandle<FixedAddressArrayBase> New(
+  static inline DirectHandle<TrustedFixedAddressArray> New(
       Isolate* isolate, int length, MoreArgs&&... more_args);
 } V8_OBJECT_END;
-
-using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
-using TrustedFixedAddressArray = FixedAddressArrayBase<TrustedByteArray>;
 
 V8_OBJECT
 template <class T, class Super>

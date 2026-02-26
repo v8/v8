@@ -369,8 +369,9 @@ template <typename T>
 struct CastTraits<TrustedPodArray<T>> : public CastTraits<TrustedByteArray> {};
 template <typename T, typename Base>
 struct CastTraits<FixedIntegerArrayBase<T, Base>> : public CastTraits<Base> {};
-template <typename Base>
-struct CastTraits<FixedAddressArrayBase<Base>> : public CastTraits<Base> {};
+template <>
+struct CastTraits<TrustedFixedAddressArray>
+    : public CastTraits<TrustedByteArray> {};
 
 template <>
 struct CastTraits<JSRegExpResultIndices> : public CastTraits<JSArray> {};

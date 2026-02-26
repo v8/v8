@@ -38,11 +38,6 @@ class ObjectAccess : public AllStatic {
     return ToTagged(FixedUInt32Array::OffsetOfElementAt(index));
   }
 
-  // Get the offset into a fixed address array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedAddressArray(int index) {
-    return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
-  }
-
   // Get the offset into a trusted fixed address array for a given {index}.
   static constexpr int ElementOffsetInTaggedTrustedFixedAddressArray(
       int index) {
