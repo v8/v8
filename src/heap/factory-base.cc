@@ -299,9 +299,9 @@ Handle<ProtectedWeakFixedArray> FactoryBase<Impl>::NewProtectedWeakFixedArray(
 }
 
 template <typename Impl>
-Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
-                                                  AllocationType allocation) {
-  return ByteArray::New(isolate(), length, allocation);
+Handle<ByteArray> FactoryBase<Impl>::NewByteArray(
+    int length, AllocationType allocation, AllocationAlignment alignment) {
+  return ByteArray::New(isolate(), length, allocation, alignment);
 }
 
 template <typename Impl>
@@ -1334,9 +1334,9 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
-    int size, AllocationType allocation, AllocationHint hint) {
-  Tagged<HeapObject> result =
-      AllocateRaw(size, allocation, AllocationAlignment::kTaggedAligned, hint);
+    int size, AllocationType allocation, AllocationHint hint,
+    AllocationAlignment alignment) {
+  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment, hint);
   if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
