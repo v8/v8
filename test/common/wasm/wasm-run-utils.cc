@@ -409,6 +409,9 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset_ = RoundUp(global_offset_, size);  // align
+  // Make sure that the returned pointer stays valid by pre-reserving enough
+  // space.
+  module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
       {type, true, {}, {global_offset_}, false, false, false});
   global_offset_ += size;

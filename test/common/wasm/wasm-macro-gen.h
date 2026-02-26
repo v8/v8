@@ -1184,6 +1184,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define LANE(ptr, index) ptr[index]
 #endif
 
+#define ULANE(ptr, index) base::bits::Unsigned(LANE(ptr, index))
+
 // WasmGC type definitions.
 #define FIELD_COUNT(count) U32V_1(count)
 #define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)

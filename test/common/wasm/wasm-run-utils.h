@@ -98,7 +98,7 @@ bool IsSameNan(uint16_t expected, uint16_t actual);
 bool IsSameNan(float expected, float actual);
 bool IsSameNan(double expected, double actual);
 
-// A  Wasm module builder. Globals are pre-set, however, memory and code may be
+// A Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject} and {WasmModuleObject}.
 class TestingModuleBuilder {
@@ -122,10 +122,31 @@ class TestingModuleBuilder {
     return raw_mem_start<T>();
   }
 
+  const WasmGlobal* AddGlobal(ValueType type);
+
   template <typename T>
-  T* AddGlobal(ValueType type = ValueType::For(MachineTypeForC<T>())) {
-    const WasmGlobal* global = AddGlobal(type);
-    return reinterpret_cast<T*>(globals_data_ + global->offset);
+  const WasmGlobal* AddGlobal() {
+    return AddGlobal(MachineTypeForC<T>());
+  }
+
+  WasmValue ReadGlobal(const WasmGlobal& g) const {
+    return trusted_instance_data_->GetGlobalValue(isolate_, g);
+  }
+
+  void WriteGlobal(const WasmGlobal& g, WasmValue value) const {
+    DCHECK(!g.type.is_ref());
+    DisallowGarbageCollection no_gc;
+    Address storage = trusted_instance_data_->GetGlobalStorage(g, no_gc);
+    switch (g.type.kind()) {
+#define CASE_TYPE(valuetype, ctype)                               \
+  case wasm::valuetype:                                           \
+    base::WriteUnalignedValue<ctype>(storage, value.to<ctype>()); \
+    return;
+      FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+      default:
+        UNREACHABLE();
+    }
   }
 
   // TODO(14034): Allow selecting type finality.
@@ -237,9 +258,6 @@ class TestingModuleBuilder {
   WasmCode* GetFunctionCode(uint32_t index) const {
     return native_module_->GetCode(index);
   }
-  Address globals_start() const {
-    return reinterpret_cast<Address>(globals_data_);
-  }
 
   void SetDebugState() {
     native_module_->SetDebugState(kDebugging);
@@ -278,6 +296,8 @@ class TestingModuleBuilder {
   }
 
  private:
+  DirectHandle<WasmInstanceObject> InitInstanceObject();
+
   std::shared_ptr<WasmModule> module_;
   Isolate* isolate_;
   WasmEnabledFeatures enabled_features_;
@@ -291,10 +311,6 @@ class TestingModuleBuilder {
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
-
-  const WasmGlobal* AddGlobal(ValueType type);
-
-  DirectHandle<WasmInstanceObject> InitInstanceObject();
 };
 
 // A helper for compiling wasm functions for testing.

@@ -723,7 +723,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
-  uint8_t* GetGlobalStorage(const wasm::WasmGlobal&);
+  Address GetGlobalStorage(const wasm::WasmGlobal&,
+                           const DisallowGarbageCollection&);
 
   // Get the FixedArray and the index in that FixedArray for the given global,
   // which must be a reference type.

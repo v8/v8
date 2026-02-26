@@ -2159,14 +2159,13 @@ void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
   set_call_origin(func);
 }
 
-uint8_t* WasmTrustedInstanceData::GetGlobalStorage(
-    const wasm::WasmGlobal& global) {
+Address WasmTrustedInstanceData::GetGlobalStorage(
+    const wasm::WasmGlobal& global, const DisallowGarbageCollection&) {
   DCHECK(!global.type.is_ref());
   if (global.mutability && global.imported) {
-    return reinterpret_cast<uint8_t*>(
-        imported_mutable_globals()->get_sandboxed_pointer(global.index));
+    return imported_mutable_globals()->get_sandboxed_pointer(global.index);
   }
-  return globals_start() + global.offset;
+  return reinterpret_cast<Address>(globals_start()) + global.offset;
 }
 
 std::pair<Tagged<FixedArray>, uint32_t>
@@ -2195,7 +2194,7 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
         direct_handle(global_buffer->get(global_index), isolate),
         module()->canonical_type(global.type));
   }
-  Address ptr = reinterpret_cast<Address>(GetGlobalStorage(global));
+  Address ptr = GetGlobalStorage(global, no_gc);
   switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
