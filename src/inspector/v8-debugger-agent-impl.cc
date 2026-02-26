@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/cppgc/macros.h"
 #include "include/v8-context.h"
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
@@ -1936,6 +1937,8 @@ static void getDebugSymbols(
 namespace {
 
 class DeferredMakeWeakScope {
+  CPPGC_STACK_ALLOCATED();
+
  public:
   explicit DeferredMakeWeakScope(V8DebuggerScript& script) : script_(script) {}
 
