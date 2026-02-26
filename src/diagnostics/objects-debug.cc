@@ -539,7 +539,11 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       CHECK_EQ(actual_first_unused_property_index,
                expected_first_unused_property_index);
     } else {
-      CHECK_EQ(property_array()->length(), 0);
+      // We should have a 0 length property array, but we might be in the middle
+      // of adding the first property array entry so we might have a fresh
+      // property array.
+      CHECK(property_array()->length() == 0 ||
+            property_array()->length() == JSObject::kFieldsAdded);
       if (!offset.is_in_object) {
         CHECK_EQ(map()->GetInObjectPropertiesStartInWords() +
                      map()->GetInObjectProperties(),
