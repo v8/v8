@@ -387,6 +387,13 @@ using IndexedPropertyDescriptorCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 
 /**
+ * Experimental API, do not use!
+ */
+using IndexedPropertyIndexOfCallback =
+    uint32_t (*)(Local<Value> value, uint32_t start_index, uint32_t end_index,
+                 uint32_t* out_length, const PropertyCallbackInfo<void>& info);
+
+/**
  * Returns true if the given context should be allowed to access the given
  * object.
  */
@@ -840,6 +847,28 @@ struct IndexedPropertyHandlerConfiguration {
         data(data),
         flags(flags) {}
 
+  IndexedPropertyHandlerConfiguration(
+      IndexedPropertyGetterCallbackV2 getter,          //
+      IndexedPropertySetterCallbackV2 setter,          //
+      IndexedPropertyQueryCallbackV2 query,            //
+      IndexedPropertyDeleterCallbackV2 deleter,        //
+      IndexedPropertyEnumeratorCallback enumerator,    //
+      IndexedPropertyDefinerCallbackV2 definer,        //
+      IndexedPropertyDescriptorCallbackV2 descriptor,  //
+      IndexedPropertyIndexOfCallback index_of,         //
+      Local<Value> data = Local<Value>(),
+      PropertyHandlerFlags flags = PropertyHandlerFlags::kNone)
+      : getter(getter),
+        setter(setter),
+        query(query),
+        deleter(deleter),
+        enumerator(enumerator),
+        definer(definer),
+        descriptor(descriptor),
+        index_of(index_of),
+        data(data),
+        flags(flags) {}
+
   IndexedPropertyGetterCallbackV2 getter;
   IndexedPropertySetterCallbackV2 setter;
   IndexedPropertyQueryCallbackV2 query;
@@ -847,6 +876,7 @@ struct IndexedPropertyHandlerConfiguration {
   IndexedPropertyEnumeratorCallback enumerator;
   IndexedPropertyDefinerCallbackV2 definer;
   IndexedPropertyDescriptorCallbackV2 descriptor;
+  IndexedPropertyIndexOfCallback index_of = nullptr;
   Local<Value> data;
   PropertyHandlerFlags flags;
 };

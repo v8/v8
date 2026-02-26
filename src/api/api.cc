@@ -1583,8 +1583,7 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
 }
 
 namespace {
-enum class PropertyType { kNamed, kIndexed };
-template <PropertyType property_type, typename Getter, typename Setter,
+template <i::InterceptorKind kind, typename Getter, typename Setter,
           typename Query, typename Descriptor, typename Deleter,
           typename Enumerator, typename Definer>
 i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
@@ -1596,18 +1595,17 @@ i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
   // pointers (with different tags), consider creating an object in trusted
   // space instead. That way, only a single reference going out of the sandbox
   // would be required.
-  auto obj = i_isolate->factory()->NewInterceptorInfo();
-  obj->set_is_named(property_type == PropertyType::kNamed);
+  auto obj = i_isolate->factory()->NewInterceptorInfo(kind);
 
 #define SET_CALLBACK_FIELD(Name, name)                                        \
   if (name != nullptr) {                                                      \
-    if constexpr (property_type == PropertyType::kNamed) {                    \
+    if constexpr (kind == i::InterceptorKind::kNamed) {                       \
       obj->set_named_##name(i_isolate, reinterpret_cast<i::Address>(name));   \
     } else {                                                                  \
       obj->set_indexed_##name(i_isolate, reinterpret_cast<i::Address>(name)); \
     }                                                                         \
   }
-  INTERCEPTOR_INFO_CALLBACK_LIST(SET_CALLBACK_FIELD)
+  COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(SET_CALLBACK_FIELD)
 #undef SET_CALLBACK_FIELD
 
   obj->set_can_intercept_symbols(
@@ -1629,7 +1627,7 @@ i::DirectHandle<i::InterceptorInfo> CreateNamedInterceptorInfo(
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
-  auto interceptor = CreateInterceptorInfo<PropertyType::kNamed>(
+  auto interceptor = CreateInterceptorInfo<i::InterceptorKind::kNamed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
   return interceptor;
@@ -1642,7 +1640,7 @@ i::DirectHandle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
-  auto interceptor = CreateInterceptorInfo<PropertyType::kIndexed>(
+  auto interceptor = CreateInterceptorInfo<i::InterceptorKind::kIndexed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
   return interceptor;
@@ -1760,6 +1758,10 @@ void ObjectTemplate::SetHandler(
       i_isolate, config.getter, config.setter, config.query, config.descriptor,
       config.deleter, config.enumerator, config.definer, config.data,
       config.flags);
+  if (config.index_of) {
+    obj->set_indexed_index_of(i_isolate,
+                              reinterpret_cast<i::Address>(config.index_of));
+  }
   i::FunctionTemplateInfo::SetIndexedPropertyHandler(i_isolate, cons, obj);
 }
 
@@ -6610,7 +6612,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
             global_constructor->GetNamedPropertyHandler(), i_isolate);
         i::FunctionTemplateInfo::SetNamedPropertyHandler(
             i_isolate, global_constructor,
-            i_isolate->factory()->noop_interceptor_info());
+            i_isolate->factory()->noop_named_interceptor_info());
       }
       if (!IsUndefined(global_constructor->GetIndexedPropertyHandler(),
                        i_isolate)) {
@@ -6618,7 +6620,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
             global_constructor->GetIndexedPropertyHandler(), i_isolate);
         i::FunctionTemplateInfo::SetIndexedPropertyHandler(
             i_isolate, global_constructor,
-            i_isolate->factory()->noop_interceptor_info());
+            i_isolate->factory()->noop_indexed_interceptor_info());
       }
     }
 

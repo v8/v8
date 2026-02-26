@@ -939,13 +939,14 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kJSSharedArrayMap = 0x1a0079;
   static constexpr Tagged_t kJSAtomicsMutexMap = 0x1a00c1;
   static constexpr Tagged_t kJSAtomicsConditionMap = 0x1a00e9;
-  static constexpr Tagged_t kNoOpInterceptorInfo = 0x1a0111;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1a0111;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1a015d;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1a0111;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1a015d;
 };
 
-static constexpr std::array<Tagged_t, 908> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 909> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1106,7 +1107,8 @@ static constexpr std::array<Tagged_t, 908> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEmptyPropertyDictionary,
     StaticReadOnlyRoot::kEmptyOrderedPropertyDictionary,
     StaticReadOnlyRoot::kEmptySwissPropertyDictionary,
-    StaticReadOnlyRoot::kNoOpInterceptorInfo,
+    StaticReadOnlyRoot::kNoOpNamedInterceptorInfo,
+    StaticReadOnlyRoot::kNoOpIndexedInterceptorInfo,
     StaticReadOnlyRoot::kEmptyArrayList,
     StaticReadOnlyRoot::kEmptyWeakFixedArray,
     StaticReadOnlyRoot::kNanValue,

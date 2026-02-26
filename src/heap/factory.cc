@@ -1572,20 +1572,23 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
 }
 
 DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
-    AllocationType allocation) {
+    InterceptorKind kind, AllocationType allocation) {
   Tagged<InterceptorInfo> info =
       Cast<InterceptorInfo>(New(interceptor_info_map(), allocation));
   DisallowGarbageCollection no_gc;
   info->set_data(*undefined_value());
-  info->set_flags(0);
+  info->set_flags(
+      InterceptorInfo::NamedBit::encode(kind == InterceptorKind::kNamed));
   info->clear_padding();
 
   // Initialization of these lazy-initialized callback fields is the same
   // for named and indexed versions.
 #define INIT_CALLBACK_FIELD(Name, name) info->init_named_##name();
 
-  INTERCEPTOR_INFO_CALLBACK_LIST(INIT_CALLBACK_FIELD)
+  COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(INIT_CALLBACK_FIELD)
 #undef INIT_CALLBACK_FIELD
+
+  info->init_indexed_index_of();
 
   return direct_handle(info, isolate());
 }

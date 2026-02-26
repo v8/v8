@@ -1401,13 +1401,21 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info =
-      isolate()->factory()->NewInterceptorInfo(AllocationType::kReadOnly);
-  set_noop_interceptor_info(*info);
+
   // Make sure read only heap layout does not depend on the size of
   // ExternalPointer fields.
-  StaticRootsEnsureAllocatedSize(info,
-                                 3 * kTaggedSize + 7 * kSystemPointerSize);
+  constexpr int kMaxPossibleInterceptorInfoSize =
+      3 * kTaggedSize + 8 * kSystemPointerSize;
+
+  auto info = isolate()->factory()->NewInterceptorInfo(
+      InterceptorKind::kNamed, AllocationType::kReadOnly);
+  set_noop_named_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
+
+  info = isolate()->factory()->NewInterceptorInfo(InterceptorKind::kIndexed,
+                                                  AllocationType::kReadOnly);
+  set_noop_indexed_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
 }
 
 void Heap::CreateInitialMutableObjects() {

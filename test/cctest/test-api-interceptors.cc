@@ -6759,6 +6759,99 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       9);
 }
 
+class ArrayLike {
+ public:
+  static v8::Intercepted Getter(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    auto& data = GetData<ArrayLike>(info)->data_;
+    if (index < data.size()) {
+      info.GetReturnValue().Set(data[index]);
+      return v8::Intercepted::kYes;
+    }
+    return v8::Intercepted::kNo;
+  }
+  static v8::Intercepted Query(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+    auto& data = GetData<ArrayLike>(info)->data_;
+    if (index < data.size()) {
+      return v8::Intercepted::kYes;
+    }
+    return v8::Intercepted::kNo;
+  }
+
+  static uint32_t IndexOf(Local<Value> value, uint32_t start_index,
+                          uint32_t end_index, uint32_t* in_out_length,
+                          const v8::PropertyCallbackInfo<void>& info) {
+    auto& self = *GetData<ArrayLike>(info);
+    self.index_of_count_++;
+
+    Local<Context> context = info.GetIsolate()->GetCurrentContext();
+    auto& data = self.data_;
+    uint32_t length = static_cast<uint32_t>(data.size());
+    *in_out_length = length;
+
+    // This array contains only int32_t values.
+    if (!value->IsInt32()) return i::kMaxUInt32;
+    int32_t needle = value->ToInt32(context).ToLocalChecked()->Value();
+
+    // Cap the indices, in case the builtin used arbitrary "length" value.
+    start_index = std::min(start_index, length);
+    end_index = std::min(end_index, length);
+
+    auto begin = data.begin() + start_index;
+    auto end = data.begin() + end_index;
+
+    auto iter = std::find(begin, end, needle);
+    if (iter == data.end()) return i::kMaxUInt32;
+    return static_cast<uint32_t>(std::distance(data.begin(), iter));
+  }
+
+  static void LengthGetter(Local<Name> property,
+                           const v8::PropertyCallbackInfo<Value>& info) {
+    ArrayLike* self = GetData<ArrayLike>(info);
+
+    info.GetReturnValue().Set(static_cast<uint32_t>(self->data_.size()));
+  }
+
+  std::vector<int32_t> data_;
+  uint32_t index_of_count_ = 0;
+};
+
+THREADED_TEST(ArrayLikeInterceptor) {
+  auto isolate = CcTest::isolate();
+  i::v8_flags.fast_api_indexof = true;
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  const size_t N = 512;
+  ArrayLike array_like;
+  array_like.data_.reserve(N);
+  for (size_t i = 0; i < N; i++) {
+    array_like.data_.push_back(static_cast<int32_t>(i + 15));
+  }
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::IndexedPropertyHandlerConfiguration conf(ArrayLike::Getter, nullptr,
+                                               ArrayLike::Query);
+  conf.index_of = ArrayLike::IndexOf;
+  conf.data = MakeData(isolate, &array_like);
+  interceptor_templ->SetHandler(conf);
+  interceptor_templ->SetNativeDataProperty(
+      v8_str("length"), ArrayLike::LengthGetter, nullptr, conf.data,
+      v8::PropertyAttribute::ReadOnly, v8::SideEffectType::kHasNoSideEffect);
+
+  context->Global()
+      ->Set(context.local(), v8_str("interceptor"),
+            interceptor_templ->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("interceptor.length", N);
+  ExpectInt32("interceptor[153-15]", 153);
+  ExpectInt32("Array.prototype.indexOf.call(interceptor, 153);", 153 - 15);
+
+  CHECK_EQ(array_like.index_of_count_, 1);
+}
+
 namespace {
 
 constexpr v8::ExternalPointerTypeTag kCallsTag = 15;

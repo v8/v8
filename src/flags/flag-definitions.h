@@ -2926,6 +2926,7 @@ DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
 DEFINE_BOOL(test_small_max_function_context_stub_size, false,
             "enable testing the function context size overflow path "
             "by making the maximum size smaller")
+DEFINE_BOOL(fast_api_indexof, false, "enable using indexOf Api callbacks")
 
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 DEFINE_NEG_NEG_IMPLICATION(inline_new, turbo_allocation_folding)

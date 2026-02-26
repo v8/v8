@@ -1539,7 +1539,9 @@ class InterceptorInfo::BodyDescriptor final : public BodyDescriptorBase {
                 InterceptorInfo::kEnumeratorOffset);
   static_assert(InterceptorInfo::kEnumeratorOffset <
                 InterceptorInfo::kDefinerOffset);
-  static_assert(InterceptorInfo::kDefinerOffsetEnd + 1 ==
+  static_assert(InterceptorInfo::kDefinerOffset <
+                InterceptorInfo::kIndexOfOffset);
+  static_assert(InterceptorInfo::kIndexOfOffsetEnd + 1 ==
                 InterceptorInfo::kSize);
 
   template <typename ObjectVisitor>
@@ -1550,15 +1552,23 @@ class InterceptorInfo::BodyDescriptor final : public BodyDescriptorBase {
 
     const bool is_named = Cast<InterceptorInfo>(obj)->is_named();
 
-#define VISIT_FIELD(Name, name)                                \
-  v->VisitExternalPointer(                                     \
-      obj, obj->RawExternalPointerField(                       \
-               InterceptorInfo::k##Name##Offset,               \
-               is_named ? kApiNamedProperty##Name##CallbackTag \
-                        : kApiIndexedProperty##Name##CallbackTag));
+#define VISIT_NAMED_FIELD(Name, name)                                \
+  v->VisitExternalPointer(obj, obj->RawExternalPointerField(         \
+                                   InterceptorInfo::k##Name##Offset, \
+                                   kApiNamedProperty##Name##CallbackTag));
 
-    INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_FIELD)
-#undef VISIT_FIELD
+#define VISIT_INDEXED_FIELD(Name, name)                              \
+  v->VisitExternalPointer(obj, obj->RawExternalPointerField(         \
+                                   InterceptorInfo::k##Name##Offset, \
+                                   kApiIndexedProperty##Name##CallbackTag));
+
+    if (is_named) {
+      NAMED_INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_NAMED_FIELD)
+    } else {
+      INDEXED_INTERCEPTOR_INFO_CALLBACK_LIST(VISIT_INDEXED_FIELD)
+    }
+#undef VISIT_NAMED_FIELD
+#undef VISIT_INDEXED_FIELD
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

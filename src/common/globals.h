@@ -1870,6 +1870,8 @@ enum ShouldThrow {
   kThrowOnError = Internals::kThrowOnError,
 };
 
+enum class InterceptorKind { kNamed, kIndexed };
+
 // The result that might be returned by Setter/Definer/Deleter interceptor
 // callback when it doesn't throw an exception.
 enum class InterceptorResult {

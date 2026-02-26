@@ -241,7 +241,9 @@ class RootVisitor;
     EmptyOrderedPropertyDictionary)                                            \
   V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
     EmptySwissPropertyDictionary)                                              \
-  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(InterceptorInfo, noop_named_interceptor_info, NoOpNamedInterceptorInfo)    \
+  V(InterceptorInfo, noop_indexed_interceptor_info,                            \
+    NoOpIndexedInterceptorInfo)                                                \
   V(ArrayList, empty_array_list, EmptyArrayList)                               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \

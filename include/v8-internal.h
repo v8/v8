@@ -642,8 +642,9 @@ enum ExternalPointerTag : uint16_t {
   kApiIndexedPropertyDefinerCallbackTag,
   kApiIndexedPropertyDeleterCallbackTag,
   kApiIndexedPropertyEnumeratorCallbackTag,
+  kApiIndexedPropertyIndexOfCallbackTag,
   kLastInterceptorInfoExternalPointerTag =
-      kApiIndexedPropertyEnumeratorCallbackTag,
+      kApiIndexedPropertyIndexOfCallbackTag,
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
