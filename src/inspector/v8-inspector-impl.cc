@@ -247,7 +247,7 @@ InspectedContext* V8InspectorImpl::getContext(int groupId,
   auto contextIt = contextGroupIt->second->find(contextId);
   if (contextIt == contextGroupIt->second->end()) return nullptr;
 
-  return contextIt->second.get();
+  return contextIt->second.Get();
 }
 
 InspectedContext* V8InspectorImpl::getContext(int contextId) const {
@@ -273,7 +273,8 @@ uint64_t V8InspectorImpl::isolateId() {
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   int contextId = ++m_lastContextId;
-  auto* context = new InspectedContext(this, info, contextId);
+  auto* context = cppgc::MakeGarbageCollected<InspectedContext>(
+      m_isolate->GetCppHeap()->GetAllocationHandle(), this, info, contextId);
   m_contextIdToGroupIdMap[contextId] = info.contextGroupId;
 
   DCHECK(m_uniqueIdToContextId.find(context->uniqueId().pair()) ==
@@ -291,7 +292,7 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   const auto& contextById = contextIt->second;
 
   DCHECK(contextById->find(contextId) == contextById->cend());
-  (*contextById)[contextId].reset(context);
+  (*contextById)[contextId] = context;
   forEachSession(
       info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
         session->runtimeAgent()->addBindings(context);
@@ -471,7 +472,7 @@ void V8InspectorImpl::forEachContext(
     it = m_contexts.find(contextGroupId);
     if (it == m_contexts.end()) continue;
     auto contextIt = it->second->find(contextId);
-    if (contextIt != it->second->end()) callback(contextIt->second.get());
+    if (contextIt != it->second->end()) callback(contextIt->second.Get());
   }
 }
 

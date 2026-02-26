@@ -186,7 +186,7 @@ class V8InspectorImpl : public V8Inspector {
   MuteExceptionsMap m_muteExceptionsMap;
 
   using ContextByIdMap =
-      std::unordered_map<int, std::unique_ptr<InspectedContext>>;
+      std::unordered_map<int, cppgc::Persistent<InspectedContext>>;
   using ContextsByGroupMap =
       std::unordered_map<int, std::unique_ptr<ContextByIdMap>>;
   ContextsByGroupMap m_contexts;

@@ -4,7 +4,10 @@
 
 #include "src/inspector/inspected-context.h"
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/persistent.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-inspector.h"
 #include "include/v8-platform.h"
 #include "src/debug/debug-interface.h"
@@ -134,14 +137,15 @@ void InspectedContext::setReported(int sessionId, bool reported) {
 
 InjectedScript* InspectedContext::getInjectedScript(int sessionId) {
   auto it = m_injectedScripts.find(sessionId);
-  return it == m_injectedScripts.end() ? nullptr : it->second.get();
+  return it == m_injectedScripts.end() ? nullptr : it->second.Get();
 }
 
 InjectedScript* InspectedContext::createInjectedScript(int sessionId) {
-  std::unique_ptr<InjectedScript> injectedScript =
-      std::make_unique<InjectedScript>(this, sessionId);
+  InjectedScript* injectedScript = cppgc::MakeGarbageCollected<InjectedScript>(
+      m_inspector->isolate()->GetCppHeap()->GetAllocationHandle(), this,
+      sessionId);
   CHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
-  m_injectedScripts[sessionId] = std::move(injectedScript);
+  m_injectedScripts[sessionId] = injectedScript;
   return getInjectedScript(sessionId);
 }
 
