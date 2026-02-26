@@ -1240,11 +1240,15 @@ BUILTIN(SegmentsPrototypeIterator) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
 
+  // Keep the managed pointee alive throughout the operation that will allocate
+  // on the heap.
+  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
+      segments->icu_iterator_with_text()->get();
+
   RETURN_RESULT_OR_FAILURE(
       isolate, JSSegmentIterator::Create(
                    isolate, direct_handle(segments->raw_string(), isolate),
-                   *segments->icu_iterator_with_text()->raw()->iterator(),
-                   segments->granularity()));
+                   *iterator_with_text->iterator(), segments->granularity()));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

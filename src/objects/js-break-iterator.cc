@@ -8,6 +8,8 @@
 
 #include "src/objects/js-break-iterator.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <utility>
 
@@ -162,17 +164,21 @@ DirectHandle<JSObject> JSV8BreakIterator::ResolvedOptions(
 
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  JSObject::AddProperty(
-      isolate, result, factory->type_string(),
-      as_string(break_iterator->icu_iterator_with_text()->raw()->iterator()),
-      NONE);
+  DirectHandle<String> string =
+      as_string(break_iterator->icu_iterator_with_text()->raw()->iterator());
+  JSObject::AddProperty(isolate, result, factory->type_string(), string, NONE);
   return result;
 }
 
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator,
     DirectHandle<String> text) {
-  break_iterator->icu_iterator_with_text()->raw()->SetText(isolate, text);
+  // Keep the wrapper alive throughout the operation that may allocate on the
+  // heap.
+  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
+      break_iterator->icu_iterator_with_text()->get();
+
+  iterator_with_text->SetText(isolate, text);
 }
 
 DirectHandle<Object> JSV8BreakIterator::Current(
