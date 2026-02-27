@@ -2798,7 +2798,6 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
     uint16_t nof_descriptors, uint8_t in_object_properties,
     uint8_t in_object_properties_start, Tagged<DescriptorArray> descriptors,
     bool comma, const DisallowGarbageCollection& no_gc) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
   InternalIndex::Range range{start_descriptor_idx, nof_descriptors};
   for (InternalIndex i : range) {
     // We don't deal with dictionary mode objects on the fast-path, so the index
@@ -2829,25 +2828,35 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         return SLOW_PATH;
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      const bool is_inobject = details.is_in_object();
-      if (is_inobject) {
-        int offset = details.field_offset() * kTaggedSize;
-        property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
-      } else {
-        if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
-          descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
-        }
-        int index_in_property_array =
-            PropertyArray::OffsetInWordsToIndex(details.field_offset());
-        property = obj->property_array(cage_base)->get(cage_base,
-                                                       index_in_property_array);
+
+      // Load the property using the offset stored in the property details.
+      Tagged<HeapObject> storage = obj;
+      if (!details.is_in_object()) {
+        storage = obj->property_array();
+        DCHECK_LE(PropertyArray::OffsetInWordsToIndex(details.field_offset()),
+                  obj->property_array()->ulength().value());
       }
+      int offset = details.field_offset() * kTaggedSize;
+      property = TaggedField<JSAny>::Relaxed_Load(storage, offset);
     } else {
-      DCHECK(descriptors->GetDetails(i).is_in_object());
-      DCHECK_EQ(descriptor_idx + in_object_properties_start,
-                descriptors->GetDetails(i).field_offset());
-      int offset = (in_object_properties_start + descriptor_idx) * kTaggedSize;
-      property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
+      // Load the property using the descriptor index as the property index,
+      // avoiding the need to read the property details.
+      int property_index = descriptor_idx;
+      const bool is_inobject = property_index < in_object_properties;
+      DCHECK_EQ(descriptors->GetDetails(i).is_in_object(), is_inobject);
+      if (is_inobject) {
+        int offset =
+            (in_object_properties_start + property_index) * kTaggedSize;
+        DCHECK_EQ(offset,
+                  descriptors->GetDetails(i).field_offset() * kTaggedSize);
+        property = TaggedField<JSAny>::Relaxed_Load(obj, offset);
+      } else {
+        property_index -= in_object_properties;
+        DCHECK_EQ(property_index,
+                  PropertyArray::OffsetInWordsToIndex(
+                      descriptors->GetDetails(i).field_offset()));
+        property = obj->property_array()->get(property_index);
+      }
     }
 
     DCHECK(IsInternalizedString(name));
