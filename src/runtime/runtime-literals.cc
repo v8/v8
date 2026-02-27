@@ -10,16 +10,21 @@
 #include "src/handles/maybe-handles.h"
 #include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/casting.h"
+#include "src/objects/dictionary-inl.h"
+#include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/js-data-object-builder-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
+#include "src/objects/transitions-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -373,30 +378,19 @@ struct ArrayLiteralHelper {
   }
 };
 
-Handle<JSObject> CreateObjectLiteral(
+Handle<JSObject> CreateObjectLiteralWithNullProto(
     Isolate* isolate,
     DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     int flags, AllocationType allocation) {
   DirectHandle<NativeContext> native_context = isolate->native_context();
   bool use_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
-  bool has_null_prototype = (flags & ObjectLiteral::kHasNullPrototype) != 0;
-
-  // In case we have function literals, we want the object to be in
-  // slow properties mode for now. We don't go in the map cache because
-  // maps with constant functions can't be shared if the functions are
-  // not the same (which is the common case).
   int number_of_properties =
       object_boilerplate_description->backing_store_size();
 
   // Ignoring number_of_properties for force dictionary map with
   // __proto__:null.
-  DirectHandle<Map> map =
-      has_null_prototype
-          ? direct_handle(native_context->slow_object_with_null_prototype_map(),
-                          isolate)
-          : isolate->factory()->ObjectLiteralMapFromCache(native_context,
-                                                          number_of_properties);
-
+  DirectHandle<Map> map = direct_handle(
+      native_context->slow_object_with_null_prototype_map(), isolate);
   Handle<JSObject> boilerplate =
       isolate->factory()->NewFastOrSlowJSObjectFromMap(
           map, number_of_properties, allocation);
@@ -404,24 +398,22 @@ Handle<JSObject> CreateObjectLiteral(
   // Normalize the elements of the boilerplate to save space if needed.
   if (!use_fast_elements) JSObject::NormalizeElements(isolate, boilerplate);
 
-  // Add the constant properties to the boilerplate.
+  // TODO(leszeks): This path could be faster, e.g. we could populate the
+  // property dictionary directly.
   int length = object_boilerplate_description->boilerplate_properties_count();
-  // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index++) {
     DirectHandle<ObjectBoilerplateDescription::KeyT> key(
         object_boilerplate_description->name(index), isolate);
-    Handle<Object> value(object_boilerplate_description->value(index), isolate);
-
-    if (IsHeapObject(*value)) {
-      if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
-        auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
-        value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
-
-      } else if (IsObjectBoilerplateDescription(Cast<HeapObject>(*value),
-                                                isolate)) {
-        auto object_boilerplate = Cast<ObjectBoilerplateDescription>(value);
-        value = CreateObjectLiteral(isolate, object_boilerplate,
-                                    object_boilerplate->flags(), allocation);
+    DirectHandle<Object> value(object_boilerplate_description->value(index),
+                               isolate);
+    if (DirectHandle<HeapObject> ho_value; TryCast(value, &ho_value)) {
+      if (DirectHandle<ArrayBoilerplateDescription> array_desc;
+          TryCast(ho_value, &array_desc)) {
+        value = CreateArrayLiteral(isolate, array_desc, allocation);
+      } else if (DirectHandle<ObjectBoilerplateDescription> obj_desc;
+                 TryCast(ho_value, &obj_desc)) {
+        value = CreateObjectLiteral(isolate, obj_desc, obj_desc->flags(),
+                                    allocation);
       }
     }
 
@@ -439,6 +431,208 @@ Handle<JSObject> CreateObjectLiteral(
     }
   }
   return boilerplate;
+}
+
+// Helper class for iterating an ObjectBoilerplateDescription for use with
+// JSDataObjectBuilder.
+class ObjectBoilerplateDescriptionIterator {
+ public:
+  static constexpr bool kSupportsRawKeys = false;
+  static constexpr bool kMayHaveDuplicateKeys = false;
+
+  ObjectBoilerplateDescriptionIterator(
+      DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
+      Isolate* isolate, AllocationType allocation)
+      : object_boilerplate_description_(object_boilerplate_description),
+        isolate_(isolate),
+        allocation_(allocation) {
+    for (; i_ < length_; ++i_) {
+      if (IsInternalizedString(object_boilerplate_description->name(i_))) {
+        break;
+      }
+    }
+    start_ = i_;
+  }
+
+  Handle<InternalizedString> GetKey() {
+    return handle(
+        Cast<InternalizedString>(object_boilerplate_description_->name(i_)),
+        isolate_);
+  }
+
+  Handle<Object> GetValue(bool will_revisit) {
+    Handle<Object> value(object_boilerplate_description_->value(i_), isolate_);
+    if (Handle<HeapObject> ho_value; TryCast(value, &ho_value)) {
+      if (Handle<ArrayBoilerplateDescription> array_desc;
+          TryCast(ho_value, &array_desc)) {
+        value = CreateArrayLiteral(isolate_, array_desc, allocation_);
+        if (will_revisit) {
+          materialized_values_.push_back(value);
+        }
+      } else if (Handle<ObjectBoilerplateDescription> obj_desc;
+                 TryCast(ho_value, &obj_desc)) {
+        value = CreateObjectLiteral(isolate_, obj_desc, obj_desc->flags(),
+                                    allocation_);
+        if (will_revisit) {
+          materialized_values_.push_back(value);
+        }
+      }
+    }
+    return value;
+  }
+
+  void Advance() {
+    if (i_ >= length_) return;
+    for (++i_; i_ < length_; ++i_) {
+      if (IsInternalizedString(object_boilerplate_description_->name(i_))) {
+        break;
+      }
+    }
+  }
+
+  bool Done() { return i_ >= length_; }
+
+  // Helper class for revisiting values already iterated by this iterator, in
+  // particular avoiding re-materialising nested values.
+  struct RevisitValueIterator {
+    DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description;
+    base::SmallVector<Handle<Object>, 4>::iterator materialized_values_it;
+    Isolate* isolate;
+    int i;
+    int length = object_boilerplate_description->boilerplate_properties_count();
+
+    Tagged<Object> GetNext() {
+      DCHECK(IsInternalizedString(object_boilerplate_description->name(i)));
+
+      Tagged<Object> value = object_boilerplate_description->value(i);
+
+      // Potentially re-use an already materialized value.
+      if (IsArrayBoilerplateDescription(value) ||
+          IsObjectBoilerplateDescription(value)) {
+        value = **materialized_values_it++;
+      }
+
+      // Advance to the next string name.
+      for (++i; i < length; ++i) {
+        if (IsInternalizedString(object_boilerplate_description->name(i))) {
+          break;
+        }
+      }
+      return value;
+    }
+  };
+
+  RevisitValueIterator RevisitValues() {
+    return RevisitValueIterator{object_boilerplate_description_,
+                                materialized_values_.begin(), isolate_, start_};
+  }
+
+ private:
+  DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description_;
+  Isolate* isolate_;
+  AllocationType allocation_;
+  int i_ = 0;
+  int start_ = 0;
+  int length_ = object_boilerplate_description_->boilerplate_properties_count();
+  base::SmallVector<Handle<Object>, 4> materialized_values_ = {};
+};
+
+Handle<JSObject> CreateObjectLiteral(
+    Isolate* isolate,
+    DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
+    int flags, AllocationType allocation) {
+  DirectHandle<NativeContext> native_context = isolate->native_context();
+  bool has_null_prototype = (flags & ObjectLiteral::kHasNullPrototype) != 0;
+
+  if (has_null_prototype) {
+    return CreateObjectLiteralWithNullProto(
+        isolate, object_boilerplate_description, flags, allocation);
+  }
+  // Fast path using manual elements initialisation and JSDataObjectBuilder.
+
+  bool use_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
+  int number_of_properties =
+      object_boilerplate_description->backing_store_size();
+
+  int length = object_boilerplate_description->boilerplate_properties_count();
+
+  // First iterate to count the elements and find the max element index.
+  // TODO(leszeks): We could already at parse-time figure out if there are any
+  // elements and avoid this step.
+  int element_count = 0;
+  uint32_t max_element_index = 0;
+  for (int i = 0; i < length; i++) {
+    uint32_t element_index = 0;
+    if (Object::ToArrayIndex(object_boilerplate_description->name(i),
+                             &element_index)) {
+      element_count++;
+      if (element_index > max_element_index) max_element_index = element_index;
+    }
+  }
+
+  // Then allocate the appropriate element container.
+  DirectHandle<FixedArray> elements;
+  ElementsKind elements_kind;
+  if (use_fast_elements) {
+    elements_kind = HOLEY_ELEMENTS;
+    if (element_count > 0) {
+      elements =
+          isolate->factory()->NewFixedArrayWithHoles(max_element_index + 1);
+    } else {
+      elements = isolate->factory()->empty_fixed_array();
+    }
+  } else {
+    elements_kind = DICTIONARY_ELEMENTS;
+    elements = NumberDictionary::New(isolate, element_count);
+  }
+
+  // Fill the element container with values.
+  for (int i = 0; i < length; i++) {
+    uint32_t element_index = 0;
+    if (!Object::ToArrayIndex(object_boilerplate_description->name(i),
+                              &element_index))
+      continue;
+
+    DirectHandle<Object> value =
+        direct_handle(object_boilerplate_description->value(i), isolate);
+
+    if (DirectHandle<HeapObject> ho_value; TryCast(value, &ho_value)) {
+      if (DirectHandle<ArrayBoilerplateDescription> array_desc;
+          TryCast(ho_value, &array_desc)) {
+        value = CreateArrayLiteral(isolate, array_desc, allocation);
+      } else if (DirectHandle<ObjectBoilerplateDescription> obj_desc;
+                 TryCast(ho_value, &obj_desc)) {
+        value = CreateObjectLiteral(isolate, obj_desc, obj_desc->flags(),
+                                    allocation);
+      }
+    }
+
+    if (use_fast_elements) {
+      elements->set(element_index, *value);
+    } else {
+      DirectHandle<NumberDictionary> dict = Cast<NumberDictionary>(elements);
+      PropertyDetails details(PropertyKind::kData, NONE,
+                              PropertyConstness::kConst, 0);
+      NumberDictionary::UncheckedAdd(isolate, dict, element_index, value,
+                                     details);
+    }
+  }
+
+  if (!use_fast_elements) {
+    DirectHandle<NumberDictionary> dict = Cast<NumberDictionary>(elements);
+    dict->SetInitialNumberOfElements(element_count);
+    dict->UpdateMaxNumberKey(max_element_index, Handle<JSObject>::null());
+  }
+
+  // Finally, use JSDataObjectBuilder to build the object itself.
+  JSDataObjectBuilder builder(isolate, elements_kind, number_of_properties,
+                              DirectHandle<Map>(),
+                              JSDataObjectBuilder::kNormalHeapNumbers);
+
+  return builder.BuildFromIterator(
+      ObjectBoilerplateDescriptionIterator{object_boilerplate_description,
+                                           isolate, allocation},
+      elements);
 }
 
 Handle<JSObject> CreateArrayLiteral(

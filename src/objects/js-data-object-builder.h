@@ -8,11 +8,94 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/elements-kind.h"
-#include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
+
+// An iterator for JSDataObjectBuilder which can lazily create internalized
+// strings for the keys, and otherwise presents a vector of characters. Useful
+// for creating objects in parsers.
+//
+// ```
+// struct Iterator {
+//   static constexpr bool kSupportsRawKeys = true;
+//
+//   // Whether the iterator might return the same key multiple times.
+//   static constexpr bool kMayHaveDuplicateKeys;
+//
+//   void Advance();
+//   bool Done();
+//
+//   // Get the characters of the key of the current property, assuming that
+//   // the heap string is not yet allocated (e.g. during parsing).
+//   base::Vector<const Char> GetKeyChars();
+//
+//   // Get the key of the current property, optionally returning the hinted
+//   // expected key if applicable, to avoid an allocation.
+//   Handle<InternalizedString> GetKey(
+//       Handle<InternalizedString> expected_key_hint);
+//
+//   // Get the value of the current property. `will_revisit_value` is true
+//   // if this value will need to be revisited later via RevisitValues().
+//   Handle<Object> GetValue(bool will_revisit_value);
+//
+//   // Return an iterator over the values that were already visited by
+//   // GetValue. Might require caching those values if necessary.
+//   ValueIterator RevisitValues();
+// }
+// ```
+template <typename PropertyIterator>
+concept JSDataPropertyIteratorWithRawKeys =
+    std::remove_reference_t<PropertyIterator>::kSupportsRawKeys &&
+    requires(PropertyIterator it, Handle<InternalizedString> key_hint) {
+      it.Advance();
+      it.Done();
+      it.kMayHaveDuplicateKeys;
+      it.GetKeyChars();
+      it.GetKey(key_hint);
+      it.GetValue(true);
+      it.RevisitValues();
+    };
+
+// An iterator for JSDataObjectBuilder which has already eagerly created
+// internalized strings for the keys, Useful for creating objects from existing
+// descriptors.
+//
+// ```
+// struct Iterator {
+//   static constexpr bool kSupportsRawKeys = false;
+//
+//   // Whether the iterator might return the same key multiple times.
+//   static constexpr bool kMayHaveDuplicateKeys;
+//
+//   void Advance();
+//   bool Done();
+//
+//   // Get the key of the current property, already allocated and
+//   // internalized.
+//   Handle<InternalizedString> GetKey();
+//
+//   // Get the value of the current property. `will_revisit_value` is true
+//   // if this value will need to be revisited later via RevisitValues().
+//   Handle<Object> GetValue(bool will_revisit_value);
+//
+//   // Return an iterator over the values that were already visited by
+//   // GetValue. Might require caching those values if necessary.
+//   ValueIterator RevisitValues();
+// }
+// ```
+template <typename PropertyIterator>
+concept JSDataPropertyIteratorWithEagerKeys =
+    !std::remove_reference_t<PropertyIterator>::kSupportsRawKeys &&
+    requires(PropertyIterator it) {
+      it.Advance();
+      it.Done();
+      it.kMayHaveDuplicateKeys;
+      it.GetKey();
+      it.GetValue(true);
+      it.RevisitValues();
+    };
 
 class JSDataObjectBuilder {
  public:
@@ -30,50 +113,41 @@ class JSDataObjectBuilder {
 
   // Builds and returns an object whose properties are based on a property
   // iterator.
-  //
-  // Expects an iterator of the form:
-  //
-  // struct Iterator {
-  //   void Advance();
-  //   bool Done();
-  //
-  //   // Get the key of the current property, optionally returning the hinted
-  //   // expected key if applicable.
-  //   Handle<String> GetKey(Handle<String> expected_key_hint);
-  //
-  //   // Get the value of the current property. `will_revisit_value` is true
-  //   // if this value will need to be revisited later via RevisitValues().
-  //   Handle<Object> GetValue(bool will_revisit_value);
-  //
-  //   // Return an iterator over the values that were already visited by
-  //   // GetValue. Might require caching those values if necessary.
-  //   ValueIterator RevisitValues();
-  // }
-  template <typename PropertyIterator>
-  Handle<JSObject> BuildFromIterator(
-      PropertyIterator&& it, MaybeHandle<FixedArrayBase> maybe_elements = {});
+  template <JSDataPropertyIteratorWithRawKeys PropertyIterator>
+  V8_INLINE Handle<JSObject> BuildFromIterator(
+      PropertyIterator&& it,
+      MaybeDirectHandle<FixedArrayBase> maybe_elements = {});
 
-  template <typename ValueIterator>
-  V8_INLINE void CreateAndInitialiseObject(
-      ValueIterator value_it, DirectHandle<FixedArrayBase> elements);
-
-  void AddSlowProperty(DirectHandle<String> key, Handle<Object> value);
-
-  Handle<JSObject> object() {
-    DCHECK(!object_.is_null());
-    return object_;
-  }
+  template <JSDataPropertyIteratorWithEagerKeys PropertyIterator>
+  V8_INLINE Handle<JSObject> BuildFromIterator(
+      PropertyIterator&& it,
+      MaybeDirectHandle<FixedArrayBase> maybe_elements = {});
 
  private:
+  template <typename ValueIterator>
+  V8_INLINE void CreateAndInitialiseObject(
+      ValueIterator&& value_it, DirectHandle<FixedArrayBase> elements);
+
+  void AddSlowProperty(DirectHandle<InternalizedString> key,
+                       Handle<Object> value);
+
   template <typename Char, typename GetKeyFunction, typename GetValueFunction>
   V8_INLINE bool TryAddFastPropertyForValue(base::Vector<const Char> key_chars,
                                             GetKeyFunction&& get_key,
                                             GetValueFunction&& get_value);
 
+  V8_INLINE bool TryAddFastPropertyForValue(Handle<InternalizedString> key,
+                                            Handle<Object> value);
+
   template <typename Char, typename GetKeyFunction>
   V8_INLINE bool TryFastTransitionToPropertyKey(
       base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
-      Handle<String>* key_out);
+      Handle<InternalizedString>* key_out);
+
+  V8_INLINE bool TryFastTransitionToPropertyKey(Handle<InternalizedString> key);
+
+  V8_INLINE bool TryAddFastPropertyTransitionForValue(
+      Handle<InternalizedString> key, DirectHandle<Object> value);
 
   V8_INLINE bool TryGeneralizeFieldToValue(DirectHandle<Object> value);
 
@@ -81,24 +155,22 @@ class JSDataObjectBuilder {
 
   void InitializeMapFromZero();
 
-  V8_INLINE bool IsOnExpectedFinalMapFastPath() const {
-    DCHECK_IMPLIES(property_count_in_expected_final_map_ > 0,
-                   !expected_final_map_.is_null());
-    return current_property_index_ < property_count_in_expected_final_map_;
-  }
+  V8_INLINE bool IsOnExpectedFinalMapFastPath() const;
 
   void RewindExpectedFinalMapFastPathToBeforeCurrent();
 
   void RewindExpectedFinalMapFastPathToIncludeCurrent();
 
+  V8_INLINE void RegisterFieldNeedsFreshHeapNumber();
   V8_INLINE void RegisterFieldNeedsFreshHeapNumber(DirectHandle<Object> value);
 
-  V8_INLINE void AdvanceToNextProperty() { current_property_index_++; }
+  V8_INLINE void AdvanceToNextProperty();
 
   Isolate* isolate_;
   ElementsKind elements_kind_;
   int expected_property_count_;
   HeapNumberMode heap_number_mode_;
+  bool may_have_duplicate_keys_ = true;
 
   DirectHandle<Map> map_;
   int current_property_index_ = 0;
