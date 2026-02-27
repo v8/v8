@@ -8404,7 +8404,11 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
 }
 
 void LoadContextSlotNoCells::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec;
+  if (maybe_assigned() == kNotAssigned) {
+    os << ", kNotAssigned";
+  }
+  os << ")";
 }
 
 void LoadContextSlot::PrintParams(std::ostream& os) const {
@@ -8443,6 +8447,9 @@ void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
+  if (maybe_assigned() == kNotAssigned) {
+    os << ", constant";
+  }
   os << ")";
 }
 
@@ -8469,6 +8476,9 @@ void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec;
   if (!property_key().is_none()) {
     os << ": " << property_key();
+  }
+  if (maybe_assigned() == kNotAssigned) {
+    os << ", constant";
   }
   os << ", maybe_smi:" << value_can_be_smi();
   os << ")";

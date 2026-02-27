@@ -1771,13 +1771,27 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 }
 
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
+HEAP_ACCESSOR_C(ScopeInfo, int, ContextHeaderLength)
+HEAP_ACCESSOR_C(ScopeInfo, int, FunctionContextSlotIndex)
+
+MaybeAssignedFlag ScopeInfoRef::ContextLocalMaybeAssignedFlag(int var) const {
+  return object()->ContextLocalMaybeAssignedFlag(var);
+}
+
+VariableMode ScopeInfoRef::ContextLocalMode(int var) const {
+  return object()->ContextLocalMode(var);
+}
+
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SomeContextHasExtension)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SloppyEvalCanExtendVars)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasAllocatedReceiver)
 HEAP_ACCESSOR_C(ScopeInfo, ScopeType, scope_type)
+HEAP_ACCESSOR_C(ScopeInfo, FunctionKind, function_kind)
+HEAP_ACCESSOR_C(ScopeInfo, int, ReceiverContextSlotIndex)
 
 ScopeInfoRef ScopeInfoRef::OuterScopeInfo(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->OuterScopeInfo());
