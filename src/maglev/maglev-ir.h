@@ -339,7 +339,6 @@ class ExceptionHandlerInfo;
   V(TaggedCountLeadingZeros)                                          \
   V(Float64CountLeadingZeros)                                         \
   V(IntPtrToBoolean)                                                  \
-  V(Float64ToHeapNumberForField)                                      \
   V(CheckedNumberOrOddballToFloat64)                                  \
   V(CheckedNumberOrOddballToHoleyFloat64)                             \
   V(UnsafeNumberOrOddballToFloat64)                                   \
@@ -3903,22 +3902,6 @@ class CheckedNumberToUint8Clamped
       OpProperties::EagerDeopt() | OpProperties::Int32();
   DECLARE_UNOP(Tagged)
 
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-};
-
-// Essentially the same as Float64ToTagged but the result cannot be shared as it
-// will be used as a mutable heap number by a store.
-class Float64ToHeapNumberForField
-    : public FixedInputValueNodeT<1, Float64ToHeapNumberForField> {
- public:
-  explicit Float64ToHeapNumberForField(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr OpProperties kProperties = OpProperties::NotIdempotent() |
-                                              OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall();
-  DECLARE_UNOP(Float64)
-
-  int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };

@@ -1788,12 +1788,6 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHeapNumberForField(
-    Float64ToHeapNumberForField* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToTagged(
     HoleyFloat64ToTagged* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

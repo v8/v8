@@ -4706,17 +4706,6 @@ class GraphBuildingNodeProcessor {
                                       node->conversion_mode()));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::Float64ToHeapNumberForField* node,
-                                const maglev::ProcessingState& state) {
-    // We don't use ConvertUntaggedToJSPrimitive but instead the lower level
-    // AllocateHeapNumberWithValue helper, because ConvertUntaggedToJSPrimitive
-    // can be GVNed, which we don't want for Float64ToHeapNumberForField, since
-    // it creates a mutable HeapNumber, that will then be owned by an object
-    // field.
-    SetMap(node, __ AllocateHeapNumberWithValue(Map(node->ValueInput()),
-                                                isolate_->factory()));
-    return maglev::ProcessResult::kContinue;
-  }
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
   maglev::ProcessResult Process(maglev::HoleyFloat64IsUndefinedOrHole* node,

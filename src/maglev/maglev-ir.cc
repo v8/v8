@@ -5206,17 +5206,6 @@ void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void Float64ToHeapNumberForField::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineAsRegister(this);
-}
-void Float64ToHeapNumberForField::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
-  Register object = ToRegister(result());
-  __ AllocateHeapNumber(register_snapshot(), object, value);
-}
-
 void HoleyFloat64ToTagged::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);

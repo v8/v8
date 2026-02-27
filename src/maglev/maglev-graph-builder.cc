@@ -5419,7 +5419,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       // Allocate the mutable double box owned by the field.
       ValueNode* heapnumber_value;
       GET_VALUE_OR_ABORT(heapnumber_value,
-                         AddNewNode<Float64ToHeapNumberForField>({value}));
+                         BuildInlinedAllocation(CreateHeapNumber(value),
+                                                AllocationType::kYoung));
       RETURN_IF_ABORT(BuildStoreTaggedField(
           store_target, heapnumber_value, field_index.offset(),
           StoreTaggedMode::kTransitioning, name));
