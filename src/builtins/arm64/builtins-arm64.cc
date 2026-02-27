@@ -7,6 +7,7 @@
 #include "src/api/api-arguments.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -2799,7 +2800,22 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 5);
+  // - target
+  // - arguments list
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 4);
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 3);
+  __ Push(x1, arguments_list);
+  // - len of arguments list
+  // - padding
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(len);
+  __ Push(xzr, len);
+  // - adjust arg count
+  __ Add(argc, argc, SuperSpreadArgs::kNumExtraArgs);
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static

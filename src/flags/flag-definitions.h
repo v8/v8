@@ -4074,6 +4074,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Track TypedArrays and DataViews attached to array buffers and "
     "update them in-place when the buffer detaches")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    superspreading,
+    "Allow arbitrary length spread arguments on supported builtins")
+
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "
             "set in other cases.")

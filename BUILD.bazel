@@ -1479,6 +1479,7 @@ filegroup(
         "src/builtins/constants-table-builder.h",
         "src/builtins/data-view-ops.h",
         "src/builtins/profile-data-reader.h",
+        "src/builtins/superspread.h",
         "src/codegen/aligned-slot-allocator.cc",
         "src/codegen/aligned-slot-allocator.h",
         "src/codegen/assembler.cc",

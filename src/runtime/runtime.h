@@ -264,6 +264,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowRangeError, -1 /* >= 1 */, 1)             \
   F(ThrowReferenceError, 1, 1)                     \
   F(ThrowAccessedUninitializedVariable, 1, 1)      \
+  F(VarargStackOverflow, -1, 1)                    \
   F(ThrowStackOverflow, 0, 1)                      \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)         \
   F(ThrowSymbolIteratorInvalid, 0, 1)              \

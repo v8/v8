@@ -5,6 +5,7 @@
 #include "src/base/logging.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
@@ -416,13 +417,11 @@ BUILTIN(ArrayPrototypeFill) {
 }
 
 namespace {
-V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
-                                                      BuiltinArguments* args) {
-  // 1. Let O be ? ToObject(this value).
-  DirectHandle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, args->receiver()));
 
+template <typename ElementProvider>
+V8_WARN_UNUSED_RESULT Tagged<Object> CommonArrayPush(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver, uint32_t total_args,
+    ElementProvider&& element_provider) {
   // 2. Let len be ? ToLength(? Get(O, "length")).
   DirectHandle<Object> raw_length_number;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -432,38 +431,44 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
   // 3. Let args be a List whose elements are, in left to right order,
   //    the arguments that were passed to this function invocation.
   // 4. Let arg_count be the number of elements in args.
-  int arg_count = args->length() - 1;
+  // (Handled by caller)
 
   // 5. If len + arg_count > 2^53-1, throw a TypeError exception.
   double length = Object::NumberValue(*raw_length_number);
-  if (arg_count > kMaxSafeInteger - length) {
+  if (total_args > kMaxSafeInteger - length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kPushPastSafeLength,
-                              isolate->factory()->NewNumberFromInt(arg_count),
+                              isolate->factory()->NewNumberFromInt(total_args),
                               raw_length_number));
   }
 
   // 6. Repeat, while args is not empty.
-  for (int i = 0; i < arg_count; ++i) {
-    // a. Remove the first element from args and let E be the value of the
-    //    element.
-    DirectHandle<Object> element = args->at(i + 1);
+  // Use an outer loop to not waste too much time on creating HandleScopes.
+  uint32_t offset = 0;
+  while (offset < total_args) {
+    HandleScope loop_scope(isolate);
+    offset += 100;
+    for (uint32_t i = offset - 100; i < offset && i < total_args; ++i) {
+      // a. Remove the first element from args and let E be the value of the
+      //    element.
+      DirectHandle<Object> element = element_provider(i);
 
-    // b. Perform ? Set(O, ! ToString(len), E, true).
-    if (length <= JSObject::kMaxElementIndex) {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, Object::SetElement(isolate, receiver, length, element,
-                                      ShouldThrow::kThrowOnError));
-    } else {
-      PropertyKey key(isolate, length);
-      LookupIterator it(isolate, receiver, key);
-      MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
-                                       Just(ShouldThrow::kThrowOnError)),
-                   ReadOnlyRoots(isolate).exception());
+      // b. Perform ? Set(O, ! ToString(len), E, true).
+      if (length <= JSObject::kMaxElementIndex) {
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate, Object::SetElement(isolate, receiver, length, element,
+                                        ShouldThrow::kThrowOnError));
+      } else {
+        PropertyKey key(isolate, length);
+        LookupIterator it(isolate, receiver, key);
+        MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
+                                         Just(ShouldThrow::kThrowOnError)),
+                     ReadOnlyRoots(isolate).exception());
+      }
+
+      // c. Let len be len+1.
+      ++length;
     }
-
-    // c. Let len be len+1.
-    ++length;
   }
 
   // 7. Perform ? Set(O, "length", len, true).
@@ -476,6 +481,21 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
 
   // 8. Return len.
   return *final_length;
+}
+
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
+                                                      BuiltinArguments* args) {
+  // 1. Let O be ? ToObject(this value).
+  DirectHandle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args->receiver()));
+
+  // 3. Let args be a List whose elements are, in left to right order,
+  //    the arguments that were passed to this function invocation.
+  // 4. Let arg_count be the number of elements in args.
+  int arg_count = args->length() - 1;
+  auto element_provider = [&](uint32_t i) { return args->at(i + 1); };
+  return CommonArrayPush(isolate, receiver, arg_count, element_provider);
 }
 }  // namespace
 
@@ -512,6 +532,31 @@ BUILTIN(ArrayPush) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, new_length, accessor->Push(isolate, array, &args, to_add));
   return *isolate->factory()->NewNumberFromUint((new_length));
+}
+
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
+    Isolate* isolate, RuntimeArguments& args) {
+  int nargs = args.length();
+  DirectHandle<JSReceiver> receiver =
+      args.at<JSReceiver>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+  auto arglist =
+      args.at<FixedArray>(nargs - SuperSpreadArgs::kArglistOffsetFromEnd);
+  int args_length =
+      args.smi_value_at(nargs - SuperSpreadArgs::kArglistLengthOffsetFromEnd);
+  int stack_arg_count = nargs - SuperSpreadArgs::kNumExtraArgs;
+
+  CHECK_GE(arglist->length(), args_length);
+
+  uint32_t total_args = stack_arg_count + args_length;
+  auto element_provider = [&](uint32_t i) -> DirectHandle<Object> {
+    if (i < static_cast<uint32_t>(stack_arg_count)) {
+      return args.at(i);
+    }
+    DirectHandle<Object> element(arglist->get(i - stack_arg_count), isolate);
+    DCHECK(!IsTheHole(*element, isolate));
+    return element;
+  };
+  return CommonArrayPush(isolate, receiver, total_args, element_provider);
 }
 
 namespace {

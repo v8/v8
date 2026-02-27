@@ -8,6 +8,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
@@ -1272,7 +1273,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 #endif  // !V8_JITLESS
@@ -2459,7 +2459,26 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // Pop return address
+  __ Pop(kScratchRegister);
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  // - target
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  __ Push(rdi);
+  // - arguments list
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  __ Push(rbx);
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(rcx);
+  __ Push(rcx);
+  // - return address
+  __ Push(kScratchRegister);
+  // - adjust arg count
+  __ addq(rax, Immediate(SuperSpreadArgs::kNumExtraArgs));
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static

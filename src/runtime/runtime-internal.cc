@@ -6,7 +6,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/superspread.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -78,6 +80,33 @@ RUNTIME_FUNCTION(Runtime_ReThrowWithMessage) {
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
+  return isolate->StackOverflow();
+}
+
+RUNTIME_FUNCTION(Runtime_VarargStackOverflow) {
+  HandleScope scope(isolate);
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  }
+
+  int nargs = args.length();
+  auto maybe_receiver =
+      args.at<JSAny>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+  auto target =
+      args.at<JSFunction>(nargs - SuperSpreadArgs::kTargetOffsetFromEnd);
+
+  if (v8_flags.superspreading) {
+    if (Handle<JSReceiver> receiver; TryCast(maybe_receiver, &receiver)) {
+#define CASE(Name, Handler)                                      \
+  if (target->code(isolate)->builtin_id() == Builtin::k##Name) { \
+    return Handler(isolate, args);                               \
+  }
+      SUPERSPREAD_BUILTINS(CASE)
+#undef CASE
+    }
+  }
   return isolate->StackOverflow();
 }
 
