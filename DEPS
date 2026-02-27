@@ -79,7 +79,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:6767e99aea9e7c32b6fc421ad3271ab99a82ca78',
+  'gn_version': 'git_revision:1a310e88443018837759c952b113846b0096f65b',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '07efd23b7d9cf9b6a59076d14f5a68cd0c4c1fa7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '371581ad0695c16f70aa1d7c060f5f51a188abb5',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '136da69a1267b8db487354b96d44d0cc8add5aeb',
   'buildtools/linux64': {
@@ -212,7 +212,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1ec586469aedb45f1e0809017409346ddf96e210',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e507931d6883f0216da761d51e165a0f775ec1a8',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -292,7 +292,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '17ccf7d110c5526cb77e93cfd8330f491fb2bf18',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'f4940a069bf76a358d7cc7f525e1fa74b85f6ba0',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'c365236fa3dbdaff431a582f4eb04f6772d1e3da',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '997b041112c30a74e0d92901e05cde44eec3b359',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd2c72875ce1d5d80e4a1dbb81690e372ff2870c2',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'a0f4dc977fa2ef7f47708aec914a4fbfeefc6103',
   'third_party/re2/src':
@@ -482,7 +482,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '9e3ad7c486f9601d39c0bf7d601997a4e1db8172',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7dd38add7af8dd2a5a5cc1714b0c3ed93db1e288',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'baacfc6d5986b07abe0503216b491e234b94ba79',
   'third_party/rust':
