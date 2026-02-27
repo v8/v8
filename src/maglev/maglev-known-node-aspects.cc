@@ -517,14 +517,42 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
 #endif
   }
 
-  if (!AspectIncludes(loop_header.node_infos_, node_infos_,
-                      LoopHeaderCompatibleWithBackEdge, NodeInfoIsEmpty)) {
-    if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
-      std::cout << "KNA after loop has incompatible node_infos\n";
-    }
-    DCHECK(had_effects);
-    return false;
-  }
+  // LoopHeaderCompatibleWithBackEdge only runs as debug-mode verification of
+  // effect_epoch_ maintenance. However, there are semantic differences between
+  // the epoch and NodeInfo, which means that the two can occasionally disagree
+  // and *both are correct*.
+  //
+  // * The maps in NodeInfo are collected by lower tiers and reflect all
+  // knowledge for a particular bytecode position.
+  // * The epoch is maintained by maglev compilation; in particular, this
+  // means that due to things like loop peeling and deopts, semantics may
+  // differ from NodeInfo.
+  //   * Loop peeling: the peeled iteration may generate specialized code and
+  //   thus contain no side effects whereas the actual loop code does.
+  //   * Deopts: Maglev may emit unconditional deopts, marking all successors
+  //   of the deopts dead from the Maglev perspective while they are not
+  //   actually dead in lower tiers. Side effects in such zombie blocks will
+  //   not be considered in the epoch, but are considered in NodeInfo.
+  //
+  // That means the following check, which we originally had here, does not
+  // hold in general wrt the expectation that `!had_effects ->
+  // LoopHeaderCompatibleWithBackEdge`. It *is* possible for the following
+  // check to be `false`, while the epoch says "no side effects occurred".
+  //
+  // Disable this check for now, BUT come back soon and find a better solution.
+  //
+  // TODO(jgruber,olivf): Investigate further what an appropriate check could
+  // look like here.
+  //
+  // if (!AspectIncludes(loop_header.node_infos_, node_infos_,
+  //                     LoopHeaderCompatibleWithBackEdge, NodeInfoIsEmpty)) {
+  //   if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
+  //     std::cout << "KNA after loop has incompatible node_infos\n";
+  //   }
+  //   DCHECK(had_effects);
+  //   return false;
+  // }
+  USE(LoopHeaderCompatibleWithBackEdge);
 
   if (!MaybeEmptyAspectIncludes(
           loop_header.loaded_properties_, loaded_properties_,
