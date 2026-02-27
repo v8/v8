@@ -9450,6 +9450,49 @@ TEST_P(TurboshaftInstructionSelectorSIMDSubFamilyTest, wasmSimdSubFamilyTest) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, SimdShiftToAdd) {
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    m.Return(m.I8x16Shl(m.Parameter(0), m.Int32Constant(1)));
+    Stream s = m.Build();
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+    EXPECT_EQ(8, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    m.Return(m.I16x8Shl(m.Parameter(0), m.Int32Constant(1)));
+    Stream s = m.Build();
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+    EXPECT_EQ(16, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    m.Return(m.I32x4Shl(m.Parameter(0), m.Int32Constant(1)));
+    Stream s = m.Build();
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+  }
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
+    m.Return(m.I64x2Shl(m.Parameter(0), m.Int32Constant(1)));
+    Stream s = m.Build();
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDSubFamilyTest,
                          ::testing::ValuesIn(kSIMDSubFamilyTests));

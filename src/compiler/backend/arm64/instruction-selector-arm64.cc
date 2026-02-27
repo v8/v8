@@ -5285,6 +5285,21 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name, instruction, width)                     \
   void InstructionSelector::Visit##Name(OpIndex node) {                   \
+    const Simd128ShiftOp& op = Get(node).Cast<Simd128ShiftOp>();          \
+    if (op.kind == Simd128ShiftOp::Kind::kI64x2Shl ||                     \
+        op.kind == Simd128ShiftOp::Kind::kI32x4Shl ||                     \
+        op.kind == Simd128ShiftOp::Kind::kI16x8Shl ||                     \
+        op.kind == Simd128ShiftOp::Kind::kI8x16Shl) {                     \
+      if (auto* constant = TryCast<ConstantOp>(op.shift())) {             \
+        if (constant->word32() == 1) {                                    \
+          Arm64OperandGenerator g(this);                                  \
+          Emit(kArm64IAdd | LaneSizeField::encode(width),                 \
+               g.DefineAsRegister(node), g.UseRegister(op.input()),       \
+               g.UseRegister(op.input()));                                \
+          return;                                                         \
+        }                                                                 \
+      }                                                                   \
+    }                                                                     \
     VisitSimdShiftRRR(this,                                               \
                       kArm64##instruction | LaneSizeField::encode(width), \
                       node, width);                                       \
