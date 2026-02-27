@@ -2209,7 +2209,7 @@ bool MarkCompactCollector::ReachTransitiveClosureWithEmbedder() {
     // next_ephemerons.
     size_t objects_processed;
     std::tie(std::ignore, objects_processed) =
-        ProcessMarkingWorklist(v8::base::TimeDelta::Max(), SIZE_MAX);
+        ProcessMarkingWorklist<mode>(v8::base::TimeDelta::Max(), SIZE_MAX);
     total_objects_processed += objects_processed;
   } while (!local_marking_worklists_->IsEmpty() ||
            !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get()));
