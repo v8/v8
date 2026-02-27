@@ -7920,9 +7920,21 @@ class TurboshaftGraphBuildingInterface
         // that at runtime `index + end_offset` will be within
         // `kMaxMemory64Size`, where the trap handler can handle out-of-bound
         // accesses.
-        V<Word32> cond = __ Uint64LessThan(
-            V<Word64>::Cast(converted_index),
-            __ Word64Constant(uint64_t{wasm::kMaxMemory64Size - end_offset}));
+        uint64_t effective_size = wasm::kMaxMemory64Size - end_offset;
+
+#if V8_TARGET_ARCH_ARM64
+        if (end_offset <= AllocatePageSize()) {
+          // We have reserved an extra guard page, so that more accesses with
+          // small values of `end_offset` can rely on the trap handler. As a
+          // result, `converted_index` can be compared directly with
+          // `kMaxMemory64Size`, which is a power of 2 and thus more efficiently
+          // representable in the instruction stream.
+          effective_size = wasm::kMaxMemory64Size;
+        }
+#endif  // V8_TARGET_ARCH_ARM64
+
+        V<Word32> cond = __ Uint64LessThan(V<Word64>::Cast(converted_index),
+                                           __ Word64Constant(effective_size));
         __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};

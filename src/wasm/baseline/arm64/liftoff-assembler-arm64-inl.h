@@ -4339,6 +4339,16 @@ bool LiftoffAssembler::supports_f16_mem_access() {
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
+  DCHECK_EQ(base::bits::RoundUpToPowerOfTwo64(max_index), kMaxMemory64Size);
+
+  if (kMaxMemory64Size - max_index <= AllocatePageSize()) {
+    // We have reserved an extra guard page, so that more accesses with small
+    // offset values can rely on the trap handler. As a result, `index` can be
+    // compared directly with `kMaxMemory64Size`, which is a power of 2 and thus
+    // more efficiently representable in the instruction stream.
+    max_index = kMaxMemory64Size;
+  }
+
   Cmp(index, max_index);
   B(trap_label, kUnsignedGreaterThanEqual);
 }

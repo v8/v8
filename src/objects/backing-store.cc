@@ -59,7 +59,13 @@ size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity,
   if (has_guard_regions) {
     if (is_wasm_memory64) {
       DCHECK_LE(byte_capacity, wasm::kMaxMemory64Size);
+#if V8_TARGET_ARCH_ARM64
+      // Reserving an extra guard page simplifies bounds checking in the common
+      // case.
+      return wasm::kMaxMemory64Size + AllocatePageSize();
+#else
       return wasm::kMaxMemory64Size;
+#endif  // V8_TARGET_ARCH_ARM64
     } else {
       static_assert(kFullGuardSize32 >= size_t{4} * GB);
       DCHECK_LE(byte_capacity, size_t{4} * GB);
