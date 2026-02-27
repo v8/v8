@@ -2606,10 +2606,11 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
-  DCHECK_NE(dst, acc);
-  Dotp_h(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
-  vhaddw_w_h(dst.fp().toV(), dst.fp().toV(), dst.fp().toV());
-  vadd_w(dst.fp().toV(), dst.fp().toV(), acc.fp().toV());
+  UseScratchRegisterScope temps(this);
+  VRegister scratch = temps.AcquireFp().toV();
+  Dotp_h(scratch, lhs.fp().toV(), rhs.fp().toV());
+  vhaddw_w_h(scratch, scratch, scratch);
+  vadd_w(dst.fp().toV(), scratch, acc.fp().toV());
 }
 
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3396,8 +3397,11 @@ void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_s(CLT, dstReg, rhsReg, lhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, dstReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_s(CLT, scratchReg, rhsReg, lhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3405,8 +3409,11 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_s(CLT, dstReg, lhsReg, rhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, dstReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_s(CLT, scratchReg, lhsReg, rhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
@@ -3517,8 +3524,11 @@ void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_d(CLT, kSimd128ScratchReg, rhsReg, lhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, kSimd128ScratchReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_d(CLT, scratchReg, rhsReg, lhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3526,8 +3536,11 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_d(CLT, kSimd128ScratchReg, lhsReg, rhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, kSimd128ScratchReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_d(CLT, scratchReg, lhsReg, rhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
