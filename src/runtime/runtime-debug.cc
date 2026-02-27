@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
     isolate->debug()->Break(it.frame(), function);
   }
 
-  return ReadOnlyRoots(isolate).undefined_value();
+  return function->shared()->GetCode(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {

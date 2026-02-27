@@ -510,11 +510,13 @@ FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
 
 namespace {
 
-intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
+// Returns an smi if it needs to break, Code otherwise.
+Address DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi =
       Cast<SharedFunctionInfo>(Tagged<Object>(raw_sfi));
-  return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
+  return isolate->debug()->BreakAtEntry(sfi) ? Smi::zero().ptr()
+                                             : sfi->GetCode(isolate).ptr();
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
