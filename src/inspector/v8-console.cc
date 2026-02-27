@@ -59,7 +59,8 @@ class ConsoleHelper {
   int groupId() const { return m_inspector->contextGroupId(contextId()); }
 
   InjectedScript* injectedScript(int sessionId) {
-    InspectedContext* context = m_inspector->getContext(groupId(), contextId());
+    std::shared_ptr<InspectedContext> context =
+        m_inspector->getContext(groupId(), contextId());
     if (!context) return nullptr;
     return context->getInjectedScript(sessionId);
   }

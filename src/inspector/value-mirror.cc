@@ -182,7 +182,8 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
   V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
       v8::debug::GetInspector(v8::Isolate::GetCurrent()));
   int contextId = InspectedContext::contextId(context);
-  InspectedContext* inspectedContext = inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspectedContext =
+      inspector->getContext(contextId);
   if (!inspectedContext) return V8InternalValueType::kNone;
   return inspectedContext->getInternalType(value.As<v8::Object>());
 }
