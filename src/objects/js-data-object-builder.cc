@@ -4,8 +4,9 @@
 
 #include "src/objects/js-data-object-builder.h"
 
-#include "src/heap/factory.h"
 #include "src/objects/js-data-object-builder-inl.h"
+#include "src/objects/js-objects-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/lookup.h"
 
 namespace v8 {
@@ -20,14 +21,13 @@ JSDataObjectBuilder::JSDataObjectBuilder(Isolate* isolate,
       elements_kind_(elements_kind),
       expected_property_count_(expected_named_properties),
       heap_number_mode_(heap_number_mode),
-      may_have_duplicate_keys_(true),
       expected_final_map_(expected_final_map) {
   if (!TryInitializeMapFromExpectedFinalMap()) {
     InitializeMapFromZero();
   }
 }
 
-void JSDataObjectBuilder::AddSlowProperty(DirectHandle<InternalizedString> key,
+void JSDataObjectBuilder::AddSlowProperty(DirectHandle<String> key,
                                           Handle<Object> value) {
   DCHECK(!object_.is_null());
 

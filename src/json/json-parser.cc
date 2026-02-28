@@ -22,6 +22,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-data-object-builder-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
@@ -710,13 +711,18 @@ class NamedPropertyValueIterator {
     DCHECK_IMPLIES(it_ != end_, !it_->string.is_index());
   }
 
-  Tagged<Object> GetNext() {
+  NamedPropertyValueIterator& operator++() {
     DCHECK_LT(it_, end_);
-    Tagged<Object> value = *it_->value;
     do {
       it_++;
     } while (it_ != end_ && it_->string.is_index());
-    return value;
+    return *this;
+  }
+
+  DirectHandle<Object> operator*() { return it_->value; }
+
+  bool operator!=(const NamedPropertyValueIterator& other) const {
+    return it_ != other.it_;
   }
 
  private:
@@ -730,9 +736,6 @@ class NamedPropertyValueIterator {
 template <typename Char>
 class JsonParser<Char>::NamedPropertyIterator {
  public:
-  static constexpr bool kSupportsRawKeys = true;
-  static constexpr bool kMayHaveDuplicateKeys = true;
-
   NamedPropertyIterator(JsonParser<Char>& parser, const JsonProperty* it,
                         const JsonProperty* end)
       : parser_(parser), it_(it), end_(end) {
