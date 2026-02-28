@@ -2548,7 +2548,7 @@ OpIndex GraphBuilder::Process(
       __ Store(
           base, offset, value, kind,
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
-          p.write_barrier_kind(), 0, 0, true);
+          p.write_barrier_kind(), p.order(), 0, 0, true);
       return OpIndex::Invalid();
     }
 

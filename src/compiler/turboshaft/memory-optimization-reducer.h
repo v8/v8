@@ -219,7 +219,7 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               skipped_write_barrier_kind_, store.offset,
+               skipped_write_barrier_kind_, store.memory_order(), store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
@@ -237,8 +237,8 @@ class MemoryOptimizationReducer : public Next {
             IsSmiDecision::kFalse) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               WriteBarrierKind::kPointerWriteBarrier, store.offset,
-               store.element_size_log2,
+               WriteBarrierKind::kPointerWriteBarrier, store.memory_order(),
+               store.offset, store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
       return V<None>::Invalid();

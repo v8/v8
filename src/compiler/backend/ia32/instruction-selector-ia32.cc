@@ -1022,6 +1022,7 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
+  const bool is_atomic = store.is_atomic();
   const bool is_seqcst =
       atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
@@ -1048,16 +1049,19 @@ void VisitStoreCommon(InstructionSelector* selector,
     size_t const temp_count = arraysize(temps);
     InstructionCode code;
     if (write_barrier_kind == kSkippedWriteBarrier) {
-      code = is_seqcst ? kArchAtomicStoreSkippedWriteBarrier
+      code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
                        : kArchStoreSkippedWriteBarrier;
     } else {
-      code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
+      code = is_atomic ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     code |= AddressingModeField::encode(addressing_mode);
+    if (atomic_order.has_value()) {
+      code |= AtomicMemoryOrderField::encode(*atomic_order);
+    }
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     InstructionOperand inputs[4];

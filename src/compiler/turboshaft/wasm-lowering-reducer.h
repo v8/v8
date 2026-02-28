@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 
+#include "src/codegen/atomic-memory-order.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
@@ -271,6 +272,9 @@ class WasmLoweringReducer : public Next {
                             CheckForNull null_check,
                             std::optional<AtomicMemoryOrder> memory_order,
                             WriteBarrierKind write_barrier) {
+    // TODO(rezvan): We do not support AcqRel memory order for non-memory
+    // instructions currently.
+    DCHECK_NE(memory_order, AtomicMemoryOrder::kAcqRel);
     // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
     // WasmNull to 8 bytes.
     bool requires_aligned_access =
@@ -298,7 +302,7 @@ class WasmLoweringReducer : public Next {
     // And apply the same logic to ArraySet.
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier,
                    type->field(field_index).is_ref());
-    __ Store(object, value, store_kind, repr, write_barrier,
+    __ Store(object, value, store_kind, repr, write_barrier, memory_order,
              field_offset(type, field_index));
 
     return OpIndex::Invalid();
@@ -360,13 +364,16 @@ class WasmLoweringReducer : public Next {
                            V<Any> value, wasm::ValueType element_type,
                            std::optional<AtomicMemoryOrder> memory_order,
                            WriteBarrierKind write_barrier) {
+    // TODO(rezvan): We do not support AcqRel memory order for non-memory
+    // instructions currently.
+    DCHECK_NE(memory_order, AtomicMemoryOrder::kAcqRel);
     StoreOp::Kind store_kind = StoreOp::Kind::TaggedBase();
     if (memory_order.has_value()) {
       store_kind = store_kind.Atomic();
     }
     DCHECK_IMPLIES(write_barrier == kFullWriteBarrier, element_type.is_ref());
     __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
-             RepresentationFor(element_type, true), write_barrier,
+             RepresentationFor(element_type, true), write_barrier, memory_order,
              WasmArray::kHeaderSize, element_type.value_kind_size_log2());
     return {};
   }
