@@ -1133,4 +1133,15 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
