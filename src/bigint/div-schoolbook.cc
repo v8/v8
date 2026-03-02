@@ -153,21 +153,21 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
 
   // D1.
   // Left-shift inputs so that the divisor's MSB is set. This is necessary
-  // to prevent the digit-wise divisions (see digit_div call below) from
+  // to prevent the digit-wise divisions (see {vn1_divisor.div()} below) from
   // overflowing (they take a two digits wide input, and return a one digit
   // result).
   RWDigits b_normalized_storage(scratch, qhatv_len, b_normalized_storage_len);
-  ShiftedDigits b_normalized(B, b_normalized_storage);
-  B = b_normalized;
+  // {BN} means "B normalized". Don't use {B} past this point!
+  ShiftedDigits BN(B, b_normalized_storage);
   // U holds the (continuously updated) remaining part of the dividend, which
   // eventually becomes the remainder.
   RWDigits U(scratch, qhatv_len + b_normalized_storage_len, U_len);
-  LeftShift(U, A, b_normalized.shift());
+  LeftShift(U, A, BN.shift());
 
   // D2.
   // Iterate over the dividend's digits (like the "grad school" algorithm).
   // {vn1} is the divisor's most significant digit.
-  digit_t vn1 = B[n - 1];
+  digit_t vn1 = BN[n - 1];
   MultiplicativeDigitDiv vn1_divisor(vn1);
   for (int j = m; j >= 0; j--) {
     // D3.
@@ -187,7 +187,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
       // Decrement the quotient estimate as needed by looking at the next
       // digit, i.e. by testing whether
       // qhat * v_{n-2} > (rhat << kDigitBits) + u_{j+n-2}.
-      digit_t vn2 = B[n - 2];
+      digit_t vn2 = BN[n - 2];
       digit_t ujn2 = U[j + n - 2];
       while (ProductGreaterThan(qhat, vn2, rhat, ujn2)) {
         qhat--;
@@ -204,11 +204,11 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
     // was one too high, so we must correct it and undo one subtraction of
     // the (shifted) divisor.
     if (qhat != 0) {
-      MultiplySingle(qhatv, B, qhat);
+      MultiplySingle(qhatv, BN, qhat);
       AddWorkEstimate(n);
       digit_t c = InplaceSubAndReturnBorrow(U + j, qhatv);
       if (c != 0) {
-        c = InplaceAddAndReturnCarry(U + j, B);
+        c = InplaceAddAndReturnCarry(U + j, BN);
         U[j + n] = U[j + n] + c;
         qhat--;
       }
@@ -223,7 +223,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
     }
   }
   if (R.len() != 0) {
-    RightShift(R, U, b_normalized.shift());
+    RightShift(R, U, BN.shift());
   }
   // If Q has extra storage, clear it.
   for (uint32_t i = m + 1; i < Q.len(); i++) Q[i] = 0;

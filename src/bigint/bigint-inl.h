@@ -58,6 +58,9 @@ constexpr uint32_t kBarrettThreshold = 13310;
 constexpr uint32_t kToStringFastThreshold = 43;
 constexpr uint32_t kFromStringLargeThreshold = 300;
 
+// See comment at {kMaxCachedModDivisorSize}.
+static_assert(Processor::kMaxCachedModDivisorSize < 2 * kKaratsubaThreshold);
+
 }  // namespace config
 
 class ProcessorImpl;
@@ -641,6 +644,54 @@ inline void Add(RWDigits X, digit_t y) {
   } while (carry != 0);
 }
 
+// X -= y.
+inline void Subtract(RWDigits X, digit_t y) {
+  digit_t borrow = y;
+  uint32_t i = 0;
+  do {
+    X[i] = digit_sub(X[i], borrow, &borrow);
+    i++;
+  } while (borrow != 0);
+}
+
+// Z += X. Returns the "carry" (0 or 1) after adding all of X's digits.
+inline digit_t InplaceAddAndReturnCarry(RWDigits Z, Digits X) {
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_add3(Z[i], X[i], carry, &carry);
+  }
+  return carry;
+}
+
+// Z -= X. Returns the "borrow" (0 or 1) after subtracting all of X's digits.
+inline digit_t InplaceSubAndReturnBorrow(RWDigits Z, Digits X) {
+  digit_t borrow = 0;
+  for (uint32_t i = 0; i < X.len(); i++) {
+    Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
+  }
+  return borrow;
+}
+
+// These add exactly Y's digits to the matching digits in X, storing the
+// result in (part of) Z, and return the carry/borrow.
+inline digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
+  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t carry = 0;
+  for (uint32_t i = 0; i < Y.len(); i++) {
+    Z[i] = digit_add3(X[i], Y[i], carry, &carry);
+  }
+  return carry;
+}
+
+inline digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
+  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t borrow = 0;
+  for (uint32_t i = 0; i < Y.len(); i++) {
+    Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
+  }
+  return borrow;
+}
+
 // Z := X * y, where y is a single digit. Returns Z's top digit.
 inline digit_t MultiplySingle(RWDigits Z, Digits X, digit_t y) {
   DCHECK(y != 0);
@@ -720,6 +771,46 @@ inline digit_t MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
     Z[i] = top = 0;
   }
   return top;
+}
+
+// For the needs of {CachedMod}, computes only the low Z.len() digits of X*Y.
+ALWAYS_INLINE void MultiplySpecialLow(RWDigits Z, Digits X, Digits Y) {
+  DCHECK(Y.len() >= 1);
+  DCHECK(X.len() >= 2);
+  DCHECK(X.len() >= Y.len() - 1);
+
+  digit_t next, next_carry = 0, carry = 0;
+  // Unrolled first iteration: it's trivial.
+  Z[0] = digit_mul(X[0], Y[0], &next);
+  uint32_t i = 1;
+  // Unrolled second iteration: a little less setup.
+  if (i < Y.len()) {
+    digit_t zi = next;
+    next = 0;
+    BODY(0, 1);
+    i++;
+  }
+  // Main part: no bounds checks in the loop.
+  uint32_t loop_end = Z.len() - 1;
+  uint32_t main_end = std::min(std::min(X.len(), Y.len()), loop_end);
+  for (; i < main_end; i++) {
+    digit_t zi = digit_add2(next, carry, &carry);
+    next = next_carry + carry;
+    carry = 0;
+    next_carry = 0;
+    BODY(0, i);
+  }
+  // Last part: we have to be careful about bounds.
+  for (; i <= loop_end; i++) {
+    uint32_t max_x_index = std::min(i, X.len() - 1);
+    uint32_t max_y_index = std::min(i, Y.len() - 1);
+    uint32_t min_x_index = i - max_y_index;
+    digit_t zi = digit_add2(next, carry, &carry);
+    next = next_carry + carry;
+    carry = 0;
+    next_carry = 0;
+    BODY(min_x_index, max_x_index);
+  }
 }
 #undef BODY
 
@@ -828,8 +919,8 @@ inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
   int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
     digit_t top;
-    for (uint32_t i = 0; i < B.len(); i++) R[i] = top = B[i];
-    for (uint32_t i = B.len(); i < R.len(); i++) R[i] = top = 0;
+    for (uint32_t i = 0; i < A.len(); i++) R[i] = top = A[i];
+    for (uint32_t i = A.len(); i < R.len(); i++) R[i] = top = 0;
     return {true, top};
   }
   if (cmp == 0) {
@@ -845,6 +936,53 @@ inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
     return {true, top};
   }
   return {false, 0};
+}
+
+ALWAYS_INLINE digit_t Processor::CachedMod(RWDigits& R, Digits& A, Digits& B) {
+  Digits& inv = GetCachedInverse();
+  uint32_t n = B.len();
+  DCHECK(n >= 2);
+  DCHECK(n <= A.len() && A.len() <= 2 * n);
+  DCHECK(inv.len() == n + 1);
+  DCHECK(R.len() == n);
+
+  uint32_t scratch_space = A.len() + inv.len();
+  // We rely on {CachedMod_MakeInverse} having allocated the scratch space,
+  // and on that scratch space being big enough for our needs:
+  // Since A.len() <= 2*n and inv.len == n+1, scratch_space == 3n + 1,
+  // and {n} is capped by the max cached divisor size.
+  static_assert(kSmallScratchSize >= kMaxCachedModDivisorSize * 3 + 1);
+  RWDigits scratch = GetSmallScratch_NoCheck();
+  scratch.set_len(scratch_space);
+
+  // Perform multiplication with inverse to get an estimated quotient.
+  if (A.len() >= inv.len()) {
+    MultiplySchoolbook(scratch, A, inv);
+  } else {
+    MultiplySchoolbook(scratch, inv, A);
+  }
+  Digits Q = scratch + 2 * n;
+
+  // Perform correction.
+  // We don't need to compute the high part of the product because it's
+  // identical to A's high part anyway.
+  // The length of Q is at least 1 and at most n + 1. The length of B is n.
+  RWDigits product_low(scratch, 0, n + 1);
+  MultiplySpecialLow(product_low, B, Q);
+
+  digit_t borrow = SubtractAndReturnBorrow(R, A, Digits(product_low, 0, n));
+  digit_t An = A.len() > n ? A[n] : 0;
+  digit_t r_high = An - product_low[n] - borrow;
+  if (r_high & (digit_t{1} << (kDigitBits - 1))) {
+    do {
+      r_high += InplaceAddAndReturnCarry(R, B);
+    } while (r_high != 0);
+  } else {
+    while (r_high != 0 || GreaterThanOrEqual(R, B)) {
+      r_high -= InplaceSubAndReturnBorrow(R, B);
+    }
+  }
+  return R[n - 1];
 }
 
 inline uint32_t DivideResultLength(Digits A, Digits B) {
