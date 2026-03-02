@@ -200,6 +200,14 @@ class Float64 {
 
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
+  // Explicit static constructor that allows NaN values, when we don't care
+  // about the NaN bitpattern.
+  static constexpr Float64 FromMaybeNaN(double value) {
+    Float64 ret(base::double_to_uint64(value));
+    DCHECK_EQ(std::isnan(value), ret.is_nan());
+    return ret;
+  }
+
   constexpr bool operator==(const Float64&) const = default;
 
   size_t hash_value() const { return base::hash_value(bit_pattern_); }
