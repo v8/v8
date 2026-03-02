@@ -2802,5 +2802,19 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  MaybeHandle<Number> result =
+      Object::ToNumber(isolate, handle(args[0], isolate));
+  DirectHandle<Number> result_handle;
+  CHECK_UNLESS_FUZZING(result.ToHandle(&result_handle));
+  // Force HeapNumber, even if the value is representable as a Smi.
+  if (IsSmi(*result_handle)) {
+    return *isolate->factory()->NewHeapNumber(i::Smi::ToInt(*result_handle));
+  }
+  return *result_handle;
+}
+
 }  // namespace internal
 }  // namespace v8
