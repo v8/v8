@@ -5101,8 +5101,8 @@ TEST_F(TurboshaftInstructionSelectorTest, MoveLaneZero) {
     InstructionCode expected_opcode;
   };
   std::array configs = std::to_array<MoveLaneConfig>({
-      {Simd128MoveLaneOp::Kind::kI32x4, 1, kArm64Float32MoveU32},
-      {Simd128MoveLaneOp::Kind::kI64x2, 1, kArm64Float64MoveU64},
+      {Simd128MoveLaneOp::Kind::kI32x4, 1, kArm64Float32Move},
+      {Simd128MoveLaneOp::Kind::kI64x2, 1, kArm64Float64Move},
       {Simd128MoveLaneOp::Kind::kF32x4, 1, kArm64Float32Move},
       {Simd128MoveLaneOp::Kind::kF64x2, 1, kArm64Float64Move},
       {Simd128MoveLaneOp::Kind::kI8x16, 2, kArm64S128MoveLane},

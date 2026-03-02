@@ -271,9 +271,9 @@ bool isSimdZero(InstructionSelector* selector, OpIndex node) {
   return false;
 }
 
-std::optional<InstructionCode> CanBeScalarMove(InstructionSelector* selector,
-                                               Simd128ReplaceLaneOp::Kind kind,
-                                               OpIndex node) {
+std::optional<InstructionCode> CanBeScalarReplace(
+    InstructionSelector* selector, Simd128ReplaceLaneOp::Kind kind,
+    OpIndex node) {
   if (isSimdZero(selector, node)) {
     // TODO(sparker): Support I16 and F16.
     switch (kind) {
@@ -292,6 +292,25 @@ std::optional<InstructionCode> CanBeScalarMove(InstructionSelector* selector,
   return {};
 }
 
+std::optional<InstructionCode> CanBeScalarMove(InstructionSelector* selector,
+                                               Simd128ReplaceLaneOp::Kind kind,
+                                               OpIndex node) {
+  if (isSimdZero(selector, node)) {
+    // TODO(sparker): Support I16 and F16.
+    switch (kind) {
+      default:
+        break;
+      case Simd128ReplaceLaneOp::Kind::kI32x4:
+      case Simd128ReplaceLaneOp::Kind::kF32x4:
+        return kArm64Float32Move;
+      case Simd128ReplaceLaneOp::Kind::kI64x2:
+      case Simd128ReplaceLaneOp::Kind::kF64x2:
+        return kArm64Float64Move;
+    }
+  }
+  return {};
+}
+
 }  // namespace
 
 void VisitRRIR(InstructionSelector* selector, InstructionCode opcode,
@@ -300,7 +319,7 @@ void VisitRRIR(InstructionSelector* selector, InstructionCode opcode,
   Arm64OperandGenerator g(selector);
 
   if (op.lane == 0) {
-    if (auto scalar_opcode = CanBeScalarMove(selector, op.kind, op.into())) {
+    if (auto scalar_opcode = CanBeScalarReplace(selector, op.kind, op.into())) {
       // If we're replacing lane zero, of a simd vector of zeros, we can just
       // do a scalar mov instead as this will zero the remaining contents of
       // the aliasing Neon register.
