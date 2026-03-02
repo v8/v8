@@ -172,7 +172,7 @@ class Graph final : public ZoneObject {
   }
 
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
-  ZoneVector<ValueNode*>& parameters() { return parameters_; }
+  ZoneVector<InitialValue*>& parameters() { return parameters_; }
 
   MaglevCallSiteCandidates& inlineable_calls() { return inlineable_calls_; }
 
@@ -352,7 +352,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
   ZoneMap<uint64_t, HoleyFloat64Constant*> holey_float64_constants_;
   ZoneMap<uint64_t, Constant*> heap_number_constants_;
-  ZoneVector<ValueNode*> parameters_;
+  ZoneVector<InitialValue*> parameters_;
   ZoneAbslFlatHashSet<DeoptFrame*> eager_deopt_top_frames_;
   ZoneAbslFlatHashMap<DeoptFrame*, std::pair<interpreter::Register, int>>
       lazy_deopt_top_frames_;

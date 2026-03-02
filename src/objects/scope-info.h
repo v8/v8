@@ -216,8 +216,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // function expressions, only), otherwise returns a value < 0. The name
   // must be an internalized string.
   int FunctionContextSlotIndex(Tagged<String> name) const;
-  // Same as above but works without knowing the name.
-  int FunctionContextSlotIndex() const;
 
   // Lookup support for serialized scope info.  Returns the receiver context
   // slot index if scope has a "this" binding, and the binding is

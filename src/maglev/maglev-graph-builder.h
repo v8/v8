@@ -421,29 +421,28 @@ class MaglevGraphBuilder {
 
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
-  MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
-      ValueNode* context, int index, VariableMode mode,
-      MaybeAssignedFlag assigned);
-  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index,
-                                          MaybeAssignedFlag assigned);
-  ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
-                                       ContextMode context_mode);
+  bool TrySpecializeLoadContextSlotToFunctionContext(
+      ValueNode* context, int slot_index,
+      ContextSlotMutability slot_mutability);
+  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index);
+  ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
+                                     ContextSlotMutability slot_mutability,
+                                     ContextMode context_mode);
   MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
-                                                  ValueNode* value,
-                                                  MaybeAssignedFlag assigned);
+                                                  ValueNode* value);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
                                         ContextMode context_mode);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void EscapeContext();
-  MaybeAssignedFlag GetContextMaybeAssigned(ValueNode* context, int index,
-                                            VariableMode* mode);
-  ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
-                                    int slot_index, ContextMode context_mode);
+  void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
+                            ContextSlotMutability slot_mutability,
+                            ContextMode context_mode);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode);
+
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
@@ -1116,6 +1115,8 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildGlobalStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
+  MaybeReduceResult TryBuildScriptContextConstantLoad(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
   MaybeReduceResult TryBuildScriptContextLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
   MaybeReduceResult TryBuildPropertyCellLoad(
@@ -1218,8 +1219,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildStoreTaggedField(
       ValueNode* object, ValueNode* value, int offset,
       StoreTaggedMode store_mode,
-      PropertyKey property_key = PropertyKey::None(),
-      MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+      PropertyKey property_key = PropertyKey::None());
   ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
       ValueNode* object, ValueNode* value, int offset,
       StoreTaggedMode store_mode,

@@ -442,7 +442,9 @@ ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
-      node->input_node(0), node->offset(), node->maybe_assigned()));
+      node->input_node(0), node->offset(),
+      node->is_const() ? ContextSlotMutability::kImmutable
+                       : ContextSlotMutability::kMutable));
   return ProcessResult::kContinue;
 }
 

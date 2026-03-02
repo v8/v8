@@ -8,7 +8,6 @@
 
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/maglev/maglev-ir.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8::internal::maglev {
