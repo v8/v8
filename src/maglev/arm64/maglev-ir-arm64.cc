@@ -779,9 +779,7 @@ void Float64Modulus::SetValueLocationConstraints() {
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  // TODO(marja): We can generate better code for constant inputs and for inputs
-  // which are guaranteed to be integers.
-  __ Float64Mod(d0, d0, d1);
+  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
 }
 
 void Float64Negate::SetValueLocationConstraints() {
