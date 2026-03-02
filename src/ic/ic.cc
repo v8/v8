@@ -9,6 +9,7 @@
 
 #include "src/api/api-arguments-inl.h"
 #include "src/ast/ast.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
@@ -68,6 +69,8 @@ char IC::TransitionMarkFromState(IC::State state) {
       return '^';
     case POLYMORPHIC:
       return 'P';
+    case HOMOMORPHIC:
+      return 'H';
     case MEGAMORPHIC:
       return 'N';
     case MEGADOM:
@@ -547,6 +550,75 @@ DirectHandle<NativeContext> GetAccessorContext(
 
 }  // namespace
 
+bool IC::UpdateHomomorphicIC(const MaybeObjectDirectHandle& new_handler,
+                             DirectHandle<Name> name) {
+  if (!v8_flags.homomorphic_ic) return false;
+
+  // TODO(leszeks): Support KeyedLoadIC, StoreIC and KeyedStoreIC.
+  if (!IsLoadIC()) return false;
+
+  // TODO(leszeks): Support non-Smi handlers (particularly for prototype
+  // access in subclasses).
+  Tagged<Smi> new_smi_handler;
+  if (!TryCast<Smi>(*new_handler, &new_smi_handler)) {
+    return false;
+  }
+
+  // TODO(leszeks): Support non-field cases
+  if (LoadHandler::KindBits::decode(new_smi_handler.value()) !=
+      LoadHandler::Kind::kField) {
+    return false;
+  }
+
+  MapsAndHandlers maps_and_handlers(isolate());
+  if (state() == MONOMORPHIC || state() == POLYMORPHIC) {
+    nexus()->ExtractMapsAndHandlers(&maps_and_handlers);
+    for (auto [map, old_handler] : maps_and_handlers) {
+      if (*old_handler != new_smi_handler) {
+        return false;
+      }
+    }
+  } else if (state() == HOMOMORPHIC) {
+    // TODO(leszeks): We should expect to never hit this path when the handlers
+    // match, since they should be handled in the IC, but we currently do for
+    // LoadIC_Megamorphic called from optimized code that saw homomorphic
+    // feedback. Once we have handling of homomorphic feedback in optimized
+    // code, we should harden this path, e.g. with:
+    //
+    // DCHECK_NE(nexus()->GetFeedbackExtra(), new_smi_handler);
+    return false;
+  } else {
+    CHECK_EQ(state(), RECOMPUTE_HANDLER);
+  }
+
+#ifdef DEBUG
+  for (auto [map, old_handler] : maps_and_handlers) {
+    // We shouldn't have seen the current map in existing feedback, otherwise
+    // we wouldn't have missed.
+    DCHECK(!map.is_identical_to(lookup_start_object_map()));
+  }
+#endif
+
+  int capacity = v8_flags.homomorphic_ic_count;
+  DCHECK(base::bits::IsPowerOfTwo(capacity));
+  DirectHandle<WeakHomomorphicFixedArray> array =
+      WeakHomomorphicFixedArray::New(isolate(), capacity, AllocationType::kOld);
+
+  auto get_hash = [&](Tagged<Map> map) {
+    return static_cast<int>((map.ptr() >> kTaggedSizeLog2) & (capacity - 1));
+  };
+
+  for (auto [map, old_handler] : maps_and_handlers) {
+    array->set(get_hash(*map), MakeWeak(*map));
+  }
+  array->set(get_hash(*lookup_start_object_map()),
+             MakeWeak(*lookup_start_object_map()));
+
+  nexus()->ConfigureHomomorphic(array, new_handler);
+  OnFeedbackChanged("Homomorphic");
+  return true;
+}
+
 bool IC::UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                          DirectHandle<Name> name) {
   if (!v8_flags.mega_dom_ic) return false;
@@ -854,6 +926,9 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
         break;
       }
       if (UpdateMegaDOMIC(handler, name)) break;
+      [[fallthrough]];
+    case HOMOMORPHIC:
+      if (UpdateHomomorphicIC(handler, name)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
       }
@@ -1024,11 +1099,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       // The method will only return true for absolute truths based on the
       // lookup start object maps.
       FieldIndex field_index;
+      InternalIndex fake_descriptor_index = InternalIndex::NotFound();
       if (Accessors::IsJSObjectFieldAccessor(isolate(), map, lookup->name(),
-                                             &field_index)) {
+                                             &field_index,
+                                             &fake_descriptor_index)) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-        return MaybeObjectHandle(
-            LoadHandler::LoadField(isolate(), field_index));
+        // TODO(leszeks): Add magic value to handle accessor fields.
+        return MaybeObjectHandle(LoadHandler::LoadField(isolate(), field_index,
+                                                        fake_descriptor_index));
       }
       if (IsJSModuleNamespace(*holder)) {
         DirectHandle<ObjectHashTable> exports(
@@ -1187,7 +1265,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
                   lookup->property_details().location());
         DCHECK(IsJSObject(*holder, isolate()));
         FieldIndex field = lookup->GetFieldIndex();
-        smi_handler = LoadHandler::LoadField(isolate(), field);
+        InternalIndex descriptor = lookup->GetFieldDescriptorIndex();
+        smi_handler = LoadHandler::LoadField(isolate(), field, descriptor);
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (holder_is_lookup_start_object)
           return MaybeObjectHandle(smi_handler);
@@ -2351,7 +2430,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // -------------- Fields --------------
       if (lookup->property_details().location() == PropertyLocation::kField) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
-        int descriptor = lookup->GetFieldDescriptorIndex();
+        InternalIndex descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
         if (V8_UNLIKELY(IsJSSharedStruct(*holder))) {
           return MaybeObjectHandle(StoreHandler::StoreSharedStructField(

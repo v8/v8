@@ -317,19 +317,21 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
 
 // This list must contain only maps that are shared by all objects of their
 // instance type.
-#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                 \
-  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                  \
-  V(_, ByteArrayMap, byte_array_map, ByteArray)                       \
-  V(_, ContextCellMap, context_cell_map, ContextCell)                 \
-  V(_, NameDictionaryMap, name_dictionary_map, NameDictionary)        \
-  V(_, OrderedNameDictionaryMap, ordered_name_dictionary_map,         \
-    OrderedNameDictionary)                                            \
-  V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)  \
-  V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell) \
-  V(_, HeapNumberMap, heap_number_map, HeapNumber)                    \
-  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)       \
-  V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                       \
-  V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)          \
+#define UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                  \
+  UNIQUE_LEAF_INSTANCE_TYPE_MAP_LIST_GENERATOR(V, _)                   \
+  V(_, ByteArrayMap, byte_array_map, ByteArray)                        \
+  V(_, ContextCellMap, context_cell_map, ContextCell)                  \
+  V(_, NameDictionaryMap, name_dictionary_map, NameDictionary)         \
+  V(_, OrderedNameDictionaryMap, ordered_name_dictionary_map,          \
+    OrderedNameDictionary)                                             \
+  V(_, GlobalDictionaryMap, global_dictionary_map, GlobalDictionary)   \
+  V(_, GlobalPropertyCellMap, global_property_cell_map, PropertyCell)  \
+  V(_, HeapNumberMap, heap_number_map, HeapNumber)                     \
+  V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)        \
+  V(_, WeakHomomorphicFixedArrayMap, weak_homomorphic_fixed_array_map, \
+    WeakHomomorphicFixedArray)                                         \
+  V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                        \
+  V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)           \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY

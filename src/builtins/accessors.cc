@@ -67,7 +67,8 @@ static V8_INLINE bool CheckForName(Isolate* isolate, DirectHandle<Name> name,
 // If true, *object_offset contains offset of object field.
 bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
                                         DirectHandle<Name> name,
-                                        FieldIndex* index) {
+                                        FieldIndex* index,
+                                        InternalIndex* fake_descriptor_index) {
   if (map->is_dictionary_map()) {
     // There are not descriptors in a dictionary mode map.
     return false;
@@ -75,9 +76,13 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
 
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
+      if (fake_descriptor_index)
+        *fake_descriptor_index = InternalIndex(kMaxNumberOfDescriptors + 1);
       return CheckForName(isolate, name, isolate->factory()->length_string(),
                           JSArray::kLengthOffset, FieldIndex::kTagged, index);
     default:
+      if (fake_descriptor_index)
+        *fake_descriptor_index = InternalIndex(kMaxNumberOfDescriptors + 2);
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(isolate, name, isolate->factory()->length_string(),
                             offsetof(String, length_), FieldIndex::kWord32,

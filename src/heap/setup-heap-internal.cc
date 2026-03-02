@@ -502,6 +502,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
                          protected_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
+    ALLOCATE_PARTIAL_MAP(WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE,
+                         kVariableSizeSentinel, weak_homomorphic_fixed_array);
     ALLOCATE_PARTIAL_MAP(TRUSTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          trusted_weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(PROTECTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
@@ -589,6 +591,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.trusted_fixed_array_map());
   FinalizePartialMap(roots.protected_fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
+  FinalizePartialMap(roots.weak_homomorphic_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
   FinalizePartialMap(roots.trusted_weak_fixed_array_map());
   FinalizePartialMap(roots.protected_weak_fixed_array_map());

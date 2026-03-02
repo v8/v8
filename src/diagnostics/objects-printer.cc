@@ -1737,6 +1737,15 @@ void WeakFixedArray::WeakFixedArrayPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WeakHomomorphicFixedArray::WeakHomomorphicFixedArrayPrint(
+    std::ostream& os) {
+  PrintHeader(os, "WeakHomomorphicFixedArray");
+  uint32_t len = ulength().value();
+  os << "\n - length: " << len;
+  PrintWeakArrayElements(os, this, len);
+  os << "\n";
+}
+
 void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
   PrintHeader(os, "TrustedWeakFixedArray");
   uint32_t len = ulength().value();
@@ -1951,7 +1960,8 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kLoadProperty: {
       os << InlineCacheState2String(ic_state());
-      if (ic_state() == InlineCacheState::MONOMORPHIC) {
+      if (ic_state() == InlineCacheState::MONOMORPHIC ||
+          ic_state() == InlineCacheState::HOMOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         if (GetFeedbackExtra().IsCleared()) {
           os << " [cleared]\n";

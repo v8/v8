@@ -1698,6 +1698,15 @@ class WeakFixedArray::BodyDescriptor final
   }
 };
 
+class WeakHomomorphicFixedArray::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<WeakHomomorphicFixedArray>(raw_object)
+        ->AllocatedSize();
+  }
+};
+
 class TrustedWeakFixedArray::BodyDescriptor final
     : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
  public:

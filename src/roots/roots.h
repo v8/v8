@@ -99,6 +99,7 @@ class RootVisitor;
   V(UninitializedHole, uninitialized_value, UninitializedValue)                \
   /* Maps */                                                                   \
   V(Map, meta_map, MetaMap)                                                    \
+  V(Map, weak_homomorphic_fixed_array_map, WeakHomomorphicFixedArrayMap)       \
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \

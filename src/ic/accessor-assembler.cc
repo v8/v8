@@ -13,6 +13,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
@@ -23,6 +24,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/megadom-handler.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
@@ -139,6 +141,167 @@ void AccessorAssembler::HandlePolymorphicCase(
     var_index = Int32Sub(var_index.value(), Int32Constant(kEntrySize));
     Branch(Int32GreaterThanOrEqual(var_index.value(), Int32Constant(0)), &loop,
            if_miss);
+  }
+}
+
+void AccessorAssembler::TryHomomorphicCase(
+    TNode<Object> lookup_start_object, TNode<Map> lookup_start_object_map,
+    TNode<Name> name, TVariable<MaybeObject>* var_handler, TNode<Object> vector,
+    TNode<TaggedIndex> slot, Label* miss, ExitPoint* exit_point) {
+  // Check if feedback is WeakHomomorphicFixedArray.
+  TNode<MaybeObject> feedback = LoadFeedbackVectorSlot(CAST(vector), slot);
+  // We assume the caller (LoadIC_Noninlined) has checked that feedback is a
+  // WeakHomomorphicFixedArray.
+  TNode<WeakHomomorphicFixedArray> array = CAST(feedback);
+  TNode<Smi> handler;
+  if (var_handler->IsBound()) {
+    handler = CAST(var_handler->value());
+  } else {
+    handler = CAST(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize));
+  }
+
+  TNode<Int32T> handler_value = SmiToInt32(handler);
+  // Decode handler info needed for execution/checks.
+  TNode<Uint32T> descriptor_index =
+      DecodeWord32<LoadHandler::DescriptorIndexBits>(handler_value);
+
+  // Special handling for special descriptor index values.
+  // TODO(leszeks): Make this a single check or a different IC type.
+  Label if_array_len(this), if_string_len(this);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kArrayLengthFieldDescriptorIndex),
+         &if_array_len);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kStringLengthFieldDescriptorIndex),
+         &if_string_len);
+
+  Label execute_handler(this);
+
+  // Look up in map cache.
+  // TODO(leszeks): Could avoid this lookup by fixing the length at build time.
+  TNode<IntPtrT> length =
+      LoadAndUntagWeakFixedArrayLength(ReinterpretCast<WeakFixedArray>(array));
+
+  // Hash: (map_ptr >> kTaggedSizeLog2) % length
+  // We assume length is power of 2.
+  TNode<IntPtrT> map_intptr = BitcastTaggedToWord(lookup_start_object_map);
+  TNode<IntPtrT> hash = WordSar(map_intptr, IntPtrConstant(kTaggedSizeLog2));
+  // TODO(leszeks): Could avoid this subtraction by fixing the length at build
+  // time.
+  TNode<IntPtrT> cache_index =
+      WordAnd(hash, IntPtrSub(length, IntPtrConstant(1)));
+
+  // Check if the cached map matches, and if it does, go immediately to handler
+  // execution.
+  TNode<MaybeObject> element = LoadWeakFixedArrayElement(
+      ReinterpretCast<WeakFixedArray>(array), cache_index);
+  GotoIf(TaggedEqual(element, MakeWeak(lookup_start_object_map)),
+         &execute_handler);
+
+  {
+    // Fallback checks -- decode the handler, and validate against the incoming
+    // map's descriptor array.
+
+    // Only field handlers are supported, this is ensured in ic.cc
+    CSA_DCHECK(this, IsEqualInWord32<LoadHandler::KindBits>(
+                         handler_value, LoadHandler::Kind::kField));
+
+    // Check that the descriptor index is in-bounds. This will also miss for
+    // dictionary maps.
+    GotoIfNot(Uint32LessThan(descriptor_index, LoadNumberOfOwnDescriptors(
+                                                   lookup_start_object_map)),
+              miss);
+    CSA_DCHECK(this,
+               Word32BitwiseNot(IsDictionaryMap(lookup_start_object_map)));
+
+    // Load the descriptor at the index and verify that the key matches the
+    // loaded name.
+    TNode<DescriptorArray> descriptors =
+        LoadMapDescriptors(lookup_start_object_map);
+    GotoIfNot(TaggedEqual(LoadKeyByDescriptorEntry(
+                              descriptors,
+                              Signed(ChangeUint32ToWord(descriptor_index))),
+                          name),
+              miss);
+
+    // Load the descriptor details and verify it against the handler.
+    TNode<Uint32T> entry = LoadDetailsByDescriptorEntry(
+        descriptors, Signed(ChangeUint32ToWord(descriptor_index)));
+
+    // Check that this is indeed a data field.
+    GotoIfNot(AreEqualInWord32<PropertyDetails::KindField,
+                               PropertyDetails::LocationField>(
+                  entry, PropertyKind::kData, PropertyLocation::kField),
+              miss);
+
+    // Check is_double flag.
+    TNode<BoolT> is_double =
+        IsSetWord32<LoadHandler::IsDoubleBits>(handler_value);
+    TNode<BoolT> repr_is_double =
+        IsEqualInWord32<PropertyDetails::RepresentationField>(
+            entry, Representation::kDouble);
+    GotoIf(Word32NotEqual(repr_is_double, is_double), miss);
+
+    // Check is_inbobject flag and field offset. These are carefully structured
+    // so that they have the same (shifted) mask in both the handler and
+    // property details, so that we can compare them both with a single compare.
+    constexpr int kLoadHandlerMask =
+        (LoadHandler::IsInobjectBits::kMask |
+         LoadHandler::StorageOffsetInWordsBits::kMask);
+    constexpr int kDetailsMask = (PropertyDetails::InObjectField::kMask |
+                                  PropertyDetails::OffsetInWordsField::kMask);
+    // We only need to shift one of the values, whichever has the higher shift.
+    constexpr int kLoadHandlerShift =
+        std::max(0, LoadHandler::StorageOffsetInWordsBits::kShift -
+                        PropertyDetails::OffsetInWordsField::kShift);
+    constexpr int kDetailsShift =
+        std::max(0, PropertyDetails::OffsetInWordsField::kShift -
+                        LoadHandler::StorageOffsetInWordsBits::kShift);
+    static_assert(kLoadHandlerShift == 0 || kDetailsShift == 0);
+    // Make sure that the masks are actually the same after shifting, in both
+    // shift directions.
+    static_assert(kLoadHandlerMask >> kLoadHandlerShift ==
+                  kDetailsMask >> kDetailsShift);
+    static_assert(kLoadHandlerMask << kDetailsShift ==
+                  kDetailsMask << kLoadHandlerShift);
+
+    TNode<Word32T> inobject_and_offset =
+        DecodeWord32(handler_value, kLoadHandlerShift, kLoadHandlerMask);
+    TNode<Word32T> details_inobject_and_offset =
+        DecodeWord32(entry, kDetailsShift, kDetailsMask);
+    GotoIf(Word32NotEqual(details_inobject_and_offset, inobject_and_offset),
+           miss);
+
+    // Update Cache: Overwrite at hash.
+    StoreWeakFixedArrayElement(ReinterpretCast<WeakFixedArray>(array),
+                               cache_index, MakeWeak(lookup_start_object_map));
+    Goto(&execute_handler);
+  }
+
+  // 3. Execute.
+  BIND(&execute_handler);
+  {
+    TVARIABLE(Float64T, var_double_value);
+    Label rebox_double(this);
+
+    HandleLoadField(CAST(lookup_start_object), handler_value, &var_double_value,
+                    &rebox_double, miss, exit_point);
+    BIND(&rebox_double);
+    {
+      exit_point->Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    }
+  }
+
+  BIND(&if_array_len);
+  {
+    GotoIfNot(IsJSArray(lookup_start_object_map), miss);
+    exit_point->Return(LoadJSArrayLength(CAST(lookup_start_object)));
+  }
+
+  BIND(&if_string_len);
+  {
+    GotoIfNot(IsStringMap(lookup_start_object_map), miss);
+    exit_point->Return(LoadStringLengthAsSmi(CAST(lookup_start_object)));
   }
 }
 
@@ -1093,10 +1256,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   BIND(&return_lookup);
   {
     CSA_DCHECK(this,
-               Word32Or(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)),
-                        Word32Or(Word32Equal(handler_kind, LOAD_KIND(kProxy)),
-                                 Word32Equal(handler_kind,
-                                             LOAD_KIND(kModuleExport)))));
+               Word32Any(Word32Equal(handler_kind, LOAD_KIND(kInterceptor)),
+                         Word32Equal(handler_kind, LOAD_KIND(kProxy)),
+                         Word32Equal(handler_kind, LOAD_KIND(kModuleExport))));
     exit_point->ReturnCallBuiltin(Builtin::kHasProperty, p->context(),
                                   p->receiver(), p->name());
   }
@@ -3470,9 +3632,10 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
         DCHECK_EQ(field_location, FieldLocation::kOutOfObject);
         field_offset = PropertyArray::OffsetOfElementAt(field_index);
       }
-      target_handler = LoadHandler::LoadField(
-          field_offset / kTaggedSize,
-          field_location == FieldLocation::kInObject, false);
+      target_handler =
+          LoadHandler::LoadField(field_offset / kTaggedSize,
+                                 field_location == FieldLocation::kInObject,
+                                 false, InternalIndex::NotFound());
 
       GotoIfNot(TaggedEqual(var_handler.value(), SmiConstant(target_handler)),
                 &miss);
@@ -3497,7 +3660,7 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
       // Compute target_handler.
       Tagged<Smi> target_handler = LoadHandler::LoadField(
           /* ignored */ 0, field_location == FieldLocation::kInObject,
-          field_kind == FieldKind::kDouble);
+          field_kind == FieldKind::kDouble, InternalIndex::NotFound());
 
       GotoIfNot(Word32Equal(Word32And(handler_word, Int32Constant(mask)),
                             Int32Constant(target_handler.value())),
@@ -3556,9 +3719,10 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
   {
-    Label try_megamorphic(this), try_megadom(this);
+    Label try_megamorphic(this), try_homomorphic(this), try_megadom(this);
     GotoIf(TaggedEqual(feedback, MegamorphicSymbolConstant()),
            &try_megamorphic);
+    GotoIf(IsWeakHomomorphicFixedArrayMap(LoadMap(feedback)), &try_homomorphic);
     GotoIf(TaggedEqual(feedback, MegaDOMSymbolConstant()), &try_megadom);
     Goto(miss);
 
@@ -3567,6 +3731,13 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
       TryProbeStubCache(isolate()->load_stub_cache(), p->lookup_start_object(),
                         lookup_start_object_map, CAST(p->name()), if_handler,
                         var_handler, miss);
+    }
+
+    BIND(&try_homomorphic);
+    {
+      TryHomomorphicCase(p->lookup_start_object(), lookup_start_object_map,
+                         CAST(p->name()), var_handler, p->vector(), p->slot(),
+                         miss, exit_point);
     }
 
     BIND(&try_megadom);
@@ -4578,17 +4749,18 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
 
   CSA_DCHECK(
       this,
-      Word32Or(
-          Word32Or(
-              // Either the IC is in regular megamorphic state...
-              TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                          MegamorphicSymbolConstant()),
-              // ...or it's monomorphic but using a slow handler. Compilers are
-              // free to approximate this by using the generic stub for
-              // everything.
-              TaggedEqual(
-                  LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                  SmiConstant(*LoadHandler::LoadSlow(isolate())))),
+      Word32Any(
+          // Either the IC is in regular megamorphic state...
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                      MegamorphicSymbolConstant()),
+          // ... or it's homomorphic ...
+          IsWeakHomomorphicFixedArrayMap(
+              LoadMap(CAST(LoadFeedbackVectorSlot(CAST(vector), slot)))),
+          // ...or it's monomorphic but using a slow handler. Compilers
+          // are free to approximate this by using the generic stub for
+          // everything.
+          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                      SmiConstant(*LoadHandler::LoadSlow(isolate()))),
           TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
                       SmiConstant(LoadHandler::LoadGeneric()))));
 

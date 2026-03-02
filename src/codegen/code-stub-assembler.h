@@ -6,6 +6,7 @@
 #define V8_CODEGEN_CODE_STUB_ASSEMBLER_H_
 
 #include <functional>
+#include <initializer_list>
 #include <optional>
 
 #include "src/base/functional/function-ref.h"
@@ -636,6 +637,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           Operation bitwise_op);
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
+
+  // Variadic version of Word32Or.
+  template <typename... Args>
+  TNode<BoolT> Word32Any(TNode<BoolT> first, TNode<BoolT> second,
+                         Args... rest) {
+    if constexpr (sizeof...(rest) == 0) {
+      return Word32Or(first, second);
+    } else {
+      return Word32Any(Word32Or(first, second), rest...);
+    }
+  }
 
   // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
   // defined.
@@ -2018,6 +2030,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreFixedArrayOrPropertyArrayElement(array, index, value);
   }
 
+  void StoreWeakFixedArrayElement(TNode<WeakFixedArray> array,
+                                  TNode<IntPtrT> index,
+                                  TNode<MaybeObject> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // EnsureArrayPushable verifies that receiver with this map is:
   //   1. Is not a prototype.
   //   2. Is not a dictionary.
@@ -2965,6 +2982,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsStringMap(TNode<Map> map);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
@@ -3323,16 +3341,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32Equal(masked_word32, Int32Constant(BitField::encode(value)));
   }
 
-  // Checks if two values of non-overlapping bitfields are both set.
-  template <typename BitField1, typename BitField2>
-  TNode<BoolT> IsBothEqualInWord32(TNode<Word32T> word32,
-                                   typename BitField1::FieldType value1,
-                                   typename BitField2::FieldType value2) {
-    static_assert((BitField1::kMask & BitField2::kMask) == 0);
+  // Checks if multiple values of non-overlapping bitfields are both set.
+  template <typename... BitFields>
+  TNode<BoolT> AreEqualInWord32(TNode<Word32T> word32,
+                                typename BitFields::FieldType... values) {
+    static_assert(([]() {
+                    uint32_t masks[] = {BitFields::kMask...};
+                    uint32_t combined = 0;
+                    for (auto m : masks) {
+                      if (combined & m) return false;
+                      combined |= m;
+                    }
+                    return true;
+                  }()),
+                  "Bitfields must not overlap");
+    uint32_t combined_mask = (BitFields::kMask | ...);
+    uint32_t combined_encoded_values = (BitFields::encode(values) | ...);
+
     TNode<Word32T> combined_masked_word32 =
-        Word32And(word32, Int32Constant(BitField1::kMask | BitField2::kMask));
-    TNode<Int32T> combined_value =
-        Int32Constant(BitField1::encode(value1) | BitField2::encode(value2));
+        Word32And(word32, Int32Constant(combined_mask));
+    TNode<Int32T> combined_value = Int32Constant(combined_encoded_values);
     return Word32Equal(combined_masked_word32, combined_value);
   }
 

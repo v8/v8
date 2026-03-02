@@ -1333,6 +1333,13 @@ class MaglevGraphBuilder {
       compiler::FeedbackSource const& feedback_source,
       compiler::AccessMode access_mode,
       GenericAccessFunc&& build_generic_access);
+  template <typename GenericAccessFunc>
+  MaybeReduceResult TryBuildHomomorphicNamedAccess(
+      ValueNode* receiver, ValueNode* lookup_start_object,
+      compiler::HomomorphicPropertyAccessFeedback const& feedback,
+      compiler::FeedbackSource const& feedback_source,
+      compiler::AccessMode access_mode,
+      GenericAccessFunc&& build_generic_access);
 
   template <typename GenericAccessFunc>
   MaybeReduceResult TryBuildLoadNamedProperty(

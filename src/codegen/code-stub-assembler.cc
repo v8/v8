@@ -4215,6 +4215,30 @@ void CodeStubAssembler::StoreFeedbackVectorSlot(
   }
 }
 
+void CodeStubAssembler::StoreWeakFixedArrayElement(TNode<WeakFixedArray> array,
+                                                   TNode<IntPtrT> index,
+                                                   TNode<MaybeObject> value,
+                                                   WriteBarrierMode mode) {
+  int header_size = OFFSET_OF_DATA_START(WeakFixedArray) - kHeapObjectTag;
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, HOLEY_ELEMENTS, header_size);
+  // Check that slot <= array.length.
+  static_assert(
+      std::is_same_v<decltype(WeakFixedArray::length_), TaggedMember<Smi>>);
+  CSA_DCHECK(this,
+             IsOffsetInBounds(offset,
+                              LoadAndUntagPositiveSmiObjectField(
+                                  array, offsetof(WeakFixedArray, length_)),
+                              OFFSET_OF_DATA_START(WeakFixedArray)),
+             SmiFromIntPtr(offset), array);
+  if (mode == SKIP_WRITE_BARRIER) {
+    StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset, value);
+  } else {
+    CSA_DCHECK(this, Word32BinaryNot(IsCleared(value)));
+    Store(array, offset, value);
+  }
+}
+
 TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Context> context,
                                                      TNode<Map> map,
                                                      Label* bailout) {
@@ -8638,18 +8662,20 @@ TNode<BoolT> CodeStubAssembler::IsNameInstanceType(
   return Int32LessThanOrEqual(instance_type, Int32Constant(LAST_NAME_TYPE));
 }
 
-TNode<BoolT> CodeStubAssembler::IsString(TNode<HeapObject> object) {
+TNode<BoolT> CodeStubAssembler::IsStringMap(TNode<Map> map) {
 #if V8_STATIC_ROOTS_BOOL
-  TNode<Map> map = LoadMap(object);
   TNode<Word32T> map_as_word32 =
       TruncateIntPtrToInt32(BitcastTaggedToWord(map));
   return Uint32LessThanOrEqual(
       map_as_word32, Int32Constant(InstanceTypeChecker::kStringMapUpperBound));
 #else
-  return IsStringInstanceType(LoadInstanceType(object));
+  return IsStringInstanceType(LoadMapInstanceType(map));
 #endif
 }
 
+TNode<BoolT> CodeStubAssembler::IsString(TNode<HeapObject> object) {
+  return IsStringMap(LoadMap(object));
+}
 TNode<Word32T> CodeStubAssembler::IsStringWrapper(TNode<HeapObject> object) {
   return IsStringWrapperElementsKind(LoadMap(object));
 }

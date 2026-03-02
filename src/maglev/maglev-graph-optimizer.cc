@@ -611,6 +611,11 @@ ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
   return ProcessCheckMaps(node);
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckHomomorphicMap(
+    CheckHomomorphicMap* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt(
     CheckMapsWithMigrationAndDeopt* node, const ProcessingState& state) {
   return ProcessCheckMaps(node);

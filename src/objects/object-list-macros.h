@@ -43,7 +43,8 @@ namespace internal {
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
   APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)                     \
-  APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)
+  APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)                             \
+  APPLY(V, WeakHomomorphicFixedArray, WEAK_HOMOMORPHIC_FIXED_ARRAY)
 
 // The SIMPLE_HEAP_OBJECT_LIST1 format is:
 //   V(TypeCamelCase)
@@ -94,6 +95,7 @@ namespace internal {
   V(UncompiledDataWithoutPreparseData)        \
   V(WeakArrayList)                            \
   V(WeakFixedArray)                           \
+  V(WeakHomomorphicFixedArray)                \
   IF_WASM(V, WasmArray)                       \
   IF_WASM(V, WasmDispatchTable)               \
   IF_WASM(V, WasmDispatchTableForImports)     \

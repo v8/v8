@@ -561,7 +561,9 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
            << LoadHandler::IsInobjectBits::decode(raw_handler)
            << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
            << ", storage offset in words = "
-           << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler);
+           << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler)
+           << ", descriptor index = "
+           << LoadHandler::DescriptorIndexBits::decode(raw_handler);
       }
       break;
     }

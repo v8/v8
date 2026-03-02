@@ -721,6 +721,24 @@ Handle<WeakFixedArray> WeakFixedArray::New(
 }
 
 template <class IsolateT>
+Handle<WeakHomomorphicFixedArray> WeakHomomorphicFixedArray::New(
+    IsolateT* isolate, int capacity, AllocationType allocation,
+    MaybeDirectHandle<Object> initial_value) {
+  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
+  DCHECK_NE(capacity, 0);
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<WeakHomomorphicFixedArray> result = Cast<WeakHomomorphicFixedArray>(
+      Allocate(isolate, capacity, &no_gc, allocation));
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               initial_value.is_null() ? roots.undefined_value()
+                                       : *initial_value.ToHandleChecked(),
+               capacity);
+  return result;
+}
+
+template <class IsolateT>
 Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
                                                          uint32_t capacity) {
   if (V8_UNLIKELY(capacity > TrustedFixedArray::kMaxLength)) {

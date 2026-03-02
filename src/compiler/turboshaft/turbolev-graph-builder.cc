@@ -2627,6 +2627,126 @@ class GraphBuildingNodeProcessor {
               CheckMapsFlag::kNone);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckHomomorphicMap* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+
+    V<Object> object = Map(node->ObjectInput());
+
+    ScopedVar<i::Map, AssemblerT> map(this);
+    if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
+      IF_NOT (__ IsSmi(object)) {
+        map = __ LoadMapField(object);
+      } ELSE {
+        map = __ HeapConstant(local_factory_->heap_number_map());
+      }
+    } else {
+      // TODO(leszeks): Assert that the object is not a Smi.
+      map = __ LoadMapField(object);
+    }
+
+    int handler = node->handler_value();
+    int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
+
+    int length = node->homomorphic_array().length();
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map.Get());
+    V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
+        __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
+        __ WordPtrConstant(length - 1));
+    V<HeapObject> array = __ HeapConstant(node->homomorphic_array().object());
+    V<WordPtr> weak_map =
+        __ WordPtrBitwiseOr(map_word, __ WordPtrConstant(kWeakHeapObjectMask));
+
+    V<Object> array_entry =
+        __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+
+    IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 1. Check descriptor count.
+      V<Word32> bitfield3 =
+          __ Load(map, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::Int32(), Map::kBitField3Offset);
+      V<Word32> nof_desc = __ Word32BitwiseAnd(
+          bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
+      V<Word32> encoded_descriptor_index = __ Word32Constant(
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index));
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
+          frame_state, DeoptimizeReason::kWrongMap,
+          node->eager_deopt_info()->feedback_to_update());
+
+      // 2. Load descriptor array.
+      V<DescriptorArray> descriptors =
+          __ Load(map, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  Map::kInstanceDescriptorsOffset);
+
+      // 3. Check key.
+      int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                       DescriptorArray::kEntryKeyOffset;
+      V<Object> key = __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::AnyTagged(), key_offset);
+      V<Object> name = __ HeapConstant(node->name().object());
+      __ DeoptimizeIfNot(__ TaggedEqual(key, name), frame_state,
+                         DeoptimizeReason::kWrongMap,
+                         node->eager_deopt_info()->feedback_to_update());
+
+      // 4. Check details.
+      int details_offset =
+          DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+          DescriptorArray::kEntryDetailsOffset;
+      V<Smi> details_smi =
+          __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedSigned(), details_offset);
+      V<Word32> details = __ UntagSmi(details_smi);
+
+      // 4a. Check kind, location, and in-object.
+      uint16_t storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      uint32_t expected_details_mask =
+          PropertyDetails::KindField::kMask |
+          PropertyDetails::LocationField::kMask |
+          PropertyDetails::OffsetInWordsField::kMask |
+          PropertyDetails::InObjectField::kMask;
+      uint32_t expected_details =
+          PropertyDetails::KindField::encode(PropertyKind::kData) |
+          PropertyDetails::LocationField::encode(PropertyLocation::kField) |
+          PropertyDetails::OffsetInWordsField::encode(storage_offset) |
+          PropertyDetails::InObjectField::encode(is_inobject);
+
+      V<Word32> masked_details =
+          __ Word32BitwiseAnd(details, expected_details_mask);
+      __ DeoptimizeIfNot(__ Word32Equal(masked_details, expected_details),
+                         frame_state, DeoptimizeReason::kWrongMap,
+                         node->eager_deopt_info()->feedback_to_update());
+
+      // 4b. Check Representation.
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+      uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+          PropertyDetails::EncodeRepresentation(Representation::Double()));
+
+      V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
+      if (is_double) {
+        __ DeoptimizeIfNot(__ Word32Equal(masked_repr, expected_repr),
+                           frame_state, DeoptimizeReason::kWrongMap,
+                           node->eager_deopt_info()->feedback_to_update());
+      } else {
+        __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
+                        DeoptimizeReason::kWrongMap,
+                        node->eager_deopt_info()->feedback_to_update());
+      }
+
+      __ Store(array, cache_index, __ BitcastWordPtrToTagged(weak_map),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier,
+               FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+    }
+
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckMapsWithAlreadyLoadedMap* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());

@@ -549,6 +549,38 @@ V8_OBJECT class WeakFixedArray
   class BodyDescriptor;
 } V8_OBJECT_END;
 
+class WeakHomomorphicFixedArrayShape final : public AllStatic {
+ public:
+  using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kWeakHomomorphicFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+};
+
+// WeakHomomorphicFixedArray describes fixed-sized arrays with element type
+// Tagged<MaybeObject>, used for homomorphic feedback.
+// It acts as a fixed-size lossy hashmap-based cache, where collisions
+// overwrite existing entries.
+V8_OBJECT class WeakHomomorphicFixedArray
+    : public TaggedArrayBase<WeakHomomorphicFixedArray,
+                             WeakHomomorphicFixedArrayShape> {
+  using Super = TaggedArrayBase<WeakHomomorphicFixedArray,
+                                WeakHomomorphicFixedArrayShape>;
+
+ public:
+  template <class IsolateT>
+  static inline Handle<WeakHomomorphicFixedArray> New(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung,
+      MaybeDirectHandle<Object> initial_value = {});
+
+  DECL_PRINTER(WeakHomomorphicFixedArray)
+  DECL_VERIFIER(WeakHomomorphicFixedArray)
+
+  class BodyDescriptor;
+} V8_OBJECT_END;
+
 class TrustedWeakFixedArrayShape final : public AllStatic {
  public:
   using ElementT = MaybeObject;

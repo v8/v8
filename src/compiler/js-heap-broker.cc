@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "src/common/globals.h"
+
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
 #endif
@@ -397,6 +399,16 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
+HomomorphicPropertyAccessFeedback::HomomorphicPropertyAccessFeedback(
+    NameRef name, WeakHomomorphicFixedArrayRef homomorphic_array,
+    Tagged<Smi> handler, FeedbackSlotKind slot_kind)
+    : ProcessedFeedback(kHomomorphicPropertyAccess, slot_kind),
+      name_(name),
+      homomorphic_array_(homomorphic_array),
+      handler_(handler) {
+  DCHECK(IsLoadICKind(slot_kind));
+}
+
 MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
     FunctionTemplateInfoRef info_ref, FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kMegaDOMPropertyAccess, slot_kind), info_(info_ref) {
@@ -460,8 +472,8 @@ const ProcessedFeedback& JSHeapBroker::NewInsufficientFeedback(
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
-    FeedbackSource const& source, AccessMode mode,
-    OptionalNameRef static_name) {
+    FeedbackSource const& source, AccessMode mode, OptionalNameRef static_name,
+    bool allow_homomorphic) {
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   FeedbackSlotKind kind = nexus.kind();
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
@@ -501,28 +513,49 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (nexus.ic_state() == InlineCacheState::MEGADOM) {
     DCHECK(maps.empty());
     MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
-    if (!maybe_handler.is_null()) {
-      DirectHandle<MegaDomHandler> handler =
-          Cast<MegaDomHandler>(maybe_handler.object());
-      if (!handler->accessor(kAcquireLoad).IsCleared()) {
-        FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
-            this, Cast<FunctionTemplateInfo>(
-                      handler->accessor(kAcquireLoad).GetHeapObject()));
-        return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
-      }
+    if (maybe_handler.is_null()) return NewInsufficientFeedback(kind);
+
+    DirectHandle<MegaDomHandler> handler =
+        Cast<MegaDomHandler>(maybe_handler.object());
+    if (handler->accessor(kAcquireLoad).IsCleared()) {
+      return NewInsufficientFeedback(kind);
     }
+
+    FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
+        this, Cast<FunctionTemplateInfo>(
+                  handler->accessor(kAcquireLoad).GetHeapObject()));
+    return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
+  }
+
+  if (allow_homomorphic && nexus.ic_state() == InlineCacheState::HOMOMORPHIC) {
+    DCHECK(maps.empty());
+    Tagged<Smi> handler;
+    if (!TryCast<Smi>(nexus.GetFeedbackExtra(), &handler)) {
+      return NewInsufficientFeedback(kind);
+    }
+    Tagged<HeapObject> feedback_object;
+    if (!nexus.GetFeedback().GetHeapObjectIfStrong(&feedback_object)) {
+      return NewInsufficientFeedback(kind);
+    }
+    WeakHomomorphicFixedArrayRef homomorphic_array = MakeRefAssumeMemoryFence(
+        this, Cast<WeakHomomorphicFixedArray>(feedback_object));
+
+    return *zone()->New<HomomorphicPropertyAccessFeedback>(
+        *static_name, homomorphic_array, handler, kind);
   }
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
-  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC) {
+  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC &&
+      nexus.ic_state() != InlineCacheState::HOMOMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(),
-                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
+                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC ||
+                       nexus.ic_state() == InlineCacheState::HOMOMORPHIC);
     return *zone()->New<NamedAccessFeedback>(
         this, *name, maps, kind, has_deprecated_map_without_migration_target);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
@@ -795,11 +828,11 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForForIn(
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
-    FeedbackSource const& source, AccessMode mode,
-    OptionalNameRef static_name) {
+    FeedbackSource const& source, AccessMode mode, OptionalNameRef static_name,
+    bool allow_homomorphic) {
   if (HasFeedback(source)) return GetFeedback(source);
-  ProcessedFeedback const& feedback =
-      ReadFeedbackForPropertyAccess(source, mode, static_name);
+  ProcessedFeedback const& feedback = ReadFeedbackForPropertyAccess(
+      source, mode, static_name, allow_homomorphic);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -985,6 +1018,12 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+HomomorphicPropertyAccessFeedback const&
+ProcessedFeedback::AsHomomorphicPropertyAccess() const {
+  CHECK_EQ(kHomomorphicPropertyAccess, kind());
+  return *static_cast<HomomorphicPropertyAccessFeedback const*>(this);
 }
 
 MegaDOMPropertyAccessFeedback const&

@@ -5770,6 +5770,53 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   }
 }
 
+template <typename GenericAccessFunc>
+MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
+    ValueNode* receiver, ValueNode* lookup_start_object,
+    compiler::HomomorphicPropertyAccessFeedback const& feedback,
+    compiler::FeedbackSource const& feedback_source,
+    compiler::AccessMode access_mode,
+    GenericAccessFunc&& build_generic_access) {
+  Tagged<Smi> handler = feedback.handler();
+  bool is_inobject = LoadHandler::IsInobjectBits::decode(handler.value());
+  bool is_double = LoadHandler::IsDoubleBits::decode(handler.value());
+  int offset_in_words =
+      LoadHandler::StorageOffsetInWordsBits::decode(handler.value());
+  int descriptor_index =
+      LoadHandler::DescriptorIndexBits::decode(handler.value());
+
+  if (descriptor_index == LoadHandler::kArrayLengthFieldDescriptorIndex) {
+    RETURN_IF_ABORT(AddNewNode<CheckInstanceType>(
+        {lookup_start_object}, CheckType::kCheckHeapObject, JS_ARRAY_TYPE,
+        JS_ARRAY_TYPE));
+    return BuildLoadJSArrayLength(lookup_start_object);
+  } else if (descriptor_index ==
+             LoadHandler::kStringLengthFieldDescriptorIndex) {
+    RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
+    return BuildLoadStringLength(lookup_start_object);
+  }
+
+  RETURN_IF_ABORT(AddNewNode<CheckHomomorphicMap>(
+      {lookup_start_object}, feedback.name(), feedback.homomorphic_array(),
+      handler.value(),
+      GetCheckType(GetType(lookup_start_object), lookup_start_object)));
+
+  ValueNode* holder = lookup_start_object;
+  if (!is_inobject) {
+    GET_VALUE_OR_ABORT(
+        holder,
+        BuildLoadTaggedField(holder, JSReceiver::kPropertiesOrHashOffset));
+  }
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(
+      result, BuildLoadTaggedField(holder, kTaggedSize * offset_in_words));
+  if (is_double) {
+    result = AddNewNodeNoInputConversion<LoadFloat64>(
+        {result}, static_cast<int>(offsetof(HeapNumber, value_)));
+  }
+  return result;
+}
+
 ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
   object->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
@@ -7444,8 +7491,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
     compiler::FeedbackSource& feedback_source,
     GenericAccessFunc&& build_generic_access) {
   const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(feedback_source,
-                                             compiler::AccessMode::kLoad, name);
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, name, true);
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
       return EmitUnconditionalDeopt(
@@ -7455,6 +7502,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
       return TryBuildNamedAccess(
           receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
           feedback_source, compiler::AccessMode::kLoad, build_generic_access);
+    }
+    case compiler::ProcessedFeedback::kHomomorphicPropertyAccess: {
+      RETURN_IF_DONE(TryReuseKnownPropertyLoad(lookup_start_object, name));
+      return TryBuildHomomorphicNamedAccess(
+          receiver, lookup_start_object,
+          processed_feedback.AsHomomorphicPropertyAccess(), feedback_source,
+          compiler::AccessMode::kLoad, build_generic_access);
     }
     default:
       return {};

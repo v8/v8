@@ -925,6 +925,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   bool IsUninitialized() const {
     return ic_state() == InlineCacheState::UNINITIALIZED;
   }
+  bool IsHomomorphic() const {
+    return ic_state() == InlineCacheState::HOMOMORPHIC;
+  }
   bool IsMegamorphic() const {
     return ic_state() == InlineCacheState::MEGAMORPHIC;
   }
@@ -972,6 +975,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   void ConfigurePolymorphic(DirectHandle<Name> name,
                             MapsAndHandlers const& maps_and_handlers);
+
+  void ConfigureHomomorphic(DirectHandle<WeakHomomorphicFixedArray> maps,
+                            const MaybeObjectDirectHandle& handler);
+  MaybeObjectDirectHandle ExtractHomomorphicHandler();
 
   void ConfigureMegaDOM(const MaybeObjectDirectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();

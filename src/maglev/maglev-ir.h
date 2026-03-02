@@ -411,6 +411,7 @@ class ExceptionHandlerInfo;
   V(CheckTypedArrayBounds)                    \
   V(CheckTypedArrayValid)                     \
   V(CheckMaps)                                \
+  V(CheckHomomorphicMap)                      \
   V(CheckMapsWithMigrationAndDeopt)           \
   V(CheckMapsWithMigration)                   \
   V(CheckMapsWithAlreadyLoadedMap)            \
@@ -6599,6 +6600,48 @@ class AssertRangeFloat64 : public FixedInputNodeT<1, AssertRangeFloat64> {
 
  private:
   Range range_;
+};
+
+class CheckHomomorphicMap : public FixedInputNodeT<1, CheckHomomorphicMap> {
+  using Base = FixedInputNodeT<1, CheckHomomorphicMap>;
+
+ public:
+  explicit CheckHomomorphicMap(
+      uint64_t bitfield, compiler::NameRef name,
+      compiler::WeakHomomorphicFixedArrayRef homomorphic_array,
+      int handler_value, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
+        name_(name),
+        homomorphic_array_(homomorphic_array),
+        handler_value_(handler_value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::CanRead() |
+                                              OpProperties::DeferredCall();
+  DECLARE_INPUTS(Object)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  int handler_value() const { return handler_value_; }
+  compiler::NameRef name() const { return name_; }
+  compiler::WeakHomomorphicFixedArrayRef homomorphic_array() const {
+    return homomorphic_array_;
+  }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  auto options() const {
+    return std::tuple{name_, homomorphic_array_, handler_value_, check_type()};
+  }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+  const compiler::NameRef name_;
+  const compiler::WeakHomomorphicFixedArrayRef homomorphic_array_;
+  const int handler_value_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {

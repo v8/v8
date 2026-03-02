@@ -1092,21 +1092,20 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
   return IsUninitializedHole(current_value, isolate());
 }
 
-int LookupIterator::GetFieldDescriptorIndex() const {
+InternalIndex LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-  // TODO(jkummerow): Propagate InternalIndex further.
-  return descriptor_number().as_int();
+  return descriptor_number();
 }
 
-int LookupIterator::GetAccessorIndex() const {
+InternalIndex LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
   DCHECK_EQ(PropertyKind::kAccessor, property_details_.kind());
-  return descriptor_number().as_int();
+  return descriptor_number();
 }
 
 FieldIndex LookupIterator::GetFieldIndex() const {

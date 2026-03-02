@@ -161,6 +161,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(SourceTextModule)                                          \
   NEVER_SERIALIZED(TemplateObjectDescription)                                 \
   NEVER_SERIALIZED(Tuple2)                                                    \
+  NEVER_SERIALIZED(WeakHomomorphicFixedArray)                                 \
   /* Subtypes of Object */                                                    \
   BACKGROUND_SERIALIZED(HeapObject)
 
@@ -1071,6 +1072,15 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
   // immutable-after-initialization FixedDoubleArrays protected by
   // acquire-release semantics (such as boilerplate elements).
   Float64 GetFromImmutableFixedDoubleArray(int i) const;
+};
+
+class WeakHomomorphicFixedArrayRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(WeakHomomorphicFixedArray, HeapObjectRef)
+
+  IndirectHandle<WeakHomomorphicFixedArray> object() const;
+
+  int length() const;
 };
 
 class BytecodeArrayRef : public HeapObjectRef {

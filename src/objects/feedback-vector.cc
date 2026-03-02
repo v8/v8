@@ -644,6 +644,13 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
+void FeedbackNexus::ConfigureHomomorphic(
+    DirectHandle<WeakHomomorphicFixedArray> maps,
+    const MaybeObjectDirectHandle& handler) {
+  DisallowGarbageCollection no_gc;
+  SetFeedback(*maps, UPDATE_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
+}
+
 void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegaDOMSentinel();
@@ -728,6 +735,9 @@ InlineCacheState FeedbackNexus::ic_state() const {
           // Determine state purely by our structure, don't check if the maps
           // are cleared.
           return InlineCacheState::POLYMORPHIC;
+        }
+        if (IsWeakHomomorphicFixedArray(heap_object)) {
+          return InlineCacheState::HOMOMORPHIC;
         }
         if (IsName(heap_object)) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
@@ -1174,6 +1184,20 @@ MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
   }
 
   return MaybeObjectHandle();
+}
+
+MaybeObjectDirectHandle FeedbackNexus::ExtractHomomorphicHandler() {
+  DCHECK_EQ(ic_state(), InlineCacheState::HOMOMORPHIC);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  Tagged<MaybeObject> maybe_handler = pair.second;
+  if (!maybe_handler.IsCleared()) {
+    MaybeObjectDirectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectDirectHandle();
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,
