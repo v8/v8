@@ -206,6 +206,7 @@ void StackMemory::Reset() {
   size_ = active_segment_->size_;
   clear_stack_switch_info();
   current_cont_ = {};
+  stack_obj_ = {};
   func_ref_ = {};
   arg_buffer_ = kNullAddress;
   num_bound_args_ = 0;
