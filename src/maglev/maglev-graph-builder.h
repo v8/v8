@@ -61,7 +61,6 @@ struct MaglevCallerDetails {
   LoopEffects* loop_effects;
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
-  ZoneUnorderedMap<ValueNode*, StoreMap*> unobserved_map_stores;
   CatchBlockDetails catch_block;
   int loop_depth;
   int peeled_iteration_count;
@@ -1980,10 +1979,6 @@ class MaglevGraphBuilder {
 
   AllocationBlock* current_allocation_block_ = nullptr;
 
-  ZoneUnorderedMap<ValueNode*, StoreMap*> unobserved_map_stores_;
-  ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
-      unobserved_context_slot_stores_;
-
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
@@ -2040,6 +2035,9 @@ class MaglevGraphBuilder {
     node->OverwriteWith(Opcode::kDead);
   }
 
+  ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
+      unobserved_context_slot_stores_;
+
   // When set, inline only small functions.
   bool only_inline_small_ = false;
 
@@ -2068,12 +2066,6 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
                 NodeT::kProperties.can_deopt() ||
                 NodeT::kProperties.can_throw()) {
     unobserved_context_slot_stores_.clear();
-  }
-  if constexpr (NodeT::kProperties.can_read() ||
-                NodeT::kProperties.can_deopt() ||
-                NodeT::kProperties.can_throw() ||
-                NodeT::kProperties.can_allocate()) {
-    unobserved_map_stores_.clear();
   }
 
   if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&
