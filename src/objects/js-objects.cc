@@ -2257,8 +2257,9 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
 
   if (object->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
     MAYBE_RETURN(object->GetElementsAccessor()->CollectValuesOrEntries(
-                     isolate, object, values_or_entries, get_entries, &count,
-                     ENUMERABLE_STRINGS),
+                     isolate, object, values_or_entries,
+                     static_cast<uint32_t>(number_of_own_elements), get_entries,
+                     &count, ENUMERABLE_STRINGS),
                  Nothing<bool>());
   }
 
