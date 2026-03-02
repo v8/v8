@@ -276,6 +276,9 @@ class HeapVerification final : public SpaceVerificationVisitor {
 
  private:
   void VerifySpace(BaseSpace* space);
+#ifdef V8_ENABLE_SANDBOX
+  void VerifyPointerTables();
+#endif
 
   void VerifyPage(const BasePage* chunk) final;
   void VerifyPageDone(const BasePage* chunk) final;
@@ -392,10 +395,29 @@ void HeapVerification::Verify() {
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
+#ifdef V8_ENABLE_SANDBOX
+  VerifyPointerTables();
+#endif
+
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
 }
+
+#ifdef V8_ENABLE_SANDBOX
+void HeapVerification::VerifyPointerTables() {
+  isolate()->trusted_pointer_table().Verify(isolate(),
+                                            heap()->trusted_pointer_space());
+  if (isolate()->has_shared_trusted_pointer_table()) {
+    isolate()->shared_trusted_pointer_table().Verify(
+        isolate(), isolate()->shared_trusted_pointer_space());
+  }
+  IsolateGroup::current()->code_pointer_table()->Verify(
+      isolate(), heap()->code_pointer_space());
+  isolate()->js_dispatch_table().Verify(isolate(),
+                                        heap()->js_dispatch_table_space());
+}
+#endif
 
 void HeapVerification::VerifySpace(BaseSpace* space) {
   if (!space) return;

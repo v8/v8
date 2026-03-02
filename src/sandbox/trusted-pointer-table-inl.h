@@ -60,6 +60,10 @@ bool TrustedPointerTableEntry::HasPointer(
   return payload.IsTaggedWithTagIn(tag_range);
 }
 
+IndirectPointerTag TrustedPointerTableEntry::GetTag() const {
+  return payload_.load(std::memory_order_relaxed).ExtractTag();
+}
+
 void TrustedPointerTableEntry::Unpublish() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
   auto new_payload = old_payload;

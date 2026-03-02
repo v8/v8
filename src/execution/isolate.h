@@ -2269,6 +2269,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
 
+  bool has_shared_trusted_pointer_table() const {
+    return isolate_data_.shared_trusted_pointer_table_ != nullptr;
+  }
+
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
   }

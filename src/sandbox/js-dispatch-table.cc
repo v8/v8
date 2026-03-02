@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/logging/counters.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
 
@@ -41,6 +42,24 @@ void JSDispatchEntry::CheckFieldOffsets() {
 #else
 #error "Unsupported Architecture"
 #endif
+}
+
+void JSDispatchTable::Verify(Isolate* isolate, Space* space) {
+  IterateActiveEntriesIn(space, [&](JSDispatchHandle handle) {
+    if (handle == kNullJSDispatchHandle) return;
+
+    // 1. The object must be a valid Code object.
+    Tagged<Object> obj = Tagged<Object>(GetCodeAddress(handle));
+    CHECK(Is<Code>(obj));
+    Tagged<Code> code = TrustedCast<Code>(obj);
+#ifdef VERIFY_HEAP
+    Object::ObjectVerify(code, isolate);
+#endif
+
+    // 2. The code must be compatible with the entry's parameter count.
+    uint16_t parameter_count = GetParameterCount(handle);
+    CHECK(IsCompatibleCode(code, parameter_count));
+  });
 }
 
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
