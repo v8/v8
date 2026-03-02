@@ -2211,6 +2211,7 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
             1);
   if (value.saturated_use_count.IsOne()) return true;
+  if (value.saturated_use_count.IsSaturated()) return false;
   return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
          value.saturated_use_count.Get();
 }
