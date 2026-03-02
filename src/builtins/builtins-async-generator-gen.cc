@@ -334,8 +334,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorReturnClosedReject(
 }
 }  // namespace
 
-// https://tc39.es/proposal-async-iteration/
-// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-next
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-next
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-next
 TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -352,8 +352,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.next");
 }
 
-// https://tc39.es/proposal-async-iteration/
-// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-return
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
 TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -370,8 +370,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.return");
 }
 
-// https://tc39.es/proposal-async-iteration/
-// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-throw
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-throw
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-throw
 TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 

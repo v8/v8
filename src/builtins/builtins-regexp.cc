@@ -349,6 +349,7 @@ MaybeDirectHandle<String> RegExpEscapeImpl(Isolate* isolate,
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-regexp.escape
 BUILTIN(RegExpEscape) {
   HandleScope scope(isolate);
   Handle<Object> value = args.atOrUndefined(isolate, 1);

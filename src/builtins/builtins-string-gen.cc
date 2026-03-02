@@ -1603,7 +1603,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
   return result_array.value();
 }
 
-// ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
+// https://tc39.es/ecma262/#sec-string.prototype.split
 TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kSeparatorArg = 0;
   const int kLimitArg = 1;

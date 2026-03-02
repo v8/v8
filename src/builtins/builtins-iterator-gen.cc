@@ -239,6 +239,7 @@ void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
           {values->var_array(), values->var_capacity(), values->var_length()});
 }
 
+// https://tc39.es/ecma262/#sec-iterabletolist
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);
@@ -336,6 +337,7 @@ TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
   return list.ToFixedArray();
 }
 
+// https://tc39.es/ecma262/#sec-createstringlistfromiterable
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);

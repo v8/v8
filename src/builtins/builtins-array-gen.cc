@@ -1320,6 +1320,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   }
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.includes
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -1372,6 +1373,7 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
                        from_index);
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.indexof
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
