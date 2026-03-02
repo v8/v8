@@ -2597,7 +2597,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
             code_space = TryAllocate(code_vmem_size);
             return code_space.IsReserved();
           },
-          internal::AllocationType::kOld);
+          internal::AllocationType::kOld,
+          GarbageCollectionReason::kAllocationFailure);
     }
     if (!code_space.IsReserved()) {
       auto oom_detail = base::FormattedString{}

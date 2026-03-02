@@ -321,7 +321,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     // Collect garbage and retry.
     did_retry = true;
     return isolate->heap()->allocator()->RetryCustomAllocate(
-        fn, internal::AllocationType::kOld);
+        fn, internal::AllocationType::kOld,
+        GarbageCollectionReason::kAllocationFailure);
   };
 
   size_t byte_capacity = maximum_pages * page_size;

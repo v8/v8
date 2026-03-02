@@ -1349,7 +1349,8 @@ bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
     return false;
   }
   return isolate_->heap()->allocator()->RetryCustomAllocate(
-      std::move(allocate), AllocationType::kOld);
+      std::move(allocate), AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
 }
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }

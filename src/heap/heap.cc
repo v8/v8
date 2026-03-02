@@ -1491,8 +1491,8 @@ void Heap::HandleExternalMemoryInterrupt() {
         kGCCallbackFlagsForExternalMemory);
     if (incremental_marking()->IsMajorMarking() &&
         AllocationLimitOvershotByLargeMargin()) {
-      CollectAllAvailableGarbage(
-          GarbageCollectionReason::kExternalMemoryPressure);
+      CollectGarbageWithRetry(OLD_SPACE,
+                              GarbageCollectionReason::kExternalMemoryPressure);
     }
     return;
   }
@@ -2263,14 +2263,16 @@ void Heap::RestoreHeapLimit(size_t heap_limit) {
                             physical_memory());
 }
 
-void Heap::CollectGarbageWithRetry(AllocationSpace space) {
+void Heap::CollectGarbageWithRetry(AllocationSpace space,
+                                   GarbageCollectionReason gc_reason) {
   std::ignore = allocator()->RetryCustomAllocate(
       [&]() {
         // RetryCustomAllocate() already checks heap limits before calling
         // the allocate function.
         return true;
       },
-      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
+      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld,
+      gc_reason);
 }
 
 void Heap::PerformRequestedGC(LocalHeap* local_heap) {
@@ -3031,7 +3033,8 @@ void* Heap::AllocateExternalBackingStore(
     return result;
   }
   std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
+      [&]() { return result = allocate(byte_length); }, AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
   return result;
 }
 
@@ -7144,7 +7147,8 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
 #endif
 
   if (ReachedHeapLimit()) {
-    CollectGarbageWithRetry(OLD_SPACE);
+    CollectGarbageWithRetry(OLD_SPACE,
+                            GarbageCollectionReason::kExternalMemoryPressure);
   } else if (total_after > external_memory_limit_for_interrupt()) {
     HandleExternalMemoryInterrupt();
   }
