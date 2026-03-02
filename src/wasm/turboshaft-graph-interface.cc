@@ -4020,6 +4020,7 @@ class TurboshaftGraphBuildingInterface
   void EndEffectHandlers(FullDecoder* decoder) {
     asm_.clear_effect_handlers();
     __ Bind(resume_return_block_);
+    instance_cache_.ReloadCachedMemory();
   }
 
   MemoryRepresentation MemoryRepresentationFor(ValueType type) {
