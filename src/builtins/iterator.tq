@@ -15,6 +15,8 @@ struct IteratorRecord {
   next: JSAny;
 }
 
+const kIteratorRecordFieldCount: constexpr int31 = 2;
+
 extern macro IteratorBuiltinsAssembler::FastIterableToList(
     implicit context: Context)(JSAny): JSArray labels Slow;
 
@@ -46,6 +48,9 @@ transitioning macro IteratorStepValue(
     implicit context: Context)(iterated: IteratorRecord,
     fastIteratorResultMap: Map): JSAny
     labels Done, DoneWithException(JSAny, JSMessageObject|TheHole) {
+  static_assert(
+      kIteratorRecordFieldCount * kTaggedSize ==
+      torque_internal::SizeOf<IteratorRecord>());
   try {
     // 1. Let result be ? IteratorStep(iteratorRecord)
     const result = IteratorStep(iterated, fastIteratorResultMap)

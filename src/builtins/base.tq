@@ -534,6 +534,8 @@ extern enum MessageTemplate {
   kStrictReadOnlyProperty,
   kInvalidUsingInForInLoop,
   kIllegalInvocation,
+  kInvalidIteratorZipMode,
+  kIteratorZipStrictMismatch,
   ...
 }
 
@@ -2249,3 +2251,20 @@ extern macro I8x16Eq(I8X16, I8X16): I8X16;
 extern macro I8x16Splat(int32): I8X16;
 
 extern enum TypedArrayAccessMode extends int31 { kRead, kWrite }
+
+// ES #sec-getoptionsobject
+transitioning macro GetOptionsObject(
+    implicit context: NativeContext)(options: JSAny): JSReceiver {
+  // 1. If options is undefined, then
+  if (options == Undefined) {
+    // a. Return OrdinaryObjectCreate(null).
+    const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(context);
+    const properties = AllocateNameDictionary(Convert<intptr>(0));
+    return AllocateJSObjectFromMap(nullProtoMap, properties);
+  }
+  // 2. If options is an Object, then
+  //    a. Return options.
+  // 3. Throw a TypeError exception.
+  return Cast<JSReceiver>(options)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'options');
+}

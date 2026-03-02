@@ -176,6 +176,7 @@ namespace internal {
   V(JSIteratorDropHelper)                       \
   V(JSIteratorFlatMapHelper)                    \
   V(JSIteratorConcatHelper)                     \
+  V(JSIteratorZipHelper)                        \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \

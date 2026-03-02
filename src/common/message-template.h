@@ -150,6 +150,10 @@ namespace internal {
   T(IteratorReduceNoInitial,                                                   \
     "Reduce of a done iterator with no initial value")                         \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
+  T(InvalidIteratorZipMode,                                                    \
+    "% mode must be 'shortest', 'longest', or 'strict'")                       \
+  T(IteratorZipStrictMismatch,                                                 \
+    "Iterators passed to % in 'strict' mode must have the same length")        \
   T(SpreadIteratorSymbolNonCallable,                                           \
     "Spread syntax requires ...iterable[Symbol.iterator] to be a function")    \
   T(FirstArgumentIteratorSymbolNonCallable,                                    \

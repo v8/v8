@@ -2010,6 +2010,10 @@ void JSIteratorConcatHelper::JSIteratorConcatHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorConcatHelperVerify(*this, isolate);
 }
 
+void JSIteratorZipHelper::JSIteratorZipHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorZipHelperVerify(*this, isolate);
+}
+
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell(this));
 

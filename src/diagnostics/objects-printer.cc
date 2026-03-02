@@ -89,6 +89,21 @@ std::ostream& operator<<(std::ostream& os, JSIteratorHelperState state) {
   return os << JSIteratorHelperStateToString(state);
 }
 
+const char* JSIteratorZipHelperModeToString(JSIteratorZipHelperMode mode) {
+  switch (mode) {
+    case JSIteratorZipHelperMode::kShortest:
+      return "SHORTEST";
+    case JSIteratorZipHelperMode::kLongest:
+      return "LONGEST";
+    case JSIteratorZipHelperMode::kStrict:
+      return "STRICT";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorZipHelperMode mode) {
+  return os << JSIteratorZipHelperModeToString(mode);
+}
+
 void Print(Tagged<Object> obj) {
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
@@ -2381,6 +2396,15 @@ void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
   os << "\n - iterables: " << Brief(iterables()) << " {";
   PrintFixedArrayElements(os, iterables(), iterables()->ulength().value());
   os << "\n - current: " << current();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorZipHelper::JSIteratorZipHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorZipHelper");
+  os << "\n - underlying_iterators: " << Brief(underlying_iterators());
+  os << "\n - mode: " << mode();
+  os << "\n - active_count: " << active_count();
+  os << "\n - padding: " << Brief(padding());
   JSObjectPrintBody(os, *this);
 }
 

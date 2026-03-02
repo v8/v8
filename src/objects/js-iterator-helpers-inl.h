@@ -26,6 +26,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorDropHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFlatMapHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorConcatHelper)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorZipHelper)
 
 }  // namespace internal
 }  // namespace v8

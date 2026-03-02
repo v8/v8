@@ -75,6 +75,7 @@ FEATURE_FLAGS = {
     'import-defer': '--js-defer-import-eval',
     'Math.sumPrecise': '--js-sum-precise',
     'Iterator.prototype.join': '--js-iterator-join',
+    'joint-iteration': '--js-joint-iteration',
 }
 
 SKIPPED_FEATURES = set([])
