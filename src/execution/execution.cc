@@ -217,7 +217,7 @@ MaybeDirectHandle<Context> NewScriptContext(
         if (!((mode == lookup.mode && IsLexicalVariableMode(mode)) &&
               scope_info->IsReplModeScope() &&
               context->scope_info()->IsReplModeScope())) {
-          // ES#sec-globaldeclarationinstantiation 5.b:
+          // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.b:
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
           MessageLocation location(script, 0, 1);
@@ -238,10 +238,10 @@ MaybeDirectHandle<Context> NewScriptContext(
       // skipping interceptors.
       CHECK(!maybe.IsNothing());
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
-        // ES#sec-globaldeclarationinstantiation 5.a:
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
         // exception.
-        // ES#sec-globaldeclarationinstantiation 5.d:
+        // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         MessageLocation location(script, 0, 1);
         isolate->ThrowAt(isolate->factory()->NewSyntaxError(

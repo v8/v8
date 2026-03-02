@@ -182,18 +182,18 @@ class Intl {
       const std::set<std::string>& available_locales,
       DirectHandle<Object> locales_in, DirectHandle<Object> options_in);
 
-  // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
+  // https://tc39.es/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
   static Maybe<std::vector<std::string>> CanonicalizeLocaleList(
       Isolate* isolate, DirectHandle<Object> locales,
       bool only_return_one_result = false);
 
-  // ecma-402 #sec-intl.getcanonicallocales
+  // ecma-402 https://tc39.es/ecma262/#sec-intl.getcanonicallocales
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> GetCanonicalLocales(
       Isolate* isolate, DirectHandle<Object> locales);
 
-  // ecma-402 #sec-intl.supportedvaluesof
+  // ecma-402 https://tc39.es/ecma262/#sec-intl.supportedvaluesof
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> SupportedValuesOf(
       Isolate* isolate, DirectHandle<Object> key);
 
@@ -227,7 +227,7 @@ class Intl {
       CompareStringsOptions compare_strings_options =
           CompareStringsOptions::kNone);
 
-  // ecma402/#sup-properties-of-the-number-prototype-object
+  // https://tc39.es/ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* method_name);
@@ -270,7 +270,7 @@ class Intl {
     kStripIfInteger,
   };
 
-  // ecma402/#sec-setnfdigitoptions
+  // https://tc39.es/ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
     int minimum_integer_digits;
     int minimum_fraction_digits;
@@ -341,7 +341,7 @@ class Intl {
   // which chains the underlying Intl instance on any object, when the
   // constructor is called
   //
-  // See ecma402/#legacy-constructor.
+  // See https://tc39.es/ecma402/#legacy-constructor.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> LegacyUnwrapReceiver(
       Isolate* isolate, DirectHandle<JSReceiver> receiver,
       DirectHandle<JSFunction> constructor, bool has_initialized_slot);
@@ -429,7 +429,7 @@ class Intl {
     std::set<std::string> set_;
   };
 
-  // ecma262 #sec-string.prototype.normalize
+  // https://tc39.es/ecma262/#sec-string.prototype.normalize
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Normalize(
       Isolate* isolate, DirectHandle<String> string,
       DirectHandle<Object> form_input);

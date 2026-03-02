@@ -235,7 +235,7 @@ class UnitFactory {
   UnitFactory() : map_(CreateUnitMap()) {}
   virtual ~UnitFactory() = default;
 
-  // ecma402 #sec-issanctionedsimpleunitidentifier
+  // https://tc39.es/ecma402/#sec-issanctionedsimpleunitidentifier
   icu::MeasureUnit create(const std::string_view unitIdentifier) {
     // 1. If unitIdentifier is in the following list, return true.
     auto found = map_.find(unitIdentifier);
@@ -252,14 +252,14 @@ class UnitFactory {
   std::map<const std::string, icu::MeasureUnit, std::less<>> map_;
 };
 
-// ecma402 #sec-issanctionedsimpleunitidentifier
+// https://tc39.es/ecma402/#sec-issanctionedsimpleunitidentifier
 icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string_view unit) {
   static base::LazyInstance<UnitFactory>::type factory =
       LAZY_INSTANCE_INITIALIZER;
   return factory.Pointer()->create(unit);
 }
 
-// ecma402 #sec-iswellformedunitidentifier
+// https://tc39.es/ecma402/#sec-iswellformedunitidentifier
 Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
     Isolate* isolate, const std::string_view unit) {
   icu::MeasureUnit result = IsSanctionedUnitIdentifier(unit);
@@ -318,10 +318,10 @@ bool IsAToZ(char ch) {
   return base::IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
 }
 
-// ecma402/#sec-iswellformedcurrencycode
+// https://tc39.es/ecma402/#sec-iswellformedcurrencycode
 bool IsWellFormedCurrencyCode(const std::string& currency) {
   // Verifies that the input is a well-formed ISO 4217 currency code.
-  // ecma402/#sec-currency-codes
+  // https://tc39.es/ecma402/#sec-currency-codes
   // 2. If the number of elements in normalized is not 3, return false.
   if (currency.length() != 3) return false;
   // 1. Let normalized be the result of mapping currency to upper case as
@@ -863,7 +863,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
 }
 
 // static
-// ecma402 #sec-intl.numberformat.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
 DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format) {
   Factory* factory = isolate->factory();
@@ -1026,7 +1026,7 @@ DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
   return options;
 }
 
-// ecma402/#sec-unwrapnumberformat
+// https://tc39.es/ecma402/#sec-unwrapnumberformat
 MaybeDirectHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
     Isolate* isolate, DirectHandle<JSReceiver> format_holder) {
   // old code copy from NumberFormat::Unwrap that has no spec comment and
@@ -1676,7 +1676,7 @@ Handle<String> TrimWhiteSpaceOrLineTerminator(Isolate* isolate,
 
 }  // namespace
 
-// #sec-tointlmathematicalvalue
+// https://tc39.es/ecma262/#sec-tointlmathematicalvalue
 Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
                                                          Handle<Object> value) {
   Factory* factory = isolate->factory();
@@ -1994,7 +1994,7 @@ Maybe<int> Intl::AddNumberElements(Isolate* isolate,
 
 namespace {
 
-// #sec-partitionnumberrangepattern
+// https://tc39.es/ecma262/#sec-partitionnumberrangepattern
 template <typename T,
           MaybeDirectHandle<T> (*F)(
               Isolate*, const icu::FormattedValue&,
@@ -2157,7 +2157,7 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
                          false);
 }
 
-// #sec-number-format-functions
+// https://tc39.es/ecma262/#sec-number-format-functions
 
 MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,

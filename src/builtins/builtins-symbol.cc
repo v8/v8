@@ -12,9 +12,9 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES #sec-symbol-objects
+// https://tc39.es/ecma262/#sec-symbol-objects
 
-// ES #sec-symbol-constructor
+// https://tc39.es/ecma262/#sec-symbol-constructor
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
   if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]

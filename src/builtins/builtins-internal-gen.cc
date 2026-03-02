@@ -1141,7 +1141,7 @@ TF_BUILTIN(CopyDataPropertiesWithExcludedProperties,
       source, excluded_property_count, excluded_properties));
 }
 
-// ES #sec-copydataproperties
+// https://tc39.es/ecma262/#sec-copydataproperties
 TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
   auto target = Parameter<JSObject>(Descriptor::kTarget);
   auto source = Parameter<Object>(Descriptor::kSource);

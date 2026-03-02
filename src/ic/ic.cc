@@ -2069,8 +2069,8 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
 
   // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
   // of StoreIC so their logic doesn't get mixed here.
-  // ES #sec-definefield
-  // ES #sec-runtime-semantics-propertydefinitionevaluation
+  // https://tc39.es/ecma262/#sec-definefield
+  // https://tc39.es/ecma262/#sec-runtime-semantics-propertydefinitionevaluation
   // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
   if (IsAnyDefineOwn()) {
     if (name->IsAnyPrivateName()) {

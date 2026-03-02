@@ -325,7 +325,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorReturnClosedReject(
     TNode<Object> value) {
   SetGeneratorNotAwaiting(generator);
 
-  // https://tc39.github.io/proposal-async-iteration/
+  // https://tc39.es/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-rejected step 2:
   // Return ! AsyncGeneratorReject(_F_.[[Generator]], _reason_).
   CallBuiltin(Builtin::kAsyncGeneratorReject, context, generator, value);
@@ -334,8 +334,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorReturnClosedReject(
 }
 }  // namespace
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-next
+// https://tc39.es/proposal-async-iteration/
+// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-next
 TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -352,8 +352,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.next");
 }
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-return
+// https://tc39.es/proposal-async-iteration/
+// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
 TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -370,8 +370,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.return");
 }
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-throw
+// https://tc39.es/proposal-async-iteration/
+// Section https://tc39.es/ecma262/#sec-asyncgenerator-prototype-throw
 TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -413,9 +413,10 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  // The penultimate step of proposal-async-iteration/#sec-asyncgeneratorresolve
-  // and proposal-async-iteration/#sec-asyncgeneratorreject both recursively
-  // invoke AsyncGeneratorResumeNext() again.
+  // The penultimate step of
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorresolve and
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorreject both
+  // recursively invoke AsyncGeneratorResumeNext() again.
   //
   // This implementation does not implement this recursively, but instead
   // performs a loop in AsyncGeneratorResumeNext, which  continues as long as
@@ -608,8 +609,8 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
 
   SetGeneratorNotAwaiting(generator);
 
-  // Per proposal-async-iteration/#sec-asyncgeneratoryield step 9
-  // Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
+  // Per https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step
+  // 9 Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
   CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,
               FalseConstant());
 
@@ -625,12 +626,14 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
   // In particular, non-closed generators will resume the generator with either
   // "return" or "throw" resume modes, allowing finally blocks or catch blocks
   // to be evaluated, as if the `await` were performed within the body of the
-  // generator. (per proposal-async-iteration/#sec-asyncgeneratoryield step 8.b)
+  // generator. (per
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step 8.b)
   //
   // Closed generators do not resume the generator in the resolve/reject
   // closures, but instead simply perform AsyncGeneratorResolve or
   // AsyncGeneratorReject with the awaited value
-  // (per proposal-async-iteration/#sec-asyncgeneratorresumenext step 10.b.i)
+  // (per https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorresumenext
+  // step 10.b.i)
   //
   // In all cases, the final step is to jump back to AsyncGeneratorResumeNext.
   const auto generator =
@@ -706,7 +709,7 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
 // On-resolve closure for Await in AsyncGeneratorReturn
 // Resume the generator with "return" resume_mode, and finally perform
 // AsyncGeneratorResumeNext. Per
-// proposal-async-iteration/#sec-asyncgeneratoryield step 8.e
+// https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step 8.e
 TF_BUILTIN(AsyncGeneratorReturnResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -726,7 +729,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
 
   SetGeneratorNotAwaiting(generator);
 
-  // https://tc39.github.io/proposal-async-iteration/
+  // https://tc39.es/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-fulfilled step 2:
   //  Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *true*).
   CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,

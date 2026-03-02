@@ -431,7 +431,7 @@ BUILTIN(StringPrototypeToUpperCase) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-// ES6 #sec-string.prototype.raw
+// https://tc39.es/ecma262/#sec-string.prototype.raw
 BUILTIN(StringRaw) {
   HandleScope scope(isolate);
   DirectHandle<Object> templ = args.atOrUndefined(isolate, 1);

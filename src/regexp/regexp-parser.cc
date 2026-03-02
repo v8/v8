@@ -2190,7 +2190,7 @@ bool IsBinaryPropertyOfStrings(UProperty property) {
 }
 
 bool IsUnicodePropertyValueCharacter(char c) {
-  // https://tc39.github.io/proposal-regexp-unicode-property-escapes/
+  // https://tc39.es/proposal-regexp-unicode-property-escapes/
   //
   // Note that using this to validate each parsed char is quite conservative.
   // A possible alternative solution would be to only ensure the parsed

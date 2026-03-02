@@ -3967,7 +3967,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Round(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
-// #sec-temporal.duration.prototype.total
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
 MaybeDirectHandle<Number> JSTemporalDuration::Total(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
     DirectHandle<Object> total_of_obj) {

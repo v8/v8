@@ -1251,7 +1251,7 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
-  // (ES#sec-arguments-exotic-objects-defineownproperty-p-desc).
+  // (https://tc39.es/ecma262/#sec-arguments-exotic-objects-defineownproperty-p-desc).
   return OrdinaryDefineOwnProperty(isolate, Cast<JSObject>(object), key, desc,
                                    should_throw);
 }
@@ -4661,10 +4661,11 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   // PreventExtensions works without modifications to typed array elements if
-  // the typed array is fixed length; see #sec-typedarray-preventextensions.
-  // Seal and freeze work only if there are no actual elements, because
-  // TypedArray elements cannot be reconfigured; see
-  // #sec-typedarray-defineownproperty.
+  // the typed array is fixed length; see
+  // https://tc39.es/ecma262/#sec-typedarray-preventextensions. Seal and freeze
+  // work only if there are no actual elements, because TypedArray elements
+  // cannot be reconfigured; see
+  // https://tc39.es/ecma262/#sec-typedarray-defineownproperty.
   if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     DCHECK(new_element_dictionary.is_null());
     if (attrs != NONE && Cast<JSTypedArray>(*object)->GetLength() > 0) {

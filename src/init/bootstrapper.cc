@@ -210,7 +210,7 @@ class Genesis {
   // Creates the empty function.  Used for creating a context from scratch.
   DirectHandle<JSFunction> CreateEmptyFunction();
   // Returns the %ThrowTypeError% intrinsic function.
-  // See ES#sec-%throwtypeerror% for details.
+  // See https://tc39.es/ecma262/#sec-%throwtypeerror% for details.
   DirectHandle<JSFunction> GetThrowTypeErrorIntrinsic();
 
   void CreateSloppyModeFunctionMaps(DirectHandle<JSFunction> empty);
@@ -338,7 +338,8 @@ class Genesis {
   DirectHandle<NativeContext> native_context_;
   DirectHandle<JSGlobalProxy> global_proxy_;
 
-  // %ThrowTypeError%. See ES#sec-%throwtypeerror% for details.
+  // %ThrowTypeError%. See https://tc39.es/ecma262/#sec-%throwtypeerror% for
+  // details.
   DirectHandle<JSFunction> restricted_properties_thrower_;
 
   BootstrapperActive active_;
@@ -781,7 +782,7 @@ DirectHandle<JSFunction> Genesis::CreateEmptyFunction() {
   DCHECK(!empty_function_map->is_dictionary_map());
 
   // Allocate the empty function as the prototype for function according to
-  // ES#sec-properties-of-the-function-prototype-object
+  // https://tc39.es/ecma262/#sec-properties-of-the-function-prototype-object
   DirectHandle<JSFunction> empty_function = CreateFunctionForBuiltin(
       isolate(), factory()->empty_string(), empty_function_map,
       Builtin::kEmptyFunction, 0, kDontAdapt);
@@ -1097,7 +1098,7 @@ void Genesis::CreateIteratorMaps(DirectHandle<JSFunction> empty) {
 
 void Genesis::CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty) {
   // %AsyncIteratorPrototype%
-  // proposal-async-iteration/#sec-asynciteratorprototype
+  // https://tc39.es/proposal-async-iteration/#sec-asynciteratorprototype
   DirectHandle<JSObject> async_iterator_prototype = factory()->NewJSObject(
       isolate()->object_function(), AllocationType::kOld);
 
@@ -1108,7 +1109,7 @@ void Genesis::CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty) {
       *async_iterator_prototype);
 
   // %AsyncFromSyncIteratorPrototype%
-  // proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object
+  // https://tc39.es/proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object
   DirectHandle<JSObject> async_from_sync_iterator_prototype =
       factory()->NewJSObject(isolate()->object_function(),
                              AllocationType::kOld);
@@ -1606,7 +1607,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   isolate->CountUsage(v8::Isolate::kTemporalObject);
 
   // -- T e m p o r a l
-  // #sec-temporal-objects
+  // https://tc39.es/ecma262/#sec-temporal-objects
   Handle<JSObject> temporal = isolate->factory()->NewJSObject(
       isolate->object_function(), AllocationType::kOld);
 
@@ -1616,7 +1617,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   InstallToStringTag(isolate, temporal, "Temporal");
 
   {  // -- N o w
-    // #sec-temporal-now-object
+    // https://tc39.es/ecma262/#sec-temporal-now-object
     DirectHandle<JSObject> now = isolate->factory()->NewJSObject(
         isolate->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate, temporal, "Now", now, DONT_ENUM);
@@ -1656,8 +1657,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
                         arg, kDontAdapt);
 
   {  // -- P l a i n D a t e
-     // #sec-temporal-plaindate-objects
-     // #sec-temporal.plaindate
+     // https://tc39.es/ecma262/#sec-temporal-plaindate-objects
+     // https://tc39.es/ecma262/#sec-temporal.plaindate
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(PlainDate, PLAIN_DATE, 3)
     INSTALL_TEMPORAL_FUNC(PlainDate, from, From, 1)
     INSTALL_TEMPORAL_FUNC(PlainDate, compare, Compare, 2)
@@ -1714,8 +1715,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_PLAIN_DATE_FUNC
   }
   {  // -- P l a i n T i m e
-     // #sec-temporal-plaintime-objects
-     // #sec-temporal.plaintime
+     // https://tc39.es/ecma262/#sec-temporal-plaintime-objects
+     // https://tc39.es/ecma262/#sec-temporal.plaintime
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(PlainTime, PLAIN_TIME, 0)
     INSTALL_TEMPORAL_FUNC(PlainTime, from, From, 1)
     INSTALL_TEMPORAL_FUNC(PlainTime, compare, Compare, 2)
@@ -1758,8 +1759,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_PLAIN_TIME_FUNC
   }
   {  // -- P l a i n D a t e T i m e
-    // #sec-temporal-plaindatetime-objects
-    // #sec-temporal.plaindatetime
+    // https://tc39.es/ecma262/#sec-temporal-plaindatetime-objects
+    // https://tc39.es/ecma262/#sec-temporal.plaindatetime
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(PlainDateTime, PLAIN_DATE_TIME, 3)
     INSTALL_TEMPORAL_FUNC(PlainDateTime, from, From, 1)
     INSTALL_TEMPORAL_FUNC(PlainDateTime, compare, Compare, 2)
@@ -1823,8 +1824,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_PLAIN_DATE_TIME_FUNC
   }
   {  // -- Z o n e d D a t e T i m e
-    // #sec-temporal-zoneddatetime-objects
-    // #sec-temporal.zoneddatetime
+    // https://tc39.es/ecma262/#sec-temporal-zoneddatetime-objects
+    // https://tc39.es/ecma262/#sec-temporal.zoneddatetime
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(ZonedDateTime, ZONED_DATE_TIME, 2)
     INSTALL_TEMPORAL_FUNC(ZonedDateTime, from, From, 1)
     INSTALL_TEMPORAL_FUNC(ZonedDateTime, compare, Compare, 2)
@@ -1898,8 +1899,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_ZONED_DATE_TIME_FUNC
   }
   {  // -- D u r a t i o n
-    // #sec-temporal-duration-objects
-    // #sec-temporal.duration
+    // https://tc39.es/ecma262/#sec-temporal-duration-objects
+    // https://tc39.es/ecma262/#sec-temporal.duration
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(Duration, DURATION, 0)
     INSTALL_TEMPORAL_FUNC(Duration, from, From, 1)
     INSTALL_TEMPORAL_FUNC(Duration, compare, Compare, 2)
@@ -1948,8 +1949,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_DURATION_FUNC
   }
   {  // -- I n s t a n t
-    // #sec-temporal-instant-objects
-    // #sec-temporal.instant
+    // https://tc39.es/ecma262/#sec-temporal-instant-objects
+    // https://tc39.es/ecma262/#sec-temporal.instant
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(Instant, INSTANT, 1)
     INSTALL_TEMPORAL_FUNC(Instant, from, From, 1)
     INSTALL_TEMPORAL_FUNC(Instant, fromEpochMilliseconds, FromEpochMilliseconds,
@@ -1992,8 +1993,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_INSTANT_FUNC
   }
   {  // -- P l a i n Y e a r M o n t h
-    // #sec-temporal-plainyearmonth-objects
-    // #sec-temporal.plainyearmonth
+    // https://tc39.es/ecma262/#sec-temporal-plainyearmonth-objects
+    // https://tc39.es/ecma262/#sec-temporal.plainyearmonth
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(PlainYearMonth, PLAIN_YEAR_MONTH, 2)
     INSTALL_TEMPORAL_FUNC(PlainYearMonth, from, From, 1)
     INSTALL_TEMPORAL_FUNC(PlainYearMonth, compare, Compare, 2)
@@ -2040,8 +2041,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef INSTALL_PLAIN_YEAR_MONTH_FUNC
   }
   {  // -- P l a i n M o n t h D a y
-    // #sec-temporal-plainmonthday-objects
-    // #sec-temporal.plainmonthday
+    // https://tc39.es/ecma262/#sec-temporal-plainmonthday-objects
+    // https://tc39.es/ecma262/#sec-temporal.plainmonthday
     INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(PlainMonthDay, PLAIN_MONTH_DAY, 2)
     INSTALL_TEMPORAL_FUNC(PlainMonthDay, from, From, 1)
     // Notice there are no Temporal.PlainMonthDay.compare in the spec.
@@ -3552,7 +3553,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "Intl", intl, DONT_ENUM);
 
-    // ecma402 #sec-Intl-toStringTag
+    // https://tc39.es/ecma402/#sec-Intl-toStringTag
     // The initial value of the @@toStringTag property is the string value
     // *"Intl"*.
     InstallToStringTag(isolate_, intl, "Intl");
@@ -3903,7 +3904,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         // Setup %SegmenterPrototype%.
         DirectHandle<JSObject> prototype(
             Cast<JSObject>(segmenter_fun->instance_prototype()), isolate());
-        // #sec-intl.segmenter.prototype-@@tostringtag
+        // https://tc39.es/ecma262/#sec-intl.segmenter.prototype-@@tostringtag
         //
         // Intl.Segmenter.prototype [ @@toStringTag ]
         //
@@ -3945,7 +3946,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         DirectHandle<JSObject> prototype = factory->NewJSObject(
             isolate()->object_function(), AllocationType::kOld);
         JSObject::ForceSetPrototype(isolate(), prototype, iterator_prototype);
-        // #sec-%segmentiteratorprototype%.@@tostringtag
+        // https://tc39.es/ecma262/#sec-%segmentiteratorprototype%.@@tostringtag
         //
         // %SegmentIteratorPrototype% [ @@toStringTag ]
         //
@@ -5632,7 +5633,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!v8_flags.harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();
   // -- S h a d o w R e a l m
-  // #sec-shadowrealm-objects
+  // https://tc39.es/ecma262/#sec-shadowrealm-objects
   DirectHandle<JSGlobalObject> global(native_context()->global_object(),
                                       isolate());
   DirectHandle<JSFunction> shadow_realm_fun =
@@ -5943,7 +5944,7 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
   if (!v8_flags.js_source_phase_imports) return;
   Factory* factory = isolate()->factory();
   // -- %AbstractModuleSource%
-  // #sec-%abstractmodulesource%
+  // https://tc39.es/ecma262/#sec-%abstractmodulesource%
   // https://tc39.es/proposal-source-phase-imports/#sec-%abstractmodulesource%
   DirectHandle<JSFunction> abstract_module_source_fun =
       CreateFunction(isolate_, "AbstractModuleSource", JS_OBJECT_TYPE,
@@ -6339,7 +6340,7 @@ bool Genesis::InstallABunchOfRandomThings() {
     }
 
     // Install a "raw" data property for {raw_object} on {template_object}.
-    // See ES#sec-gettemplateobject.
+    // See https://tc39.es/ecma262/#sec-gettemplateobject.
     PropertyDescriptor raw_desc;
     // Use arbrirary object {template_object} as ".raw" value.
     raw_desc.set_value(template_object);

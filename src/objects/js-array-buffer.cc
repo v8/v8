@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-// ES#sec-canonicalnumericindexstring
+// https://tc39.es/ecma262/#sec-canonicalnumericindexstring
 // Returns true if the lookup_key represents a valid index string.
 bool CanonicalNumericIndexString(Isolate* isolate,
                                  const PropertyKey& lookup_key,
@@ -374,7 +374,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   return array_buffer;
 }
 
-// ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+// https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                                             DirectHandle<JSTypedArray> o,

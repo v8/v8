@@ -2970,7 +2970,7 @@ void JSProxy::Revoke(DirectHandle<JSProxy> proxy) {
   // If this fails then some Proxy allocation code path that created
   // revocable Proxies didn't set the bit correctly.
   CHECK(JSProxy::IsRevocableBit::decode(proxy->flags()));
-  // ES#sec-proxy-revocation-functions
+  // https://tc39.es/ecma262/#sec-proxy-revocation-functions
   if (!proxy->IsRevoked()) {
     // 5. Set p.[[ProxyTarget]] to null.
     proxy->set_target(ReadOnlyRoots(isolate).null_value());

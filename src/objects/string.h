@@ -380,7 +380,7 @@ V8_OBJECT class String : public Name {
     virtual ~Match() = default;
   };
 
-  // ES#sec-getsubstitution
+  // https://tc39.es/ecma262/#sec-getsubstitution
   // GetSubstitution(matched, str, position, captures, replacement)
   // Expand the $-expressions in the string and return a new string with
   // the result.

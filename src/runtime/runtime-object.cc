@@ -84,7 +84,7 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
   return JSReceiver::DeleteProperty(&it, language_mode);
 }
 
-// ES #sec-object.keys
+// https://tc39.es/ecma262/#sec-object.keys
 RUNTIME_FUNCTION(Runtime_ObjectKeys) {
   HandleScope scope(isolate);
   DirectHandle<Object> object = args.at(0);
@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_ObjectKeys) {
   return *keys;
 }
 
-// ES #sec-object.getOwnPropertyNames
+// https://tc39.es/ecma262/#sec-object.getOwnPropertyNames
 RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNames) {
   HandleScope scope(isolate);
   DirectHandle<Object> object = args.at(0);

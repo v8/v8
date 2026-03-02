@@ -87,9 +87,9 @@ MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
   }
 }
 
-// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-// Also takes an optional exec method in case our caller
-// has already fetched exec.
+// https://tc39.es/ecma262/#sec-regexpexec
+// Also takes an optional exec method in case our caller has already fetched
+// exec.
 MaybeDirectHandle<JSAny> RegExpUtils::RegExpExec(
     Isolate* isolate, DirectHandle<JSReceiver> regexp,
     DirectHandle<String> string, DirectHandle<Object> exec) {

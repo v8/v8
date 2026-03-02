@@ -508,13 +508,13 @@ constexpr bool DoNotEscape(Char c);
 
 template <>
 constexpr bool DoNotEscape(uint8_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  // https://tc39.es/ecma262/#table-json-single-character-escapes
   return JsonDoNotEscapeFlagTable[c];
 }
 
 template <>
 constexpr bool DoNotEscape(uint16_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  // https://tc39.es/ecma262/#table-json-single-character-escapes
   return (c >= 0x20 && c <= 0x21) ||
          (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
 }

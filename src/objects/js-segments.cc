@@ -26,7 +26,7 @@
 namespace v8 {
 namespace internal {
 
-// ecma402 #sec-createsegmentsobject
+// https://tc39.es/ecma402/#sec-createsegmentsobject
 MaybeDirectHandle<JSSegments> JSSegments::Create(
     Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
     DirectHandle<String> string) {
@@ -57,7 +57,7 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
   return segments;
 }
 
-// ecma402 #sec-%segmentsprototype%.containing
+// https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
 MaybeDirectHandle<Object> JSSegments::Containing(
     Isolate* isolate, DirectHandle<JSSegments> segments, double n_double) {
   // Make sure to keep the wrapper alive throughout the operations below in case
@@ -108,7 +108,7 @@ bool CurrentSegmentIsWordLike(icu::BreakIterator* break_iterator) {
 
 }  // namespace
 
-// ecma402 #sec-createsegmentdataobject
+// https://tc39.es/ecma402/#sec-createsegmentdataobject
 MaybeDirectHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
     Isolate* isolate, JSSegmenter::Granularity granularity,
     icu::BreakIterator* break_iterator, DirectHandle<String> input_string,

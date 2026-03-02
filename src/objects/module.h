@@ -29,7 +29,7 @@ class ZoneForwardList;
 
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
-// https://tc39.github.io/ecma262/#sec-abstract-module-records
+// https://tc39.es/ecma262/#sec-abstract-module-records
 class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
   DECL_VERIFIER(Module)

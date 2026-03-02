@@ -43,7 +43,7 @@ using temporal::DurationRecord;
 
 namespace {
 
-// #sec-getdurationunitoptions
+// https://tc39.es/ecma262/#sec-getdurationunitoptions
 enum class StylesList { k3Styles, k4Styles, k5Styles };
 enum class Unit {
   kYears,
@@ -1081,7 +1081,7 @@ MaybeDirectHandle<T> PartitionDurationFormatPattern(
 }
 
 #ifndef V8_TEMPORAL_SUPPORT
-// #sec-todurationrecord
+// https://tc39.es/ecma262/#sec-todurationrecord
 // ToDurationRecord is almost the same as temporal::ToPartialDuration
 // except:
 // 1) In the beginning it will throw RangeError if the type of input is String,

@@ -2958,7 +2958,7 @@ class int31_t {
 
 enum PropertiesEnumerationMode {
   // String and then Symbol properties according to the spec
-  // ES#sec-object.assign
+  // https://tc39.es/ecma262/#sec-object.assign
   kEnumerationOrder,
   // Order of property addition
   kPropertyAdditionOrder,

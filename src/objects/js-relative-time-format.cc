@@ -31,7 +31,7 @@ namespace internal {
 namespace {
 // Style: identifying the relative time format style used.
 //
-// ecma402/#sec-properties-of-intl-relativetimeformat-instances
+// https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-instances
 
 enum class Style {
   LONG,   // Everything spelled out.

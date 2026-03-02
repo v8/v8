@@ -1383,10 +1383,10 @@ class JSMessageObject
 };
 
 // The [Async-from-Sync Iterator] object
-// (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
+// (https://tc39.es/proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
-// (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
+// (See https://tc39.es/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator
     : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
                                                     JSObject> {
@@ -1397,7 +1397,7 @@ class JSAsyncFromSyncIterator
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
-  // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  // (https://tc39.es/proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
 
   TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };

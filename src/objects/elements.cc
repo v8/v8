@@ -4355,7 +4355,7 @@ class TypedElementsAccessor
     return false;
   }
 
-  // ES#sec-settypedarrayfromarraylike
+  // https://tc39.es/ecma262/#sec-settypedarrayfromarraylike
   static Tagged<Object> CopyElementsHandleSlow(
       DirectHandle<JSAny> source, DirectHandle<JSTypedArray> destination,
       size_t length, size_t offset) {

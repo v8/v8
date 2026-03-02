@@ -66,7 +66,7 @@ void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
   a_ = a;
 }
 
-// See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
+// See https://tc39.es/ecma262/#sec-%typedarray%.prototype.map.
 TNode<JSAny> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
     TNode<Object> k_value, TNode<UintPtrT> k) {
   // 7c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
@@ -77,12 +77,12 @@ TNode<JSAny> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
 
   // 7d. Perform ? Set(A, Pk, mapped_value, true).
   // Since we know that A is a TypedArray, this always ends up in
-  // #sec-integer-indexed-exotic-objects-set-p-v-receiver and then
-  // tc39.github.io/ecma262/#sec-integerindexedelementset .
+  // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
+  // and then https://tc39.es/ecma262/#sec-integerindexedelementset .
   Branch(fast_typed_array_target_, &fast, &slow);
 
   BIND(&fast);
-  // #sec-integerindexedelementset
+  // https://tc39.es/ecma262/#sec-integerindexedelementset
   // 2. If arrayTypeName is "BigUint64Array" or "BigInt64Array", let
   // numValue be ? ToBigInt(v).
   // 3. Otherwise, let numValue be ? ToNumber(value).
@@ -145,7 +145,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
     const CallResultProcessor& processor, ForEachDirection direction) {
   name_ = name;
 
-  // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
+  // ValidateTypedArray: https://tc39.es/ecma262/#sec-validatetypedarray
 
   Label throw_not_typed_array(this, Label::kDeferred);
 
@@ -1424,7 +1424,7 @@ TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
                        from_index);
 }
 
-// ES #sec-array.prototype.values
+// https://tc39.es/ecma262/#sec-array.prototype.values
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1432,7 +1432,7 @@ TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
                              IterationKind::kValues));
 }
 
-// ES #sec-array.prototype.entries
+// https://tc39.es/ecma262/#sec-array.prototype.entries
 TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1440,7 +1440,7 @@ TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
                              IterationKind::kEntries));
 }
 
-// ES #sec-array.prototype.keys
+// https://tc39.es/ecma262/#sec-array.prototype.keys
 TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
   auto context = Parameter<NativeContext>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1448,7 +1448,7 @@ TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
                              IterationKind::kKeys));
 }
 
-// ES #sec-%arrayiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   const char* method_name = "Array Iterator.prototype.next";
 

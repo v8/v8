@@ -1272,7 +1272,7 @@ class NameComparator {
 
 }  // namespace
 
-// ES6 #sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
 // Returns |true| on success, |nothing| in case of exception.
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
     DirectHandle<JSReceiver> receiver, DirectHandle<JSProxy> proxy) {

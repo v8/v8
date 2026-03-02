@@ -1730,7 +1730,7 @@ DirectHandle<JSArray> NewJSArrayWithElements(Isolate* isolate,
 }  // namespace
 
 // Slow path for:
-// ES#sec-regexp.prototype-@@replace
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@split ] ( string, limit )
 RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
@@ -1906,7 +1906,7 @@ inline bool IsContainFlag(Isolate* isolate, String::FlatContent& flags,
 }  // namespace
 
 // Slow path for:
-// ES#sec-regexp.prototype-@@replace
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   HandleScope scope(isolate);
@@ -2140,7 +2140,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   DCHECK_EQ(3, args.length());
   // TODO(pwong): To follow the spec more closely and simplify calling code,
   // this could handle the canonicalization of pattern and flags. See
-  // https://tc39.github.io/ecma262/#sec-regexpinitialize
+  // https://tc39.es/ecma262/#sec-regexpinitialize
   DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   DirectHandle<String> source = args.at<String>(1);
   DirectHandle<String> flags = args.at<String>(2);

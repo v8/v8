@@ -36,7 +36,7 @@ namespace internal {
 namespace {
 // Type: identifying the types of the display names.
 //
-// ecma402/#sec-properties-of-intl-displaynames-instances
+// https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-instances
 enum class Type {
   kUndefined,
   kLanguage,
@@ -393,7 +393,7 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 
 }  // anonymous namespace
 
-// ecma402 #sec-Intl.DisplayNames
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames
 MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, const char* service) {
@@ -425,7 +425,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 8. Set opt.[[localeMatcher]] to matcher.
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  // ecma402/#sec-Intl.DisplayNames-internal-slots
+  // https://tc39.es/ecma402/#sec-Intl.DisplayNames-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // «  ».
   // 9. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
@@ -545,7 +545,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   return display_names;
 }
 
-// ecma402 #sec-Intl.DisplayNames.prototype.resolvedOptions
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames.prototype.resolvedOptions
 DirectHandle<JSObject> JSDisplayNames::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names) {
   Factory* factory = isolate->factory();
@@ -598,7 +598,7 @@ DirectHandle<JSObject> JSDisplayNames::ResolvedOptions(
   return options;
 }
 
-// ecma402 #sec-Intl.DisplayNames.prototype.of
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames.prototype.of
 MaybeDirectHandle<Object> JSDisplayNames::Of(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names,
     Handle<Object> code_obj) {

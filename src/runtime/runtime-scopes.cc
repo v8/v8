@@ -73,7 +73,7 @@ Tagged<Object> DeclareGlobal(Isolate* isolate,
   VariableLookupResult lookup;
   if (script_contexts->Lookup(name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
-    // ES#sec-globaldeclarationinstantiation 6.a:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
     return ThrowRedeclarationError(isolate, name,
@@ -228,7 +228,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
             ? NONE
             : DONT_DELETE;
 
-    // ES#sec-globaldeclarationinstantiation 5.d:
+    // https://tc39.es/ecma262/#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
     Tagged<Object> result =
         DeclareGlobal(isolate, global, name, value, attr, is_var,
@@ -406,7 +406,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   DirectHandle<JSObject> object;
 
   if (attributes != ABSENT && IsJSGlobalObject(*holder)) {
-    // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+    // https://tc39.es/ecma262/#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
     return DeclareGlobal(isolate, Cast<JSGlobalObject>(holder), name, value,
                          NONE, is_var, RedeclarationType::kTypeError);

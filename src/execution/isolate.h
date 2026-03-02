@@ -1774,7 +1774,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
-  // ES#sec-async-module-execution-fulfilled step 10
+  // https://tc39.es/ecma262/#sec-async-module-execution-fulfilled step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their

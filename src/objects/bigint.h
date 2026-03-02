@@ -184,7 +184,7 @@ V8_OBJECT class FreshlyAllocatedBigInt : public BigIntBase {
 V8_OBJECT class BigInt : public BigIntBase {
  public:
   // Implementation of the Spec methods, see:
-  // https://tc39.github.io/proposal-bigint/#sec-numeric-types
+  // https://tc39.es/proposal-bigint/#sec-numeric-types
   // Sections 1.1.1 through 1.1.19.
   static Handle<BigInt> UnaryMinus(Isolate* isolate, DirectHandle<BigInt> x);
   static MaybeDirectHandle<BigInt> BitwiseNot(Isolate* isolate,
@@ -265,7 +265,7 @@ V8_OBJECT class BigInt : public BigIntBase {
       Isolate* isolate, DirectHandle<BigInt> bigint);
 
   // "The Number value for x", see:
-  // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+  // https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.
   static DirectHandle<Number> ToNumber(Isolate* isolate,
                                        DirectHandle<BigInt> x);

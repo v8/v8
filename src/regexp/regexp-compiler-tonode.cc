@@ -1613,7 +1613,8 @@ void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
   if (add_unicode_case_equivalents &&
       (standard_character_set == StandardCharacterSet::kWord ||
        standard_character_set == StandardCharacterSet::kNotWord)) {
-    // See #sec-runtime-semantics-wordcharacters-abstract-operation
+    // See
+    // https://tc39.es/ecma262/#sec-runtime-semantics-wordcharacters-abstract-operation
     // In case of unicode and ignore_case, we need to create the closure over
     // case equivalent characters before negating.
     ZoneList<CharacterRange>* new_ranges =

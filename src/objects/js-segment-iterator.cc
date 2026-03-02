@@ -29,7 +29,7 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
   return JSSegmenter::GetGranularityString(isolate, granularity());
 }
 
-// ecma402 #sec-createsegmentiterator
+// https://tc39.es/ecma402/#sec-createsegmentiterator
 MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
     Isolate* isolate, DirectHandle<String> input_string,
     const icu::BreakIterator& incoming_break_iterator,
@@ -65,7 +65,7 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
   return segment_iterator;
 }
 
-// ecma402 #sec-%segmentiteratorprototype%.next
+// https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next
 MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, DirectHandle<JSSegmentIterator> segment_iterator) {
   // Sketches of ideas for future performance improvements, roughly in order

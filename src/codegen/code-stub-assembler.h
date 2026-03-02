@@ -3149,8 +3149,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Numeric> NonNumberToNumeric(TNode<Context> context,
                                     TNode<HeapObject> input);
   // Convert any object to a Number.
-  // Conforms to ES#sec-tonumber if {bigint_handling} == kThrow.
-  // With {bigint_handling} == kConvertToNumber, matches behavior of
+  // Conforms to https://tc39.es/ecma262/#sec-tonumber if {bigint_handling} ==
+  // kThrow. With {bigint_handling} == kConvertToNumber, matches behavior of
   // tc39.github.io/proposal-bigint/#sec-number-constructor-number-value.
   TNode<Number> ToNumber(
       TNode<Context> context, TNode<Object> input,
@@ -3165,7 +3165,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> PlainPrimitiveToNumber(TNode<Object> input);
 
   // Try to convert an object to a BigInt. Throws on failure (e.g. for Numbers).
-  // https://tc39.github.io/proposal-bigint/#sec-to-bigint
+  // https://tc39.es/proposal-bigint/#sec-to-bigint
   TNode<BigInt> ToBigInt(TNode<Context> context, TNode<Object> input);
   // Try to convert any object to a BigInt, including Numbers.
   TNode<BigInt> ToBigIntConvertNumber(TNode<Context> context,
@@ -3173,7 +3173,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
-  // ES#sec-touint32
+  // https://tc39.es/ecma262/#sec-touint32
   TNode<Number> ToUint32(TNode<Context> context, TNode<Object> input);
 
   // No-op on 32-bit, otherwise zero extend.
@@ -3914,7 +3914,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                     TNode<TIndex> index, TNode<TValue> value);
 
   // Implements the BigInt part of
-  // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
+  // https://tc39.es/proposal-bigint/#sec-numbertorawbytes,
   // including truncation to 64 bits (i.e. modulo 2^64).
   // {var_high} is only used on 32-bit platforms.
   void BigIntToRawBytes(TNode<BigInt> bigint, TVariable<UintPtrT>* var_low,

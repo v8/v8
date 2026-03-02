@@ -1520,7 +1520,7 @@ class ParserBase {
 
   // Parse a SubStatement in strict mode, or with an extra block scope in
   // sloppy mode to handle
-  // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+  // https://tc39.es/ecma262/#sec-functiondeclarations-in-ifstatement-statement-clauses
   StatementT ParseScopedStatement(ZonePtrList<const AstRawString>* labels);
 
   StatementT ParseVariableStatement(VariableDeclarationContext var_context,
@@ -3349,7 +3349,7 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
         // Syntax Error if LHS is neither object literal nor an array literal
         // (Parenthesized literals are
         // CoverParenthesizedExpressionAndArrowParameterList).
-        // #sec-assignment-operators-static-semantics-early-errors
+        // https://tc39.es/ecma262/#sec-assignment-operators-static-semantics-early-errors
         impl()->ReportMessageAt(loc, MessageTemplate::kInvalidLhsInAssignment);
       }
     }
@@ -4963,8 +4963,9 @@ void ParserBase<Impl>::ParseFunctionBody(
         }
       }
 
-      // According to ES#sec-functiondeclarationinstantiation step 27,28
-      // when hasParameterExpressions is true, we need bind var declared
+      // According to
+      // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation step
+      // 27,28 when hasParameterExpressions is true, we need bind var declared
       // arguments to "arguments exotic object", so we here first declare
       // "arguments exotic object", then var declared arguments will be
       // initialized with "arguments exotic object"
@@ -5042,10 +5043,10 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     case Token::kFutureStrictReservedWord:
     case Token::kEscapedStrictReservedWord:
       // The early error rule for future reserved keywords
-      // (ES#sec-identifiers-static-semantics-early-errors) uses the static
-      // semantics StringValue of IdentifierName, which normalizes escape
-      // sequences. So, both escaped and unescaped future reserved keywords are
-      // allowed as identifiers in sloppy mode.
+      // (https://tc39.es/ecma262/#sec-identifiers-static-semantics-early-errors)
+      // uses the static semantics StringValue of IdentifierName, which
+      // normalizes escape sequences. So, both escaped and unescaped future
+      // reserved keywords are allowed as identifiers in sloppy mode.
       return is_sloppy(language_mode());
     default:
       return false;
@@ -5885,7 +5886,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::kFunction:
       // FunctionDeclaration only allowed as a StatementListItem, not in
       // an arbitrary Statement position. Exceptions such as
-      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // https://tc39.es/ecma262/#sec-functiondeclarations-in-ifstatement-statement-clauses
       // are handled by calling ParseScopedStatement rather than
       // ParseStatement directly.
       impl()->ReportMessageAt(scanner()->peek_location(),
@@ -6083,7 +6084,8 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
       this->scope()->DeleteUnresolved(label);
 
       Consume(Token::kColon);
-      // ES#sec-labelled-function-declarations Labelled Function Declarations
+      // https://tc39.es/ecma262/#sec-labelled-function-declarations Labelled
+      // Function Declarations
       if (peek() == Token::kFunction && is_sloppy(language_mode()) &&
           allow_function == kAllowLabelledFunctionStatement) {
         return ParseFunctionDeclaration();

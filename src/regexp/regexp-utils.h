@@ -32,7 +32,7 @@ class RegExpUtils : public AllStatic {
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> GetLastIndex(
       Isolate* isolate, DirectHandle<JSReceiver> recv);
 
-  // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
+  // https://tc39.es/ecma262/#sec-regexpexec
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSAny> RegExpExec(
       Isolate* isolate, DirectHandle<JSReceiver> regexp,
       DirectHandle<String> string, DirectHandle<Object> exec);
@@ -45,7 +45,7 @@ class RegExpUtils : public AllStatic {
   // relevant property is 'exec'.
   static bool IsUnmodifiedRegExp(Isolate* isolate, DirectHandle<Object> obj);
 
-  // ES#sec-advancestringindex
+  // https://tc39.es/ecma262/#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
   static uint64_t AdvanceStringIndex(Tagged<String> string, uint64_t index,
                                      bool unicode);

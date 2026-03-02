@@ -55,7 +55,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
 
-    // ES#sec-runtime-semantics-classdefinitionevaluation
+    // https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
     //
     // 14.a
     //  ...
@@ -1358,7 +1358,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 }
 
 Statement* Parser::ParseModuleItem() {
-  // ecma262/#prod-ModuleItem
+  // https://tc39.es/ecma262/#prod-ModuleItem
   // ModuleItem :
   //    ImportDeclaration
   //    ExportDeclaration
@@ -1384,11 +1384,11 @@ Statement* Parser::ParseModuleItem() {
 }
 
 void Parser::ParseModuleItemList(ScopedPtrList<Statement>* body) {
-  // ecma262/#prod-Module
+  // https://tc39.es/ecma262/#prod-Module
   // Module :
   //    ModuleBody?
   //
-  // ecma262/#prod-ModuleItemList
+  // https://tc39.es/ecma262/#prod-ModuleItemList
   // ModuleBody :
   //    ModuleItem*
 
@@ -3785,7 +3785,8 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
                                              const AstRawString* prefix) {
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
-  // See ES #sec-__proto__-property-names-in-object-initializers.
+  // See
+  // https://tc39.es/ecma262/#sec-__proto__-property-names-in-object-initializers.
   if (property->IsPrototype() || has_error()) return;
 
   DCHECK(!property->value()->IsAnonymousFunctionDefinition() ||

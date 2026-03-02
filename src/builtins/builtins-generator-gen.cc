@@ -168,7 +168,7 @@ TF_BUILTIN(AsyncModuleEvaluate, GeneratorBuiltinsAssembler) {
               method_name);
 }
 
-// ES6 #sec-generator.prototype.next
+// https://tc39.es/ecma262/#sec-generator.prototype.next
 TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -184,7 +184,7 @@ TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
                            "[Generator].prototype.next");
 }
 
-// ES6 #sec-generator.prototype.return
+// https://tc39.es/ecma262/#sec-generator.prototype.return
 TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -200,7 +200,7 @@ TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
                            "[Generator].prototype.return");
 }
 
-// ES6 #sec-generator.prototype.throw
+// https://tc39.es/ecma262/#sec-generator.prototype.throw
 TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
   const int kExceptionArg = 0;
 

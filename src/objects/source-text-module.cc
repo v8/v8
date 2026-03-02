@@ -509,7 +509,8 @@ bool SourceTextModule::RunInitializationCode(
   return true;
 }
 
-// ES#sec-innermoduleevaluation and ES#sec-innermodulelinking
+// https://tc39.es/ecma262/#sec-innermoduleevaluation and
+// https://tc39.es/ecma262/#sec-innermodulelinking
 bool SourceTextModule::MaybeTransitionComponent(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status) {
@@ -865,7 +866,7 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
   return Cast<JSObject>(import_meta);
 }
 
-// ES#sec-moduleevaluation
+// https://tc39.es/ecma262/#sec-moduleevaluation
 bool SourceTextModule::MaybeHandleEvaluationException(
     Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack) {
   DisallowGarbageCollection no_gc;
@@ -895,7 +896,7 @@ bool SourceTextModule::MaybeHandleEvaluationException(
   return false;
 }
 
-// ES#sec-moduleevaluation
+// https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
@@ -948,7 +949,7 @@ MaybeDirectHandle<Object> SourceTextModule::Evaluate(
   return capability;
 }
 
-// ES#sec-async-module-execution-fulfilled
+// https://tc39.es/ecma262/#sec-async-module-execution-fulfilled
 Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
     Isolate* isolate, Handle<SourceTextModule> module) {
   // 1. If module.[[Status]] is EVALUATED, then
@@ -1059,7 +1060,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
   return Just(true);
 }
 
-// ES#sec-async-module-execution-rejected
+// https://tc39.es/ecma262/#sec-async-module-execution-rejected
 void SourceTextModule::AsyncModuleExecutionRejected(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<Object> exception) {

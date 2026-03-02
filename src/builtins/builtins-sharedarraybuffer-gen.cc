@@ -156,7 +156,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
   *out_backing_store = RawPtrAdd(backing_store, Signed(byte_offset));
 }
 
-// https://tc39.github.io/ecma262/#sec-validateatomicaccess
+// https://tc39.es/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
     TNode<JSTypedArray> array, TNode<JSAny> index, TNode<Context> context) {

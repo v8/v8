@@ -7484,7 +7484,7 @@ TEST_F(ParsingTest, ConstParsingInForInError) {
 }
 
 TEST_F(ParsingTest, InitializedDeclarationsInForInOf) {
-  // https://tc39.github.io/ecma262/#sec-initializers-in-forin-statement-heads
+  // https://tc39.es/ecma262/#sec-initializers-in-forin-statement-heads
 
   // Initialized declarations only allowed for
   // - sloppy mode (not strict mode)

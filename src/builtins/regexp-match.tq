@@ -137,7 +137,7 @@ transitioning builtin RegExpMatchFast(
   return FastRegExpPrototypeMatchBody(receiver, string);
 }
 
-// ES#sec-regexp.prototype-@@match
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 transitioning javascript builtin RegExpPrototypeMatch(
     js-implicit context: NativeContext, receiver: JSAny)(

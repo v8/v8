@@ -34,7 +34,7 @@ namespace internal {
   }
 
 // -----------------------------------------------------------------------------
-// ES#sec-arraybuffer-objects
+// https://tc39.es/ecma262/#sec-arraybuffer-objects
 
 namespace {
 
@@ -134,7 +134,7 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
 
 }  // namespace
 
-// ES #sec-arraybuffer-constructor
+// https://tc39.es/ecma262/#sec-arraybuffer-constructor
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   DirectHandle<JSFunction> target = args.target();
@@ -431,13 +431,13 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   return *new_;
 }
 
-// ES #sec-sharedarraybuffer.prototype.slice
+// https://tc39.es/ecma262/#sec-sharedarraybuffer.prototype.slice
 BUILTIN(SharedArrayBufferPrototypeSlice) {
   const char* const kMethodName = "SharedArrayBuffer.prototype.slice";
   return SliceHelper(args, isolate, kMethodName, true, false);
 }
 
-// ES #sec-arraybuffer.prototype.slice
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.slice
 // ArrayBuffer.prototype.slice ( start, end )
 BUILTIN(ArrayBufferPrototypeSlice) {
   const char* const kMethodName = "ArrayBuffer.prototype.slice";
@@ -609,7 +609,7 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// ES #sec-get-sharedarraybuffer.prototype.bytelength
+// https://tc39.es/ecma262/#sec-get-sharedarraybuffer.prototype.bytelength
 // get SharedArrayBuffer.prototype.byteLength
 BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
   const char* const kMethodName = "get SharedArrayBuffer.prototype.byteLength";
@@ -630,7 +630,7 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
   return *isolate->factory()->NewNumberFromSize(byte_length);
 }
 
-// ES #sec-arraybuffer.prototype.resize
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.resize
 // ArrayBuffer.prototype.resize(new_size)
 BUILTIN(ArrayBufferPrototypeResize) {
   const char* const kMethodName = "ArrayBuffer.prototype.resize";
@@ -830,7 +830,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
 
 }  // namespace
 
-// ES #sec-arraybuffer.prototype.transfer
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.transfer
 // ArrayBuffer.prototype.transfer([new_length])
 BUILTIN(ArrayBufferPrototypeTransfer) {
   const char kMethodName[] = "ArrayBuffer.prototype.transfer";
@@ -844,7 +844,7 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
                              kPreserveResizability, kMethodName);
 }
 
-// ES #sec-arraybuffer.prototype.transferToFixedLength
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.transferToFixedLength
 // ArrayBuffer.prototype.transferToFixedLength([new_length])
 BUILTIN(ArrayBufferPrototypeTransferToFixedLength) {
   const char kMethodName[] = "ArrayBuffer.prototype.transferToFixedLength";
@@ -858,7 +858,7 @@ BUILTIN(ArrayBufferPrototypeTransferToFixedLength) {
                              kMethodName);
 }
 
-// ES #sec-sharedarraybuffer.prototype.grow
+// https://tc39.es/ecma262/#sec-sharedarraybuffer.prototype.grow
 // SharedArrayBuffer.prototype.grow(new_size)
 BUILTIN(SharedArrayBufferPrototypeGrow) {
   const char* const kMethodName = "SharedArrayBuffer.prototype.grow";
@@ -866,7 +866,7 @@ BUILTIN(SharedArrayBufferPrototypeGrow) {
   return ResizeHelper(args, isolate, kMethodName, kIsShared);
 }
 
-// ES #sec-arraybuffer.prototype.transferToImmutable
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.transferToImmutable
 BUILTIN(ArrayBufferPrototypeTransferToImmutable) {
   const char kMethodName[] = "ArrayBuffer.prototype.transferToImmutable";
   HandleScope scope(isolate);
@@ -879,7 +879,7 @@ BUILTIN(ArrayBufferPrototypeTransferToImmutable) {
                              kMethodName);
 }
 
-// ES #sec-arraybuffer.prototype.sliceToImmutable
+// https://tc39.es/ecma262/#sec-arraybuffer.prototype.sliceToImmutable
 BUILTIN(ArrayBufferPrototypeSliceToImmutable) {
   const char* const kMethodName = "ArrayBuffer.prototype.sliceToImmutable";
   return SliceHelper(args, isolate, kMethodName, false, true);

@@ -585,7 +585,7 @@ TNode<Float64T> CodeStubAssembler::Float64RoundToEven(TNode<Float64T> x) {
 
   BIND(&round_op_fallback);
   {
-    // See ES#sec-touint8clamp for details.
+    // See https://tc39.es/ecma262/#sec-touint8clamp for details.
     TNode<Float64T> f = Float64Floor(x);
     TNode<Float64T> f_and_half = Float64Add(f, Float64Constant(0.5));
 
@@ -10083,7 +10083,7 @@ void CodeStubAssembler::TaggedToBigInt(TNode<Context> context,
   Goto(if_not_bigint);
 }
 
-// ES#sec-touint32
+// https://tc39.es/ecma262/#sec-touint32
 TNode<Number> CodeStubAssembler::ToUint32(TNode<Context> context,
                                           TNode<Object> input) {
   const TNode<Float64T> float_zero = Float64Constant(0.0);
@@ -17920,7 +17920,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
   }
 }
 
-// ES #sec-integerindexedobjectlength
+// https://tc39.es/ecma262/#sec-integerindexedobjectlength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
     TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
     TypedArrayAccessMode mode, Label* fail) {
@@ -18092,7 +18092,7 @@ void CodeStubAssembler::CheckJSTypedArrayIndex(
   GotoIf(UintPtrGreaterThanOrEqual(index, len), detached_or_out_of_bounds);
 }
 
-// ES #sec-integerindexedobjectbytelength
+// https://tc39.es/ecma262/#sec-integerindexedobjectbytelength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
     TNode<Context> context, TNode<JSTypedArray> array,
     TNode<JSArrayBuffer> buffer) {

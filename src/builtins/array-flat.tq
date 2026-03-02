@@ -440,7 +440,7 @@ transitioning macro FlattenIntoArrayFast(
   return targetIndex;
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+// https://tc39.es/proposal-flatMap/#sec-FlattenIntoArray
 transitioning macro FlattenIntoArraySlow(
     implicit context: Context)(target: JSReceiver, source: JSReceiver,
     sourceIndex: Number, sourceLength: Number, start: Number, depth: Smi,
@@ -536,7 +536,7 @@ transitioning builtin FlattenIntoArrayWithMapFn(
       target, source, sourceLength, start, depth, true, mapfn, thisArgs);
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
+// https://tc39.es/proposal-flatMap/#sec-Array.prototype.flat
 transitioning javascript builtin ArrayPrototypeFlat(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).
@@ -582,7 +582,7 @@ transitioning javascript builtin ArrayPrototypeFlat(
   return a;
 }
 
-// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
+// https://tc39.es/proposal-flatMap/#sec-Array.prototype.flatMap
 transitioning javascript builtin ArrayPrototypeFlatMap(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

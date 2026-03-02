@@ -191,7 +191,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
 }  // namespace
 
 // ES6 B.2.2.2 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__defineGetter__
 BUILTIN(ObjectDefineGetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);  // Receiver.
@@ -201,7 +201,7 @@ BUILTIN(ObjectDefineGetter) {
 }
 
 // ES6 B.2.2.3 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__defineSetter__
 BUILTIN(ObjectDefineSetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);  // Receiver.
@@ -211,7 +211,7 @@ BUILTIN(ObjectDefineSetter) {
 }
 
 // ES6 B.2.2.4 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupGetter__
 BUILTIN(ObjectLookupGetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);
@@ -220,7 +220,7 @@ BUILTIN(ObjectLookupGetter) {
 }
 
 // ES6 B.2.2.5 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupSetter__
 BUILTIN(ObjectLookupSetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);

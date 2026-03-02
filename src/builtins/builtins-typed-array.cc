@@ -142,7 +142,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   return *array;
 }
 
-// ES#sec-%typedarray%.prototype.fill
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.fill
 BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 

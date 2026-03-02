@@ -884,7 +884,7 @@ class V8_EXPORT Uint32 : public Integer {
 };
 
 /**
- * A JavaScript BigInt value (https://tc39.github.io/proposal-bigint)
+ * A JavaScript BigInt value (https://tc39.es/proposal-bigint)
  */
 class V8_EXPORT BigInt : public Numeric {
  public:

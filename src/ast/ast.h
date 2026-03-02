@@ -2178,7 +2178,7 @@ class Assignment : public Expression {
 
   // The assignment was generated as part of block-scoped sloppy-mode
   // function hoisting, see
-  // ES#sec-block-level-function-declarations-web-legacy-compatibility-semantics
+  // https://tc39.es/ecma262/#sec-block-level-function-declarations-web-legacy-compatibility-semantics
   LookupHoistingMode lookup_hoisting_mode() const {
     return static_cast<LookupHoistingMode>(
         LookupHoistingModeField::decode(bit_field_));
@@ -2882,7 +2882,7 @@ class EmptyParentheses final : public Expression {
 };
 
 // Represents the spec operation `GetTemplateObject(templateLiteral)`
-// (defined at https://tc39.github.io/ecma262/#sec-gettemplateobject).
+// (defined at https://tc39.es/ecma262/#sec-gettemplateobject).
 class GetTemplateObject final : public Expression {
  public:
   const ZonePtrList<const AstRawString>* cooked_strings() const {

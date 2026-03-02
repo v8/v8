@@ -1036,7 +1036,7 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 
-// ES6 #sec-string.fromcharcode
+// https://tc39.es/ecma262/#sec-string.fromcharcode
 // NOTE: This needs to be kept in sync with the Turboshaft implementation in
 // `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
@@ -1252,7 +1252,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   return var_result.value();
 }
 
-// ES6 #sec-string.prototype.replace
+// https://tc39.es/ecma262/#sec-string.prototype.replace
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
@@ -1417,7 +1417,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   }
 }
 
-// ES #sec-string.prototype.matchAll
+// https://tc39.es/ecma262/#sec-string.prototype.matchAll
 TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 

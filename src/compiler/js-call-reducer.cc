@@ -2833,7 +2833,7 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-object-constructor
+// https://tc39.es/ecma262/#sec-object-constructor
 Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) return NoChange();
@@ -2987,7 +2987,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-function.prototype.bind
+// https://tc39.es/ecma262/#sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -3235,7 +3235,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, object);
 }
 
-// ES section #sec-object.is
+// https://tc39.es/ecma262/#sec-object.is
 Reduction JSCallReducer::ReduceObjectIs(Node* node) {
   JSCallNode n(node);
   Node* lhs = n.ArgumentOrUndefined(0, jsgraph());
@@ -3251,7 +3251,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   return ReduceObjectGetPrototype(node, n.receiver());
 }
 
-// ES #sec-object.prototype.hasownproperty
+// https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   JSCallNode call_node(node);
   Node* receiver = call_node.receiver();
@@ -3388,7 +3388,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   return NoChange();
 }
 
-// ES #sec-object.prototype.isprototypeof
+// https://tc39.es/ecma262/#sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -3479,7 +3479,8 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, target);
 }
 
-// ES6 section #sec-object.create Object.create(proto, properties)
+// ES6 section https://tc39.es/ecma262/#sec-object.create Object.create(proto,
+// properties)
 Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   JSCallNode n(node);
   Node* properties = n.ArgumentOrUndefined(1, jsgraph());
@@ -3500,7 +3501,7 @@ Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-reflect.get
+// https://tc39.es/ecma262/#sec-reflect.get
 Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -3574,7 +3575,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   return Changed(vtrue);
 }
 
-// ES section #sec-reflect.has
+// https://tc39.es/ecma262/#sec-reflect.has
 Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   JSCallNode n(node);
   Node* target = n.ArgumentOrUndefined(0, jsgraph());
@@ -3863,7 +3864,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 }
 
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
-// #sec-array.prototype.includes
+// https://tc39.es/ecma262/#sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -3877,7 +3878,7 @@ Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
 }
 
 // ES6 Array.prototype.indexOf(searchElement[, fromIndex])
-// #sec-array.prototype.indexof
+// https://tc39.es/ecma262/#sec-array.prototype.indexof
 Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -5764,8 +5765,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.prototype.indexof
-// ES #sec-string.prototype.includes
+// https://tc39.es/ecma262/#sec-string.prototype.indexof
+// https://tc39.es/ecma262/#sec-string.prototype.includes
 Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
     Node* node, StringIndexOfIncludesVariant variant) {
   JSCallNode n(node);
@@ -5823,7 +5824,7 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
   return NoChange();
 }
 
-// ES #sec-string.prototype.substring
+// https://tc39.es/ecma262/#sec-string.prototype.substring
 Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5837,7 +5838,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.slice
+// https://tc39.es/ecma262/#sec-string.prototype.slice
 Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5851,7 +5852,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.substr
+// https://tc39.es/ecma262/#sec-string.prototype.substr
 Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -6755,7 +6756,7 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
   return Changed(node);
 }
 
-// ES #sec-%arrayiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7211,7 +7212,7 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
 
 #endif  // V8_INTL_SUPPORT
 
-// ES #sec-string.fromcharcode
+// https://tc39.es/ecma262/#sec-string.fromcharcode
 Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7236,7 +7237,7 @@ Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.fromcodepoint
+// https://tc39.es/ecma262/#sec-string.fromcodepoint
 Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7411,7 +7412,7 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-string.prototype.concat
+// https://tc39.es/ecma262/#sec-string.prototype.concat
 Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7562,7 +7563,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   return true;
 }
 
-// ES section #sec-promise.prototype.catch
+// https://tc39.es/ecma262/#sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7615,7 +7616,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
                           effect, control);
 }
 
-// ES section #sec-promise.prototype.finally
+// https://tc39.es/ecma262/#sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7797,7 +7798,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   return Replace(promise);
 }
 
-// ES section #sec-promise.resolve
+// https://tc39.es/ecma262/#sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -7825,7 +7826,7 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   return Changed(node);
 }
 
-// ES #sec-typedarray-constructors
+// https://tc39.es/ecma262/#sec-typedarray-constructors
 Reduction JSCallReducer::ReduceTypedArrayConstructor(
     Node* node, SharedFunctionInfoRef shared) {
   JSConstructNode n(node);
@@ -7857,7 +7858,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   return Replace(result);
 }
 
-// ES #sec-get-%typedarray%.prototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype-@@tostringtag
 Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -8088,7 +8089,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
   return ReplaceWithSubgraph(&a, length);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8102,7 +8103,7 @@ Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8116,7 +8117,7 @@ Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.issafeinteger
+// https://tc39.es/ecma262/#sec-number.issafeinteger
 Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8130,7 +8131,7 @@ Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isnan
+// https://tc39.es/ecma262/#sec-number.isnan
 Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -9087,7 +9088,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-number-constructor
+// https://tc39.es/ecma262/#sec-number-constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   JSCallNode n(node);
   Node* target = n.target();
@@ -9109,7 +9110,7 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-bigint-constructor
+// https://tc39.es/ecma262/#sec-bigint-constructor
 Reduction JSCallReducer::ReduceBigIntConstructor(Node* node) {
   if (!jsgraph()->machine()->Is64()) return NoChange();
 

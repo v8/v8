@@ -717,7 +717,7 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   return Just(res);
 }
 
-// See ecma402/#legacy-constructor.
+// See https://tc39.es/ecma402/#legacy-constructor.
 MaybeDirectHandle<Object> Intl::LegacyUnwrapReceiver(
     Isolate* isolate, DirectHandle<JSReceiver> receiver,
     DirectHandle<JSFunction> constructor, bool has_initialized_slot) {
@@ -946,8 +946,8 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   return Just(seen);
 }
 
-// ecma402 #sup-string.prototype.tolocalelowercase
-// ecma402 #sup-string.prototype.tolocaleuppercase
+// https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
+// https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
 MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
@@ -1495,7 +1495,7 @@ const uint8_t* Intl::AsciiCollationWeightsL3() {
 // static
 const int Intl::kAsciiCollationWeightsLength = kCollationWeightsLength;
 
-// ecma402/#sec-collator-comparestrings
+// https://tc39.es/ecma402/#sec-collator-comparestrings
 int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
                          DirectHandle<String> string1,
                          DirectHandle<String> string2,
@@ -1541,7 +1541,7 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
   return result;
 }
 
-// ecma402/#sup-properties-of-the-number-prototype-object
+// https://tc39.es/ecma402/#sup-properties-of-the-number-prototype-object
 MaybeDirectHandle<String> Intl::NumberToLocaleString(
     Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
     DirectHandle<Object> options, const char* method_name) {
@@ -1898,7 +1898,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
 namespace {
 
-// ecma402/#sec-bestavailablelocale
+// https://tc39.es/ecma402/#sec-bestavailablelocale
 std::string BestAvailableLocale(const std::set<std::string>& available_locales,
                                 const std::string& locale) {
   // 1. Let candidate be locale.
@@ -1997,7 +1997,7 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   return parsed_locale;
 }
 
-// ecma402/#sec-lookupsupportedlocales
+// https://tc39.es/ecma402/#sec-lookupsupportedlocales
 std::vector<std::string> LookupSupportedLocales(
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
@@ -2064,7 +2064,7 @@ class Iterator : public icu::Locale::Iterator {
   std::vector<icu::Locale>::const_iterator iter_;
 };
 
-// ecma402/#sec-bestfitmatcher
+// https://tc39.es/ecma402/#sec-bestfitmatcher
 // The BestFitMatcher abstract operation compares requestedLocales, which must
 // be a List as returned by CanonicalizeLocaleList, against the locales in
 // availableLocales and determines the best available language to meet the
@@ -2102,7 +2102,7 @@ std::string BestFitMatcher(Isolate* isolate,
 }
 
 // ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
-// https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
+// https://tc39.es/ecma402/#sec-bestfitsupportedlocales
 std::vector<std::string> BestFitSupportedLocales(
     Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
@@ -2133,7 +2133,7 @@ std::vector<std::string> BestFitSupportedLocales(
   return result;
 }
 
-// ecma262 #sec-createarrayfromlist
+// https://tc39.es/ecma262/#sec-createarrayfromlist
 MaybeDirectHandle<JSArray> CreateArrayFromList(
     Isolate* isolate, std::vector<std::string> elements,
     PropertyAttributes attr) {
@@ -2157,7 +2157,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
 }
 
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
-// https://tc39.github.io/ecma402/#sec-supportedlocales
+// https://tc39.es/ecma402/#sec-supportedlocales
 MaybeDirectHandle<JSObject> SupportedLocales(
     Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales,
@@ -2200,7 +2200,7 @@ MaybeDirectHandle<JSObject> SupportedLocales(
 
 }  // namespace
 
-// ecma-402 #sec-intl.getcanonicallocales
+// ecma-402 https://tc39.es/ecma262/#sec-intl.getcanonicallocales
 MaybeDirectHandle<JSArray> Intl::GetCanonicalLocales(
     Isolate* isolate, DirectHandle<Object> locales) {
   // 1. Let ll be ? CanonicalizeLocaleList(locales).
@@ -2350,7 +2350,7 @@ MaybeDirectHandle<JSArray> AvailableUnits(Isolate* isolate) {
 
 }  // namespace
 
-// ecma-402 #sec-intl.supportedvaluesof
+// ecma-402 https://tc39.es/ecma262/#sec-intl.supportedvaluesof
 MaybeDirectHandle<JSArray> Intl::SupportedValuesOf(
     Isolate* isolate, DirectHandle<Object> key_obj) {
   Factory* factory = isolate->factory();
@@ -2455,7 +2455,7 @@ bool Intl::IsWellFormedCalendar(std::string_view value) {
   return JSLocale::Is38AlphaNumList(value);
 }
 
-// ecma402/#sec-iswellformedcurrencycode
+// https://tc39.es/ecma402/#sec-iswellformedcurrencycode
 bool Intl::IsWellFormedCurrency(std::string_view currency) {
   return JSLocale::Is3Alpha(currency);
 }
@@ -2564,7 +2564,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
   return extensions;
 }
 
-// ecma402/#sec-lookupmatcher
+// https://tc39.es/ecma402/#sec-lookupmatcher
 std::string LookupMatcher(Isolate* isolate,
                           const std::set<std::string>& available_locales,
                           const std::vector<std::string>& requested_locales) {
@@ -2623,7 +2623,7 @@ std::string LookupMatcher(Isolate* isolate,
 // collation). Instead of doing this here, we let the callers of
 // this method perform such normalization.
 //
-// ecma402/#sec-resolvelocale
+// https://tc39.es/ecma402/#sec-resolvelocale
 Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
@@ -2650,7 +2650,7 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
       Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions});
 }
 
-// ecma262 #sec-string.prototype.normalize
+// https://tc39.es/ecma262/#sec-string.prototype.normalize
 MaybeDirectHandle<String> Intl::Normalize(Isolate* isolate,
                                           DirectHandle<String> string,
                                           DirectHandle<Object> form_input) {
@@ -2962,7 +2962,7 @@ bool Intl::RemoveCollation(const char* collation) {
   return strcmp("standard", collation) == 0 || strcmp("search", collation) == 0;
 }
 
-// See the list in ecma402 #sec-issanctionedsimpleunitidentifier
+// See the list in https://tc39.es/ecma402/#sec-issanctionedsimpleunitidentifier
 std::set<std::string> Intl::SanctionedSimpleUnits() {
   return std::set<std::string>(
       {"acre",        "bit",         "byte",        "celsius",
@@ -3227,10 +3227,10 @@ DirectHandle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
   if (!has_transition) {
     return isolate->factory()->null_value();
   }
-  // #sec-temporal-getianatimezonenexttransition and
-  // #sec-temporal-getianatimezoneprevioustransition states:
-  // "The operation returns null if no such transition exists for which t ≤
-  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
+  // https://tc39.es/ecma262/#sec-temporal-getianatimezonenexttransition and
+  // https://tc39.es/ecma262/#sec-temporal-getianatimezoneprevioustransition
+  // states: "The operation returns null if no such transition exists for which
+  // t ≤ ℤ(nsMaxInstant)." and "The operation returns null if no such transition
   // exists for which t ≥ ℤ(nsMinInstant)."
   //
   // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x

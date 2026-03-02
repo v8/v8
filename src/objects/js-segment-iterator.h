@@ -29,13 +29,13 @@ namespace internal {
 class JSSegmentIterator
     : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
  public:
-  // ecma402 #sec-CreateSegmentIterator
+  // https://tc39.es/ecma402/#sec-CreateSegmentIterator
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
       Isolate* isolate, DirectHandle<String> input_string,
       const icu::BreakIterator& incoming_break_iterator,
       JSSegmenter::Granularity granularity);
 
-  // ecma402 #sec-segment-iterator-prototype-next
+  // https://tc39.es/ecma402/#sec-segment-iterator-prototype-next
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> Next(
       Isolate* isolate,
       DirectHandle<JSSegmentIterator> segment_iterator_holder);

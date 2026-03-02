@@ -57,8 +57,8 @@ BUILTIN(StringPrototypeNormalizeIntl) {
                            Intl::Normalize(isolate, string, form_input));
 }
 
-// ecma402 #sup-properties-of-the-string-prototype-object
-// ecma402 section 19.1.1.
+// https://tc39.es/ecma402/#sup-properties-of-the-string-prototype-object
+// https://tc39.es/ecma402/section 19.1.1.
 //   String.prototype.localeCompare ( that [ , locales [ , options ] ] )
 // This implementation supersedes the definition provided in ES6.
 BUILTIN(StringPrototypeLocaleCompareIntl) {
@@ -1164,7 +1164,7 @@ BUILTIN(CollatorInternalCompare) {
       Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
 }
 
-// ecma402 #sec-%segmentiteratorprototype%.next
+// https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next
 BUILTIN(SegmentIteratorPrototypeNext) {
   const char* const method_name = "%SegmentIterator.prototype%.next";
   HandleScope scope(isolate);
@@ -1174,7 +1174,7 @@ BUILTIN(SegmentIteratorPrototypeNext) {
                            JSSegmentIterator::Next(isolate, segment_iterator));
 }
 
-// ecma402 #sec-intl.segmenter
+// https://tc39.es/ecma402/#sec-intl.segmenter
 BUILTIN(SegmenterConstructor) {
   HandleScope scope(isolate);
 
@@ -1183,7 +1183,7 @@ BUILTIN(SegmenterConstructor) {
       "Intl.Segmenter");
 }
 
-// ecma402 #sec-intl.segmenter.supportedlocalesof
+// https://tc39.es/ecma402/#sec-intl.segmenter.supportedlocalesof
 BUILTIN(SegmenterSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -1195,7 +1195,7 @@ BUILTIN(SegmenterSupportedLocalesOf) {
                    JSSegmenter::GetAvailableLocales(), locales, options));
 }
 
-// ecma402 #sec-intl.segmenter.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
 BUILTIN(SegmenterPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegmenter, segmenter,
@@ -1203,7 +1203,7 @@ BUILTIN(SegmenterPrototypeResolvedOptions) {
   return *JSSegmenter::ResolvedOptions(isolate, segmenter);
 }
 
-// ecma402 #sec-intl.segmenter.prototype.segment
+// https://tc39.es/ecma402/#sec-intl.segmenter.prototype.segment
 BUILTIN(SegmenterPrototypeSegment) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegmenter, segmenter, "Intl.Segmenter.prototype.segment");
@@ -1218,7 +1218,7 @@ BUILTIN(SegmenterPrototypeSegment) {
                            JSSegments::Create(isolate, segmenter, string));
 }
 
-// ecma402 #sec-%segmentsprototype%.containing
+// https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
 BUILTIN(SegmentsPrototypeContaining) {
   const char* const method_name = "%Segments.prototype%.containing";
   HandleScope scope(isolate);
@@ -1234,7 +1234,7 @@ BUILTIN(SegmentsPrototypeContaining) {
                            JSSegments::Containing(isolate, segments, n));
 }
 
-// ecma402 #sec-%segmentsprototype%-@@iterator
+// https://tc39.es/ecma402/#sec-%segmentsprototype%-@@iterator
 BUILTIN(SegmentsPrototypeIterator) {
   const char* const method_name = "%SegmentIsPrototype%[@@iterator]";
   HandleScope scope(isolate);

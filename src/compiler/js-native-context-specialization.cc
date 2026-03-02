@@ -880,7 +880,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   return NoChange();
 }
 
-// ES section #sec-promise-resolve
+// https://tc39.es/ecma262/#sec-promise-resolve
 Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   DCHECK_EQ(IrOpcode::kJSPromiseResolve, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
@@ -926,7 +926,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   return Replace(promise);
 }
 
-// ES section #sec-promise-resolve-functions
+// https://tc39.es/ecma262/#sec-promise-resolve-functions
 Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
   Node* promise = NodeProperties::GetValueInput(node, 0);

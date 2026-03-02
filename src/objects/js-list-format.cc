@@ -147,7 +147,7 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   return list_format;
 }
 
-// ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
 DirectHandle<JSObject> JSListFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSListFormat> format) {
   Factory* factory = isolate->factory();
@@ -275,7 +275,7 @@ MaybeDirectHandle<JSArray> FormattedListToJSArray(
 
 }  // namespace
 
-// ecma402 #sec-formatlist
+// https://tc39.es/ecma402/#sec-formatlist
 MaybeDirectHandle<String> JSListFormat::FormatList(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {
@@ -283,7 +283,7 @@ MaybeDirectHandle<String> JSListFormat::FormatList(
                                   Intl::FormattedToString);
 }
 
-// ecma42 #sec-formatlisttoparts
+// ecma42 https://tc39.es/ecma262/#sec-formatlisttoparts
 MaybeDirectHandle<JSArray> JSListFormat::FormatListToParts(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {

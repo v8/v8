@@ -22,7 +22,8 @@ macro IsIteratorHelperExecuting(helper: JSIteratorHelper): bool {
 }
 
 // When a generator's state is ~executing~, attempts to reenter via next() or
-// return() throw a TypeError. See step 6 in ES #sec-generatorvalidate.
+// return() throw a TypeError. See step 6 in
+// https://tc39.es/ecma262/#sec-generatorvalidate.
 macro ThrowIfIteratorHelperExecuting(
     implicit context: Context)(helper: JSIteratorHelper): void {
   if (IsIteratorHelperExecuting(helper)) {
