@@ -206,7 +206,7 @@ void XGetter(Local<Name> name,
              const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_holder_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.HolderV2())
+            ->Equals(isolate->GetCurrentContext(), info.Holder())
             .FromJust());
   XGetter(info, 0);
 }
@@ -225,7 +225,7 @@ Local<v8::Object> GetHolder(const Info& info);
 template <>
 Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
     const v8::PropertyCallbackInfo<void>& info) {
-  return info.HolderV2();
+  return info.Holder();
 }
 
 template <>

@@ -1635,7 +1635,7 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
                                       Local<Promise> result_promise,
                                       Local<Value> namespace_or_source) {
   Local<Array> module_resolution_data = v8::Array::New(isolate);
-  if (module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate))
+  if (module_resolution_data->SetPrototype(realm, v8::Null(isolate))
           .IsNothing()) {
     return Nothing<bool>();
   }

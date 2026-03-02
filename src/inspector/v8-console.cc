@@ -880,8 +880,8 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
-  bool success = commandLineAPI->SetPrototypeV2(context, v8::Null(isolate))
-                     .FromMaybe(false);
+  bool success =
+      commandLineAPI->SetPrototype(context, v8::Null(isolate)).FromMaybe(false);
   DCHECK(success);
   USE(success);
 
@@ -965,7 +965,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (scope == nullptr) {
-    USE(info.HolderV2()->Delete(context, name).FromMaybe(false));
+    USE(info.Holder()->Delete(context, name).FromMaybe(false));
     return;
   }
 
@@ -992,10 +992,8 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (!info.HolderV2()->Delete(context, name).FromMaybe(false)) return;
-  if (!info.HolderV2()
-           ->CreateDataProperty(context, name, value)
-           .FromMaybe(false))
+  if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
+  if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
     return;
 
   v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();

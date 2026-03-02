@@ -2621,11 +2621,11 @@ THREADED_TEST(TestObjectTemplateClassInheritance) {
           CompileRun("B.prototype")->ToObject(env.local()).ToLocalChecked();
       c_proto =
           CompileRun("C.prototype")->ToObject(env.local()).ToLocalChecked();
-      CHECK(b_proto->Equals(env.local(), c_proto->GetPrototypeV2()).FromJust());
+      CHECK(b_proto->Equals(env.local(), c_proto->GetPrototype()).FromJust());
     }
     Local<v8::Object> instance =
         CompileRun("new C()")->ToObject(env.local()).ToLocalChecked();
-    CHECK(c_proto->Equals(env.local(), instance->GetPrototypeV2()).FromJust());
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
 
     CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
     CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
@@ -2671,7 +2671,7 @@ THREADED_TEST(TestObjectTemplateReflectConstruct) {
     Local<v8::Object> instance = CompileRun("Reflect.construct(B, [], C)")
                                      ->ToObject(env.local())
                                      .ToLocalChecked();
-    CHECK(c_proto->Equals(env.local(), instance->GetPrototypeV2()).FromJust());
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
 
     CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
     CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
@@ -2872,7 +2872,7 @@ THREADED_TEST(DescriptorInheritance2) {
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> self = info.HolderV2();
+  Local<Object> self = info.Holder();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(),
                 String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
@@ -2882,7 +2882,7 @@ void SimpleAccessorGetter(Local<String> name,
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> self = info.HolderV2();
+  Local<Object> self = info.Holder();
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
                   String::Concat(info.GetIsolate(), v8_str("accessor_"), name),
                   value)
@@ -3748,7 +3748,7 @@ THREADED_TEST(SymbolProperties) {
 
   // Symbol properties are inherited.
   v8::Local<v8::Object> child = v8::Object::New(isolate);
-  CHECK(child->SetPrototypeV2(env.local(), obj).FromJust());
+  CHECK(child->SetPrototype(env.local(), obj).FromJust());
   CHECK(child->Has(env.local(), sym1).FromJust());
   CHECK_EQ(2002, child->Get(env.local(), sym1)
                      .ToLocalChecked()
@@ -3871,7 +3871,7 @@ THREADED_TEST(PrivatePropertiesOnProxies) {
 
   // Private properties are not inherited (for the time being).
   v8::Local<v8::Object> child = v8::Object::New(isolate);
-  CHECK(child->SetPrototypeV2(env.local(), proxy).FromJust());
+  CHECK(child->SetPrototype(env.local(), proxy).FromJust());
   CHECK(!child->HasPrivate(env.local(), priv1).FromJust());
   CHECK_EQ(0u,
            child->GetOwnPropertyNames(env.local()).ToLocalChecked()->Length());
@@ -3961,7 +3961,7 @@ THREADED_TEST(PrivateProperties) {
 
   // Private properties are not inherited (for the time being).
   v8::Local<v8::Object> child = v8::Object::New(isolate);
-  CHECK(child->SetPrototypeV2(env.local(), obj).FromJust());
+  CHECK(child->SetPrototype(env.local(), obj).FromJust());
   CHECK(!child->HasPrivate(env.local(), priv1).FromJust());
   CHECK_EQ(0u,
            child->GetOwnPropertyNames(env.local()).ToLocalChecked()->Length());
@@ -8546,7 +8546,7 @@ void PGetter(Local<Name> name,
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   v8::Local<v8::Object> global = context->Global();
   CHECK(
-      info.HolderV2()
+      info.Holder()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
 }
@@ -8578,7 +8578,7 @@ v8::Intercepted PGetter2(Local<Name> name,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> global = context->Global();
   CHECK(
-      info.HolderV2()
+      info.Holder()
           ->Equals(context, global->Get(context, v8_str("o1")).ToLocalChecked())
           .FromJust());
 
@@ -9438,7 +9438,7 @@ void YGetter(Local<Name> name,
 void YSetter(Local<Name> name, Local<Value> value,
              const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Local<Object> this_obj = info.HolderV2();
+  Local<Object> this_obj = info.Holder();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (this_obj->Has(context, name).FromJust()) {
     this_obj->Delete(context, name).FromJust();
@@ -10921,7 +10921,7 @@ THREADED_TEST(ObjectGetOwnPropertyNames) {
              i);
   }
 
-  value = value->GetPrototypeV2().As<v8::Object>();
+  value = value->GetPrototype().As<v8::Object>();
   CHECK(value
             ->GetOwnPropertyNames(context.local(),
                                   static_cast<v8::PropertyFilter>(
@@ -11205,7 +11205,7 @@ THREADED_TEST(SetPrototype) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  CHECK(o0->SetPrototypeV2(context.local(), o1).FromJust());
+  CHECK(o0->SetPrototype(context.local(), o1).FromJust());
   CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -11214,7 +11214,7 @@ THREADED_TEST(SetPrototype) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  CHECK(o1->SetPrototypeV2(context.local(), o2).FromJust());
+  CHECK(o1->SetPrototype(context.local(), o2).FromJust());
   CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -11227,7 +11227,7 @@ THREADED_TEST(SetPrototype) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
-  CHECK(o2->SetPrototypeV2(context.local(), o3).FromJust());
+  CHECK(o2->SetPrototype(context.local(), o3).FromJust());
   CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -11250,15 +11250,15 @@ THREADED_TEST(SetPrototype) {
   CHECK(proto->IsObject());
   CHECK(proto.As<v8::Object>()->Equals(context.local(), o1).FromJust());
 
-  Local<Value> proto0 = o0->GetPrototypeV2();
+  Local<Value> proto0 = o0->GetPrototype();
   CHECK(proto0->IsObject());
   CHECK(proto0.As<v8::Object>()->Equals(context.local(), o1).FromJust());
 
-  Local<Value> proto1 = o1->GetPrototypeV2();
+  Local<Value> proto1 = o1->GetPrototype();
   CHECK(proto1->IsObject());
   CHECK(proto1.As<v8::Object>()->Equals(context.local(), o2).FromJust());
 
-  Local<Value> proto2 = o2->GetPrototypeV2();
+  Local<Value> proto2 = o2->GetPrototype();
   CHECK(proto2->IsObject());
   CHECK(proto2.As<v8::Object>()->Equals(context.local(), o3).FromJust());
 }
@@ -11309,9 +11309,9 @@ THREADED_TEST(Regress91517) {
                              ->NewInstance(context.local())
                              .ToLocalChecked();
 
-  CHECK(o4->SetPrototypeV2(context.local(), o3).FromJust());
-  CHECK(o3->SetPrototypeV2(context.local(), o2).FromJust());
-  CHECK(o2->SetPrototypeV2(context.local(), o1).FromJust());
+  CHECK(o4->SetPrototype(context.local(), o3).FromJust());
+  CHECK(o3->SetPrototype(context.local(), o2).FromJust());
+  CHECK(o2->SetPrototype(context.local(), o1).FromJust());
 
   // Call the runtime version of GetOwnPropertyNames() on the natively
   // created object through JavaScript.
@@ -11393,11 +11393,11 @@ THREADED_TEST(SetPrototypeThrows) {
                              ->NewInstance(context.local())
                              .ToLocalChecked();
 
-  CHECK(o0->SetPrototypeV2(context.local(), o1).FromJust());
+  CHECK(o0->SetPrototype(context.local(), o1).FromJust());
   // If setting the prototype leads to the cycle, SetPrototype should
   // return false, because cyclic prototype chains would be invalid.
   v8::TryCatch try_catch(isolate);
-  CHECK(o1->SetPrototypeV2(context.local(), o0).IsNothing());
+  CHECK(o1->SetPrototype(context.local(), o0).IsNothing());
   CHECK(!try_catch.HasCaught());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")
@@ -12373,7 +12373,7 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
                                .ToLocalChecked();
 
   Local<Object> another = Object::New(context.isolate());
-  CHECK(another->SetPrototypeV2(context.local(), instance).FromJust());
+  CHECK(another->SetPrototype(context.local(), instance).FromJust());
 
   Local<Object> with_js_getter = CompileRun(
       "o = {};\n"
@@ -18557,7 +18557,7 @@ THREADED_TEST(FunctionProtoToString) {
 static void GetterWhichReturns42(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   info.GetReturnValue().Set(v8_num(42));
 }
 
@@ -18565,8 +18565,8 @@ static void SetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
-  info.HolderV2()
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
+  info.Holder()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
 }
@@ -18574,7 +18574,7 @@ static void SetterWhichSetsYOnThisTo23(
 v8::Intercepted FooGetInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
@@ -18586,12 +18586,12 @@ v8::Intercepted FooGetInterceptor(
 v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
+  CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return v8::Intercepted::kNo;
   }
-  info.HolderV2()
+  info.Holder()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
   return v8::Intercepted::kYes;
@@ -18655,7 +18655,7 @@ v8::Intercepted NamedPropertySetterWhichSetsYOnThisTo23(
   CHECK(i::ValidateCallbackInfo(info));
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (name->Equals(context, v8_str("x")).FromJust()) {
-    info.HolderV2()->Set(context, v8_str("y"), v8_num(23)).FromJust();
+    info.Holder()->Set(context, v8_str("y"), v8_num(23)).FromJust();
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
@@ -22427,7 +22427,7 @@ THREADED_TEST(ObjectNew) {
     // [[Prototype]].
     Local<v8::Object> obj =
         v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-    CHECK(obj->GetPrototypeV2()->IsNull());
+    CHECK(obj->GetPrototype()->IsNull());
     Verify(isolate, obj);
     Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
     CHECK_EQ(0, keys->Length());
@@ -22439,7 +22439,7 @@ THREADED_TEST(ObjectNew) {
     Local<v8::Object> obj =
         v8::Object::New(isolate, proto, nullptr, nullptr, 0);
     Verify(isolate, obj);
-    CHECK(obj->GetPrototypeV2()->SameValue(proto));
+    CHECK(obj->GetPrototype()->SameValue(proto));
   }
   {
     // Verify that the properties are installed correctly.
@@ -22463,7 +22463,7 @@ THREADED_TEST(ObjectNew) {
     Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
     Local<v8::Object> obj =
         v8::Object::New(isolate, proto, names, values, arraysize(values));
-    CHECK(obj->GetPrototypeV2()->SameValue(proto));
+    CHECK(obj->GetPrototype()->SameValue(proto));
     Verify(isolate, obj);
     Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
     CHECK_EQ(arraysize(names), keys->Length());
@@ -22602,7 +22602,6 @@ class ApiCallOptimizationChecker {
  private:
   static v8::Global<Object> data;
   static v8::Global<Object> receiver;
-  static v8::Global<Object> holder;
   static v8::Global<Object> callee;
   static int count;
 
@@ -22616,8 +22615,6 @@ class ApiCallOptimizationChecker {
                 ->Equals(info.GetIsolate()->GetCurrentContext(), info[0])
                 .FromJust());
     }
-    // TODO(ishell, https://crbug.com/333672197): cleanup this.
-    // CHECK_EQ(holder, info.Holder());
     count++;
     Local<Value> return_value = info.GetReturnValue().Get();
     CHECK(return_value->IsUndefined());
@@ -22643,19 +22640,6 @@ class ApiCallOptimizationChecker {
         Run(signature_type, global, key);
       }
     }
-  }
-
-  // TODO(https://crbug.com/333672197): remove.
-  static v8::Local<v8::Object> GetHiddenPrototype(
-      v8::Isolate* isolate, v8::Local<v8::Object> global_proxy) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    DCHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*global_proxy)));
-    i::DirectHandle<i::JSGlobalProxy> i_global_proxy =
-        i::Cast<i::JSGlobalProxy>(v8::Utils::OpenHandle(*global_proxy));
-    DCHECK(!i_global_proxy->IsDetached());
-    i::DirectHandle<i::JSObject> global(
-        i::Cast<i::JSObject>(i_global_proxy->map()->prototype()), i_isolate);
-    return v8::Utils::ToLocal(global);
   }
 
   void Run(SignatureType signature_type, bool global, int key) {
@@ -22693,18 +22677,17 @@ class ApiCallOptimizationChecker {
               ->Set(context, v8_str("function_receiver"), function_receiver)
               .FromJust());
     // Get the holder objects.
-    Local<Object> inner_global = GetHiddenPrototype(isolate, context->Global());
     Local<Object> new_object = Object::New(isolate);
     data.Reset(isolate, new_object);
     Local<FunctionTemplate> function_template = FunctionTemplate::New(
         isolate, OptimizationCallback, new_object, signature);
     Local<Function> function =
         function_template->GetFunction(context).ToLocalChecked();
-    Local<Object> global_holder = inner_global;
+    Local<Object> global_holder = context->Global();
     Local<Object> function_holder = function_receiver;
     if (signature_type == kSignatureOnPrototype) {
-      function_holder = Local<Object>::Cast(function_holder->GetPrototypeV2());
-      global_holder = Local<Object>::Cast(global_holder->GetPrototypeV2());
+      function_holder = Local<Object>::Cast(function_holder->GetPrototype());
+      global_holder = Local<Object>::Cast(global_holder->GetPrototype());
     }
     global_holder->Set(context, v8_str("g_f"), function).FromJust();
     global_holder->SetAccessorProperty(v8_str("g_acc"), function, function);
@@ -22715,9 +22698,7 @@ class ApiCallOptimizationChecker {
     count = 0;
     if (global) {
       receiver.Reset(isolate, context->Global());
-      holder.Reset(isolate, inner_global);
     } else {
-      holder.Reset(isolate, function_receiver);
       // If not using a signature, add something else to the prototype chain
       // to test the case that holder != receiver
       if (signature_type == kNoSignature) {
@@ -22732,10 +22713,6 @@ class ApiCallOptimizationChecker {
                            "var receiver_subclass = function_receiver;\n"
                            "receiver_subclass")));
       }
-    }
-    // With no signature, the holder is not set.
-    if (signature_type == kNoSignature) {
-      holder.Reset(isolate, receiver);
     }
     // build wrap_function
     auto wrap_function = v8::base::OwnedVector<char>::NewForOverwrite(200);
@@ -22793,14 +22770,12 @@ class ApiCallOptimizationChecker {
 
     data.Reset();
     receiver.Reset();
-    holder.Reset();
     callee.Reset();
   }
 };
 
 v8::Global<Object> ApiCallOptimizationChecker::data;
 v8::Global<Object> ApiCallOptimizationChecker::receiver;
-v8::Global<Object> ApiCallOptimizationChecker::holder;
 v8::Global<Object> ApiCallOptimizationChecker::callee;
 int ApiCallOptimizationChecker::count = 0;
 
@@ -25750,7 +25725,7 @@ TEST(Map) {
   v8::Local<v8::Map> map = v8::Map::New(isolate);
   CHECK(map->IsObject());
   CHECK(map->IsMap());
-  CHECK(map->GetPrototypeV2()->StrictEquals(CompileRun("Map.prototype")));
+  CHECK(map->GetPrototype()->StrictEquals(CompileRun("Map.prototype")));
   CHECK_EQ(0U, map->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4]])");
@@ -25816,7 +25791,7 @@ TEST(Set) {
   v8::Local<v8::Set> set = v8::Set::New(isolate);
   CHECK(set->IsObject());
   CHECK(set->IsSet());
-  CHECK(set->GetPrototypeV2()->StrictEquals(CompileRun("Set.prototype")));
+  CHECK(set->GetPrototype()->StrictEquals(CompileRun("Set.prototype")));
   CHECK_EQ(0U, set->Size());
 
   v8::Local<v8::Value> val = CompileRun("new Set([1, 2])");
@@ -26605,7 +26580,7 @@ THREADED_TEST(ImmutableProto) {
       object->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
 
   // Setting the prototype (e.g., to null) throws
-  CHECK(object->SetPrototypeV2(context.local(), v8::Null(isolate)).IsNothing());
+  CHECK(object->SetPrototype(context.local(), v8::Null(isolate)).IsNothing());
 
   // The original prototype is still there
   Local<Value> new_proto =
@@ -26725,8 +26700,8 @@ THREADED_TEST(ImmutableProtoWithParent) {
       prototype->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
 
   // Setting the prototype (e.g., to null) throws
-  CHECK(prototype->SetPrototypeV2(context.local(), v8::Null(isolate))
-            .IsNothing());
+  CHECK(
+      prototype->SetPrototype(context.local(), v8::Null(isolate)).IsNothing());
 
   // The original prototype is still there
   Local<Value> new_proto =
@@ -26819,7 +26794,7 @@ TEST(SetPrototypeTemplate) {
 void EnsureHolderIsJSGlobalProxy(
     v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*info.HolderV2())));
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenDirectHandle(*info.Holder())));
 }
 
 THREADED_TEST(GlobalAccessorInfo) {

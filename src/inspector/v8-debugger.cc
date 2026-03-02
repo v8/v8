@@ -60,9 +60,9 @@ class MatchPrototypePredicate : public v8::QueryObjectPredicate {
     if (objectContext != m_context) return false;
     if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.
-    for (v8::Local<v8::Value> prototype = object->GetPrototypeV2();
+    for (v8::Local<v8::Value> prototype = object->GetPrototype();
          prototype->IsObject();
-         prototype = prototype.As<v8::Object>()->GetPrototypeV2()) {
+         prototype = prototype.As<v8::Object>()->GetPrototype()) {
       if (m_prototype == prototype) return true;
     }
     return false;
@@ -810,7 +810,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   }
   if (!iterator) return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Array> result = v8::Array::New(m_isolate);
-  if (!result->SetPrototypeV2(context, v8::Null(m_isolate)).FromMaybe(false)) {
+  if (!result->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false)) {
     return v8::MaybeLocal<v8::Value>();
   }
 
@@ -890,7 +890,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
 
   v8::Local<v8::Array> wrappedEntries = v8::Array::New(isolate);
   CHECK(!isKeyValue || wrappedEntries->Length() % 2 == 0);
-  if (!wrappedEntries->SetPrototypeV2(context, v8::Null(isolate))
+  if (!wrappedEntries->SetPrototype(context, v8::Null(isolate))
            .FromMaybe(false))
     return v8::MaybeLocal<v8::Array>();
   for (uint32_t i = 0; i < entries->Length(); i += isKeyValue ? 2 : 1) {
@@ -899,7 +899,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
     v8::Local<v8::Value> value;
     if (isKeyValue && !entries->Get(context, i + 1).ToLocal(&value)) continue;
     v8::Local<v8::Object> wrapper = v8::Object::New(isolate);
-    if (!wrapper->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
+    if (!wrapper->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
       continue;
     createDataProperty(
         context, wrapper,
@@ -933,14 +933,14 @@ v8::MaybeLocal<v8::Array> V8Debugger::privateMethods(
   }
 
   v8::Local<v8::Array> result = v8::Array::New(isolate);
-  if (!result->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
+  if (!result->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
     return v8::MaybeLocal<v8::Array>();
   for (uint32_t i = 0; i < names.size(); i++) {
     v8::Local<v8::Value> name = names[i];
     v8::Local<v8::Value> value = values[i];
     DCHECK(value->IsFunction());
     v8::Local<v8::Object> wrapper = v8::Object::New(isolate);
-    if (!wrapper->SetPrototypeV2(context, v8::Null(isolate)).FromMaybe(false))
+    if (!wrapper->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
       continue;
     createDataProperty(context, wrapper,
                        toV8StringInternalized(isolate, "name"), name);

@@ -177,8 +177,8 @@ class InterceptorLoggingTest : public TestWithNativeContext {
   static void LogCallback(const v8::PropertyCallbackInfo<T>& info,
                           const char* callback_name) {
     InterceptorLoggingTest* test = reinterpret_cast<InterceptorLoggingTest*>(
-        info.HolderV2()->GetAlignedPointerFromInternalField(
-            kTestIndex, kTestInterceptorTag));
+        info.Holder()->GetAlignedPointerFromInternalField(kTestIndex,
+                                                          kTestInterceptorTag));
     test->Log(callback_name);
   }
 

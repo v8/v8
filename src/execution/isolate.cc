@@ -5198,7 +5198,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
                 ext_callback_scope->callback_info());
 
         DirectHandle<Object> holder =
-            Utils::OpenDirectHandle(*callback_info->HolderV2());
+            Utils::OpenDirectHandle(*callback_info->Holder());
         DCHECK(IsJSReceiver(*holder));
 
         using PCA = PropertyCallbackArguments;
