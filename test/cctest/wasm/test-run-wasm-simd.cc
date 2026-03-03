@@ -49,6 +49,21 @@ namespace {
 
 using Shuffle = std::array<int8_t, kSimd128Size>;
 
+// On big endian, Simd lane 0 is stored at the highest memory address.
+template <typename T, size_t N>
+Simd128 SimdForGlobal(const std::array<T, N>& lanes) {
+  static_assert(sizeof(T) * N == kSimd128Size);
+#ifdef V8_TARGET_BIG_ENDIAN
+  std::array<T, N> reversed;
+  for (size_t i = 0; i < N; i++) {
+    reversed[N - 1 - i] = lanes[i];
+  }
+  return Simd128(base::bit_cast<Simd128::int8x16>(reversed));
+#else
+  return Simd128(base::bit_cast<Simd128::int8x16>(lanes));
+#endif
+}
+
 // For signed integral types, use base::AddWithWraparound.
 template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Add(T a, T b) {
@@ -2917,8 +2932,8 @@ WASM_EXEC_TEST(I8x16Swizzle) {
              WASM_ONE});
 
     for (SwizzleTestArgs si : swizzle_test_vector) {
-      r.builder().WriteGlobal(*src0, WasmValue(Simd128(si.input)));
-      r.builder().WriteGlobal(*src1, WasmValue(Simd128(si.indices)));
+      r.builder().WriteGlobal(*src0, WasmValue(SimdForGlobal(si.input)));
+      r.builder().WriteGlobal(*src1, WasmValue(SimdForGlobal(si.indices)));
 
       CHECK_EQ(1, r.Call());
 
@@ -2940,7 +2955,7 @@ WASM_EXEC_TEST(I8x16Swizzle) {
                                       WASM_SIMD_CONSTANT(si.indices))),
                WASM_ONE});
 
-      r.builder().WriteGlobal(*src0, WasmValue(Simd128(si.input)));
+      r.builder().WriteGlobal(*src0, WasmValue(SimdForGlobal(si.input)));
       CHECK_EQ(1, r.Call());
 
       Simd128 actual = r.builder().ReadGlobal(*dst).to_s128();
@@ -3270,7 +3285,7 @@ WASM_EXEC_TEST(SimdI32x4GetGlobal) {
   r.builder().AddGlobal(kWasmI32);  // purposefully unused
   const WasmGlobal* global = r.builder().AddGlobal(kWasmS128);
   r.builder().WriteGlobal(
-      *global, WasmValue(Simd128(std::array<int32_t, 4>{{0, 1, 2, 3}})));
+      *global, WasmValue(SimdForGlobal(std::array<int32_t, 4>{{0, 1, 2, 3}})));
   r.AllocateLocal(kWasmI32);
   r.Build(
       {WASM_LOCAL_SET(1, WASM_I32V(1)),
@@ -3318,7 +3333,8 @@ WASM_EXEC_TEST(SimdF32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   const WasmGlobal* global = r.builder().AddGlobal(kWasmS128);
   r.builder().WriteGlobal(
-      *global, WasmValue(Simd128(std::array<float, 4>{{0.0, 1.5, 2.25, 3.5}})));
+      *global,
+      WasmValue(SimdForGlobal(std::array<float, 4>{{0.0, 1.5, 2.25, 3.5}})));
   r.AllocateLocal(kWasmI32);
   r.Build(
       {WASM_LOCAL_SET(1, WASM_I32V(1)),
@@ -4062,9 +4078,9 @@ void RunAddExtAddPairwiseTest(
     const std::array<T, kSimd128Size / sizeof(T)> expectedOutput) {
   WasmRunner<int32_t> r(execution_tier);
   const WasmGlobal* x = r.builder().AddGlobal(kWasmS128);
-  r.builder().WriteGlobal(*x, WasmValue(base::bit_cast<Simd128>(addInput)));
+  r.builder().WriteGlobal(*x, WasmValue(SimdForGlobal(addInput)));
   const WasmGlobal* y = r.builder().AddGlobal(kWasmS128);
-  r.builder().WriteGlobal(*y, WasmValue(base::bit_cast<Simd128>(extAddInput)));
+  r.builder().WriteGlobal(*y, WasmValue(SimdForGlobal(extAddInput)));
   switch (extAddSide) {
     case LEFT:
       // x = add(extadd_pairwise_s(y), x)
