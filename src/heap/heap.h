@@ -1444,7 +1444,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
+  V8_EXPORT_PRIVATE uint64_t GlobalSizeOfObjects() const;
 
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;

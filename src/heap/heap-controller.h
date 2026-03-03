@@ -159,12 +159,24 @@ class V8_EXPORT_PRIVATE HeapLimits {
   // Overshoot margin is 50% of allocation limit or half-way to the max heap
   // with special handling of small heaps.
   size_t old_generation_overshoot_margin() const {
+    // It's possible for current size to go beyond max size, in which case the
+    // limit also goes over. We consider the margin is 0 to avoid underflow
+    // below.
+    if (old_generation_allocation_limit() > max_old_generation_size()) {
+      return 0;
+    }
     return std::min(
         std::max(old_generation_allocation_limit() / 2, kMarginForSmallHeaps),
         (max_old_generation_size() - old_generation_allocation_limit()) / 2);
   }
 
   size_t global_overshoot_margin() const {
+    // It's possible for current size to go beyond max size, in which case the
+    // limit also goes over. We consider the margin is 0 to avoid underflow
+    // below.
+    if (global_allocation_limit() > max_global_memory_size()) {
+      return 0;
+    }
     return std::min(
         std::max(global_allocation_limit() / 2, kMarginForSmallHeaps),
         (max_global_memory_size() - global_allocation_limit()) / 2);
