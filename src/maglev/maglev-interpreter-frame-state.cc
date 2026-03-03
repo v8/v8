@@ -1019,8 +1019,8 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 
     // Soundness of the loop phi Smi type relies on the back-edge static types
     // sminess.
-    if (result->uses_require_31_bit_value()) {
-      unmerged_phi->SetUseRequires31BitValue();
+    if (result->uses_require_smi()) {
+      unmerged_phi->SetUseRequiresSmi();
     }
     if (result->uses_require_heap_object()) {
       unmerged_phi->SetUseRequiresHeapObject();

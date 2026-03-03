@@ -250,16 +250,16 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
   }
 }
 
-void Phi::SetUseRequires31BitValue() {
-  if (uses_require_31_bit_value()) return;
-  set_uses_require_31_bit_value();
+void Phi::SetUseRequiresSmi() {
+  if (uses_require_smi()) return;
+  set_uses_require_smi();
   auto inputs =
       is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
   for (uint32_t i = 0; i < inputs; ++i) {
     ValueNode* input_node = input(i).node();
     DCHECK(input_node);
     if (auto phi = input_node->TryCast<Phi>()) {
-      phi->SetUseRequires31BitValue();
+      phi->SetUseRequiresSmi();
     }
   }
 }

@@ -4483,7 +4483,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
     if constexpr (SmiValuesAre31Bits()) {
       if (Phi* value_as_phi = value->TryCast<Phi>()) {
-        value_as_phi->SetUseRequires31BitValue();
+        value_as_phi->SetUseRequiresSmi();
       }
     }
     return true;

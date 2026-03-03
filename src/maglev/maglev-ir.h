@@ -9605,12 +9605,10 @@ class Phi : public ValueNodeT<Phi> {
 
   // Remembers if a use is unsafely untagged. If that happens we must ensure to
   // stay within the smi range, even when untagging.
-  void SetUseRequires31BitValue();
-  bool uses_require_31_bit_value() const {
-    return Requires31BitValueFlag::decode(bitfield());
-  }
-  void set_uses_require_31_bit_value() {
-    set_bitfield(bitfield() | Requires31BitValueFlag::encode(true));
+  void SetUseRequiresSmi();
+  bool uses_require_smi() const { return RequiresSmiFlag::decode(bitfield()); }
+  void set_uses_require_smi() {
+    set_bitfield(bitfield() | RequiresSmiFlag::encode(true));
   }
   void SetUseRequiresHeapObject();
   bool uses_require_heap_object() const {
@@ -9627,8 +9625,8 @@ class Phi : public ValueNodeT<Phi> {
   Phi** next() { return &next_; }
 
   using HasKeyFlag = NextBitField<bool, 1>;
-  using Requires31BitValueFlag = HasKeyFlag::Next<bool, 1>;
-  using RequiresHeapObjectFlag = Requires31BitValueFlag::Next<bool, 1>;
+  using RequiresSmiFlag = HasKeyFlag::Next<bool, 1>;
+  using RequiresHeapObjectFlag = RequiresSmiFlag::Next<bool, 1>;
   using LoopPhiAfterLoopFlag = RequiresHeapObjectFlag::Next<bool, 1>;
 
   const interpreter::Register owner_;

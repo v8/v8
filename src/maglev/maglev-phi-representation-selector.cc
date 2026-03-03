@@ -137,7 +137,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
 
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
-  if (node->uses_require_31_bit_value() && node->uses_require_heap_object()) {
+  if (node->uses_require_smi() && node->uses_require_heap_object()) {
     // Some uses expect a Smi from this Phi and other uses expect a HeapObject
     // (it's likely that those uses are on different control paths). We thus
     // just skip this untagging. We could still untag and properly retag
@@ -1026,8 +1026,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     return ProcessResult::kContinue;
   }
 
-  if (phi->uses_require_31_bit_value() &&
-      old_untagging->Is<CheckedSmiUntag>()) {
+  if (phi->uses_require_smi() && old_untagging->Is<CheckedSmiUntag>()) {
     // CheckedSmiUntag serves a dual-purpose: it untags a Smi but it also
     // ensures that this value is a Smi (and is therefore in Smi range). We need
     // to make sure to preserve both of these aspects.
@@ -1054,8 +1053,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
 
   if (from_repr == to_repr) {
     // CheckedSmiUntag needs special handling, cf above.
-    DCHECK(!(phi->uses_require_31_bit_value() &&
-             old_untagging->Is<CheckedSmiUntag>()));
+    DCHECK(!(phi->uses_require_smi() && old_untagging->Is<CheckedSmiUntag>()));
 
     old_untagging->OverwriteWith<Identity>();
     // All uses (except deopt frame ones) of this identity node will by bypassed

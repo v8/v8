@@ -1385,7 +1385,7 @@ ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(
   if (EnsureType(node, NodeType::kSmi)) {
     if (SmiValuesAre31Bits()) {
       if (auto phi = node->TryCast<Phi>()) {
-        phi->SetUseRequires31BitValue();
+        phi->SetUseRequiresSmi();
       }
     }
     return AddNewNodeNoInputConversion<UnsafeSmiUntag>({node});
