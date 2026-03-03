@@ -1607,95 +1607,40 @@ namespace {
 void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                     FullObjectSlot spill_slot) {
 #ifdef V8_COMPRESS_POINTERS
-  PtrComprCageBase cage_base(isolate);
-  bool was_compressed = false;
-
   // Spill slots may contain compressed values in which case the upper
   // 32-bits will contain zeros. In order to simplify handling of such
-  // slots in GC we ensure that the slot always contains full value.
-
-  // The spill slot may actually contain weak references so we load/store
-  // values using spill_slot.location() in order to avoid dealing with
-  // FullMaybeObjectSlots here.
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // When external code space is enabled the spill slot could contain both
-    // InstructionStream and non-InstructionStream references, which have
-    // different cage bases. So unconditional decompression of the value might
-    // corrupt InstructionStream pointers. However, given that 1) the
-    // InstructionStream pointers are never compressed by design (because
-    //    otherwise we wouldn't know which cage base to apply for
-    //    decompression, see respective DCHECKs in
-    //    RelocInfo::target_object()),
-    // 2) there's no need to update the upper part of the full pointer
-    //    because if it was there then it'll stay the same,
-    // we can avoid updating upper part of the spill slot if it already
-    // contains full value.
-    // TODO(v8:11880): Remove this special handling by enforcing builtins
-    // to use CodeTs instead of InstructionStream objects.
-    Address value = *spill_slot.location();
-    if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
-      // We don't need to update smi values or full pointers.
-      was_compressed = true;
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
-          static_cast<Tagged_t>(value));
-      if (DEBUG_BOOL) {
-        // Ensure that the spill slot contains correct heap object.
-        Tagged<HeapObject> raw =
-            Cast<HeapObject>(Tagged<Object>(*spill_slot.location()));
-        // Don't check holes, since the page can be unmapped.
-        if (!IsAnyHole(raw)) {
-          MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
-          Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
-                                             ? map_word.ToForwardingAddress(raw)
-                                             : raw;
-          bool is_self_forwarded =
-              HeapLayout::IsSelfForwarded(forwarded, cage_base);
-          if (is_self_forwarded) {
-            // The object might be in a self-forwarding state if it's located
-            // in new large object space. GC will fix this at a later stage.
-            const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
-            CHECK(chunk->InNewLargeObjectSpace() ||
-                  chunk->Metadata(isolate)->is_quarantined());
-          } else {
-            // Take the map from {map_word} (unless it is a forwarding address)
-            // to avoid a double load of the map word for that object. Parallel
-            // scavenging tasks could install a forwarding pointer in-between
-            // both loads.
-            Tagged<HeapObject> forwarded_map = map_word.IsForwardingAddress()
-                                                   ? forwarded->map(cage_base)
-                                                   : map_word.ToMap();
-            // The map might be forwarded as well.
-            MapWord fwd_map_map_word =
-                forwarded_map->map_word(cage_base, kRelaxedLoad);
-            if (fwd_map_map_word.IsForwardingAddress()) {
-              forwarded_map =
-                  fwd_map_map_word.ToForwardingAddress(forwarded_map);
-            }
-            CHECK(IsMap(forwarded_map, cage_base));
-          }
-        }
-      }
-    }
-  } else {
-    Address slot_contents = *spill_slot.location();
-    Tagged_t compressed_value = static_cast<Tagged_t>(slot_contents);
-    if (!HAS_SMI_TAG(compressed_value)) {
-      was_compressed = slot_contents <= 0xFFFFFFFF;
-      // We don't need to update smi values.
-      *spill_slot.location() =
-          V8HeapCompressionScheme::DecompressTagged(compressed_value);
-    }
-  }
-#endif
-  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
-#if V8_COMPRESS_POINTERS
-  if (was_compressed) {
+  // slots in GC we decompress into a local variable, let the visitor
+  // update it, and then compress back into the stack slot.
+  //
+  // When external code space is enabled the spill slot could contain both
+  // InstructionStream and non-InstructionStream references, which have
+  // different cage bases. So unconditional decompression of the value might
+  // corrupt InstructionStream pointers. However, given that 1) the
+  // InstructionStream pointers are never compressed by design (because
+  //    otherwise we wouldn't know which cage base to apply for
+  //    decompression, see respective DCHECKs in
+  //    RelocInfo::target_object()),
+  // 2) there's no need to update the upper part of the full pointer
+  //    because if it was there then it'll stay the same,
+  // we can avoid updating upper part of the spill slot if it already
+  // contains full value.
+  // TODO(v8:11880): Remove this special handling by enforcing builtins
+  // to use CodeTs instead of InstructionStream objects.
+  Address value = *spill_slot.location();
+  Tagged_t compressed_value = static_cast<Tagged_t>(value);
+  if (!HAS_SMI_TAG(compressed_value) && value <= 0xFFFF'FFFF) {
+    Address decompressed =
+        V8HeapCompressionScheme::DecompressTagged(compressed_value);
+    FullObjectSlot local_slot(&decompressed);
+    v->VisitRootPointer(Root::kStackRoots, nullptr, local_slot);
     // Restore compression. Generated code should be able to trust that
     // compressed spill slots remain compressed.
     *spill_slot.location() =
-        V8HeapCompressionScheme::CompressObject(*spill_slot.location());
+        V8HeapCompressionScheme::CompressObject(decompressed);
+    return;
   }
 #endif
+  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
 }
 
 void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
