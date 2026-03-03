@@ -49,7 +49,7 @@ defaults_triggered = {
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
     "service_account": V8_TRY_ACCOUNT,
-    "execution_timeout": 4500,
+    "execution_timeout": 7200,
     "properties": {"builder_group": "tryserver.v8"},
     "resultdb_bq_table_prefix": "try",
     "caches": [
