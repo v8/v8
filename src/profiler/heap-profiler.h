@@ -66,7 +66,14 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   // Implementation of --heap-snapshot-on-oom.
   void WriteSnapshotToDiskAfterGC(
-      HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular);
+      const v8::HeapProfiler::HeapSnapshotOptions options =
+          GetDefaultHeapSnapshotOptionsForTestingUsage());
+
+  // Returns the default heap snapshot options for snapshots intended for V8
+  // devs.
+  static v8::HeapProfiler::HeapSnapshotOptions
+  GetDefaultHeapSnapshotOptionsForTestingUsage();
+
   // Just takes a snapshot performing GC as part of the snapshot.
   void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
                           std::string filename);

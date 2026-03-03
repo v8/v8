@@ -1265,12 +1265,8 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   }
 
   HeapProfiler* heap_profiler = isolate->heap()->heap_profiler();
-  // Since this API is intended for V8 devs, we do not treat globals as roots
-  // here on purpose.
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-  heap_profiler->TakeSnapshotToFile(options, filename);
+  heap_profiler->TakeSnapshotToFile(
+      HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(), filename);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

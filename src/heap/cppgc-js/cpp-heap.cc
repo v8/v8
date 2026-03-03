@@ -235,8 +235,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
   if (v8_flags.heap_snapshot_on_oom) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
-    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC(
-        v8::HeapProfiler::HeapSnapshotMode::kExposeInternals);
+    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
   V8::FatalProcessOutOfMemory(isolate, reason.c_str());
 }

@@ -222,14 +222,9 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
       HeapProfiler* heap_profiler = heap->heap_profiler();
-      // Since this API is intended for V8 devs, we do not treat globals as
-      // roots here on purpose.
-      v8::HeapProfiler::HeapSnapshotOptions options;
-      options.numerics_mode =
-          v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-      options.snapshot_mode =
-          v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-      heap_profiler->TakeSnapshotToFile(options, gc_options.filename);
+      heap_profiler->TakeSnapshotToFile(
+          HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(),
+          gc_options.filename);
       break;
   }
 }

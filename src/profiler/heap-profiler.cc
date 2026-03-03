@@ -168,10 +168,11 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 }
 
 // Precondition: only call this if you have just completed a full GC cycle.
-void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
+void HeapProfiler::WriteSnapshotToDiskAfterGC(
+    const v8::HeapProfiler::HeapSnapshotOptions options) {
   // We need to set a stack marker for the stack walk performed by the
   // snapshot generator to work.
-  heap()->stack().SetMarkerIfNeededAndCallback([this, snapshot_mode]() {
+  heap()->stack().SetMarkerIfNeededAndCallback([this, options]() {
     int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
     int pid = base::OS::GetCurrentProcessId();
     std::string filename = "v8-heap-" + std::to_string(time) + "-" +
@@ -179,9 +180,9 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
     if (v8_flags.heap_snapshot_path.value()) {
       filename = v8_flags.heap_snapshot_path.value();
     }
-    v8::HeapProfiler::HeapSnapshotOptions options;
+    v8::HeapProfiler::HeapSnapshotOptions otions;
     std::unique_ptr<HeapSnapshot> result(
-        new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
+        new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
     HeapSnapshotGenerator generator(result.get(), options.control,
                                     options.context_name_resolver, heap(),
                                     options.stack_state);
@@ -196,6 +197,17 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
              filename.c_str());
     }
   });
+}
+
+// static
+v8::HeapProfiler::HeapSnapshotOptions
+HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage() {
+  // Since this API is intended for V8 devs, we do not treat globals as
+  // roots here on purpose.
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  return options;
 }
 
 void HeapProfiler::TakeSnapshotToFile(
