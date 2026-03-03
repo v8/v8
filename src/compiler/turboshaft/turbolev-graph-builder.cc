@@ -3645,7 +3645,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(
-        __ UintPtrLessThan(__ ChangeUint32ToUintPtr(Map(node->IndexInput())),
+        __ UintPtrLessThan(__ ChangeInt32ToIntPtr(Map(node->IndexInput())),
                            Map(node->LengthInput())),
         frame_state, DeoptimizeReason::kOutOfBounds,
         node->eager_deopt_info()->feedback_to_update());
