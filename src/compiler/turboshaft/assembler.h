@@ -2228,6 +2228,8 @@ class AssemblerOpInterface : public Next {
             k##input_interpretation,                                     \
         CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
   }
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToHeapNumber, HeapNumber, Word32,
+                              Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertIntPtrToNumber, Number, WordPtr, Signed)

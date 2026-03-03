@@ -4799,7 +4799,16 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ ConvertInt32ToNumber(Map(node->ValueInput())));
+    V<Number> number;
+    switch (node->conversion_mode()) {
+      case maglev::NumberConversionMode::kCanonicalizeSmi:
+        number = __ ConvertInt32ToNumber(Map(node->ValueInput()));
+        break;
+      case maglev::NumberConversionMode::kForceHeapNumber:
+        number = __ ConvertInt32ToHeapNumber(Map(node->ValueInput()));
+        break;
+    }
+    SetMap(node, number);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Uint32ToNumber* node,
