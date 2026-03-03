@@ -888,8 +888,6 @@ class Heap final {
       Tagged<Object> bytecode);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
-  V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
-  V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);

@@ -319,65 +319,9 @@ class Processor {
   // Assume that this leaves {accumulator} in unusable state.
   Status FromString(RWDigits Z, FromStringAccumulator* accumulator);
 
-  // Modulo division that's optimized for small inputs and repeatedly-used
-  // divisors. {CachedMod_MakeInverse} must be called first; callers of
-  // {CachedMod} must ensure that the divisor {B} matches the one for which
-  // the cached inverse was created.
-  // Note: {CachedMod} uses schoolbook multiplication internally, so the
-  // value of {kMaxCachedModDivisorSize} shouldn't be much bigger than
-  // {kKaratsubaThreshold} defined in {bigint-inl.h}.
-  // 32 digits is enough for 2048 bit divisors on a 64-bit platform.
-  static constexpr uint32_t kMaxCachedModDivisorSize = 32;
-  void CachedMod_MakeInverse(Digits& B);
-  digit_t CachedMod(RWDigits& R, Digits& A, Digits& B);
-  // To help callers determine divisors that are worth caching, we offer
-  // a counter.
-  int inc_divisor_count() { return ++divisor_count_; }
-  void reset_divisor_count() { divisor_count_ = 1; }
-
  protected:
   // Use {Destroy} or {Destroyer} instead of the destructor directly.
   ~Processor() = default;
-
-  // Number of digits to keep around, to reduce the number of allocations.
-  // Arbitrarily chosen; should be large enough to hold a few scratch areas
-  // for commonly-occurring BigInt sizes. In particular, make it large enough
-  // for the needs of {CachedMod}.
-  static constexpr int kSmallScratchSize = 100;
-  static_assert(kSmallScratchSize >= kMaxCachedModDivisorSize * 3 + 1);
-
-  RWDigits GetSmallScratch() {
-    if (!small_scratch_) {
-      small_scratch_ =
-          std::make_unique_for_overwrite<digit_t[]>(kSmallScratchSize);
-    }
-    return RWDigits(small_scratch_.get(), kSmallScratchSize);
-  }
-  RWDigits GetSmallScratch_NoCheck() {
-    BIGINT_H_DCHECK(small_scratch_);
-    return RWDigits(small_scratch_.get(), kSmallScratchSize);
-  }
-
-  Digits& GetCachedInverse() {
-    BIGINT_H_DCHECK(cached_inverse_.digits() != nullptr);
-    return cached_inverse_;
-  }
-
-  RWDigits& AllocateCachedInverse(uint32_t len) {
-    if (len > cached_inverse_allocated_length_) {
-      cached_inverse_storage_ = std::make_unique_for_overwrite<digit_t[]>(len);
-      cached_inverse_allocated_length_ = len;
-    }
-    cached_inverse_ = RWDigits(cached_inverse_storage_.get(), len);
-    return cached_inverse_;
-  }
-
- private:
-  std::unique_ptr<digit_t[]> small_scratch_;
-  std::unique_ptr<digit_t[]> cached_inverse_storage_;
-  RWDigits cached_inverse_{nullptr, 0};
-  uint32_t cached_inverse_allocated_length_{0};
-  int divisor_count_{0};
 };
 
 inline uint32_t AddResultLength(uint32_t x_length, uint32_t y_length) {

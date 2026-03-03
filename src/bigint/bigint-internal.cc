@@ -122,35 +122,5 @@ Status Processor::ModuloLarge(RWDigits& R, Digits& A, Digits& B) {
   return impl->get_and_clear_status();
 }
 
-void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
-  uint32_t inv_len = B.len() + 1;
-  RWDigits& inv = AllocateCachedInverse(inv_len);
-  uint32_t n = B.len();
-  // We can't use {GetSmallScratch()} here, because {DivideSchoolbook} already
-  // does that (usually). It's fine because we don't expect to call this
-  // function very often.
-  ScratchDigits A(n * 2 + 1);
-  // Set A = 1 << 2*n.
-  for (uint32_t i = 0; i < 2 * n; i++) A[i] = digit_t{0};
-  A[2 * n] = 1;
-  // inv := A / B.
-  RWDigits R(nullptr, 0);
-  DivideSchoolbook(inv, R, A, B);
-
-  // If we add 1 here, we increase our chances of getting lucky in the
-  // corrective loop in {CachedDiv}. But don't do it when there's a risk
-  // of overflowing {inv}.
-  if (inv[0] != ~digit_t{0} || inv.msd() != ~digit_t{0}) Add(inv, 1);
-
-  // {CachedMod} relies on the "small scratch" having been allocated, so
-  // make sure that has happened regardless of {DivideSchoolbook}'s internal
-  // decisions.
-  GetSmallScratch();
-}
-
-void Processor::CachedMod_MakeInverse(Digits& B) {
-  return static_cast<ProcessorImpl*>(this)->CachedMod_MakeInverse(B);
-}
-
 }  // namespace bigint
 }  // namespace v8

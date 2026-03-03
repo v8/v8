@@ -32,8 +32,6 @@ class ProcessorImpl : public Processor {
   void DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A, Digits& B);
   void DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A, Digits B);
 
-  void CachedMod_MakeInverse(Digits& B);
-
 #if V8_ADVANCED_BIGINT_ALGORITHMS
   void MultiplyToomCook(RWDigits Z, Digits X, Digits Y);
   void Toom3Main(RWDigits Z, Digits X, Digits Y);
@@ -81,9 +79,22 @@ class ProcessorImpl : public Processor {
   }
 
  private:
-  Status status_{Status::kOk};
+  // Number of digits to keep around, to reduce the number of allocations.
+  // Arbitrarily chosen; should be large enough to hold a few scratch areas
+  // for commonly-occurring BigInt sizes.
+  static constexpr int kSmallScratchSize = 100;
+
+  RWDigits GetSmallScratch() {
+    if (!small_scratch_) {
+      small_scratch_.reset(new digit_t[kSmallScratchSize]);
+    }
+    return RWDigits(small_scratch_.get(), kSmallScratchSize);
+  }
+
   uintptr_t work_estimate_{0};
+  Status status_{Status::kOk};
   Platform* platform_;
+  std::unique_ptr<digit_t[]> small_scratch_;
 };
 
 // Prevent computations of scratch space and number of bits from overflowing.

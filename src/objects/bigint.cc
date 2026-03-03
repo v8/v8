@@ -1538,10 +1538,10 @@ void BigIntBase::BigIntBasePrint(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   PrintHeader(os, "BigInt");
   uint32_t len = length();
-  os << "\n - length: " << len;
-  os << "\n - sign: " << sign();
+  os << "\n- length: " << len;
+  os << "\n- sign: " << sign();
   if (len > 0) {
-    os << "\n - digits:";
+    os << "\n- digits:";
     for (uint32_t i = 0; i < len; i++) {
       os << "\n    0x" << std::hex << digit(i);
     }
@@ -1643,43 +1643,6 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   Tagged<BigInt> y = Cast<BigInt>(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
       Cast<MutableBigInt>(Tagged<Object>(result_addr));
-
-  // Check for the cached fast path first. This code is tuned to avoid
-  // overhead, which includes ordering operations such that as little
-  // spilling as possible is necessary.
-  Isolate* isolate = Isolate::Current();
-  Heap* heap = isolate->heap();
-  if (y == heap->cached_bigint_divisor()) [[likely]] {
-    bigint::Digits X = x->digits();
-    bigint::Digits Y = y->digits();
-    if (X.len() <= 2 * Y.len()) [[likely]] {
-      bigint::RWDigits Z = result->rw_digits();
-      bigint::digit_t top_digit =
-          isolate->bigint_processor()->CachedMod(Z, X, Y);
-      MutableBigInt::Canonicalize(result, Z.len(), top_digit);
-      return 0;
-    }
-    // Note for future improvements: it might be nice to support bigger
-    // X.len(), e.g. by proceeding in two steps, or by caching a larger
-    // inverse (and perhaps only using parts of it as needed).
-  } else {
-    bigint::Processor* processor = isolate->bigint_processor();
-    bigint::Digits Y = y->digits();
-    if (y == heap->next_cached_bigint_divisor()) {
-      // If we didn't have a cache hit, see if it's time to cache the current
-      // divisor now. Only cache divisors that we see a lot.
-      static constexpr int kCachingThreshold = 100;
-      if (processor->inc_divisor_count() == kCachingThreshold) {
-        heap->SetCachedBigIntDivisor(y);
-        processor->CachedMod_MakeInverse(Y);
-      }
-    } else if (Y.len() >= 2 &&
-               Y.len() <= bigint::Processor::kMaxCachedModDivisorSize) {
-      heap->SetNextCachedBigIntDivisor(y);
-      processor->reset_divisor_count();
-    }
-  }
-
   bigint::Digits X = x->digits();
   bigint::Digits Y = y->digits();
   bigint::RWDigits Z = result->rw_digits();
@@ -1688,6 +1651,8 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
     MutableBigInt::Canonicalize(result, Z.len(), top_digit);
     return 0;
   }
+
+  Isolate* isolate = Isolate::Current();
 
   bigint::Status status = isolate->bigint_processor()->ModuloLarge(Z, X, Y);
   if (status == bigint::Status::kInterrupted) {
