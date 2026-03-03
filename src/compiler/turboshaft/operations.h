@@ -3521,7 +3521,17 @@ struct StoreOp : OperationT<StoreOp> {
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
   bool maybe_initializing_or_transitioning;
+
+ private:
+  AtomicMemoryOrder memory_order_;  // use the padding after prev field
+
+ public:
   uint16_t indirect_pointer_tag_;
+
+  std::optional<AtomicMemoryOrder> memory_order() const {
+    if (kind.is_atomic) return memory_order_;
+    return std::nullopt;
+  }
 
   // TODO(saelo): now that we have a pointer tag in these low-level operations,
   // we could also consider passing the external pointer tag (for external
@@ -3575,8 +3585,8 @@ struct StoreOp : OperationT<StoreOp> {
   StoreOp(
       OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      int32_t offset, uint8_t element_size_log2,
-      bool maybe_initializing_or_transitioning,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
+      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag)
       : Base(2 + index.valid()),
         kind(kind),
@@ -3586,6 +3596,7 @@ struct StoreOp : OperationT<StoreOp> {
         offset(offset),
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
+        memory_order_(memory_order.value_or(AtomicMemoryOrder::kSeqCst)),
         indirect_pointer_tag_(
             static_cast<uint16_t>(maybe_indirect_pointer_tag)) {
     DCHECK_EQ(indirect_pointer_tag(), maybe_indirect_pointer_tag);
@@ -3599,8 +3610,9 @@ struct StoreOp : OperationT<StoreOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
-              kind, stored_rep, write_barrier, offset, element_size_log2,
-              maybe_initializing_or_transitioning, indirect_pointer_tag());
+              kind, stored_rep, write_barrier, memory_order(), offset,
+              element_size_log2, maybe_initializing_or_transitioning,
+              indirect_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
@@ -3608,25 +3620,31 @@ struct StoreOp : OperationT<StoreOp> {
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(stored_rep));
     DCHECK(LoadOp::OffsetIsValid(offset, kind.tagged_base));
+    DCHECK_EQ(kind.is_atomic, memory_order().has_value());
   }
   static StoreOp& New(
       Graph* graph, OpIndex base, OptionalOpIndex index, OpIndex value,
       Kind kind, MemoryRepresentation stored_rep,
-      WriteBarrierKind write_barrier, int32_t offset, uint8_t element_size_log2,
-      bool maybe_initializing_or_transitioning,
+      WriteBarrierKind write_barrier,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
+      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,
-                     stored_rep, write_barrier, offset, element_size_log2,
-                     maybe_initializing_or_transitioning,
+                     stored_rep, write_barrier, memory_order, offset,
+                     element_size_log2, maybe_initializing_or_transitioning,
                      maybe_indirect_pointer_tag);
   }
 
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
   void PrintOptions(std::ostream& os) const;
   auto options() const {
-    return std::tuple{
-        kind,   stored_rep,        write_barrier,
-        offset, element_size_log2, maybe_initializing_or_transitioning};
+    return std::tuple{kind,
+                      stored_rep,
+                      write_barrier,
+                      memory_order(),
+                      offset,
+                      element_size_log2,
+                      maybe_initializing_or_transitioning};
   }
 };
 
@@ -10062,6 +10080,7 @@ inline size_t input_count(Type) { return 0; }
 inline size_t input_count(base::Vector<const RegisterRepresentation>) {
   return 0;
 }
+constexpr size_t input_count(std::optional<AtomicMemoryOrder>) { return 0; }
 #ifdef V8_ENABLE_WEBASSEMBLY
 constexpr size_t input_count(const wasm::WasmGlobal*) { return 0; }
 constexpr size_t input_count(const wasm::StructType*) { return 0; }
@@ -10069,7 +10088,6 @@ constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
 constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
 constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
-constexpr size_t input_count(std::optional<AtomicMemoryOrder>) { return 0; }
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

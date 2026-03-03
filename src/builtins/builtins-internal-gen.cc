@@ -774,6 +774,74 @@ TF_BUILTIN(TSANSeqCstStore64SaveFP, TSANSeqCstStoreCodeStubAssembler) {
   GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt64Size);
 }
 
+class TSANReleaseStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANReleaseStoreCodeStubAssembler(
+      compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_16_bits());
+    } else if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_release_store_function_64_bits());
+    }
+  }
+
+  void GenerateTSANReleaseStore(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
+    TNode<IntPtrT> value = BitcastTaggedToWord(
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANReleaseStore8IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt8Size);
+}
+
+TF_BUILTIN(TSANReleaseStore8SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt8Size);
+}
+
+TF_BUILTIN(TSANReleaseStore16IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANReleaseStore16SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt16Size);
+}
+
+TF_BUILTIN(TSANReleaseStore32IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANReleaseStore32SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANReleaseStore64IgnoreFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANReleaseStore64SaveFP, TSANReleaseStoreCodeStubAssembler) {
+  GenerateTSANReleaseStore(SaveFPRegsMode::kSave, kInt64Size);
+}
+
 class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
  public:
   explicit TSANRelaxedLoadCodeStubAssembler(compiler::CodeAssemblerState* state)

@@ -93,6 +93,14 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANSeqCstStore32SaveFP)                                          \
   IF_TSAN(V, TSANSeqCstStore64IgnoreFP)                                        \
   IF_TSAN(V, TSANSeqCstStore64SaveFP)                                          \
+  IF_TSAN(V, TSANReleaseStore8IgnoreFP)                                        \
+  IF_TSAN(V, TSANReleaseStore8SaveFP)                                          \
+  IF_TSAN(V, TSANReleaseStore16IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore16SaveFP)                                         \
+  IF_TSAN(V, TSANReleaseStore32IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore32SaveFP)                                         \
+  IF_TSAN(V, TSANReleaseStore64IgnoreFP)                                       \
+  IF_TSAN(V, TSANReleaseStore64SaveFP)                                         \
   IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedLoad32SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \

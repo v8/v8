@@ -142,6 +142,25 @@ class V8_EXPORT_PRIVATE WasmCode final {
                    ? Builtin::kTSANRelaxedStore64IgnoreFP
                    : Builtin::kTSANRelaxedStore64SaveFP;
       }
+    } else if (order == std::memory_order_release) {
+      if (size == kInt8Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore8IgnoreFP
+                   : Builtin::kTSANReleaseStore8SaveFP;
+      } else if (size == kInt16Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore16IgnoreFP
+                   : Builtin::kTSANReleaseStore16SaveFP;
+      } else if (size == kInt32Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore32IgnoreFP
+                   : Builtin::kTSANReleaseStore32SaveFP;
+      } else {
+        CHECK_EQ(size, kInt64Size);
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore64IgnoreFP
+                   : Builtin::kTSANReleaseStore64SaveFP;
+      }
     } else {
       DCHECK_EQ(order, std::memory_order_seq_cst);
       if (size == kInt8Size) {

@@ -12,6 +12,7 @@
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/data-view-ops.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
@@ -1437,8 +1438,10 @@ class TurboshaftGraphBuildingInterface
     OpIndex base =
         offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
     int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
+    std::optional<AtomicMemoryOrder> memory_order;
+    if (store_kind.is_atomic) memory_order = imm.memory_order;
     __ Store(base, final_index, store_value, store_kind, repr,
-             compiler::kNoWriteBarrier, offset);
+             compiler::kNoWriteBarrier, memory_order, offset);
 
     if (v8_flags.trace_wasm_memory) {
       TraceMemoryOperation(decoder, true, imm.mem_index, repr, final_index,
@@ -4319,7 +4322,7 @@ class TurboshaftGraphBuildingInterface
                access_kind == MemoryAccessKind::kProtectedByTrapHandler
                    ? LoadOp::Kind::Protected().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
-               info.memory_rep, compiler::kNoWriteBarrier);
+               info.memory_rep, compiler::kNoWriteBarrier, imm.memory_order);
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);

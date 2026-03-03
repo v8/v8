@@ -192,6 +192,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                             \
   IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                           \
   IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANReleaseStore8IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANReleaseStore8SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANReleaseStore16IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore16SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANReleaseStore32IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore32SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANReleaseStore64IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore64SaveFP, TSANStore)                            \
                                                                                \
   /* TSAN support for loads in generated code. */                              \
   IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                            \
