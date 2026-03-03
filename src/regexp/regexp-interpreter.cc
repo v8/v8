@@ -174,7 +174,7 @@ class InterpreterRegisters {
 
   InterpreterRegisters(int total_register_count, RegisterT* output_registers,
                        int output_register_count)
-      : registers_(total_register_count),
+      : registers_(total_register_count, kNoMatchValue),
         output_registers_(output_registers),
         total_register_count_(total_register_count),
         output_register_count_(output_register_count) {
@@ -185,10 +185,6 @@ class InterpreterRegisters {
     SBXCHECK_GE(total_register_count, output_register_count);
     SBXCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
     DCHECK_NOT_NULL(output_registers);
-
-    // Initialize the output register region to -1 signifying 'no match'.
-    std::memset(registers_.data(), kNoMatchValue,
-                output_register_count * sizeof(RegisterT));
     USE(total_register_count_);
   }
 
