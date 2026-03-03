@@ -9,7 +9,6 @@
 
 #include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/util.h"
 
 namespace v8 {
 namespace bigint {
@@ -31,20 +30,21 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V)                     \
-  V(kBarrett, "barrett")             \
-  V(kBurnikel, "burnikel")           \
-  V(kFFT, "fft")                     \
-  V(kFromString, "fromstring")       \
-  V(kFromStringBase2, "fromstring2") \
-  V(kKaratsuba, "karatsuba")         \
-  V(kToom, "toom")                   \
-  V(kToString, "tostring")
+#define TESTS(V)                    \
+  V(Barrett, "barrett")             \
+  V(Burnikel, "burnikel")           \
+  V(CachedMod, "cachedmod")         \
+  V(FFT, "fft")                     \
+  V(FromString, "fromstring")       \
+  V(FromStringBase2, "fromstring2") \
+  V(Karatsuba, "karatsuba")         \
+  V(Toom, "toom")                   \
+  V(ToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };
 
 enum Test {
-#define TEST(kName, name) kName,
+#define TEST(Name, name) k##Name,
   TESTS(TEST)
 #undef TEST
 };
@@ -192,39 +192,13 @@ class Runner {
 
   int RunTest() {
     int count = 0;
-    if (test_ == kBarrett) {
-      for (int i = 0; i < runs_; i++) {
-        TestBarrett(&count);
-      }
-    } else if (test_ == kBurnikel) {
-      for (int i = 0; i < runs_; i++) {
-        TestBurnikel(&count);
-      }
-    } else if (test_ == kFFT) {
-      for (int i = 0; i < runs_; i++) {
-        TestFFT(&count);
-      }
-    } else if (test_ == kKaratsuba) {
-      for (int i = 0; i < runs_; i++) {
-        TestKaratsuba(&count);
-      }
-    } else if (test_ == kToom) {
-      for (int i = 0; i < runs_; i++) {
-        TestToom(&count);
-      }
-    } else if (test_ == kToString) {
-      for (int i = 0; i < runs_; i++) {
-        TestToString(&count);
-      }
-    } else if (test_ == kFromString) {
-      for (int i = 0; i < runs_; i++) {
-        TestFromString(&count);
-      }
-    } else if (test_ == kFromStringBase2) {
-      for (int i = 0; i < runs_; i++) {
-        TestFromStringBaseTwo(&count);
-      }
-    } else {
+#define CASE(Name, _)                                   \
+  if (test_ == k##Name) {                               \
+    for (int i = 0; i < runs_; i++) Test##Name(&count); \
+  } else
+    TESTS(CASE)
+#undef CASE
+    {
       DCHECK(false);  // Unreachable.
     }
     if (error_) return 1;
@@ -345,6 +319,36 @@ class Runner {
     }
   }
 
+  void TestCachedMod(int* count) {
+    // We could support b_len == 1, but it's not relevant in practice and
+    // the implementation would have to special-case it.
+    for (uint32_t b_len = 2; b_len <= 20; b_len++) {
+      ScratchDigits B(b_len);
+      ScratchDigits R(b_len);
+      ScratchDigits R_exp(b_len);
+      GenerateRandom(B);
+      processor()->CachedMod_MakeInverse(B);
+      // The length of the cached inverse determines the maximum {a_len} we
+      // can handle.
+      for (uint32_t a_len = b_len; a_len <= 2 * b_len; a_len++) {
+        ScratchDigits A(a_len);
+        for (uint32_t j = 0; j < 200; j++) {
+          GenerateRandom(A);
+          processor()->CachedMod(R, A, B);
+
+          auto [done, top] = ModuloSmall(R_exp, A, B);
+          if (!done) {
+            processor()->ModuloLarge(R_exp, A, B);
+          }
+
+          AssertEquals(A, B, R_exp, R);
+          if (error_) return;
+          (*count)++;
+        }
+      }
+    }
+  }
+
 #if V8_ADVANCED_BIGINT_ALGORITHMS
   void TestBarrett_Internal(uint32_t left_size, uint32_t right_size) {
     ScratchDigits A(left_size);
@@ -459,7 +463,7 @@ class Runner {
     }
   }
 
-  void TestFromStringBaseTwo(int* count) {
+  void TestFromStringBase2(int* count) {
     constexpr uint32_t kMaxDigits = 1 << 20;  // Any large-enough value will do.
     constexpr uint32_t kMin = 1;
     constexpr uint32_t kMax = 100;
@@ -525,10 +529,10 @@ class Runner {
       } else if (strncmp(argv[i], "--runs=", 7) == 0) {
         if (!ParseInt(argv[i] + 7, &runs_)) return PrintHelp(argv);
       }
-#define TEST(kName, name)                \
+#define TEST(Name, name)                 \
   else if (strcmp(argv[i], name) == 0) { \
     op_ = kTest;                         \
-    test_ = kName;                       \
+    test_ = k##Name;                     \
   }
       TESTS(TEST)
 #undef TEST

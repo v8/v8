@@ -49,16 +49,6 @@ inline digit_t SubAndReturnBorrow(RWDigits Z, Digits X) {
   return borrow;
 }
 
-// X -= y.
-inline void Subtract(RWDigits X, digit_t y) {
-  digit_t borrow = y;
-  uint32_t i = 0;
-  do {
-    X[i] = digit_sub(X[i], borrow, &borrow);
-    i++;
-  } while (borrow != 0);
-}
-
 inline bool IsBitNormalized(Digits X) {
   return (X.msd() >> (kDigitBits - 1)) == 1;
 }

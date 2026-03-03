@@ -1441,6 +1441,10 @@ void Heap::CreateInitialMutableObjects() {
       *SmiStringCache::New(isolate(), SmiStringCache::kInitialSize));
   set_double_string_cache(
       *DoubleStringCache::New(isolate(), DoubleStringCache::kInitialSize));
+  // We only need pointer identity comparisons with valid BigInts, so any
+  // non-BigInt will do as initializer value.
+  set_cached_bigint_divisor(roots.undefined_value());
+  set_next_cached_bigint_divisor(roots.undefined_value());
 
   // Unchecked to skip failing checks since required roots are uninitialized.
   set_basic_block_profiling_data(roots.unchecked_empty_array_list());

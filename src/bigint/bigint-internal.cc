@@ -122,5 +122,44 @@ Status Processor::ModuloLarge(RWDigits& R, Digits& A, Digits& B) {
   return impl->get_and_clear_status();
 }
 
+void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
+  uint32_t n = B.len();
+  uint32_t inv_len = n + 1;
+  RWDigits& Inv = AllocateCachedInverse(inv_len);
+  // We can't use {GetSmallScratch()} here, because {DivideSchoolbook} already
+  // does that (usually). It's fine because we don't expect to call this
+  // function very often.
+  ScratchDigits A(n * 2);
+  // The idea is to set A = 1 << 2*n, and then compute Inv = A / B. However,
+  // having that lone "1" bit in A's top digit is inefficient and far-reaching:
+  // it requires us to make Inv bigger too. So we use a trick: first we
+  // set A = (1 << 2*n) - (B << n), which eliminates the top digit. Then
+  // after the division we undo the subtraction by adding back 1 << n.
+  // We also approximate the subtraction by using bit negation instead, which
+  // avoids the need for propagating borrows and is almost the same in two's
+  // complement: -x == ~x + 1. We model the +1 by setting the lower part of
+  // A to all 1-bits (effectively: -x ≈ ~x + 0.99999...).
+  uint32_t i = 0;
+  for (; i < n; i++) A[i] = ~digit_t{0};
+  for (; i < A.len(); i++) A[i] = ~B[i - n];
+  RWDigits R(nullptr, 0);
+  DivideSchoolbook(Inv, R, A, B);
+  Add((Inv + n), 1);
+
+  // If we add 1 here, we increase our chances of getting lucky in the
+  // corrective loop in {CachedDiv}. But don't do it when there's a risk
+  // of overflowing {inv}.
+  if (Inv[0] != ~digit_t{0} || Inv.msd() != ~digit_t{0}) Add(Inv, 1);
+
+  // {CachedMod} relies on the "small scratch" having been allocated, so
+  // make sure that has happened regardless of {DivideSchoolbook}'s internal
+  // decisions.
+  GetSmallScratch();
+}
+
+void Processor::CachedMod_MakeInverse(Digits& B) {
+  return static_cast<ProcessorImpl*>(this)->CachedMod_MakeInverse(B);
+}
+
 }  // namespace bigint
 }  // namespace v8

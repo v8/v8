@@ -394,6 +394,9 @@ class RootVisitor;
   /* Caches */                                                              \
   V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
   V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
+  /* undefined or BigInt. Caching divisors used for modulo divisions. */    \
+  V(Object, cached_bigint_divisor, CachedBigIntDivisor)                     \
+  V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)            \
   /* Lists and dictionaries */                                              \
   V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
   V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
