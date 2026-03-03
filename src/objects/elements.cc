@@ -1293,12 +1293,17 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
-      uint32_t insertion_index = 0) {
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t max_nof_indices,
+      uint32_t* nof_indices, uint32_t insertion_index = 0) {
     size_t length = Subclass::GetMaxIndex(*object, *backing_store);
     for (size_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
                                    filter)) {
+        if (insertion_index >= max_nof_indices) {
+          // This might happen when the object is a TypedArray which was grown
+          // by a background thread.
+          break;
+        }
         if (convert == GetKeysConversion::kConvertToString) {
           // Avoid trashing the number to string cache with numbers that
           // are not likely to be needed.
@@ -1315,6 +1320,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       }
     }
     *nof_indices = insertion_index;
+    CHECK_LE(*nof_indices, max_nof_indices);
     return list;
   }
 
@@ -1331,14 +1337,15 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       DirectHandle<FixedArrayBase> backing_store, DirectHandle<FixedArray> keys,
       GetKeysConversion convert, PropertyFilter filter) {
     uint32_t nof_property_keys = keys->length();
-    size_t initial_list_length =
+    size_t nof_elements_szt =
         Subclass::GetMaxNumberOfEntries(isolate, *object, *backing_store);
 
-    if (initial_list_length > FixedArray::kMaxLength - nof_property_keys) {
+    if (nof_elements_szt > FixedArray::kMaxLength - nof_property_keys) {
       THROW_NEW_ERROR(isolate,
                       NewRangeError(MessageTemplate::kInvalidArrayLength));
     }
-    initial_list_length += nof_property_keys;
+    uint32_t nof_elements = static_cast<uint32_t>(nof_elements_szt);
+    uint32_t initial_list_length = nof_elements + nof_property_keys;
 
     // Collect the element indices into a new list.
     DCHECK_LE(initial_list_length, std::numeric_limits<int>::max());
@@ -1355,9 +1362,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // large-object space which doesn't free memory on shrinking the list.
         // Hence we try to estimate the final size for holey backing stores more
         // precisely here.
-        initial_list_length =
-            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store);
-        initial_list_length += nof_property_keys;
+        nof_elements = static_cast<uint32_t>(
+            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store));
+        initial_list_length = nof_elements + nof_property_keys;
       }
       DCHECK_LE(initial_list_length, std::numeric_limits<int>::max());
       combined_keys = isolate->factory()->NewFixedArray(
@@ -1370,7 +1377,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     combined_keys = Subclass::DirectCollectElementIndicesImpl(
         isolate, object, backing_store,
         needs_sorting ? GetKeysConversion::kKeepNumbers : convert, filter,
-        combined_keys, &nof_indices);
+        combined_keys, nof_elements, &nof_indices);
 
     if (needs_sorting) {
       SortIndices(isolate, combined_keys, nof_indices);
@@ -1828,8 +1835,8 @@ class DictionaryElementsAccessor
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
-      uint32_t insertion_index = 0) {
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t max_nof_indices,
+      uint32_t* nof_indices, uint32_t insertion_index = 0) {
     if (filter & SKIP_STRINGS) return list;
 
     auto dictionary = Cast<NumberDictionary>(backing_store);
@@ -1841,6 +1848,7 @@ class DictionaryElementsAccessor
       insertion_index++;
     }
     *nof_indices = insertion_index;
+    CHECK_LE(*nof_indices, max_nof_indices);
     return list;
   }
 
@@ -5068,12 +5076,13 @@ class SloppyArgumentsElementsAccessor
       DirectHandle<JSObject> object, DirectHandle<FixedArrayBase> backing_store,
       KeyAccumulator* keys) {
     Isolate* isolate = keys->isolate();
+    uint32_t max_nof_indices = GetCapacityImpl(*object, *backing_store);
     uint32_t nof_indices = 0;
-    Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
-        GetCapacityImpl(*object, *backing_store));
-    DirectCollectElementIndicesImpl(isolate, object, backing_store,
-                                    GetKeysConversion::kKeepNumbers,
-                                    ENUMERABLE_STRINGS, indices, &nof_indices);
+    Handle<FixedArray> indices =
+        isolate->factory()->NewFixedArray(max_nof_indices);
+    DirectCollectElementIndicesImpl(
+        isolate, object, backing_store, GetKeysConversion::kKeepNumbers,
+        ENUMERABLE_STRINGS, indices, max_nof_indices, &nof_indices);
     SortIndices(isolate, indices, nof_indices);
     for (uint32_t i = 0; i < nof_indices; i++) {
       RETURN_FAILURE_IF_NOT_SUCCESSFUL(keys->AddKey(indices->get(i)));
@@ -5084,8 +5093,8 @@ class SloppyArgumentsElementsAccessor
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
       Isolate* isolate, DirectHandle<JSObject> object,
       DirectHandle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
-      uint32_t insertion_index = 0) {
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t max_nof_indices,
+      uint32_t* nof_indices, uint32_t insertion_index = 0) {
     auto elements = Cast<SloppyArgumentsElements>(backing_store);
     uint32_t length = elements->length();
 
@@ -5104,8 +5113,8 @@ class SloppyArgumentsElementsAccessor
 
     DirectHandle<FixedArray> store(elements->arguments(), isolate);
     return ArgumentsAccessor::DirectCollectElementIndicesImpl(
-        isolate, object, store, convert, filter, list, nof_indices,
-        insertion_index);
+        isolate, object, store, convert, filter, list, max_nof_indices,
+        nof_indices, insertion_index);
   }
 
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
