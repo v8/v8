@@ -388,9 +388,9 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
 void BytecodeExpectationsPrinter::PrintConstantPool(
     std::ostream* stream, i::Tagged<i::TrustedFixedArray> constant_pool) const {
   *stream << "constant pool: [\n";
-  int num_constants = constant_pool->length();
+  const uint32_t num_constants = constant_pool->length().value();
   if (num_constants > 0) {
-    for (int i = 0; i < num_constants; ++i) {
+    for (uint32_t i = 0; i < num_constants; ++i) {
       *stream << kIndent;
       PrintConstant(stream, direct_handle(constant_pool->get(i), i_isolate()));
       *stream << ",\n";

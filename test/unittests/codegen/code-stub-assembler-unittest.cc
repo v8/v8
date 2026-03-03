@@ -149,8 +149,10 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
       ArrayList::ToFixedArray(i_isolate(), array1);
   compiler::FunctionTester ft(i_isolate(), allocate_arraylist_in_csa, 0);
   DirectHandle<FixedArray> elements2 = ft.CallChecked<FixedArray>();
-  EXPECT_EQ(elements1->length(), elements2->length());
-  for (int i = 0; i < elements1->length(); i++) {
+  const uint32_t elements1_len = elements1->length().value();
+  const uint32_t elements2_len = elements2->length().value();
+  EXPECT_EQ(elements1_len, elements2_len);
+  for (uint32_t i = 0; i < elements1_len; i++) {
     EXPECT_EQ(elements1->get(i), elements2->get(i));
   }
 }

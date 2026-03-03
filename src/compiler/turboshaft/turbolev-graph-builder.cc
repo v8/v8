@@ -2648,7 +2648,7 @@ class GraphBuildingNodeProcessor {
     int handler = node->handler_value();
     int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
 
-    int length = node->homomorphic_array().length();
+    uint32_t length = node->homomorphic_array().length().value();
     V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map.Get());
     V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
         __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),

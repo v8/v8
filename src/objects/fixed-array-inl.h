@@ -54,25 +54,25 @@ SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity(
 
 template <class S>
 void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value) {
-  capacity_.store(this, Smi::FromInt(value));
+  capacity_.store(this, Smi::FromUInt(value));
 }
 
 template <class S>
 void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value,
                                                      ReleaseStoreTag tag) {
-  capacity_.Release_Store(this, Smi::FromInt(value));
+  capacity_.Release_Store(this, Smi::FromUInt(value));
 }
 
 template <class S>
-int detail::ArrayHeaderBase<S, true>::length() const {
+SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length() const {
   int len = length_.load().value();
   DCHECK_GE(len, 0);
-  return len;
+  return SafeHeapObjectSize(static_cast<uint32_t>(len));
 }
 
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::ulength() const {
-  return SafeHeapObjectSize(static_cast<uint32_t>(length()));
+  return length();
 }
 
 template <class S>
@@ -971,8 +971,9 @@ void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
 
 template <typename T, typename Base>
 int FixedIntegerArrayBase<T, Base>::length() const {
-  DCHECK_EQ(Base::length() % sizeof(T), 0);
-  return Base::length() / sizeof(T);
+  uint32_t len = Base::length().value();
+  DCHECK_EQ(len % sizeof(T), 0);
+  return static_cast<int>(len / sizeof(T));
 }
 
 template <typename Base>
@@ -992,7 +993,7 @@ void FixedAddressArrayBase<Base>::set_sandboxed_pointer(int index,
 
 template <class T, class Super>
 int PodArrayBase<T, Super>::length() const {
-  return Super::length() / sizeof(T);
+  return static_cast<int>(Super::length().value() / sizeof(T));
 }
 
 // static

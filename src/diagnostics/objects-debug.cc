@@ -954,7 +954,8 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
 void WeakHomomorphicFixedArray::WeakHomomorphicFixedArrayVerify(
     Isolate* isolate) {
   CHECK(IsSmi(length_.load()));
-  for (int i = 0; i < length(); i++) {
+  uint32_t len = ulength().value();
+  for (uint32_t i = 0; i < len; ++i) {
     Object::VerifyMaybeObjectPointer(isolate, get(i));
   }
 }
