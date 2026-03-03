@@ -383,47 +383,22 @@ end
 python
 import gdb
 import re
+import sys
+import os
 from gdb.FrameDecorator import FrameDecorator
 
-NAMESPACE_RE = re.compile(r'v8::internal::compiler::turboshaft::')
+# Add V8 tools directory to sys.path so we can import turboshaft_type_formatter.
+# We assume gdb is run from the V8 root directory, or 'tools' is accessible.
+_tools_dir = os.path.abspath('tools')
+if _tools_dir not in sys.path:
+    sys.path.insert(0, _tools_dir)
 
-def starts_with_pattern(text):
-  # (regex, bracket-depth, need-rerun)
-  patterns = [
-    (r"^[a-zA-Z_][a-zA-Z0-9_]*Reducer<\[\.\.\.\]>::ReduceInputGraphOperation<[a-z_A-Z0-9]+, [^<]+<", 1, False),
-    (r"^[a-zA-Z_][a-zA-Z0-9_]*Reducer<", 1, True),
-    (r"^UniformReducerAdapter<\[\.\.\.\]>::ReduceInputGraphOperation<[a-z_A-Z0-9]+, UniformReducerAdapter<", 1, False),
-    (r"^UniformReducerAdapter<\[\.\.\.\]>::ReduceOperation<\(Opcode\)\d+, UniformReducerAdapter<", 1, False),
-    (r"^UniformReducerAdapter<", 1, True),
-    (r"^OutputGraphAssembler<", 1, False),
-    (r"^[a-z_A-Z0-9]+Op::Explode<\[\.\.\.\]>\(OutputGraphAssembler<\[\.\.\.\]>::.*, OutputGraphAssembler<", 1, True),
-    (r"^[a-z_A-Z0-9]+Op::Explode<\[\.\.\.\]>\(OutputGraphAssembler<", 1, True),
-    (r"^[a-z_A-Z0-9]+Op::Explode<", 1, True),
-    (r"^GraphEmitter<", 1, False),
-    (r"^GraphVisitor<", 1, False),
-  ]
-
-  for p in patterns:
-      match = re.match(p[0], text)
-      if match:
-          return match.group(0), p[1], p[2]
-  return None
-
-def skip_template_args(text, prefix, depth):
-    if not text.startswith(prefix):
-        return text
-    if not prefix.endswith("<"):
-        return text
-
-    start_bracket = len(prefix)
-    for i in range(start_bracket, len(text)):
-        if text[i] == '<':
-            depth += 1
-        elif text[i] == '>':
-            depth -= 1
-            if depth == 0:
-                return text[:start_bracket] + "[...]" + text[i:]
-    return text
+try:
+    from turboshaft_type_formatter import TurboshaftTypeFormatter
+    _turboshaft_formatter = TurboshaftTypeFormatter()
+except ImportError:
+    _turboshaft_formatter = None
+    print("Warning: Could not import turboshaft_type_formatter. Turboshaft frame filtering may be degraded.")
 
 class TurboshaftFrameDecorator(FrameDecorator):
     def __init__(self, f_obj):
@@ -435,24 +410,10 @@ class TurboshaftFrameDecorator(FrameDecorator):
         if not name:
             return None
 
-        # Strip all namespaces (e.g., 'v8::internal::compiler::turboshaft::GraphEmitter' -> 'GraphEmitter')
-        short_name = NAMESPACE_RE.sub('', name)
+        if _turboshaft_formatter:
+            return _turboshaft_formatter.format_type(name)
 
-        # Simplify known Reducer, Visitor, Assembler, etc patterns.
-        last_pattern = None
-        while True:
-            pattern = starts_with_pattern(short_name)
-            if not pattern:
-                break
-            if pattern == last_pattern:
-                break
-            prefix, depth, rerun = pattern
-            short_name = skip_template_args(short_name, prefix, depth)
-            if not rerun:
-                break
-            last_pattern = pattern
-
-        return short_name
+        return name
 
 class TurboshaftBacktrace():
     def __init__(self):
