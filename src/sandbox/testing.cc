@@ -941,8 +941,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      size_t padding = 1 * MB;
-      if (faultaddr < 4ULL * GB + padding) {
+      if (faultaddr <
+          (Sandbox::kSmiAddressRange + Sandbox::kSmiAddressRangePadding)) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
         // We need to add some "padding" to the 4GB since we might access a

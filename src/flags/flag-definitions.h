@@ -3547,6 +3547,9 @@ DEFINE_BOOL_READONLY(expose_memory_corruption_api, false,
                      "--sandbox-testing and --sandbox-fuzzing.")
 #endif
 
+DEFINE_EXPERIMENTAL_FEATURE(sandbox_prohibit_insecure_mode,
+                            "Prohibits an insecure sandbox setup.")
+
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on
 // shared mem: https://www.ibm.com/docs/en/aix/7.2?topic=m-mprotect-subroutine
