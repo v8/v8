@@ -535,6 +535,7 @@ void FFTContainer::Start(Digits X, uint32_t chunk_size, int theta, int omega) {
   const size_t part_length_in_bytes = length_ * sizeof(digit_t);
   uint32_t nhalf = n_ / 2;
   // Unrolled first iteration.
+  chunk_size = std::min(chunk_size, len);
   CopyAndZeroExtend(part_[0], pointer, chunk_size, part_length_in_bytes);
   CopyAndZeroExtend(part_[nhalf], pointer, chunk_size, part_length_in_bytes);
   pointer += chunk_size;
@@ -768,6 +769,9 @@ void FFTContainer::PointwiseMultiply(const FFTContainer& other) {
 
 // TODO(jkummerow): Consider implementing the "sqrt(2) trick".
 // Gaudry/Kruppa/Zimmerman report that it saved them around 10%.
+
+// TODO(jkummerow): When X is much longer than Y (e.g. 1000x as many digits),
+// it would be quite beneficial to operate in chunks (like Toom3 does).
 
 void ProcessorImpl::MultiplyFFT(RWDigits Z, Digits X, Digits Y) {
   Parameters params;
