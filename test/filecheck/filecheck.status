@@ -33,4 +33,17 @@
   'wasm/crash/failed-type-assertion': [SKIP],
   'wasm/crash/regress-481074858': [SKIP],
 }], # official_build
+
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
+  # Maglev doesn't support inlining of Wasm code.
+  'wasm-in-js-inlining-turboshaft': [FAIL],
+}],
+
+# There are two sources of output differences between 32 and 64 bit platforms:
+# First, on 32 bit platforms we can't inline JS-to-Wasm wrappers with i64 args,
+# and second, the wrapper inlining tests also enable Wasm-into-JS body inlining,
+# which is not supported on 32 bit platforms.
+['arch in (ia32, arm, riscv32)', {
+  'wasm-in-js-inlining-turboshaft': [SKIP],
+}],
 ]

@@ -51,11 +51,21 @@ function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionSrc
 // succeed:
 // =============================================================================
 
+// CHECK: Considering wasm function [{{[0-9]+}}] empty of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('empty', kSig_v_v, [], []);
+// CHECK: Considering wasm function [{{[0-9]+}}] nop of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('nop', kSig_v_v, [], [kExprNop]);
 
+// CHECK: Considering wasm function [{{[0-9]+}}] i32Const of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('i32Const', kSig_i_v, [], [...wasmI32Const(42)]);
+// CHECK: Considering wasm function [{{[0-9]+}}] f32Const of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('f32Const', kSig_f_v, [], [...wasmF32Const(42.0)]);
+// CHECK: Considering wasm function [{{[0-9]+}}] f64Const of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('f64Const', kSig_d_v, [], [...wasmF64Const(42.0)]);
 
 function addUnaryTestcase(op, wasmSignature, wasmArgument) {
@@ -64,28 +74,68 @@ function addUnaryTestcase(op, wasmSignature, wasmArgument) {
     eval('kExpr' + op)
   ]);
 }
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Eqz of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('I32Eqz', kSig_i_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Abs of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32Abs', kSig_f_f, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Neg of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32Neg', kSig_f_f, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Sqrt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32Sqrt', kSig_f_f, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Abs of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64Abs', kSig_d_d, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Neg of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64Neg', kSig_d_d, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Sqrt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64Sqrt', kSig_d_d, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64SConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64SConvertI32', kSig_d_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64UConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64UConvertI32', kSig_d_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32SConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32SConvertI32', kSig_f_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32UConvertI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32UConvertI32', kSig_f_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32ConvertF64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32ConvertF64', kSig_f_d, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64ConvertF32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F64ConvertF32', kSig_d_f, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32ReinterpretI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('F32ReinterpretI32', kSig_f_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32ReinterpretF32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('I32ReinterpretF32', kSig_i_f, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Clz of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('I32Clz', kSig_i_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32SExtendI8 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('I32SExtendI8', kSig_i_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32SExtendI16 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('I32SExtendI16', kSig_i_i, 0);
+// CHECK: Considering wasm function [{{[0-9]+}}] RefIsNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addUnaryTestcase('RefIsNull', kSig_i_r, null);
 // We cannot pass Wasm any refs across the JS-Wasm boundary, hence convert to
 // any and back in one test.
 // TODO(dlehmann): Update output once arm64 no-ptr-compression calls are fixed.
+// CHECK: Considering wasm function [{{[0-9]+}}] anyConvertExternConvertAny of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: any.convert_extern
 addTestcase('anyConvertExternConvertAny', kSig_r_r, [{}], [
   kExprLocalGet, 0,
   kGCPrefix, kExprAnyConvertExtern,
@@ -99,55 +149,149 @@ function addBinaryTestcase(op, wasmSignature, wasmArgument0, wasmArgument1) {
     eval('kExpr' + op)
   ]);
 }
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Add of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Add', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Sub of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Sub', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Mul of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Mul', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32And of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32And', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Ior of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Ior', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Xor of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Xor', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Shl of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Shl', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32ShrS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32ShrS', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32ShrU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32ShrU', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Ror of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Ror', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Rol of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Rol', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Eq of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Eq', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32Ne of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32Ne', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32LtS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32LtS', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32LeS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32LeS', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32LtU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32LtU', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32LeU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32LeU', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32GtS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32GtS', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32GeS of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32GeS', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32GtU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32GtU', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] I32GeU of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('I32GeU', kSig_i_ii, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32CopySign of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32CopySign', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Add of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Add', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Sub of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Sub', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Mul of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Mul', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Div of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Div', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Eq of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Eq', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Ne of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Ne', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Lt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Lt', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Le of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Le', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Gt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Gt', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Ge of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Ge', kSig_i_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Min of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Min', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F32Max of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F32Max', kSig_f_ff, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Add of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Add', kSig_d_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Sub of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Sub', kSig_d_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Mul of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Mul', kSig_d_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Div of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Div', kSig_d_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Eq of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Eq', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Ne of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Ne', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Lt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Lt', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Le of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Le', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Gt of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Gt', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Ge of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Ge', kSig_i_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Min of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Min', kSig_d_dd, 3, 7);
+// CHECK: Considering wasm function [{{[0-9]+}}] F64Max of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addBinaryTestcase('F64Max', kSig_d_dd, 3, 7);
 // This currently cannot be inlined when passing `eqref`s as an argument from JS
 // because the JS-to-Wasm wrapper inlining bails out in that case.
 // So go through through globals instead.
+// CHECK: Considering wasm function [{{[0-9]+}}] RefEq of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('RefEq', kSig_i_v, [], [
   kExprGlobalGet, globalEqRef.index,
   kExprGlobalGet, globalEqRef.index,
@@ -155,7 +299,11 @@ addTestcase('RefEq', kSig_i_v, [], [
 ])
 
 // Function arguments and locals.
+// CHECK: Considering wasm function [{{[0-9]+}}] passthroughI32 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('passthroughI32', kSig_i_i, [13], [kExprLocalGet, 0]);
+// CHECK: Considering wasm function [{{[0-9]+}}] localTee of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('localTee', kSig_i_i, [42], [
   kExprLocalGet, 0,
   ...wasmI32Const(7),
@@ -164,6 +312,8 @@ addTestcase('localTee', kSig_i_i, [42], [
   kExprLocalGet, 1,
   kExprI32Add,
 ]).addLocals(kWasmI32, 1);
+// CHECK: Considering wasm function [{{[0-9]+}}] localSwap of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('localSwap', kSig_i_i, [42], [
   ...wasmI32Const(3),
   kExprLocalSet, 2,  // Initialize local_2 = 3.
@@ -185,6 +335,8 @@ addTestcase('localSwap', kSig_i_i, [42], [
   kExprI32Sub,  // = (0 - p) - 3 = -10
 ]).addLocals(kWasmI32, 2);
 
+// CHECK: Considering wasm function [{{[0-9]+}}] globalSetGet of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
 addTestcase('globalSetGet', kSig_i_i, [42], [
   kExprLocalGet, 0,
   kExprGlobalSet, globalI32.index,
@@ -203,11 +355,15 @@ addTestcase('globalSetGet', kSig_i_i, [42], [
 // testcase soon to reach feature parity with the TurboFan Wasm-in-JS inlining,
 // but it's not there yet. `createArray` requires allocation, which might get
 // complicated with allocation folding, so that's not in the MVP yet.
+// CHECK: Considering wasm function [{{[0-9]+}}] createArray of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: array.new_default
 addTestcase('createArray', makeSig([kWasmI32], [kWasmExternRef]), [42], [
   kExprLocalGet, 0,
   kGCPrefix, kExprArrayNewDefault, array,
   kGCPrefix, kExprExternConvertAny,
 ]);
+// CHECK: Considering wasm function [{{[0-9]+}}] arrayLen of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: any.convert_extern
 addTestcase('arrayLen', makeSig([kWasmExternRef], [kWasmI32]), [null], [
   kExprLocalGet, 0,
   kGCPrefix, kExprAnyConvertExtern,
@@ -227,6 +383,8 @@ function js_arrayLen() {
 // `Int64LoweringReducer`, which isn't compatible with the JS pipeline yet.
 // Also, there is no wrapper inlining for i64 on 32-bit architectures right
 // now, so pass as i32 on the boundary.
+// CHECK: Considering wasm function [{{[0-9]+}}] i64Add of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: i64.extend_i32_s
 addTestcase(`i64Add`, kSig_i_ii, [13, 23], [
   kExprLocalGet, 0,
   kExprI64SConvertI32,
@@ -239,18 +397,25 @@ addTestcase(`i64Add`, kSig_i_ii, [13, 23], [
 // TODO(dlehmann,353475584): This would require supporting multi-value in
 // JS-to-Wasm wrapper inlining first. (Right now, we bailout already at this
 // first step.)
+// CHECK: Cannot consider {{.*}} {{{.*}} <FeedbackCell[many closures]>} for inlining (no feedback vector)
 addTestcase('multiValue', kSig_ii_v, [], [
   ...wasmI32Const(3),
   ...wasmI32Const(7),
 ]);
 
 // TODO(dlehmann,353475584): Support control-flow in the inlinee (much later).
+// CHECK: Considering wasm function [{{[0-9]+}}] brNoInline of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: br
 addTestcase('brNoInline', kSig_i_v, [], [
   ...wasmI32Const(42),
   // Need to use a `br`anch here, as `return` is actually optimized.
   kExprBr, 0,
 ]);
 
+// CHECK: Cannot consider {{.*}} {{{.*}} <FeedbackCell[many closures]>} for inlining (no feedback vector)
+// CHECK-NEXT: Inlinee contains {{[0-9]+}} calls without local exception handler; linking to surrounding exception handler.
+// CHECK-NEXT: Considering wasm function [{{[0-9]+}}] trapNoInline of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: unsupported operation: unreachable
 addTestcase('trapNoInline', kSig_v_v, [], [
   kExprUnreachable,
 ], `function js_trapNoInline() {
@@ -283,6 +448,7 @@ for (const [ name, { wasmArguments, jsFunctionSrc } ] of Object.entries(tests)) 
   %OptimizeFunctionOnNextCall(jsFunction);
   let resultOpt = jsFunction(...wasmArguments);
   assertOptimized(jsFunction);
+  print('Result:', prettyPrinted(resultOpt));
 
   assertEquals(resultUnopt, resultOpt);
 }

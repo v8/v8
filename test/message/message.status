@@ -150,7 +150,6 @@
 ['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
-  'wasm-in-js-inlining-turboshaft': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev_future, stress_turbolev_future)
 
 ##############################################################################
@@ -182,7 +181,6 @@
 # which is not supported on 32 bit platforms.
 ['arch != x64 and arch != arm64', {
   'js-wasm-wrapper-inlining-turbolev-64': [SKIP],
-  'wasm-in-js-inlining-turboshaft': [SKIP],
 }],
 ['(arch != ia32 and arch != arm)', {
   'js-wasm-wrapper-inlining-turbolev-32': [SKIP],
