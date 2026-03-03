@@ -1455,7 +1455,6 @@ void VisitStoreCommon(InstructionSelector* selector,
   const StoreRepresentation store_rep = store.stored_rep();
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
-  const bool is_atomic = store.is_atomic();
   const bool is_seqcst =
       atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
@@ -1511,10 +1510,10 @@ void VisitStoreCommon(InstructionSelector* selector,
       IndirectPointerTag tag = store.indirect_pointer_tag();
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
-      code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
+      code = is_seqcst ? kArchAtomicStoreSkippedWriteBarrier
                        : kArchStoreSkippedWriteBarrier;
     } else {
-      code = is_atomic ? kArchAtomicStoreWithWriteBarrier
+      code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
       const RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -1522,9 +1521,6 @@ void VisitStoreCommon(InstructionSelector* selector,
     }
     code |= AddressingModeField::encode(addressing_mode);
     code |= AccessModeField::encode(access_mode);
-    if (atomic_order.has_value()) {
-      code |= AtomicMemoryOrderField::encode(*atomic_order);
-    }
     selector->Emit(code, 0, nullptr, input_count, inputs, arraysize(temps),
                    temps);
   } else {

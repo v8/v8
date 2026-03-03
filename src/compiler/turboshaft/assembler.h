@@ -3062,25 +3062,13 @@ class AssemblerOpInterface : public Next {
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
-      uint8_t element_size_log2 = 0,
-      bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
-    DCHECK_EQ(kind.is_atomic, memory_order.has_value());
-    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
-                           memory_order, offset, element_size_log2,
-                           maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
-  }
-  void Store(
-      OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
-    Store(base, index, value, kind, stored_rep, write_barrier, std::nullopt,
-          offset, element_size_log2, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
+    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
+                           offset, element_size_log2,
+                           maybe_initializing_or_transitioning,
+                           maybe_indirect_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
@@ -3089,17 +3077,6 @@ class AssemblerOpInterface : public Next {
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           offset, 0, maybe_initializing_or_transitioning,
-          maybe_indirect_pointer_tag);
-  }
-  void Store(
-      OpIndex base, OpIndex value, StoreOp::Kind kind,
-      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
-      uint8_t element_size_log2 = 0,
-      bool maybe_initializing_or_transitioning = false,
-      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
-    Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
-          memory_order, offset, 0, maybe_initializing_or_transitioning,
           maybe_indirect_pointer_tag);
   }
 

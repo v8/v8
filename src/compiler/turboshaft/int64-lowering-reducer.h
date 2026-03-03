@@ -363,9 +363,8 @@ class Int64LoweringReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier,
-                        std::optional<AtomicMemoryOrder> memory_order,
-                        int32_t offset, uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
@@ -381,14 +380,11 @@ class Int64LoweringReducer : public Next {
         }
         // Manually subtract the pointer tag if present.
         offset -= kind.tagged_base;
-        // For now, we keep seqcst semantics for 8-byte stores on ia32.
-        // In future, if we want to improve performance on ia32, we will
-        // consider updating this part.
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       // low store
       Next::ReduceStore(base, index, low, kind, MemoryRepresentation::Int32(),
-                        write_barrier, memory_order, offset, element_size_log2,
+                        write_barrier, offset, element_size_log2,
                         maybe_initializing_or_transitioning,
                         maybe_indirect_pointer_tag);
       // high store
@@ -396,14 +392,14 @@ class Int64LoweringReducer : public Next {
           IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
       Next::ReduceStore(
           base, high_index, high, kind, MemoryRepresentation::Int32(),
-          write_barrier, memory_order, high_offset, element_size_log2,
+          write_barrier, high_offset, element_size_log2,
           maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
       return V<None>::Invalid();
     }
-    return Next::ReduceStore(
-        base, index, value, kind, stored_rep, write_barrier, memory_order,
-        offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_indirect_pointer_tag);
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

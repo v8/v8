@@ -1031,7 +1031,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStoreWithWriteBarrier:  // Fall thrugh.
     case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -1047,12 +1046,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, operand, value, scratch, mode, DetermineStubCallMode());
-      if (arch_opcode == kArchStoreWithWriteBarrier ||
-          order == AtomicMemoryOrder::kAcqRel) {
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
         __ mov(operand, value);
       } else {
-        DCHECK_EQ(arch_opcode, kArchAtomicStoreWithWriteBarrier);
-        DCHECK_EQ(order, AtomicMemoryOrder::kSeqCst);
         __ mov(scratch, value);
         __ xchg(scratch, operand);
       }
@@ -1072,7 +1068,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
       Register scratch = i.TempRegister(0);
-      AtomicMemoryOrder order = AtomicMemoryOrderField::decode(instr->opcode());
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
@@ -1087,12 +1082,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
-      if (arch_opcode == kArchStoreSkippedWriteBarrier ||
-          order == AtomicMemoryOrder::kAcqRel) {
+      if (arch_opcode == kArchStoreSkippedWriteBarrier) {
         __ mov(operand, value);
       } else {
         DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
-        DCHECK_EQ(order, AtomicMemoryOrder::kSeqCst);
         __ mov(scratch, value);
         __ xchg(scratch, operand);
       }

@@ -901,7 +901,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->stored_rep;
     }
     std::optional<AtomicMemoryOrder> memory_order() const {
-      return op_->memory_order();
+      // TODO(nicohartmann@): Currently we don't support memory orders.
+      if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
+      return std::nullopt;
     }
     MemoryAccessKind access_kind() const {
       return op_->kind.with_trap_handler

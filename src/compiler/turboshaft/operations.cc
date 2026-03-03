@@ -737,7 +737,6 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (kind.with_trap_handler) os << ", protected";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
-  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
