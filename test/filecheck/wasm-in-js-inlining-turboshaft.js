@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --turbolev --turbolev-inline-js-wasm-wrappers
 // Flags: --turboshaft-wasm-in-js-inlining
 // Flags: --allow-natives-syntax
-// Flags: --turbofan --no-always-sparkplug
+// Flags: --no-always-sparkplug
 // Only tier-up the test functions to get a cleaner and stable trace.
 // Flags: --trace-turbo-inlining --turbo-filter='js_*'
 // Concurrent inlining leads to additional traces.
@@ -397,7 +398,9 @@ addTestcase(`i64Add`, kSig_i_ii, [13, 23], [
 // TODO(dlehmann,353475584): This would require supporting multi-value in
 // JS-to-Wasm wrapper inlining first. (Right now, we bailout already at this
 // first step.)
-// CHECK: Cannot consider {{.*}} {{{.*}} <FeedbackCell[many closures]>} for inlining (no feedback vector)
+// CHECK: Test: multiValue
+// CHECK-NOT: - inlining
+// CHECK: Result:
 addTestcase('multiValue', kSig_ii_v, [], [
   ...wasmI32Const(3),
   ...wasmI32Const(7),
@@ -412,9 +415,7 @@ addTestcase('brNoInline', kSig_i_v, [], [
   kExprBr, 0,
 ]);
 
-// CHECK: Cannot consider {{.*}} {{{.*}} <FeedbackCell[many closures]>} for inlining (no feedback vector)
-// CHECK-NEXT: Inlinee contains {{[0-9]+}} calls without local exception handler; linking to surrounding exception handler.
-// CHECK-NEXT: Considering wasm function [{{[0-9]+}}] trapNoInline of module {{.*}} for inlining
+// CHECK: Considering wasm function [{{[0-9]+}}] trapNoInline of module {{.*}} for inlining
 // CHECK-NEXT: - not inlining: unsupported operation: unreachable
 addTestcase('trapNoInline', kSig_v_v, [], [
   kExprUnreachable,

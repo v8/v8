@@ -34,7 +34,7 @@
   'wasm/crash/regress-481074858': [SKIP],
 }], # official_build
 
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-in-js-inlining-turboshaft': [FAIL],
 }],
