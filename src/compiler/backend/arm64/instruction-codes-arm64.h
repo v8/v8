@@ -179,6 +179,7 @@ namespace compiler {
   V(Arm64Saddlp)                        \
   V(Arm64Bcax)                          \
   V(Arm64Eor3)                          \
+  V(Arm64Xar)                           \
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \

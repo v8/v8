@@ -6759,6 +6759,12 @@ void Simulator::VisitNEONSHA3(Instruction* instr) {
       eor(vf, temp, rm, ra);
       eor(vf, rd, rn, temp);
       break;
+    case NEON_XAR: {
+      int rot = instr->Bits(15, 10);
+      eor(kFormat2D, temp, rn, rm);
+      ror(kFormat2D, rd, temp, rot);
+      break;
+    }
     default:
       UNIMPLEMENTED();
   }

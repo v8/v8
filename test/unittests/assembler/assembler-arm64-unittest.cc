@@ -16066,9 +16066,11 @@ TEST_F(AssemblerArm64Test, neon_sha3) {
 
   __ Movi(v10.V16B(), 0);
   __ Movi(v11.V16B(), 0);
+  __ Movi(v12.V16B(), 0);
 
   __ Bcax(v10.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
   __ Eor3(v11.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+  __ Xar(v12.V2D(), v2.V2D(), v0.V2D(), 16);
 
   END();
 
@@ -16077,6 +16079,7 @@ TEST_F(AssemblerArm64Test, neon_sha3) {
 
     CHECK_EQUAL_128(0xaacc998822440000, 0xaacc998822440000, v10);
     CHECK_EQUAL_128(0xaacc9988aacc9988, 0xaacc9988aacc9988, v11);
+    CHECK_EQUAL_128(0xffeeccaaffeeccaa, 0xffeeccaaffeeccaa, v12);
   }
 }
 

@@ -4741,6 +4741,9 @@ TEST_F(DisasmArm64Test, neon_sha3) {
           "bcax v0.16b, v1.16b, v2.16b, v3.16b");
   COMPARE(Eor3(v10.V16B(), v11.V16B(), v12.V16B(), v13.V16B()),
           "eor3 v10.16b, v11.16b, v12.16b, v13.16b");
+  COMPARE(Xar(v2.V2D(), v4.V2D(), v6.V2D(), 1), "xar v2.2d, v4.2d, v6.2d, #1");
+  COMPARE(Xar(v3.V2D(), v21.V2D(), v24.V2D(), 63),
+          "xar v3.2d, v21.2d, v24.2d, #63");
 
   CLEANUP();
 }

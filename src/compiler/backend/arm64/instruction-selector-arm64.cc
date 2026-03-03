@@ -5109,12 +5109,59 @@ bool TryEmitS128OrNot(InstructionSelector* selector, OpIndex node) {
   return false;
 }
 
+bool TryEmitS128Xar(InstructionSelector* selector, OpIndex node) {
+  if (!CpuFeatures::IsSupported(SHA3)) {
+    return false;
+  }
+  // Search for the pattern:
+  // x = xor (a, b)
+  // or (shl (x, c0), ushr(x, c1))
+  // Where c0 + c1 == 64, and so results in the or performing a rotation.
+
+  const Simd128BinopOp& or_op = selector->Get(node).Cast<Simd128BinopOp>();
+  const Simd128ShiftOp* shl_op =
+      selector->TryCast<Opmask::kSimd128I64x2Shl>(or_op.left());
+  const Simd128ShiftOp* shru_op =
+      selector->TryCast<Opmask::kSimd128I64x2ShrU>(or_op.right());
+  if (!shl_op && !shru_op) {
+    shl_op = selector->TryCast<Opmask::kSimd128I64x2Shl>(or_op.right());
+    shru_op = selector->TryCast<Opmask::kSimd128I64x2ShrU>(or_op.left());
+  }
+  if (!shru_op || !shl_op) {
+    return false;
+  }
+
+  uint32_t shl_const = 0;
+  uint32_t shru_const = 0;
+  if (!selector->MatchIntegralWord32Constant(shl_op->shift(), &shl_const) ||
+      !selector->MatchIntegralWord32Constant(shru_op->shift(), &shru_const)) {
+    return false;
+  }
+  // Ensure the constants create a 64-bit rotate.
+  if (shl_const + shru_const != 64 || shl_op->input() != shru_op->input()) {
+    return false;
+  }
+  if (const Simd128BinopOp* xor_op =
+          selector->TryCast<Opmask::kSimd128Xor>(shl_op->input())) {
+    Arm64OperandGenerator g(selector);
+    selector->Emit(kArm64Xar, g.DefineAsRegister(node),
+                   g.UseRegister(xor_op->left()),
+                   g.UseRegister(xor_op->right()), g.UseImmediate(shru_const));
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void InstructionSelector::VisitS128Or(OpIndex node) {
-  if (!TryEmitS128OrNot(this, node)) {
-    VisitRRR(this, kArm64S128Or, node);
+  if (TryEmitS128OrNot(this, node)) {
+    return;
   }
+  if (TryEmitS128Xar(this, node)) {
+    return;
+  }
+  VisitRRR(this, kArm64S128Or, node);
 }
 
 void InstructionSelector::VisitS128Zero(OpIndex node) {

@@ -2767,6 +2767,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
             const VRegister& va);
 
+  // 64-bit exclusive-OR and rotate.
+  void xar(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           unsigned imm);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.

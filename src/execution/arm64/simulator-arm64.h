@@ -1817,6 +1817,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
                         const LogicVRegister& src);
   LogicVRegister uadalp(VectorFormat vform, LogicVRegister dst,
                         const LogicVRegister& src);
+  LogicVRegister ror(VectorFormat vform, LogicVRegister dst,
+                     const LogicVRegister& src, int rotation);
   LogicVRegister ext(VectorFormat vform, LogicVRegister dst,
                      const LogicVRegister& src1, const LogicVRegister& src2,
                      int index);

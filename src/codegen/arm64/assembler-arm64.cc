@@ -3545,6 +3545,14 @@ void Assembler::eor3(const VRegister& vd, const VRegister& vn,
   Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
 }
 
+void Assembler::xar(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm, unsigned imm) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is2D() && vn.Is2D() && vm.Is2D());
+  DCHECK_EQ(imm & 0x3F, imm);
+  Emit(NEON_XAR | Rd(vd) | Rn(vn) | Rm(vm) | imm << 10);
+}
+
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));
   Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));

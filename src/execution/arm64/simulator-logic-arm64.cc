@@ -80,6 +80,18 @@ inline float16 FPRoundToFloat16(int64_t sign, int64_t exponent,
       sign, exponent, mantissa, round_mode);
 }
 
+inline uint64_t RotateRight(uint64_t value, uint32_t rotate, uint32_t width) {
+  DCHECK((width > 0) && (width <= 64));
+  DCHECK_LE(rotate, width);
+  uint64_t width_mask = ~uint64_t{0} >> (64 - width);
+  rotate &= 63;
+  if (rotate > 0) {
+    value &= width_mask;
+    value = (value << (width - rotate)) | (value >> rotate);
+  }
+  return value & width_mask;
+}
+
 }  // namespace
 
 double Simulator::FixedToDouble(int64_t src, int fbits, FPRounding round) {
@@ -2038,6 +2050,17 @@ LogicVRegister Simulator::sadalp(VectorFormat vform, LogicVRegister dst,
 LogicVRegister Simulator::uadalp(VectorFormat vform, LogicVRegister dst,
                                  const LogicVRegister& src) {
   return addlp(vform, dst, src, false, true);
+}
+
+LogicVRegister Simulator::ror(VectorFormat vform, LogicVRegister dst,
+                              const LogicVRegister& src, int rotation) {
+  dst.ClearForWrite(vform);
+  int width = LaneSizeInBitsFromFormat(vform);
+  for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+    uint64_t value = src.Uint(vform, i);
+    dst.SetUint(vform, i, RotateRight(value, rotation, width));
+  }
+  return dst;
 }
 
 LogicVRegister Simulator::ext(VectorFormat vform, LogicVRegister dst,

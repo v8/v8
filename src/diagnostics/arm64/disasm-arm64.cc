@@ -3082,6 +3082,10 @@ void DisassemblingDecoder::VisitNEONSHA3(Instruction* instr) {
     case NEON_EOR3:
       mnemonic = "eor3";
       break;
+    case NEON_XAR:
+      mnemonic = "xar";
+      form = "'Vd.2d, 'Vn.2d, 'Vm.2d, #'u1510";
+      break;
     default:
       form = "(NEONSHA3)";
   }
@@ -3933,6 +3937,8 @@ int DisassemblingDecoder::SubstituteField(Instruction* instr,
       return SubstituteLSRegOffsetField(instr, format);
     case 'M':
       return SubstituteBarrierField(instr, format);
+    case 'u':
+      return SubstituteIntField(instr, format);
     default:
       UNREACHABLE();
   }
@@ -4544,6 +4550,32 @@ int DisassemblingDecoder::SubstituteBarrierField(Instruction* instr,
 
   AppendToOutput("%s", options[domain][type]);
   return 1;
+}
+
+int DisassemblingDecoder::SubstituteIntField(const Instruction* instr,
+                                             const char* format) {
+  // A generic unsigned int field uses a placeholder of the form
+  // 'uAABB respectively where AA and BB are two digit bit positions between
+  // 00 and 31, and AA >= BB. The placeholder is substituted with the
+  // decimal integer represented by the bits in the instruction between
+  // positions AA and BB inclusive.
+  int32_t bits = 0;
+  const char* c = format;
+  DCHECK_EQ(*c, 'u');
+  c++;  // Skip the 'u'
+  DCHECK_EQ(strspn(c, "0123456789"), 4);
+  int msb = ((c[0] - '0') * 10) + (c[1] - '0');
+  int lsb = ((c[2] - '0') * 10) + (c[3] - '0');
+  DCHECK_GE(msb, lsb);
+  DCHECK_LE(msb, 32);
+  c += 4;
+  int chunk_width = msb - lsb + 1;
+  DCHECK((chunk_width > 0) && (chunk_width < 32));
+  bits = (bits << chunk_width) | (instr->Bits(msb, lsb));
+
+  AppendToOutput("%d", bits);
+
+  return static_cast<int>(c - format);
 }
 
 void DisassemblingDecoder::ResetOutput() {

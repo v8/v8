@@ -318,6 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64ISubSatU:
     case kArm64Bcax:
     case kArm64Eor3:
+    case kArm64Xar:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:

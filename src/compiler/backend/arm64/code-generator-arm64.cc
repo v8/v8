@@ -1645,6 +1645,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           i.InputSimd128Register(1).V16B(), i.InputSimd128Register(2).V16B());
       break;
     }
+    case kArm64Xar: {
+      DCHECK(CpuFeatures::IsSupported(SHA3));
+      CpuFeatureScope scope(masm(), SHA3);
+      __ Xar(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+             i.InputSimd128Register(1).V2D(), i.InputInt6(2));
+      break;
+    }
     case kArm64Sadalp: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));

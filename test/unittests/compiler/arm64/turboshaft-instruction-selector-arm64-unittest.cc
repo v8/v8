@@ -5374,6 +5374,62 @@ TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
   }
+  {
+    StreamBuilder m(this, type, type, type);
+    OpIndex x = m.S128Xor(m.Parameter(0), m.Parameter(1));
+    m.Return(m.S128Or(m.I64x2Shl(x, m.Int32Constant(32)),
+                      m.I64x2ShrU(x, m.Int32Constant(32))));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Xar, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToInt32(s[0]->InputAt(2)), 32);
+    } else {
+      ASSERT_EQ(4U, s.size());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type);
+    OpIndex x = m.S128Xor(m.Parameter(0), m.Parameter(1));
+    m.Return(m.S128Or(m.I64x2ShrU(x, m.Int32Constant(24)),
+                      m.I64x2Shl(x, m.Int32Constant(40))));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Xar, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToInt32(s[0]->InputAt(2)), 24);
+    } else {
+      ASSERT_EQ(4U, s.size());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type);
+    OpIndex x = m.S128Xor(m.Parameter(0), m.Parameter(1));
+    m.Return(m.S128Or(m.I64x2Shl(x, m.Int32Constant(1)),
+                      m.I64x2ShrU(x, m.Int32Constant(63))));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Xar, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToInt32(s[0]->InputAt(2)), 63);
+    } else {
+      ASSERT_EQ(4U, s.size());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type);
+    OpIndex x = m.S128And(m.Parameter(0), m.Parameter(1));
+    m.Return(m.S128Or(m.I64x2Shl(x, m.Int32Constant(1)),
+                      m.I64x2ShrU(x, m.Int32Constant(63))));
+    Stream s = m.Build();
+    ASSERT_EQ(4U, s.size());
+  }
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, MemoryCopy) {

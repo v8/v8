@@ -2471,6 +2471,7 @@ constexpr NEONSHA3Op NEONSHA3FMask = 0xce000000;
 constexpr NEONSHA3Op NEONSHA3Mask = 0xcee00000;
 constexpr NEONSHA3Op NEON_BCAX = NEONSHA3Fixed | 0x00200000;
 constexpr NEONSHA3Op NEON_EOR3 = NEONSHA3Fixed;
+constexpr NEONSHA3Op NEON_XAR = NEONSHA3Fixed | 0x00800000;
 
 // NEON perm.
 using NEONPermOp = uint32_t;
