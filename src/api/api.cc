@@ -6494,26 +6494,26 @@ size_t v8::V8::GetSandboxReservationSizeInBytes() {
   return i::Sandbox::current()->reservation_size();
 }
 
-v8::V8::SandboxState v8::V8::GetSandboxState() {
+v8::V8::SandboxMode v8::V8::GetSandboxMode() {
   const i::Sandbox* sandbox = i::Sandbox::current();
-  Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxState",
+  Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxMode",
                   "The sandbox must be initialized first");
   const bool partial = sandbox->is_partially_reserved();
   const bool smi_inaccessible = sandbox->smi_address_range_is_inaccessible();
 
   if (!partial && smi_inaccessible) {
-    return SandboxState::kSecure;
+    return SandboxMode::kSecure;
   }
   if (partial && smi_inaccessible) {
-    return SandboxState::kInsecurePartialReservationSmiInaccessible;
+    return SandboxMode::kInsecurePartialReservationSmiInaccessible;
   }
   if (!partial && !smi_inaccessible) {
-    return SandboxState::kInsecureFullReservationSmiAccessible;
+    return SandboxMode::kInsecureFullReservationSmiAccessible;
   }
   if (partial && !smi_inaccessible) {
-    return SandboxState::kInsecurePartialReservationSmiAccessible;
+    return SandboxMode::kInsecurePartialReservationSmiAccessible;
   }
-  return SandboxState::kInsecure;
+  return SandboxMode::kInsecure;
 }
 
 bool v8::V8::IsSandboxConfiguredSecurely() {

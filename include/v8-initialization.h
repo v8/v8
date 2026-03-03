@@ -207,13 +207,14 @@ class V8_EXPORT V8 {
 
 #if defined(V8_ENABLE_SANDBOX)
   /**
-   * Status of the V8 sandbox.
+   * The mode the V8 sandbox operates in.
    *
    * These values are persisted to logs. Entries should not be renumbered and
    * numeric values should never be reused. If you add new items here, update
-   * tools/metrics/histograms/metadata/v8/enums.xml in Chromium.
+   * V8SandboxMode in tools/metrics/histograms/metadata/v8/enums.xml in
+   * Chromium.
    */
-  enum class SandboxState : uint8_t {
+  enum class SandboxMode : uint8_t {
     /**
      * The sandbox is configured securely with a full reservation and an
      * inaccessible Smi address range.
@@ -237,12 +238,14 @@ class V8_EXPORT V8 {
      * accessible.
      */
     kInsecurePartialReservationSmiAccessible = 4,
+
+    kMaxValue = kInsecurePartialReservationSmiAccessible,
   };
 
   /**
    * Returns the current state of the sandbox.
    */
-  static SandboxState GetSandboxState();
+  static SandboxMode GetSandboxMode();
 
   /**
    * Returns true if the sandbox is configured securely.
