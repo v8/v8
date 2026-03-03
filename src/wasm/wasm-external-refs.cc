@@ -1055,7 +1055,13 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
     Address target_fp = to->jmpbuf()->fp;
     StackFrame::Type type = StackFrame::MarkerToType(base::Memory<intptr_t>(
         target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
-    CHECK_EQ(type, StackFrame::WASM_STACK_EXIT);
+    if (type != StackFrame::WASM_STACK_EXIT) {
+      // Only a WasmFX or JSPI builtin frame can appear at the top of a stack.
+      // If this is a JSPI frame, we are about to suspend past JS frames which
+      // is not allowed, stop the search.
+      CHECK_EQ(type, StackFrame::WASM_JSPI);
+      break;
+    }
 
     // The caller frame is the WASM frame that contains the handler table.
     Address target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(

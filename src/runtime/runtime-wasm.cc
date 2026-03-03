@@ -1344,6 +1344,18 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
+  // For now JSPI does not use the WasmStackObject, and it is only set here
+  // because it is expected by WasmFX.
+  // TODO(thibaudm): We could consider using this object for JSPI too as an
+  // indirection between the WasmSuspenderObjects and the StackMemory. This
+  // would have roughly the same benefits as for WasmFX:
+  // - We would only need to allocate and manage a single EPT entry per
+  // StackMemory,
+  // - It would be easier to track ownership of the StackMemory and ensure that
+  // there is no UAF. In particular the StackMemory could track its (unique) EPT
+  // entry via {EPT::ManagedResource} and zap it when the resource is freed.
+  target_stack->set_stack_obj(
+      *isolate->factory()->NewWasmStackObject(target_stack.get()));
 
   // Update the suspender state.
   suspender->set_parent(isolate->isolate_data()->active_suspender());

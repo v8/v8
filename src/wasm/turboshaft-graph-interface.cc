@@ -4055,7 +4055,8 @@ class TurboshaftGraphBuildingInterface
     V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
     __ InitializeField(uninitialized_cont,
                        AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
-    // The external pointer is initialized in the {suspend_wasmfx_stack} C call.
+    // The {stack_obj_} field is initialized in the {suspend_wasmfx_stack} C
+    // call.
     V<WasmContinuationObject> cont =
         __ FinishInitialization(std::move(uninitialized_cont));
 

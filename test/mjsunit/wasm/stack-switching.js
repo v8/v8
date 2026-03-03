@@ -425,3 +425,15 @@ instance = builder.instantiate( {m: {
   print(arguments.callee.name);
   assertEquals(2, instance.exports.handler_is_loop());
 })();
+
+(function TestJSPIAndWasmFXSuspendError() {
+  print(arguments.callee.name);
+  assertThrowsAsync(
+      WebAssembly.promising(instance.exports.suspend_tag0)(),
+      WebAssembly.SuspendError);
+
+  instance.exports.call_stack.value = [instance.exports.suspend_tag0];
+  assertThrowsAsync(
+      WebAssembly.promising(instance.exports.call_next_as_cont)(),
+      WebAssembly.SuspendError);
+})();
