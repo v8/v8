@@ -1434,10 +1434,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // nodes will not reach this function. Furthermore, since the Phi is known
     // to be untagged (due to the prior DCHECK), and there are no Uint32 Phis,
     // any IsTruncatingToInt32 node that reaches here must be a Float64->Int32
-    // truncation.
-    DCHECK_IMPLIES(
-        IsTruncatingToInt32(node->opcode()),
-        phi->value_representation() == ValueRepresentation::kFloat64);
+    // or a HoleyFloat64->Int32 truncation.
+    DCHECK_IMPLIES(IsTruncatingToInt32(node->opcode()),
+                   phi->is_float64_or_holey_float64());
     DCHECK_NE(new_nodes_.find(node), new_nodes_.end());
   } else {
     node->change_input(input_index,
