@@ -291,7 +291,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                           Space* ro_space);
 #endif  // defined(DEBUG) || defined(VERIFY_HEAP)
 
-  // Verifies that all active entries in the given space are valid.
+  // Verifies that all entries in the given space are valid.
   //
   // In practice, this means that every active entry must point to a valid
   // (e.g. not freed or corrupted) object of the expected type. As a general

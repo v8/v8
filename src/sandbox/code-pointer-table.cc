@@ -22,22 +22,24 @@ uint32_t CodePointerTable::Sweep(Space* space, Counters* counters) {
 }
 
 void CodePointerTable::Verify(Isolate* isolate, Space* space) {
-  IterateActiveEntriesIn(
-      space, [&](CodePointerHandle handle, Address code_ptr) {
-        if (handle == kNullCodePointerHandle) return;
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto& entry = at(index);
+    if (entry.IsFreelistEntry()) return;
 
-        // 1. The object must be a valid Code object.
-        Tagged<Object> obj(code_ptr);
-        CHECK(Is<Code>(obj));
-        Tagged<Code> code = TrustedCast<Code>(obj);
+    Address code_ptr = entry.GetCodeObject();
+
+    // 1. The object must be a valid Code object.
+    Tagged<Object> obj(code_ptr);
+    CHECK(Is<Code>(obj));
+    Tagged<Code> code = TrustedCast<Code>(obj);
 #ifdef VERIFY_HEAP
-        Object::ObjectVerify(code, isolate);
+    Object::ObjectVerify(code, isolate);
 #endif
 
-        // 2. The entrypoint must match the code's instruction start.
-        Address entrypoint = GetEntrypoint(handle, code->entrypoint_tag());
-        CHECK_EQ(entrypoint, code->instruction_start());
-      });
+    // 2. The entrypoint must match the code's instruction start.
+    Address entrypoint = entry.GetEntrypoint(code->entrypoint_tag());
+    CHECK_EQ(entrypoint, code->instruction_start());
+  });
 }
 
 }  // namespace internal

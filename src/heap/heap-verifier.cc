@@ -406,6 +406,14 @@ void HeapVerification::Verify() {
 
 #ifdef V8_ENABLE_SANDBOX
 void HeapVerification::VerifyPointerTables() {
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->young_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->old_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->read_only_external_pointer_space());
+  isolate()->cpp_heap_pointer_table().Verify(isolate(),
+                                             heap()->cpp_heap_pointer_space());
   isolate()->trusted_pointer_table().Verify(isolate(),
                                             heap()->trusted_pointer_space());
   if (isolate()->has_shared_trusted_pointer_table()) {

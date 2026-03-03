@@ -22,16 +22,15 @@ uint32_t TrustedPointerTable::Sweep(Space* space, Counters* counters) {
 
 void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
   IterateEntriesIn(space, [&](uint32_t index) {
-    if (at(index).IsFreelistEntry()) return;
-
-    Address pointer =
-        at(index).GetPointer(kAllIndirectPointerTagsIncludingUnpublished);
-    IndirectPointerTag tag = at(index).GetTag();
-
-    if (tag == kUnpublishedIndirectPointerTag ||
-        tag == kIndirectPointerZappedEntryTag) {
+    auto& entry = at(index);
+    IndirectPointerTag tag = entry.GetTag();
+    if (tag == kIndirectPointerFreeEntryTag ||
+        tag == kIndirectPointerZappedEntryTag ||
+        tag == kUnpublishedIndirectPointerTag) {
       return;
     }
+
+    Address pointer = entry.GetPointer(tag);
 
     // 1. The pointer must point outside of the sandbox.
     CHECK(OutsideSandbox(pointer));

@@ -202,7 +202,7 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-  // Verifies that all active entries in the given space are valid.
+  // Verifies that all entries in the given space are valid.
   //
   // In practice, this means that every active entry must point to a valid
   // (e.g. not freed or corrupted) object of the expected type. As a general

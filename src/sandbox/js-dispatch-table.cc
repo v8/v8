@@ -45,11 +45,12 @@ void JSDispatchEntry::CheckFieldOffsets() {
 }
 
 void JSDispatchTable::Verify(Isolate* isolate, Space* space) {
-  IterateActiveEntriesIn(space, [&](JSDispatchHandle handle) {
-    if (handle == kNullJSDispatchHandle) return;
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto& entry = at(index);
+    if (entry.IsFreelistEntry()) return;
 
     // 1. The object must be a valid Code object.
-    Tagged<Object> obj = Tagged<Object>(GetCodeAddress(handle));
+    Tagged<Object> obj = Tagged<Object>(entry.GetCodePointer());
     CHECK(Is<Code>(obj));
     Tagged<Code> code = TrustedCast<Code>(obj);
 #ifdef VERIFY_HEAP
@@ -57,7 +58,7 @@ void JSDispatchTable::Verify(Isolate* isolate, Space* space) {
 #endif
 
     // 2. The code must be compatible with the entry's parameter count.
-    uint16_t parameter_count = GetParameterCount(handle);
+    uint16_t parameter_count = entry.GetParameterCount();
     CHECK(IsCompatibleCode(code, parameter_count));
   });
 }
