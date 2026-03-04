@@ -43,7 +43,7 @@ class WasmInterpreterRuntime {
 
   inline Isolate* GetIsolate() const { return isolate_; }
 
-  inline uint8_t* GetGlobalAddress(uint32_t index);
+  inline Address GetGlobalAddress(uint32_t index);
   inline DirectHandle<Object> GetGlobalRef(uint32_t index) const;
   inline void SetGlobalRef(uint32_t index, DirectHandle<Object> ref) const;
 
@@ -349,7 +349,7 @@ class WasmInterpreterRuntime {
 #pragma clang diagnostic pop
 #endif  // __clang__
 
-  std::vector<uint8_t*> global_addresses_;
+  std::vector<Address> global_addresses_;
 
   struct IndirectCallValue {
     enum class Mode { kInvalid, kInternalCall, kExternalCall };

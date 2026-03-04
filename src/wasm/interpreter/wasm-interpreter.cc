@@ -1055,8 +1055,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    r0 = base::ReadUnalignedValue<IntT>(reinterpret_cast<Address>(src_addr));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    r0 = base::ReadUnalignedValue<IntT>(src_addr);
 
     NextOp();
   }
@@ -1068,8 +1068,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    fp0 = base::ReadUnalignedValue<FloatT>(reinterpret_cast<Address>(src_addr));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    fp0 = base::ReadUnalignedValue<FloatT>(src_addr);
 
     NextOp();
   }
@@ -1081,9 +1081,8 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    push<T>(sp, code, wasm_runtime,
-            base::ReadUnalignedValue<T>(reinterpret_cast<Address>(src_addr)));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    push<T>(sp, code, wasm_runtime, base::ReadUnalignedValue<T>(src_addr));
 
     NextOp();
   }
@@ -1110,9 +1109,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<IntT>(reinterpret_cast<Address>(dst_addr),
-                                    static_cast<IntT>(r0));  // r0: value
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<IntT>(dst_addr, static_cast<IntT>(r0));
     NextOp();
   }
   static auto constexpr r2s_I32GlobalSet = r2s_GlobalSetI<int32_t>;
@@ -1123,9 +1121,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<FloatT>(reinterpret_cast<Address>(dst_addr),
-                                      static_cast<FloatT>(fp0));  // fp0: value
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<FloatT>(dst_addr, static_cast<FloatT>(fp0));
     NextOp();
   }
   static auto constexpr r2s_F32GlobalSet = r2s_GlobalSetF<float>;
@@ -1136,9 +1133,8 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<T>(reinterpret_cast<Address>(dst_addr),
-                                 pop<T>(sp, code, wasm_runtime));
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<T>(dst_addr, pop<T>(sp, code, wasm_runtime));
     NextOp();
   }
   static auto constexpr s2s_I32GlobalSet = s2s_GlobalSet<int32_t>;

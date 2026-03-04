@@ -49,7 +49,7 @@ inline bool WasmInterpreterRuntime::BoundsCheckMemRange(
   return true;
 }
 
-inline uint8_t* WasmInterpreterRuntime::GetGlobalAddress(uint32_t index) {
+inline Address WasmInterpreterRuntime::GetGlobalAddress(uint32_t index) {
   DCHECK_LT(index, module_->globals.size());
   return global_addresses_[index];
 }

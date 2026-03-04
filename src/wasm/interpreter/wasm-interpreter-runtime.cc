@@ -351,12 +351,13 @@ WasmInterpreterRuntime::WasmInterpreterRuntime(
 }
 
 void WasmInterpreterRuntime::InitGlobalAddressCache() {
+  DisallowGarbageCollection no_gc;
   global_addresses_.resize(module_->globals.size());
   for (size_t index = 0; index < module_->globals.size(); index++) {
     const WasmGlobal& global = module_->globals[index];
     if (!global.type.is_ref()) {
       global_addresses_[index] =
-          wasm_trusted_instance_data()->GetGlobalStorage(global);
+          wasm_trusted_instance_data()->GetGlobalStorage(global, no_gc);
     }
   }
 }
