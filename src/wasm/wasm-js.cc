@@ -2693,6 +2693,10 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       default:
         break;
     }
+  } else if (unsafe_type.has_index() &&
+             unsafe_type.ref_type_kind() == i::wasm::RefTypeKind::kCont) {
+    thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
+    return false;
   }
   return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
   return true;
