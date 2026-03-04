@@ -3313,7 +3313,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 
       if (auto* entry = EntryForEmbedderGraphNode(node.get())) {
         if (node->IsRootNode()) {
-          snapshot_->root()->SetIndexedAutoIndexReference(
+          snapshot_->gc_roots()->SetIndexedAutoIndexReference(
               HeapGraphEdge::kElement, entry, generator_,
               HeapEntry::kOffHeapPointer);
         }

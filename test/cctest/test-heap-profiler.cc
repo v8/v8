@@ -1939,11 +1939,14 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
+  const v8::HeapGraphNode* gc_roots =
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "(GC roots)");
+  CHECK_NOT_NULL(gc_roots);
   const v8::HeapGraphNode* native_group_aaa =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
+      GetNode(gc_roots, v8::HeapGraphNode::kSynthetic, "aaa-group");
   CHECK_NOT_NULL(native_group_aaa);
   const v8::HeapGraphNode* native_group_ccc =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
+      GetNode(gc_roots, v8::HeapGraphNode::kSynthetic, "ccc-group");
   CHECK_NOT_NULL(native_group_ccc);
 
   const v8::HeapGraphNode* n_AAA =
@@ -3567,8 +3570,10 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
   const v8::HeapGraphNode* embedder_node_B =
       GetChildByName(embedder_node_A, "EmbedderNodeB");
   CHECK_EQ(20, GetSize(embedder_node_B));
+  const v8::HeapGraphNode* gc_roots = GetRootChild(snapshot, "(GC roots)");
+  CHECK(gc_roots);
   const v8::HeapGraphNode* embedder_root =
-      GetRootChild(snapshot, "EmbedderRoot");
+      GetChildByName(gc_roots, "EmbedderRoot");
   CHECK(embedder_root);
   const v8::HeapGraphNode* embedder_node_C =
       GetChildByName(embedder_root, "EmbedderNodeC");
