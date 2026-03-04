@@ -2137,61 +2137,89 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 #endif  // V8_ENABLE_SANDBOX
 }
 
-bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
+bool MarkCompactCollector::MarkTransitiveClosureFixpoint() {
   int iterations = 0;
-  int max_iterations = v8_flags.ephemeron_fixpoint_iterations;
 
-  bool another_ephemeron_iteration_main_thread;
+  auto process_ephemerons_to_fixpoint = [this, &iterations]() {
+    bool another_ephemeron_iteration_main_thread;
+
+    do {
+      if (iterations >= v8_flags.ephemeron_fixpoint_iterations) {
+        return false;
+      }
+
+      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                  "V8.GCMarkTransitiveClosureFixpoint", "iteration",
+                  iterations);
+
+      // Move ephemerons from next_ephemerons into current_ephemerons to
+      // drain them in this iteration.
+      DCHECK(local_weak_objects()
+                 ->current_ephemerons_local.IsLocalAndGlobalEmpty());
+      weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
+      heap_->concurrent_marking()->set_another_ephemeron_iteration(false);
+      another_ephemeron_iteration_main_thread = false;
+
+      {
+        Ephemeron ephemeron;
+
+        // Drain current_ephemerons and push ephemerons where key and value are
+        // still unreachable into next_ephemerons.
+        while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
+          if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
+            another_ephemeron_iteration_main_thread = true;
+          }
+        }
+      }
+
+      {
+        TRACE_GC(heap_->tracer(),
+                 GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
+        // In case any V8 object got marked, we need to reprocess ephemerons.
+        const bool did_work = ReachTransitiveClosureWithEmbedder();
+        another_ephemeron_iteration_main_thread |= did_work;
+      }
+
+      // Flush local ephemerons for main task to global pool.
+      local_weak_objects()->ephemeron_hash_tables_local.Publish();
+      local_weak_objects()->next_ephemerons_local.Publish();
+
+      CHECK(local_weak_objects()
+                ->current_ephemerons_local.IsLocalAndGlobalEmpty());
+      CHECK(local_weak_objects()->next_ephemerons_local.IsLocalEmpty());
+
+      ++iterations;
+    } while (another_ephemeron_iteration_main_thread ||
+             heap_->concurrent_marking()->another_ephemeron_iteration());
+
+    return true;
+  };
+
+  if (!parallel_marking_) {
+    return process_ephemerons_to_fixpoint();
+  }
 
   do {
-    if (iterations >= max_iterations) {
-      // Give up fixpoint iteration and switch to linear algorithm.
+    heap_->concurrent_marking()->RescheduleJobIfNeeded(
+        GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
+
+    // Drain marking worklist and process ephemerons in a loop until either a
+    // fixpoint or the maximum number of iterations is reached.
+    const bool reached_fixpoint = process_ephemerons_to_fixpoint();
+
+    FinishConcurrentMarking();
+
+    if (!reached_fixpoint) {
       return false;
     }
 
-    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "V8.GCMarkTransitiveClosureUntilFixpoint", "iteration",
-                iterations);
-
-    // Move ephemerons from next_ephemerons into current_ephemerons to
-    // drain them in this iteration.
-    DCHECK(
-        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
-    heap_->concurrent_marking()->set_another_ephemeron_iteration(false);
-    another_ephemeron_iteration_main_thread = false;
-
-    {
-      Ephemeron ephemeron;
-
-      // Drain current_ephemerons and push ephemerons where key and value are
-      // still unreachable into next_ephemerons.
-      while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
-        if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-          another_ephemeron_iteration_main_thread = true;
-        }
-      }
-    }
-
-    {
-      TRACE_GC(heap_->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
-      // In case any V8 object got marked, we need to reprocess ephemerons.
-      const bool did_work = ReachTransitiveClosureWithEmbedder();
-      another_ephemeron_iteration_main_thread |= did_work;
-    }
-
-    // Flush local ephemerons for main task to global pool.
-    local_weak_objects()->ephemeron_hash_tables_local.Publish();
-    local_weak_objects()->next_ephemerons_local.Publish();
-
-    CHECK(
-        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    CHECK(local_weak_objects()->next_ephemerons_local.IsLocalEmpty());
-
-    ++iterations;
-  } while (another_ephemeron_iteration_main_thread ||
-           heap_->concurrent_marking()->another_ephemeron_iteration());
+    // Because cppgc concurrent marking is finished after the one for V8, we
+    // can have leftover V8 objects in the worklist. Check here whether this
+    // is the case and run another iteration to avoid a potentially costly
+    // single-threaded marking phase.
+  } while (heap_->concurrent_marking()->another_ephemeron_iteration() ||
+           !local_marking_worklists_->IsEmpty() ||
+           !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get()));
 
   return true;
 }
@@ -2417,19 +2445,6 @@ void MarkCompactCollector::VerifyEphemeronMarking() {
 #endif  // VERIFY_HEAP
 }
 
-void MarkCompactCollector::MarkTransitiveClosure() {
-  // Incremental marking might leave ephemerons in main task's local
-  // buffer, flush it into global pool.
-  local_weak_objects()->next_ephemerons_local.Publish();
-
-  if (!MarkTransitiveClosureUntilFixpoint()) {
-    // Fixpoint iteration needed too many iterations and was cancelled. Use the
-    // guaranteed linear algorithm. But only in the final single-thread marking
-    // phase.
-    if (!parallel_marking_) MarkTransitiveClosureLinear();
-  }
-}
-
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
                                                     Isolate* isolate) {
   for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
@@ -2562,6 +2577,10 @@ void MarkCompactCollector::MarkLiveObjects() {
     DCHECK(incremental_marking->IsMajorMarking());
     incremental_marking->Stop();
     MarkingBarrier::PublishAll(heap_);
+
+    // Incremental marking might leave ephemerons in main task's local
+    // buffer, flush it into global pool.
+    local_weak_objects()->next_ephemerons_local.Publish();
   }
 
 #ifdef DEBUG
@@ -2594,14 +2613,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   if (v8_flags.parallel_marking && UseBackgroundThreadsInCycle()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL);
     parallel_marking_ = true;
-    heap_->concurrent_marking()->RescheduleJobIfNeeded(
-        GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
-    MarkTransitiveClosure();
-    {
-      TRACE_GC(heap_->tracer(),
-               GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL_JOIN);
-      FinishConcurrentMarking();
-    }
+    MarkTransitiveClosureFixpoint();
     parallel_marking_ = false;
   }
 
@@ -2620,7 +2632,9 @@ void MarkCompactCollector::MarkLiveObjects() {
       // This is done as late as possible to keep locking durations short.
       cpp_heap->EnterProcessGlobalAtomicPause();
     }
-    MarkTransitiveClosure();
+    if (!MarkTransitiveClosureFixpoint()) {
+      MarkTransitiveClosureLinear();
+    }
     CHECK(local_marking_worklists_->IsEmpty());
     CHECK(
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
