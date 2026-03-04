@@ -830,12 +830,9 @@ TEST_F(MacroAssemblerTest, min_max_nan) {
                                      finf, fnan, fnan, fnan, fnan, fnan};
 
   // clang-format on
-  auto handle_dnan = [&masm](FPURegister dst, Label* nan, Label* back) {
+  auto handle_dnan = [&masm, dnan](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
-    __ LoadRoot(t8, RootIndex::kNanValue);
-    __ Fld_d(dst,
-             FieldMemOperand(
-                 t8, compiler::AccessBuilder::ForHeapNumberValue().offset));
+    __ Move(dst, dnan);
     __ Branch(back);
   };
 

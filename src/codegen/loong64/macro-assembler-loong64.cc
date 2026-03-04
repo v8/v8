@@ -58,7 +58,17 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kCallerSavedFPU.Count() * kSimd128Size;
+#if V8_ENABLE_WEBASSEMBLY
+    bool generating_builtins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_builtins || CpuFeatures::SupportsWasmSimd128()) {
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else {
+      bytes += kCallerSavedFPU.Count() * kDoubleSize;
+    }
+#else
+    bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
 
   return bytes;
@@ -101,15 +111,16 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Sub_d(sp, sp, kCallerSavedFPU.Count() * kDoubleSize);
 
       bind(&done);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
     } else {
       if (CpuFeatures::SupportsWasmSimd128()) {
         MultiPushLSX(kCallerSavedFPU);
+        bytes += kCallerSavedFPU.Count() * kSimd128Size;
       } else {
         MultiPushFPU(kCallerSavedFPU);
-        Sub_d(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+        bytes += kCallerSavedFPU.Count() * kDoubleSize;
       }
     }
-    bytes += kCallerSavedFPU.Count() * kSimd128Size;
 #else
     MultiPushFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
@@ -151,15 +162,16 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       MultiPopFPU(kCallerSavedFPU);
 
       bind(&done);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
     } else {
       if (CpuFeatures::SupportsWasmSimd128()) {
         MultiPopLSX(kCallerSavedFPU);
+        bytes += kCallerSavedFPU.Count() * kSimd128Size;
       } else {
-        Add_d(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
         MultiPopFPU(kCallerSavedFPU);
+        bytes += kCallerSavedFPU.Count() * kDoubleSize;
       }
     }
-    bytes += kCallerSavedFPU.Count() * kSimd128Size;
 #else
     MultiPopFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
