@@ -33,4 +33,5 @@ assertNotEquals(undefined, %IsBeingInterpreted(1, 2, 3));
   assertFalse(%IsSmi(%AllocateHeapNumberWithValue(1)));
   assertEquals(123, %AllocateHeapNumberWithValue("123"));
   assertEquals(NaN, %AllocateHeapNumberWithValue("Hello World!"));
+  assertThrows(() => %AllocateHeapNumberWithValue(Symbol.iterator));
 })();
