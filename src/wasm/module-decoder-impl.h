@@ -699,7 +699,7 @@ class ModuleDecoderImpl : public Decoder {
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
       TypeDefinition type = consume_describing_type(current_type_index, true);
-      DCHECK(type.is_shared);
+      DCHECK(type.is_shared || failed());
       if (type.kind == TypeDefinition::kFunction ||
           type.kind == TypeDefinition::kCont) {
         // TODO(42204563): Support shared functions/continuations.
