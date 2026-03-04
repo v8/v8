@@ -46,17 +46,39 @@ namespace v8::bigint {
 
 namespace config {
 
+// The thresholds between schoolbook algorithms and the next best alternative
+// are very clear-cut on all platforms.
 constexpr uint32_t kKaratsubaThreshold = 34;
-constexpr uint32_t kToomThreshold = 193;
-constexpr uint32_t kFftThreshold = 1500;
+constexpr uint32_t kBurnikelThreshold = 57;
+constexpr uint32_t kNewtonInversionThreshold = 25;
+
+// On x64, Toom and Karatsuba have very similar performance between about
+// 200-400 digits; on ia32, Toom tends to win for more than about 200.
+constexpr uint32_t kToomThreshold = 210;
+
+#if UINTPTR_MAX == 0xFFFFFFFF
+// 32-bit platform.
+constexpr uint32_t kFftThreshold = 1100;
 constexpr uint32_t kFftInnerThreshold = 200;
 
-constexpr uint32_t kBurnikelThreshold = 57;
-constexpr uint32_t kNewtonInversionThreshold = 50;
-constexpr uint32_t kBarrettThreshold = 13310;
+// Burnikel and Barrett take turns at winning between 10K-20K digits.
+// From 22K upwards, Barrett is clear winner.
+constexpr uint32_t kBarrettThreshold = 22000;
 
-constexpr uint32_t kToStringFastThreshold = 43;
-constexpr uint32_t kFromStringLargeThreshold = 300;
+constexpr uint32_t kToStringFastThreshold = 38;
+constexpr uint32_t kFromStringLargeThreshold = 165;
+#else
+// 64-bit platform.
+constexpr uint32_t kFftThreshold = 720;
+constexpr uint32_t kFftInnerThreshold = 200;
+
+// Burnikel and Barrett take turns at winning between 9K-13K digits, above
+// that Barrett is a solid choice.
+constexpr uint32_t kBarrettThreshold = 13000;
+
+constexpr uint32_t kToStringFastThreshold = 23;
+constexpr uint32_t kFromStringLargeThreshold = 25;
+#endif
 
 // See comment at {kMaxCachedModDivisorSize}.
 static_assert(Processor::kMaxCachedModDivisorSize < 2 * kKaratsubaThreshold);
@@ -130,9 +152,6 @@ class FromStringAccumulator {
   bool inline_everything_{false};
   uint8_t radix_{0};
 };
-
-// The rest of this file is the inlineable implementation of
-// FromStringAccumulator methods.
 
 #if defined(__GNUC__) || defined(__clang__)
 // Clang supports this since 3.9, GCC since 5.x.

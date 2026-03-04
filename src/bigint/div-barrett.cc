@@ -78,9 +78,10 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   // The base case won't work otherwise.
   DCHECK(V.len() >= 3);
 
-  constexpr uint32_t kBasecasePrecision = config::kNewtonInversionThreshold - 1;
+  uint32_t basecase_precision =
+      std::min(config::kNewtonInversionThreshold - 1, DIV_CEIL(vn, 2));
   // V must have more digits than the basecase.
-  DCHECK(V.len() > kBasecasePrecision);
+  DCHECK(V.len() > basecase_precision);
   DCHECK(IsBitNormalized(V));
 
   // Step (1): Setup.
@@ -90,7 +91,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   uint32_t k = vn * kDigitBits;
   int target_fraction_bits[8 * sizeof(vn)];  // "k_i" in the paper.
   int iteration = -1;  // "i" in the paper, except inverted to run downwards.
-  while (k > kBasecasePrecision * kDigitBits) {
+  while (k > basecase_precision * kDigitBits) {
     iteration++;
     target_fraction_bits[iteration] = k;
     k = DIV_CEIL(k, 2);

@@ -7,8 +7,10 @@
 #include <memory>
 #include <string>
 
+#include "absl/time/clock.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
+#include "src/bigint/div-helpers-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -41,7 +43,7 @@ int PrintHelp(char** argv) {
   V(Toom, "toom")                   \
   V(ToString, "tostring")
 
-enum Operation { kNoOp, kList, kTest };
+enum Operation { kNoOp, kList, kTest, kThresholds };
 
 enum Test {
 #define TEST(Name, name) k##Name,
@@ -89,6 +91,77 @@ class RNG {
   uint64_t state1_;
 };
 
+// Fills {chars} with {char_count} random decimal digits.
+void GenerateRandomDecimalDigits(RNG& rng, char* chars, uint32_t char_count) {
+  uint64_t random = 0;
+  for (uint32_t i = 0; i < char_count; i++) {
+    if (random < 10) random = rng.NextUint64();
+    chars[i] = static_cast<char>('0' + random % 10);
+    random /= 10;
+  }
+}
+
+// Fills {Z} with random bits, each bit independent from the others.
+// Useful for benchmarking.
+void GenerateRandomBits(RNG& rng, RWDigits Z) {
+  if (sizeof(digit_t) == 8) {
+    for (uint32_t i = 0; i < Z.len(); i++) {
+      Z[i] = static_cast<digit_t>(rng.NextUint64());
+    }
+  } else {
+    for (uint32_t i = 0; i < Z.len(); i += 2) {
+      uint64_t random = rng.NextUint64();
+      Z[i] = static_cast<digit_t>(random);
+      if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
+    }
+  }
+  // Special case: we don't want the MSD to be zero.
+  while (Z.msd() == 0) {
+    Z[Z.len() - 1] = static_cast<digit_t>(rng.NextUint64());
+  }
+}
+
+// Fills {Z} with random bits, prioritizing patterns that tend to flush out
+// bugs, i.e. large-ish sequences of all-zero or all-one bits.
+void GenerateRandom(RNG& rng, RWDigits Z) {
+  if (Z.len() == 0) return;
+  int mode = static_cast<int>(rng.NextUint64() & 3);
+  if (mode == 0) {
+    return GenerateRandomBits(rng, Z);
+  }
+  if (mode == 1) {
+    // Generate a power of 2, with the lone 1-bit somewhere in the MSD.
+    int bit_in_msd = static_cast<int>(rng.NextUint64() % kDigitBits);
+    Z[Z.len() - 1] = digit_t{1} << bit_in_msd;
+    for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = 0;
+    return;
+  }
+  // For mode == 2 and mode == 3, generate a random number of 1-bits in the
+  // MSD, aligned to the least-significant end.
+  int bits_in_msd = static_cast<int>(rng.NextUint64() % kDigitBits);
+  digit_t msd = (digit_t{1} << bits_in_msd) - 1;
+  if (msd == 0) msd = ~digit_t{0};
+  Z[Z.len() - 1] = msd;
+  if (mode == 2) {
+    // The non-MSD digits are all 1-bits.
+    for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
+  } else {
+    // mode == 3
+    // Each non-MSD digit is either all ones or all zeros.
+    uint64_t random;
+    int random_bits = 0;
+    for (uint32_t i = 0; i < Z.len() - 1; i++) {
+      if (random_bits == 0) {
+        random = rng.NextUint64();
+        random_bits = 64;
+      }
+      Z[i] = random & 1 ? ~digit_t{0} : digit_t{0};
+      random >>= 1;
+      random_bits--;
+    }
+  }
+}
+
 static constexpr int kCharsPerDigit = kDigitBits / 4;
 
 static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -125,6 +198,287 @@ std::string FormatHex(Digits X) {
   return std::string(result.get(), chars);
 }
 
+class ThresholdRunner {
+ public:
+  enum Which {
+    kKaratsuba,
+    kBurnikel,
+    kToString,
+    kFromString,
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+    kToom,
+    kFFT,
+    kBarrett,
+    kNewton,
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+  };
+  using Calculator = void (*)(ProcessorImpl*, RWDigits, Digits, Digits);
+
+  explicit ThresholdRunner(ProcessorImpl* processor, RNG& rng)
+      : processor_(processor), rng_(rng) {}
+
+  void Measure(Which which) {
+    uint32_t estimate;
+    std::string base_name;
+    std::string other_name;
+    Calculator base;
+    Calculator other;
+    uint32_t a_len_factor = 1;  // 2 for divisions.
+    switch (which) {
+      case kKaratsuba:
+        estimate = config::kKaratsubaThreshold;
+        base = &Schoolbook;
+        other = &Karatsuba;
+        base_name = "Schoolbook";
+        other_name = "Karatsuba";
+        break;
+      case kBurnikel:
+        a_len_factor = 2;
+        estimate = config::kBurnikelThreshold;
+        base = &DivideSchoolbook;
+        other = &Burnikel;
+        base_name = "Schoolbook";
+        other_name = "Burnikel-Ziegler";
+        break;
+      case kToString:
+        estimate = config::kToStringFastThreshold;
+        base_name = "Classic";
+        other_name = "Fast ToString";
+        break;
+      case kFromString:
+        estimate = config::kFromStringLargeThreshold;
+        base_name = "Classic";
+        other_name = "Large FromString";
+        break;
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+      case kToom:
+        estimate = config::kToomThreshold;
+        base = &Karatsuba;
+        other = &Toom;
+        base_name = "Karatsuba";
+        other_name = "Toom-Cook";
+        break;
+      case kFFT:
+        estimate = config::kFftThreshold;
+        base = &Toom;
+        other = &FFT;
+        base_name = "Toom-Cook";
+        other_name = "FFT";
+        break;
+      case kBarrett:
+        a_len_factor = 2;
+        estimate = config::kBarrettThreshold;
+        base = &Burnikel;
+        other = &Barrett;
+        base_name = "Burnikel-Ziegler";
+        other_name = "Barrett";
+        break;
+      case kNewton:
+        estimate = config::kNewtonInversionThreshold;
+        base = &Invert;
+        other = &Newton;
+        base_name = "Invert";
+        other_name = "Newton";
+        break;
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+    }
+
+    std::cout << "#########################################################\n";
+    std::cout << "##  " << base_name << " vs. " << other_name << "\n";
+    std::cout << "#########################################################\n";
+    uint32_t min = estimate * 0.5;
+    uint32_t max = estimate * 2;
+    uint32_t delta = (max - min) / 100;
+    if (delta == 0) delta = 1;
+    bool finding_lower = true;
+    bool finding_upper = true;
+    uint32_t lower = 0;
+    uint32_t upper = 0;
+
+    // Over-allocate all storage to support bumping {max} by up to 2x if
+    // needed.
+    Storage a_mem(2 * max * a_len_factor);
+    uint32_t b_mem_size =
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+        which == kNewton ? InvertNewtonScratchSpace(2 * max) :
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+                         2 * max;
+    Storage b_mem(b_mem_size);
+    // Multiplication needs 2 * size (where size <= 2 * max).
+    // Division needs size + 1 for the quotient plus size for the remainder.
+    Storage z_mem(4 * max + 1);
+    // We can't simply use {ToStringResultLength} because that wants to look
+    // at specific Digits, whereas we preallocate for a maximum size. The
+    // production code approximates lengths, so we add some slack.
+    // {log2} will be constexpr in C++26.
+    static const double kBitsPerDecimalDigit = log2(10);
+    static constexpr uint32_t kSlack = 20;
+    uint32_t string_len =
+        ceil(2 * max * kDigitBits / kBitsPerDecimalDigit) + kSlack;
+    const uint32_t original_string_len = string_len;
+    char* string = new char[string_len];
+    for (uint32_t size = min; size <= max; size += delta) {
+      RWDigits A(a_mem.get(), size * a_len_factor);
+      uint32_t b_len =
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+          which == kNewton ? InvertNewtonScratchSpace(size) :
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+                           size;
+      RWDigits B(b_mem.get(), b_len);
+      RWDigits Z(z_mem.get(), size * 2 + 1);
+
+      int64_t base_total = 0;
+      int64_t other_total = 0;
+      int count = 0;
+
+      static constexpr int64_t kMinNs = 100'000'000;
+      while (base_total < kMinNs && other_total < kMinNs && count < 1000) {
+        if (which == kFromString) {
+          uint32_t char_count = floor(size * kDigitBits / kBitsPerDecimalDigit);
+          GenerateRandomDecimalDigits(rng_, string, char_count);
+          {
+            int64_t start = absl::GetCurrentTimeNanos();
+            FromStringAccumulator acc(2 * max);
+            acc.Parse(string, string + char_count, 10);
+            processor_->FromStringClassic(Z, &acc);
+            base_total += absl::GetCurrentTimeNanos() - start;
+          }
+          {
+            int64_t start = absl::GetCurrentTimeNanos();
+            FromStringAccumulator acc(2 * max);
+            acc.Parse(string, string + char_count, 10);
+            processor_->FromStringLarge(Z, &acc);
+            other_total += absl::GetCurrentTimeNanos() - start;
+          }
+          count++;
+          continue;
+        }
+        GenerateRandomBits(rng_, A);
+        if (which == kToString) {
+          string_len = original_string_len;
+          int64_t start = absl::GetCurrentTimeNanos();
+          processor_->ToStringImpl(string, &string_len, A, 10, false, false);
+          base_total += absl::GetCurrentTimeNanos() - start;
+
+          string_len = original_string_len;
+          start = absl::GetCurrentTimeNanos();
+          processor_->ToStringImpl(string, &string_len, A, 10, false, true);
+          other_total += absl::GetCurrentTimeNanos() - start;
+          count++;
+          continue;
+        }
+
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+        if (which == kNewton) {
+          int shift = CountLeadingZeros(A.msd());
+          if (shift != 0) LeftShift(A, A, shift);
+        } else {
+          GenerateRandomBits(rng_, B);
+        }
+#else
+        GenerateRandomBits(rng_, B);
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+        int64_t start = absl::GetCurrentTimeNanos();
+        base(processor_, Z, A, B);
+        base_total += absl::GetCurrentTimeNanos() - start;
+
+        start = absl::GetCurrentTimeNanos();
+        other(processor_, Z, A, B);
+        other_total += absl::GetCurrentTimeNanos() - start;
+        count++;
+      }
+      if (base_total < other_total) {
+        if (finding_lower) lower = size + 1;
+        finding_upper = true;
+        // Make sure we keep trying until we have an upper bound.
+        max = std::max(max, size * 11 / 10);
+        // But not beyond what we have allocated memory for.
+        max = std::min(estimate * 4, max);
+      } else {
+        finding_lower = false;
+        if (finding_upper) {
+          upper = size;
+          finding_upper = false;
+          // Make sure we get enough data points above the first success case.
+          max = std::max(max, size * 11 / 10);
+          // But not beyond what we have allocated memory for.
+          max = std::min(estimate * 4, max);
+        }
+      }
+      Plot(base_total, other_total);
+      int64_t base_time = base_total / count / 1000;
+      int64_t other_time = other_total / count / 1000;
+      std::cout << line_ << " size: " << size << " " << base_name << ": "
+                << base_time << " μs, " << other_name << ": " << other_time
+                << " μs (" << count << " data points)\n";
+    }
+    std::cout << "A good threshold would be between " << lower << " and "
+              << upper << ".\n\n";
+  }
+
+ private:
+  static void Schoolbook(ProcessorImpl*, RWDigits Z, Digits A, Digits B) {
+    MultiplySchoolbook(Z, A, B);
+  }
+  static void Karatsuba(ProcessorImpl* processor, RWDigits Z, Digits A,
+                        Digits B) {
+    processor->MultiplyKaratsuba(Z, A, B);
+  }
+  static void DivideSchoolbook(ProcessorImpl* processor, RWDigits Z, Digits A,
+                               Digits B) {
+    RWDigits ignored_remainder(nullptr, 0);
+    processor->DivideSchoolbook(Z, ignored_remainder, A, B);
+  }
+  static void Burnikel(ProcessorImpl* processor, RWDigits Z, Digits A,
+                       Digits B) {
+    RWDigits ignored_remainder(nullptr, 0);
+    processor->DivideBurnikelZiegler(Z, ignored_remainder, A, B);
+  }
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+  static void Toom(ProcessorImpl* processor, RWDigits Z, Digits A, Digits B) {
+    processor->MultiplyToomCook(Z, A, B);
+  }
+  static void FFT(ProcessorImpl* processor, RWDigits Z, Digits A, Digits B) {
+    processor->MultiplyFFT(Z, A, B);
+  }
+  static void Barrett(ProcessorImpl* processor, RWDigits Z, Digits A,
+                      Digits B) {
+    // The implementation requires a non-empty remainder. Z is large enough
+    // for both that and the quotient.
+    RWDigits R(Z, 0, B.len());
+    RWDigits Q = Z + B.len();
+    processor->DivideBarrett(Q, R, A, B);
+  }
+  // Hack: we don't need a second argument, but we need all of these functions
+  // to have the same signature, so we pass the scratch space there.
+  static void Invert(ProcessorImpl* processor, RWDigits Z, Digits A, Digits B) {
+    RWDigits scratch(const_cast<digit_t*>(B.digits()), B.len());
+    processor->InvertBasecase(Z, A, scratch);
+  }
+  static void Newton(ProcessorImpl* processor, RWDigits Z, Digits A, Digits B) {
+    RWDigits scratch(const_cast<digit_t*>(B.digits()), B.len());
+    processor->InvertNewton(Z, A, scratch);
+  }
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+
+  void Plot(int64_t base, int64_t other) {
+    int percent = static_cast<int>(
+        (100.0 * static_cast<double>(other) / static_cast<double>(base)));
+    const int pos_bar = 50;
+    int pos_star = std::max(0, percent - 50);
+    pos_star = std::min(pos_star, 100);
+    line_[prev_pos_star_] = ' ';
+    line_[pos_bar] = '|';
+    line_[pos_star] = '*';
+    prev_pos_star_ = pos_star;
+  }
+
+  std::string line_{std::string(101, ' ')};
+  int prev_pos_star_{0};
+  ProcessorImpl* processor_;
+  RNG& rng_;
+};
+
 class Runner {
  public:
   Runner() = default;
@@ -145,6 +499,8 @@ class Runner {
       RunTest();
     } else if (op_ == kNoOp) {
       // Probably just --help, do nothing.
+    } else if (op_ == kThresholds) {
+      RunThresholds();
     } else {
       DCHECK(false);  // Unreachable.
     }
@@ -495,6 +851,30 @@ class Runner {
     }
   }
 
+  void RunThresholds() {
+    std::cout << "Thresholds testing mode selected.\n"
+                 "The plotted vertical line represents the performance of the "
+                 "respective\n"
+                 "\"smaller\" algorithm; the stars represent the relative "
+                 "performance of the\n"
+                 "\"larger\" algorithm. Less is better. So as threshold you "
+                 "want to pick the\n"
+                 "size where the starry line crosses the vertical line towards "
+                 "the left.\n\n";
+
+    ThresholdRunner runner(processor(), rng_);
+    runner.Measure(ThresholdRunner::kKaratsuba);
+    runner.Measure(ThresholdRunner::kBurnikel);
+    runner.Measure(ThresholdRunner::kToString);
+    runner.Measure(ThresholdRunner::kFromString);
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+    runner.Measure(ThresholdRunner::kToom);
+    runner.Measure(ThresholdRunner::kFFT);
+    runner.Measure(ThresholdRunner::kNewton);
+    runner.Measure(ThresholdRunner::kBarrett);
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+  }
+
   template <typename I>
   bool ParseInt(char* s, I* out) {
     char* end;
@@ -528,6 +908,8 @@ class Runner {
         if (++i == argc || !ParseInt(argv[i], &runs_)) return PrintHelp(argv);
       } else if (strncmp(argv[i], "--runs=", 7) == 0) {
         if (!ParseInt(argv[i] + 7, &runs_)) return PrintHelp(argv);
+      } else if (strncmp(argv[i], "--thresholds", 12) == 0) {
+        op_ = kThresholds;
       }
 #define TEST(Name, name)                 \
   else if (strcmp(argv[i], name) == 0) { \
@@ -545,60 +927,7 @@ class Runner {
   }
 
  private:
-  void GenerateRandom(RWDigits Z) {
-    if (Z.len() == 0) return;
-    int mode = static_cast<int>(rng_.NextUint64() & 3);
-    if (mode == 0) {
-      // Generate random bits.
-      if (sizeof(digit_t) == 8) {
-        for (uint32_t i = 0; i < Z.len(); i++) {
-          Z[i] = static_cast<digit_t>(rng_.NextUint64());
-        }
-      } else {
-        for (uint32_t i = 0; i < Z.len(); i += 2) {
-          uint64_t random = rng_.NextUint64();
-          Z[i] = static_cast<digit_t>(random);
-          if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
-        }
-      }
-      // Special case: we don't want the MSD to be zero.
-      while (Z.msd() == 0) {
-        Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
-      }
-      return;
-    }
-    if (mode == 1) {
-      // Generate a power of 2, with the lone 1-bit somewhere in the MSD.
-      int bit_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
-      Z[Z.len() - 1] = digit_t{1} << bit_in_msd;
-      for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = 0;
-      return;
-    }
-    // For mode == 2 and mode == 3, generate a random number of 1-bits in the
-    // MSD, aligned to the least-significant end.
-    int bits_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
-    digit_t msd = (digit_t{1} << bits_in_msd) - 1;
-    if (msd == 0) msd = ~digit_t{0};
-    Z[Z.len() - 1] = msd;
-    if (mode == 2) {
-      // The non-MSD digits are all 1-bits.
-      for (uint32_t i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
-    } else {
-      // mode == 3
-      // Each non-MSD digit is either all ones or all zeros.
-      uint64_t random;
-      int random_bits = 0;
-      for (uint32_t i = 0; i < Z.len() - 1; i++) {
-        if (random_bits == 0) {
-          random = rng_.NextUint64();
-          random_bits = 64;
-        }
-        Z[i] = random & 1 ? ~digit_t{0} : digit_t{0};
-        random >>= 1;
-        random_bits--;
-      }
-    }
-  }
+  void GenerateRandom(RWDigits X) { test::GenerateRandom(rng_, X); }
 
   void GenerateRandomString(char* str, int len, int radix) {
     DCHECK(2 <= radix && radix <= 36);

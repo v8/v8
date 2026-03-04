@@ -10,6 +10,7 @@
 #include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
 #include "src/bigint/util.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -770,28 +771,64 @@ void FFTContainer::PointwiseMultiply(const FFTContainer& other) {
 // TODO(jkummerow): Consider implementing the "sqrt(2) trick".
 // Gaudry/Kruppa/Zimmerman report that it saved them around 10%.
 
-// TODO(jkummerow): When X is much longer than Y (e.g. 1000x as many digits),
-// it would be quite beneficial to operate in chunks (like Toom3 does).
-
 void ProcessorImpl::MultiplyFFT(RWDigits Z, Digits X, Digits Y) {
-  Parameters params;
-  int m = GetParameters(X.len() + Y.len(), &params);
-  int omega = params.r;  // really: 2^r
+  // TODO(jkummerow): Determine a good threshold value. Earlier experiments
+  // suggested that "a few hundred" might work well.
+  static constexpr uint32_t kAsymmetricChunkingThreshold = 100;
 
-  FFTContainer a(params.n, params.K, this);
-  a.Start(X, params.s, 0, omega);
+  Parameters params;
   if (X == Y) {
     // Squaring.
+    int m = GetParameters(X.len() * 2, &params);
+    int omega = params.r;  // really: 2^r
+    FFTContainer a(params.n, params.K, this);
+    a.Start(X, params.s, 0, omega);
     a.PointwiseMultiply(a);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
+  } else if (X.len() > Y.len() * kAsymmetricChunkingThreshold) {
+    // Asymmetric input sizes. Proceed in chunks. See {MultiplyToomCook()}.
+    uint32_t k = Y.len();
+    int m = GetParameters(k * 2, &params);
+    int omega = params.r;  // really: 2^r
+    // The container {b} only needs to be initialized once, whereas {a} will
+    // be reused for each chunk.
+    FFTContainer b(params.n, params.K, this);
+    b.Start(Y, params.s, 0, omega);
+    FFTContainer a(params.n, params.K, this);
+    // Unroll the first iteration to initialize {Z}.
+    Digits X0(X, 0, k);
+    a.Start(X0, params.s, 0, omega);
+    a.PointwiseMultiply(b);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
+    // Then loop for the remaining chunks.
+    ScratchDigits T(2 * k);
+    for (uint32_t i = k; i < X.len(); i += k) {
+      Digits Xi(X, i, k);
+      a.Start(Xi, params.s, 0, omega);
+      a.PointwiseMultiply(b);
+      if (should_terminate()) return;
+      a.BackwardFFT(0, params.n, omega);
+      a.NormalizeAndRecombine(omega, m, T, params.s);
+      AddAndReturnOverflow(Z + i, T);  // Can't overflow.
+    }
   } else {
+    // Similar-ish sized inputs. Handle them in one go.
+    int m = GetParameters(X.len() + Y.len(), &params);
+    int omega = params.r;  // really: 2^r
+
+    FFTContainer a(params.n, params.K, this);
+    a.Start(X, params.s, 0, omega);
     FFTContainer b(params.n, params.K, this);
     b.Start(Y, params.s, 0, omega);
     a.PointwiseMultiply(b);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
   }
-  if (should_terminate()) return;
-
-  a.BackwardFFT(0, params.n, omega);
-  a.NormalizeAndRecombine(omega, m, Z, params.s);
 }
 
 }  // namespace bigint
