@@ -180,12 +180,10 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
   inline int AllocatedSize() const;
   // TODO(375937549): Convert to use uint32_t.
-  static inline constexpr int SizeFor(int capacity) {
+  static constexpr int SizeFor(int capacity) {
     return sizeof(Header) + capacity * kElementSize;
   }
-  static inline constexpr int OffsetOfElementAt(int index) {
-    return SizeFor(index);
-  }
+  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
   // Gives access to raw memory which stores the array's data.
   inline SlotType RawFieldOfFirstElement() const;
@@ -427,10 +425,10 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
 
   inline int AllocatedSize() const;
   // TODO(375937549): Convert to use uint32_t.
-  static inline constexpr int SizeFor(int length) {
+  static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
   }
-  static inline constexpr int OffsetOfElementAt(int index) {
+  static constexpr int OffsetOfElementAt(int index) {
     return sizeof(Header) + index * kElementSize;
   }
 
@@ -741,7 +739,7 @@ class WeakArrayList
   class Iterator;
 
  private:
-  static int OffsetOfElementAt(int index) {
+  static constexpr int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kTaggedSize;
   }
 

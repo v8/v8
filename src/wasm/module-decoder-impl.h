@@ -1056,12 +1056,12 @@ class ModuleDecoderImpl : public Decoder {
             error("shared imported global must have shared type");
             break;
           }
-          module_->globals.push_back(
-              WasmGlobal{.type = type,
-                         .mutability = mutability,
-                         .index = 0,  // set later in CalculateGlobalOffsets
-                         .shared = shared,
-                         .imported = true});
+          module_->globals.push_back(WasmGlobal{
+              .type = type,
+              .mutability = mutability,
+              .index_in_buffer = 0,  // set later in CalculateGlobalOffsets
+              .shared = shared,
+              .imported = true});
           module_->num_imported_globals++;
           DCHECK_EQ(module_->globals.size(), module_->num_imported_globals);
           if (shared) module_->has_shared_part = true;
@@ -1256,13 +1256,13 @@ class ModuleDecoderImpl : public Decoder {
       bool ends_with_struct_new = false;
       ConstantExpression init =
           consume_init_expr(module_.get(), type, shared, &ends_with_struct_new);
-      module_->globals.push_back(
-          WasmGlobal{.type = type,
-                     .mutability = mutability,
-                     .init = init,
-                     .index = 0,  // set later in CalculateGlobalOffsets
-                     .shared = shared,
-                     .initializer_ends_with_struct_new = ends_with_struct_new});
+      module_->globals.push_back(WasmGlobal{
+          .type = type,
+          .mutability = mutability,
+          .init = init,
+          .index_in_buffer = 0,  // set later in CalculateGlobalOffsets
+          .shared = shared,
+          .initializer_ends_with_struct_new = ends_with_struct_new});
       if (shared) module_->has_shared_part = true;
     }
   }
@@ -2224,25 +2224,25 @@ class ModuleDecoderImpl : public Decoder {
       // execute it again.
       return;
     }
-    uint32_t untagged_offset = 0;
-    uint32_t tagged_offset = 0;
+    uint32_t untagged_index = 0;
+    uint32_t tagged_index = 0;
     uint32_t num_imported_mutable_globals = 0;
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
-        global.index = num_imported_mutable_globals++;
+        global.mutable_imported_global_index = num_imported_mutable_globals++;
       } else if (global.type.is_ref()) {
-        global.offset = tagged_offset;
+        global.index_in_buffer = tagged_index;
         // All entries in the tagged_globals_buffer have size 1.
-        tagged_offset++;
+        tagged_index++;
       } else {
         int size = global.type.value_kind_size();
-        untagged_offset = (untagged_offset + size - 1) & ~(size - 1);  // align
-        global.offset = untagged_offset;
-        untagged_offset += size;
+        untagged_index = (untagged_index + size - 1) & ~(size - 1);  // align
+        global.index_in_buffer = untagged_index;
+        untagged_index += size;
       }
     }
-    module->untagged_globals_buffer_size = untagged_offset;
-    module->tagged_globals_buffer_size = tagged_offset;
+    module->untagged_globals_buffer_size = untagged_index;
+    module->tagged_globals_buffer_size = tagged_index;
   }
 
   ModuleTypeIndex consume_sig_index(WasmModule* module,

@@ -435,8 +435,11 @@ class WasmGlobalObject
  public:
   class BodyDescriptor;
 
-  DECL_ACCESSORS(untagged_buffer, Tagged<JSArrayBuffer>)
-  DECL_ACCESSORS(tagged_buffer, Tagged<FixedArray>)
+  // We use a ByteArray for non-ref globals and a FixedArray for ref-typed
+  // globals.
+  using BufferType = Union<ByteArray, FixedArray>;
+
+  DECL_ACCESSORS(buffer, Tagged<BufferType>)
   DECL_PRIMITIVE_ACCESSORS(unsafe_type, wasm::ValueType)
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
@@ -445,8 +448,7 @@ class WasmGlobalObject
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmGlobalObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
-      MaybeDirectHandle<JSArrayBuffer> maybe_untagged_buffer,
-      MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
+      MaybeDirectHandle<BufferType> maybe_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
   inline int unsafe_type_size() const;
@@ -466,12 +468,10 @@ class WasmGlobalObject
   inline void SetRef(DirectHandle<Object> value);
 
  private:
-  // This function returns the address of the global's data in the
-  // JSArrayBuffer. This buffer may be allocated on-heap, in which case it may
-  // not have a fixed address.
-  inline Address address() const;
-
   TQ_OBJECT_CONSTRUCTORS(WasmGlobalObject)
+
+  // Returns a raw pointer into the buffer where this global's value is stored.
+  inline Address storage() const;
 };
 
 class FeedbackConstants {
@@ -490,14 +490,26 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #if V8_ENABLE_DRUMBRAKE
   DECL_OPTIONAL_ACCESSORS(interpreter_object, Tagged<Tuple2>)
 #endif  // V8_ENABLE_DRUMBRAKE
-  DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, Tagged<JSArrayBuffer>)
-  DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, Tagged<FixedArray>)
-  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
+  // `untagged_globals_buffer`: Storage for non-ref globals.
+  DECL_ACCESSORS(untagged_globals_buffer, Tagged<ByteArray>)
+  // `tagged_globals_buffer`: Storage for ref-typed globals.
+  DECL_ACCESSORS(tagged_globals_buffer, Tagged<FixedArray>)
   // tables: FixedArray of WasmTableObject.
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table_for_imports,
                                    WasmDispatchTableForImports)
-  DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
+  // `imported_mutable_globals_buffers`: Stores (per imported mutable global)
+  // the `FixedArray` (for ref-typed globals) or `ByteArray` (non-ref) that
+  // stores the global's value (similar to `WasmGlobalObject::buffer`).
+  // TODO(clemensb): Merge this with `imported_mutable_globals_offsets` into a
+  // single data structure (for faster access).
+  DECL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
+  // `imported_mutable_globals`: Stores the offset of the global's value in the
+  // buffer stored in `imported_mutable_globals_buffers` (similar to
+  // `WasmGlobalObject::offset`).
+  // This offset is shifted and scaled to be used in generated code as a direct
+  // offset from the buffer's (tagged, uncompressed) pointer.
+  DECL_ACCESSORS(imported_mutable_globals_offsets, Tagged<FixedUInt32Array>)
 #if V8_ENABLE_DRUMBRAKE
   // Points to an array that contains the function index for each imported Wasm
   // function. This is required to call imported functions from the Wasm
@@ -516,7 +528,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(memory0_size, size_t)
   DECL_PROTECTED_POINTER_ACCESSORS(managed_native_module,
                                    TrustedManaged<wasm::NativeModule>)
-  DECL_PRIMITIVE_ACCESSORS(globals_start, uint8_t*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, std::atomic<uint32_t>*)
@@ -550,13 +561,13 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   /* Less than system pointer sized fields come first. */                 \
   V(kProtectedDispatchTable0Offset, kTaggedSize)                          \
   V(kProtectedDispatchTableForImportsOffset, kTaggedSize)                 \
-  V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
+  V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
+  V(kImportedMutableGlobalsOffsetsOffset, kTaggedSize)                    \
   IF_WASM_DRUMBRAKE(V, kImportedFunctionIndicesOffset, kTaggedSize)       \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemory0StartOffset, kSystemPointerSize)                              \
   V(kMemory0SizeOffset, kSizetSize)                                       \
-  V(kGlobalsStartOffset, kSystemPointerSize)                              \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
   /* Continue with system pointer size fields to maintain alignment. */   \
@@ -572,7 +583,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kMemoryObjectsOffset, kTaggedSize)                                    \
   V(kUntaggedGlobalsBufferOffset, kTaggedSize)                            \
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
-  V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   IF_WASM_DRUMBRAKE(V, kInterpreterObjectOffset, kTaggedSize)             \
   V(kTablesOffset, kTaggedSize)                                           \
   V(kProtectedDispatchTablesOffset, kTaggedSize)                          \
@@ -611,6 +621,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kUntaggedGlobalsBufferOffset, "untagged_globals_buffer")                  \
   V(kTaggedGlobalsBufferOffset, "tagged_globals_buffer")                      \
   V(kImportedMutableGlobalsBuffersOffset, "imported_mutable_globals_buffers") \
+  V(kImportedMutableGlobalsOffsetsOffset, "imported_mutable_globals_offsets") \
   IF_WASM_DRUMBRAKE(V, kInterpreterObjectOffset, "interpreter_object")        \
   V(kTablesOffset, "tables")                                                  \
   V(kTagsTableOffset, "tags_table")                                           \
@@ -618,7 +629,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   V(kManagedObjectMapsOffset, "managed_object_maps")                          \
   V(kFeedbackVectorsOffset, "feedback_vectors")                               \
   V(kWellKnownImportsOffset, "well_known_imports")                            \
-  V(kImportedMutableGlobalsOffset, "imported_mutable_globals")                \
   IF_WASM_DRUMBRAKE(V, kImportedFunctionIndicesOffset,                        \
                     "imported_function_indices")                              \
   V(kElementSegmentsOffset, "element_segments")
@@ -722,14 +732,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       wasm::PrecreateExternal precreate_external = wasm::kOnlyInternalFunction);
 
   // Get a raw pointer to the location where the given global is stored.
-  // {global} must not be a reference type.
   Address GetGlobalStorage(const wasm::WasmGlobal&,
                            const DisallowGarbageCollection&);
-
-  // Get the FixedArray and the index in that FixedArray for the given global,
-  // which must be a reference type.
-  std::pair<Tagged<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
-      const wasm::WasmGlobal&);
 
   // Get the value of a global.
   wasm::WasmValue GetGlobalValue(Isolate*, const wasm::WasmGlobal&);

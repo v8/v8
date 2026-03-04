@@ -1890,7 +1890,7 @@ bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
 }
 }  // namespace
 
-// WebAssembly.Global
+// new WebAssembly.Global(descriptor[, value])
 void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Global()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
@@ -1943,8 +1943,8 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::MaybeDirectHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(
           i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
-          i::MaybeDirectHandle<i::JSArrayBuffer>(),
-          i::MaybeDirectHandle<i::FixedArray>(), type, offset, is_mutable);
+          i::MaybeDirectHandle<i::WasmGlobalObject::BufferType>(), type, offset,
+          is_mutable);
 
   i::DirectHandle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {

@@ -567,7 +567,7 @@ class PrototypeSetupSequenceDetector : public Decoder {
     const WasmGlobal& global = module_->globals[global_index];
     if (global.type != kWasmExternRef) return false;
     if (global.mutability) return false;
-    global_offset_ = global.offset;
+    global_offset_ = global.index_in_buffer;
     return true;
   }
 
@@ -3207,103 +3207,92 @@ class LiftoffCompiler {
     LocalSet(imm.index, true);
   }
 
-  Register GetGlobalBaseAndOffset(const WasmGlobal* global,
-                                  LiftoffRegList* pinned, uint32_t* offset) {
-    Register addr = pinned->set(__ GetUnusedRegister(kGpReg, {})).gp();
-    if (global->mutability && global->imported) {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(addr, ImportedMutableGlobals, *pinned);
-      int field_offset =
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
-              global->index);
-      __ LoadFullPointer(addr, addr, field_offset);
-      *offset = 0;
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(addr);
-#endif
-    } else {
-      LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
-      *offset = global->offset;
-    }
-      return addr;
+  void GetBufferAndOffsetForNumericGlobal(const WasmGlobal* global,
+                                          Register buffer, int* offset,
+                                          LiftoffRegList pinned) {
+    DCHECK(!global->mutability || !global->imported);
+    DCHECK(!global->type.is_ref());
+
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, UntaggedGlobalsBuffer, pinned);
+    *offset = wasm::ObjectAccess::ToTagged(
+        ByteArray::OffsetOfElementAt(global->index_in_buffer));
   }
 
-  void GetBaseAndOffsetForImportedMutableExternRefGlobal(
-      const WasmGlobal* global, LiftoffRegList* pinned, Register* base,
-      Register* offset) {
-    Register globals_buffer =
-        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer,
-                                   ImportedMutableGlobalsBuffers, *pinned);
-    *base = globals_buffer;
-    __ LoadTaggedPointer(
-        *base, globals_buffer, no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global->offset));
+  void GetBufferAndOffsetForRefGlobal(const WasmGlobal* global, Register buffer,
+                                      int* offset, LiftoffRegList pinned) {
+    DCHECK(!global->mutability || !global->imported);
+    DCHECK(global->type.is_ref());
 
-    // For the offset we need the index of the global in the buffer, and
-    // then calculate the actual offset from the index. Load the index from
-    // the ImportedMutableGlobals array of the instance.
-    Register imported_mutable_globals =
-        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, TaggedGlobalsBuffer, pinned);
+    *offset = wasm::ObjectAccess::ToTagged(
+        FixedArray::OffsetOfElementAt(global->index_in_buffer));
+  }
 
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_mutable_globals,
-                                   ImportedMutableGlobals, *pinned);
-    *offset = imported_mutable_globals;
-    int field_offset =
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
-            global->index);
-    __ Load(LiftoffRegister(*offset), imported_mutable_globals, no_reg,
-            field_offset, LoadType::kI32Load);
-    __ emit_i32_shli(*offset, *offset, kTaggedSizeLog2);
-    __ emit_i32_addi(*offset, *offset,
-                     wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0));
+  // Loads the tagged buffer (ByteArray or FixedArray) and the offset from that
+  // tagged address (no need to subtract kHeapObjectTag; this makes the
+  // generated code more compact).
+  void GetBufferAndOffsetForImportedMutableGlobal(const WasmGlobal* global,
+                                                  Register buffer,
+                                                  Register offset,
+                                                  LiftoffRegList pinned) {
+    SCOPED_CODE_COMMENT("GetBufferAndOffsetForImportedMutableGlobal");
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, ImportedMutableGlobalsBuffers,
+                                   pinned);
+    // Load the global-specific `FixedArray` from the
+    // `imported_mutable_globals_buffers` `FixedArray`.
+    __ LoadTaggedPointer(buffer, buffer, no_reg,
+                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                             global->mutable_imported_global_index));
+
+    // Load the offset of the global within its buffer.
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(offset, ImportedMutableGlobalsOffsets,
+                                   pinned);
+    __ Load(LiftoffRegister(offset), offset, no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
+                global->mutable_imported_global_index),
+            LoadType::kI32Load);
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
     const auto* global = &env_->module->globals[imm.index];
     ValueKind kind = global->type.kind();
-    if (!CheckSupportedType(decoder, kind, "global")) {
-      return;
-    }
-
-    if (is_reference(kind)) {
-      if (global->mutability && global->imported) {
-        LiftoffRegList pinned;
-        Register base = no_reg;
-        Register offset = no_reg;
-        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
-                                                          &base, &offset);
-        __ LoadTaggedPointer(base, base, offset, 0);
-        __ PushRegister(kind, LiftoffRegister(base));
-        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-          TraceGlobalOperation(imm.index, false, decoder->position());
-        }
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer,
-                                     pinned);
-      Register value = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      __ LoadTaggedPointer(value, globals_buffer, no_reg,
-                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                               imm.global->offset));
-      __ PushRegister(kind, LiftoffRegister(value));
-      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-        TraceGlobalOperation(imm.index, false, decoder->position());
-      }
-      return;
-    }
+    if (!CheckSupportedType(decoder, kind, "global")) return;
     LiftoffRegList pinned;
-    uint32_t offset = 0;
-    Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
-    LiftoffRegister value =
-        pinned.set(__ GetUnusedRegister(reg_class_for(kind), pinned));
-    LoadType type = LoadType::ForValueKind(kind);
-    __ Load(value, addr, no_reg, offset, type, nullptr, false);
-    __ PushRegister(kind, value);
+    Register buffer = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register offset_reg = no_reg;
+    int offset_imm = 0;
+    LiftoffRegister dst{buffer};
+
+    if (global->mutability && global->imported) {
+      offset_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      GetBufferAndOffsetForImportedMutableGlobal(global, buffer, offset_reg,
+                                                 pinned);
+      RegClass dst_reg_class = reg_class_for(kind);
+      dst = dst_reg_class == kGpReg
+                ? LiftoffRegister{buffer}
+                : pinned.set(__ GetUnusedRegister(dst_reg_class, pinned));
+      if (is_reference(kind)) {
+        __ LoadTaggedPointer(dst.gp(), buffer, offset_reg, 0);
+      } else {
+        LoadType type = LoadType::ForValueKind(kind);
+        __ Load(dst, buffer, offset_reg, offset_imm, type);
+      }
+    } else if (is_reference(kind)) {
+      GetBufferAndOffsetForRefGlobal(global, buffer, &offset_imm, pinned);
+      dst = LiftoffRegister{buffer};
+      __ LoadTaggedPointer(dst.gp(), buffer, offset_reg, offset_imm);
+    } else {
+      GetBufferAndOffsetForNumericGlobal(global, buffer, &offset_imm, pinned);
+      RegClass dst_reg_class = reg_class_for(kind);
+      dst = dst_reg_class == kGpReg
+                ? LiftoffRegister{buffer}
+                : pinned.set(__ GetUnusedRegister(dst_reg_class, pinned));
+      LoadType type = LoadType::ForValueKind(kind);
+      __ Load(dst, buffer, offset_reg, offset_imm, type);
+    }
+
+    __ PushRegister(kind, dst);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
       TraceGlobalOperation(imm.index, false, decoder->position());
@@ -3314,48 +3303,32 @@ class LiftoffCompiler {
                  const GlobalIndexImmediate& imm) {
     auto* global = &env_->module->globals[imm.index];
     ValueKind kind = global->type.kind();
-    if (!CheckSupportedType(decoder, kind, "global")) {
-      return;
-    }
-
-    if (is_reference(kind)) {
-      if (global->mutability && global->imported) {
-        LiftoffRegList pinned;
-        Register value = pinned.set(__ PopToRegister(pinned)).gp();
-        Register base = no_reg;
-        Register offset = no_reg;
-        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
-                                                          &base, &offset);
-        __ StoreTaggedPointer(base, offset, 0, value, pinned);
-
-        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-          TraceGlobalOperation(imm.index, true, decoder->position());
-        }
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer,
-                                     pinned);
-      Register value = pinned.set(__ PopToRegister(pinned)).gp();
-      __ StoreTaggedPointer(globals_buffer, no_reg,
-                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                                imm.global->offset),
-                            value, pinned);
-
-      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-        TraceGlobalOperation(imm.index, true, decoder->position());
-      }
-      return;
-    }
+    if (!CheckSupportedType(decoder, kind, "global")) return;
     LiftoffRegList pinned;
-    uint32_t offset = 0;
-    Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
-    LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
-    StoreType type = StoreType::ForValueKind(kind);
-    __ Store(addr, no_reg, offset, reg, type, {}, nullptr, false);
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    Register buffer = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register offset_reg = no_reg;
+    int offset_imm = 0;
+
+    if (global->mutability && global->imported) {
+      offset_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      GetBufferAndOffsetForImportedMutableGlobal(global, buffer, offset_reg,
+                                                 pinned);
+      if (global->type.is_ref()) {
+        __ StoreTaggedPointer(buffer, offset_reg, offset_imm, value.gp(),
+                              pinned);
+      } else {
+        StoreType type = StoreType::ForValueKind(kind);
+        __ Store(buffer, offset_reg, offset_imm, value, type, pinned);
+      }
+    } else if (is_reference(kind)) {
+      GetBufferAndOffsetForRefGlobal(global, buffer, &offset_imm, pinned);
+      __ StoreTaggedPointer(buffer, offset_reg, offset_imm, value.gp(), pinned);
+    } else {
+      GetBufferAndOffsetForNumericGlobal(global, buffer, &offset_imm, pinned);
+      StoreType type = StoreType::ForValueKind(kind);
+      __ Store(buffer, offset_reg, offset_imm, value, type, pinned);
+    }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
       TraceGlobalOperation(imm.index, true, decoder->position());

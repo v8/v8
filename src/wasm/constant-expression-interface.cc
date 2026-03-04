@@ -148,17 +148,7 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
   DCHECK(!global.mutability);
   DirectHandle<WasmTrustedInstanceData> data =
       global.shared ? shared_trusted_instance_data_ : trusted_instance_data_;
-  CanonicalValueType type = module_->canonical_type(global.type);
-  result->runtime_value =
-      type.is_numeric()
-          ? WasmValue(reinterpret_cast<uint8_t*>(
-                          data->untagged_globals_buffer()->backing_store()) +
-                          global.offset,
-                      type)
-          : WasmValue(
-                direct_handle(data->tagged_globals_buffer()->get(global.offset),
-                              isolate_),
-                type);
+  result->runtime_value = data->GetGlobalValue(isolate_, global);
 }
 
 DirectHandle<Map> ConstantExpressionInterface::GetRtt(

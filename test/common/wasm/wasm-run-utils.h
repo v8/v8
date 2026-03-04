@@ -305,7 +305,6 @@ class TestingModuleBuilder {
   // The TestingModuleBuilder only supports one memory currently.
   uint8_t* mem0_start_ = nullptr;
   uint32_t mem0_size_ = 0;
-  uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   DirectHandle<WasmInstanceObject> instance_object_;
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;

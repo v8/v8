@@ -3143,13 +3143,14 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(native_context, Brief);
   PRINT_WASM_INSTANCE_FIELD(shared_part, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_objects, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);
+  PRINT_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
+  PRINT_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
+  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);
+  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals_offsets, Brief);
 #if V8_ENABLE_DRUMBRAKE
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(interpreter_object, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tables, Brief);
+  PRINT_WASM_INSTANCE_FIELD(tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(dispatch_table0, Brief);
   PRINT_WASM_INSTANCE_FIELD(dispatch_tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(dispatch_table_for_imports, Brief);
@@ -3163,8 +3164,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 #if V8_ENABLE_DRUMBRAKE
   PRINT_WASM_INSTANCE_FIELD(imported_function_indices, Brief);
 #endif  // V8_ENABLE_DRUMBRAKE
-  PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(data_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(element_segments, Brief);
@@ -3313,16 +3312,12 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmGlobalObject");
-  if (unsafe_type().is_ref()) {
-    os << "\n - tagged_buffer: " << Brief(tagged_buffer());
-  } else {
-    os << "\n - untagged_buffer: " << Brief(untagged_buffer());
+  if (has_trusted_data()) {
+    os << "\n - trusted_data: " << trusted_data(GetCurrentIsolateForSandbox());
   }
+  os << "\n - buffer: " << Brief(buffer());
   os << "\n - offset: " << offset();
-  os << "\n - raw_type: " << raw_type();
-  os << "\n - is_mutable: " << is_mutable();
   os << "\n - type: " << unsafe_type();
-  os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }
 

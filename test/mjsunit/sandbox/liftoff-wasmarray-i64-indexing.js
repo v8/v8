@@ -8,7 +8,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Prepare corruption utilities.
 const kHeapObjectTag = 1;
-const kWasmGlobalObjectTaggedBufferOffset = 0x14;
+const kWasmGlobalObjectBufferOffset = 0x10;
 const kFixedArrayElement0Offset = 0x8;
 const kMapOffset = 0;
 const kFuncRefMapTypeInfoOffset = 0x14;
@@ -71,7 +71,7 @@ let instance = builder.instantiate();
 let {fn_i_l, fn_l_l, alloc_u8arr, u8arr_get, u8arr_set} = instance.exports;
 
 function extract_wasmglobal_value(global) {
-  let pbuf = getField(getPtr(global), kWasmGlobalObjectTaggedBufferOffset);
+  let pbuf = getField(getPtr(global), kWasmGlobalObjectBufferOffset);
   let pval = getField(pbuf, kFixedArrayElement0Offset);
   return pval;
 }

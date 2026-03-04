@@ -1157,8 +1157,7 @@ class WasmGlobalObject::BodyDescriptor final : public BodyDescriptorBase {
     IterateTrustedPointer(obj, kTrustedDataOffset, v,
                           IndirectPointerMode::kStrong,
                           kWasmTrustedInstanceDataIndirectPointerTag);
-    IteratePointer(obj, kUntaggedBufferOffset, v);
-    IteratePointer(obj, kTaggedBufferOffset, v);
+    IteratePointer(obj, kBufferOffset, v);
     IterateJSObjectBodyImpl(map, obj, kIsMutableOffset + kTaggedSize,
                             object_size, v);
   }

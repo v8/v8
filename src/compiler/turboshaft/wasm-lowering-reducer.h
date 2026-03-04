@@ -348,9 +348,8 @@ class WasmLoweringReducer : public Next {
                           const wasm::ArrayType* array_type, bool is_signed,
                           std::optional<AtomicMemoryOrder> memory_order) {
     bool is_mutable = array_type->mutability();
-    LoadOp::Kind load_kind = is_mutable
-                                 ? LoadOp::Kind::TaggedBase()
-                                 : LoadOp::Kind::TaggedBase().Immutable();
+    LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
+    if (!is_mutable) load_kind = load_kind.Immutable();
     if (memory_order.has_value()) {
       load_kind = load_kind.Atomic();
     }
@@ -1034,80 +1033,69 @@ class WasmLoweringReducer : public Next {
     bool is_mutable = global->mutability;
     DCHECK_IMPLIES(!is_mutable, mode == GlobalMode::kLoad);
     if (is_mutable && global->imported) {
-      V<FixedAddressArray> imported_mutable_globals =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobals,
+      V<FixedArray> buffers =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobalsBuffers,
                                         MemoryRepresentation::TaggedPointer());
-      int field_offset = FixedAddressArray::OffsetOfElementAt(global->index);
-      if (global->type.is_ref()) {
-        V<FixedArray> buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
-            instance, ImportedMutableGlobalsBuffers,
-            MemoryRepresentation::TaggedPointer());
-        int offset_in_buffers = FixedArray::OffsetOfElementAt(global->offset);
-        V<HeapObject> base =
-            __ Load(buffers, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::AnyTagged(), offset_in_buffers);
-        V<Word32> index = __ Load(imported_mutable_globals, OpIndex::Invalid(),
-                                  LoadOp::Kind::TaggedBase(),
-                                  MemoryRepresentation::Int32(), field_offset);
-        V<WordPtr> index_ptr = __ ChangeInt32ToIntPtr(index);
-        if (mode == GlobalMode::kLoad) {
-          return __ Load(base, index_ptr, LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::AnyTagged(),
-                         FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
-        } else {
-          __ Store(base, index_ptr, value, StoreOp::Kind::TaggedBase(),
-                   MemoryRepresentation::AnyTagged(),
-                   WriteBarrierKind::kFullWriteBarrier,
-                   FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
-          return OpIndex::Invalid();
-        }
-      } else {
-        // Global is imported mutable but not a reference.
-        OpIndex base = __ Load(imported_mutable_globals, OpIndex::Invalid(),
-                               LoadOp::Kind::TaggedBase(),
-                               kMaybeSandboxedPointer, field_offset);
-        if (mode == GlobalMode::kLoad) {
-          return __ Load(base, LoadOp::Kind::RawAligned(),
-                         RepresentationFor(global->type, true), 0);
-        } else {
-          __ Store(base, value, StoreOp::Kind::RawAligned(),
-                   RepresentationFor(global->type, true),
-                   WriteBarrierKind::kNoWriteBarrier, 0);
-          return OpIndex::Invalid();
-        }
-      }
-    } else if (global->type.is_ref()) {
-      V<HeapObject> base = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
-      int offset =
-          OFFSET_OF_DATA_START(FixedArray) + global->offset * kTaggedSize;
+      V<FixedArray> offsets =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobalsOffsets,
+                                        MemoryRepresentation::TaggedPointer());
+      V<WasmGlobalObject::BufferType> buffer = __ Load(
+          buffers, LoadOp::Kind::TaggedBase().Immutable(),
+          MemoryRepresentation::AnyTagged(),
+          FixedArray::OffsetOfElementAt(global->mutable_imported_global_index));
+      V<WordPtr> offset_from_tagged_buffer = __ ChangeUint32ToUintPtr(
+          __ Load(offsets, OpIndex::Invalid(), LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::Uint32(),
+                  FixedUInt32Array::OffsetOfElementAt(
+                      global->mutable_imported_global_index)));
+      // Note: We need to use `{Load,Store}Op::Kind::TaggedBase()` below for
+      // correct typing, but that automatically subtracts `kHeapObjectTag` so we
+      // explicitly add it back as immediate offset.
+      // This results in a more compact memory operand (no immediate).
       if (mode == GlobalMode::kLoad) {
-        LoadOp::Kind load_kind = is_mutable
-                                     ? LoadOp::Kind::TaggedBase()
-                                     : LoadOp::Kind::TaggedBase().Immutable();
-        return __ Load(base, load_kind, MemoryRepresentation::AnyTagged(),
+        return __ Load(buffer, offset_from_tagged_buffer,
+                       LoadOp::Kind::TaggedBase(),
+                       RepresentationFor(global->type, true), kHeapObjectTag);
+      } else {
+        __ Store(buffer, offset_from_tagged_buffer, value,
+                 StoreOp::Kind::TaggedBase(),
+                 RepresentationFor(global->type, true),
+                 global->type.is_ref() ? WriteBarrierKind::kFullWriteBarrier
+                                       : WriteBarrierKind::kNoWriteBarrier,
+                 kHeapObjectTag);
+      }
+      return OpIndex::Invalid();
+    } else if (global->type.is_ref()) {
+      V<FixedArray> buffer = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
+      int offset = FixedArray::OffsetOfElementAt(global->index_in_buffer);
+      if (mode == GlobalMode::kLoad) {
+        LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
+        if (!is_mutable) load_kind = load_kind.Immutable();
+        return __ Load(buffer, load_kind, MemoryRepresentation::AnyTagged(),
                        offset);
       } else {
         // TODO(jkummerow): Set {WriteBarrierKind::kPointerWriteBarrier} when
         // we know that {value} cannot be a Smi.
-        __ Store(base, value, StoreOp::Kind::TaggedBase(),
+        __ Store(buffer, value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),
                  WriteBarrierKind::kFullWriteBarrier, offset);
         return OpIndex::Invalid();
       }
     } else {
-      OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance, GlobalsStart, MemoryRepresentation::UintPtr());
+      V<ByteArray> buffer =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(instance, UntaggedGlobalsBuffer,
+                                        MemoryRepresentation::TaggedPointer());
+      int offset = ByteArray::OffsetOfElementAt(global->index_in_buffer);
       if (mode == GlobalMode::kLoad) {
-        LoadOp::Kind load_kind = is_mutable
-                                     ? LoadOp::Kind::RawAligned()
-                                     : LoadOp::Kind::RawAligned().Immutable();
-        return __ Load(base, load_kind, RepresentationFor(global->type, true),
-                       global->offset);
+        LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
+        if (!is_mutable) load_kind = load_kind.Immutable();
+        return __ Load(buffer, load_kind, RepresentationFor(global->type, true),
+                       offset);
       } else {
-        __ Store(base, value, StoreOp::Kind::RawAligned(),
+        __ Store(buffer, value, StoreOp::Kind::TaggedBase(),
                  RepresentationFor(global->type, true),
-                 WriteBarrierKind::kNoWriteBarrier, global->offset);
+                 WriteBarrierKind::kNoWriteBarrier, offset);
         return OpIndex::Invalid();
       }
     }

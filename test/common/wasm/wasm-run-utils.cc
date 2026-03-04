@@ -68,10 +68,6 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   WasmJs::Install(isolate_);
   module_->untagged_globals_buffer_size = kMaxGlobalsSize;
-  // The GlobalsData must be located inside the sandbox, so allocate it from the
-  // ArrayBuffer allocator.
-  globals_data_ = reinterpret_cast<uint8_t*>(
-      isolate->array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
@@ -116,7 +112,6 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});
-  isolate_->array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
@@ -446,6 +441,9 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
     script->set_infos(ReadOnlyRoots{isolate_}.empty_weak_fixed_array());
   }
 
+  DirectHandle<ByteArray> globals_buffer =
+      isolate_->factory()->NewByteArray(kMaxGlobalsSize);
+  std::fill(globals_buffer->begin(), globals_buffer->end(), 0);
   DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module, script);
   native_module_ = native_module.get();
@@ -458,7 +456,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   DirectHandle<WasmInstanceObject> instance_object(
       trusted_data->instance_object(), isolate_);
   trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
-  trusted_data->set_globals_start(globals_data_);
+  trusted_data->set_untagged_globals_buffer(*globals_buffer);
   DirectHandle<FixedArray> feedback_vector =
       isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);
   trusted_data->set_feedback_vectors(*feedback_vector);

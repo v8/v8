@@ -98,11 +98,13 @@ struct WasmGlobal {
   bool mutability = false;       // {true} if mutable.
   ConstantExpression init = {};  // the initialization expression of the global.
   union {
-    // Index of imported mutable global.
-    uint32_t index;
-    // Offset into global memory (if not imported & mutable). Expressed in bytes
-    // for value-typed globals, and in tagged words for reference-typed globals.
-    uint32_t offset;
+    // Used for mutable imported globals. Stores the index into the instance's
+    // `imported_mutable_globals_buffers` and `imported_mutable_globals_offsets`
+    // arrays.
+    uint32_t mutable_imported_global_index;
+    // Used for non-imported or non-mutable globals: Index into the instance's
+    // `tagged_globals_buffer` or `untagged_globals_buffer`.
+    uint32_t index_in_buffer;
   };
   bool shared = false;
   bool imported = false;

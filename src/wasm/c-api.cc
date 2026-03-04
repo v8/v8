@@ -2016,8 +2016,8 @@ WASM_EXPORT auto Global::make(Store* store_abs, const GlobalType* type,
   i::DirectHandle<i::WasmGlobalObject> obj =
       i::WasmGlobalObject::New(
           isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
-          i::MaybeDirectHandle<i::JSArrayBuffer>(),
-          i::MaybeDirectHandle<i::FixedArray>(), i_type, offset, is_mutable)
+          i::MaybeDirectHandle<i::WasmGlobalObject::BufferType>(), i_type,
+          offset, is_mutable)
           .ToHandleChecked();
 
   auto global = implement<Global>::type::make(store, obj);
