@@ -2592,6 +2592,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pop2pq(Register dst1, Register dst2);
   void setzucc(Condition cc, Register reg);
   void jmpabs(Immediate64 target);
+
+  // NDD neg
+  void negl(Register dst, Register src);
+  void negl(Register dst, Operand src);
+  void negq(Register dst, Register src);
+  void negq(Register dst, Operand src);
 #endif  // V8_ENABLE_APX_F
 
   // Check the code size generated from label to here.
@@ -3167,6 +3173,131 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    int size);
   void emit_cfcmov(Condition cc, Register ndd, Register reg, Operand rm,
                    int size);
+
+  // Emit NDD version machine code for one of the operations ADD, SUB, AND, OR
+  // XOR and IMUL. The encodings of these operations are all similar, differing
+  // just in the opcode or in the reg field of the ModR/M byte.
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Register src2, int size);
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Operand src2, int size);
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Register src1,
+                                   Immediate src2, int size);
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Operand src1,
+                                   Immediate src2, int size);
+
+  void emit_add(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x1, dst, src2, src1, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x21, dst, src2, src1, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x29, dst, src2, src1, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x09, dst, src2, src1, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x31, dst, src2, src1, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_not(Register dst, Register src, int size);
+  void emit_not(Register dst, Operand src, int size);
 #endif  // V8_ENABLE_APX_F
 
   void emit_dec(Register dst, int size);

@@ -5110,6 +5110,112 @@ void Assembler::emit_cfcmov(Condition cc, Register ndd, Register reg,
   emit(0x40 + cc);
   emit_operand(reg, rm);
 }
+
+void Assembler::ndd_arithmetic_op(uint8_t opcode, Register dst, Register reg,
+                                  Register rm_reg, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, reg, rm_reg, kNoPrefix, w, kFlagUpdate,
+                                   kNewDataDest);
+  emit(opcode);
+  emit_modrm(reg, rm_reg);
+}
+
+void Assembler::ndd_arithmetic_op(uint8_t opcode, Register dst, Register reg,
+                                  Operand op, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, reg, op, kNoPrefix, w, kFlagUpdate,
+                                   kNewDataDest);
+  emit(opcode);
+  emit_operand(reg, op);
+}
+
+void Assembler::ndd_immediate_arithmetic_op(uint8_t subcode, Register dst,
+                                            Register src1, Immediate src2,
+                                            int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy */, src1, kNoPrefix, w,
+                                   kFlagUpdate, kNewDataDest);
+  if (is_int8(src2.value_) && RelocInfo::IsNoInfo(src2.rmode_)) {
+    emit(0x83);
+    emit_modrm(subcode, src1);
+    emit(src2.value_);
+  } else {
+    emit(0x81);
+    emit_modrm(subcode, src1);
+    emit(src2);
+  }
+}
+
+void Assembler::ndd_immediate_arithmetic_op(uint8_t subcode, Register dst,
+                                            Operand src1, Immediate src2,
+                                            int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src1, kNoPrefix, w,
+                                   kFlagUpdate, kNewDataDest);
+  if (is_int8(src2.value_) && RelocInfo::IsNoInfo(src2.rmode_)) {
+    emit(0x83);
+    emit_operand(subcode, src1);
+    emit(src2.value_);
+  } else {
+    emit(0x81);
+    emit_operand(subcode, src1);
+    emit(src2);
+  }
+}
+
+void Assembler::emit_not(Register dst, Register src, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, w,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_modrm(0x2, src);
+}
+
+void Assembler::emit_not(Register dst, Operand src, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = size == kInt64Size ? kW1 : kW0;
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, w,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_operand(0x2, src);
+}
+
+void Assembler::negl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, kW0,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_modrm(0x3, src);
+}
+
+void Assembler::negl(Register dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, kW0,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_operand(0x3, src);
+}
+
+void Assembler::negq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, kW1,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_modrm(0x3, src);
+}
+
+void Assembler::negq(Register dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst, rax /* dummy*/, src, kNoPrefix, kW1,
+                                   kFlagUpdate, kNewDataDest);
+  emit(0xF7);
+  emit_operand(0x3, src);
+}
 #endif  // V8_ENABLE_APX_F
 
 }  // namespace internal

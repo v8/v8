@@ -3621,6 +3621,66 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F_CMOV) {
                         0x62, 0x74, 0xfc, 0x0c, 0x4d, 0x54, 0x24, 0x08};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
+
+TEST_F(AssemblerX64Test, AssemblerX64APX_F_NDD) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  __ addq(rax, rcx, r9);
+  __ andl(r15, r11, Operand(r12, r8, times_4, 10000));
+  __ subq(r8, Operand(rcx, rdx, times_8, 10000), r15);
+  __ orl(r15, r11, Immediate(1));
+  __ xorq(r8, Operand(r11, r13, times_4, 10000), Immediate(0x123));
+
+  __ imull(r8, r11, r15);
+  __ imulq(r13, r14, Operand(r12, r15, times_2, 10000));
+
+  __ negl(rcx, rax);
+  __ negq(rcx, Operand(r12, r11, times_4, 10000));
+
+  __ notl(r8, r9);
+  __ notq(rcx, Operand(r13, r11, times_1, 10000));
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {
+      // addq rax, rcx, r9
+      0x62, 0xd4, 0xfc, 0x18, 0x03, 0xc9,
+      // andl r15, r11, Operand(r12, r8, times_4, 10000)
+      0x62, 0x14, 0x04, 0x18, 0x23, 0x9c, 0x84, 0x10, 0x27, 0x00, 0x00,
+      // subq r8, Operand(rcx, rdx, times_8, 10000), r15
+      0x62, 0x74, 0xbc, 0x18, 0x29, 0xbc, 0xd1, 0x10, 0x27, 0x00, 0x00,
+      // orl r15, r11, 0x1
+      0x62, 0xd4, 0x04, 0x18, 0x83, 0xcb, 0x01,
+      // xorq r8, Operand(r11, r13, times_4, 10000), 0x123
+      0x62, 0x94, 0xbc, 0x18, 0x81, 0xb4, 0xab, 0x10, 0x27, 0x00, 0x00, 0x23,
+      0x01, 0x00, 0x00,
+      // imull r8, r11, r15
+      0x62, 0x54, 0x3c, 0x18, 0xaf, 0xdf,
+      // imulq r13, r14, Operand(r12, r15, times_2, 10000)
+      0x62, 0x14, 0x94, 0x18, 0xaf, 0xb4, 0x7c, 0x10, 0x27, 0x00, 0x00,
+      // negl rcx, rax
+      0x62, 0xf4, 0x74, 0x18, 0xf7, 0xd8,
+      // negq rcx, Operand(r12, r11, times_4, 10000)
+      0x62, 0x94, 0xf4, 0x18, 0xf7, 0x9c, 0x9c, 0x10, 0x27, 0x00, 0x00,
+      // notl r8, r9
+      0x62, 0xd4, 0x3c, 0x18, 0xf7, 0xd1,
+      // notq rcx, Operand(r13, r11, times_1, 10000)
+      0x62, 0x94, 0xf4, 0x18, 0xf7, 0x94, 0x1d, 0x10, 0x27, 0x00, 0x00};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
 #endif  // V8_ENABLE_APX_F
 
 #undef __
