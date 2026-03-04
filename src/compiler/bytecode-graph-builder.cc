@@ -4470,7 +4470,33 @@ BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
 void BytecodeGraphBuilder::ApplyEarlyReduction(
     JSTypeHintLowering::LoweringResult reduction) {
   if (reduction.IsExit()) {
-    MergeControlToLeaveFunction(reduction.control());
+    Node* deoptimize = reduction.control();
+    // If we're inside a loop, insert LoopExit nodes for all enclosing loops
+    // before exiting the function via soft deopt. Without this, the loop
+    // peeler sees an unmarked exit and refuses to peel the loop
+    // (crbug.com/488925413).
+    int current_offset = bytecode_iterator().current_offset();
+    int current_loop = bytecode_analysis().GetLoopOffsetFor(current_offset);
+    if (current_loop != -1) {
+      const BytecodeLivenessState* liveness =
+          bytecode_analysis().GetInLivenessFor(current_offset);
+      BuildLoopExitsForFunctionExit(liveness);
+      // The Deoptimize node was already created by JSTypeHintLowering with
+      // the pre-LoopExit effect/control/frame-state. Re-wire it to go
+      // through the LoopExit chain so that the loop peeler recognises the
+      // exit properly.
+      NodeProperties::ReplaceEffectInput(deoptimize,
+                                         environment()->GetEffectDependency());
+      NodeProperties::ReplaceControlInput(
+          deoptimize, environment()->GetControlDependency());
+      // Rebuild the FrameState from the updated environment so that values
+      // referenced by the deopt's StateValues go through LoopExitValue.
+      Node* frame_state = environment()->Checkpoint(
+          BytecodeOffset(current_offset), OutputFrameStateCombine::Ignore(),
+          liveness);
+      deoptimize->ReplaceInput(0, frame_state);
+    }
+    MergeControlToLeaveFunction(deoptimize);
   } else if (reduction.IsSideEffectFree()) {
     environment()->UpdateEffectDependency(reduction.effect());
     environment()->UpdateControlDependency(reduction.control());
