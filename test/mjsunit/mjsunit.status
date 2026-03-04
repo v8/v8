@@ -829,6 +829,7 @@
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
@@ -1646,6 +1647,7 @@
 
   # Code coverage tests are not supported in multiple isolates because the
   # counters are shared across isolates.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 
   # JSON.parse is not supported with --shared-string-table and multiple isolates
@@ -1916,6 +1918,7 @@
   'wasm/denormals': [SKIP],
 
   # Wasm code coverage is not supported yet.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 }],  # arch in [ppc64, s390x]'
 
@@ -3038,6 +3041,7 @@
   'regress/regress-crbug-1209152': [SKIP],
 
   # Wasm code coverage is not currently supported.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 
   # Tests that require the sampler/profiler, which doesn't work on older kernel

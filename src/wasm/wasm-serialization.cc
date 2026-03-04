@@ -365,6 +365,16 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code->tier() != ExecutionTier::kTurbofan) {
     return sizeof(uint8_t);
   }
+
+  // Coverage-instrumented code contains embedded raw pointers to coverage
+  // counter arrays that are not relocatable. Skip serialization so the
+  // function gets recompiled on deserialization with fresh coverage data.
+  // Return sizeof(uint8_t) to match the single-byte marker (kEagerFunction)
+  // written by WriteCode.
+  if (v8_flags.wasm_code_coverage) {
+    return sizeof(uint8_t);
+  }
+
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->inlining_positions().size() +
@@ -451,6 +461,14 @@ void NativeModuleSerializer::WriteCode(
     writer->Write(budget == static_cast<uint32_t>(v8_flags.wasm_tiering_budget)
                       ? kLazyFunction
                       : kEagerFunction);
+    return;
+  }
+
+  // Coverage-instrumented code contains embedded raw pointers to coverage
+  // counter arrays that are not relocatable. Treat it as an eager function
+  // so it gets recompiled with fresh coverage data upon deserialization.
+  if (v8_flags.wasm_code_coverage) {
+    writer->Write(kEagerFunction);
     return;
   }
 
@@ -615,7 +633,8 @@ bool NativeModuleSerializer::Write(Writer* writer) {
 
   size_t total_code_size = 0;
   for (WasmCode* code : code_table_) {
-    if (code && code->tier() == ExecutionTier::kTurbofan) {
+    if (code && code->tier() == ExecutionTier::kTurbofan &&
+        !v8_flags.wasm_code_coverage) {
       DCHECK(IsAligned(code->instructions().size(), kCodeAlignment));
       total_code_size += code->instructions().size();
     }
@@ -628,7 +647,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
     WriteCode(code, writer, function_index_map);
   }
   // No TurboFan-compiled functions in jitless mode.
-  if (!v8_flags.wasm_jitless) {
+  if (!v8_flags.wasm_jitless && !v8_flags.wasm_code_coverage) {
     // If not a single function was written, serialization was not successful.
     if (num_turbofan_functions_ == 0) return false;
   }
