@@ -240,7 +240,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
       WasmBodyInliningResult inlining_result =
           static_cast<Assembler*>(&Asm())->TryInlineWasmCall(
               inlined_function_data_->native_module,
-              inlined_function_data_->function_index, inlined_args);
+              inlined_function_data_->function_index, inlined_args,
+              lazy_deopt_on_throw);
       switch (inlining_result.type) {
         case WasmBodyInliningResult::Type::kSuccessWithValue:
           DCHECK_EQ(sig_->return_count(), 1);

@@ -399,6 +399,7 @@ addTestcase(`i64Add`, kSig_i_ii, [13, 23], [
 // JS-to-Wasm wrapper inlining first. (Right now, we bailout already at this
 // first step.)
 // CHECK: Test: multiValue
+// CHECK-NOT: Inlining JS-to-Wasm wrapper
 // CHECK-NOT: - inlining
 // CHECK: Result:
 addTestcase('multiValue', kSig_ii_v, [], [
@@ -415,8 +416,35 @@ addTestcase('brNoInline', kSig_i_v, [], [
   kExprBr, 0,
 ]);
 
-// CHECK: Considering wasm function [{{[0-9]+}}] trapNoInline of module {{.*}} for inlining
-// CHECK-NEXT: - not inlining: unsupported operation: unreachable
+// This tests that (1) we do not inline into try-catch blocks generally and
+// (2) specifically for Turbolev, that we do not inline calls that are marked
+// with `LazyDeoptOnThrow::kYes`.
+// See https://crbug.com/447206453 and https://crrev.com/c/6991994 for more
+// details.
+// In short, Turbolev marks operations that can throw, but have never thrown
+// so far with this flag, such that the JS function with the corresponding
+// catch block do not have to generate code for the catch. That code is only
+// generated on a lazy deopt, when the throwing operation actually throws.
+// Since the Wasm function in this test does NOT throw, this test case
+// covers the `LazyDeoptOnThrow::kYes` case.
+// CHECK: Inlining JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] insideTryCatch of module {{.*}}
+// CHECK-NEXT: Considering wasm function [{{[0-9]+}}] insideTryCatch of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: call marked with LazyDeoptOnThrow::kYes
+addTestcase('insideTryCatch', kSig_i_v, [], [
+  ...wasmI32Const(0),
+], `function js_insideTryCatch(arg) {
+  try {
+    return wasmExports.insideTryCatch(arg);
+  } catch (e) {
+    return 1;
+  }
+}`);
+
+// See above. In contrast, this test case covers the `LazyDeoptOnThrow::kNo`
+// case, since the Wasm body does trap (i.e., throws).
+// CHECK: Inlining JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] trapNoInline of module {{.*}}
+// CHECK-NEXT: Considering wasm function [{{[0-9]+}}] trapNoInline of module {{.*}} for inlining
+// CHECK-NEXT: - not inlining: a current catch block is set
 addTestcase('trapNoInline', kSig_v_v, [], [
   kExprUnreachable,
 ], `function js_trapNoInline() {

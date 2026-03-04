@@ -87,20 +87,13 @@ class WasmInJSInliningReducer : public Next {
       } else {
         goto non_inlined_call;
       }
-    } else if (descriptor->lazy_deopt_on_throw != LazyDeoptOnThrow::kYes) {
-      // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
-      // inlining calls that have LazyDeoptOnThrow::kYes.
-
-      // TODO(dlehmann): Investigate if we need to prevent inlining into
-      // try-blocks (due to wasm traps ignoring catch handlers in the inlined JS
-      // frame).
-
+    } else {
       // We shouldn't have attached `JSWasmCallParameters` at this call in the
       // Turbofan frontend, unless we have TS Wasm-in-JS inlining enabled.
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
 
-      WasmBodyInliningResult inlining_result =
-          TryInlineWasmCall(native_module, func_idx, arguments);
+      WasmBodyInliningResult inlining_result = TryInlineWasmCall(
+          native_module, func_idx, arguments, descriptor->lazy_deopt_on_throw);
 
       switch (inlining_result.type) {
         case WasmBodyInliningResult::Type::kSuccessWithValue:
@@ -123,7 +116,8 @@ class WasmInJSInliningReducer : public Next {
 
   WasmBodyInliningResult TryInlineWasmCall(
       wasm::NativeModule* native_module, uint32_t func_idx,
-      base::Vector<const OpIndex> arguments);
+      base::Vector<const OpIndex> arguments,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
  private:
   V<Any> TryInlineJSWasmCallWrapperAndBody(
@@ -1371,7 +1365,8 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
 template <class Next>
 WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
     wasm::NativeModule* native_module, uint32_t func_idx,
-    base::Vector<const OpIndex> arguments) {
+    base::Vector<const OpIndex> arguments,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
 
@@ -1404,6 +1399,29 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  const bool has_current_catch_block = __ current_catch_block();
+  const bool has_lazy_deopt_on_throw =
+      lazy_deopt_on_throw == LazyDeoptOnThrow::kYes;
+
+  if (has_lazy_deopt_on_throw) {
+    // Maglev either emits a catch block or uses lazy deopt on throw, but never
+    // both.
+    DCHECK(!has_current_catch_block);
+    // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
+    // inlining calls that have LazyDeoptOnThrow::kYes.
+    TRACE("- not inlining: call marked with LazyDeoptOnThrow::kYes");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  if (has_current_catch_block) {
+    // TODO(dlehmann): Currently, we never inline into try-blocks due to Wasm
+    // traps ignoring catch handlers in the inlined JS frame.
+    // Relax this in the future (but this would be an extension over the old
+    // Turbofan inlining, so it's not in the MVP.)
+    TRACE("- not inlining: a current catch block is set");
     return WasmBodyInliningResult::Failed();
   }
 
