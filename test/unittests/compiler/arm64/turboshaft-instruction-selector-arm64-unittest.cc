@@ -7598,6 +7598,141 @@ TEST_F(TurboshaftInstructionSelectorTest, CommuteAddsExtend) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, ComparisonWithPowerOf2) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint64());
+    const int64_t c = 1ULL << 63;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint64GreaterThanOrEqual(p, m.Int64Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, 1 + ~s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint64());
+    const int64_t c = 1ULL << 53;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint64LessThan(p, m.Int64Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, 1 + ~s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint64());
+    const int64_t c = (1ULL << 41) - 1;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint64GreaterThan(p, m.Int64Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, ~s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint64());
+    const int64_t c = (1ULL << 33) - 1;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint64LessThanOrEqual(p, m.Int64Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, ~s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint64());
+    const int64_t c = 1ULL << 57;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint64LessThanOrEqual(m.Int64Constant(c), p));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, 1 + ~s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint32());
+    const int32_t c = 1UL << 31;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint32GreaterThanOrEqual(p, m.Int32Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, 1 + ~s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Uint32());
+    const int32_t c = (1UL << 21) - 1;
+    const OpIndex p = m.Parameter(0);
+
+    m.Return(m.Uint32LessThanOrEqual(p, m.Int32Constant(c)));
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(p));
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(c, ~s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Miscellaneous
 
