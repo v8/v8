@@ -238,7 +238,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
     if (inlined_function_data_.has_value()) {
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
       WasmBodyInliningResult inlining_result =
-          static_cast<Assembler*>(&Asm())->TryInlineWasmCall(
+          static_cast<Assembler*>(&Asm())->TryInlineWasmBody(
               inlined_function_data_->native_module,
               inlined_function_data_->function_index, inlined_args,
               lazy_deopt_on_throw);

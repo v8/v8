@@ -57,14 +57,19 @@ class WasmInJSInliningReducer : public Next {
       goto non_inlined_call;
     }
 
-    wasm::NativeModule* native_module =
-        descriptor->js_wasm_call_parameters->native_module();
-    uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
-
-    if (v8_flags.turbolev_inline_js_wasm_wrappers && frame_state.has_value()) {
-      // TODO(353475584): Wrapper inlining in Turboshaft is only implemented for
-      // the Turbolev frontend right now.
+    if (v8_flags.turbolev_inline_js_wasm_wrappers) {
+      // TODO(353475584): Wrapper and body inlining in Turboshaft is only
+      // implemented for the Turbolev frontend right now.
       CHECK(v8_flags.turbolev);
+
+      // We need a `FrameState` for building correct stack traces when inlining
+      // potentially trapping Wasm operations.
+      DCHECK(frame_state.has_value());
+
+      wasm::NativeModule* native_module =
+          descriptor->js_wasm_call_parameters->native_module();
+      uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
+
       V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
@@ -87,34 +92,13 @@ class WasmInJSInliningReducer : public Next {
       } else {
         goto non_inlined_call;
       }
-    } else {
-      // We shouldn't have attached `JSWasmCallParameters` at this call in the
-      // Turbofan frontend, unless we have TS Wasm-in-JS inlining enabled.
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-
-      WasmBodyInliningResult inlining_result = TryInlineWasmCall(
-          native_module, func_idx, arguments, descriptor->lazy_deopt_on_throw);
-
-      switch (inlining_result.type) {
-        case WasmBodyInliningResult::Type::kSuccessWithValue:
-          return inlining_result.value.value();
-        case WasmBodyInliningResult::Type::kSuccessVoid:
-          // Inlining succeeded for a void function. The original call had no
-          // outputs, so the result is an invalid value (but unlike in the next
-          // case, the original call is reduced away).
-          return V<Any>::Invalid();
-        case WasmBodyInliningResult::Type::kFailed:
-          // Inlining failed. Simply generate the unmodified Wasm call.
-          goto non_inlined_call;
-      }
     }
 
-    // Inlining not supported for this particular call (e.g., because of lazy
-    // deopts or else, see above).
+    // Inlining not supported for this particular call or bailed out.
     goto non_inlined_call;
   }
 
-  WasmBodyInliningResult TryInlineWasmCall(
+  WasmBodyInliningResult TryInlineWasmBody(
       wasm::NativeModule* native_module, uint32_t func_idx,
       base::Vector<const OpIndex> arguments,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
@@ -1363,7 +1347,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
 }
 
 template <class Next>
-WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
+WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     wasm::NativeModule* native_module, uint32_t func_idx,
     base::Vector<const OpIndex> arguments,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
