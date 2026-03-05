@@ -1400,7 +1400,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
           AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
               reducer_.current_block(), BasicBlockPosition::Start(), {phi});
       node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
-      node->set_input(0, input);
+      node->change_input(0, input);
       return ProcessResult::kContinue;
     }
 
