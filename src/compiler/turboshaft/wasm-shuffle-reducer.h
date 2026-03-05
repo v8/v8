@@ -401,6 +401,9 @@ class WasmShuffleReducer : public Next {
       }
     }
 
+#if V8_TARGET_ARCH_ARM64
+    if (!v8_flags.experimental_wasm_deinterleave_loads) goto no_change;
+
     if (load.loaded_rep != MemoryRepresentation::Simd128()) goto no_change;
 
     if (auto maybe_combined = MaybeAlreadyCombined(&load)) {
@@ -443,6 +446,7 @@ class WasmShuffleReducer : public Next {
       AddDeinterleavedShuffle(candidate.odd_shfop, og_index, 1);
       return og_index;
     }
+#endif  // V8_TARGET_ARCH_ARM64
     goto no_change;
   }
 
@@ -460,12 +464,15 @@ class WasmShuffleReducer : public Next {
     std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
     std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
               shuffle_bytes.begin());
+#if V8_TARGET_ARCH_ARM64
     if (auto maybe_deinterleaved_load = IsDeinterleaveLoadShuffle(&shuffle)) {
+      DCHECK(v8_flags.experimental_wasm_deinterleave_loads);
       const auto* deinterleaved_load = maybe_deinterleaved_load.value();
       return __ Projection(deinterleaved_load->og_index,
                            deinterleaved_load->result_index,
                            RegisterRepresentation::Simd128());
     }
+#endif  // V8_TARGET_ARCH_ARM64
 
     constexpr size_t half_lanes = kSimd128Size / 2;
 

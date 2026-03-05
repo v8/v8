@@ -506,7 +506,8 @@ TEST_F(ReducerTest, LoadInterleaveTwo) {
   });
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
-  EXPECT_EQ(analyzer.ShouldReduce(), v8_flags.experimental_wasm_simd_opt);
+  EXPECT_EQ(analyzer.ShouldReduce(),
+            v8_flags.experimental_wasm_deinterleave_loads);
 }
 
 TEST_F(ReducerTest, LoadInterleaveTwoNegativeDiffOffset) {
@@ -550,7 +551,8 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndex) {
   });
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
-  EXPECT_EQ(analyzer.ShouldReduce(), v8_flags.experimental_wasm_simd_opt);
+  EXPECT_EQ(analyzer.ShouldReduce(),
+            v8_flags.experimental_wasm_deinterleave_loads);
 }
 
 TEST_F(ReducerTest, LoadInterleaveTwoWrongIndex) {

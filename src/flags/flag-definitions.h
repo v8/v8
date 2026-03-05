@@ -1748,6 +1748,10 @@ DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
+DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_deinterleave_loads,
+                            "enable deinterleaving loads for Webassembly SIMD")
+DEFINE_IMPLICATION(experimental_wasm_simd_opt, wasm_simd_opt)
+DEFINE_IMPLICATION(experimental_wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
 
 DEFINE_BOOL(turbolev, false,

@@ -513,10 +513,6 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
 
 void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
 #if V8_TARGET_ARCH_ARM64
-  // Experimental flags controls the generation of deinterleaving loads and
-  // reducing shuffles depending on specific bit patterns.
-  if (!v8_flags.experimental_wasm_simd_opt) return;
-#endif
 
   if (shuffle.kind != Simd128ShuffleOp::Kind::kI8x16) {
     return;
@@ -524,33 +520,43 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
   const Operation& left = input_graph().Get(shuffle.left());
   const Operation& right = input_graph().Get(shuffle.right());
 
-  auto* load_left = left.TryCast<LoadOp>();
-  auto* load_right = right.TryCast<LoadOp>();
+  // Experimental flags controls the generation of deinterleaving loads.
+  if (v8_flags.experimental_wasm_deinterleave_loads) {
+    auto* load_left = left.TryCast<LoadOp>();
+    auto* load_right = right.TryCast<LoadOp>();
 
-  // TODO(sparker): Handle I8x8 shuffles, which will likely mean that the input
-  // to the shuffles are Simd128LoadTransformOp::Load64Zero.
-  if (load_left && load_right) {
-    ProcessShuffleOfLoads(shuffle, *load_left, *load_right);
-    return;
+    // TODO(sparker): Handle I8x8 shuffles, which will likely mean that the
+    // input to the shuffles are Simd128LoadTransformOp::Load64Zero.
+    if (load_left && load_right) {
+      ProcessShuffleOfLoads(shuffle, *load_left, *load_right);
+      return;
+    }
   }
 
-  auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
-  auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();
-  if (!shuffle_left && !shuffle_right) {
-    return;
+  // Experimental flags controls reducing shuffles depending on specific bit
+  // patterns.
+  if (v8_flags.experimental_wasm_simd_opt) {
+    auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
+    auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();
+    if (!shuffle_left && !shuffle_right) {
+      return;
+    }
+    constexpr uint8_t left_lower = 0;
+    constexpr uint8_t left_upper = 15;
+    constexpr uint8_t right_lower = 16;
+    constexpr uint8_t right_upper = 31;
+    if (shuffle_left && shuffle_left->kind == Simd128ShuffleOp::Kind::kI8x16 &&
+        shuffle_left->saturated_use_count.IsOne()) {
+      ProcessShuffleOfShuffle(*shuffle_left, shuffle, left_lower, left_upper);
+    }
+    if (shuffle_right &&
+        shuffle_right->kind == Simd128ShuffleOp::Kind::kI8x16 &&
+        shuffle_right->saturated_use_count.IsOne()) {
+      ProcessShuffleOfShuffle(*shuffle_right, shuffle, right_lower,
+                              right_upper);
+    }
   }
-  constexpr uint8_t left_lower = 0;
-  constexpr uint8_t left_upper = 15;
-  constexpr uint8_t right_lower = 16;
-  constexpr uint8_t right_upper = 31;
-  if (shuffle_left && shuffle_left->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-      shuffle_left->saturated_use_count.IsOne()) {
-    ProcessShuffleOfShuffle(*shuffle_left, shuffle, left_lower, left_upper);
-  }
-  if (shuffle_right && shuffle_right->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-      shuffle_right->saturated_use_count.IsOne()) {
-    ProcessShuffleOfShuffle(*shuffle_right, shuffle, right_lower, right_upper);
-  }
+#endif  // V8_TARGET_ARCH_ARM64
 }
 
 }  // namespace v8::internal::compiler::turboshaft
