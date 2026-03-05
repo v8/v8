@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
@@ -21,8 +22,6 @@ struct LoopEffects;
 class KnownNodeAspects;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
-
-enum ContextSlotMutability { kImmutable, kMutable };
 
 class NodeInfo {
  public:
@@ -618,9 +617,9 @@ class KnownNodeAspects {
 
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
-                                      ContextSlotMutability slot_mutability) {
-    auto map = slot_mutability == kMutable ? loaded_context_slots_
-                                           : loaded_context_constants_;
+                                      MaybeAssignedFlag assigned) {
+    auto map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                            : loaded_context_constants_;
     auto it = map.find({context, offset});
     if (it == map.end()) return nullptr;
     if (it->second) {
@@ -630,9 +629,9 @@ class KnownNodeAspects {
   }
   // Returns the value in the cache and add a new entry.
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
-                                    ContextSlotMutability slot_mutability) {
+                                    MaybeAssignedFlag assigned) {
     ValueNode*& cached_value =
-        slot_mutability == kMutable
+        (assigned == kMaybeAssigned)
             ? loaded_context_slots_[{context, offset}]
             : loaded_context_constants_[{context, offset}];
     if (cached_value) {
@@ -642,12 +641,11 @@ class KnownNodeAspects {
   }
   // Returns true if value was added to the cache, or false if the value updated
   // the cache.
-  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value) {
+  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
+                             MaybeAssignedFlag assigned) {
     value = value->UnwrapIdentities();
-    auto& target_map =
-        (offset == Context::OffsetOfElementAt(Context::PREVIOUS_INDEX))
-            ? loaded_context_constants_
-            : loaded_context_slots_;
+    auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                                    : loaded_context_constants_;
 
     auto [it, inserted] = target_map.insert({{context, offset}, value});
 
@@ -659,14 +657,14 @@ class KnownNodeAspects {
     return true;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
-                            ContextSlotMutability slot_mutability) {
-    return slot_mutability == kMutable
+                            MaybeAssignedFlag assigned) {
+    return (assigned == kMaybeAssigned)
                ? loaded_context_slots_.contains({context, offset})
                : loaded_context_constants_.contains({context, offset});
   }
-  bool IsContextCacheEmpty(ContextSlotMutability slot_mutability) {
-    return slot_mutability == kMutable ? loaded_context_slots_.empty()
-                                       : loaded_context_constants_.empty();
+  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) {
+    return (assigned == kMaybeAssigned) ? loaded_context_slots_.empty()
+                                        : loaded_context_constants_.empty();
   }
 
   template <typename NodeT>

@@ -1128,6 +1128,13 @@ int ScopeInfo::ParametersStartIndex() const {
   return ContextHeaderLength();
 }
 
+int ScopeInfo::FunctionContextSlotIndex() const {
+  if (HasContextAllocatedFunctionName()) {
+    return function_variable_info_context_or_stack_slot_index();
+  }
+  return -1;
+}
+
 int ScopeInfo::FunctionContextSlotIndex(Tagged<String> name) const {
   DCHECK(IsInternalizedString(name));
   if (HasContextAllocatedFunctionName()) {

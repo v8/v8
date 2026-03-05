@@ -1272,7 +1272,12 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
                   StoreTaggedFieldWithWriteBarrier::kObjectIndex);
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
                   StoreTaggedFieldWithWriteBarrier::kValueIndex);
-    node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>();
+    node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>(
+        node->offset(),
+        node->initializing_or_transitioning() ? StoreTaggedMode::kInitializing
+                                              : StoreTaggedMode::kDefault,
+        /*value_can_be_smi*/ true, node->property_key(),
+        node->maybe_assigned());
     // This store could be storing a Smi, since Int32 phis will be tagged to Smi
     // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
     // this doesn't lose precision.

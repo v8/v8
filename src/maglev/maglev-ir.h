@@ -5706,7 +5706,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   vobj::Field FieldForSlot(int i) const {
     DCHECK_LT(i, slot_count());
     if (i < header_slot_count()) {
-      return object_layout_->header_fields[i];
+      vobj::Field f = object_layout_->header_fields[i];
+      return f;
     }
     int offset = header_size() + (i - header_slot_count()) * body_field_size();
     return vobj::Field{i, offset, object_layout_->body_field_type};
@@ -7148,8 +7149,7 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
                            AllowWideningSmiToInt32 allow_widening_smi_to_int32)
       : Base(bitfield),
         expected_type_(expected_type),
-        allow_widening_smi_to_int32_(allow_widening_smi_to_int32) {
-  }
+        allow_widening_smi_to_int32_(allow_widening_smi_to_int32) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Call();
@@ -8114,31 +8114,32 @@ class LoadContextSlotNoCells
     : public FixedInputValueNodeT<1, LoadContextSlotNoCells> {
  public:
   explicit LoadContextSlotNoCells(uint64_t bitfield, const int offset,
-                                  bool is_const)
-      : Base(bitfield | IsConstantLoadField::encode(is_const)),
+                                  MaybeAssignedFlag assigned)
+      : Base(bitfield | MaybeAssignedField::encode(assigned)),
         offset_(offset) {}
   static constexpr OpProperties kProperties = OpProperties::CanRead();
   DECLARE_UNOP(Tagged)
 
   int offset() const { return offset_; }
-  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
+  MaybeAssignedFlag maybe_assigned() const {
+    return MaybeAssignedField::decode(bitfield());
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset(), is_const()}; }
+  auto options() const { return std::tuple{offset(), maybe_assigned()}; }
 
  private:
   const int offset_;
-  using IsConstantLoadField = NextBitField<bool, 1>;
+  using MaybeAssignedField = NextBitField<MaybeAssignedFlag, 1>;
 };
 
 class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
  public:
-  explicit LoadContextSlot(uint64_t bitfield, const int offset, bool is_const)
-      : Base(bitfield | IsConstantLoadField::encode(is_const)),
-        offset_(offset) {}
+  explicit LoadContextSlot(uint64_t bitfield, const int offset)
+      : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead() |
                                               OpProperties::CanAllocate() |
@@ -8147,18 +8148,17 @@ class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
   DECLARE_INPUT_TYPES(Tagged)
 
   int offset() const { return offset_; }
-  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
+  MaybeAssignedFlag maybe_assigned() const { return kMaybeAssigned; }
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset(), is_const()}; }
+  auto options() const { return std::tuple{offset()}; }
 
  private:
   const int offset_;
-  using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
@@ -8762,12 +8762,14 @@ class StoreTaggedFieldNoWriteBarrier
  public:
   explicit StoreTaggedFieldNoWriteBarrier(
       uint64_t bitfield, int offset, StoreTaggedMode store_mode,
-      PropertyKey property_key = PropertyKey::None())
+      PropertyKey property_key = PropertyKey::None(),
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned)
       : Base(
             bitfield |
             InitializingOrTransitioningField::encode(
                 IsInitializingOrTransitioning(store_mode)) |
-            IsStoreToContextField::encode(IsDefaultStoreToContext(store_mode))),
+            IsStoreToContextField::encode(IsDefaultStoreToContext(store_mode)) |
+            MaybeAssignedField::encode(maybe_assigned)),
         offset_(offset),
         property_key_(property_key) {}
 
@@ -8788,6 +8790,9 @@ class StoreTaggedFieldNoWriteBarrier
   }
   bool is_store_to_context() const {
     return IsStoreToContextField::decode(bitfield());
+  }
+  MaybeAssignedFlag maybe_assigned() const {
+    return MaybeAssignedField::decode(bitfield());
   }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -8812,6 +8817,7 @@ class StoreTaggedFieldNoWriteBarrier
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
   using IsStoreToContextField = InitializingOrTransitioningField::Next<bool, 1>;
+  using MaybeAssignedField = IsStoreToContextField::Next<MaybeAssignedFlag, 1>;
 
   const int offset_;
   const PropertyKey property_key_;
@@ -8858,15 +8864,16 @@ std::ostream& operator<<(std::ostream& os, StoreMap::Kind);
 class StoreTaggedFieldWithWriteBarrier
     : public FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier> {
  public:
-  explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset,
-                                            StoreTaggedMode store_mode,
-                                            bool value_can_be_smi,
-                                            PropertyKey property_key)
+  explicit StoreTaggedFieldWithWriteBarrier(
+      uint64_t bitfield, int offset, StoreTaggedMode store_mode,
+      bool value_can_be_smi, PropertyKey property_key = PropertyKey::None(),
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned)
       : Base(
             bitfield |
             InitializingOrTransitioningField::encode(
                 IsInitializingOrTransitioning(store_mode)) |
             IsStoreToContextField::encode(IsDefaultStoreToContext(store_mode)) |
+            MaybeAssignedField::encode(maybe_assigned) |
             ValueCanBeSmiField::encode(value_can_be_smi)),
         offset_(offset),
         property_key_(property_key) {}
@@ -8882,6 +8889,9 @@ class StoreTaggedFieldWithWriteBarrier
   }
   bool is_store_to_context() const {
     return IsStoreToContextField::decode(bitfield());
+  }
+  MaybeAssignedFlag maybe_assigned() const {
+    return MaybeAssignedField::decode(bitfield());
   }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -8908,7 +8918,8 @@ class StoreTaggedFieldWithWriteBarrier
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
   using IsStoreToContextField = InitializingOrTransitioningField::Next<bool, 1>;
-  using ValueCanBeSmiField = IsStoreToContextField::Next<bool, 1>;
+  using MaybeAssignedField = IsStoreToContextField::Next<MaybeAssignedFlag, 1>;
+  using ValueCanBeSmiField = MaybeAssignedField::Next<bool, 1>;
 
   const int offset_;
   const PropertyKey property_key_;
@@ -8918,9 +8929,7 @@ class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
  public:
   explicit StoreSmiContextCell(uint64_t bitfield, compiler::ContextRef context,
                                int slot_offset)
-      : Base(bitfield),
-        context_(context),
-        slot_offset_(slot_offset) {}
+      : Base(bitfield), context_(context), slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -8929,6 +8938,7 @@ class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
 
   compiler::ContextRef context() const { return context_; }
   int slot_offset() const { return slot_offset_; }
+  MaybeAssignedFlag maybe_assigned() const { return kMaybeAssigned; }
 
   int offset() const { return offsetof(ContextCell, tagged_value_); }
 
@@ -8945,6 +8955,7 @@ class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::ContextRef context_;
@@ -8954,11 +8965,8 @@ class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
 class StoreInt32ContextCell : public FixedInputNodeT<2, StoreInt32ContextCell> {
  public:
   explicit StoreInt32ContextCell(uint64_t bitfield,
-                                 compiler::ContextRef context,
-                                 int slot_offset)
-      : Base(bitfield),
-        context_(context),
-        slot_offset_(slot_offset) {}
+                                 compiler::ContextRef context, int slot_offset)
+      : Base(bitfield), context_(context), slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Cell, Value)
@@ -8966,11 +8974,13 @@ class StoreInt32ContextCell : public FixedInputNodeT<2, StoreInt32ContextCell> {
 
   compiler::ContextRef context() const { return context_; }
   int slot_offset() const { return slot_offset_; }
+  MaybeAssignedFlag maybe_assigned() const { return kMaybeAssigned; }
 
   int offset() const { return offsetof(ContextCell, double_value_); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::ContextRef context_;
@@ -8983,9 +8993,7 @@ class StoreFloat64ContextCell
   explicit StoreFloat64ContextCell(uint64_t bitfield,
                                    compiler::ContextRef context,
                                    int slot_offset)
-      : Base(bitfield),
-        context_(context),
-        slot_offset_(slot_offset) {}
+      : Base(bitfield), context_(context), slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Cell, Value)
@@ -8993,11 +9001,13 @@ class StoreFloat64ContextCell
 
   compiler::ContextRef context() const { return context_; }
   int slot_offset() const { return slot_offset_; }
+  MaybeAssignedFlag maybe_assigned() const { return kMaybeAssigned; }
 
   int offset() const { return offsetof(ContextCell, double_value_); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
 
  private:
   const compiler::ContextRef context_;
@@ -9018,6 +9028,7 @@ class StoreContextSlotWithWriteBarrier
 
   int offset() const { return Context::OffsetOfElementAt(index()); }
   int index() const { return index_; }
+  MaybeAssignedFlag maybe_assigned() const { return kMaybeAssigned; }
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
