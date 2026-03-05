@@ -456,6 +456,40 @@ void SandboxGetBuiltinNames(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(result);
 }
 
+// Returns compressed Code object by a given builtin id.
+//
+// This can be useful for manipulating IC handlers represented by Code objects.
+//
+// Sandbox.getBuiltinCode(Number) -> Number
+void SandboxGetBuiltinCode(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  if (!info[0]->IsInt32()) {
+    isolate->ThrowError("First argument must be an integer");
+    return;
+  }
+
+  int raw_builtin_id = info[0]->Int32Value(context).FromMaybe(-1);
+  if (!Builtins::IsBuiltinId(raw_builtin_id)) {
+    isolate->ThrowError("Invalid builtin id");
+    return;
+  }
+  Builtin builtin = static_cast<Builtin>(raw_builtin_id);
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Tagged<Code> code = i_isolate->builtins()->code(builtin);
+  // Update this code once we move builtins' Code objects from the main cage.
+  // The Sandbox Api must not leak addresses outside of the main cage, so this
+  // function should probably return a CodeWrapper or whatever we'll be using
+  // as IC handlers representing builtins. If we decide to encode those
+  // builtins into Smi handlers, then this function should probably be removed.
+  CHECK(code->IsInMainCageBase());
+
+  info.GetReturnValue().Set(V8HeapCompressionScheme::CompressAny(code.ptr()));
+}
+
 // Sets given function's code value to a given builtin's code object.
 //
 // This can be used to shortcut overwriting JSFunction's code in testcases.
@@ -657,6 +691,7 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
   InstallFunction(isolate, sandbox, SandboxGetBuiltinNames, "getBuiltinNames",
                   0);
+  InstallFunction(isolate, sandbox, SandboxGetBuiltinCode, "getBuiltinCode", 1);
   InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
                   "setFunctionCodeToBuiltin", 2);
   InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
@@ -932,6 +967,22 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (kernel space address).");
       }
 
+#ifdef V8_USE_ADDRESS_SANITIZER
+      if (access_type == MemoryAccessType::kRead) {
+        size_t shadow_scale, shadow_offset;
+        __asan_get_shadow_mapping(&shadow_scale, &shadow_offset);
+        Address maybe_faultaddr = (faultaddr - shadow_offset) << shadow_scale;
+        if (maybe_faultaddr >= 0x1'0000'0000'0000ULL) {
+          // This is a crash due to attempt to access ASAN's shadow memory for
+          // a non-canonical address who's shadow memory address still falls
+          // into a canonical address range. Only read accesses fall here.
+          FilterCrash(
+              "Caught harmless memory access violation (shadow of a "
+              "non-canonical address).");
+        }
+      }
+#endif  // V8_USE_ADDRESS_SANITIZER
+
       if (faultaddr < 0x1000) {
         // Nullptr dereferences are harmless as nothing can be mapped there. We
         // use the typical page size (which is also the default value of
@@ -1170,6 +1221,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
     types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
     types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
+    types["FEEDBACK_CELL_TYPE"] = FEEDBACK_CELL_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
@@ -1194,6 +1246,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kDispatchHandleOffset;
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
+    fields[JS_FUNCTION_TYPE]["feedback_cell"] = JSFunction::kFeedbackCellOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
@@ -1230,8 +1283,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSPromise::kReactionsOrResultOffset;
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
-    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
-        JSFunction::kSharedFunctionInfoOffset;
+    fields[FEEDBACK_CELL_TYPE]["value"] = FeedbackCell::kValueOffset;
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         JSSegments::kIcuIteratorWithTextOffset;
