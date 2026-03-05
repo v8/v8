@@ -577,6 +577,12 @@ include_rules = [
   '-absl/types/flags', # Requires RTTI.
 ]
 
+specific_include_rules = {
+  "v8-inspector.h": [
+    "+cppgc/garbage-collected.h",
+  ],
+}
+
 # checkdeps.py shouldn't check for includes in these directories:
 skip_child_includes = [
   'build',
