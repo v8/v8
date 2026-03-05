@@ -9603,8 +9603,11 @@ class Phi : public ValueNodeT<Phi> {
   // True if the {key_} field has been initialized.
   bool has_key() const { return HasKeyFlag::decode(bitfield()); }
 
-  // Remembers if a use is unsafely untagged. If that happens we must ensure to
-  // stay within the smi range, even when untagging.
+  // If at some point we rely on a Phi being a Smi or a HeapObject, the
+  // appropriate SetUseRequiresSmi/SetUseRequiresHeapObject should be called.
+  // Phi untagging should then take this into account when untagging and
+  // retagging this Phi: is a Phi is required to be a HeapObject somewhere, then
+  // we shouldn't retag it as Smi, and vice-versa.
   void SetUseRequiresSmi();
   bool uses_require_smi() const { return RequiresSmiFlag::decode(bitfield()); }
   void set_uses_require_smi() {

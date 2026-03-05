@@ -4147,6 +4147,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(
       AddNewNodeNoInputConversion<CheckHoleyFloat64IsSmi>({object});
       break;
     case ValueRepresentation::kTagged:
+      RecordSmiUse(object);
       AddNewNodeNoInputConversion<CheckSmi>({object});
       break;
     case ValueRepresentation::kIntPtr:
@@ -4477,14 +4478,16 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 }
 }  // namespace
 
-bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
-                                              ValueNode* value) {
+bool MaglevGraphBuilder::CanElideWriteBarrier(
+    ValueNode* object, ValueNode* value, RecordSmiUseIfNeeded record_smi_use) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
   if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
-    if constexpr (SmiValuesAre31Bits()) {
-      if (Phi* value_as_phi = value->TryCast<Phi>()) {
-        value_as_phi->SetUseRequiresSmi();
-      }
+    if (V8_LIKELY(record_smi_use == RecordSmiUseIfNeeded::kYes)) {
+      RecordSmiUse(value);
+    } else {
+      DCHECK_IMPLIES(value->Is<Phi>(),
+                     value->StaticTypeIs(broker(), NodeType::kSmi) ||
+                         value->Cast<Phi>()->uses_require_smi());
     }
     return true;
   }
@@ -4772,7 +4775,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  if (CanElideWriteBarrier(object, value)) {
+  if (CanElideWriteBarrier(object, value, RecordSmiUseIfNeeded::kYes)) {
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                                       store_mode, property_key);
   } else {
@@ -4800,7 +4803,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
-  DCHECK(CanElideWriteBarrier(object, value));
+  DCHECK(CanElideWriteBarrier(object, value, RecordSmiUseIfNeeded::kNo));
   if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
@@ -4871,7 +4874,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
-  if (CanElideWriteBarrier(elements, value)) {
+  if (CanElideWriteBarrier(elements, value, RecordSmiUseIfNeeded::kYes)) {
     return AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
         {elements, index, value});
   } else {
@@ -5370,7 +5373,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsSmi()) {
-    RETURN_IF_ABORT(GetAccumulatorSmi());
+    RETURN_IF_ABORT(GetAccumulatorSmi(UseReprHintRecording::kDoNotRecord));
   } else {
     if (field_representation.IsHeapObject()) {
       // Emit a map check for the field type, if needed, otherwise just a

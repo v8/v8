@@ -1026,7 +1026,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     return ProcessResult::kContinue;
   }
 
-  if (phi->uses_require_smi() && old_untagging->Is<CheckedSmiUntag>()) {
+  if (SmiValuesAre31Bits() && phi->uses_require_smi() &&
+      old_untagging->Is<CheckedSmiUntag>()) {
     // CheckedSmiUntag serves a dual-purpose: it untags a Smi but it also
     // ensures that this value is a Smi (and is therefore in Smi range). We need
     // to make sure to preserve both of these aspects.
@@ -1052,8 +1053,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 
   if (from_repr == to_repr) {
-    // CheckedSmiUntag needs special handling, cf above.
-    DCHECK(!(phi->uses_require_smi() && old_untagging->Is<CheckedSmiUntag>()));
+    // CheckedSmiUntag needs special handling when Smis are 31 bits, cf above.
+    DCHECK(!(SmiValuesAre31Bits() && phi->uses_require_smi() &&
+             old_untagging->Is<CheckedSmiUntag>()));
 
     old_untagging->OverwriteWith<Identity>();
     // All uses (except deopt frame ones) of this identity node will by bypassed

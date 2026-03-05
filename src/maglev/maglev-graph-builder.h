@@ -703,6 +703,12 @@ class MaglevGraphBuilder {
                                  allowed_input_type);
   }
 
+  void RecordSmiUse(ValueNode* object) {
+    if (Phi* as_phi = object->TryCast<Phi>()) {
+      as_phi->SetUseRequiresSmi();
+    }
+  }
+
   template <typename NodeT>
   void SetAccumulator(NodeT* node) {
     // Accumulator stores are equivalent to stores to the virtual accumulator
@@ -1190,7 +1196,17 @@ class MaglevGraphBuilder {
 
   enum class TrackObjectMode { kLoad, kStore };
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
-  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
+
+  // When CanElideWriteBarrier returns true because the input is a known Smi, if
+  // this input happens to be a Smi, we usually need to call SetUseRequiresSmi
+  // to ensure that this Phi remains a Smi even after phi untagging. However,
+  // when CanElideWriteBarrier is called from a DCHECK, we don't want this
+  // side-effect to happen because if it was supposed to happen, it should have
+  // happened elsewhere. So, when calling CanElideWriteBarrier in DCHECKs, we
+  // should pass `RecordSmiUseIfNeeded::kNo` for {record_smi_use}.
+  enum class RecordSmiUseIfNeeded { kYes, kNo };
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value,
+                            RecordSmiUseIfNeeded record_smi_use);
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
