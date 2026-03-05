@@ -972,7 +972,7 @@ void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
   CHECK(IsSmi(length_.load()));
   uint32_t len = ulength().value();
   for (uint32_t i = 0; i < len; ++i) {
-    Tagged<Union<MaybeWeak<TrustedObject>, Smi>> p = get(i);
+    Tagged<UnionOf<MaybeWeak<TrustedObject>, Smi>> p = get(i);
     Tagged<HeapObject> heap_object;
     if (p.GetHeapObject(&heap_object)) {
       // We could relax this, but for now we assume that strong pointers in a

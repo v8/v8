@@ -609,7 +609,7 @@ V8_OBJECT class TrustedWeakFixedArray
 
 class ProtectedWeakFixedArrayShape final : public AllStatic {
  public:
-  using ElementT = Union<MaybeWeak<TrustedObject>, Smi>;
+  using ElementT = UnionOf<MaybeWeak<TrustedObject>, Smi>;
   using CompressionScheme = TrustedSpaceCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kProtectedWeakFixedArrayMap;

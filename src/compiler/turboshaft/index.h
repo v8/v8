@@ -489,15 +489,12 @@ struct v_traits<Union<T, Ts...>> {
 
   template <typename U>
   struct implicitly_constructible_from
-      : std::bool_constant<(
-            v_traits<T>::template implicitly_constructible_from<U>::value ||
-            ... ||
-            v_traits<Ts>::template implicitly_constructible_from<U>::value)> {};
-  template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
-      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
-  };
+      : std::bool_constant<is_subtype<U, Union<T, Ts...>>::value> {};
 };
+
+// Make sure that a simple implicitly_constructible_from works.
+static_assert(
+    v_traits<MaybeObject>::implicitly_constructible_from<Object>::value);
 
 namespace detail {
 template <typename T, bool SameStaticRep>

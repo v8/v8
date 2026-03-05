@@ -128,7 +128,6 @@ OBJECT_TYPE_CASE(Object)
 OBJECT_TYPE_CASE(Smi)
 OBJECT_TYPE_CASE(TaggedIndex)
 OBJECT_TYPE_CASE(HeapObject)
-OBJECT_TYPE_CASE(HeapObjectReference)
 OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
 VIRTUAL_OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
@@ -144,16 +143,29 @@ HOLE_LIST(OBJECT_TYPE_HOLE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
+template <class T>
+struct ObjectTypeOf<Weak<T>> {
+  static constexpr ObjectType value = ObjectType::kHeapObjectReference;
+};
+
 template <class... T>
 struct ObjectTypeOf<Union<T...>> {
-  // For simplicity, don't implement TaggedIndex or HeapObjectReference.
+  // For simplicity, don't implement TaggedIndex.
   static_assert(!base::has_type_v<TaggedIndex, T...>);
-  static_assert(!base::has_type_v<HeapObjectReference, T...>);
 
   static constexpr bool kHasSmi = base::has_type_v<Smi, T...>;
   static constexpr bool kHasObject = base::has_type_v<Object, T...>;
-  static constexpr ObjectType value =
-      (kHasSmi || kHasObject) ? ObjectType::kObject : ObjectType::kHeapObject;
+  static constexpr bool kCanBeSmi = kHasSmi || kHasObject;
+  static constexpr bool kHasWeak = ((is_weak_v<T>) || ...);
+
+  static_assert(!(kCanBeSmi && kHasWeak),
+                "ObjectType doesn't have a type for MaybeObject (Smi or "
+                "HeapObjectReference)");
+
+  static constexpr ObjectType value = kCanBeSmi ? ObjectType::kObject
+                                      : kHasWeak
+                                          ? ObjectType::kHeapObjectReference
+                                          : ObjectType::kHeapObject;
 };
 
 #if defined(V8_HOST_ARCH_32_BIT)

@@ -43,8 +43,7 @@ type TaggedIndex extends StrongTagged
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged
-    generates 'TNode<MaybeWeak<HeapObject>>'
-    constexpr 'MaybeWeak<HeapObject>';
+    generates 'TNode<Weak<HeapObject>>' constexpr 'Weak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;

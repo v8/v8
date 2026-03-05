@@ -91,7 +91,7 @@ class WasmExportWrapperCache : public AllStatic {
 
   template <bool entry_may_exist>
   static void PutInternal(Tagged<WeakFixedArray> cache, uint32_t hash,
-                          Tagged<MaybeWeak<Object>> value);
+                          Tagged<MaybeObject> value);
 };
 
 }  // namespace v8::internal::wasm

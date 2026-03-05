@@ -1547,8 +1547,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsWeakReferenceToObject(TNode<MaybeObject> maybe_object,
                                        TNode<Object> object);
 
-  TNode<HeapObjectReference> MakeWeak(TNode<HeapObject> value);
-  TNode<MaybeObject> ClearedValue();
+  TNode<Weak<HeapObject>> MakeWeak(TNode<HeapObject> value);
+  TNode<ClearedWeakValue> ClearedValue();
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<Smi> index,
                              int additional_offset);

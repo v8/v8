@@ -104,7 +104,7 @@ inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
     maybe = data->wrapper();
 #endif
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
-    maybe = MakeWeak(maybe);
+    maybe = MakeWeak(Cast<HeapObject>(maybe));
   }
   TrustedWeakFixedArray::set(index, maybe);
 }

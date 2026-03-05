@@ -966,11 +966,11 @@ void FeedbackNexus::ConfigureCloneObject(
   // TODO(olivf): Introduce a CloneHandler to deal with all the logic of this
   // state machine which is now spread between Runtime_CloneObjectIC_Miss and
   // this method.
-  auto GetHandler = [=]() {
+  auto GetHandler = [=]() -> Tagged<MaybeObject> {
     if (IsSmi(*handler_handle)) {
       return *handler_handle;
     }
-    return MakeWeak(*handler_handle);
+    return MakeWeak(Cast<MaybeWeak<HeapObject>>(*handler_handle));
   };
   DCHECK(config()->can_write());
   Isolate* isolate = config()->isolate();

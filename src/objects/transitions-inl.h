@@ -90,8 +90,7 @@ void TransitionsAccessor::SetSideStepTransition(SideStepTransition::Kind kind,
   DCHECK_LT(SideStepTransition::index_of(kind), SideStepTransition::kSize);
   DCHECK_GE(SideStepTransition::index_of(kind), 0);
   transitions()->GetSideStepTransitions()->set(
-      SideStepTransition::index_of(kind),
-      object.IsSmi() ? object : MakeWeak(object));
+      SideStepTransition::index_of(kind), MakeWeakOrSmi(object));
 }
 
 Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {

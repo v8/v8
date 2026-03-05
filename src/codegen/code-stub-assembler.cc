@@ -2950,14 +2950,13 @@ TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(
   }
 }
 
-TNode<HeapObjectReference> CodeStubAssembler::MakeWeak(
-    TNode<HeapObject> value) {
-  return ReinterpretCast<HeapObjectReference>(BitcastWordToTagged(
+TNode<Weak<HeapObject>> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
+  return ReinterpretCast<Weak<HeapObject>>(BitcastWordToTagged(
       WordOr(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectTag))));
 }
 
-TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
-  return ReinterpretCast<MaybeObject>(
+TNode<ClearedWeakValue> CodeStubAssembler::ClearedValue() {
+  return ReinterpretCast<ClearedWeakValue>(
       BitcastWordToTagged(IntPtrConstant(kClearedWeakHeapObjectLower32)));
 }
 
