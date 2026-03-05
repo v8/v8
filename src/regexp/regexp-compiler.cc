@@ -349,6 +349,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->PushBacktrack(&fail);
   Trace new_trace;
   if (start->Emit(this, &new_trace).IsError()) {
+    work_list_ = nullptr;
     return ReportError();
   }
   macro_assembler_->BindJumpTarget(&fail);
@@ -360,11 +361,15 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
       if (node->Emit(this, &new_trace).IsError()) {
+        work_list_ = nullptr;
         return ReportError();
       }
     }
   }
-  if (IsRegExpTooBig()) return ReportError();
+  if (IsRegExpTooBig()) {
+    work_list_ = nullptr;
+    return ReportError();
+  }
 
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(pattern, flags_);
   isolate->IncreaseTotalRegexpCodeGenerated(code);
