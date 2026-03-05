@@ -559,4 +559,6 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
 #endif  // V8_TARGET_ARCH_ARM64
 }
 
+#undef TRACE
+
 }  // namespace v8::internal::compiler::turboshaft

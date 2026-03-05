@@ -14,6 +14,7 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("//third_party/icu/config.gni")
 
+import("gni/cluster_build.gni")
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
 
@@ -2541,8 +2542,27 @@ v8_header_set("torque_runtime_support") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("torque_generated_initializers") {
+# Build lists of torque-generated .cc and .h files for clustering
+torque_csa_cc_files = []
+torque_csa_h_files = []
+torque_tsa_cc_files = []
+torque_tsa_h_files = []
+foreach(file, torque_files) {
+  filetq = string_replace(file, ".tq", "-tq")
+  torque_csa_cc_files += [ "$target_gen_dir/torque-generated/$filetq-csa.cc" ]
+  torque_csa_h_files += [ "$target_gen_dir/torque-generated/$filetq-csa.h" ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    torque_tsa_cc_files += [ "$target_gen_dir/torque-generated/$filetq-tsa.cc" ]
+    torque_tsa_h_files += [ "$target_gen_dir/torque-generated/$filetq-tsa.h" ]
+  }
+}
+
+v8_cluster_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  cluster_prefix = "torque-csa"
+  cluster_output_dir = "$target_gen_dir/torque-generated"
+  generated_sources = true
 
   deps = [
     ":generate_bytecode_builtins_list",
@@ -2561,24 +2581,21 @@ v8_source_set("torque_generated_initializers") {
     ":v8_maybe_icu",
   ]
 
-  sources = [
-    "$target_gen_dir/torque-generated/csa-types.h",
-    "$target_gen_dir/torque-generated/enum-verifiers.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.h",
-  ]
-  foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq")
-    sources += [
-      "$target_gen_dir/torque-generated/$filetq-csa.cc",
-      "$target_gen_dir/torque-generated/$filetq-csa.h",
-    ]
-    if (v8_enable_experimental_tq_to_tsa) {
-      sources += [
-        "$target_gen_dir/torque-generated/$filetq-tsa.cc",
-        "$target_gen_dir/torque-generated/$filetq-tsa.h",
-      ]
-    }
+  sources = torque_csa_cc_files + [
+              "$target_gen_dir/torque-generated/csa-types.h",
+              "$target_gen_dir/torque-generated/enum-verifiers.cc",
+              "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
+              "$target_gen_dir/torque-generated/exported-macros-assembler.h",
+            ]
+
+  # Add headers (always included)
+  sources += torque_csa_h_files
+  if (v8_enable_experimental_tq_to_tsa) {
+    sources += torque_tsa_h_files
+
+    # TSA cc files are not clustered yet
+    sources += torque_tsa_cc_files
+    exclude_from_cluster = torque_tsa_cc_files
   }
 
   configs = [ ":internal_config" ]
@@ -2596,8 +2613,24 @@ v8_source_set("torque_generated_initializers") {
   }
 }
 
-v8_source_set("torque_generated_definitions") {
+# Build lists of torque-generated definition files for clustering
+torque_def_cc_files = []
+torque_def_inc_files = []
+foreach(file, torque_files) {
+  filetq = string_replace(file, ".tq", "-tq")
+  torque_def_cc_files += [ "$target_gen_dir/torque-generated/$filetq.cc" ]
+  torque_def_inc_files += [
+    "$target_gen_dir/torque-generated/$filetq-inl.inc",
+    "$target_gen_dir/torque-generated/$filetq.inc",
+  ]
+}
+
+v8_cluster_source_set("torque_generated_definitions") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  cluster_prefix = "torque-def"
+  cluster_output_dir = "$target_gen_dir/torque-generated"
+  generated_sources = true
 
   deps = [
     ":generate_bytecode_builtins_list",
@@ -2616,21 +2649,16 @@ v8_source_set("torque_generated_definitions") {
     ":v8_maybe_icu",
   ]
 
-  sources = [
-    "$target_gen_dir/torque-generated/class-forward-declarations.h",
-    "$target_gen_dir/torque-generated/class-verifiers.cc",
-    "$target_gen_dir/torque-generated/class-verifiers.h",
-    "$target_gen_dir/torque-generated/factory.cc",
-    "$target_gen_dir/torque-generated/objects-printer.cc",
-  ]
-  foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq")
-    sources += [
-      "$target_gen_dir/torque-generated/$filetq-inl.inc",
-      "$target_gen_dir/torque-generated/$filetq.cc",
-      "$target_gen_dir/torque-generated/$filetq.inc",
-    ]
-  }
+  sources = torque_def_cc_files + [
+              "$target_gen_dir/torque-generated/class-forward-declarations.h",
+              "$target_gen_dir/torque-generated/class-verifiers.cc",
+              "$target_gen_dir/torque-generated/class-verifiers.h",
+              "$target_gen_dir/torque-generated/factory.cc",
+              "$target_gen_dir/torque-generated/objects-printer.cc",
+            ]
+
+  # Add .inc files (always included, not compiled directly)
+  sources += torque_def_inc_files
 
   configs = [ ":internal_config" ]
 }
@@ -3198,7 +3226,7 @@ v8_source_set("v8_snapshot") {
   }
 }
 
-v8_source_set("v8_initializers") {
+v8_cluster_source_set("v8_initializers") {
   visibility = [
     ":*",
     "test/cctest:*",
@@ -5642,15 +5670,25 @@ if (v8_enable_wasm_simd256_revec) {
   ]
 }
 
+exclude_from_compiler_cluster = [
+  "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",  # Pipeline::GenerateWasmCode.
+  "src/compiler/bytecode-analysis.cc",  # Top-level 'using incl.
+                                        # 'interpreter::Register'.
+  "src/compiler/heap-refs.cc",  # Is64() function.
+  "src/compiler/wasm-load-elimination.cc",  # MayAlias.
+]
+
 # The src/compiler files for use in mksnapshot.
 # - These might be built with additional optimizations if
 #   v8_enable_fast_mksnapshot is set.
 # - We always include Turbofan even if v8_enable_turbofan is unset s.t.
 #   builtins can be generated by mksnapshot.
-v8_source_set("v8_compiler_for_mksnapshot_source_set") {
+v8_cluster_source_set("v8_compiler_for_mksnapshot_source_set") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = v8_compiler_sources
+
+  exclude_from_cluster = exclude_from_compiler_cluster
 
   public_deps = [
     ":generate_bytecode_builtins_list",
@@ -5684,7 +5722,7 @@ v8_source_set("v8_compiler_for_mksnapshot_source_set") {
 }
 
 # The src/compiler files with default behavior.
-v8_source_set("v8_compiler") {
+v8_cluster_source_set("v8_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   if (v8_enable_turbofan) {
@@ -5693,6 +5731,8 @@ v8_source_set("v8_compiler") {
     # With Turbofan disabled, we only include the stubbed-out API.
     sources = [ "src/compiler/turbofan-disabled.cc" ]
   }
+
+  exclude_from_cluster = exclude_from_compiler_cluster
 
   public_deps = [
     ":generate_bytecode_builtins_list",
@@ -5742,7 +5782,7 @@ group("v8_tracing") {
   }
 }
 
-v8_source_set("v8_base_without_compiler") {
+v8_cluster_source_set("v8_base_without_compiler") {
   # Only targets in this file and gcmole can depend on this.
   visibility = [
     ":*",
@@ -5751,6 +5791,24 @@ v8_source_set("v8_base_without_compiler") {
 
   # Split static libraries on windows into two.
   split_count = 2
+
+  # Files excluded from clustering due to template instantiation order issues
+  # or because they are too large.
+  exclude_from_cluster = [
+    "src/maglev/maglev-graph-builder.cc",
+    "src/maglev/maglev-ir.cc",
+    "src/snapshot/deserializer.cc",
+    "src/wasm/wasm-module.cc",
+    "src/heap/mark-compact.cc",  # ShouldMovePage, also big.
+    "src/objects/intl-objects.cc",  # CheckCalendar.
+    "src/objects/js-collator.cc",  # CreateDataPropertyForOptions, also big.
+    "src/objects/js-display-names.cc",  # CheckCalendar.
+    "src/objects/js-list-format.cc",
+    "src/objects/js-number-format.cc",  # Style, also big.
+    "src/objects/js-temporal-objects.cc",  # Unit, also big.
+    "src/runtime/runtime-test-wasm.cc",  # WasmStackSize.
+    "src/sandbox/external-pointer-table.cc",  # entry_spacer.
+  ]
 
   sources = [
     ### gcmole(all) ###
@@ -7585,7 +7643,7 @@ v8_header_set("cppgc_headers") {
   public_deps = [ ":v8_config_headers" ]
 }
 
-v8_source_set("cppgc_base") {
+v8_cluster_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
   sources = [
@@ -7683,6 +7741,10 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/visitor.h",
     "src/heap/cppgc/write-barrier.cc",
     "src/heap/cppgc/write-barrier.h",
+  ]
+
+  exclude_from_cluster = [
+    "src/heap/cppgc/concurrent-marker.cc",  # kDefaultDeadlineCheckInterval.
   ]
 
   if (cppgc_enable_caged_heap) {

@@ -66,6 +66,13 @@ declare_args() {
   # Use static libraries instead of source_sets.
   v8_static_library = false
 
+  # Enable cluster build. This build mode compiles multiple .cc files in one
+  # compilation unit. These are files where the C++ compiler spends most of its
+  # time processing the same long list of .h files, which means they can be
+  # compiled together in almost the same time that just one of them would have
+  # taken.
+  v8_enable_cluster_build = false
+
   # Enable monolithic static library for embedders.
   v8_monolithic = false
 

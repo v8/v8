@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_UNITTESTS_COMPILER_TURBOSHAFT_REDUCER_TEST_H_
+#define V8_UNITTESTS_COMPILER_TURBOSHAFT_REDUCER_TEST_H_
+
 #include <map>
 #include <memory>
 
@@ -323,3 +326,5 @@ class ReducerTest : public TestWithNativeContextAndZone {
 };
 
 }  // namespace v8::internal::compiler::turboshaft
+
+#endif  // V8_UNITTESTS_COMPILER_TURBOSHAFT_REDUCER_TEST_H_
