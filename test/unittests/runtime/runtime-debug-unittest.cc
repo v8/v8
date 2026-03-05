@@ -71,11 +71,11 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
       Runtime::GetInternalProperties(i_isolate(), table);
   ASSERT_FALSE(result.is_null());
   // ["[[Prototype]]", <map>, "[[Entries]]", <entries>]
-  ASSERT_EQ(4u, result.ToHandleChecked()->elements()->length().value());
+  ASSERT_EQ(4, result.ToHandleChecked()->elements()->length());
   DirectHandle<Object> entries =
       Object::GetElement(i_isolate(), result.ToHandleChecked(), 3)
           .ToHandleChecked();
-  EXPECT_EQ(1u, Cast<JSArray>(*entries)->elements()->length().value());
+  EXPECT_EQ(1, Cast<JSArray>(*entries)->elements()->length());
 }
 #endif
 

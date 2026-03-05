@@ -287,11 +287,9 @@ Handle<ByteArray> CreateBitTableByteArray(
       isolate->factory()->NewByteArray(RegExpMacroAssembler::kTableSize);
   const bool fill_nibble_table = !nibble_table.is_null();
   if (fill_nibble_table) {
-    const uint32_t nibble_table_len = nibble_table->length().value();
-    DCHECK_EQ(
-        nibble_table_len,
-        static_cast<uint32_t>(RegExpMacroAssembler::kTableSize / kBitsPerByte));
-    std::memset(nibble_table->begin(), 0, nibble_table_len);
+    DCHECK_EQ(nibble_table->length(),
+              RegExpMacroAssembler::kTableSize / kBitsPerByte);
+    std::memset(nibble_table->begin(), 0, nibble_table->ulength().value());
   }
   for (int i = 0; i < RegExpMacroAssembler::kTableSize / kBitsPerByte; i++) {
     uint8_t byte = table_data[i];

@@ -308,8 +308,7 @@ class ConcurrentStringThreadBase : public ParkingThread {
     {
       v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
       HandleScope scope(i_isolate);
-      const uint32_t shared_strings_len = shared_strings_->length().value();
-      for (uint32_t i = 0; i < shared_strings_len; i++) {
+      for (int i = 0; i < shared_strings_->length(); i++) {
         Handle<String> input_string(Cast<String>(shared_strings_->get(i)),
                                     i_isolate);
         RunForString(input_string, i);
@@ -1206,8 +1205,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
         i_isolate, factory, kStrings - kLOStrings, kLOStrings, 2, run == 0);
 
     // Check strings are in the forwarding table after internalization.
-    const uint32_t shared_strings_len = shared_strings->length().value();
-    for (uint32_t i = 0; i < shared_strings_len; i++) {
+    for (int i = 0; i < shared_strings->length(); i++) {
       Handle<String> input_string(Cast<String>(shared_strings->get(i)),
                                   i_isolate);
       DirectHandle<String> interned = factory->InternalizeString(input_string);
@@ -1224,7 +1222,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
 
     // Check all strings are transitioned to ThinStrings
-    for (uint32_t i = 0; i < shared_strings_len; i++) {
+    for (int i = 0; i < shared_strings->length(); i++) {
       DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       CHECK(IsThinString(*input_string));
@@ -1354,11 +1352,10 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
         sizeof(UncachedExternalString), run == 0);
 
     // Check strings are in the forwarding table after internalization.
-    const uint32_t shared_strings_len = shared_strings->length().value();
-    for (uint32_t i = 0; i < shared_strings_len; i++) {
+    for (int i = 0; i < shared_strings->length(); i++) {
       DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
-      const uint32_t length = input_string->length();
+      const int length = input_string->length();
       char* buffer = new char[length + 1];
       String::WriteToFlat(*input_string, reinterpret_cast<uint8_t*>(buffer), 0,
                           length);
@@ -1377,7 +1374,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
 
     // Check all strings are transitioned to ExternalStrings
-    for (uint32_t i = 0; i < shared_strings_len; i++) {
+    for (int i = 0; i < shared_strings->length(); i++) {
       DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       CHECK(IsExternalString(*input_string));
@@ -1713,13 +1710,12 @@ void CreateExternalResources(Isolate* i_isolate,
                              std::vector<OneByteResource*>& resources,
                              ExternalResourceFactory& resource_factory) {
   HandleScope scope(i_isolate);
-  const uint32_t strings_len = strings->length().value();
-  resources.reserve(strings_len);
-  for (uint32_t i = 0; i < strings_len; i++) {
+  resources.reserve(strings->length());
+  for (int i = 0; i < strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(strings->get(i)), i_isolate);
     CHECK(Utils::ToLocal(input_string)
               ->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
-    const uint32_t length = input_string->length();
+    const int length = input_string->length();
     char* buffer = new char[length + 1];
     String::WriteToFlat(*input_string, reinterpret_cast<uint8_t*>(buffer), 0,
                         length);
@@ -1830,8 +1826,7 @@ void TestConcurrentExternalization(bool share_resources) {
 
   TriggerGCWithTransitions(i_isolate->heap());
 
-  const uint32_t shared_strings_len = shared_strings->length().value();
-  for (uint32_t i = 0; i < shared_strings_len; i++) {
+  for (int i = 0; i < shared_strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     Tagged<String> string = *input_string;
@@ -1911,8 +1906,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
 
   DirectHandle<String> empty_string(
       ReadOnlyRoots(i_isolate->heap()).empty_string(), i_isolate);
-  const uint32_t shared_strings_len = shared_strings->length().value();
-  for (uint32_t i = 0; i < shared_strings_len; i++) {
+  for (int i = 0; i < shared_strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     // Patch every third string to empty. The next GC will dispose the external
@@ -1927,7 +1921,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
   i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
                                           GarbageCollectionReason::kTesting);
 
-  for (uint32_t i = 0; i < shared_strings_len; i++) {
+  for (int i = 0; i < shared_strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     const bool should_be_alive = i % 3 != 0;
@@ -1945,7 +1939,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     i_isolate->heap()->CollectGarbageShared(i_isolate->main_thread_local_heap(),
                                             GarbageCollectionReason::kTesting);
 
-    for (uint32_t i = 0; i < shared_strings_len; i++) {
+    for (int i = 0; i < shared_strings->length(); i++) {
       DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                         i_isolate);
       const bool should_be_alive = i % 3 != 0;
@@ -2035,8 +2029,7 @@ void TestConcurrentExternalizationAndInternalization(
 
   TriggerGCWithTransitions(i_isolate->heap());
 
-  const uint32_t shared_strings_len = shared_strings->length().value();
-  for (uint32_t i = 0; i < shared_strings_len; i++) {
+  for (int i = 0; i < shared_strings->length(); i++) {
     DirectHandle<String> input_string(Cast<String>(shared_strings->get(i)),
                                       i_isolate);
     Tagged<String> string = *input_string;

@@ -670,7 +670,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
   ast_factory.Internalize(isolate());
   DirectHandle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
-  EXPECT_EQ(4u, array->constant_pool()->length().value());
+  EXPECT_EQ(4, array->constant_pool()->length());
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {

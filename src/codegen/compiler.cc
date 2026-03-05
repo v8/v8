@@ -1486,8 +1486,7 @@ void StressLazy(Isolate* isolate, Handle<Script> script) {
 
   HandleScope scope(isolate);
   DirectHandle<WeakFixedArray> infos(script->infos(), isolate);
-  const uint32_t infos_len = infos->length().value();
-  for (uint32_t i = 0; i < infos_len; ++i) {
+  for (int i = 0; i < infos->length(); ++i) {
     HandleScope loop_scope(isolate);
     Tagged<MaybeObject> maybe_obj = infos->get(i);
     Tagged<HeapObject> obj;

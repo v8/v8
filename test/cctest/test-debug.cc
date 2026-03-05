@@ -299,29 +299,29 @@ TEST(DebugInfo) {
   v8::Local<v8::Function> bar =
       CompileFunction(&env, "function bar(){}", "bar");
   // Initially no functions are debugged.
-  CHECK_EQ(0u, v8::internal::GetDebuggedFunctions()->length().value());
+  CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
   CHECK(!HasBreakInfo(foo));
   CHECK(!HasBreakInfo(bar));
   EnableDebugger(env.isolate());
   // One function (foo) is debugged.
   i::DirectHandle<i::BreakPoint> bp1 = SetBreakPoint(foo, 0);
-  CHECK_EQ(1u, v8::internal::GetDebuggedFunctions()->length().value());
+  CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
   CHECK(HasBreakInfo(foo));
   CHECK(!HasBreakInfo(bar));
   // Two functions are debugged.
   i::DirectHandle<i::BreakPoint> bp2 = SetBreakPoint(bar, 0);
-  CHECK_EQ(2u, v8::internal::GetDebuggedFunctions()->length().value());
+  CHECK_EQ(2, v8::internal::GetDebuggedFunctions()->length());
   CHECK(HasBreakInfo(foo));
   CHECK(HasBreakInfo(bar));
   // One function (bar) is debugged.
   ClearBreakPoint(bp1);
-  CHECK_EQ(1u, v8::internal::GetDebuggedFunctions()->length().value());
+  CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
   CHECK(!HasBreakInfo(foo));
   CHECK(HasBreakInfo(bar));
   // No functions are debugged.
   ClearBreakPoint(bp2);
   DisableDebugger(env.isolate());
-  CHECK_EQ(0u, v8::internal::GetDebuggedFunctions()->length().value());
+  CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
   CHECK(!HasBreakInfo(foo));
   CHECK(!HasBreakInfo(bar));
 }
@@ -3454,9 +3454,8 @@ TEST(DebugScriptLineEndsAreAscending) {
     instances = debug->GetLoadedScripts();
   }
 
-  const uint32_t instances_len = instances->length().value();
-  CHECK_GT(instances_len, 0);
-  for (uint32_t i = 0; i < instances_len; i++) {
+  CHECK_GT(instances->length(), 0);
+  for (int i = 0; i < instances->length(); i++) {
     DirectHandle<v8::internal::Script> new_script(
         v8::internal::Cast<v8::internal::Script>(instances->get(i)),
         CcTest::i_isolate());
@@ -3464,11 +3463,10 @@ TEST(DebugScriptLineEndsAreAscending) {
     v8::internal::Script::InitLineEnds(CcTest::i_isolate(), new_script);
     v8::internal::Tagged<v8::internal::FixedArray> ends =
         v8::internal::Cast<v8::internal::FixedArray>(new_script->line_ends());
-    const uint32_t ends_len = ends->length().value();
-    CHECK_GT(ends_len, 0);
+    CHECK_GT(ends->length(), 0);
 
     int prev_end = -1;
-    for (uint32_t j = 0; j < ends_len; j++) {
+    for (int j = 0; j < ends->length(); j++) {
       const int curr_end = v8::internal::Smi::ToInt(ends->get(j));
       CHECK_GT(curr_end, prev_end);
       prev_end = curr_end;

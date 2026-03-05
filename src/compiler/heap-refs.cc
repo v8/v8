@@ -1544,9 +1544,7 @@ Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
   return Float64::FromBits(object()->get_representation(i));
 }
 
-SafeHeapObjectSize WeakHomomorphicFixedArrayRef::length() const {
-  return object()->length();
-}
+int WeakHomomorphicFixedArrayRef::length() const { return object()->length(); }
 
 IndirectHandle<TrustedByteArray> BytecodeArrayRef::SourcePositionTable(
     JSHeapBroker* broker) const {

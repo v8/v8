@@ -567,9 +567,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
     return CrashUnlessFuzzing(isolate);
   }
   auto values = Cast<FixedArray>(values_obj);
-  const uint32_t values_len = values->length().value();
   DirectHandle<FixedArray> externalized_values =
-      isolate->factory()->NewFixedArray(values_len);
+      isolate->factory()->NewFixedArray(values->length());
+  uint32_t values_len = values->ulength().value();
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {

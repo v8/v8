@@ -326,7 +326,7 @@ class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
 
       Tagged<TrustedByteArray> handler_table = keep_alive_bc->handler_table();
       CHECK(IsTrustedByteArray(handler_table));
-      CHECK_EQ(handler_table->length().value(), 3u);
+      CHECK_EQ(handler_table->length(), 3);
 
       v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                     client_isolate);
@@ -447,12 +447,12 @@ void AllocateInSharedHeap(int iterations = 100) {
     }
 
     for (DirectHandle<FixedArray> array : arrays_in_handles) {
-      CHECK_EQ(array->length().value(), 100u);
+      CHECK_EQ(array->length(), 100);
     }
 
     for (int i = 0; i < kKeptAliveInHeap; i++) {
       Tagged<FixedArray> array = Cast<FixedArray>(arrays_in_heap->get(i));
-      CHECK_EQ(array->length().value(), 100u);
+      CHECK_EQ(array->length(), 100);
     }
   });
 }

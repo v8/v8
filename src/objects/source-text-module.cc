@@ -1529,11 +1529,11 @@ void SourceTextModule::Reset(Isolate* isolate,
   DCHECK(IsTheHole(module->import_meta(kAcquireLoad), isolate));
 
   DirectHandle<FixedArray> regular_exports =
-      factory->NewFixedArray(module->regular_exports()->length().value());
+      factory->NewFixedArray(module->regular_exports()->length());
   DirectHandle<FixedArray> regular_imports =
-      factory->NewFixedArray(module->regular_imports()->length().value());
+      factory->NewFixedArray(module->regular_imports()->length());
   DirectHandle<FixedArray> requested_modules =
-      factory->NewFixedArray(module->requested_modules()->length().value());
+      factory->NewFixedArray(module->requested_modules()->length());
 
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModule> raw_module = *module;

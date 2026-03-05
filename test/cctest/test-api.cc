@@ -20472,9 +20472,9 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 static int CountLiveMapsInMapCache(i::Tagged<i::Context> context) {
   i::Tagged<i::WeakFixedArray> map_cache =
       i::Cast<i::WeakFixedArray>(context->map_cache());
-  const uint32_t length = map_cache->length().value();
+  int length = map_cache->length();
   int count = 0;
-  for (uint32_t i = 0; i < length; i++) {
+  for (int i = 0; i < length; i++) {
     if (map_cache->get(i).IsWeak()) count++;
   }
   return count;
@@ -24921,7 +24921,7 @@ TEST(CreateSyntheticModule) {
       i::Cast<i::Cell>(
           i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
           ->value()));
-  CHECK_EQ(i_module->export_names()->length().value(), 1u);
+  CHECK_EQ(i_module->export_names()->length(), 1);
   CHECK(i::Cast<i::String>(i_module->export_names()->get(0))
             ->Equals(*default_name));
   CHECK_EQ(i_module->status(), i::Module::kLinked);

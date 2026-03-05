@@ -6070,10 +6070,9 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
 }
 
 void CheckInfosAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
-  const uint32_t sfis_len = sfis->length().value();
-  CHECK_GT(sfis_len, 0);
+  CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
-  for (uint32_t i = 0; i < sfis_len; ++i) {
+  for (int i = 0; i < sfis->length(); ++i) {
     Tagged<MaybeObject> maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
     CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||

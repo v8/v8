@@ -50,13 +50,11 @@ class HashcodeTest : public TestWithContext {
     }
   }
 
-  uint32_t GetPropertyDictionaryLength(DirectHandle<JSObject> obj) {
+  int GetPropertyDictionaryLength(DirectHandle<JSObject> obj) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      int capacity = obj->property_dictionary_swiss()->Capacity();
-      CHECK_GE(capacity, 0);
-      return static_cast<uint32_t>(capacity);
+      return obj->property_dictionary_swiss()->Capacity();
     } else {
-      return obj->property_dictionary()->length().value();
+      return obj->property_dictionary()->length();
     }
   }
 
@@ -196,7 +194,7 @@ TEST_F(HashcodeTest, TransitionSlowToSlow) {
   int hash = AddToSetAndGetHash(obj, false);
   CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
 
-  uint32_t length = GetPropertyDictionaryLength(obj);
+  int length = GetPropertyDictionaryLength(obj);
   RunJS("for(var i = 0; i < 10; i++) { x['f'+i] = i };");
   CHECK(GetPropertyDictionaryLength(obj) > length);
   CheckDictionaryObject(obj, hash);

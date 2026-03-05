@@ -3216,10 +3216,8 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     int grow_by = new_map->UnusedPropertyFields() + 1;
     DirectHandle<PropertyArray> old_storage(object->property_array(isolate),
                                             isolate);
-    DCHECK_GE(grow_by, 0);
     DirectHandle<PropertyArray> new_storage =
-        isolate->factory()->CopyPropertyArrayAndGrow(
-            old_storage, static_cast<uint32_t>(grow_by));
+        isolate->factory()->CopyPropertyArrayAndGrow(old_storage, grow_by);
 
     // Properly initialize newly added property.
     DirectHandle<Object> value;

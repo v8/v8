@@ -3875,12 +3875,12 @@ TEST(DetailedErrorStackTrace) {
 
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> foo_parameters = ParametersOf(stack_trace, 0);
-    CHECK_EQ(foo_parameters->length().value(), 1u);
+    CHECK_EQ(foo_parameters->length(), 1);
     CHECK(IsSmi(foo_parameters->get(0)));
     CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
 
     Tagged<FixedArray> bar_parameters = ParametersOf(stack_trace, 1);
-    CHECK_EQ(bar_parameters->length().value(), 2u);
+    CHECK_EQ(bar_parameters->length(), 2);
     CHECK(IsJSObject(bar_parameters->get(0)));
     CHECK(IsBoolean(bar_parameters->get(1)));
     DirectHandle<Object> foo = Cast<Object>(GetByName("foo"));
@@ -3888,7 +3888,7 @@ TEST(DetailedErrorStackTrace) {
     CHECK(!Object::BooleanValue(bar_parameters->get(1), CcTest::i_isolate()));
 
     Tagged<FixedArray> main_parameters = ParametersOf(stack_trace, 2);
-    CHECK_EQ(main_parameters->length().value(), 2u);
+    CHECK_EQ(main_parameters->length(), 2);
     CHECK(IsJSObject(main_parameters->get(0)));
     CHECK(IsUndefined(main_parameters->get(1)));
     CHECK_EQ(main_parameters->get(0), *foo);
@@ -3916,12 +3916,12 @@ TEST(DetailedErrorStackTraceInline) {
 
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> parameters_add = ParametersOf(stack_trace, 0);
-    CHECK_EQ(parameters_add->length().value(), 1u);
+    CHECK_EQ(parameters_add->length(), 1);
     CHECK(IsSmi(parameters_add->get(0)));
     CHECK_EQ(Smi::ToInt(parameters_add->get(0)), 42);
 
     Tagged<FixedArray> parameters_foo = ParametersOf(stack_trace, 1);
-    CHECK_EQ(parameters_foo->length().value(), 1u);
+    CHECK_EQ(parameters_foo->length(), 1);
     CHECK(IsSmi(parameters_foo->get(0)));
     CHECK_EQ(Smi::ToInt(parameters_foo->get(0)), 41);
   });
@@ -3944,7 +3944,7 @@ TEST(DetailedErrorStackTraceBuiltinExitNoAdaptation) {
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
 
-    CHECK_EQ(parameters->length().value(), 3u);
+    CHECK_EQ(parameters->length(), 3);
     CHECK_EQ(Smi::ToInt(parameters->get(0)), 9999);
     CHECK_EQ(Smi::ToInt(parameters->get(1)), 42);
     CHECK_EQ(Smi::ToInt(parameters->get(2)), -153);
@@ -3967,7 +3967,7 @@ TEST(DetailedErrorStackTraceBuiltinExitWithAdaptation) {
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
 
-    CHECK_EQ(parameters->length().value(), 3u);
+    CHECK_EQ(parameters->length(), 3);
     CHECK_EQ(Smi::ToInt(parameters->get(0)), 153);
     CHECK_EQ(Smi::ToInt(parameters->get(1)), -42);
     CHECK(IsUndefined(parameters->get(2)));
@@ -4001,7 +4001,7 @@ TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
       source.begin(), [](DirectHandle<FixedArray> stack_trace) {
         Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
 
-        CHECK_EQ(parameters->length().value(), 3u);
+        CHECK_EQ(parameters->length(), 3);
         CHECK_EQ(Smi::ToInt(parameters->get(0)), 55);
         CHECK_EQ(Smi::ToInt(parameters->get(1)), 77);
         CHECK_EQ(Smi::ToInt(parameters->get(2)), 99);
@@ -4228,7 +4228,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
       CHECK(HeapLayout::InYoungGeneration(*tail));
     }
   }
-  CHECK_EQ(n - 6, tail->length().value());
+  CHECK_EQ(n - 6, tail->length());
   CHECK(!IsHeapObject(*filler_1));
   CHECK(!IsHeapObject(*filler_2));
   CHECK(!IsHeapObject(*filler_3));
@@ -5521,8 +5521,8 @@ TEST(PreprocessStackTrace) {
   CHECK(IsSmi(*pos));
 
   DirectHandle<FixedArray> frame_array = Cast<FixedArray>(stack_trace);
-  const uint32_t array_length = frame_array->length().value();
-  for (uint32_t i = 0; i < array_length; i++) {
+  int array_length = frame_array->length();
+  for (int i = 0; i < array_length; i++) {
     DirectHandle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();
     CHECK(!IsInstructionStream(*element));
@@ -5922,11 +5922,11 @@ TEST(Regress598319) {
   Isolate* isolate = heap->isolate();
 
   // The size of the array should be larger than kProgressBarScanningChunk.
-  const uint32_t kNumberOfObjects =
+  const int kNumberOfObjects =
       std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
 
   struct Arr {
-    Arr(Isolate* isolate, uint32_t number_of_objects) {
+    Arr(Isolate* isolate, int number_of_objects) {
       root = isolate->factory()->NewFixedArray(1, AllocationType::kOld);
       {
         // Temporary scope to avoid getting any other objects into the root set.
@@ -5934,8 +5934,7 @@ TEST(Regress598319) {
         DirectHandle<FixedArray> tmp = isolate->factory()->NewFixedArray(
             number_of_objects, AllocationType::kOld);
         root->set(0, *tmp);
-        const uint32_t length = get()->length().value();
-        for (uint32_t i = 0; i < length; i++) {
+        for (int i = 0; i < get()->length(); i++) {
           tmp = isolate->factory()->NewFixedArray(100, AllocationType::kOld);
           get()->set(i, *tmp);
         }
@@ -5952,7 +5951,7 @@ TEST(Regress598319) {
     v8::Global<Value> global_root;
   } arr(isolate, kNumberOfObjects);
 
-  CHECK_EQ(arr.get()->length().value(), kNumberOfObjects);
+  CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
   LargePage* page = LargePage::FromHeapObject(isolate, arr.get());
   CHECK_NOT_NULL(page);
@@ -5968,8 +5967,7 @@ TEST(Regress598319) {
   IncrementalMarking* marking = heap->incremental_marking();
   MarkingState* marking_state = heap->marking_state();
   CHECK(marking_state->IsUnmarked(arr.get()));
-
-  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+  for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
@@ -5983,7 +5981,7 @@ TEST(Regress598319) {
   CHECK(marking->IsMarking());
 
   // Check that we have not marked the interesting array during root scanning.
-  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+  for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
@@ -6026,7 +6024,7 @@ TEST(Regress598319) {
 
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
-  for (uint32_t i = 0; i < arr.get()->length().value(); i++) {
+  for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
     CHECK(HeapLayout::InReadOnlySpace(arr_value) ||
           marking_state->IsMarked(arr_value));

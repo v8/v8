@@ -121,7 +121,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);
-  CHECK_EQ(0u, trusted_instance_data_->memory_objects()->length().value());
+  CHECK_EQ(0, trusted_instance_data_->memory_objects()->length());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages =
@@ -276,12 +276,10 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     // Store the shortcut to the dispatch table.
     DirectHandle<ProtectedFixedArray> old_dispatch_tables{
         trusted_instance_data_->dispatch_tables(), isolate_};
-    const uint32_t old_dispatch_tables_len =
-        old_dispatch_tables->length().value();
-    DCHECK_EQ(table_index, old_dispatch_tables_len);
+    DCHECK_EQ(table_index, old_dispatch_tables->length());
     DirectHandle<ProtectedFixedArray> new_dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_index + 1);
-    for (uint32_t i = 0; i < old_dispatch_tables_len; ++i) {
+    for (int i = 0; i < old_dispatch_tables->length(); ++i) {
       new_dispatch_tables->set(i, old_dispatch_tables->get(i));
     }
     new_dispatch_tables->set(table_index, *dispatch_table);
@@ -334,7 +332,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
                                       isolate_);
   DirectHandle<FixedArray> new_tables =
       isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
-  new_tables->set(old_tables->length().value(), *table_obj);
+  new_tables->set(old_tables->length(), *table_obj);
   trusted_instance_data_->set_tables(*new_tables);
 }
 
