@@ -886,12 +886,15 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
     std::shared_ptr<BackingStore> backing_store, int maximum,
     wasm::AddressType address_type) {
+  // Note: On serialization, we set up a `WasmMemoryObject` without AB and
+  // without backing store; they are created and linked later.
+  size_t byte_size = backing_store ? backing_store->byte_length()
+                     : !maybe_buffer.IsEmpty()
+                         ? maybe_buffer.ToHandleChecked()->GetByteLength()
+                         : 0;
   DirectHandle<Managed<BackingStore>> managed_backing_store =
-      Managed<BackingStore>::From(
-          isolate,
-          backing_store ? backing_store->byte_length()
-                        : maybe_buffer.ToHandleChecked()->GetByteLength(),
-          backing_store, AllocationType::kOld);
+      Managed<BackingStore>::From(isolate, byte_size, backing_store,
+                                  AllocationType::kOld);
 
   DirectHandle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
@@ -908,31 +911,14 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
 #endif
   memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 
-  if (backing_store && backing_store->is_shared()) {
-    // Only Wasm memory can be shared (in contrast to asm.js memory).
-    CHECK(backing_store->is_wasm_memory());
-    backing_store->AttachSharedWasmMemoryObject(isolate, memory_object);
-  }
-
   if (DirectHandle<JSArrayBuffer> buffer; maybe_buffer.ToHandle(&buffer)) {
     DCHECK_EQ(backing_store, buffer->GetBackingStore());
     DCHECK(!backing_store || buffer->is_shared() == backing_store->is_shared());
-    memory_object->set_array_buffer(*buffer);
-
-    if (buffer->is_resizable_by_js()) {
-      memory_object->FixUpResizableArrayBuffer(*buffer);
-    }
-
-    // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
-    // instance.
-    DirectHandle<Symbol> symbol =
-        isolate->factory()->array_buffer_wasm_memory_symbol();
-    Object::SetProperty(isolate, buffer, symbol, memory_object).Check();
-
-    if (buffer->is_shared()) {
-      JSReceiver::SetIntegrityLevel(isolate, buffer, FROZEN, kDontThrow)
-          .Check();
-    }
+    WasmMemoryObject::SetNewBuffer(isolate, memory_object, buffer);
+  } else if (backing_store && backing_store->is_shared()) {
+    // Only Wasm memory can be shared (in contrast to asm.js memory).
+    DCHECK(backing_store->is_wasm_memory());
+    backing_store->AttachSharedWasmMemoryObject(isolate, memory_object);
   }
 
   return memory_object;
@@ -1011,14 +997,34 @@ void WasmMemoryObject::UseInInstance(
   memory->set_instances(*instances);
 }
 
+// static
 void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
-                                    Tagged<JSArrayBuffer> new_buffer) {
-  DisallowGarbageCollection no_gc;
-  const bool new_buffer_is_resizable_by_js = new_buffer->is_resizable_by_js();
-  if (new_buffer_is_resizable_by_js) {
-    FixUpResizableArrayBuffer(*new_buffer);
+                                    DirectHandle<WasmMemoryObject> memory,
+                                    DirectHandle<JSArrayBuffer> new_buffer) {
+  const bool is_shared = new_buffer->is_shared();
+  const bool is_resizable = new_buffer->is_resizable_by_js();
+  if (is_shared) {
+    // Per spec, freeze the buffer. This cannot fail.
+    JSReceiver::SetIntegrityLevel(isolate, new_buffer, FROZEN, kDontThrow)
+        .Check();
+    if (is_resizable) {
+      // GSABs read the byte length from the backing store.
+      new_buffer->set_byte_length(0);
+    }
+    // Only Wasm memory can be shared, and it always has a backing store.
+    std::shared_ptr<BackingStore> backing_store = new_buffer->GetBackingStore();
+    DCHECK(backing_store->is_wasm_memory());
+    backing_store->AttachSharedWasmMemoryObject(isolate, memory);
   }
-  set_array_buffer(new_buffer);
+  if (is_resizable) {
+    memory->FixUpResizableArrayBuffer(*new_buffer);
+  }
+  memory->set_array_buffer(*new_buffer);
+  // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
+  // instance.
+  DirectHandle<Symbol> symbol =
+      isolate->factory()->array_buffer_wasm_memory_symbol();
+  Object::SetProperty(isolate, new_buffer, symbol, memory).Check();
 }
 
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
@@ -1098,25 +1104,11 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     if (override_resizable.has_value()) {
       bool resizable = *override_resizable == ResizableFlag::kResizable;
       new_buffer->set_is_resizable_by_js(resizable);
-      if (resizable) {
-        // GSABs read the byte length from the backing store.
-        new_buffer->set_byte_length(0);
-      }
     }
   } else {
     new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
   }
-  memory_object->SetNewBuffer(isolate, *new_buffer);
-  // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
-  // instance.
-  DirectHandle<Symbol> symbol =
-      isolate->factory()->array_buffer_wasm_memory_symbol();
-  Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
-  if (bs_shared) {
-    // Finally, per spec, freeze the buffer. This cannot fail.
-    JSReceiver::SetIntegrityLevel(isolate, new_buffer, FROZEN, kDontThrow)
-        .Check();
-  }
+  WasmMemoryObject::SetNewBuffer(isolate, memory_object, new_buffer);
   return new_buffer;
 }
 

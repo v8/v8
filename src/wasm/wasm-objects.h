@@ -377,7 +377,9 @@ class WasmMemoryObject
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.
-  void SetNewBuffer(Isolate* isolate, Tagged<JSArrayBuffer> new_buffer);
+  static void SetNewBuffer(Isolate* isolate,
+                           DirectHandle<WasmMemoryObject> memory,
+                           DirectHandle<JSArrayBuffer> new_buffer);
 
   // Updates all WebAssembly instances that use this Memory as a memory, after
   // growing or refreshing the memory.
