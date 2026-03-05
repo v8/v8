@@ -957,7 +957,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    __ WasmTrap(GetTrapIdForTrap(reason));
+    __ WasmTrap(compiler::GetTrapIdForTrap(reason));
   }
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
@@ -9291,21 +9291,6 @@ class TurboshaftGraphBuildingInterface
       const ArrayIndexImmediate& array) {
     return array.array_type->element_type().is_ref() ? kFullWriteBarrier
                                                      : kNoWriteBarrier;
-  }
-
-  TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
-    switch (reason) {
-#define TRAPREASON_TO_TRAPID(name)                                 \
-  case wasm::k##name:                                              \
-    static_assert(static_cast<int>(TrapId::k##name) ==             \
-                      static_cast<int>(Builtin::kThrowWasm##name), \
-                  "trap id mismatch");                             \
-    return TrapId::k##name;
-      FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
-#undef TRAPREASON_TO_TRAPID
-      default:
-        UNREACHABLE();
-    }
   }
 
   // We need this shift so that resulting OpIndex offsets are multiples of

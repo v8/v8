@@ -7,11 +7,14 @@
 #include <optional>
 
 #include "src/base/strings.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8::internal::compiler {
 
@@ -67,6 +70,21 @@ base::Vector<const char> GetDebugName(Zone* zone,
   char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);
   return base::Vector<const char>(index_name, name_len);
+}
+
+TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
+  switch (reason) {
+#define TRAPREASON_TO_TRAPID(name)                                 \
+  case wasm::k##name:                                              \
+    static_assert(static_cast<int>(TrapId::k##name) ==             \
+                      static_cast<int>(Builtin::kThrowWasm##name), \
+                  "trap id mismatch");                             \
+    return TrapId::k##name;
+    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
+#undef TRAPREASON_TO_TRAPID
+    default:
+      UNREACHABLE();
+  }
 }
 
 namespace {

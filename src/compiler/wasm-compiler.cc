@@ -280,22 +280,6 @@ Node* WasmGraphBuilder::UndefinedValue() {
   return LOAD_ROOT(UndefinedValue, undefined_value);
 }
 
-// TODO(ahaas): Merge TrapId with TrapReason.
-TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
-  switch (reason) {
-#define TRAPREASON_TO_TRAPID(name)                                 \
-  case wasm::k##name:                                              \
-    static_assert(static_cast<int>(TrapId::k##name) ==             \
-                      static_cast<int>(Builtin::kThrowWasm##name), \
-                  "trap id mismatch");                             \
-    return TrapId::k##name;
-    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
-#undef TRAPREASON_TO_TRAPID
-    default:
-      UNREACHABLE();
-  }
-}
-
 Node* WasmGraphBuilder::Return(base::Vector<Node*> vals) {
   unsigned count = static_cast<unsigned>(vals.size());
   base::SmallVector<Node*, 8> buf(count + 3);
