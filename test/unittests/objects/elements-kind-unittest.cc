@@ -196,11 +196,11 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   CHECK_EQ(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
-  CHECK_LE(1, object->elements()->length());
+  CHECK_LE(1u, object->elements()->length().value());
 
   // Adding more consecutive elements without a change in the backing store.
-  int non_dict_backing_store_limit = 100;
-  for (int i = 1; i < non_dict_backing_store_limit; i++) {
+  uint32_t non_dict_backing_store_limit = 100;
+  for (uint32_t i = 1; i < non_dict_backing_store_limit; i++) {
     name = MakeName("", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
         .Check();
@@ -209,7 +209,7 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   CHECK_EQ(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
+  CHECK_LE(non_dict_backing_store_limit, object->elements()->length().value());
 
   // Adding an element at an very large index causes a change to
   // DICTIONARY_ELEMENTS.
@@ -220,7 +220,7 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(DICTIONARY_ELEMENTS, object->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
+  CHECK_LE(non_dict_backing_store_limit, object->elements()->length().value());
 }
 
 TEST_F(ElementsKindTest, JSArrayAddingProperties) {
@@ -277,12 +277,12 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
   CHECK_EQ(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), array->property_array(), empty_property_array));
-  CHECK_LE(1, array->elements()->length());
+  CHECK_LE(1u, array->elements()->length().value());
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // Adding more consecutive elements without a change in the backing store.
-  int non_dict_backing_store_limit = 100;
-  for (int i = 1; i < non_dict_backing_store_limit; i++) {
+  uint32_t non_dict_backing_store_limit = 100;
+  for (uint32_t i = 1; i < non_dict_backing_store_limit; i++) {
     name = MakeName("", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
         .Check();
@@ -291,8 +291,8 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
   CHECK_EQ(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), array->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
-  CHECK_EQ(non_dict_backing_store_limit, Smi::ToInt(array->length()));
+  CHECK_LE(non_dict_backing_store_limit, array->elements()->length().value());
+  CHECK_EQ(non_dict_backing_store_limit, Smi::ToUInt(array->length()));
 
   // Adding an element at an very large index causes a change to
   // DICTIONARY_ELEMENTS.
@@ -304,8 +304,8 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(DICTIONARY_ELEMENTS, array->map()->elements_kind());
   CHECK(EQUALS(i_isolate(), array->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
-  CHECK_LE(array->elements()->length(), index);
+  CHECK_LE(non_dict_backing_store_limit, array->elements()->length().value());
+  CHECK_LE(array->elements()->length().value(), static_cast<uint32_t>(index));
   CHECK_EQ(index + 1, Smi::ToInt(array->length()));
 }
 

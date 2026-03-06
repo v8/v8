@@ -2291,7 +2291,7 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
     __ bind(&done_map_load);
   }
 
-  int length = homomorphic_array().length();
+  uint32_t length = homomorphic_array().length().value();
   // The length is always a power of 2.
   DCHECK(base::bits::IsPowerOfTwo(length));
 

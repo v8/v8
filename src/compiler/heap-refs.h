@@ -1080,7 +1080,7 @@ class WeakHomomorphicFixedArrayRef : public HeapObjectRef {
 
   IndirectHandle<WeakHomomorphicFixedArray> object() const;
 
-  int length() const;
+  SafeHeapObjectSize length() const;
 };
 
 class BytecodeArrayRef : public HeapObjectRef {

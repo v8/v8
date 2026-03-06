@@ -61,7 +61,7 @@ class ArrayHeaderBase<Super, true> : public Super {
   // callsites without missing any implicit casts.
   inline SafeHeapObjectSize ulength() const;
 
-  inline int length() const;
+  inline SafeHeapObjectSize length() const;
   inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
   inline void set_length(uint32_t value);
   inline void set_length(uint32_t value, ReleaseStoreTag tag);
@@ -923,6 +923,7 @@ class FixedIntegerArrayBase : public Base {
     return sizeof(typename Base::Header) + index * sizeof(T);
   }
 
+  // TODO(375937549): Convert to uint32_t.
   inline int length() const;
 
  protected:
@@ -982,6 +983,7 @@ class PodArrayBase : public Super {
 
   void set(int index, const T& value) { copy_in(index, &value, 1); }
 
+  // TODO(375937549): Convert to uint32_t.
   inline int length() const;
 } V8_OBJECT_END;
 

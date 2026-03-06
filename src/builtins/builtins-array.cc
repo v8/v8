@@ -547,7 +547,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
       args.smi_value_at(nargs - SuperSpreadArgs::kArglistLengthOffsetFromEnd);
   int stack_arg_count = nargs - SuperSpreadArgs::kNumExtraArgs;
 
-  CHECK_GE(arglist->length(), args_length);
+  CHECK_GE(arglist->length().value(), static_cast<uint32_t>(args_length));
 
   uint32_t total_args = stack_arg_count + args_length;
   auto element_provider = [&](uint32_t i) -> DirectHandle<Object> {

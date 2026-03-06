@@ -201,7 +201,7 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
   auto process_elements = [](auto& elements, Isolate* isolate,
                              StringStream* accumulator,
                              std::function<std::string(int)> format_element) {
-    int dump_len = elements->length();
+    const uint32_t dump_len = elements->length().value();
 
     // We have this var because we print elements for all JSObjects and most
     // often the array will be just empty or not empty but every element will be
@@ -209,11 +209,11 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     // which might be confusing but still less confusing than JSObjects printed
     // with [].
     bool printed_open_bracket = false;
-    int hole_range_start = -1;
+    std::optional<uint32_t> hole_range_start;
     // We output consecutive holes as hole_range_start-hole_range_end:the_hole
-    for (int i = 0; i < dump_len; i++) {
+    for (uint32_t i = 0; i < dump_len; i++) {
       if (elements->is_the_hole(isolate, i)) {
-        if (hole_range_start == -1) {
+        if (!hole_range_start.has_value()) {
           hole_range_start = i;
         }
       } else {
@@ -222,9 +222,9 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
           printed_open_bracket = true;
         }
 
-        if (hole_range_start != -1) {
-          accumulator->Add("%d-%d:the_hole,", hole_range_start, i - 1);
-          hole_range_start = -1;
+        if (hole_range_start.has_value()) {
+          accumulator->Add("%d-%d:the_hole,", *hole_range_start, i - 1);
+          hole_range_start.reset();
         }
         accumulator->Add("%s,", format_element(i).c_str());
       }

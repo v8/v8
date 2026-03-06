@@ -808,8 +808,9 @@ TEST_F(HeapTest, Regress978156) {
   SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
   DirectHandle<FixedArray> last = arrays.back();
-  CHECK_GT(last->length(), 0);
-  heap->RightTrimArray(*last, last->length() - 1, last->length());
+  const uint32_t last_len = last->length().value();
+  CHECK_GT(last_len, 0);
+  heap->RightTrimArray(*last, last_len - 1, last_len);
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
       MutablePage::FromHeapObject(isolate(), *last)->area_end() - kTaggedSize);

@@ -598,7 +598,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
-      DirectHandle<FixedArray> array, int grow_by,
+      DirectHandle<FixedArray> array, uint32_t grow_by,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> NewWeakArrayList(
@@ -608,7 +608,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WeakFixedArray> array);
 
   DirectHandle<WeakFixedArray> CopyWeakFixedArrayAndGrow(
-      DirectHandle<WeakFixedArray> array, int grow_by);
+      DirectHandle<WeakFixedArray> array, uint32_t grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
       DirectHandle<WeakArrayList> array, int grow_by,
@@ -619,7 +619,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<PropertyArray> CopyPropertyArrayAndGrow(
-      DirectHandle<PropertyArray> array, int grow_by);
+      DirectHandle<PropertyArray> array, uint32_t grow_by);
 
   Handle<FixedArray> CopyFixedArrayUpTo(
       DirectHandle<FixedArray> array, uint32_t new_len,
@@ -1384,7 +1384,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<T> src, DirectHandle<Map> map,
       AllocationType allocation = AllocationType::kYoung);
   template <typename T>
-  Handle<T> CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
+  Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,

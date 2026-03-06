@@ -20,6 +20,7 @@ TEST_F(MinimalStackTest, MinimalStackInTurbofanAllocate) {
   v8_flags.allow_natives_syntax = true;
   v8_flags.lazy_feedback_allocation = false;
   v8_flags.stress_concurrent_allocation = false;
+  v8_flags.enable_lazy_source_positions = true;
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);

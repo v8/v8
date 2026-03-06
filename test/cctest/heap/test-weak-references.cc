@@ -315,7 +315,7 @@ TEST(EmptyWeakArray) {
   DirectHandle<WeakFixedArray> array = factory->empty_weak_fixed_array();
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
-  CHECK_EQ(array->length(), 0);
+  CHECK_EQ(array->length().value(), 0u);
 }
 
 TEST(WeakArraysBasic) {
@@ -333,7 +333,7 @@ TEST(WeakArraysBasic) {
   IndirectHandle<WeakFixedArray> array = factory->NewWeakFixedArray(length);
   CHECK(IsWeakFixedArray(*array));
   CHECK(!IsFixedArray(*array));
-  CHECK_EQ(array->length(), length);
+  CHECK_EQ(array->length().value(), length);
 
   CHECK(HeapLayout::InYoungGeneration(*array));
 

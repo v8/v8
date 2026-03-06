@@ -1842,7 +1842,7 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
   uint8_t* byte_array = array->begin();
 
   v8_flags.regexp_peephole_optimization = true;
@@ -1879,20 +1879,22 @@ TEST_F(RegExpTest, PeepholeSkipUntilChar) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
-                        RegExpBytecodes::Size(REB::kCheckCharacter) +
-                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
-                        RegExpBytecodes::Size(REB::kGoTo) +
-                        RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected = RegExpBytecodes::Size(REB::kSkipUntilChar) +
-                                  RegExpBytecodes::Size(REB::kBacktrack);
+  const uint32_t length_expected =
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+      RegExpBytecodes::Size(REB::kCheckCharacter) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
+  const uint32_t length_optimized_expected =
+      RegExpBytecodes::Size(REB::kSkipUntilChar) +
+      RegExpBytecodes::Size(REB::kBacktrack);
 
   CHECK_EQ(length, length_expected);
   CHECK_EQ(length_optimized, length_optimized_expected);
@@ -1936,19 +1938,20 @@ TEST_F(RegExpTest, PeepholeSkipUntilBitInTable) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
-                        RegExpBytecodes::Size(REB::kCheckBitInTable) +
-                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
-                        RegExpBytecodes::Size(REB::kGoTo) +
-                        RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected =
+  const uint32_t length_expected =
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+      RegExpBytecodes::Size(REB::kCheckBitInTable) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
+  const uint32_t length_optimized_expected =
       RegExpBytecodes::Size(REB::kSkipUntilBitInTable) +
       RegExpBytecodes::Size(REB::kBacktrack);
 
@@ -1987,21 +1990,21 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharPosChecked) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected =
+  const uint32_t length_expected =
       RegExpBytecodes::Size(REB::kCheckPosition) +
       RegExpBytecodes::Size(REB::kLoadCurrentCharacterUnchecked) +
       RegExpBytecodes::Size(REB::kCheckCharacter) +
       RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
       RegExpBytecodes::Size(REB::kGoTo) +
       RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected =
+  const uint32_t length_optimized_expected =
       RegExpBytecodes::Size(REB::kSkipUntilCharPosChecked) +
       RegExpBytecodes::Size(REB::kBacktrack);
 
@@ -2040,21 +2043,21 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharAnd) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected =
+  const uint32_t length_expected =
       RegExpBytecodes::Size(REB::kCheckPosition) +
       RegExpBytecodes::Size(REB::kLoadCurrentCharacterUnchecked) +
       RegExpBytecodes::Size(REB::kCheckCharacterAfterAnd) +
       RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
       RegExpBytecodes::Size(REB::kGoTo) +
       RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected =
+  const uint32_t length_optimized_expected =
       RegExpBytecodes::Size(REB::kSkipUntilCharAnd) +
       RegExpBytecodes::Size(REB::kBacktrack);
 
@@ -2094,20 +2097,21 @@ TEST_F(RegExpTest, PeepholeSkipUntilCharOrChar) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
-                        RegExpBytecodes::Size(REB::kCheckCharacter) +
-                        RegExpBytecodes::Size(REB::kCheckCharacter) +
-                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
-                        RegExpBytecodes::Size(REB::kGoTo) +
-                        RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected =
+  const uint32_t length_expected =
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+      RegExpBytecodes::Size(REB::kCheckCharacter) +
+      RegExpBytecodes::Size(REB::kCheckCharacter) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
+  const uint32_t length_optimized_expected =
       RegExpBytecodes::Size(REB::kSkipUntilCharOrChar) +
       RegExpBytecodes::Size(REB::kBacktrack);
 
@@ -2157,21 +2161,22 @@ TEST_F(RegExpTest, PeepholeSkipUntilGtOrNotBitInTable) {
   v8_flags.regexp_peephole_optimization = false;
   DirectHandle<TrustedByteArray> array =
       TrustedCast<TrustedByteArray>(orig.GetCode(source, {}));
-  int length = array->length();
+  const uint32_t length = array->length().value();
 
   v8_flags.regexp_peephole_optimization = true;
   DirectHandle<TrustedByteArray> array_optimized =
       TrustedCast<TrustedByteArray>(opt.GetCode(source, {}));
-  int length_optimized = array_optimized->length();
+  const uint32_t length_optimized = array_optimized->length().value();
 
-  int length_expected = RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
-                        RegExpBytecodes::Size(REB::kCheckCharacterGT) +
-                        RegExpBytecodes::Size(REB::kCheckBitInTable) +
-                        RegExpBytecodes::Size(REB::kGoTo) +
-                        RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
-                        RegExpBytecodes::Size(REB::kGoTo) +
-                        RegExpBytecodes::Size(REB::kBacktrack);
-  int length_optimized_expected =
+  const uint32_t length_expected =
+      RegExpBytecodes::Size(REB::kLoadCurrentCharacter) +
+      RegExpBytecodes::Size(REB::kCheckCharacterGT) +
+      RegExpBytecodes::Size(REB::kCheckBitInTable) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kAdvanceCurrentPosition) +
+      RegExpBytecodes::Size(REB::kGoTo) +
+      RegExpBytecodes::Size(REB::kBacktrack);
+  const uint32_t length_optimized_expected =
       RegExpBytecodes::Size(REB::kSkipUntilGtOrNotBitInTable) +
       RegExpBytecodes::Size(REB::kBacktrack);
 

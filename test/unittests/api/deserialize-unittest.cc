@@ -436,7 +436,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     i::Tagged<i::Script> script = i::Cast<i::Script>(toplevel_sfi->script());
     array->set(kScript, MakeWeak(script));
     i::Tagged<i::WeakFixedArray> sfis = script->infos();
-    CHECK_EQ(sfis->length(), 4);
+    CHECK_EQ(sfis->length().value(), 4);
     CHECK_EQ(sfis->get(0), MakeWeak(toplevel_sfi));
     i::Tagged<i::SharedFunctionInfo> eager =
         i::Cast<i::SharedFunctionInfo>(sfis->get(1).GetHeapObjectAssumeWeak());
