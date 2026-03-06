@@ -59,23 +59,36 @@ inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
   DCHECK(global.type.is_ref());
-  Tagged<FixedArray> global_buffer;  // The buffer of the global.
-  uint32_t global_index = 0;         // The index into the buffer.
-  std::tie(global_buffer, global_index) =
-      wasm_trusted_instance_data()->GetGlobalBufferAndIndex(global);
-  return DirectHandle<Object>(global_buffer->get(global_index), isolate_);
+  return wasm_trusted_instance_data()
+      ->GetGlobalValue(isolate_, global)
+      .to_ref();
 }
 
 inline void WasmInterpreterRuntime::SetGlobalRef(
     uint32_t index, DirectHandle<Object> ref) const {
   // This function assumes that it is executed in a HandleScope.
+  DisallowGarbageCollection no_gc;
   const wasm::WasmGlobal& global = module_->globals[index];
   DCHECK(global.type.is_ref());
-  Tagged<FixedArray> global_buffer;  // The buffer of the global.
-  uint32_t global_index = 0;         // The index into the buffer.
-  std::tie(global_buffer, global_index) =
-      wasm_trusted_instance_data()->GetGlobalBufferAndIndex(global);
-  global_buffer->set(global_index, *ref);
+  Address storage;
+  Tagged<HeapObject> buffer;
+  if (global.mutability && global.imported) {
+    buffer = Cast<HeapObject>(
+        wasm_trusted_instance_data()->imported_mutable_globals_buffers()->get(
+            global.mutable_imported_global_index));
+    uint32_t offset =
+        wasm_trusted_instance_data()->imported_mutable_globals_offsets()->get(
+            global.mutable_imported_global_index);
+    storage = buffer.ptr() + offset;
+  } else {
+    buffer = wasm_trusted_instance_data()->tagged_globals_buffer();
+    int offset = FixedArray::OffsetOfElementAt(global.index_in_buffer);
+    storage = buffer.address() + offset;
+  }
+  MaybeObjectSlot slot{storage};
+  // Relaxed store to avoid races with concurrent marking.
+  slot.Relaxed_Store(*ref);
+  WriteBarrier::ForValue(buffer, slot, *ref, UPDATE_WRITE_BARRIER);
 }
 
 inline void WasmInterpreterRuntime::InitMemoryAddresses() {

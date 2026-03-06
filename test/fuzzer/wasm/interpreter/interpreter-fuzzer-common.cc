@@ -280,9 +280,8 @@ Handle<JSObject> CreateImportObjectInternal(
                                          false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
-                                  MaybeHandle<JSArrayBuffer>(),
-                                  MaybeHandle<FixedArray>(), global.type,
-                                  offset, global.mutability);
+                                  MaybeHandle<WasmGlobalObject::BufferType>(),
+                                  global.type, offset, global.mutability);
         DirectHandle<WasmGlobalObject> global_obj;
         if (maybe_global_obj.ToHandle(&global_obj)) {
           JSObject::DefinePropertyOrElementIgnoreAttributes(
