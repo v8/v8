@@ -130,6 +130,13 @@ void D8Console::ProfileEnd(const debug::ConsoleCallArguments& args,
     profile->Serialize(&out);
   }
   profile->Delete();
+  // Currently the profiler does not work correctly if it is started and stopped
+  // multiple times. One problem is that logged code gets cleared in
+  // `StopProfiling`, but builtins only get logged in the constructor and are
+  // therefore only available in the first profiling session.
+  // TODO(ahaas): Either fix the profiler to support multiple sessions, or
+  // introduce a CHECK that the profiler is only used once.
+  DisposeProfiler();
 }
 
 void D8Console::Time(const debug::ConsoleCallArguments& args,
