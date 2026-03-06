@@ -1628,9 +1628,17 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
-        *compilation_unit_,
-        [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
-    AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
+        *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+          // Receiver and closure values have to be materialized, even if
+          // they don't otherwise escape.
+          if (reg == interpreter::Register::receiver()) {
+            AddMaterializedDeoptUse(node);
+          } else {
+            AddDeoptUse(node);
+          }
+        });
+    AddMaterializedDeoptUse(
+        latest_checkpointed_frame_->as_interpreted().closure());
 
     EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
@@ -1742,14 +1750,13 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
           // Receiver and closure values have to be materialized, even if
           // they don't otherwise escape.
-          if (reg == interpreter::Register::receiver() ||
-              reg == interpreter::Register::function_closure()) {
-            node->add_use();
+          if (reg == interpreter::Register::receiver()) {
+            AddMaterializedDeoptUse(node);
           } else {
             AddDeoptUse(node);
           }
         });
-    AddDeoptUse(ret->closure());
+    AddMaterializedDeoptUse(ret->closure());
     return ret;
   }
 
@@ -1785,9 +1792,16 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       nullptr);
 
   entry_stack_check_frame_->frame_state()->ForEachValue(
-      *compilation_unit_,
-      [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
-  AddDeoptUse(entry_stack_check_frame_->closure());
+      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+        // Receiver and closure values have to be materialized, even if
+        // they don't otherwise escape.
+        if (reg == interpreter::Register::receiver()) {
+          AddMaterializedDeoptUse(node);
+        } else {
+          AddDeoptUse(node);
+        }
+      });
+  AddMaterializedDeoptUse(entry_stack_check_frame_->closure());
   return entry_stack_check_frame_;
 }
 
@@ -18193,6 +18207,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
   if (node == nullptr) return;
   node->AddDeoptUse(current_interpreter_frame().virtual_objects());
+}
+
+void MaglevGraphBuilder::AddMaterializedDeoptUse(ValueNode* node) {
+  if (node == nullptr) return;
+  AddDeoptUse(node);
+  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+    alloc->ForceEscaping();
+  }
 }
 
 void MaglevGraphBuilder::CalculatePredecessorCounts() {

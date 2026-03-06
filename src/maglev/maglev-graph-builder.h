@@ -1534,6 +1534,7 @@ class MaglevGraphBuilder {
   void ClearCurrentAllocationBlock();
 
   void AddDeoptUse(ValueNode* node);
+  void AddMaterializedDeoptUse(ValueNode* node);
   void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
