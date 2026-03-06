@@ -6167,7 +6167,8 @@ template <size_t ShuffleSize>
 bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
                          OpIndex input0, OpIndex input1,
                          std::array<uint8_t, ShuffleSize> shuffle)
-  requires(ShuffleSize == kSimd128Size || ShuffleSize == kSimd128HalfSize)
+  requires(ShuffleSize == kSimd128Size || ShuffleSize == kSimd128HalfSize ||
+           ShuffleSize == kSimd128QuarterSize)
 {
   const CanonicalShuffle canonical =
       wasm::SimdShuffle::TryMatchCanonical(shuffle);
@@ -6206,7 +6207,8 @@ bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
       return true;
   }
 
-  if constexpr (ShuffleSize == kSimd128HalfSize) {
+  if constexpr (ShuffleSize == kSimd128HalfSize ||
+                ShuffleSize == kSimd128QuarterSize) {
     if (std::optional<ShufflePair> instr_opcodes =
             TryMapCanonicalShuffleToShufflePair(canonical)) {
       const InstructionCode opcode1 = instr_opcodes.value().first;
@@ -6323,47 +6325,15 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
   std::array<uint8_t, 2> shuffle16x2;
   uint8_t shuffle32x1;
 
-  // Patterns for deinterleaving four 4xi8 structures.
-  static constexpr std::array<uint8_t, kShuffleBytes> even_even_lanes = {0, 4,
-                                                                         8, 12};
-  static constexpr std::array<uint8_t, kShuffleBytes> odd_even_lanes = {1, 5, 9,
-                                                                        13};
-  static constexpr std::array<uint8_t, kShuffleBytes> even_odd_lanes = {2, 6,
-                                                                        10, 14};
-  static constexpr std::array<uint8_t, kShuffleBytes> odd_odd_lanes = {3, 7, 11,
-                                                                       15};
-
-  auto Deinterleave = [&, this](InstructionCode first_uzp,
-                                InstructionCode second_uzp) {
-    InstructionOperand temp = g.TempSimd128Register();
-    Emit(first_uzp | LaneSizeField::encode(8), temp, g.UseRegister(input0),
-         g.UseRegister(input1));
-    Emit(second_uzp | LaneSizeField::encode(8), g.DefineAsRegister(node), temp,
-         temp);
-  };
-
-  if (std::equal(even_even_lanes.begin(), even_even_lanes.end(),
-                 shuffle.begin())) {
-    Deinterleave(kArm64S128UnzipLeft, kArm64S128UnzipLeft);
-    return;
-  } else if (std::equal(odd_even_lanes.begin(), odd_even_lanes.end(),
-                        shuffle.begin())) {
-    Deinterleave(kArm64S128UnzipRight, kArm64S128UnzipLeft);
-    return;
-  } else if (std::equal(even_odd_lanes.begin(), even_odd_lanes.end(),
-                        shuffle.begin())) {
-    Deinterleave(kArm64S128UnzipLeft, kArm64S128UnzipRight);
-    return;
-  } else if (std::equal(odd_odd_lanes.begin(), odd_odd_lanes.end(),
-                        shuffle.begin())) {
-    Deinterleave(kArm64S128UnzipRight, kArm64S128UnzipRight);
-    return;
-  } else if (wasm::SimdShuffle::TryMatch32x1Shuffle(shuffle.data(),
-                                                    &shuffle32x1)) {
+  if (wasm::SimdShuffle::TryMatch32x1Shuffle(shuffle.data(), &shuffle32x1)) {
     EmitShuffle1<32>(this, node, input0, input1, shuffle32x1);
     return;
-  } else if (wasm::SimdShuffle::TryMatch16x2Shuffle(shuffle.data(),
-                                                    shuffle16x2.data())) {
+  }
+
+  if (TryCanonicalShuffle(this, node, input0, input1, shuffle)) return;
+
+  if (wasm::SimdShuffle::TryMatch16x2Shuffle(shuffle.data(),
+                                             shuffle16x2.data())) {
     EmitShuffle2<16>(this, node, input0, input1, shuffle16x2);
   } else {
     InstructionOperand src0, src1;

@@ -21,7 +21,8 @@ static constexpr uint8_t kShuffleSentinel = 0xFF;
 // [0..kActiveBytes-1] to the full shuffle indices and
 // [kActiveBytes...kSimd128Size-1] set to the sentinel value.
 template <size_t N, int kActiveBytes = kSimd128Size>
-  requires((kActiveBytes == kSimd128Size || kActiveBytes == kSimd128HalfSize) &&
+  requires((kActiveBytes == kSimd128Size || kActiveBytes == kSimd128HalfSize ||
+            kActiveBytes == kSimd128QuarterSize) &&
            kActiveBytes % N == 0)
 constexpr SimdShuffle::ShuffleArray<kSimd128Size> expand(
     const std::array<uint8_t, N>& in) {
@@ -51,7 +52,8 @@ constexpr SimdShuffle::ShuffleArray<kSimd128Size> expandHalf(
 // only shuffles are padded with the sentinel value. Half-size shuffles
 // only match the first half of each shuffle pattern.
 template <size_t N>
-  requires(N == kSimd128HalfSize || N == kSimd128Size)
+  requires(N == kSimd128QuarterSize || N == kSimd128HalfSize ||
+           N == kSimd128Size)
 SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
     const SimdShuffle::ShuffleArray<N>& shuffle) {
   using CanonicalShuffle = SimdShuffle::CanonicalShuffle;
@@ -145,6 +147,11 @@ SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
 SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
     const ShuffleArray<kSimd128HalfSize>& shuffle) {
   return TryMatchCanonicalImpl<kSimd128HalfSize>(shuffle);
+}
+
+SimdShuffle::CanonicalShuffle SimdShuffle::TryMatchCanonical(
+    const ShuffleArray<kSimd128QuarterSize>& shuffle) {
+  return TryMatchCanonicalImpl<kSimd128QuarterSize>(shuffle);
 }
 
 bool SimdShuffle::TryMatchIdentity(const uint8_t* shuffle) {
