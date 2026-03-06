@@ -483,7 +483,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   nexus.IterateMapsWithUnclearedHandler(
       [this, &maps, &has_deprecated_map_without_migration_target](
           DirectHandle<Map> map_handle) {
-        MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
+        OptionalMapRef maybe_map_ref = TryMakeRef(this, *map_handle);
+        if (!maybe_map_ref.has_value()) return;
+        MapRef map = maybe_map_ref.value();
         // May change concurrently at any time - must be guarded by a
         // dependency if non-deprecation is important.
         if (map.is_deprecated()) {
@@ -492,7 +494,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
           std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
               isolate(), *map.object(), ConcurrencyMode::kConcurrent);
           if (maybe_map.has_value()) {
-            map = MakeRefAssumeMemoryFence(this, maybe_map.value());
+            OptionalMapRef maybe_updated_ref =
+                TryMakeRef(this, maybe_map.value());
+            if (!maybe_updated_ref.has_value()) return;
+            map = maybe_updated_ref.value();
           } else {
             return;  // Couldn't update the deprecated map.
           }
