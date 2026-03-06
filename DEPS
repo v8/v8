@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'ba4f58649c1f04dd2ceca6a64b59c627771375ca',
+  'partition_alloc_version': '46efd4d0ef7727ead34d1ee15fb4e10eb1574a98',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '92e11019ed747d0d2b79c813862a7ff0c2d2f9d3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b65cd8fb2b7696be9c06ddd284804bb4896a0e41',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fef8d6947fa54202e8a00c58d5ac8fd15780bc33',
   'buildtools/linux64': {
@@ -292,7 +292,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '78884e23fe39cf5cc6987ea188a9b802d65a21c9',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e490aa627ee45c36557b933ac659a8f04a26c758',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4e2524f6aecac8c50998cd7b673d912239d0e54e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'e56fa07aede15ecbab3b7b82a3a6c1750d9ebae0',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '289efe0fd00497423e4c6a2fc7a53528eaf0b9f3',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '04bb12d7ca5e16c58b55012acb32f07c89dd4e2b',
   'third_party/re2/src':
@@ -532,7 +532,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'e1edb77aee51b77080546861a02cf08138d1a33f',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '9d0985a0c5115f95c89cb29a815f77381979322d',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ef29ced9b02bcb9586894a7632873baa5c67c660',
   'tools/protoc_wrapper':
