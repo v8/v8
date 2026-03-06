@@ -116,13 +116,6 @@
   /* Shipped in v9.5 */                                                        \
   V(legacy_eh, "legacy exception handling opcodes", true)                      \
                                                                                \
-  /* Branch Hinting proposal. */                                               \
-  /* https://github.com/WebAssembly/branch-hinting */                          \
-  /* V8 side owner: jkummerow */                                               \
-  /* Staged in v13.6. */                                                       \
-  /* Shipped in v13.7. */                                                      \
-  V(branch_hinting, "branch hinting", true)                                    \
-                                                                               \
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
   /* V8 side owner: gdeepti */                                                 \

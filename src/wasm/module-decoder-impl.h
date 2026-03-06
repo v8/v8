@@ -485,13 +485,7 @@ class ModuleDecoderImpl : public Decoder {
         }
         break;
       case kBranchHintsSectionCode:
-        if (enabled_features_.has_branch_hinting()) {
-          DecodeBranchHintsSection();
-        } else {
-          // Ignore this section when feature was disabled. It is an optional
-          // custom section anyways.
-          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-        }
+        DecodeBranchHintsSection();
         break;
       case kCompilationPrioritySectionCode:
         if (enabled_features_.has_compilation_hints()) {

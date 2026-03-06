@@ -2211,7 +2211,6 @@ TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
 }
 
 TEST_F(WasmModuleVerifyTest, BranchHinting) {
-  WASM_FEATURE_SCOPE(branch_hinting);
   static const uint8_t data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
       SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, ENTRY_COUNT(1),
@@ -2233,7 +2232,6 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
 }
 
 TEST_F(WasmModuleVerifyTest, BranchHintingBad) {
-  WASM_FEATURE_SCOPE(branch_hinting);
   {
     // Section is present but has no entries.
     static const uint8_t data[] = {
