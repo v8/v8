@@ -11167,6 +11167,7 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
+  SBXCHECK_LT(length_, String::kMaxLength);
   str_ = i::NewArray<uint16_t>(length_ + 1);
   str->WriteV2(v8_isolate, 0, length_, str_,
                String::WriteFlags::kNullTerminate);

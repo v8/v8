@@ -621,9 +621,11 @@ class V8_EXPORT String : public Name {
    * WARNING: This will unconditionally copy the contents of the JavaScript
    * string, and should be avoided in situations where performance is a concern.
    */
-  class V8_EXPORT Value {
+  class V8_DEPRECATE_SOON(
+      "Prefer using String::ValueView if you can, or string->Write to a "
+      "buffer if you cannot.") V8_EXPORT Value {
    public:
-    V8_DEPRECATE_SOON(
+    V8_DEPRECATED(
         "Prefer using String::ValueView if you can, or string->Write to a "
         "buffer if you cannot.")
     Value(Isolate* isolate, Local<v8::Value> obj);
