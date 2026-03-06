@@ -1443,6 +1443,8 @@ std::ostream& operator<<(
       return os << "Boolean";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrHole:
       return os << "NumberOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
@@ -1518,6 +1520,8 @@ std::ostream& operator<<(
   switch (input_assumptions) {
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt:
       return os << "BigInt";
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::

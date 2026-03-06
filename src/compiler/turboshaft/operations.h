@@ -5273,6 +5273,7 @@ struct ConvertJSPrimitiveToUntaggedOp
   enum class InputAssumptions : uint8_t {
     kBoolean,
     kSmi,
+    kSmiOrHole,
     kNumberOrOddball,
     kNumberOrHole,
     kPlainPrimitive,
@@ -5408,6 +5409,7 @@ struct TruncateJSPrimitiveToUntaggedOp
   };
   enum class InputAssumptions : uint8_t {
     kBigInt,
+    kSmiOrHole,
     kNumberOrOddball,
     kNumberOrOddballOrHole,
     kHeapObject,
