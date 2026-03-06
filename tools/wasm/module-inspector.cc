@@ -396,6 +396,7 @@ class HexDumpModuleDis : public ITracer {
     // what we can.
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
+    NamesProvider* original_names = names_;
     if (!names_) {
       fake_module.reset(new WasmModule(kWasmOrigin));
       names_provider.reset(
@@ -415,10 +416,8 @@ class HexDumpModuleDis : public ITracer {
                 << " out of " << wire_bytes_.length() << " bytes.\n";
     }
 
-    // For cleanliness, reset {names_} if it's pointing at a fake.
-    if (names_ == names_provider.get()) {
-      names_ = nullptr;
-    }
+    // For cleanliness, reset {names_} in case we set it at a fake above.
+    names_ = original_names;
   }
 
   // Tracer hooks.
