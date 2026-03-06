@@ -821,10 +821,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   CompilationPriorities compilation_priorities;
   InstructionFrequencies instruction_frequencies;
   CallTargets call_targets;
+  // Protects the two fields below. Always lock this mutex before
+  // `type_feedback.mutex` to avoid deadlocks.
+  mutable base::Mutex compilation_hints_mutex;
   // When --wasm-generate-compilation-hints, we do not trigger tierup, so we
   // need to know which functions would have been tiered up to mark them for
   // optimization in the generated compilation hints.
-  mutable base::Mutex marked_for_tierup_mutex;
   mutable std::unordered_set<uint32_t> marked_for_tierup;
   // When --wasm-generate-compilation-hints, we need to map feedback slots to
   // offsets in the wire bytes to generate compilation hints. The key in the map

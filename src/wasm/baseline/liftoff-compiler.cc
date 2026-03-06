@@ -1295,6 +1295,7 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
 
     if (EnableCompilationHintsInfrastructure()) {
+      base::MutexGuard mutex(&decoder->module_->compilation_hints_mutex);
       decoder->module_->feedback_slots_to_wire_byte_offsets.emplace(
           func_index_, std::vector<uint32_t>());
     }
@@ -10694,6 +10695,7 @@ class LiftoffCompiler {
                   static_cast<size_t>(std::numeric_limits<int>::max()));
 
     if (EnableCompilationHintsInfrastructure()) {
+      base::MutexGuard mutex(&decoder->module_->compilation_hints_mutex);
       decoder->module_->feedback_slots_to_wire_byte_offsets[func_index_]
           .push_back(decoder->pc_relative_offset());
     }

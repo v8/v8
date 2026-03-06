@@ -822,8 +822,11 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
 
   result += lazily_generated_names.EstimateCurrentMemoryConsumption();
 
-  result += ContentSize(marked_for_tierup);
-  result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  {
+    base::MutexGuard compilation_hints_mutex_guard(&compilation_hints_mutex);
+    result += ContentSize(marked_for_tierup);
+    result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  }
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmModule: %zu\n", result);
