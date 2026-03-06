@@ -637,7 +637,7 @@
   # --experimental-wasm-memory-control
   'wasm/memory-control': [SKIP],
 
-  # --experimental-wasm-exnref
+  # exnref
   'regress/wasm/regress-14689': [SKIP],
   'regress/wasm/regress-1502837': [SKIP],
   'regress/wasm/regress-1507743': [SKIP],

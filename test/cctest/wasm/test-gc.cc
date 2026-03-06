@@ -1586,7 +1586,6 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // Test that calling a function expecting any ref accepts the abstract null
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
-  FlagScope<bool> exnref(&v8_flags.experimental_wasm_exnref, true);
   HeapType struct0 =
       HeapType::Index(ModuleTypeIndex{0}, kNotShared, RefTypeKind::kStruct);
   HeapType array1 =

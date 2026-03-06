@@ -1841,8 +1841,7 @@ std::optional<i::wasm::ValueType> GetValueType(
     return i::wasm::kWasmArrayRef;
   } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
     return i::wasm::kWasmI31Ref;
-  } else if (enabled_features.has_exnref() &&
-             string->IsEqualTo(base::CStrVector("exnref"))) {
+  } else if (string->IsEqualTo(base::CStrVector("exnref"))) {
     return i::wasm::kWasmExnRef;
   }
   // Unrecognized type.

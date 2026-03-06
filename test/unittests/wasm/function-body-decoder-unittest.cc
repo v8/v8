@@ -2188,7 +2188,6 @@ TEST_F(FunctionBodyDecoderTest, NullFuncRefGlobals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NullExnRefGlobals) {
-  WASM_FEATURE_SCOPE(exnref);
   ValueType nullFuncRefs[] = {kWasmNullExnRef, kWasmNullExnRef,
                               kWasmNullExnRef};
   FunctionSig sig(1, 2, nullFuncRefs);
@@ -2987,7 +2986,6 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
 #define WASM_TRY_TABLE_OP kExprTryTable, kVoidCode
 
 TEST_F(FunctionBodyDecoderTest, ThrowRef) {
-  WASM_FEATURE_SCOPE(exnref);
   ExpectValidates(sigs.v_v(), {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP,
                                U32V_1(1), CatchKind::kCatchAllRef, 0, kExprEnd,
                                kExprBr, 1, kExprEnd, kExprThrowRef});
@@ -3001,7 +2999,6 @@ TEST_F(FunctionBodyDecoderTest, ThrowRef) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TryTable) {
-  WASM_FEATURE_SCOPE(exnref);
   uint8_t ex = builder.AddTag(sigs.v_v());
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, ex,
@@ -3073,7 +3070,6 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BadTryTable) {
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   uint8_t ex = builder.AddTag(sigs.v_v());
   uint8_t bd = builder.AddTag(sigs.i_i());
@@ -3797,8 +3793,6 @@ TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefEq) {
-  WASM_FEATURE_SCOPE(exnref);
-
   HeapType struct_type = builder.AddStruct({F(kWasmI32, true)});
   ValueType eqref_subtypes[] = {kWasmEqRef,
                                 kWasmI31Ref,
@@ -3865,8 +3859,6 @@ using HeapRep = HeapType;
 HeapRep Repr(HeapType type) { return type; }
 
 TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
-  WASM_FEATURE_SCOPE(exnref);
-
   HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
   HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
   HeapRep heap_types[] = {struct_type_index, array_type_index, kWasmExnRef,
@@ -3901,8 +3893,6 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefNull) {
-  WASM_FEATURE_SCOPE(exnref);
-
   HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
   HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
   HeapRep type_reprs[] = {struct_type_index, array_type_index, kWasmExnRef,
@@ -4360,7 +4350,6 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefTestCast) {
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
 
   HeapType array_heap = HeapType(builder.AddArray(kWasmI8, true));
@@ -5573,7 +5562,6 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
 }
 
 TEST_F(LocalDeclDecoderTest, ExnRef) {
-  WASM_FEATURE_SCOPE(exnref);
   const uint8_t data[] = {1, 1,
                           static_cast<uint8_t>(kWasmExnRef.value_type_code())};
   BodyLocalDecls decls;
@@ -6339,7 +6327,6 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
 
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRef) {
   WASM_FEATURE_SCOPE(wasmfx);
-  WASM_FEATURE_SCOPE(exnref);
 
   ModuleTypeIndex cont1_index = builder.AddCont(sigs.i_i());
   ModuleTypeIndex cont2_index = builder.AddCont(sigs.i_v());
@@ -6460,7 +6447,7 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
 
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrowRefNegative) {
   WASM_FEATURE_SCOPE(wasmfx);
-  WASM_FEATURE_SCOPE(exnref);
+
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
   uint8_t vd_tag = builder.AddTag(sigs.v_v());

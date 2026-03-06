@@ -687,7 +687,6 @@ class BodyGen {
                      base::Vector<const ValueType> return_types,
                      base::Vector<CatchCase> catch_cases, size_t i,
                      DataRange* data) {
-    DCHECK(v8_flags.experimental_wasm_exnref);
     if (i == catch_cases.size()) {
       // Base case: emit the try-table itself.
       builder_->Emit(kExprTryTable);
@@ -767,17 +766,12 @@ class BodyGen {
   void try_table_block(DataRange* data) {
     ValueType return_types_arr[1] = {ValueType::Primitive(T)};
     auto return_types = base::VectorOf(return_types_arr, T == kVoid ? 0 : 1);
-    if (!v8_flags.experimental_wasm_exnref) {
-      // Can't generate a try_table block. Just generate something else.
-      any_block({}, return_types, data);
-      return;
-    }
     try_table_block_helper({}, return_types, data);
   }
 
   void any_block(base::Vector<const ValueType> param_types,
                  base::Vector<const ValueType> return_types, DataRange* data) {
-    uint8_t available_cases = v8_flags.experimental_wasm_exnref ? 6 : 5;
+    uint8_t available_cases = 6;
     uint8_t block_type = data->get<uint8_t>() % available_cases;
     switch (block_type) {
       case 0:

@@ -263,13 +263,6 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
         return {HeapType::from_code(code, is_shared), length};
       case kNoExnCode:
       case kExnRefCode:
-        if (!VALIDATE(enabled.has_exnref())) {
-          DecodeError<ValidationTag>(
-              decoder, pc,
-              "invalid heap type '%s', enable with --experimental-wasm-exnref",
-              HeapType::from_code(code, is_shared).name().c_str());
-          return {kWasmBottom, 0};
-        }
         if (!VALIDATE(!detected->has_legacy_eh() ||
                       v8_flags.wasm_allow_mixed_eh_for_testing)) {
           DecodeError<ValidationTag>(
@@ -385,13 +378,6 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
       return {ValueType::RefNull(HeapType::from_code(code, false)), 1};
     case kNoExnCode:
     case kExnRefCode:
-      if (!VALIDATE(enabled.has_exnref())) {
-        DecodeError<ValidationTag>(
-            decoder, pc,
-            "invalid value type '%s', enable with --experimental-wasm-exnref",
-            HeapType::from_code(code, false).name().c_str());
-        return {kWasmBottom, 0};
-      }
       if (!VALIDATE(!detected->has_legacy_eh() ||
                     v8_flags.wasm_allow_mixed_eh_for_testing)) {
         DecodeError<ValidationTag>(
@@ -3792,7 +3778,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(TryTable) {
-    CHECK_PROTOTYPE_OPCODE(exnref);
+    this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
       this->DecodeError(
@@ -3875,7 +3861,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(ThrowRef) {
-    CHECK_PROTOTYPE_OPCODE(exnref);
+    this->detected_->add_exnref();
     if (!VALIDATE(!this->detected_->has_legacy_eh() ||
                   v8_flags.wasm_allow_mixed_eh_for_testing)) {
       this->DecodeError(
