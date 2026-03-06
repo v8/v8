@@ -1769,7 +1769,10 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [ "-Wunreachable-code" ]
+    cflags += [
+      "-Wunreachable-code",
+      "-Wlifetime-safety-permissive",
+    ]
 
     if ((v8_current_cpu != "x64" && v8_current_cpu != "ia32") ||
         target_os == "chromeos") {
