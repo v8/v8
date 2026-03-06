@@ -6810,11 +6810,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
 
   if (v8_fuzzilli) {
     sources += [
-      "src/fuzzilli/cov.cc",
-      "src/fuzzilli/cov.h",
       "src/fuzzilli/fuzzilli.cc",
       "src/fuzzilli/fuzzilli.h",
     ]
+    public_deps += [ ":fuzzilli_cov" ]
   }
 
   if (v8_dumpling) {
@@ -8782,6 +8781,24 @@ if (!build_with_chromium && v8_use_perfetto) {
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
+
+if (v8_fuzzilli) {
+  v8_source_set("fuzzilli_cov") {
+    visibility = [ "*" ]
+    sources = [
+      "src/fuzzilli/cov.cc",
+      "src/fuzzilli/cov.h",
+    ]
+    configs = [
+      ":internal_config_base",
+      ":internal_config",
+    ]
+    deps = [
+      ":v8_internal_headers",
+      ":v8_libbase",
+    ]
+  }
+}
 
 # GN evaluates each .gn file once per toolchain, so restricting to default
 # toolchain will ensure write_file() is called only once.

@@ -97,7 +97,9 @@
 #endif  // V8_OS_POSIX
 
 #ifdef V8_FUZZILLI
-#include "src/fuzzilli/cov.h"
+// gn check complains when not using the v8_fuzzilli arg since the public dep.
+// is added conditionally
+#include "src/fuzzilli/cov.h"  // nogncheck
 #include "src/fuzzilli/fuzzilli.h"
 #endif  // V8_FUZZILLI
 
