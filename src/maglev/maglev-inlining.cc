@@ -56,11 +56,12 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
 }
 
 bool MaglevInliner::CanInlineCall() {
+  // We stop inlining entirely if the small budget is exhausted.
+  // Inlining decisions after that become bad if we stop inlining small
+  // functions, but keep inlining large ones.
   return !graph_->inlineable_calls().empty() &&
-         (graph_->total_inlined_bytecode_size() <
-              flags_.max_inlined_bytecode_size_cumulative ||
-          graph_->total_inlined_bytecode_size_small() <
-              flags_.max_inlined_bytecode_size_small_total);
+         graph_->total_inlined_bytecode_size_small() <
+             flags_.max_inlined_bytecode_size_small_total;
 }
 
 bool MaglevInliner::InlineCallSites() {
@@ -76,39 +77,36 @@ bool MaglevInliner::InlineCallSites() {
                    << graph_->graph_labeller()->NodeId(
                           call_site->generic_call_node));
 
+    bool main_exhausted = graph_->total_inlined_bytecode_size() >
+                          flags_.max_inlined_bytecode_size_cumulative;
+    bool small_exhausted = graph_->total_inlined_bytecode_size_small() >
+                           flags_.max_inlined_bytecode_size_small_total;
     bool is_small_with_heapnum_input_outputs =
         IsSmallWithHeapNumberInputsOutputs(call_site);
 
-    if (graph_->total_inlined_bytecode_size() >
-        flags_.max_inlined_bytecode_size_cumulative) {
+    if (small_exhausted) {
+      // We stop inlining entirely if the small budget is exhausted.
+      // Inlining decisions after that become bad if we stop inlining small
+      // functions, but keep inlining large ones.
+      graph_->compilation_info()->set_could_not_inline_all_candidates();
+      TRACE_INLINING(TraceIdent{}
+                     << C_RED << "Small budget exhausted ("
+                     << graph_->total_inlined_bytecode_size_small() << " > "
+                     << flags_.max_inlined_bytecode_size_small_total << ")"
+                     << C_RESET);
+      TRACE_INLINING(TraceSkip(shared));
+      break;
+    }
+
+    if (!is_small_with_heapnum_input_outputs && main_exhausted) {
+      graph_->compilation_info()->set_could_not_inline_all_candidates();
       TRACE_INLINING(TraceIdent{}
                      << C_RED << "Main budget exhausted ("
                      << graph_->total_inlined_bytecode_size() << " > "
                      << flags_.max_inlined_bytecode_size_cumulative << ")"
                      << C_RESET);
-
-      // We ran out of budget. Checking if this is a small-ish function that we
-      // can still inline.
-      if (graph_->total_inlined_bytecode_size_small() >
-          flags_.max_inlined_bytecode_size_small_total) {
-        graph_->compilation_info()->set_could_not_inline_all_candidates();
-        TRACE_INLINING(TraceIdent{}
-                       << C_RED << "Small budget exhausted ("
-                       << graph_->total_inlined_bytecode_size_small() << " > "
-                       << flags_.max_inlined_bytecode_size_small_total << ")"
-                       << C_RESET);
-        break;
-      }
-
-      if (!is_small_with_heapnum_input_outputs) {
-        graph_->compilation_info()->set_could_not_inline_all_candidates();
-        // Not that we don't break just rather just continue: next candidates
-        // might be inlineable.
-        TRACE_INLINING(TraceIdent{}
-                       << "Not a small functions with heap number arguments");
-        TRACE_INLINING(TraceSkip(shared));
-        continue;
-      }
+      TRACE_INLINING(TraceSkip(shared));
+      continue;
     }
 
     InliningResult result =
