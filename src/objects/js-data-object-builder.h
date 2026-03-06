@@ -132,22 +132,25 @@ class JSDataObjectBuilder {
                        Handle<Object> value);
 
   template <typename Char, typename GetKeyFunction, typename GetValueFunction>
-  V8_INLINE bool TryAddFastPropertyForValue(base::Vector<const Char> key_chars,
-                                            GetKeyFunction&& get_key,
-                                            GetValueFunction&& get_value);
+  V8_INLINE bool TryAddFastPropertyForValue(
+      base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
+      GetValueFunction&& get_value, DirectHandle<InternalizedString>* out_key);
 
-  V8_INLINE bool TryAddFastPropertyForValue(Handle<InternalizedString> key,
-                                            Handle<Object> value);
+  V8_INLINE void RecalculateExtraHeapNumbersNeeded();
+
+  V8_INLINE bool TryAddFastPropertyForValue(
+      DirectHandle<InternalizedString> key, DirectHandle<Object> value);
 
   template <typename Char, typename GetKeyFunction>
   V8_INLINE bool TryFastTransitionToPropertyKey(
       base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
-      Handle<InternalizedString>* key_out);
+      DirectHandle<InternalizedString>* out_key);
 
-  V8_INLINE bool TryFastTransitionToPropertyKey(Handle<InternalizedString> key);
+  V8_INLINE bool TryFastTransitionToPropertyKey(
+      DirectHandle<InternalizedString> key);
 
   V8_INLINE bool TryAddFastPropertyTransitionForValue(
-      Handle<InternalizedString> key, DirectHandle<Object> value);
+      DirectHandle<InternalizedString> key, DirectHandle<Object> value);
 
   V8_INLINE bool TryGeneralizeFieldToValue(DirectHandle<Object> value);
 
@@ -163,7 +166,6 @@ class JSDataObjectBuilder {
 
   V8_INLINE void RegisterFieldNeedsFreshHeapNumber();
   V8_INLINE void RegisterFieldNeedsFreshHeapNumber(DirectHandle<Object> value);
-
   V8_INLINE void AdvanceToNextProperty();
 
   Isolate* isolate_;

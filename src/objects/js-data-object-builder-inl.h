@@ -107,15 +107,15 @@ Handle<JSObject> JSDataObjectBuilder::BuildFromIterator(
   may_have_duplicate_keys_ =
       std::remove_reference_t<PropertyIterator>::kMayHaveDuplicateKeys;
 
-  Handle<InternalizedString> failed_property_add_key;
+  DirectHandle<InternalizedString> failed_property_add_key;
   for (; !it.Done(); it.Advance()) {
-    Handle<InternalizedString> property_key;
+    DirectHandle<InternalizedString> property_key;
     if (!TryAddFastPropertyForValue(
             it.GetKeyChars(),
             [&](Handle<InternalizedString> expected_key) {
-              return property_key = it.GetKey(expected_key);
+              return it.GetKey(expected_key);
             },
-            [&]() { return it.GetValue(true); })) {
+            [&]() { return it.GetValue(true); }, &property_key)) {
       failed_property_add_key = property_key;
       break;
     }
@@ -125,16 +125,27 @@ Handle<JSObject> JSDataObjectBuilder::BuildFromIterator(
   if (!maybe_elements.ToHandle(&elements)) {
     elements = isolate_->factory()->empty_fixed_array();
   }
-  CreateAndInitialiseObject(it.RevisitValues(), elements);
+  {
+    auto value_it = it.RevisitValues();
+    CreateAndInitialiseObject(value_it, elements);
+
+    if (!it.Done()) {
+      // If we're not yet done, we must have failed to add a property.
+      // This property's value will be in the value iterator, so get it from
+      // there rather than it.GetValue().
+      DirectHandle<InternalizedString> key =
+          std::exchange(failed_property_add_key, {});
+      DCHECK(!key.is_null());
+      Handle<Object> value(value_it.GetNext(), isolate_);
+      AddSlowProperty(key, value);
+      it.Advance();
+    }
+  }
 
   // Slow path: define remaining named properties.
   for (; !it.Done(); it.Advance()) {
-    DirectHandle<InternalizedString> key;
-    if (!failed_property_add_key.is_null()) {
-      key = std::exchange(failed_property_add_key, {});
-    } else {
-      key = it.GetKey({});
-    }
+    DCHECK(failed_property_add_key.is_null());
+    DirectHandle<InternalizedString> key = it.GetKey({});
 #ifdef DEBUG
     uint32_t index;
     DCHECK(!key->AsArrayIndex(&index));
@@ -163,7 +174,20 @@ Handle<JSObject> JSDataObjectBuilder::BuildFromIterator(
   if (!maybe_elements.ToHandle(&elements)) {
     elements = isolate_->factory()->empty_fixed_array();
   }
-  CreateAndInitialiseObject(it.RevisitValues(), elements);
+  {
+    auto value_it = it.RevisitValues();
+    CreateAndInitialiseObject(value_it, elements);
+
+    if (!it.Done()) {
+      // If we're not yet done, we must have failed to add a property.
+      // This property's value will be in the value iterator, so get it from
+      // there rather than it.GetValue().
+      DirectHandle<InternalizedString> key = it.GetKey();
+      Handle<Object> value(value_it.GetNext(), isolate_);
+      AddSlowProperty(key, value);
+      it.Advance();
+    }
+  }
 
   // Slow path: define remaining named properties.
   for (; !it.Done(); it.Advance()) {
@@ -183,21 +207,20 @@ Handle<JSObject> JSDataObjectBuilder::BuildFromIterator(
 template <typename Char, typename GetKeyFunction, typename GetValueFunction>
 bool JSDataObjectBuilder::TryAddFastPropertyForValue(
     base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
-    GetValueFunction&& get_value) {
+    GetValueFunction&& get_value, DirectHandle<InternalizedString>* out_key) {
   // The fast path is only valid as long as we haven't allocated an object
   // yet.
   DCHECK(object_.is_null());
 
   DirectHandle<Map> previous_map = map_;
-  Handle<InternalizedString> key;
   bool existing_map_found =
-      TryFastTransitionToPropertyKey(key_chars, get_key, &key);
+      TryFastTransitionToPropertyKey(key_chars, get_key, out_key);
   // Unconditionally get the value after getting the transition result.
   DirectHandle<Object> value = get_value();
   if (existing_map_found) {
     // We found a map with a field for our value -- now make sure that field
     // is compatible with our value.
-    if (!TryGeneralizeFieldToValue(value)) {
+    if (map_->is_deprecated() || !TryGeneralizeFieldToValue(value)) {
       // TODO(leszeks): Try to stay on the fast path if we just deprecate
       // here.
       map_ = previous_map;
@@ -206,17 +229,24 @@ bool JSDataObjectBuilder::TryAddFastPropertyForValue(
     AdvanceToNextProperty();
     return true;
   }
-
-  return TryAddFastPropertyTransitionForValue(key, value);
+  return TryAddFastPropertyTransitionForValue(*out_key, value);
 }
 
 bool JSDataObjectBuilder::TryAddFastPropertyForValue(
-    Handle<InternalizedString> key, Handle<Object> value) {
+    DirectHandle<InternalizedString> key, DirectHandle<Object> value) {
+  if (map_->is_deprecated()) {
+    return false;
+  }
+
   DCHECK(object_.is_null());
   DirectHandle<Map> previous_map = map_;
   bool existing_map_found = TryFastTransitionToPropertyKey(key);
   if (existing_map_found) {
-    if (!TryGeneralizeFieldToValue(value)) {
+    // We found a map with a field for our value -- now make sure that field
+    // is compatible with our value.
+    if (map_->is_deprecated() || !TryGeneralizeFieldToValue(value)) {
+      // TODO(leszeks): Try to stay on the fast path if we just deprecate
+      // here.
       map_ = previous_map;
       return false;
     }
@@ -227,8 +257,12 @@ bool JSDataObjectBuilder::TryAddFastPropertyForValue(
 }
 
 template <typename ValueIterator>
-void JSDataObjectBuilder::CreateAndInitialiseObject(
+inline void JSDataObjectBuilder::CreateAndInitialiseObject(
     ValueIterator&& value_it, DirectHandle<FixedArrayBase> elements) {
+  if (map_->is_deprecated()) {
+    map_ = Map::Update(isolate_, map_);
+    RecalculateExtraHeapNumbersNeeded();
+  }
   // We've created a map for the first `i` property stack values (which might
   // be all of them). We need to write these properties to a newly allocated
   // object.
@@ -332,7 +366,7 @@ void JSDataObjectBuilder::CreateAndInitialiseObject(
 template <typename Char, typename GetKeyFunction>
 bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
     base::Vector<const Char> key_chars, GetKeyFunction&& get_key,
-    Handle<InternalizedString>* key_out) {
+    DirectHandle<InternalizedString>* out_key) {
   Handle<InternalizedString> expected_key;
   DirectHandle<Map> target_map;
 
@@ -351,6 +385,7 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
       // Directly read out the target while reading out the key, otherwise it
       // might die if `get_key` can allocate.
       target_map = expected_transition.second;
+      *out_key = Cast<InternalizedString>(expected_transition.first);
 
       // We were successful and we are done.
       DCHECK_EQ(target_map->instance_descriptors()
@@ -362,7 +397,7 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
     }
   }
 
-  DirectHandle<String> key = *key_out = get_key(expected_key);
+  DirectHandle<String> key = *out_key = get_key(expected_key);
   if (key.is_identical_to(expected_key)) {
     // We were successful and we are done.
     DCHECK_EQ(target_map->instance_descriptors()
@@ -390,21 +425,19 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
 }
 
 bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
-    Handle<InternalizedString> key) {
-  Handle<InternalizedString> expected_key;
+    DirectHandle<InternalizedString> key) {
+  Tagged<InternalizedString> expected_key;
   DirectHandle<Map> target_map;
 
   InternalIndex descriptor_index(current_property_index_);
   if (IsOnExpectedFinalMapFastPath()) {
-    expected_key =
-        handle(Cast<InternalizedString>(
-                   expected_final_map_->instance_descriptors(isolate_)->GetKey(
-                       descriptor_index)),
-               isolate_);
+    expected_key = Cast<InternalizedString>(
+        expected_final_map_->instance_descriptors(isolate_)->GetKey(
+            descriptor_index));
     target_map = expected_final_map_;
   }
 
-  if (!expected_key.is_null() && key->Equals(*expected_key)) {
+  if (!expected_key.is_null() && key->Equals(expected_key)) {
     DCHECK_EQ(target_map->instance_descriptors()
                   ->GetDetails(descriptor_index)
                   .location(),
@@ -427,7 +460,7 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
 }
 
 bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
-    Handle<InternalizedString> key, DirectHandle<Object> value) {
+    DirectHandle<InternalizedString> key, DirectHandle<Object> value) {
   if (may_have_duplicate_keys_) {
     Tagged<DescriptorArray> descriptors = map_->instance_descriptors(isolate_);
     InternalIndex descriptor_number =
@@ -452,11 +485,16 @@ bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
   MaybeHandle<Map> maybe_map = Map::CopyWithField(
       isolate_, map_, key, type, NONE, PropertyConstness::kConst,
       representation, INSERT_TRANSITION);
-  Handle<Map> next_map;
+  DirectHandle<Map> next_map;
   if (!maybe_map.ToHandle(&next_map)) return false;
   if (next_map->is_dictionary_map()) return false;
 
-  map_ = next_map;
+  if (next_map->is_deprecated()) {
+    map_ = Map::Update(isolate_, next_map);
+    RecalculateExtraHeapNumbersNeeded();
+  } else {
+    map_ = next_map;
+  }
   if (representation.IsDouble()) {
     RegisterFieldNeedsFreshHeapNumber(value);
   }
@@ -571,7 +609,23 @@ void JSDataObjectBuilder::RegisterFieldNeedsFreshHeapNumber(
   extra_heap_numbers_needed_++;
 }
 
-void JSDataObjectBuilder::AdvanceToNextProperty() { current_property_index_++; }
+void JSDataObjectBuilder::RecalculateExtraHeapNumbersNeeded() {
+  extra_heap_numbers_needed_ = 0;
+  Tagged<DescriptorArray> map_descriptors =
+      map_->instance_descriptors(isolate_);
+  for (int i = 0; i < current_property_index_; ++i) {
+    if (map_descriptors->GetDetails(InternalIndex(i))
+            .representation()
+            .IsDouble()) {
+      RegisterFieldNeedsFreshHeapNumber();
+    }
+  }
+}
+
+void JSDataObjectBuilder::AdvanceToNextProperty() {
+  DCHECK(!map_->is_deprecated());
+  current_property_index_++;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -767,7 +767,7 @@ class JsonParser<Char>::NamedPropertyIterator {
     return it_->value;
   }
   NamedPropertyValueIterator RevisitValues() {
-    return NamedPropertyValueIterator(start_, it_);
+    return NamedPropertyValueIterator(start_, end_);
   }
 
  private:
