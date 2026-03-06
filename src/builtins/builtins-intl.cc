@@ -1236,7 +1236,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  std::shared_ptr<icu::Collator> icu_collator = collator->icu_collator()->get();
   CHECK_NOT_NULL(icu_collator);
   return Smi::FromInt(
       Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));

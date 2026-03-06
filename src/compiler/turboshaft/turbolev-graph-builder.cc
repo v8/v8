@@ -1375,12 +1375,13 @@ class GraphBuildingNodeProcessor {
         if (CanInlineJSToWasmCall(wasm_signature)) {
           Tagged<WasmTrustedInstanceData> instance_data =
               function_data->instance_data();
-          wasm::NativeModule* native_module = instance_data->native_module();
+          std::shared_ptr<wasm::NativeModule> native_module =
+              instance_data->native_module();
           int wasm_function_index = function_data->function_index();
           bool receiver_is_first_param =
               function_data->receiver_is_first_param();
           wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-              native_module, wasm_function_index, shared, feedback,
+              native_module.get(), wasm_function_index, shared, feedback,
               receiver_is_first_param);
           __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
         }

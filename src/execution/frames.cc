@@ -3512,7 +3512,7 @@ Tagged<WasmTrustedInstanceData> WasmFrame::trusted_instance_data() const {
   return TrustedCast<WasmTrustedInstanceData>(trusted_data);
 }
 
-wasm::NativeModule* WasmFrame::native_module() const {
+std::shared_ptr<wasm::NativeModule> WasmFrame::native_module() const {
   return trusted_instance_data()->native_module();
 }
 

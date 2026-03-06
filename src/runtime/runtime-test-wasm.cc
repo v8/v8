@@ -432,7 +432,7 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
 
   DirectHandle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
 
-  wasm::NativeModule* native_module =
+  std::shared_ptr<wasm::NativeModule> native_module =
       instance->trusted_data(isolate)->native_module();
   const wasm::WasmModule* module = native_module->module();
 
@@ -514,8 +514,8 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
   if (v8_flags.wasm_generate_compilation_hints) {
     Zone zone{isolate->allocator(), "wasm::EmitCompilationHintsToBuffer"};
     wasm::ZoneBuffer buffer{&zone};
-    wasm::EmitCompilationHintsToBuffer(buffer, native_module);
-    wasm::WriteCompilationHintsToFile(buffer, native_module);
+    wasm::EmitCompilationHintsToBuffer(buffer, native_module.get());
+    wasm::WriteCompilationHintsToFile(buffer, native_module.get());
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -603,7 +603,7 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSObject> argument = args.at<JSObject>(0);
-  wasm::NativeModule* native_module;
+  std::shared_ptr<wasm::NativeModule> native_module;
   if (IsWasmInstanceObject(*argument)) {
     native_module = Cast<WasmInstanceObject>(*argument)
                         ->trusted_data(isolate)
@@ -668,7 +668,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
     traces.global_trace.push_back(trace_entry);
   } else {
     std::ostringstream ss;
-    PrintGlobalTraceString(trace_entry, frame->native_module(), ss);
+    PrintGlobalTraceString(trace_entry, frame->native_module().get(), ss);
     ss << "\n";
     PrintF("%s", ss.str().c_str());
   }
@@ -727,7 +727,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
     traces.memory_trace.push_back(trace_entry);
   } else {
     std::ostringstream ss;
-    PrintMemoryTraceString(trace_entry, frame->native_module(), ss);
+    PrintMemoryTraceString(trace_entry, frame->native_module().get(), ss);
     ss << "\n";
     PrintF("%s", ss.str().c_str());
   }
@@ -775,13 +775,14 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
-  wasm::NativeModule* native_module = trusted_data->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
   if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
+  if (!ValidateFunctionNowIfNeeded(isolate, native_module.get(), func_index)) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
@@ -800,13 +801,14 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
-  wasm::NativeModule* native_module = trusted_data->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
   if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
+  if (!ValidateFunctionNowIfNeeded(isolate, native_module.get(), func_index)) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::TriggerTierUp(isolate, trusted_data, func_index);
@@ -944,7 +946,8 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   }
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
-  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      data->instance_data()->native_module();
   const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
   if (func_index < module->num_imported_functions ||
@@ -965,7 +968,8 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   }
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
-  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      data->instance_data()->native_module();
   const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
   if (func_index < module->num_imported_functions ||
@@ -985,7 +989,8 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   }
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
-  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      data->instance_data()->native_module();
   const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
   if (func_index < module->num_imported_functions ||
@@ -1005,7 +1010,8 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   }
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
-  wasm::NativeModule* native_module = data->instance_data()->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      data->instance_data()->native_module();
   const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
   if (func_index < module->num_imported_functions ||

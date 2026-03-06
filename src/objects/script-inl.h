@@ -109,8 +109,8 @@ bool Script::has_wasm_breakpoint_infos() const {
          wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
-wasm::NativeModule* Script::wasm_native_module() const {
-  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->raw();
+std::shared_ptr<wasm::NativeModule> Script::wasm_native_module() const {
+  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->get();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }

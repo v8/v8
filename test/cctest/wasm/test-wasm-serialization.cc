@@ -339,7 +339,7 @@ TEST(TierDownAfterDeserialization) {
   DirectHandle<WasmModuleObject> module_object;
   CHECK(test.Deserialize().ToHandle(&module_object));
 
-  auto* native_module = module_object->native_module();
+  std::shared_ptr<NativeModule> native_module = module_object->native_module();
   CHECK_EQ(3, native_module->module()->functions.size());
   WasmCodeRefScope code_ref_scope;
   // The deserialized code must be TurboFan (we wait for tier-up before
@@ -376,8 +376,8 @@ TEST(SerializeLiftoffModuleFails) {
   DirectHandle<WasmModuleObject> module_object =
       maybe_module_object.ToHandleChecked();
 
-  NativeModule* native_module = module_object->native_module();
-  WasmSerializer wasm_serializer(native_module);
+  auto native_module = module_object->native_module();
+  WasmSerializer wasm_serializer(native_module.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
   // Serialization is expected to fail if there is no TurboFan function to
@@ -396,7 +396,7 @@ TEST(SerializeTieringBudget) {
     DirectHandle<WasmModuleObject> module_object;
     CHECK(test.Deserialize().ToHandle(&module_object));
 
-    auto* native_module = module_object->native_module();
+    auto native_module = module_object->native_module();
     memcpy(native_module->tiering_budget_array(), mock_budget,
            arraysize(mock_budget) * sizeof(uint32_t));
     v8::Local<v8::Object> v8_module_obj =
@@ -427,7 +427,7 @@ TEST(SerializeTieringBudget) {
           wire_bytes_copy, compile_imports, {})
           .ToHandle(&module_object));
 
-  auto* native_module = module_object->native_module();
+  auto native_module = module_object->native_module();
   for (size_t i = 0; i < arraysize(mock_budget); ++i) {
     CHECK_EQ(mock_budget[i], native_module->tiering_budget_array()[i]);
   }

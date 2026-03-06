@@ -76,7 +76,7 @@ class WasmTracingTest : public TestWithContextAndZone {
     WasmTracesForTesting& traces = GetWasmTracesForTesting();
     traces.should_store_trace = true;
 
-    NativeModule* native_module;
+    std::shared_ptr<NativeModule> native_module;
     CompileAndRun(sigs_.v_v(), code_a, &native_module);
 
     MemoryTrace memory_trace_a = std::move(traces.memory_trace);
@@ -94,13 +94,13 @@ class WasmTracingTest : public TestWithContextAndZone {
     if (should_trace_memory) {
       std::ostringstream memory_ss;
       fuzzing::CompareAndPrintMemoryTraces(memory_trace_a, memory_trace_b,
-                                           native_module, memory_ss);
+                                           native_module.get(), memory_ss);
       result.memory_trace = memory_ss.str();
     }
     if (should_trace_globals) {
       std::ostringstream global_ss;
       fuzzing::CompareAndPrintGlobalTraces(global_trace_a, global_trace_b,
-                                           native_module, global_ss);
+                                           native_module.get(), global_ss);
       result.global_trace = global_ss.str();
     }
 
@@ -112,7 +112,7 @@ class WasmTracingTest : public TestWithContextAndZone {
  private:
   DirectHandle<WasmInstanceObject> CompileAndRun(
       const FunctionSig* sig, base::Vector<const uint8_t> code,
-      NativeModule** native_module) {
+      std::shared_ptr<NativeModule>* native_module) {
     WasmModuleBuilder builder(zone());
 
     builder.AddMemory(1);

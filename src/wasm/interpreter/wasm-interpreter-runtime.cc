@@ -2873,7 +2873,8 @@ void WasmInterpreterRuntime::Trace(const char* format, ...) {
 ModuleWireBytes InterpreterHandle::GetBytes(Tagged<Tuple2> interpreter_object) {
   Tagged<WasmInstanceObject> wasm_instance =
       WasmInterpreterObject::get_wasm_instance(interpreter_object);
-  NativeModule* native_module = wasm_instance->module_object()->native_module();
+  std::shared_ptr<NativeModule> native_module =
+      wasm_instance->module_object()->native_module();
   return ModuleWireBytes{native_module->wire_bytes()};
 }
 

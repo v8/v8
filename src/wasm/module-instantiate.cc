@@ -456,7 +456,8 @@ WellKnownImport CheckForWellKnownImport(
                                      ReceiverKind::kFirstParamIsReceiver,
                                      &out_api_function_index)) {
     Tagged<FunctionTemplateInfo> func_data = sfi->api_func_data();
-    NativeModule* native_module = trusted_instance_data->native_module();
+    std::shared_ptr<NativeModule> native_module =
+        trusted_instance_data->native_module();
     if (!native_module->TrySetFastApiCallTarget(
             func_index,
             func_data->GetCFunction(isolate, out_api_function_index))) {
@@ -2828,7 +2829,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
       shared ? shared_trusted_instance_data : trusted_instance_data;
   if (!IsUndefined(data->element_segments()->get(segment_index))) return {};
 
-  const NativeModule* native_module = data->native_module();
+  std::shared_ptr<NativeModule> native_module = data->native_module();
   const WasmModule* module = native_module->module();
   const WasmElemSegment& elem_segment = module->elem_segments[segment_index];
 

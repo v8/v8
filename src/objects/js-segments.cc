@@ -31,7 +31,7 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
     Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
     DirectHandle<String> string) {
   std::unique_ptr<icu::BreakIterator> cloned_iterator{
-      segmenter->icu_break_iterator()->raw()->clone()};
+      segmenter->icu_break_iterator()->get()->clone()};
   auto iterator_with_text = std::make_shared<IcuBreakIteratorWithText>(
       isolate, std::move(cloned_iterator), string);
   DirectHandle<Managed<IcuBreakIteratorWithText>> managed =

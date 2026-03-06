@@ -169,9 +169,9 @@ enum InternalizeString : bool { kInternalize = true, kNoInternalize = false };
 class WasmModuleObject
     : public TorqueGeneratedWasmModuleObject<WasmModuleObject, JSObject> {
  public:
-  inline wasm::NativeModule* native_module() const;
-  inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
-      const;
+  // TODO(emaxx): Leave only a single getter.
+  inline std::shared_ptr<wasm::NativeModule> native_module() const;
+  inline std::shared_ptr<wasm::NativeModule> shared_native_module() const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -350,7 +350,7 @@ class WasmMemoryObject
 
   DECL_ACCESSORS(instances, Tagged<WeakArrayList>)
 
-  inline const std::shared_ptr<BackingStore>& backing_store() const;
+  inline std::shared_ptr<BackingStore> backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
@@ -548,7 +548,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   inline uint8_t* memory_base(int memory_index) const;
   inline size_t memory_size(int memory_index) const;
 
-  inline wasm::NativeModule* native_module() const;
+  inline std::shared_ptr<wasm::NativeModule> native_module() const;
 
   inline Tagged<WasmModuleObject> module_object() const;
   inline const wasm::WasmModule* module() const;
@@ -879,7 +879,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
                                    TrustedManaged<WasmDispatchTableData>)
-  inline WasmDispatchTableData* offheap_data() const;
+  inline std::shared_ptr<WasmDispatchTableData> offheap_data() const;
 
   // Stores all WasmTrustedInstanceData that refer to this WasmDispatchTable.
   DECL_PROTECTED_POINTER_ACCESSORS(protected_uses, ProtectedWeakFixedArray)
@@ -998,7 +998,7 @@ class WasmDispatchTableForImports : public TrustedObject {
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
                                    TrustedManaged<WasmDispatchTableData>)
-  inline WasmDispatchTableData* offheap_data() const;
+  inline std::shared_ptr<WasmDispatchTableData> offheap_data() const;
 
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero() (if the entry was cleared).
@@ -1328,7 +1328,7 @@ class WasmJSFunctionData
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
                                    TrustedManaged<OffheapData>)
-  inline OffheapData* offheap_data() const;
+  inline std::shared_ptr<OffheapData> offheap_data() const;
 
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;

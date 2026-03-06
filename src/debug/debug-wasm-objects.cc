@@ -416,7 +416,8 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
 
   static DirectHandle<JSObject> Create(WasmFrame* frame) {
     auto isolate = frame->isolate();
-    auto debug_info = frame->native_module()->GetDebugInfo();
+    std::shared_ptr<wasm::NativeModule> native_module = frame->native_module();
+    auto debug_info = native_module->GetDebugInfo();
     // TODO(bmeurer): Check if pc is inspectable.
     int count = debug_info->GetNumLocals(frame->pc(), isolate);
     auto function = debug_info->GetFunctionAtAddress(frame->pc(), isolate);
@@ -464,8 +465,9 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
 
   static DirectHandle<JSObject> Create(WasmFrame* frame) {
     auto isolate = frame->isolate();
-    auto debug_info =
-        frame->trusted_instance_data()->native_module()->GetDebugInfo();
+    std::shared_ptr<wasm::NativeModule> native_module =
+        frame->trusted_instance_data()->native_module();
+    auto debug_info = native_module->GetDebugInfo();
     int count = debug_info->GetStackDepth(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count);
     for (int i = 0; i < count; ++i) {
@@ -1100,7 +1102,8 @@ std::unique_ptr<debug::ScopeIterator> GetWasmInterpreterScopeIterator(
 DirectHandle<String> GetWasmFunctionDebugName(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
     uint32_t func_index) {
-  wasm::NativeModule* native_module = instance_data->native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      instance_data->native_module();
   wasm::NamesProvider* names = native_module->GetNamesProvider();
   StringBuilder sb;
   wasm::NamesProvider::FunctionNamesBehavior behavior =

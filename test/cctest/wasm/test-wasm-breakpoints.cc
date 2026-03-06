@@ -288,7 +288,8 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   runner.Build({WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE)});
 
   Tagged<WasmInstanceObject> instance = *runner.builder().instance_object();
-  NativeModule* native_module = instance->module_object()->native_module();
+  auto shared_native_module = instance->module_object()->native_module();
+  NativeModule* native_module = shared_native_module.get();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.

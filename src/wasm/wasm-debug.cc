@@ -397,7 +397,7 @@ class DebugInfoImpl {
   }
 
   bool IsFrameBlackboxed(WasmFrame* frame) {
-    NativeModule* native_module = frame->native_module();
+    std::shared_ptr<NativeModule> native_module = frame->native_module();
     int func_index = frame->function_index();
     WireBytesRef func_code =
         native_module->module()->functions[func_index].code;
@@ -737,7 +737,7 @@ class DebugInfoImpl {
       if (!it.is_wasm() || it.is_wasm_interpreter_entry()) continue;
 #endif  // !V8_ENABLE_DRUMBRAKE
       WasmFrame* frame = WasmFrame::cast(it.frame());
-      if (frame->native_module() != new_code->native_module()) continue;
+      if (frame->native_module().get() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;
       if (!frame->wasm_code()->is_liftoff()) continue;
       UpdateReturnAddress(frame, new_code, return_location);
@@ -748,7 +748,7 @@ class DebugInfoImpl {
                            ReturnLocation return_location) {
     DCHECK(new_code->is_liftoff());
     DCHECK_EQ(frame->function_index(), new_code->index());
-    DCHECK_EQ(frame->native_module(), new_code->native_module());
+    DCHECK_EQ(frame->native_module().get(), new_code->native_module());
     DCHECK(frame->wasm_code()->is_liftoff());
     Address new_pc = FindNewPC(frame, new_code, frame->generated_code_offset(),
                                return_location);
@@ -771,7 +771,7 @@ class DebugInfoImpl {
   bool IsAtReturn(WasmFrame* frame) {
     DisallowGarbageCollection no_gc;
     int position = frame->position();
-    NativeModule* native_module = frame->native_module();
+    std::shared_ptr<NativeModule> native_module = frame->native_module();
     uint8_t opcode = native_module->wire_bytes()[position];
     if (opcode == kExprReturn) return true;
     // Another implicit return is at the last kExprEnd in the function body.
@@ -905,8 +905,8 @@ namespace {
 // {func_index}, or 0 if there is none.
 // Note that 0 is never a breakable position in wasm, since the first byte
 // contains the locals count for the function.
-int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
-                              int offset_in_func) {
+int FindNextBreakablePosition(std::shared_ptr<wasm::NativeModule> native_module,
+                              int func_index, int offset_in_func) {
   Zone zone{wasm::GetWasmEngine()->allocator(), ZONE_NAME};
   wasm::BodyLocalDecls locals;
   const uint8_t* module_start = native_module->wire_bytes().begin();
@@ -997,7 +997,8 @@ bool WasmScript::SetBreakPointForFunction(
   DCHECK_NE(0, offset);
 
   // Find the function for this breakpoint.
-  wasm::NativeModule* native_module = script->wasm_native_module();
+  std::shared_ptr<wasm::NativeModule> native_module =
+      script->wasm_native_module();
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_index];
 
@@ -1085,7 +1086,8 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
     SetBreakOnEntryFlag(*script, false);
   } else {
     // Remove the breakpoint from DebugInfo and recompile.
-    wasm::NativeModule* native_module = script->wasm_native_module();
+    std::shared_ptr<wasm::NativeModule> native_module =
+        script->wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     int func_index = GetContainingWasmFunction(module, position);
     native_module->GetDebugInfo()->RemoveBreakpoint(func_index, position,
