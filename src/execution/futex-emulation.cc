@@ -693,7 +693,7 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 
   FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
-    base::MutexGuard node_lock_guard(&node->mutex_);
+    std::optional<base::MutexGuard> node_lock_guard(&node->mutex_);
     if (!node->waiting_) {
       node = node->next_;
       continue;
@@ -768,6 +768,7 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
     FutexWaitListNode* next_node = node->next_;
     if (delete_this_node) {
       wait_list->RemoveNode(node);
+      node_lock_guard.reset();
       delete node;
     }
     node = next_node;
