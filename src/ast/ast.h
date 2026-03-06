@@ -1539,6 +1539,14 @@ class VariableProxy final : public Expression {
     bit_field_ = IsNewTargetField::update(bit_field_, true);
   }
 
+  bool is_inside_try_catch_with_outer_generator() const {
+    return IsInsideTryCatchWithOuterGeneratorField::decode(bit_field_);
+  }
+  void set_is_inside_try_catch_with_outer_generator() {
+    bit_field_ =
+        IsInsideTryCatchWithOuterGeneratorField::update(bit_field_, true);
+  }
+
   HoleCheckMode hole_check_mode() const {
     HoleCheckMode mode = HoleCheckModeField::decode(bit_field_);
     DCHECK_IMPLIES(mode == HoleCheckMode::kRequired,
@@ -1608,6 +1616,7 @@ class VariableProxy final : public Expression {
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
                   IsHomeObjectField::encode(false) |
+                  IsInsideTryCatchWithOuterGeneratorField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided);
   }
 
@@ -1618,7 +1627,10 @@ class VariableProxy final : public Expression {
   using IsRemovedFromUnresolvedField = IsResolvedField::Next<bool, 1>;
   using IsNewTargetField = IsRemovedFromUnresolvedField::Next<bool, 1>;
   using IsHomeObjectField = IsNewTargetField::Next<bool, 1>;
-  using HoleCheckModeField = IsHomeObjectField::Next<HoleCheckMode, 1>;
+  using IsInsideTryCatchWithOuterGeneratorField =
+      IsHomeObjectField::Next<bool, 1>;
+  using HoleCheckModeField =
+      IsInsideTryCatchWithOuterGeneratorField::Next<HoleCheckMode, 1>;
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_

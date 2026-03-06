@@ -6469,6 +6469,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
   Consume(Token::kTry);
   int pos = position();
 
+  std::optional<typename Scope::Snapshot>
+      try_catch_with_outer_generator_snapshot;
+  if (scope()->HasOuterGenerator()) {
+    try_catch_with_outer_generator_snapshot.emplace(scope());
+  }
+
   BlockT try_block = ParseBlock(nullptr);
 
   CatchInfo catch_info(this);
@@ -6574,6 +6580,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
   }
 
   RETURN_IF_PARSE_ERROR;
+
+  if (try_catch_with_outer_generator_snapshot.has_value()) {
+    try_catch_with_outer_generator_snapshot
+        ->MarkUnresolvedVariablesAsInsideTryCatchWithOuterGenerator();
+  }
+
   return impl()->RewriteTryStatement(try_block, catch_block, catch_range,
                                      finally_block, finally_range, catch_info,
                                      pos);

@@ -244,21 +244,7 @@ MaybeAssignedFlag MaglevGraphBuilder::GetContextMaybeAssigned(
                 ? (*mode = VariableMode::kConst, kNotAssigned)
                 : (*mode = VariableMode::kVar, kMaybeAssigned));
   }
-  MaybeAssignedFlag assigned =
-      GetContextMaybeAssigned(*scope_info, index, mode);
-  if (assigned == kNotAssigned && IsInsideTryBlock() &&
-      index >= scope_info->ContextHeaderLength() &&
-      index != scope_info->FunctionContextSlotIndex() &&
-      !known_node_aspects().HasContextCacheValue(
-          context, Context::OffsetOfElementAt(index), kNotAssigned)) {
-    // Let and const bindings inside of a try-block are considered
-    // MaybeAssigned since their access while uninitialized may cause a throw
-    // to happen. In the catch block, however, the binding could become
-    // initialized.  Conservatively treat such variables as MaybeAssigned.
-    // See test/mjsunit/maglev/context-inverted-generator2.js.
-    return kMaybeAssigned;
-  }
-  return assigned;
+  return GetContextMaybeAssigned(*scope_info, index, mode);
 }
 
 class CallArguments {

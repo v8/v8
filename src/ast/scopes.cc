@@ -979,6 +979,34 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   }
 }
 
+void Scope::Snapshot::
+    MarkUnresolvedVariablesAsInsideTryCatchWithOuterGenerator() {
+  auto it = top_unresolved_;
+  auto end = outer_scope_->unresolved_list_.end();
+
+  while (it != end) {
+    (*it)->set_is_inside_try_catch_with_outer_generator();
+    ++it;
+  }
+
+  Scope* inner_scope = outer_scope_->inner_scope_;
+  while (inner_scope != top_inner_scope_) {
+    auto mark_unresolved = [](Scope* current_scope, auto& self) -> void {
+      for (VariableProxy* proxy : current_scope->unresolved_list_) {
+        proxy->set_is_inside_try_catch_with_outer_generator();
+      }
+      for (Scope* inner = current_scope->inner_scope_; inner != nullptr;
+           inner = inner->sibling_) {
+        if (!inner->is_closure_scope()) self(inner, self);
+      }
+    };
+    if (!inner_scope->is_closure_scope()) {
+      mark_unresolved(inner_scope, mark_unresolved);
+    }
+    inner_scope = inner_scope->sibling_;
+  }
+}
+
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
@@ -1500,7 +1528,7 @@ DeclarationScope* Scope::GetNonEvalDeclarationScope() {
 
 const DeclarationScope* Scope::GetClosureScope() const {
   const Scope* scope = this;
-  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+  while (!scope->is_closure_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
@@ -1508,10 +1536,22 @@ const DeclarationScope* Scope::GetClosureScope() const {
 
 DeclarationScope* Scope::GetClosureScope() {
   Scope* scope = this;
-  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+  while (!scope->is_closure_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
+}
+
+bool Scope::HasOuterGenerator() const {
+  const Scope* scope = GetClosureScope()->outer_scope();
+  while (scope != nullptr) {
+    scope = scope->GetClosureScope();
+    if (IsGeneratorFunction(scope->AsDeclarationScope()->function_kind())) {
+      return true;
+    }
+    scope = scope->outer_scope();
+  }
+  return false;
 }
 
 bool Scope::NeedsScopeInfo() const {
@@ -1656,7 +1696,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         }
       } else {
         var->set_is_used();
-        if (proxy->is_assigned()) var->SetMaybeAssigned();
+        UpdateVariableMaybeAssigned(var, proxy, scope);
       }
     }
 
@@ -2354,22 +2394,38 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
 }  // anonymous namespace
 
+void Scope::UpdateVariableMaybeAssigned(Variable* var, VariableProxy* proxy,
+                                        Scope* current_scope) {
+  if (proxy->is_assigned() ||
+      (proxy->is_inside_try_catch_with_outer_generator() &&
+       var->scope()->GetClosureScope() != current_scope->GetClosureScope() &&
+       IsGeneratorFunction(var->scope()->GetClosureScope()->function_kind()))) {
+    // We treat variables captured by generator yields in a try-catch as
+    // maybe_assigned since the context allocation and assignment might be
+    // skipped when resuming from a yield.
+    // See test/mjsunit/maglev/context-inverted-generator2.js.
+    var->SetMaybeAssigned();
+  }
+}
+
 void Scope::ResolveTo(VariableProxy* proxy, Variable* var) {
   DCHECK_NOT_NULL(var);
   UpdateNeedsHoleCheck(var, proxy, this);
   proxy->BindTo(var);
+
+  UpdateVariableMaybeAssigned(var, proxy, this);
 }
 
 void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                      Scope* end) {
   // Resolve the variable in all parsed scopes to force context allocation.
-  for (; scope != end; scope = scope->outer_scope_) {
-    Variable* var = scope->LookupLocal(proxy->raw_name());
+  for (Scope* s = scope->outer_scope_; s != end; s = s->outer_scope_) {
+    Variable* var = s->LookupLocal(proxy->raw_name());
     if (var != nullptr) {
       var->set_is_used();
       if (!var->is_dynamic()) {
         var->ForceContextAllocation();
-        if (proxy->is_assigned()) var->SetMaybeAssigned();
+        UpdateVariableMaybeAssigned(var, proxy, scope);
         return;
       }
     }
@@ -2386,7 +2442,7 @@ bool Scope::ResolveVariablesRecursively(Scope* end) {
     if (!end->is_script_scope()) end = end->outer_scope();
 
     for (VariableProxy* proxy : unresolved_list_) {
-      ResolvePreparsedVariable(proxy, outer_scope(), end);
+      ResolvePreparsedVariable(proxy, this, end);
     }
   } else {
     // Resolve unresolved variables for this scope.

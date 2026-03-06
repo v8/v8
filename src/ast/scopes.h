@@ -141,6 +141,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     }
 
     void Reparent(DeclarationScope* new_parent);
+    // Mark all unresolved variables added after taking the snapshot as inside a
+    // try/catch with an outer generator.
+    void MarkUnresolvedVariablesAsInsideTryCatchWithOuterGenerator();
 
    private:
     Scope* outer_scope_;
@@ -375,6 +378,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_declaration_scope() const {
     return IsDeclarationScopeField::decode(flags_);
   }
+  bool is_closure_scope() const {
+    return is_declaration_scope() && !is_block_scope();
+  }
   bool is_class_scope() const { return scope_type_ == CLASS_SCOPE; }
   bool is_home_object_scope() const {
     return is_class_scope() ||
@@ -570,6 +576,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   DeclarationScope* GetClosureScope();
   const DeclarationScope* GetClosureScope() const;
 
+  bool HasOuterGenerator() const;
+
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
@@ -597,6 +605,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   int num_var() const { return variables_.occupancy(); }
+
+  UnresolvedList& unresolved_list() { return unresolved_list_; }
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -780,6 +790,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                     bool force_context_allocation);
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
+  static void UpdateVariableMaybeAssigned(Variable* var, VariableProxy* proxy,
+                                          Scope* current_scope);
   void ResolveTo(VariableProxy* proxy, Variable* var);
   void ResolveVariable(VariableProxy* proxy);
   V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(Scope* end);
