@@ -624,8 +624,10 @@ class MaglevReducer {
     return HasDisjointType(lhs, rhs_type);
   }
 
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    NodeType lhs_type = GetType(lhs);
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type,
+                       AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
+                           AllowWideningSmiToInt32::kDontAllow) {
+    NodeType lhs_type = GetType(lhs, allow_widening_smi_to_int32);
     return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
 

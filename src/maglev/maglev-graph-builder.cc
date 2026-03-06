@@ -16196,7 +16196,8 @@ MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
     }
     return builder.AlwaysFalse();
   }
-  if (HasDisjointType(node, NodeType::kOddball)) {
+  if (HasDisjointType(node, NodeType::kOddball,
+                      AllowWideningSmiToInt32::kAllow)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfUndefinedOrNull>({node});
@@ -16412,7 +16413,8 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
   }
   if (CheckType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysTrue();
-  } else if (HasDisjointType(value, NodeType::kJSReceiver)) {
+  } else if (HasDisjointType(value, NodeType::kJSReceiver,
+                             AllowWideningSmiToInt32::kAllow)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfJSReceiver>({value});
