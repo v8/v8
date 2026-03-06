@@ -27,11 +27,8 @@ def parse_arguments():
       help='target cpu to build the profile for: x64 or arm64')
   parser.add_argument(
       '--benchmark_path',
-      # Note, this path entry is currently defining the JetStream version to
-      # use, see: recipes/recipe_modules/v8_builtins_pgo/builders.py in the
-      # build repository.
-      default=Path('./JetStream3/cli.js'),
-      help='path to benchmark runner .js file, usually JetStream3\'s `cli.js`',
+      default=Path('./JetStream2/cli.js'),
+      help='path to benchmark runner .js file, usually JetStream2\'s `cli.js`',
       type=Path)
   parser.add_argument(
       '--d8-path',
