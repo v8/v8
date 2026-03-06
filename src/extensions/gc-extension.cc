@@ -279,7 +279,9 @@ class AsyncGC final : public CancelableTask {
 
 v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
-  return v8::FunctionTemplate::New(isolate, GCExtension::GC);
+  return v8::FunctionTemplate::New(
+      isolate, GCExtension::GC, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kThrow);
 }
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {

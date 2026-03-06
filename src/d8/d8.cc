@@ -4345,26 +4345,26 @@ Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminate",
       FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminateAndWait",
       FunctionTemplate::New(isolate, WorkerTerminateAndWait, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "postMessage",
       FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->SetAccessorProperty(
       String::NewFromUtf8(isolate, "onmessage", NewStringType::kInternalized)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, WorkerOnMessageGetter, Local<Value>(),
-                            worker_signature),
+                            worker_signature, 0, ConstructorBehavior::kThrow),
       FunctionTemplate::New(isolate, WorkerOnMessageSetter, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
   return worker_fun_template;
 }
