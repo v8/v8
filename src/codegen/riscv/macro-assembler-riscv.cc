@@ -8115,7 +8115,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               ER::exception_address(isolate), no_reg));
     __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
   }
-
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+  // This check doesn't make sense in for sandbox testing since
+  // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
+  // and this check just hinders debugging.
   if (v8_flags.debug_code) {
     Label ok;
     if (handle_interceptor_result) {
@@ -8125,7 +8128,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                    AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
-
+#endif
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
     __ AddWord(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));
