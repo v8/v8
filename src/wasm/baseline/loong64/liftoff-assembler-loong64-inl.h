@@ -802,9 +802,12 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
-  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
-         memory_order == AtomicMemoryOrder::kAcqRel);
-  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x14;
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
+  int dbar_hint = 0x10;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
 
@@ -874,20 +877,24 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
-  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
-         memory_order == AtomicMemoryOrder::kAcqRel);
-  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x12;
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
+  int dbar_hint = 0x10;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
   if (COMPRESS_POINTERS_BOOL) {
     dbar(dbar_hint);
     St_w(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
+    dbar(dbar_hint);
   } else {
     dbar(dbar_hint);
     St_d(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
+    dbar(dbar_hint);
   }
-  if (memory_order == AtomicMemoryOrder::kSeqCst) dbar(dbar_hint);
   DCHECK_IMPLIES(protected_store_pc != nullptr,
                  Instruction::At(reinterpret_cast<uint8_t*>(
                                      *protected_store_pc + buffer_start_))
