@@ -532,7 +532,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '9d0985a0c5115f95c89cb29a815f77381979322d',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b80f1d1e5256ac25f6aea3f31f13d458981cb1f9',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ef29ced9b02bcb9586894a7632873baa5c67c660',
   'tools/protoc_wrapper':
