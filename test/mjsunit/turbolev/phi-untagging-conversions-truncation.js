@@ -13,11 +13,7 @@
 //    2: CheckedSmiUntag(1)
 //    3: Return(1)
 //
-// Except that Phi untagging will realize that `phi` could be a Float64, but
-// since it's only use is a TruncatedInt32. The representation selector
-// will thus decide that it should be a TruncatedInt32 Phi. In this case, the
-// conversion will be dropped, and we will emit a TruncateFloat64ToInt32.
-
+// The phi won't be untagged.
 function unused_required_CheckedSmiUntag(x) {
   x = x + 0.5; // ensuring Float64 alternative
   let d = x + 2.53;
@@ -30,6 +26,6 @@ unused_required_CheckedSmiUntag(-0.5);
 %OptimizeFunctionOnNextCall(unused_required_CheckedSmiUntag);
 assertEquals(42, unused_required_CheckedSmiUntag(-0.5));
 assertOptimized(unused_required_CheckedSmiUntag);
-// Even if we need to truncate 3.53, we don't deopt.
+
+// This deopts, because `phi` is now not a smi.
 assertEquals(3, unused_required_CheckedSmiUntag(0.5));
-assertOptimized(unused_required_CheckedSmiUntag);
