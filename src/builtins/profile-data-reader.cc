@@ -33,7 +33,7 @@ class ProfileDataFromFileInternal : public ProfileDataFromFile {
         std::make_pair(true_block_id, false_block_id), hint != 0));
   }
 
-#ifdef LOG_BUILTIN_BLOCK_COUNT
+#if defined(LOG_BUILTIN_BLOCK_COUNT) || defined(BUILTIN_BLOCK_POSITION)
   void AddBlockExecutionCount(size_t block_id, uint64_t executed_count) {
     executed_count_.emplace(block_id, executed_count);
   }
@@ -52,10 +52,16 @@ EnsureInitProfileData() {
 
   if (initialized) return *data.get();
   initialized = true;
-#ifdef LOG_BUILTIN_BLOCK_COUNT
+#if defined LOG_BUILTIN_BLOCK_COUNT || defined BUILTIN_BLOCK_POSITION
+  const char* file_name = nullptr;
   if (v8_flags.turbo_log_builtins_count_input) {
-    std::ifstream raw_count_file(
-        v8_flags.turbo_log_builtins_count_input.value());
+    file_name = v8_flags.turbo_log_builtins_count_input.value();
+  } else if (v8_flags.turbo_profiling_input) {
+    file_name = v8_flags.turbo_profiling_input.value();
+  }
+
+  if (file_name) {
+    std::ifstream raw_count_file(file_name);
     CHECK_WITH_MSG(raw_count_file.good(),
                    "Can't read raw count file for log builtin hotness.");
     for (std::string line; std::getline(raw_count_file, line);) {
@@ -74,7 +80,7 @@ EnsureInitProfileData() {
         errno = 0;
         uint32_t block_id =
             static_cast<uint32_t>(strtoul(block_id_str.c_str(), &end, 10));
-        CHECK(errno == 0);
+        CHECK_EQ(errno, 0);
         std::string executed_count_str;
         CHECK(std::getline(line_stream, executed_count_str, '\t'));
         uint64_t executed_count = static_cast<uint64_t>(
@@ -101,7 +107,7 @@ EnsureInitProfileData() {
       }
     }
   }
-#endif
+#else
   const char* filename = v8_flags.turbo_profiling_input;
   if (filename == nullptr) return *data.get();
   std::ifstream file(filename);
@@ -157,6 +163,7 @@ EnsureInitProfileData() {
     // Every function is required to have a hash in the log.
     CHECK(pair.second.hash_has_value());
   }
+#endif
   return *data.get();
 }
 
