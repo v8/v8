@@ -861,7 +861,7 @@ class MachineOptimizationReducer : public Next {
         // increase register pressure because it extends the lifetime of `a`.
         // Therefore we do the optimization only when `left = (a <op k1)` has no
         // other uses.
-        if (matcher_.Get(left).saturated_use_count.IsZero()) {
+        if (matcher_.Get(left).saturated_use_count.Is(0)) {
           return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
                                  rep);
         }
@@ -1647,7 +1647,7 @@ class MachineOptimizationReducer : public Next {
                 left, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(left).saturated_use_count.IsZero()) {
+          if (matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Comparison(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
                 rep_w);
@@ -1674,7 +1674,7 @@ class MachineOptimizationReducer : public Next {
                 right, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(left, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(right).saturated_use_count.IsZero()) {
+          if (matcher_.Get(right).saturated_use_count.Is(0)) {
             return __ Comparison(
                 __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
                 rep_w);
@@ -2609,7 +2609,7 @@ class MachineOptimizationReducer : public Next {
                   left, &x, rep_w, &k1) &&
               matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
               CountLeadingSignBits(k2, rep_w) > k1 &&
-              matcher_.Get(left).saturated_use_count.IsZero()) {
+              matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Equal(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);

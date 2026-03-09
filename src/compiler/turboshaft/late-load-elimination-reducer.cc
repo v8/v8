@@ -100,7 +100,7 @@ void LateLoadEliminationAnalyzer::Run() {
       total_use_counts[load_idx] += graph_.Get(load_idx).saturated_use_count;
       // Check if all uses we know so far, are all truncating uses.
       if (total_use_counts[load_idx].IsSaturated() ||
-          total_use_counts[load_idx].Get() > truncations.size()) {
+          total_use_counts[load_idx].GetUnsaturated() > truncations.size()) {
         // We do know that we cannot int32-truncate this load, so eliminate
         // it from the candidates.
         int32_truncated_loads_.erase(it++);
@@ -145,8 +145,8 @@ void LateLoadEliminationAnalyzer::Run() {
   // information.
   for (const auto& [load_idx, int32_truncations] : int32_truncated_loads_) {
     if (int32_truncations.empty()) continue;
-    if (!total_use_counts[load_idx].IsSaturated() &&
-        total_use_counts[load_idx].Get() == int32_truncations.size()) {
+    if (total_use_counts[load_idx].Is(
+            static_cast<int>(int32_truncations.size()))) {
       // All uses of this load are int32-truncating loads, so we replace them.
       DCHECK(GetReplacement(load_idx).IsNone() ||
              GetReplacement(load_idx).IsTaggedLoadToInt32Load());
@@ -623,7 +623,7 @@ bool IsInt32TruncatedLoadPattern(const Graph& graph, OpIndex change_idx,
   // generalized by allowing multiple int32-truncating uses, but that is more
   // expensive to detect and it is very unlikely that we ever see such a case
   // (e.g. because of GVN).
-  if (!bitcast->saturated_use_count.IsOne()) return false;
+  if (!bitcast->saturated_use_count.Is(1)) return false;
   const LoadOp* load = graph.Get(bitcast->input()).TryCast<LoadOp>();
   if (load == nullptr) return false;
   if (load->loaded_rep.SizeInBytesLog2() !=

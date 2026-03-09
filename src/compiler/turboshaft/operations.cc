@@ -2369,10 +2369,10 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
 bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
             1);
-  if (value.saturated_use_count.IsOne()) return true;
-  if (value.saturated_use_count.IsSaturated()) return false;
-  return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
-         value.saturated_use_count.Get();
+  if (value.saturated_use_count.Is(1)) return true;
+  size_t use_count_in_this =
+      std::count(inputs().begin(), inputs().end(), graph.Index(value));
+  return value.saturated_use_count.Is(static_cast<int>(use_count_in_this));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

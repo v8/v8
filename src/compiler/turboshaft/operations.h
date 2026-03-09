@@ -892,10 +892,19 @@ class SaturatedUint8 {
   void SetToZero() { val = 0; }
   void SetToOne() { val = 1; }
 
-  bool IsZero() const { return val == 0; }
-  bool IsOne() const { return val == 1; }
+  bool Is(int v) const {
+    if (IsSaturated()) return false;
+    return val == v;
+  }
+
   bool IsSaturated() const { return val == kMax; }
-  uint8_t Get() const { return val; }
+
+  uint8_t GetUnsaturated() const {
+    CHECK(!IsSaturated());
+    return val;
+  }
+
+  uint8_t GetMaybeSaturated() const { return val; }
 
   SaturatedUint8& operator+=(const SaturatedUint8& other) {
     uint32_t sum = val;
@@ -10014,7 +10023,7 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
 //    is 0: this corresponds to pure operations that have no uses.
 V8_EXPORT_PRIVATE V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   if (op.Is<DeadOp>()) return true;
-  return op.saturated_use_count.IsZero() && !op.IsRequiredWhenUnused();
+  return op.saturated_use_count.Is(0) && !op.IsRequiredWhenUnused();
 }
 
 namespace detail {

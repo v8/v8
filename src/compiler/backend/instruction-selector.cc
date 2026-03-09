@@ -333,13 +333,13 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // inputs of user, which also only has a single use (in user).
     // TODO(nicohartmann@): We might generalize this further if we see use
     // cases.
-    if (!value_op.saturated_use_count.IsOne()) return false;
+    if (!value_op.saturated_use_count.Is(1)) return false;
     for (auto input : user_op.inputs()) {
       const Operation& input_op = graph->Get(input);
       const size_t indirect_use_count = base::count_if(
           input_op.inputs(), [value](OpIndex input) { return input == value; });
       if (indirect_use_count > 0) {
-        return input_op.saturated_use_count.IsOne();
+        return input_op.saturated_use_count.Is(1);
       }
     }
     return false;
@@ -352,9 +352,9 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // the current operation.
     use_count++;
   }
-  DCHECK_LE(use_count, graph->Get(value).saturated_use_count.Get());
-  return (value_op.saturated_use_count.Get() == use_count) &&
-         !value_op.saturated_use_count.IsSaturated();
+  DCHECK_LE(use_count,
+            graph->Get(value).saturated_use_count.GetMaybeSaturated());
+  return value_op.saturated_use_count.Is(static_cast<int>(use_count));
 }
 }  // namespace
 
@@ -402,7 +402,7 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(OpIndex user,
   if (bb_user != bb_node) return false;
 
   const Operation& node_op = this->turboshaft_graph()->Get(node);
-  if (node_op.saturated_use_count.Get() == 1) return true;
+  if (node_op.saturated_use_count.Is(1)) return true;
   for (OpIndex use : turboshaft_uses(node)) {
     if (use == user) continue;
     if (this->block(schedule(), use) == bb_user) return false;
@@ -418,8 +418,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.IsZero());
-    if (projection->saturated_use_count.IsOne()) {
+    DCHECK(!projection->saturated_use_count.Is(0));
+    if (projection->saturated_use_count.Is(1)) {
       // If the projection has a single use, it is the following tuple, so we
       // don't return it, since there is no point in emitting it.
       DCHECK(turboshaft_uses(next).size() == 1 &&
@@ -2108,7 +2108,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.IsOne()) {
+  if (projection0.saturated_use_count.Is(1)) {
     // If the projection has a single use, it is the following tuple, so we
     // don't care about the value, and can do branch-if-overflow fusion.
     DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
@@ -2132,7 +2132,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
       // through Projections, and Projections on Tuples return the original
       // Projection instead (see Assembler::ReduceProjection in
       // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.IsZero());
+      DCHECK(this->Get(use).saturated_use_count.Is(0));
       continue;
     }
     if (IsDefined(use)) continue;

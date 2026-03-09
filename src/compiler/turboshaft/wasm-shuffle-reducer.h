@@ -116,8 +116,7 @@ class DemandedElementAnalysis {
     }
 
     bool FoundAllUsers() const {
-      return num_users() == op()->saturated_use_count.Get() &&
-             !op()->saturated_use_count.IsSaturated();
+      return op()->saturated_use_count.Is(num_users());
     }
   };
 

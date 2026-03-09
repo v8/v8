@@ -28,7 +28,7 @@ void DemandedElementAnalysis::AddOp(const Operation& op, LaneBitSet lanes) {
   // We're trying to find out which SIMD lanes of op are used. If op has more
   // than a single user we will have to visit it multiple times. Both `Record`
   // methods will attempt to recursively add more operations.
-  if (op.saturated_use_count.IsOne()) {
+  if (op.saturated_use_count.Is(1)) {
     TRACE("Found Op %d, demanded lanes: %#04x\n", input_graph().Index(op).id(),
           static_cast<uint32_t>(lanes.to_ulong()));
     RecordOp(op, lanes);
@@ -108,7 +108,8 @@ void DemandedElementAnalysis::RecordPartialOp(const Operation& op,
   } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
     if (AddUserAndCheckFoundAll(*shuffle, lanes)) {
       TRACE("Found all users (%d) of ShuffleOp %d, demanded lanes: %#04x\n",
-            op.saturated_use_count.Get(), input_graph().Index(op).id(),
+            op.saturated_use_count.GetMaybeSaturated(),
+            input_graph().Index(op).id(),
             static_cast<uint32_t>(lanes.to_ulong()));
     }
   }
@@ -121,7 +122,8 @@ void DemandedElementAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
     // operand.
     if (AddUserAndCheckFoundAll(unop, lanes)) {
       TRACE("Found all users (%d) of UnaryOp %d, demanded lanes: %#04x\n",
-            unop.saturated_use_count.Get(), input_graph().Index(unop).id(),
+            unop.saturated_use_count.GetMaybeSaturated(),
+            input_graph().Index(unop).id(),
             static_cast<uint32_t>(lanes.to_ulong()));
       lanes = ReduceLanes(lanes);
       RecordPartialOp(input_graph().Get(unop.input()), lanes);
@@ -136,7 +138,8 @@ void DemandedElementAnalysis::RecordPartialOp(const Simd128BinopOp& binop,
     // operands.
     if (AddUserAndCheckFoundAll(binop, lanes)) {
       TRACE("Found all users (%d) of BinopOp %d, demanded lanes: %#04x\n",
-            binop.saturated_use_count.Get(), input_graph().Index(binop).id(),
+            binop.saturated_use_count.GetMaybeSaturated(),
+            input_graph().Index(binop).id(),
             static_cast<uint32_t>(lanes.to_ulong()));
       lanes = ReduceLanes(lanes);
       RecordPartialOp(input_graph().Get(binop.left()), lanes);
@@ -239,7 +242,7 @@ void WasmShuffleAnalyzer::ProcessReplaceLane(
           input_graph().Get(replace_op.new_lane()).TryCast<LoadOp>()) {
     int replace_bytes =
         ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(replace_op.kind));
-    if (load->saturated_use_count.IsOne() &&
+    if (load->saturated_use_count.Is(1) &&
         load->loaded_rep.SizeInBytes() == replace_bytes &&
         !load->kind.tagged_base && !load->kind.is_atomic) {
       AddLoadLaneCandidate(load, replace_op);
@@ -442,8 +445,7 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
   DCHECK_EQ(shuffle.right(), input_graph().Index(right));
   // We're looking for two shuffle users of these two loads, so ensure the
   // number of users doesn't exceed two.
-  if (left.saturated_use_count.Get() != 2 ||
-      right.saturated_use_count.Get() != 2) {
+  if (!left.saturated_use_count.Is(2) || !right.saturated_use_count.Is(2)) {
     return;
   }
 
@@ -546,12 +548,12 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
     constexpr uint8_t right_lower = 16;
     constexpr uint8_t right_upper = 31;
     if (shuffle_left && shuffle_left->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-        shuffle_left->saturated_use_count.IsOne()) {
+        shuffle_left->saturated_use_count.Is(1)) {
       ProcessShuffleOfShuffle(*shuffle_left, shuffle, left_lower, left_upper);
     }
     if (shuffle_right &&
         shuffle_right->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-        shuffle_right->saturated_use_count.IsOne()) {
+        shuffle_right->saturated_use_count.Is(1)) {
       ProcessShuffleOfShuffle(*shuffle_right, shuffle, right_lower,
                               right_upper);
     }
