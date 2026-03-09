@@ -7,6 +7,7 @@
 const sparseArray1 = [1, , 3];
 const otherArray = [,2];
 sparseArray1.__proto__ = otherArray;
+assertDoesNotThrow(() => Math.sumPrecise(sparseArray1));
 assertEquals(6, Math.sumPrecise(sparseArray1));
 
 Array.prototype[1] = 2;
