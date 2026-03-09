@@ -693,7 +693,7 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 
   FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
-    std::optional<base::MutexGuard> node_lock_guard(&node->mutex_);
+    base::MutexGuard node_lock_guard(&node->mutex_);
     if (!node->waiting_) {
       node = node->next_;
       continue;
@@ -767,9 +767,11 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 
     FutexWaitListNode* next_node = node->next_;
     if (delete_this_node) {
-      wait_list->RemoveNode(node);
-      node_lock_guard.reset();
-      delete node;
+      node->async_state_->waiting_for_main_thread_cleanup = true;
+      node->waiting_ = false;
+      // This will schedule a task to call ResolveAsyncWaiterPromises, which
+      // will then delete the node.
+      NotifyAsyncWaiter(node);
     }
     node = next_node;
   }
@@ -864,6 +866,13 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
   bool success = node->CancelTimeoutTask();
   DCHECK(success);
   USE(success);
+
+  if (node->async_state_->waiting_for_main_thread_cleanup) {
+    // The node was determined to be unnecessary by Wake (e.g. because the
+    // context died or backing store was deleted). Thus no further action is
+    // necessary, we shouldn't resolve the promise.
+    return;
+  }
 
   if (!node->async_state_->promise.IsEmpty()) {
     DCHECK(!node->async_state_->native_context.IsEmpty());

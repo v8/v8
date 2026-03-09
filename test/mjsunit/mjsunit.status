@@ -1303,9 +1303,6 @@
   'wasm/many-memories': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
   'wasm/shared-memory-worker-gc-stress': [SKIP],
-
-  # BUG(490306727): data race detected by TSAN.
-  'regress/regress-489941769': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################

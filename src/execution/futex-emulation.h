@@ -118,6 +118,10 @@ class FutexWaitListNode {
     // The task ID of the timeout task.
     CancelableTaskManager::Id timeout_task_id =
         CancelableTaskManager::kInvalidTaskId;
+
+    // True if the node is ready to be deleted (has to happen on the main
+    // thread).
+    bool waiting_for_main_thread_cleanup = false;
   };
 
   base::ConditionVariable cond_;
