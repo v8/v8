@@ -3045,6 +3045,7 @@
   # versions if hardware sandboxing is active. See https://crbug.com/429173713.
   'regress/regress-381390367': [SKIP],
   'regress-332570754': [SKIP],
+  'regress/regress-490446682': [SKIP],
   'asm/regress-1395401': [SKIP],
   'asm/log-lazy-code': [SKIP],
   'regress/regress-1394663': [SKIP],
