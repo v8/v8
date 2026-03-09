@@ -228,7 +228,7 @@ echo "**************************************************************************
 echo "* For the following command you first have to authenticate with google cloud"
 echo "* storage. For that you have to execute"
 echo "*"
-echo "* > gsutil.py config"
+echo "* > gcloud auth login"
 echo "*"
 echo "* When the script asks you for your project-id, use 0."
 echo "****************************************************************************"
