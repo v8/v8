@@ -748,6 +748,42 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   ASSEMBLER_CMOV_INSTRUCTION_LIST(DECLARE_CMOV_INSTRUCTION)
 #undef DECLARE_CMOV_INSTRUCTION
+
+#define DECLARE_SHIFT_NDD_INSTRUCTION(instruction, subcode)         \
+  void instruction##l(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }
+  SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_NDD_INSTRUCTION)
+#undef DECLARE_SHIFT_NDD_INSTRUCTION
+
 #endif  // V8_ENABLE_APX_F
 
   // Insert the smallest number of nop instructions
@@ -3298,6 +3334,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void emit_not(Register dst, Register src, int size);
   void emit_not(Register dst, Operand src, int size);
+
+  // Emit NDD version machine code for a shift operation.
+  void shift(Register dst, Register src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Operand src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Register src, int subcode, int size);
+  void shift(Register dst, Operand src, int subcode, int size);
 #endif  // V8_ENABLE_APX_F
 
   void emit_dec(Register dst, int size);
