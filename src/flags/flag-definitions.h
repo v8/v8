@@ -1913,8 +1913,7 @@ DEFINE_BOOL(wasm_tier_up, V8_ENABLE_TURBOFAN_BOOL,
 DEFINE_BOOL(wasm_dynamic_tiering, V8_ENABLE_TURBOFAN_BOOL,
             "enable dynamic tier up to the optimizing compiler")
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
-DEFINE_BOOL(wasm_sync_tier_up, false,
-            "run tier up jobs synchronously for testing")
+DEFINE_BOOL(wasm_sync_tier_up, false, "run Wasm tier up jobs synchronously")
 DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
@@ -1965,9 +1964,9 @@ DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
     "enables a testing opcode in wasm that is only implemented in TurboFan")
-// We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
-// disable tier up in that configuration for now.
-DEFINE_NEG_IMPLICATION(single_threaded, wasm_tier_up)
+// Do synchronous tier up (instead of in-background tierup) in single threaded
+// mode.
+DEFINE_IMPLICATION(single_threaded, wasm_sync_tier_up)
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
