@@ -447,29 +447,31 @@ MaybeDirectHandle<Object> IterableForEach(
     DirectHandle<Object> table_obj(set_iterator->table(), isolate);
     if (IsOrderedHashSet(*table_obj)) {
       DirectHandle<OrderedHashSet> table = Cast<OrderedHashSet>(table_obj);
-      int capacity = table->UsedCapacity();
-      DCHECK_IMPLIES(max_count,
-                     static_cast<unsigned int>(capacity) < *max_count);
-      if (max_count_out) *max_count_out = capacity;
-      int current_index = Smi::ToInt(set_iterator->index());
-      DirectHandle<Object> key_handle(Smi::zero(), isolate);
-      for (; current_index < capacity; ++current_index) {
-        InternalIndex entry(current_index);
-        Tagged<Object> key = table->KeyAt(entry);
-        if (!IsTheHole(key, isolate)) {
-          key_handle.SetValue(key);
-          if (!dispatch(key_handle)) break;
+      if (!table->IsObsolete()) {
+        int capacity = table->UsedCapacity();
+        DCHECK_IMPLIES(max_count,
+                       static_cast<unsigned int>(capacity) < *max_count);
+        if (max_count_out) *max_count_out = capacity;
+        int current_index = Smi::ToInt(set_iterator->index());
+        DirectHandle<Object> key_handle(Smi::zero(), isolate);
+        for (; current_index < capacity; ++current_index) {
+          InternalIndex entry(current_index);
+          Tagged<Object> key = table->KeyAt(entry);
+          if (!IsHashTableHole(key, isolate)) {
+            key_handle.SetValue(key);
+            if (!dispatch(key_handle)) break;
+          }
         }
-      }
-      if (current_index < capacity) {
-        auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
+        if (current_index < capacity) {
+          auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
+          set_iterator->set_index(*num);
+          IteratorClose(isolate, iterator);
+          return MaybeDirectHandle<Object>();
+        }
+        auto num = isolate->factory()->NewNumberFromUint(capacity);
         set_iterator->set_index(*num);
-        IteratorClose(isolate, iterator);
-        return MaybeDirectHandle<Object>();
+        return isolate->root_handle(RootIndex::kUndefinedValue);
       }
-      auto num = isolate->factory()->NewNumberFromUint(capacity);
-      set_iterator->set_index(*num);
-      return isolate->root_handle(RootIndex::kUndefinedValue);
     }
   }
 
