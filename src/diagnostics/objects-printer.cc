@@ -724,7 +724,7 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
                              uint32_t array_len) {
-  DCHECK_EQ(array->ulength().value(), array_len);
+  DCHECK_EQ(array->length().value(), array_len);
   PrintFixedArrayElements<T>(
       os, array, array_len,
       [](Tagged<T> xs, uint32_t i) { return Cast<Object>(xs->get(i)); });
@@ -1729,7 +1729,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {
   PrintHeader(os, "PropertyArray");
-  uint32_t len = ulength().value();
+  uint32_t len = length().value();
   os << "\n - length: " << len;
   os << "\n - hash: " << Hash();
   PrintFixedArrayElements(os, Tagged(*this), len);

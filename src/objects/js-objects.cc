@@ -824,7 +824,7 @@ Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
 
   if (IsPropertyArray(properties)) {
     Cast<PropertyArray>(properties)->SetHash(hash);
-    DCHECK_LT(0, Cast<PropertyArray>(properties)->length());
+    DCHECK_LT(0, Cast<PropertyArray>(properties)->length().value());
     return properties;
   }
 
@@ -883,7 +883,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 
 void JSReceiver::SetProperties(Tagged<HeapObject> properties) {
   DCHECK_IMPLIES(IsPropertyArray(properties) &&
-                     Cast<PropertyArray>(properties)->length() == 0,
+                     Cast<PropertyArray>(properties)->length().value() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
   DisallowGarbageCollection no_gc;
   int hash = GetIdentityHashHelper(*this);
@@ -3202,8 +3202,9 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     // can also simply set the map (modulo a special case for mutable
     // double boxes).
     FieldIndex index = FieldIndex::ForDetails(*new_map, details);
-    if (index.is_inobject() || index.outobject_array_index() <
-                                   object->property_array(isolate)->length()) {
+    if (index.is_inobject() ||
+        static_cast<uint32_t>(index.outobject_array_index()) <
+            object->property_array(isolate)->length().value()) {
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
         auto value = isolate->factory()->NewHeapNumberWithHoleNaN();

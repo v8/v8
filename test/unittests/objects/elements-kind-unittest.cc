@@ -122,7 +122,7 @@ TEST_F(ElementsKindTest, JSObjectAddingProperties) {
       .Check();
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK_LE(1, object->property_array()->length());
+  CHECK_LE(1u, object->property_array()->length().value());
   CHECK(EQUALS(i_isolate(), object->elements(), empty_fixed_array));
 }
 
@@ -167,7 +167,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   CHECK_NE(object->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
   // There must be at least 1 element in the properties store.
-  CHECK_LE(1, object->property_array()->length());
+  CHECK_LE(1u, object->property_array()->length().value());
   CHECK(EQUALS(i_isolate(), object->elements(), empty_fixed_array));
 }
 
@@ -247,7 +247,7 @@ TEST_F(ElementsKindTest, JSArrayAddingProperties) {
   // No change in elements_kind but added property => new map.
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
-  CHECK_LE(1, array->property_array()->length());
+  CHECK_LE(1u, array->property_array()->length().value());
   CHECK(EQUALS(i_isolate(), array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 }

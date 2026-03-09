@@ -2834,7 +2834,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       if (!details.is_in_object()) {
         storage = obj->property_array();
         DCHECK_LE(PropertyArray::OffsetInWordsToIndex(details.field_offset()),
-                  obj->property_array()->ulength().value());
+                  obj->property_array()->length().value());
       }
       int offset = details.field_offset() * kTaggedSize;
       property = TaggedField<JSAny>::Relaxed_Load(storage, offset);

@@ -384,7 +384,7 @@ bool AddDescriptorsByTemplate(
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
-  if (property_array->length() > 0) {
+  if (property_array->length().value() > 0) {
     receiver->SetProperties(*property_array);
   }
   return true;

@@ -2752,7 +2752,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   // Update properties if necessary.
   if (source->HasFastProperties()) {
     Tagged<PropertyArray> properties = source->property_array();
-    if (properties->length() > 0) {
+    if (properties->length().value() > 0) {
       // TODO(gsathya): Do not copy hash code.
       DirectHandle<PropertyArray> prop =
           CopyArrayWithMap(direct_handle(properties, isolate()),
@@ -2798,7 +2798,7 @@ inline void InitEmbedderFields(Tagged<JSObject> obj,
 template <typename T>
 Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
                                     AllocationType allocation) {
-  const uint32_t len = src->ulength().value();
+  const uint32_t len = src->length().value();
   Tagged<HeapObject> new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
   new_object->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
@@ -2814,7 +2814,7 @@ template <typename T>
 Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                                     AllocationType allocation) {
   DCHECK_LT(0, grow_by);
-  const uint32_t old_len = src->ulength().value();
+  const uint32_t old_len = src->length().value();
   DCHECK_LE(grow_by + old_len, static_cast<uint32_t>(kMaxInt));
   const uint32_t new_len = old_len + grow_by;
   // TODO(jgruber,v8:14345): Use T::Allocate instead.

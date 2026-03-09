@@ -355,7 +355,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
       Tagged<PropertyArray> properties =
           Cast<PropertyArray>(raw_properties_or_hash);
       const int array_index = field_index.outobject_array_index();
-      if (array_index < properties->length(kAcquireLoad)) {
+      if (static_cast<uint32_t>(array_index) <
+          properties->length(kAcquireLoad).value()) {
         constant = properties->get(array_index);
       } else {
         TRACE_BROKER_MISSING(

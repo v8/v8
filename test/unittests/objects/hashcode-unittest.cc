@@ -142,9 +142,9 @@ TEST_F(HashcodeTest, TransitionFastWithInObjectToFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, true);
   CHECK_EQ(Smi::FromInt(hash), obj->raw_properties_or_hash());
 
-  int length = obj->property_array()->length();
+  uint32_t length = obj->property_array()->length().value();
   RunJS("x.e = 5;");
-  CHECK(obj->property_array()->length() > length);
+  CHECK_GT(obj->property_array()->length().value(), length);
   CheckFastObject(obj, hash);
 }
 
@@ -160,9 +160,9 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, true);
   CHECK_EQ(hash, obj->property_array()->Hash());
 
-  int length = obj->property_array()->length();
+  uint32_t length = obj->property_array()->length().value();
   RunJS("x.f = 2; x.g = 5; x.h = 2");
-  CHECK(obj->property_array()->length() > length);
+  CHECK_GT(obj->property_array()->length().value(), length);
   CheckFastObject(obj, hash);
 }
 

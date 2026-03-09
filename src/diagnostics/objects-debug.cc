@@ -528,22 +528,24 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject(*this));
   if (HasFastProperties()) {
     FieldStorageLocation offset = map()->NextFreeFieldStorageLocation();
+    const uint32_t property_array_len = property_array()->length().value();
     if (map()->HasOutOfObjectProperties()) {
-      CHECK_GT(property_array()->length(), 0);
+      CHECK_GT(property_array_len, 0);
       CHECK(!offset.is_in_object);
       int actual_first_unused_property_index =
           offset.offset_in_words -
           OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
       int expected_first_unused_property_index =
-          property_array()->length() - map()->UnusedPropertyFields();
+          property_array_len - map()->UnusedPropertyFields();
       CHECK_EQ(actual_first_unused_property_index,
                expected_first_unused_property_index);
     } else {
       // We should have a 0 length property array, but we might be in the middle
       // of adding the first property array entry so we might have a fresh
       // property array.
-      CHECK(property_array()->length() == 0 ||
-            property_array()->length() == JSObject::kFieldsAdded);
+      CHECK(property_array_len == 0 ||
+            property_array_len ==
+                static_cast<uint32_t>(JSObject::kFieldsAdded));
       if (!offset.is_in_object) {
         CHECK_EQ(map()->GetInObjectPropertiesStartInWords() +
                      map()->GetInObjectProperties(),
@@ -1014,13 +1016,13 @@ void ArrayList::ArrayListVerify(Isolate* isolate) {
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);
-  if (length() == 0) {
+  const uint32_t len = length().value();
+  // There are no empty PropertyArrays.
+  if (len == 0) {
     CHECK_EQ(*this, ReadOnlyRoots(isolate).empty_property_array());
     return;
   }
-  // There are no empty PropertyArrays.
-  CHECK_LT(0, length());
-  for (int i = 0; i < length(); i++) {
+  for (uint32_t i = 0; i < len; i++) {
     Tagged<Object> e = get(i);
     Object::VerifyPointer(isolate, e);
   }
@@ -3141,7 +3143,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
   if (HasFastProperties()) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_ +=
-        map()->GetInObjectProperties() + property_array()->length();
+        map()->GetInObjectProperties() + property_array()->length().value();
     info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject(*this)) {
     Tagged<GlobalDictionary> dict =

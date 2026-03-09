@@ -2095,7 +2095,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        UncheckedCast<PropertyArray>(*this)->length(kAcquireLoad));
+        UncheckedCast<PropertyArray>(*this)->length(kAcquireLoad).value());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
