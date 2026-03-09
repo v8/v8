@@ -967,22 +967,6 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (kernel space address).");
       }
 
-#ifdef V8_USE_ADDRESS_SANITIZER
-      if (access_type == MemoryAccessType::kRead) {
-        size_t shadow_scale, shadow_offset;
-        __asan_get_shadow_mapping(&shadow_scale, &shadow_offset);
-        Address maybe_faultaddr = (faultaddr - shadow_offset) << shadow_scale;
-        if (maybe_faultaddr >= 0x1'0000'0000'0000ULL) {
-          // This is a crash due to attempt to access ASAN's shadow memory for
-          // a non-canonical address who's shadow memory address still falls
-          // into a canonical address range. Only read accesses fall here.
-          FilterCrash(
-              "Caught harmless memory access violation (shadow of a "
-              "non-canonical address).");
-        }
-      }
-#endif  // V8_USE_ADDRESS_SANITIZER
-
       if (faultaddr < 0x1000) {
         // Nullptr dereferences are harmless as nothing can be mapped there. We
         // use the typical page size (which is also the default value of

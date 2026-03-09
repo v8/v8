@@ -958,6 +958,21 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   void ExecuteInstruction() {
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstrSize));
+#ifdef V8_USE_ADDRESS_SANITIZER
+    if (V8_ENABLE_SANDBOX_BOOL) {
+      uintptr_t current_pc = reinterpret_cast<uintptr_t>(pc_);
+      // Check if PC falls into non-canonical address range or kernel range.
+      if (current_pc >= 0x1'0000'0000'0000ULL) [[unlikely]] {
+        // Trigger SEGFAULT by accessing memory exactly at PC address.
+        // This is necessary because regular access to current instruction
+        // below would trigger SEGFAULT at corresponding ASan's shadow memory
+        // address which might produce false positive "sandbox violation"
+        // report if the shadow memory address falls into canonical address
+        // range.
+        NoSanitizeProbeMemory(current_pc);
+      }
+    }
+#endif  // V8_USE_ADDRESS_SANITIZER
     CheckBType();
     ResetBType();
     CheckBreakNext();

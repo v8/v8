@@ -5049,7 +5049,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   }
 
 #ifndef V8_ENABLE_MEMORY_CORRUPTION_API
-  // This check doesn't make sense in for sandbox testing since
+  // This check doesn't make sense for sandbox testing since
   // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
   // and this check just hinders debugging.
   if (v8_flags.debug_code) {
