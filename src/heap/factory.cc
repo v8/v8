@@ -692,7 +692,31 @@ void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-template <typename Decoder, typename PeekBytes>
+struct NonSharedStringPolicy {
+  static constexpr bool kAllowLookupSingleCharacterString = true;
+  static MaybeHandle<SeqOneByteString> AllocateOneByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawOneByteString(length, allocation);
+  }
+  static MaybeHandle<SeqTwoByteString> AllocateTwoByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawTwoByteString(length, allocation);
+  }
+};
+
+struct SharedStringPolicy {
+  static constexpr bool kAllowLookupSingleCharacterString = false;
+  static MaybeHandle<SeqOneByteString> AllocateOneByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawSharedOneByteString(length);
+  }
+  static MaybeHandle<SeqTwoByteString> AllocateTwoByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawSharedTwoByteString(length);
+  }
+};
+
+template <typename Decoder, typename PeekBytes, typename StringPolicy>
 MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
                                        AllocationType allocation,
                                        MessageTemplate message) {
@@ -707,16 +731,20 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
   if (decoder.is_one_byte()) {
-    if (decoder.utf16_length() == 1) {
-      uint8_t codepoint;
-      decoder.Decode(&codepoint, peek_bytes());
-      return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
+    if constexpr (StringPolicy::kAllowLookupSingleCharacterString) {
+      if (decoder.utf16_length() == 1) {
+        uint8_t codepoint;
+        decoder.Decode(&codepoint, peek_bytes());
+        return isolate->factory()->LookupSingleCharacterStringFromCode(
+            codepoint);
+      }
     }
     // Allocate string.
     Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(
-                                   decoder.utf16_length(), allocation));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        StringPolicy::AllocateOneByteString(isolate, decoder.utf16_length(),
+                                            allocation));
 
     DisallowGarbageCollection no_gc;
     decoder.Decode(result->GetChars(no_gc), peek_bytes());
@@ -726,33 +754,54 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             isolate->factory()->NewRawTwoByteString(
-                                 decoder.utf16_length(), allocation));
+                             StringPolicy::AllocateTwoByteString(
+                                 isolate, decoder.utf16_length(), allocation));
 
   DisallowGarbageCollection no_gc;
   decoder.Decode(result->GetChars(no_gc), peek_bytes());
   return result;
 }
 
-template <typename PeekBytes>
+struct StringBuilder {
+  template <typename Decoder, typename PeekBytes>
+  MaybeHandle<String> Build(Isolate* isolate, PeekBytes peek_bytes,
+                            AllocationType allocation,
+                            MessageTemplate message) {
+    return NewStringFromBytes<Decoder, PeekBytes, NonSharedStringPolicy>(
+        isolate, peek_bytes, allocation, message);
+  }
+};
+
+struct SharedStringBuilder {
+  template <typename Decoder, typename PeekBytes>
+  MaybeHandle<String> Build(Isolate* isolate, PeekBytes peek_bytes,
+                            AllocationType allocation,
+                            MessageTemplate message) {
+    return NewStringFromBytes<Decoder, PeekBytes, SharedStringPolicy>(
+        isolate, peek_bytes, allocation, message);
+  }
+};
+
+template <typename PeekBytes, typename StringBuilder>
 MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
                                              PeekBytes peek_bytes,
                                              unibrow::Utf8Variant utf8_variant,
+                                             StringBuilder string_builder,
                                              AllocationType allocation) {
   switch (utf8_variant) {
     case unibrow::Utf8Variant::kLossyUtf8:
-      return NewStringFromBytes<Utf8Decoder>(isolate, peek_bytes, allocation,
-                                             MessageTemplate::kNone);
+      return string_builder.template Build<Utf8Decoder>(
+          isolate, peek_bytes, allocation, MessageTemplate::kNone);
 #if V8_ENABLE_WEBASSEMBLY
     case unibrow::Utf8Variant::kUtf8:
-      return NewStringFromBytes<StrictUtf8Decoder>(
+      return string_builder.template Build<StrictUtf8Decoder>(
           isolate, peek_bytes, allocation,
           MessageTemplate::kWasmTrapStringInvalidUtf8);
     case unibrow::Utf8Variant::kUtf8NoTrap:
-      return NewStringFromBytes<StrictUtf8Decoder>(
+      return string_builder.template Build<StrictUtf8Decoder>(
           isolate, peek_bytes, allocation, MessageTemplate::kNone);
     case unibrow::Utf8Variant::kWtf8:
-      return NewStringFromBytes<Wtf8Decoder>(
+      return string_builder.template Build<Wtf8Decoder>(
           isolate, peek_bytes, allocation,
           MessageTemplate::kWasmTrapStringInvalidWtf8);
 #endif
@@ -771,13 +820,32 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   }
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
                                                AllocationType allocation) {
   return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
                            unibrow::Utf8Variant::kLossyUtf8, allocation);
+}
+
+MaybeHandle<String> Factory::NewSharedStringFromUtf8(
+    base::Vector<const uint8_t> string, unibrow::Utf8Variant utf8_variant) {
+  if (string.size() > kMaxInt) {
+    // The Utf8Decode can't handle longer inputs, and we couldn't create
+    // strings from them anyway.
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  SharedStringBuilder{},
+                                  AllocationType::kSharedOld);
+}
+
+MaybeHandle<String> Factory::NewSharedStringFromUtf8(
+    base::Vector<const char> string) {
+  return NewSharedStringFromUtf8(base::Vector<const uint8_t>::cast(string),
+                                 unibrow::Utf8Variant::kLossyUtf8);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -795,7 +863,7 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf8(
     return {contents + start, end - start};
   };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
@@ -810,7 +878,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
     return {contents + start, end - start};
   };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 namespace {
@@ -844,8 +912,9 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
         reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
     return {contents + start, end - start};
   };
-  return NewStringFromBytes<Wtf16Decoder>(isolate(), peek_bytes, allocation,
-                                          MessageTemplate::kNone);
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            NonSharedStringPolicy>(
+      isolate(), peek_bytes, allocation, MessageTemplate::kNone);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

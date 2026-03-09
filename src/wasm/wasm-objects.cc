@@ -136,15 +136,20 @@ DirectHandle<WasmModuleObject> WasmModuleObject::New(
 
 DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    wasm::WireBytesRef ref, InternalizeString internalize) {
+    wasm::WireBytesRef ref, InternalizeString internalize, bool shared) {
   base::Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.size()));
   auto* factory = isolate->factory();
-  return internalize
-             ? factory->InternalizeUtf8String(
-                   base::Vector<const char>::cast(name_vec))
+  DCHECK_IMPLIES(shared, !internalize);
+  return internalize ? factory->InternalizeUtf8String(
+                           base::Vector<const char>::cast(name_vec))
+         : shared
+             ? factory
+                   ->NewSharedStringFromUtf8(
+                       base::Vector<const char>::cast(name_vec))
+                   .ToHandleChecked()
              : factory
                    ->NewStringFromUtf8(base::Vector<const char>::cast(name_vec))
                    .ToHandleChecked();

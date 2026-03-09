@@ -300,6 +300,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      base::Vector<const char> str);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      std::string_view str) {
+    return NewSharedStringFromUtf8(base::StrVector(str));
+  }
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant);
+
 #if V8_ENABLE_WEBASSEMBLY
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf8(
       DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,

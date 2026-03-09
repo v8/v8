@@ -203,7 +203,7 @@ class WasmModuleObject
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
-      InternalizeString);
+      InternalizeString, bool shared = false);
 
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)
 };

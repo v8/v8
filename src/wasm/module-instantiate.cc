@@ -1815,9 +1815,10 @@ void InstanceBuilder::SanitizeImports() {
         import.module_name.length() == magic_string_constants.size() &&
         std::equal(magic_string_constants.begin(), magic_string_constants.end(),
                    wire_bytes_.begin() + import.module_name.offset())) {
+      bool shared = module_->globals[import.index].type.is_shared();
       DirectHandle<String> value =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate_, wire_bytes_, import.field_name, kNoInternalize);
+              isolate_, wire_bytes_, import.field_name, kNoInternalize, shared);
       sanitized_imports_[index] = value;
       continue;
     }
