@@ -503,7 +503,9 @@ class PrototypeSetupSequenceDetector : public Decoder {
     // call $configureAll
     final_call_position_ = position();
     final_call_pc_ = pc();
-    if (!ExpectCallWellKnownImport(WellKnownImport::kConfigureAllPrototypes)) {
+    if (!ExpectCallWellKnownImport(
+            WellKnownImport::kConfigureAllPrototypes,
+            TypeCanonicalizer::kPredefinedSigIndex_configureAll)) {
       return false;
     }
     return ok();
@@ -571,10 +573,14 @@ class PrototypeSetupSequenceDetector : public Decoder {
     return true;
   }
 
-  bool ExpectCallWellKnownImport(WellKnownImport wki) {
+  bool ExpectCallWellKnownImport(WellKnownImport wki, CanonicalTypeIndex sig) {
     if (consume_u8() != kExprCallFunction) return false;
     function_index_ = consume_u32v(kNoTrace);
     if (function_index_ >= module_->num_imported_functions) return false;
+    if (module_->canonical_sig_id(
+            module_->functions[function_index_].sig_index) != sig) {
+      return false;
+    }
     // This isn't load bearing (due to code caching, we need to check at
     // runtime), it's just an early bailout to not emit the fast path when
     // the dynamic check can't possibly succeed.
@@ -7991,7 +7997,9 @@ class LiftoffCompiler {
                        Value* /* result */) {
     FUZZER_HEAVY_INSTRUCTION;
 
-    if (prototype_setup_end_ == nullptr) {
+    if (prototype_setup_end_ == nullptr &&
+        decoder->enabled_.has_custom_descriptors() &&
+        v8_flags.experimental_wasm_js_interop) {
       PrototypeSetupSequenceDetector matcher(decoder->pc(), decoder->end(),
                                              decoder->pc_offset(),
                                              decoder->module_);
@@ -8075,11 +8083,13 @@ class LiftoffCompiler {
           static constexpr int kNumDroppedConstants = 2;
           __ DropValues(kNumDroppedConstants);
 
-          uint32_t stack_depth = __ cache_state() -> stack_height();
+          uint32_t num_locals = __ num_locals();
+          uint32_t stack_depth =
+              __ cache_state() -> stack_height() - num_locals;
           // The decoder has already dropped start/length and pushed the array.
-          DCHECK_EQ(decoder->stack_size(), stack_depth + 1);
+          DCHECK_EQ(decoder->stack_size(), stack_depth + 1 - num_exceptions_);
           prototype_setup_end_->state =
-              __ MergeIntoNewState(__ num_locals(), 0, stack_depth);
+              __ MergeIntoNewState(num_locals, 0, stack_depth);
           __ emit_jump(prototype_setup_end_->label.get());
 
           __ bind(else_state.label.get());

@@ -180,6 +180,9 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
   }
 
   uint32_t target_height = num_locals + stack_depth + arity;
+  // Can't copy more values than we have. If this fails, you may have passed
+  // a {stack_depth} that includes locals.
+  DCHECK_LE(target_height, cache_state_.stack_height());
 
   target.stack_state.resize_no_init(target_height);
 
