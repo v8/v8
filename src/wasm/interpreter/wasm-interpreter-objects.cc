@@ -43,7 +43,7 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  std::shared_ptr<wasm::InterpreterHandle> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   return handle->Execute(thread, frame_pointer,
@@ -65,7 +65,7 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  std::shared_ptr<wasm::InterpreterHandle> handle =
       wasm::GetInterpreterHandle(isolate, interpreter_object);
 
   return handle->Execute(thread, frame_pointer,

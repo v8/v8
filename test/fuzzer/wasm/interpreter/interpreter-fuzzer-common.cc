@@ -113,7 +113,7 @@ WasmInterpretationResult FastInterpretWasmModule(
           instance);
 
   // Assume an instance can run in only one thread.
-  wasm::InterpreterHandle* handle =
+  std::shared_ptr<wasm::InterpreterHandle> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   for (const WasmValue& arg : args) {

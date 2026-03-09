@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // exist.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  wasm::InterpreterHandle* interpreter_handle =
+  std::shared_ptr<wasm::InterpreterHandle> interpreter_handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   if (wasm::WasmBytecode::ContainsSimd(sig)) {
@@ -237,7 +237,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
 namespace wasm {
 
-V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
+V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle> GetInterpreterHandle(
     Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
@@ -246,8 +246,9 @@ V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
   return TrustedCast<Managed<InterpreterHandle>>(handle)->raw();
 }
 
-V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
-    Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
+V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle>
+GetOrCreateInterpreterHandle(Isolate* isolate,
+                             DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
@@ -368,7 +369,7 @@ void WasmInterpreterRuntime::UpdateMemoryAddress(
   Isolate* isolate = Isolate::Current();
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  std::shared_ptr<InterpreterHandle> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -1726,7 +1727,7 @@ void WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
     uint32_t table_index, uint32_t entry_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  std::shared_ptr<InterpreterHandle> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -1742,7 +1743,7 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
     uint32_t table_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  std::shared_ptr<InterpreterHandle> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -2994,7 +2995,8 @@ DirectHandle<WasmInstanceObject> InterpreterHandle::GetInstanceObject() {
             TrustedCast<Managed<InterpreterHandle>>(
                 WasmInterpreterObject::get_interpreter_handle(
                     instance_obj->trusted_data(isolate_)->interpreter_object()))
-                ->raw());
+                ->raw()
+                .get());
   return instance_obj;
 }
 
