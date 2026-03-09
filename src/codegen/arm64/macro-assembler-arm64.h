@@ -641,6 +641,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
 
+  inline void SmiUntagUnsigned(Register dst, Register src);
+  inline void SmiUntagUnsigned(Register dst, const MemOperand& src);
+  inline void SmiUntagUnsigned(Register smi);
+
   inline void SmiTag(Register dst, Register src);
   inline void SmiTag(Register smi);
 
@@ -1617,6 +1621,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,

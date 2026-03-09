@@ -1190,6 +1190,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
   if (!is_initialized) {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
+    types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
@@ -1231,6 +1232,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_FUNCTION_TYPE]["feedback_cell"] = JSFunction::kFeedbackCellOffset;
+    fields[JS_BOUND_FUNCTION_TYPE]["bound_arguments"] =
+        JSBoundFunction::kBoundArgumentsOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =

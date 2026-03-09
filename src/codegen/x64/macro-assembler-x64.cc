@@ -2721,7 +2721,11 @@ void MacroAssembler::SmiUntagUnsigned(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+    // This check doesn't make sense for sandbox testing since this value
+    // might be legitimately corrupted.
     AssertSignBitOfSmiIsZero(reg);
+#endif
     shrl(reg, Immediate(kSmiShift));
   } else {
     shrq(reg, Immediate(kSmiShift));
@@ -2765,7 +2769,11 @@ void MacroAssembler::SmiUntagUnsigned(Register dst, Operand src) {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
       movl(dst, src);
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+      // This check doesn't make sense for sandbox testing since this value
+      // might be legitimately corrupted.
       AssertSignBitOfSmiIsZero(dst);
+#endif
       shrl(dst, Immediate(kSmiShift));
     } else {
       movq(dst, src);

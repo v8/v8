@@ -3529,6 +3529,11 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
 }
 
+void MacroAssembler::SmiUntagFieldUnsigned(Register dst,
+                                           const MemOperand& src) {
+  SmiUntagUnsigned(dst, src);
+}
+
 void MacroAssembler::StoreTwoTaggedFields(const Register& value,
                                           const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
