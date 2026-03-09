@@ -363,7 +363,8 @@ uint32_t WasmModuleDebug::GetWasmModuleBytes(wasm_addr_t wasm_addr,
   if (!instance.is_null()) {
     Handle<WasmModuleObject> module_object(instance->module_object(),
                                            GetIsolate());
-    wasm::NativeModule* native_module = module_object->native_module();
+    std::shared_ptr<wasm::NativeModule> native_module =
+        module_object->native_module();
     const wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
     uint32_t offset = wasm_addr.Offset();
     if (offset < wire_bytes.length()) {
