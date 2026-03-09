@@ -2814,7 +2814,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ SmiTag(len);
   __ Push(xzr, len);
   // - adjust arg count
-  __ Add(argc, argc, SuperSpreadArgs::kNumExtraArgs);
+  __ Add(argc, argc, SuperSpreadArgs::kNumExtraArgs - 1);
   __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 

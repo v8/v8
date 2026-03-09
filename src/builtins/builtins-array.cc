@@ -552,10 +552,12 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
   uint32_t total_args = stack_arg_count + args_length;
   auto element_provider = [&](uint32_t i) -> DirectHandle<Object> {
     if (i < static_cast<uint32_t>(stack_arg_count)) {
-      return args.at(i);
+      return args.at(stack_arg_count - i - 1);
     }
     DirectHandle<Object> element(arglist->get(i - stack_arg_count), isolate);
-    DCHECK(!IsTheHole(*element, isolate));
+    if (IsTheHole(*element, isolate)) {
+      return isolate->factory()->undefined_value();
+    }
     return element;
   };
   return CommonArrayPush(isolate, receiver, total_args, element_provider);

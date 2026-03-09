@@ -268,7 +268,7 @@
   # BUG(https://crbug.com/420932895): Very slow in many configurations.
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 
-  'arbitrary-length-varargs': [PASS, ['mode == debug or lower_limits_mode', SKIP]],
+  'arbitrary-length-varargs': [PASS, ['(mode == debug and simulator_run) or lower_limits_mode', SKIP]],
 }],  # ALWAYS
 
 ################################################################################

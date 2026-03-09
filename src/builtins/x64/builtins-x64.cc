@@ -2477,7 +2477,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // - return address
   __ Push(kScratchRegister);
   // - adjust arg count
-  __ addq(rax, Immediate(SuperSpreadArgs::kNumExtraArgs));
+  __ addq(rax, Immediate(SuperSpreadArgs::kNumExtraArgs - 1));
   __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 

@@ -12,14 +12,14 @@ namespace internal {
 
 struct SuperSpreadArgs {
 #ifdef V8_TARGET_ARCH_ARM64
-  static constexpr int kNumExtraArgs = 4;
+  static constexpr int kNumExtraArgs = 5;
 #else
-  static constexpr int kNumExtraArgs = 3;
+  static constexpr int kNumExtraArgs = 4;
 #endif
 
-  static constexpr int kReceiverOffsetFromEnd = kNumExtraArgs + 1;
-  static constexpr int kTargetOffsetFromEnd = kNumExtraArgs;
-  static constexpr int kArglistOffsetFromEnd = kNumExtraArgs - 1;
+  static constexpr int kReceiverOffsetFromEnd = kNumExtraArgs;
+  static constexpr int kTargetOffsetFromEnd = kNumExtraArgs - 1;
+  static constexpr int kArglistOffsetFromEnd = kNumExtraArgs - 2;
 
   static constexpr int kArglistLengthOffsetFromEnd = 1;
 };
