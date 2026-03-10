@@ -4277,20 +4277,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreJSArrayBufferViewByteOffset(
       TNode<JSArrayBufferView> array_buffer_view, TNode<UintPtrT> value);
 
-  // JSTypedArray helpers
-  TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  TNode<UintPtrT> LoadJSTypedArrayLength(
+      TNode<JSTypedArray> typed_array,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
   TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
-      TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail);
+      TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
   TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
       TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
-      TypedArrayAccessMode mode, bool is_resizable, Label* fail);
+      TypedArrayAccessMode mode, bool is_resizable, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
 
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
 
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
       TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-      TypedArrayAccessMode mode, Label* fail);
+      TypedArrayAccessMode mode, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
 
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,

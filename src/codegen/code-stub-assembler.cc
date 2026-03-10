@@ -17940,16 +17940,19 @@ void CodeStubAssembler::StoreJSArrayBufferViewByteOffset(
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
-    TNode<JSTypedArray> typed_array) {
+    TNode<JSTypedArray> typed_array,
+    std::optional<TNode<Int32T>> elements_kind) {
   TNode<UintPtrT> byte_length = LoadBoundedSizeFromObject(
       typed_array, JSTypedArray::kRawByteLengthOffset);
-  TNode<Uint8T> element_shift =
-      ElementsKindToElementByteShift(LoadElementsKind(typed_array));
+  TNode<Int32T> kind =
+      elements_kind ? *elements_kind : LoadElementsKind(typed_array);
+  TNode<Uint8T> element_shift = ElementsKindToElementByteShift(kind);
   return WordShr(byte_length, element_shift);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
-    TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail) {
+    TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   TVARIABLE(UintPtrT, result);
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
 
@@ -17959,14 +17962,14 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
   BIND(&variable_length);
   {
     result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, true,
-                                               fail);
+                                               fail, elements_kind);
     Goto(&end);
   }
 
   BIND(&fixed_length);
   {
     result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, false,
-                                               fail);
+                                               fail, elements_kind);
     Goto(&end);
   }
   BIND(&end);
@@ -17975,13 +17978,14 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
     TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
-    TypedArrayAccessMode mode, bool is_resizable, Label* fail) {
+    TypedArrayAccessMode mode, bool is_resizable, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   CSA_DCHECK(this,
              TaggedEqual(LoadJSArrayBufferViewBuffer(typed_array), buffer));
   if (is_resizable) {
     CSA_DCHECK(this, IsVariableLengthJSArrayBufferView(typed_array));
-    return LoadVariableLengthJSTypedArrayLength(typed_array, buffer, mode,
-                                                fail);
+    return LoadVariableLengthJSTypedArrayLength(typed_array, buffer, mode, fail,
+                                                elements_kind);
   } else {
     CSA_DCHECK(this,
                Word32BinaryNot(IsVariableLengthJSArrayBufferView(typed_array)));
@@ -17989,19 +17993,20 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
     if (mode == TypedArrayAccessMode::kWrite) {
       GotoIf(IsImmutableArrayBuffer(buffer), fail);
     }
-    return LoadJSTypedArrayLength(typed_array);
+    return LoadJSTypedArrayLength(typed_array, elements_kind);
   }
 }
 
 // https://tc39.es/ecma262/#sec-integerindexedobjectlength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
     TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-    TypedArrayAccessMode mode, Label* fail) {
+    TypedArrayAccessMode mode, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   // byte_length already takes array's offset into account.
   TNode<UintPtrT> byte_length =
       LoadVariableLengthJSArrayBufferViewByteLength(array, buffer, mode, fail);
-  TNode<Uint8T> element_shift =
-      ElementsKindToElementByteShift(LoadElementsKind(array));
+  TNode<Int32T> kind = elements_kind ? *elements_kind : LoadElementsKind(array);
+  TNode<Uint8T> element_shift = ElementsKindToElementByteShift(kind);
   return WordShr(byte_length, element_shift);
 }
 
