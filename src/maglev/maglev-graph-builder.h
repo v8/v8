@@ -972,6 +972,11 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
 
+  MaybeReduceResult TryReduceForOfNext(
+      ValueNode* iterator, ValueNode* next_method,
+      std::pair<interpreter::Register, interpreter::Register> result_pair,
+      int call_slot);
+
   MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
                                   ValueNode* new_target,
                                   compiler::SharedFunctionInfoRef shared,

@@ -96,6 +96,10 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                           TVariable<JSArray>* var_result, Label* slow);
   TNode<JSArray> FastIterableToList(TNode<Context> context,
                                     TNode<JSAny> iterable, Label* slow);
+
+  void StoreValueAndDoneInRegisterPair(TNode<Context> context,
+                                       TNode<Object> value, TNode<Object> done,
+                                       TNode<Smi> value_done_reg);
 };
 
 }  // namespace internal

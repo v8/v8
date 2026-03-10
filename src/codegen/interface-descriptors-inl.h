@@ -630,6 +630,26 @@ constexpr auto GetIteratorStackParameterDescriptor::registers() {
 }
 
 // static
+constexpr auto ForOfNextLoadDoneLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadDoneEagerDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueEagerDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto LoadWithVectorDescriptor::registers() {
   return RegisterArray(LoadDescriptor::ReceiverRegister(),
                        LoadDescriptor::NameRegister(),
