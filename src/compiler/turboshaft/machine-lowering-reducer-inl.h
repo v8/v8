@@ -1010,10 +1010,20 @@ class MachineLoweringReducer : public Next {
         break;
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber: {
-        DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
-        DCHECK_EQ(input_interpretation,
-                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
-        return AllocateHeapNumber(V<Float64>::Cast(input));
+        V<Float64> f64_input;
+        if (input_rep == RegisterRepresentation::Word32()) {
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned);
+          f64_input = __ ChangeInt32ToFloat64(V<Word32>::Cast(input));
+        } else {
+          DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
+          f64_input = V<Float64>::Cast(input);
+        }
+        return AllocateHeapNumber(f64_input);
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
           kHeapNumberOrUndefined: {
