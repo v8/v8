@@ -22,10 +22,14 @@ o.x = "abc";
 %OptimizeFunctionOnNextCall(foo);
 foo(true);
 assertEquals(0x7fffffff, o.x);
-assertOptimized(foo);
+// TODO(dmercadier): re-enable this assertOptimized once Phi untagging has been
+// re-enabled.
+// assertOptimized(foo);
 
 // Even with a Smi it should be fine because we should ForceHeapObject when
 // retagging.
 foo(false);
 assertEquals(42, o.x);
-assertOptimized(foo);
+// TODO(dmercadier): re-enable this assertOptimized once Phi untagging has been
+// re-enabled.
+//assertOptimized(foo);
