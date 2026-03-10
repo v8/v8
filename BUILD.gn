@@ -8094,11 +8094,19 @@ group("v8_python_base") {
   data = [ ".vpython3" ]
 }
 
+# Enable fallbacks for files that might be hard to access on Clusterfuzz.
+copy("v8_clusterfuzz_fallbacks") {
+  testonly = true
+  sources = [ "test/mjsunit/wasm/wasm-module-builder.js" ]
+  outputs = [ "$root_out_dir/test/mjsunit/wasm/wasm-module-builder.js" ]
+}
+
 group("v8_clusterfuzz") {
   testonly = true
 
   deps = [
     ":d8",
+    ":v8_clusterfuzz_fallbacks",
     ":v8_simple_inspector_fuzzer",
     "tools/clusterfuzz/trials:v8_clusterfuzz_resources",
   ]
