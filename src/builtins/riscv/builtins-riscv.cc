@@ -4919,16 +4919,14 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
 
   // Make place for arguments to fit C calling convention. Callers use
   // EnterExitFrame/LeaveExitFrame so they handle stack restoring and we don't
-  // have to do that here. Any caller must drop kCArgsSlotsSize stack space
-  // after the call.
-  __ AddWord(sp, sp, -kCArgsSlotsSize);
+  // have to do that here.
 #ifdef V8_ENABLE_RISCV_SHADOW_STACK
   __ sspush_ra();
 #endif
   __ StoreWord(ra,
-               MemOperand(sp, kCArgsSlotsSize));  // Store the return address.
+               MemOperand(sp));                   // Store the return address.
   __ Call(t6);                                    // Call the C++ function.
-  __ LoadWord(ra, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
+  __ LoadWord(ra, MemOperand(sp));                // Return to calling code.
 #ifdef V8_ENABLE_RISCV_SHADOW_STACK
   __ sspopchk_ra();
 #endif

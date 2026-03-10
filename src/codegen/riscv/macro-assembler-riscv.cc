@@ -5436,7 +5436,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&start);
   LoadAddress(ra, &end);
   StoreWord(ra, MemOperand(sp));      // Reserved in EnterExitFrame.
-  AddWord(sp, sp, -kCArgsSlotsSize);  // Preserves stack alignment.
 
   // Call the C routine.
   Mv(t6, target);  // Function pointer in 't6' to conform to ABI for PIC.
@@ -7286,7 +7285,6 @@ int MacroAssembler::CalculateStackPassedDWords(int num_gp_arguments,
   if (num_fp_arguments > kRegisterPassedArguments) {
     stack_passed_dwords += num_fp_arguments - kRegisterPassedArguments;
   }
-  stack_passed_dwords += kCArgSlotCount;
   return stack_passed_dwords;
 }
 

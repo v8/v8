@@ -1672,7 +1672,7 @@ void InstructionSelector::EmitPrepareArguments(
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
-    int slot = kCArgSlotCount;
+    int slot = 0;
     for (PushParameter input : (*arguments)) {
       Emit(kRiscvStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
            g.TempImmediate(slot << kSystemPointerSizeLog2));

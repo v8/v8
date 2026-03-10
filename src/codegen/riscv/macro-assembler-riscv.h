@@ -81,18 +81,6 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
-// Generate a MemOperand for storing arguments 5..N on the stack
-// when calling CallCFunction().
-// TODO(plind): Currently ONLY used for O32. Should be fixed for
-//              n64, and used in RegExp code, and other places
-//              with more than 8 arguments.
-inline MemOperand CFunctionArgumentOperand(int index) {
-  DCHECK_GT(index, kCArgSlotCount);
-  // Argument 5 takes the slot just past the four Arg-slots.
-  int offset = (index - 5) * kSystemPointerSize + kCArgsSlotsSize;
-  return MemOperand(sp, offset);
-}
-
 enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
 
 class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
@@ -708,7 +696,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored on the
-  // stack, using helper: CFunctionArgumentOperand().
+  // stack.
   // The argument count assumes all arguments are word sized.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.

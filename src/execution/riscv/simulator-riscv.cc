@@ -8744,15 +8744,14 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int64_t stack_args_size =
-      stack_args.size() * sizeof(stack_args[0]) + kCArgsSlotsSize;
+  int64_t stack_args_size = stack_args.size() * sizeof(stack_args[0]);
   int64_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   char* stack_argument = reinterpret_cast<char*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, stack_args.data(),
+  memcpy(stack_argument, stack_args.data(),
          stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
   CallInternal(entry);
@@ -8789,14 +8788,14 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   sreg_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
   int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments) + kCArgsSlotsSize;
+  int stack_args_size = stack_args_count * sizeof(*arguments);
   sreg_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+  memcpy(stack_argument, arguments + reg_arg_count,
          stack_args_count * sizeof(*arguments));
   set_register(sp, entry_stack);
   CallInternal(entry);
