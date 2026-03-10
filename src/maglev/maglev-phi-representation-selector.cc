@@ -1227,6 +1227,13 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       break;
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+      // EnsurePhiTagged below inserts a node which can change HeapNumbers to
+      // Smis.
+      if (NodeTypeCanBe(expected_type, NodeType::kHeapNumber) &&
+          !phi->uses_require_heap_object()) {
+        expected_type = UnionType(expected_type, NodeType::kSmi);
+        node->set_expected_type(expected_type);
+      }
       break;
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kRawPtr:
