@@ -1583,6 +1583,7 @@ class WasmLiftoffSetupFrame : public TypedFrame {
 
   FullObjectSlot wasm_instance_data_slot() const;
 
+  Address CallingPC() const;
   int GetDeclaredFunctionIndex() const;
 
   wasm::NativeModule* GetNativeModule() const;
