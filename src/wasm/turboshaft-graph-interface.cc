@@ -4088,6 +4088,7 @@ class TurboshaftGraphBuildingInterface
         {wanted_tag, cont, arg_buffer,
          __ WordPtrConstant(reinterpret_cast<uintptr_t>(csig))},
         CheckForException::kCatchInThisFrame);
+    instance_cache_.ReloadCachedMemory();
 
     // Unpack tag returns.
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
