@@ -1615,17 +1615,9 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
-        *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
-          // Receiver and closure values have to be materialized, even if
-          // they don't otherwise escape.
-          if (reg == interpreter::Register::receiver()) {
-            AddMaterializedDeoptUse(node);
-          } else {
-            AddDeoptUse(node);
-          }
-        });
-    AddMaterializedDeoptUse(
-        latest_checkpointed_frame_->as_interpreted().closure());
+        *compilation_unit_,
+        [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
+    AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
     EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
@@ -1768,6 +1760,13 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   if (entry_stack_check_frame_) return entry_stack_check_frame_;
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK(!is_inline());
+
+  // Neither closure nor receiver should be an InlinedAllocation at the entry
+  // stack check. See AddMaterializedDeoptUse for context.
+  DCHECK(!GetClosure()->Is<InlinedAllocation>());
+  DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
+              ->Is<InlinedAllocation>());
+
   entry_stack_check_frame_ = zone()->New<InterpretedDeoptFrame>(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
@@ -1779,16 +1778,9 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       nullptr);
 
   entry_stack_check_frame_->frame_state()->ForEachValue(
-      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
-        // Receiver and closure values have to be materialized, even if
-        // they don't otherwise escape.
-        if (reg == interpreter::Register::receiver()) {
-          AddMaterializedDeoptUse(node);
-        } else {
-          AddDeoptUse(node);
-        }
-      });
-  AddMaterializedDeoptUse(entry_stack_check_frame_->closure());
+      *compilation_unit_,
+      [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
+  AddDeoptUse(entry_stack_check_frame_->closure());
   return entry_stack_check_frame_;
 }
 
