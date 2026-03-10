@@ -234,7 +234,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .DefineNamedOwnProperty(reg, name, define_named_own_slot.ToInt())
       .DefineKeyedOwnProperty(reg, reg, DefineKeyedOwnPropertyFlag::kNoFlags,
                               define_named_own_slot.ToInt())
-      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt())
+      .GetPrivateField(reg, 0, 0, reg, 0)
+      .SetPrivateField(reg, 0, 0, reg, 0);
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());

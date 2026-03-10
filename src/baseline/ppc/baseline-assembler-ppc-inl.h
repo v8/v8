@@ -519,13 +519,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
                                              uint32_t depth,
-                                             CompressionMode compression_mode) {
+                                             CompressionMode compression_mode,
+                                             Register output) {
   ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
   }
-  LoadTaggedField(kInterpreterAccumulatorRegister, context,
-                  Context::OffsetOfElementAt(index));
+  LoadTaggedField(output, context, Context::OffsetOfElementAt(index));
 }
 
 void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,

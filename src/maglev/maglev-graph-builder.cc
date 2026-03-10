@@ -3145,7 +3145,6 @@ ReduceResult MaglevGraphBuilder::VisitLdaConstant() {
   SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
   return ReduceResult::Done();
 }
-
 MaybeReduceResult
 MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     ValueNode* context, int slot_index, VariableMode mode,
@@ -7775,6 +7774,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
   for (size_t i = 0; i < depth; i++) {
     GET_VALUE(context, LoadAndCacheContextSlot(context, Context::PREVIOUS_INDEX,
                                                ContextMode::kNoContextCells));
+
     EnsureType(context, NodeType::kContext);
 
     // The internal consistency of the bytecode guarantees that we cannot end up
@@ -7866,6 +7866,119 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
 
   // Create a generic store in the fallthrough.
   return build_generic_access();
+}
+
+ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
+  ValueNode* current_context = LoadRegister(0);
+  int slot_index = iterator_.GetContextSlotOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  ValueNode* context = GetContextAtDepth(current_context, depth);
+  VariableMode mode;
+  MaybeAssignedFlag assigned =
+      GetContextMaybeAssigned(context, slot_index, &mode);
+  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
+      context, slot_index, mode, assigned);
+  if (!name.HasValue()) {
+    name = LoadAndCacheContextSlot(context, slot_index,
+                                   ContextMode::kNoContextCells);
+  }
+
+  ValueNode* object = LoadRegister(3);
+  FeedbackSlot slot = GetSlotOperand(4);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, std::nullopt);
+
+  auto build_generic_access = [this, object, name, &feedback_source]() {
+    ValueNode* current_context = GetContext();
+    return AddNewNode<GetKeyedGeneric>({current_context, object, name.value()},
+                                       feedback_source);
+  };
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          name.value(),
+          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      compiler::NameRef name_ref = processed_feedback.AsNamedAccess().name();
+      MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name_ref);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+      result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kLoad, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+    default:
+      break;
+  }
+
+  return SetAccumulator(build_generic_access());
+}
+
+ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
+  ValueNode* current_context = LoadRegister(0);
+  int slot_index = iterator_.GetContextSlotOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  ValueNode* context = GetContextAtDepth(current_context, depth);
+  VariableMode mode;
+  MaybeAssignedFlag assigned =
+      GetContextMaybeAssigned(context, slot_index, &mode);
+  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
+      context, slot_index, mode, assigned);
+  if (!name.HasValue()) {
+    name = LoadAndCacheContextSlot(context, slot_index,
+                                   ContextMode::kNoContextCells);
+  }
+
+  ValueNode* object = LoadRegister(3);
+  ValueNode* value = GetAccumulator();
+  FeedbackSlot slot = GetSlotOperand(4);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kStore, std::nullopt);
+
+  auto build_generic_access = [this, object, name, value, &feedback_source]() {
+    ValueNode* current_context = GetContext();
+    return AddNewNode<SetKeyedGeneric>(
+        {current_context, object, name.value(), value}, feedback_source);
+  };
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          name.value(),
+          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      MaybeReduceResult result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kStore, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+    default:
+      break;
+  }
+
+  return SetAccumulator(build_generic_access());
 }
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {

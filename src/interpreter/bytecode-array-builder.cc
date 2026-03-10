@@ -942,6 +942,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadEnumeratedKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetPrivateField(Register context,
+                                                            int slot_index,
+                                                            int depth,
+                                                            Register object,
+                                                            int feedback_slot) {
+  OutputGetPrivateField(context, slot_index, depth, object, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrivateField(Register context,
+                                                            int slot_index,
+                                                            int depth,
+                                                            Register object,
+                                                            int feedback_slot) {
+  OutputSetPrivateField(context, slot_index, depth, object, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = IteratorSymbolConstantPoolEntry();

@@ -4083,6 +4083,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_WEAK_IMPLICATION(experimental_fuzzing, proto_assign_seq_lazy_func_opt)
 DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    private_field_bytecodes,
+    "Use specialized bytecodes for Get/Set Private Fields")
+
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif

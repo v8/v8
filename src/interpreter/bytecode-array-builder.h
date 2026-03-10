@@ -153,6 +153,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                                     Register cache_type,
                                                     int feedback_slot);
 
+  BytecodeArrayBuilder& GetPrivateField(Register context, int slot_index,
+                                        int depth, Register object,
+                                        int feedback_slot);
+  BytecodeArrayBuilder& SetPrivateField(Register context, int slot_index,
+                                        int depth, Register object,
+                                        int feedback_slot);
+
   // Named load property of the @@iterator symbol.
   BytecodeArrayBuilder& LoadIteratorProperty(Register object,
                                              int feedback_slot);

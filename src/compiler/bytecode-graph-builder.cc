@@ -2206,6 +2206,84 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitGetPrivateField() {
+  PrepareEagerCheckpoint();
+  const Operator* lda = javascript()->LoadContextNoCell(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetContextSlotOperand(1), true);
+  Node* key = NewNode(lda);
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  NodeProperties::ReplaceContextInput(key, context);
+
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+
+  FeedbackSource feedback = CreateFeedbackSourceForOperand(4);
+  const Operator* op = javascript()->LoadProperty(feedback);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedLoadKeyed(op, object, key, feedback.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    static_assert(JSLoadPropertyNode::ObjectIndex() == 0);
+    static_assert(JSLoadPropertyNode::KeyIndex() == 1);
+    static_assert(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+
+    node = NewNode(op, object, key, feedback_vector_node());
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitSetPrivateField() {
+  PrepareEagerCheckpoint();
+
+  Node* value = environment()->LookupAccumulator();
+
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  const Operator* lda = javascript()->LoadContextNoCell(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetContextSlotOperand(1), true);
+  Node* key = NewNode(lda);
+
+  NodeProperties::ReplaceContextInput(key, context);
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+
+  FeedbackSource source = CreateFeedbackSourceForOperand(4);
+  LanguageMode language_mode =
+      GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
+  const Operator* op = javascript()->SetKeyedProperty(language_mode, source);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    static_assert(JSSetKeyedPropertyNode::ObjectIndex() == 0);
+    static_assert(JSSetKeyedPropertyNode::KeyIndex() == 1);
+    static_assert(JSSetKeyedPropertyNode::ValueIndex() == 2);
+    static_assert(JSSetKeyedPropertyNode::FeedbackVectorIndex() == 3);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+
+    node = NewNode(op, object, key, value, feedback_vector_node());
+  }
+
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitSetPrototypeProperties() {
   // VisitSetPrototypeProperties <name_index>
   Node* acc = environment()->LookupAccumulator();

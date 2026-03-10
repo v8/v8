@@ -460,14 +460,14 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
                                              uint32_t depth,
-                                             CompressionMode compression_mode) {
+                                             CompressionMode compression_mode,
+                                             Register output) {
   // [context] is coming from interpreter frame so it is already decompressed
   // when pointer compression is enabled. In order to make use of complex
   // addressing mode, any intermediate context pointer is loaded in compressed
   // form.
   if (depth == 0) {
-    LoadTaggedField(kInterpreterAccumulatorRegister, context,
-                    Context::OffsetOfElementAt(index));
+    LoadTaggedField(output, context, Context::OffsetOfElementAt(index));
   } else {
     TaggedRegister tagged(context);
     LoadTaggedField(tagged, context, Context::kPreviousOffset);
@@ -475,8 +475,8 @@ void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
     for (; depth > 0; --depth) {
       LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
-    LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
-                    Context::OffsetOfElementAt(index));
+    LoadTaggedField(output, tagged, Context::OffsetOfElementAt(index));
+
     if (COMPRESS_POINTERS_BOOL &&
         compression_mode == CompressionMode::kForceDecompression) {
       __ addq(tagged.reg(), kPtrComprCageBaseRegister);

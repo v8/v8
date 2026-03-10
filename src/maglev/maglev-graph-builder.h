@@ -423,6 +423,7 @@ class MaglevGraphBuilder {
 
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
+
   MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int index, VariableMode mode,
       MaybeAssignedFlag assigned);

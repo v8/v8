@@ -1115,6 +1115,35 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StaModuleVariable(scratch, value, cell_index, depth);
 }
 
+void BaselineCompiler::VisitGetPrivateField() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  LoadRegister(context, 0);
+
+  __ LdaContextSlotNoCell(context, ContextSlot(1), Uint(2));
+
+  CallBuiltin<Builtin::kKeyedLoadICBaseline>(
+      RegisterOperand(3),               // object
+      kInterpreterAccumulatorRegister,  // name
+      FeedbackSlotAsTagged(4));         // slot
+}
+
+void BaselineCompiler::VisitSetPrivateField() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  LoadRegister(context, 0);
+
+  Register reg(context);
+  __ LdaContextSlotNoCell(context, ContextSlot(1), Uint(2),
+                          BaselineAssembler::CompressionMode::kDefault, reg);
+
+  CallBuiltin<Builtin::kKeyedStoreICBaseline>(
+      RegisterOperand(3),               // object
+      reg,                              // symbol
+      kInterpreterAccumulatorRegister,  // value
+      FeedbackSlotAsTagged(4));         // slot
+}
+
 void BaselineCompiler::VisitSetPrototypeProperties() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register feedback_array = scratch_scope.AcquireScratch();
