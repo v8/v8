@@ -286,9 +286,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
-  GetCreationContext();
+  GetCreationContext() const;
   V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
-      Isolate* isolate);
+      Isolate* isolate) const;
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -1185,7 +1185,7 @@ class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
-  V8_EXPORT_PRIVATE bool IsDetached();
+  inline bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 

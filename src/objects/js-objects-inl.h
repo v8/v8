@@ -983,7 +983,7 @@ void JSObject::EnsureWritableFastElements(Isolate* isolate,
   }
 }
 
-std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
+std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() const {
   DisallowGarbageCollection no_gc;
   Tagged<Map> meta_map = map()->map();
   DCHECK(IsMapMap(meta_map));
@@ -994,7 +994,7 @@ std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
 }
 
 MaybeDirectHandle<NativeContext> JSReceiver::GetCreationContext(
-    Isolate* isolate) {
+    Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
   std::optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
   if (!maybe_context.has_value()) return {};
@@ -1079,6 +1079,14 @@ bool JSGlobalObject::IsDetached() {
 
 bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {
   return map()->prototype() != global;
+}
+
+bool JSGlobalProxy::IsDetached() const {
+  // Currently we expect a non-detached global proxy to have a non-null
+  // hidden prototype.
+  bool is_detached = IsNull(map()->prototype());
+  DCHECK_IMPLIES(is_detached, !GetCreationContext().has_value());
+  return is_detached;
 }
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {

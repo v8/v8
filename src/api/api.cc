@@ -7386,12 +7386,12 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     return true;
   }
   if (i::IsJSGlobalProxy(*obj)) {
+    auto jsobj = Cast<i::JSGlobalProxy>(*obj);
+    if (jsobj->IsDetached()) return false;
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
-    auto jsobj = i::Cast<i::JSObject>(*obj);
     i::PrototypeIterator iter(i::Isolate::Current(), jsobj->map());
-    // The global proxy should always have a prototype, as it is a bug to call
-    // this on a detached JSGlobalProxy.
+    // Non-detached global proxy should always have a prototype.
     DCHECK(!iter.IsAtEnd());
     return self->IsTemplateFor(iter.GetCurrent<i::JSObject>());
   }

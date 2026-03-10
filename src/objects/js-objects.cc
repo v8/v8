@@ -5787,8 +5787,6 @@ Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwap(
       });
 }
 
-bool JSGlobalProxy::IsDetached() { return !GetCreationContext().has_value(); }
-
 void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
                                             DirectHandle<Name> name) {
   Isolate* isolate = Isolate::Current();
