@@ -2670,6 +2670,10 @@ class WasmDecoder : public Decoder {
           case kExprI64UConvertSatF32:
           case kExprI64SConvertSatF64:
           case kExprI64UConvertSatF64:
+          case kExprI64Add128:
+          case kExprI64Sub128:
+          case kExprI64MulWideS:
+          case kExprI64MulWideU:
             return length;
           case kExprMemoryInit: {
             MemoryInitImmediate imm(decoder, pc + length, validate);
@@ -7770,6 +7774,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         return DecodeStoreMem(StoreType::kF32StoreF16, 2);
+      }
+      case kExprI64Add128:
+      case kExprI64Sub128:
+      case kExprI64MulWideS:
+      case kExprI64MulWideU: {
+        CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
+        // TODO(491766259): Implement wide arithmetic opcodes.
+        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
+        return 0;
       }
       default:
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);

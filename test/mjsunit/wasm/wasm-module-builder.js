@@ -663,6 +663,10 @@ let kExprTableCopy = 0x0e;
 let kExprTableGrow = 0x0f;
 let kExprTableSize = 0x10;
 let kExprTableFill = 0x11;
+let kExprI64Add128 = 0x13;
+let kExprI64Sub128 = 0x14;
+let kExprI64MulWideS = 0x15;
+let kExprI64MulWideU = 0x16;
 
 // Atomic opcodes.
 let kExprAtomicNotify = 0x00;
