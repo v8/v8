@@ -833,7 +833,7 @@ namespace {
 void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
                        Tagged<HeapObject> maybe_buffer,
                        std::shared_ptr<BackingStore> backing_store,
-                       int memory_index) {
+                       uint32_t memory_index) {
   DisallowHeapAllocation no_gc;
   const WasmModule* module = trusted_instance_data->module();
   const wasm::WasmMemory& memory = module->memories[memory_index];
@@ -994,7 +994,7 @@ void WasmMemoryObject::UseInInstance(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-    int memory_index_in_instance) {
+    uint32_t memory_index_in_instance) {
   SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
                     memory->backing_store(), memory_index_in_instance);
   if (!shared_trusted_instance_data.is_null()) {
@@ -1641,7 +1641,8 @@ constexpr decltype(WasmTrustedInstanceData::kProtectedFieldOffsets)
 constexpr decltype(WasmTrustedInstanceData::kProtectedFieldNames)
     WasmTrustedInstanceData::kProtectedFieldNames;
 
-void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
+void WasmTrustedInstanceData::SetRawMemory(uint32_t memory_index,
+                                           uint8_t* mem_start,
                                            size_t mem_size) {
   CHECK_LT(memory_index, module()->memories.size());
 
@@ -1702,7 +1703,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   AllocationType trusted_allocation =
       shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted;
 
-  int num_imported_functions = module->num_imported_functions;
+  uint32_t num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports =
       isolate->factory()->NewWasmDispatchTableForImports(num_imported_functions,
                                                          shared);
@@ -1711,9 +1712,9 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
   DirectHandle<FixedArray> func_refs =
       isolate->factory()->NewFixedArrayWithZeroes(
-          static_cast<int>(module->functions.size()), allocation);
+          static_cast<uint32_t>(module->functions.size()), allocation);
 
-  int num_imported_mutable_globals = module->num_imported_mutable_globals;
+  uint32_t num_imported_mutable_globals = module->num_imported_mutable_globals;
   DirectHandle<FixedArray> imported_mutable_globals_buffers =
       FixedArray::New(isolate, num_imported_mutable_globals, allocation);
   DirectHandle<FixedUInt32Array> imported_mutable_globals_offsets =
@@ -1729,7 +1730,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 #endif  // V8_ENABLE_DRUMBRAKE
 
   static_assert(wasm::kV8MaxWasmMemories < kMaxInt / 2);
-  int num_memories = static_cast<int>(module->memories.size());
+  uint32_t num_memories = static_cast<uint32_t>(module->memories.size());
   DirectHandle<FixedArray> memory_objects =
       isolate->factory()->NewFixedArray(num_memories, allocation);
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
@@ -1802,7 +1803,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     trusted_data->set_memory_objects(*memory_objects);
     trusted_data->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
-    for (int i = 0; i < num_memories; ++i) {
+    for (uint32_t i = 0; i < num_memories; ++i) {
       memory_bases_and_sizes->set(
           2 * i, reinterpret_cast<Address>(empty_backing_store_buffer));
       memory_bases_and_sizes->set(2 * i + 1, 0);

@@ -4,6 +4,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
@@ -132,8 +133,10 @@ constexpr base::uc32 MaskEndOfRangeMarker(base::uc32 c) {
   return c & 0xffff;
 }
 
-int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
-  const int ranges_length = ranges->length();
+uint32_t RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
+  const int int_ranges_length = ranges->length();
+  DCHECK_GT(int_ranges_length, 0);
+  const uint32_t ranges_length = static_cast<uint32_t>(int_ranges_length);
   return MaskEndOfRangeMarker(ranges->at(ranges_length - 1).to()) == kMaxUInt16
              ? ranges_length * 2 - 1
              : ranges_length * 2;
@@ -141,12 +144,16 @@ int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
 
 bool Equals(const ZoneList<CharacterRange>* lhs,
             const DirectHandle<FixedUInt16Array>& rhs) {
-  const int rhs_length = rhs->length();
+  const uint32_t rhs_length = rhs->length().value();
   if (rhs_length != RangeArrayLengthFor(lhs)) return false;
-  for (int i = 0; i < lhs->length(); i++) {
+  const int lhs_length = lhs->length();
+  DCHECK_GE(lhs_length, 0);
+  for (uint32_t i = 0; i < static_cast<uint32_t>(lhs_length); i++) {
     const CharacterRange& r = lhs->at(i);
+    DCHECK_LE(i, kMaxUInt32 / 2);
     if (rhs->get(i * 2 + 0) != r.from()) return false;
     if (i * 2 + 1 == rhs_length) break;
+    DCHECK_LE(i, (kMaxUInt32 - 1) / 2);
     if (rhs->get(i * 2 + 1) != r.to() + 1) return false;
   }
   return true;
@@ -154,13 +161,15 @@ bool Equals(const ZoneList<CharacterRange>* lhs,
 
 Handle<FixedUInt16Array> MakeRangeArray(
     Isolate* isolate, const ZoneList<CharacterRange>* ranges) {
-  const int ranges_length = ranges->length();
-  const int range_array_length = RangeArrayLengthFor(ranges);
+  const uint32_t ranges_length = static_cast<uint32_t>(ranges->length());
+  DCHECK_LE(ranges_length, kMaxInt);
+  const uint32_t range_array_length = RangeArrayLengthFor(ranges);
   Handle<FixedUInt16Array> range_array =
       FixedUInt16Array::New(isolate, range_array_length);
-  for (int i = 0; i < ranges_length; i++) {
+  for (uint32_t i = 0; i < ranges_length; i++) {
     const CharacterRange& r = ranges->at(i);
     DCHECK_LE(r.from(), kMaxUInt16);
+    DCHECK_LE(i, kMaxUInt32 / 2);
     range_array->set(i * 2 + 0, r.from());
     const base::uc32 to = MaskEndOfRangeMarker(r.to());
     if (i == ranges_length - 1 && to == kMaxUInt16) {
@@ -168,6 +177,7 @@ Handle<FixedUInt16Array> MakeRangeArray(
       break;  // Avoid overflow by leaving the last range open-ended.
     }
     DCHECK_LT(to, kMaxUInt16);
+    DCHECK_LE(i, (kMaxUInt32 - 1) / 2);
     range_array->set(i * 2 + 1, to + 1);  // Exclusive.
   }
   return range_array;
@@ -199,20 +209,21 @@ uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
 
   Tagged<FixedUInt16Array> ranges =
       Cast<FixedUInt16Array>(Tagged<Object>(raw_byte_array));
-  DCHECK_GE(ranges->length(), 1);
+  const uint32_t ranges_len = ranges->length().value();
+  DCHECK_GE(ranges_len, 1);
 
   // Shortcut for fully out of range chars.
   if (current_char < ranges->get(0)) return kFalse;
-  if (current_char >= ranges->get(ranges->length() - 1)) {
+  if (current_char >= ranges->get(ranges_len - 1)) {
     // The last range may be open-ended.
-    return (ranges->length() % 2) == 0 ? kFalse : kTrue;
+    return (ranges_len % 2) == 0 ? kFalse : kTrue;
   }
 
   // Binary search for the matching range. `ranges` is encoded as
   // [from0, to0, from1, to1, ..., fromN, toN], or
   // [from0, to0, from1, to1, ..., fromN] (open-ended last interval).
-
-  int mid, lower = 0, upper = ranges->length();
+  DCHECK_LE(ranges_len, kMaxInt);
+  int mid, lower = 0, upper = static_cast<int>(ranges_len);
   do {
     mid = lower + (upper - lower) / 2;
     const base::uc16 elem = ranges->get(mid);

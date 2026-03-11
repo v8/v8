@@ -992,11 +992,12 @@ DirectHandle<TrustedPodArray<InliningPosition>> CreateInliningPositions(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   const OptimizedCompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
+  const uint32_t inlined_functions_len =
+      static_cast<uint32_t>(inlined_functions.size());
   DirectHandle<TrustedPodArray<InliningPosition>> inl_positions =
-      TrustedPodArray<InliningPosition>::New(
-          isolate, static_cast<int>(inlined_functions.size()));
-  for (size_t i = 0; i < inlined_functions.size(); ++i) {
-    inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
+      TrustedPodArray<InliningPosition>::New(isolate, inlined_functions_len);
+  for (uint32_t i = 0; i < inlined_functions_len; ++i) {
+    inl_positions->set(i, inlined_functions[i].position);
   }
   return inl_positions;
 }

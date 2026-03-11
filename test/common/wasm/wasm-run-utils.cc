@@ -374,9 +374,9 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
 
 uint32_t TestingModuleBuilder::AddPassiveDataSegment(
     base::Vector<const uint8_t> bytes) {
-  int index = static_cast<int>(module_->data_segments.size());
+  uint32_t index = static_cast<uint32_t>(module_->data_segments.size());
   DCHECK_EQ(index, module_->data_segments.size());
-  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length());
+  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length().value());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -389,7 +389,7 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 
   DirectHandle<TrustedPodArray<WireBytesRef>> new_data_segments =
       TrustedPodArray<WireBytesRef>::New(isolate_, index + 1);
-  for (int i = 0; i < index; ++i) {
+  for (uint32_t i = 0; i < index; ++i) {
     new_data_segments->set(i, trusted_instance_data_->data_segments()->get(i));
   }
 

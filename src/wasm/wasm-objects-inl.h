@@ -289,14 +289,14 @@ Tagged<WasmMemoryObject> WasmTrustedInstanceData::memory_object(
   return Cast<WasmMemoryObject>(memory_objects()->get(memory_index));
 }
 
-uint8_t* WasmTrustedInstanceData::memory_base(int memory_index) const {
+uint8_t* WasmTrustedInstanceData::memory_base(uint32_t memory_index) const {
   DCHECK_EQ(memory0_start(),
             reinterpret_cast<uint8_t*>(memory_bases_and_sizes()->get(0)));
   return reinterpret_cast<uint8_t*>(
       memory_bases_and_sizes()->get(2 * memory_index));
 }
 
-size_t WasmTrustedInstanceData::memory_size(int memory_index) const {
+size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
   DCHECK_EQ(memory0_size(), memory_bases_and_sizes()->get(1));
   return memory_bases_and_sizes()->get(2 * memory_index + 1);
 }

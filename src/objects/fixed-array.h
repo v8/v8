@@ -911,23 +911,22 @@ class FixedIntegerArrayBase : public Base {
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
   template <typename... MoreArgs>
   static Handle<FixedIntegerArrayBase<T, Base>> New(Isolate* isolate,
-                                                    int length,
+                                                    uint32_t length,
                                                     MoreArgs&&... more_args);
 
   // Get/set the contents of this array.
-  T get(int index) const;
-  void set(int index, T value);
+  T get(uint32_t index) const;
+  void set(uint32_t index, T value);
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
     return sizeof(typename Base::Header) + index * sizeof(T);
   }
 
-  // TODO(375937549): Convert to uint32_t.
-  inline int length() const;
+  inline SafeHeapObjectSize length() const;
 
  protected:
-  Address get_element_address(int index) const;
+  Address get_element_address(uint32_t index) const;
 } V8_OBJECT_END;
 
 using FixedInt8Array = FixedIntegerArrayBase<int8_t, ByteArray>;
@@ -948,43 +947,46 @@ class TrustedFixedAddressArray
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
   template <typename... MoreArgs>
   static inline DirectHandle<TrustedFixedAddressArray> New(
-      Isolate* isolate, int length, MoreArgs&&... more_args);
+      Isolate* isolate, uint32_t length, MoreArgs&&... more_args);
 } V8_OBJECT_END;
 
 V8_OBJECT
 template <class T, class Super>
 class PodArrayBase : public Super {
  public:
-  void copy_out(int index, T* result, int length) {
+  void copy_out(uint32_t index, T* result, uint32_t length) {
     MemCopy(result, &this->values()[index * sizeof(T)], length * sizeof(T));
   }
 
-  void copy_in(int index, const T* buffer, int length) {
+  void copy_in(uint32_t index, const T* buffer, uint32_t length) {
     MemCopy(&this->values()[index * sizeof(T)], buffer, length * sizeof(T));
   }
 
-  bool matches(const T* buffer, int length) {
-    DCHECK_LE(length, this->length());
+  bool matches(const T* buffer, uint32_t length) {
+    DCHECK_LE(length, this->length().value());
     return memcmp(this->begin(), buffer, length * sizeof(T)) == 0;
   }
 
-  bool matches(int offset, const T* buffer, int length) {
-    DCHECK_LE(offset, this->length());
-    DCHECK_LE(offset + length, this->length());
+  bool matches(uint32_t offset, const T* buffer, uint32_t length) {
+    DCHECK_LE(offset, this->length().value());
+    DCHECK_LE(offset + length, this->length().value());
     return memcmp(this->begin() + sizeof(T) * offset, buffer,
                   length * sizeof(T)) == 0;
   }
 
-  T get(int index) {
+  T get(uint32_t index) {
+    DCHECK_LT(index, this->length().value());
     T result;
     copy_out(index, &result, 1);
     return result;
   }
 
-  void set(int index, const T& value) { copy_in(index, &value, 1); }
+  void set(uint32_t index, const T& value) {
+    DCHECK_LT(index, this->length().value());
+    copy_in(index, &value, 1);
+  }
 
-  // TODO(375937549): Convert to uint32_t.
-  inline int length() const;
+  inline SafeHeapObjectSize length() const;
 } V8_OBJECT_END;
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
@@ -994,10 +996,10 @@ template <class T>
 class PodArray : public PodArrayBase<T, ByteArray> {
  public:
   static Handle<PodArray<T>> New(
-      Isolate* isolate, int length,
+      Isolate* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
   static Handle<PodArray<T>> New(
-      LocalIsolate* isolate, int length,
+      LocalIsolate* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kOld);
 } V8_OBJECT_END;
 
@@ -1006,10 +1008,10 @@ template <class T>
 class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
  public:
   static DirectHandle<TrustedPodArray<T>> New(
-      Isolate* isolate, int length,
+      Isolate* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kTrusted);
   static DirectHandle<TrustedPodArray<T>> New(
-      LocalIsolate* isolate, int length,
+      LocalIsolate* isolate, uint32_t length,
       AllocationType allocation = AllocationType::kTrusted);
 } V8_OBJECT_END;
 

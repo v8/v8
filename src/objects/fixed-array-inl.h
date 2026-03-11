@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "src/base/numerics/checked_math.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
@@ -933,7 +934,7 @@ void TrustedByteArray::set_int(int offset, uint32_t value) {
 template <typename... MoreArgs>
 // static
 DirectHandle<TrustedFixedAddressArray> TrustedFixedAddressArray::New(
-    Isolate* isolate, int length, MoreArgs&&... more_args) {
+    Isolate* isolate, uint32_t length, MoreArgs&&... more_args) {
   return TrustedCast<TrustedFixedAddressArray>(
       Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
 }
@@ -942,60 +943,66 @@ template <typename T, typename Base>
 template <typename... MoreArgs>
 // static
 Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
-    Isolate* isolate, int length, MoreArgs&&... more_args) {
-  int byte_length;
-  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+    Isolate* isolate, uint32_t length, MoreArgs&&... more_args) {
+  uint32_t byte_length;
+  base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
+  checked_byte_length *= sizeof(T);
+  CHECK(checked_byte_length.AssignIfValid(&byte_length));
   return TrustedCast<FixedIntegerArrayBase<T, Base>>(
       Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
 }
 
 template <typename T, typename Base>
-Address FixedIntegerArrayBase<T, Base>::get_element_address(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length());
+Address FixedIntegerArrayBase<T, Base>::get_element_address(
+    uint32_t index) const {
+  DCHECK_LT(index, length().value());
   return reinterpret_cast<Address>(&this->values()[index * sizeof(T)]);
 }
 
 template <typename T, typename Base>
-T FixedIntegerArrayBase<T, Base>::get(int index) const {
+T FixedIntegerArrayBase<T, Base>::get(uint32_t index) const {
   static_assert(std::is_integral_v<T>);
   return base::ReadUnalignedValue<T>(get_element_address(index));
 }
 
 template <typename T, typename Base>
-void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
+void FixedIntegerArrayBase<T, Base>::set(uint32_t index, T value) {
   static_assert(std::is_integral_v<T>);
-  return base::WriteUnalignedValue<T>(get_element_address(index), value);
+  base::WriteUnalignedValue<T>(get_element_address(index), value);
 }
 
 template <typename T, typename Base>
-int FixedIntegerArrayBase<T, Base>::length() const {
+SafeHeapObjectSize FixedIntegerArrayBase<T, Base>::length() const {
   uint32_t len = Base::length().value();
   DCHECK_EQ(len % sizeof(T), 0);
-  return static_cast<int>(len / sizeof(T));
+  return SafeHeapObjectSize(len / sizeof(T));
 }
 
 template <class T, class Super>
-int PodArrayBase<T, Super>::length() const {
-  return static_cast<int>(Super::length().value() / sizeof(T));
+SafeHeapObjectSize PodArrayBase<T, Super>::length() const {
+  return SafeHeapObjectSize(Super::length().value() / sizeof(T));
 }
 
 // static
 template <class T>
-Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
+Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, uint32_t length,
                                      AllocationType allocation) {
-  int byte_length;
-  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  uint32_t byte_length;
+  base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
+  checked_byte_length *= sizeof(T);
+  CHECK(checked_byte_length.AssignIfValid(&byte_length));
   return Cast<PodArray<T>>(
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 // static
 template <class T>
-Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
+Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, uint32_t length,
                                      AllocationType allocation) {
-  int byte_length;
-  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  uint32_t byte_length;
+  base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
+  checked_byte_length *= sizeof(T);
+  CHECK(checked_byte_length.AssignIfValid(&byte_length));
   return Cast<PodArray<T>>(
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
@@ -1003,9 +1010,11 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 // static
 template <class T>
 DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(
-    Isolate* isolate, int length, AllocationType allocation_type) {
-  int byte_length;
-  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+    Isolate* isolate, uint32_t length, AllocationType allocation_type) {
+  uint32_t byte_length;
+  base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
+  checked_byte_length *= sizeof(T);
+  CHECK(checked_byte_length.AssignIfValid(&byte_length));
   return TrustedCast<TrustedPodArray<T>>(
       isolate->factory()->NewTrustedByteArray(byte_length, allocation_type));
 }
@@ -1013,9 +1022,11 @@ DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(
 // static
 template <class T>
 DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(
-    LocalIsolate* isolate, int length, AllocationType allocation_type) {
-  int byte_length;
-  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+    LocalIsolate* isolate, uint32_t length, AllocationType allocation_type) {
+  uint32_t byte_length;
+  base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
+  checked_byte_length *= sizeof(T);
+  CHECK(checked_byte_length.AssignIfValid(&byte_length));
   return TrustedCast<TrustedPodArray<T>>(
       isolate->factory()->NewTrustedByteArray(byte_length, allocation_type));
 }

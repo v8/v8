@@ -1468,7 +1468,9 @@ void V8FileLogger::LogSourceCodeInformation(
   if (hasInlined) {
     Tagged<TrustedPodArray<InliningPosition>> inlining_positions =
         CheckedCast<Code>(*code)->deoptimization_data()->InliningPositions();
-    for (int i = 0; i < inlining_positions->length(); i++) {
+    const uint32_t inlining_positions_len =
+        inlining_positions->length().value();
+    for (uint32_t i = 0; i < inlining_positions_len; i++) {
       InliningPosition inlining_pos = inlining_positions->get(i);
       msg << "F";
       if (inlining_pos.inlined_function_id != -1) {

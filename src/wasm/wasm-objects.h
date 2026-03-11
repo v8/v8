@@ -361,7 +361,7 @@ class WasmMemoryObject
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-      int memory_index_in_instance);
+      uint32_t memory_index_in_instance);
   inline bool has_maximum_pages();
 
   inline bool is_memory64() const;
@@ -545,8 +545,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   inline void clear_padding();
 
   inline Tagged<WasmMemoryObject> memory_object(int memory_index) const;
-  inline uint8_t* memory_base(int memory_index) const;
-  inline size_t memory_size(int memory_index) const;
+  inline uint8_t* memory_base(uint32_t memory_index) const;
+  inline size_t memory_size(uint32_t memory_index) const;
 
   inline wasm::NativeModule* native_module() const;
 
@@ -676,7 +676,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
 
-  void SetRawMemory(int memory_index, uint8_t* mem_start, size_t mem_size);
+  void SetRawMemory(uint32_t memory_index, uint8_t* mem_start, size_t mem_size);
 
 #if V8_ENABLE_DRUMBRAKE
   // Get the interpreter object associated with the given wasm object.
