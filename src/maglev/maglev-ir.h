@@ -9633,6 +9633,17 @@ class Phi : public ValueNodeT<Phi> {
     set_bitfield(bitfield() | RequiresHeapObjectFlag::encode(true));
   }
 
+  // When a Phi is used as closure/receiver input to a lazy framestate, we
+  // shouldn't untag it since it could lead to needing to rematerialize it when
+  // computing stack traces (which isn't allowed). In those cases, we call
+  // `set_cannot_be_untagged` to prevent untagging.
+  void set_cannot_be_untagged() {
+    set_bitfield(bitfield() | CannotBeUntaggedFlag::encode(true));
+  }
+  bool cannot_be_untagged() const {
+    return CannotBeUntaggedFlag::decode(bitfield());
+  }
+
   // Check if a phi has cleared the loop.
   bool is_unmerged_loop_phi() const;
 
@@ -9643,6 +9654,7 @@ class Phi : public ValueNodeT<Phi> {
   using RequiresSmiFlag = HasKeyFlag::Next<bool, 1>;
   using RequiresHeapObjectFlag = RequiresSmiFlag::Next<bool, 1>;
   using LoopPhiAfterLoopFlag = RequiresHeapObjectFlag::Next<bool, 1>;
+  using CannotBeUntaggedFlag = LoopPhiAfterLoopFlag::Next<bool, 1>;
 
   const interpreter::Register owner_;
 

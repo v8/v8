@@ -128,6 +128,11 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
+  if (node->cannot_be_untagged()) {
+    TRACE_UNTAGGING("  Skipping because node is marked as cannot be untagged");
+    return ProcessPhiResult::kNone;
+  }
+
   if (node->is_exception_phi()) {
     // Exception phis have no inputs (or, at least, none accessible through
     // `node->input(...)`), so we don't know if the inputs could be untagged or

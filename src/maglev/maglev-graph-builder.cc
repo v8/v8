@@ -1761,11 +1761,14 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK(!is_inline());
 
-  // Neither closure nor receiver should be an InlinedAllocation at the entry
-  // stack check. See AddMaterializedDeoptUse for context.
+  // Neither closure nor receiver should be an InlinedAllocation or a Phi at the
+  // entry stack check. See AddMaterializedDeoptUse for context.
   DCHECK(!GetClosure()->Is<InlinedAllocation>());
+  DCHECK(!GetClosure()->Is<Phi>());
   DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
               ->Is<InlinedAllocation>());
+  DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
+              ->Is<Phi>());
 
   entry_stack_check_frame_ = zone()->New<InterpretedDeoptFrame>(
       *compilation_unit_,
@@ -1781,6 +1784,7 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       *compilation_unit_,
       [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
   AddDeoptUse(entry_stack_check_frame_->closure());
+
   return entry_stack_check_frame_;
 }
 
@@ -18398,6 +18402,9 @@ void MaglevGraphBuilder::AddMaterializedDeoptUse(ValueNode* node) {
   AddDeoptUse(node);
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
     alloc->ForceEscaping();
+  }
+  if (Phi* phi = node->TryCast<Phi>()) {
+    phi->set_cannot_be_untagged();
   }
 }
 
