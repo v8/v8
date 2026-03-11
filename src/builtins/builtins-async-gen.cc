@@ -208,6 +208,39 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
   }
   BIND(&if_instrumentation_done);
 
+  // Fast-path: if outer promise hooks are disabled, and value is a fulfilled
+  // JSPromise, we can skip PerformPromiseThen and directly enqueue a Fulfill
+  // reaction job.
+  Label if_perform_promise_then(this);
+  GotoIfNot(IsUndefined(var_throwaway.value()), &if_perform_promise_then);
+  {
+    TNode<JSPromise> js_promise = CAST(value);
+    TNode<Int32T> promise_flags =
+        SmiToInt32(LoadObjectField<Smi>(js_promise, JSPromise::kFlagsOffset));
+
+    TNode<Int32T> status =
+        Word32And(promise_flags, Int32Constant(JSPromise::StatusBits::kMask));
+    GotoIfNot(Word32Equal(status, Int32Constant(v8::Promise::kFulfilled)),
+              &if_perform_promise_then);
+
+    // Mark the promise as handled.
+    TNode<Int32T> new_flags =
+        Word32Or(promise_flags, Int32Constant(JSPromise::HasHandlerBit::kMask));
+    StoreObjectFieldNoWriteBarrier(js_promise, JSPromise::kFlagsOffset,
+                                   SmiFromInt32(new_flags));
+
+    // Extract the fulfilled value.
+    TNode<Object> fulfilled_value =
+        LoadObjectField(js_promise, JSPromise::kReactionsOrResultOffset);
+
+    // Enqueue the reaction job natively.
+    CallBuiltin(Builtin::kAsyncAwaitNonThenableFastPath, native_context,
+                fulfilled_value, on_resolve, UndefinedConstant());
+    var_result = UndefinedConstant();
+    Goto(&done);
+  }
+
+  BIND(&if_perform_promise_then);
   var_result = CallBuiltin(Builtin::kPerformPromiseThen, native_context, value,
                            on_resolve, on_reject, var_throwaway.value());
   Goto(&done);
