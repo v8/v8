@@ -482,6 +482,7 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
     const TNode<Object> obj, Label* if_cannot_be_held_weakly) {
   Label check_symbol_key(this);
   Label end(this);
+  Label check_not_in_shared_space(this);
   GotoIf(TaggedIsSmi(obj), if_cannot_be_held_weakly);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), &check_symbol_key);
@@ -490,13 +491,24 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   // collection keys.
   GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(instance_type),
          if_cannot_be_held_weakly);
+#if V8_ENABLE_WEBASSEMBLY
+  GotoIf(IsWasmObjectInstanceType(instance_type), &check_not_in_shared_space);
+#endif
   Goto(&end);
+
+#if V8_ENABLE_WEBASSEMBLY
+  Bind(&check_not_in_shared_space);
+  Branch(IsPageFlagSet(BitcastTaggedToWord(obj),
+                       MemoryChunk::IN_WRITABLE_SHARED_SPACE),
+         if_cannot_be_held_weakly, &end);
+#endif
+
   Bind(&check_symbol_key);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
-  GotoIf(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
-         if_cannot_be_held_weakly);
-  Goto(&end);
+  Branch(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
+         if_cannot_be_held_weakly, &end);
+
   Bind(&end);
 }
 

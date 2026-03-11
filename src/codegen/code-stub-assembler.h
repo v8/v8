@@ -2897,6 +2897,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSAsyncGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsFunctionInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionInstanceType(TNode<Int32T> instance_type);
+#if V8_ENABLE_WEBASSEMBLY
+  TNode<BoolT> IsWasmObjectInstanceType(TNode<Int32T> instance_type);
+#endif
   TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
   TNode<BoolT> IsJSFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(TNode<HeapObject> object);

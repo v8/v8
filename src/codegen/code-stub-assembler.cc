@@ -4098,11 +4098,8 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
 void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<IntPtrT> offset,
                                                TNode<Object> value) {
-  CSA_DCHECK(this,
-             WordNotEqual(
-                 WordAnd(LoadMemoryChunkFlags(object),
-                         IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-                 IntPtrConstant(0)));
+  CSA_DCHECK(this, IsPageFlagSet(BitcastTaggedToWord(object),
+                                 MemoryChunk::IN_WRITABLE_SHARED_SPACE));
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -8930,6 +8927,14 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
   return IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE,
                    LAST_JS_FUNCTION_TYPE);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TNode<BoolT> CodeStubAssembler::IsWasmObjectInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, FIRST_WASM_OBJECT_TYPE,
+                   LAST_WASM_OBJECT_TYPE);
+}
+#endif
 
 TNode<BoolT> CodeStubAssembler::IsJSFunction(TNode<HeapObject> object) {
   return IsJSFunctionMap(LoadMap(object));
@@ -20224,12 +20229,9 @@ void CodeStubAssembler::SharedValueBarrier(
   {
     // We skip the check for types that signal that they are shared. We do
     // ensure that they are allocated in shared space though.
-    CSA_DCHECK(
-        this,
-        WordNotEqual(
-            WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
-                    IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-            IntPtrConstant(0)));
+    CSA_DCHECK(this,
+               IsPageFlagSet(BitcastTaggedToWord(var_shared_value->value()),
+                             MemoryChunk::IN_WRITABLE_SHARED_SPACE));
     Goto(&done);
   }
 
