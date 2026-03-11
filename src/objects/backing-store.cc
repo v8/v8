@@ -904,6 +904,10 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Isolate* isolate) {
   // We call here from the stack guard at loop back edges, where we don't want
   // GC to get in the way of loop-related compiler optimizations.
+  // TODO(clemensb): This prevents us from updating the external memory via
+  // memory_object->managed_backing_store()->UpdateEstimatedSize(...). Hence we
+  // report too little memory for shared memory in other isolates. We might need
+  // a second interrupt type just for updating the external memory.
   DisallowHeapAllocation no_gc;
   SealHandleScope seal_handle_scope{isolate};
   Tagged<WeakArrayList> shared_wasm_memories =

@@ -7,8 +7,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 namespace {
 // Called by the GC in its second pass when a Managed<CppType> is
@@ -31,8 +30,21 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
 }
 }  // namespace
 
-// Called by the GC in its first pass when a Managed<CppType> is
-// garbage collected.
+void ManagedPtrDestructor::UpdateEstimatedSize(size_t new_estimated_size,
+                                               Isolate* isolate) {
+  if (estimated_size_ == new_estimated_size) return;
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  if (estimated_size_ < new_estimated_size) {
+    external_memory_accounter_.Increase(v8_isolate,
+                                        new_estimated_size - estimated_size_);
+  } else {
+    external_memory_accounter_.Decrease(v8_isolate,
+                                        estimated_size_ - new_estimated_size);
+  }
+  estimated_size_ = new_estimated_size;
+}
+
 void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data) {
   auto destructor =
       reinterpret_cast<ManagedPtrDestructor*>(data.GetParameter());
@@ -43,5 +55,4 @@ void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data) {
   data.SetSecondPassCallback(&ManagedObjectFinalizerSecondPass);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

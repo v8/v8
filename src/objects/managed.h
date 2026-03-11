@@ -78,6 +78,9 @@ struct ManagedPtrDestructor
         shared_ptr_ptr_(shared_ptr_ptr),
         destructor_(destructor),
         shared_(shared) {}
+
+  V8_EXPORT_PRIVATE void UpdateEstimatedSize(size_t new_estimated_size,
+                                             Isolate* isolate);
 };
 
 // The GC finalizer of a managed object, which does not depend on
@@ -106,18 +109,26 @@ class Managed : public Foreign {
   const Managed* operator->() const { return this; }
 
   // Get a raw pointer to the C++ object.
-  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+  V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
 
   // Get a reference to the shared pointer to the C++ object.
-  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
+  V8_INLINE const std::shared_ptr<CppType>& get() {
+    return *GetSharedPtrPtr(GetDestructor());
+  }
 
   // Read back the memory estimate that was provided when creating this Managed.
   size_t estimated_size() const { return GetDestructor()->estimated_size_; }
 
   // Set a new managed object, dropping the old reference.
-  // TODO(clemensb): Add an `UpdateEstimatedSize(size_t)` method.
-  void SetManagedObject(std::shared_ptr<CppType> new_managed) {
-    *GetSharedPtrPtr() = std::move(new_managed);
+  void SetManagedObject(std::shared_ptr<CppType> new_managed, Isolate* isolate,
+                        size_t new_estimated_size) {
+    ManagedPtrDestructor* destructor = GetDestructor();
+    *GetSharedPtrPtr(destructor) = std::move(new_managed);
+    destructor->UpdateEstimatedSize(new_estimated_size, isolate);
+  }
+
+  void UpdateEstimatedSize(Isolate* isolate, size_t new_estimated_size) {
+    GetDestructor()->UpdateEstimatedSize(new_estimated_size, isolate);
   }
 
   // Create a {Managed>} from an existing {std::shared_ptr} or {std::unique_ptr}
@@ -137,9 +148,10 @@ class Managed : public Foreign {
     return reinterpret_cast<ManagedPtrDestructor*>(foreign_address<kTag>());
   }
 
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  static std::shared_ptr<CppType>* GetSharedPtrPtr(
+      ManagedPtrDestructor* destructor) {
     return reinterpret_cast<std::shared_ptr<CppType>*>(
-        GetDestructor()->shared_ptr_ptr_);
+        destructor->shared_ptr_ptr_);
   }
 };
 

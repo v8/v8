@@ -1187,7 +1187,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
     // read-modify-write behavior required by the spec.
-    return static_cast<int32_t>(result_inplace.value());  // success
+    uint32_t result = static_cast<int32_t>(result_inplace.value());
+    memory_object->managed_backing_store()->UpdateEstimatedSize(
+        isolate, backing_store->byte_length());
+    return result;  // success
   }
 
   size_t new_pages = old_pages + pages;
@@ -1204,6 +1207,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
     memory_object->UpdateInstances(isolate);
     DCHECK_EQ(result_inplace.value(), old_pages);
+    memory_object->managed_backing_store()->UpdateEstimatedSize(
+        isolate, backing_store->byte_length());
     return static_cast<int32_t>(result_inplace.value());  // success
   }
   DCHECK(!has_old_buffer || !maybe_old_buffer->is_resizable_by_js());
@@ -1238,8 +1243,9 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   DCHECK_EQ(backing_store, memory_object->backing_store());
+  size_t new_byte_length = new_backing_store->byte_length();
   memory_object->managed_backing_store()->SetManagedObject(
-      std::move(new_backing_store));
+      std::move(new_backing_store), isolate, new_byte_length);
 
   if (has_old_buffer) {
     JSArrayBuffer::Detach(maybe_old_buffer, true).Check();

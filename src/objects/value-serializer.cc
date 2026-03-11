@@ -2499,7 +2499,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   // Link the two.
   WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
-  result->managed_backing_store()->SetManagedObject(buffer->GetBackingStore());
+  result->managed_backing_store()->SetManagedObject(
+      buffer->GetBackingStore(), isolate_, buffer->GetByteLength());
 
   return result;
 }
