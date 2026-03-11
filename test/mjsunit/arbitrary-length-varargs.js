@@ -28,7 +28,7 @@ function runNearStackLimit(f) {
     } catch (e) {
       if (count == -1) {
         // Back off
-        count = 600;
+        count = 1200;
       } else {
         throw e;
       }
@@ -37,7 +37,7 @@ function runNearStackLimit(f) {
   t();
 }
 
-const kSize = 10000;
+const kSize = 32768;
 const spread = new Array(kSize);
 spread[0] = 42;
 spread[1] = 42;
@@ -82,7 +82,7 @@ runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
   assertEquals(2, arr[kSize+1]);
 });
 
-runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
+runNearStackLimit(function TestPushWithPrecedingArgsAndSpreadAndFollowingArg() {
   const arr = [];
   arr.push(1, 2, ...spread, 11, 12);
   assertEquals(kSize + 4, arr.length);
@@ -94,7 +94,7 @@ runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
   assertEquals(12, arr[kSize+3]);
 });
 
-runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
+runNearStackLimit(function TestPushWithDoubleSpreadAndArgs() {
   const arr = [];
   arr.push(1, 2, ...spread, 11, 12, ...spread, 333);
   assertEquals(2*kSize + 5, arr.length);
@@ -116,4 +116,11 @@ runNearStackLimit(function TestPushWithSpreadAndHoles() {
   arr.push(...spread);
   assertEquals(42, arr[0]);
   assertEquals(23, arr[2]);
+});
+
+runNearStackLimit(function TestPushWithLargePrecedingArgs() {
+  const arr = [];
+  const preceding = new Array(100).fill(1);
+  arr.push(...preceding, ...spread);
+  assertEquals(100 + kSize, arr.length);
 });

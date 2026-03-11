@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -2461,8 +2462,30 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // Pop return address
+  __ pop(edx);
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  // - target
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  __ movd(edi, xmm1);  // Restore target.
+  __ push(edi);
+  // - arguments list
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  __ push(kArgumentsList);
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(ecx);
+  __ push(ecx);
+  // - return address
+  __ Push(edx);
+  // - adjust arg count
+  __ add(eax, Immediate(SuperSpreadArgs::kNumExtraArgs - 1));
+
   __ movd(esi, xmm3);  // Restore the context.
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ movd(edx, xmm0);  // Restore new.target.
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
