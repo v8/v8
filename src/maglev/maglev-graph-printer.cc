@@ -828,6 +828,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
   if (phi->uses_require_smi()) {
     os_ << "ⁱ";
   }
+  if (phi->uses_require_heap_object()) {
+    os_ << "ʰ";
+  }
   if (phi->input_count() == 0) {
     os_ << "ₑ " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
   } else {
