@@ -42,11 +42,11 @@ using SmallShuffleVector = SmallZoneVector<const Simd128ShuffleOp*, 8>;
 // shuffles that could be reduced.
 class DemandedElementAnalysis {
  public:
-  static constexpr uint16_t k8x16 = 0xFFFF;
-  static constexpr uint16_t k8x8Low = 0xFF;
-  static constexpr uint16_t k8x4Low = 0xF;
-  static constexpr uint16_t k8x2Low = 0x3;
-  static constexpr uint16_t k8x1Low = 0x1;
+  static constexpr uint16_t kAllBytes = 0xFFFF;
+  static constexpr uint16_t kLowEightBytes = 0xFF;
+  static constexpr uint16_t kLowFourBytes = 0xF;
+  static constexpr uint16_t kLowTwoBytes = 0x3;
+  static constexpr uint16_t kLowByte = 0x1;
   static constexpr int kMaxNumOperations = 150;
 
   // TODO(sparker): Add floating-point conversions:
@@ -87,8 +87,9 @@ class DemandedElementAnalysis {
 
   LaneBitSet ReduceLanes(LaneBitSet lanes);
   void AddOp(const Operation& op, LaneBitSet lanes);
-  void AddUnaryOp(const Simd128UnaryOp& unop, LaneBitSet lanes);
-  void AddBinaryOp(const Simd128BinopOp& binop, LaneBitSet lanes);
+  void AddOp(const Simd128UnaryOp& unop, LaneBitSet lanes);
+  void AddOp(const Simd128BinopOp& binop, LaneBitSet lanes);
+  void AddOp(const Simd128ExtractLaneOp& extract_op, LaneBitSet lanes);
   void RecordOp(const Operation& op, LaneBitSet lanes);
   void Revisit();
 
@@ -175,6 +176,7 @@ class WasmShuffleAnalyzer {
   void ProcessUnary(const Simd128UnaryOp& unop);
   void ProcessBinary(const Simd128BinopOp& binop);
   void ProcessReplaceLane(const Simd128ReplaceLaneOp& replace_op);
+  void ProcessExtractLane(const Simd128ExtractLaneOp& extract_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
   void ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
@@ -561,7 +563,7 @@ class WasmShuffleReducer : public Next {
     if (auto maybe_lanes = analyzer_->DemandedByteLanes(&shuffle)) {
       auto lanes = maybe_lanes.value();
       if (analyzer_->ShouldRewriteShuffleToLow(&shuffle)) {
-        DCHECK_EQ(lanes, DemandedElementAnalysis::k8x8Low);
+        DCHECK_EQ(lanes, DemandedElementAnalysis::kLowEightBytes);
         // Take the top half of the shuffle bytes and these will now write
         // those values into the low half of the result instead.
         std::copy(shuffle.shuffle + half_lanes, shuffle.shuffle + kSimd128Size,
@@ -572,19 +574,19 @@ class WasmShuffleReducer : public Next {
                   shuffle_bytes.begin());
       }
 
-      if (lanes == DemandedElementAnalysis::k8x1Low) {
+      if (lanes == DemandedElementAnalysis::kLowByte) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x1,
                                  shuffle_bytes.data());
-      } else if (lanes == DemandedElementAnalysis::k8x2Low) {
+      } else if (lanes == DemandedElementAnalysis::kLowTwoBytes) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x2,
                                  shuffle_bytes.data());
-      } else if (lanes == DemandedElementAnalysis::k8x4Low) {
+      } else if (lanes == DemandedElementAnalysis::kLowFourBytes) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x4,
                                  shuffle_bytes.data());
-      } else if (lanes == DemandedElementAnalysis::k8x8Low) {
+      } else if (lanes == DemandedElementAnalysis::kLowEightBytes) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x8,
                                  shuffle_bytes.data());

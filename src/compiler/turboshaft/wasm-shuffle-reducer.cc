@@ -21,7 +21,7 @@ DemandedElementAnalysis::LaneBitSet DemandedElementAnalysis::ReduceLanes(
   // the value to produce a mask of which bytes are required, or 'demanded'. So,
   // by shifting right by half the current count, we will mask out the top half
   // of the currently demanded lanes.
-  return lanes == k8x1Low ? lanes : lanes >>= lanes.count() / 2;
+  return lanes == kLowByte ? lanes : lanes >>= lanes.count() / 2;
 }
 
 void DemandedElementAnalysis::AddOp(const Operation& op, LaneBitSet lanes) {
@@ -37,8 +37,8 @@ void DemandedElementAnalysis::AddOp(const Operation& op, LaneBitSet lanes) {
   }
 }
 
-void DemandedElementAnalysis::AddUnaryOp(const Simd128UnaryOp& unop,
-                                         LaneBitSet lanes) {
+void DemandedElementAnalysis::AddOp(const Simd128UnaryOp& unop,
+                                    LaneBitSet lanes) {
   if (Visited(&unop)) return;
   visited_.insert(&unop);
 
@@ -48,8 +48,8 @@ void DemandedElementAnalysis::AddUnaryOp(const Simd128UnaryOp& unop,
   }
 }
 
-void DemandedElementAnalysis::AddBinaryOp(const Simd128BinopOp& binop,
-                                          LaneBitSet lanes) {
+void DemandedElementAnalysis::AddOp(const Simd128BinopOp& binop,
+                                    LaneBitSet lanes) {
   if (Visited(&binop)) return;
   visited_.insert(&binop);
 
@@ -60,11 +60,42 @@ void DemandedElementAnalysis::AddBinaryOp(const Simd128BinopOp& binop,
   }
 }
 
+void DemandedElementAnalysis::AddOp(const Simd128ExtractLaneOp& extract_op,
+                                    LaneBitSet lanes) {
+  if (Visited(&extract_op)) return;
+  visited_.insert(&extract_op);
+
+  if (extract_op.lane == 0) {
+    switch (extract_op.kind) {
+      case Simd128ExtractLaneOp::Kind::kI8x16S:
+      case Simd128ExtractLaneOp::Kind::kI8x16U:
+        lanes = kLowByte;
+        break;
+      case Simd128ExtractLaneOp::Kind::kI16x8S:
+      case Simd128ExtractLaneOp::Kind::kI16x8U:
+      case Simd128ExtractLaneOp::Kind::kF16x8:
+        lanes = kLowTwoBytes;
+        break;
+      case Simd128ExtractLaneOp::Kind::kI32x4:
+      case Simd128ExtractLaneOp::Kind::kF32x4:
+        lanes = kLowFourBytes;
+        break;
+      case Simd128ExtractLaneOp::Kind::kI64x2:
+      case Simd128ExtractLaneOp::Kind::kF64x2:
+        lanes = kLowEightBytes;
+        break;
+    }
+    AddOp(input_graph().Get(extract_op.input()), lanes);
+  }
+}
+
 void DemandedElementAnalysis::RecordOp(const Operation& op, LaneBitSet lanes) {
   if (auto* unop = op.TryCast<Simd128UnaryOp>()) {
-    AddUnaryOp(*unop, lanes);
+    AddOp(*unop, lanes);
   } else if (auto* binop = op.TryCast<Simd128BinopOp>()) {
-    AddBinaryOp(*binop, lanes);
+    AddOp(*binop, lanes);
+  } else if (auto* extract_op = op.TryCast<Simd128ExtractLaneOp>()) {
+    AddOp(*extract_op, lanes);
   } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
     if (demanded_elements_.size() < kMaxNumOperations) {
       demanded_elements_.emplace_back(shuffle, lanes);
@@ -223,14 +254,19 @@ void WasmShuffleAnalyzer::Process(const Operation& op) {
     ProcessReplaceLane(*replace_op);
     return;
   }
+
+  if (auto* extract_op = op.TryCast<Simd128ExtractLaneOp>()) {
+    ProcessExtractLane(*extract_op);
+    return;
+  }
 }
 
 void WasmShuffleAnalyzer::ProcessUnary(const Simd128UnaryOp& unop) {
-  demanded_element_analysis.AddUnaryOp(unop, DemandedElementAnalysis::k8x16);
+  demanded_element_analysis.AddOp(unop, DemandedElementAnalysis::kAllBytes);
 }
 
 void WasmShuffleAnalyzer::ProcessBinary(const Simd128BinopOp& binop) {
-  demanded_element_analysis.AddBinaryOp(binop, DemandedElementAnalysis::k8x16);
+  demanded_element_analysis.AddOp(binop, DemandedElementAnalysis::kAllBytes);
 }
 
 void WasmShuffleAnalyzer::ProcessReplaceLane(
@@ -248,6 +284,12 @@ void WasmShuffleAnalyzer::ProcessReplaceLane(
       AddLoadLaneCandidate(load, replace_op);
     }
   }
+}
+
+void WasmShuffleAnalyzer::ProcessExtractLane(
+    const Simd128ExtractLaneOp& extract_op) {
+  demanded_element_analysis.AddOp(extract_op,
+                                  DemandedElementAnalysis::kAllBytes);
 }
 
 void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
@@ -338,30 +380,30 @@ void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
     if (view.all_low_half(lower_limit + kSimd128HalfSize, upper_limit)) {
       // The low half of the result shuffle is sourced only from the high half
       // of the input shuffle_op.
-      demanded_element_analysis.RecordOp(shuffle_in,
-                                         DemandedElementAnalysis::k8x8Low);
+      demanded_element_analysis.RecordOp(
+          shuffle_in, DemandedElementAnalysis::kLowEightBytes);
       shift_shuffles_.push_back(&shuffle_in);
       low_half_shuffles_.push_back(&shuffle_out);
     } else if (view.all_low_half(lower_limit, upper_limit - kSimd128HalfSize)) {
       // The low half of the result shuffle is sourced only from the low half
       // of the input shuffle.
-      demanded_element_analysis.RecordOp(shuffle_in,
-                                         DemandedElementAnalysis::k8x8Low);
+      demanded_element_analysis.RecordOp(
+          shuffle_in, DemandedElementAnalysis::kLowEightBytes);
     }
   } else if (view.shuffle_into_high_half(lower_limit, upper_limit)) {
     if (view.all_high_half(lower_limit + kSimd128HalfSize, upper_limit)) {
       // The high half of the result shuffle is sourced only from the high half
       // of input shuffle.
-      demanded_element_analysis.RecordOp(shuffle_in,
-                                         DemandedElementAnalysis::k8x8Low);
+      demanded_element_analysis.RecordOp(
+          shuffle_in, DemandedElementAnalysis::kLowEightBytes);
       shift_shuffles_.push_back(&shuffle_in);
       high_half_shuffles_.push_back(&shuffle_out);
     } else if (view.all_high_half(lower_limit,
                                   upper_limit - kSimd128HalfSize)) {
       // The high half of the result shuffle is sourced only from the low half
       // of input shuffle.
-      demanded_element_analysis.RecordOp(shuffle_in,
-                                         DemandedElementAnalysis::k8x8Low);
+      demanded_element_analysis.RecordOp(
+          shuffle_in, DemandedElementAnalysis::kLowEightBytes);
     }
   }
 }

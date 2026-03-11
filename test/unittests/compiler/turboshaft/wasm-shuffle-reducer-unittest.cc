@@ -479,6 +479,78 @@ TEST_F(ReducerTest, MultipleChained) {
   test.Run<WasmShuffleReducer>();
 }
 
+TEST_F(ReducerTest, ExtractLaneNarrowsShuffle) {
+  using ExtractCase =
+      std::tuple<Simd128ExtractLaneOp::Kind, Simd128ShuffleOp::Kind, uint8_t>;
+  std::array test_list = std::to_array<ExtractCase>({
+      {Simd128ExtractLaneOp::Kind::kI8x16S, Simd128ShuffleOp::Kind::kI8x1, 0x1},
+      {Simd128ExtractLaneOp::Kind::kI16x8U, Simd128ShuffleOp::Kind::kI8x2, 0x3},
+      {Simd128ExtractLaneOp::Kind::kI32x4, Simd128ShuffleOp::Kind::kI8x4, 0xF},
+      {Simd128ExtractLaneOp::Kind::kI64x2, Simd128ShuffleOp::Kind::kI8x8, 0xFF},
+  });
+
+  for (auto const& [extract_kind, expected_shuffle_kind, expected_lanes] :
+       test_list) {
+    OpIndex shuffle = OpIndex::Invalid();
+    auto test = CreateFromGraph(1, [&](auto& Asm) {
+      auto left =
+          __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+      auto right =
+          __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+      constexpr uint8_t shuffle_bytes[kSimd128Size] = {
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+      V<Simd128> shuffled = Asm.Capture(
+          __ Simd128Shuffle(left, right, Simd128ShuffleOp::Kind::kI8x16,
+                            shuffle_bytes),
+          "shuffle");
+      shuffle = shuffled;
+      __ Return(__ Simd128ExtractLane(shuffled, extract_kind, 0));
+    });
+
+    WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+    analyzer.Run();
+    EXPECT_TRUE(analyzer.ShouldReduce());
+    EXPECT_EQ(analyzer.DemandedByteLanes(&test.graph().Get(shuffle)),
+              expected_lanes);
+
+    test.Run<WasmShuffleReducer>();
+    const Simd128ShuffleOp* reduced_shuffle =
+        test.GetCapture("shuffle").GetAs<Simd128ShuffleOp>();
+    ASSERT_TRUE(reduced_shuffle);
+    EXPECT_EQ(reduced_shuffle->kind, expected_shuffle_kind);
+  }
+}
+
+TEST_F(ReducerTest, ExtractLaneNonZeroLaneDoesNotNarrow) {
+  OpIndex shuffle = OpIndex::Invalid();
+  auto test = CreateFromGraph(1, [&shuffle](auto& Asm) {
+    auto left =
+        __ Simd128Splat(__ Word32Constant(0), Simd128SplatOp::Kind::kI32x4);
+    auto right =
+        __ Simd128Splat(__ Word32Constant(1), Simd128SplatOp::Kind::kI32x4);
+    constexpr uint8_t shuffle_bytes[kSimd128Size] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    V<Simd128> shuffled = Asm.Capture(
+        __ Simd128Shuffle(left, right, Simd128ShuffleOp::Kind::kI8x16,
+                          shuffle_bytes),
+        "shuffle");
+    shuffle = shuffled;
+    __ Return(__ Simd128ExtractLane(shuffled,
+                                    Simd128ExtractLaneOp::Kind::kI16x8S, 1));
+  });
+
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+  EXPECT_FALSE(analyzer.DemandedByteLanes(&test.graph().Get(shuffle)));
+
+  test.Run<WasmShuffleReducer>();
+  const Simd128ShuffleOp* reduced_shuffle =
+      test.GetCapture("shuffle").GetAs<Simd128ShuffleOp>();
+  ASSERT_TRUE(reduced_shuffle);
+  EXPECT_EQ(reduced_shuffle->kind, Simd128ShuffleOp::Kind::kI8x16);
+}
+
 namespace {
 auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 constexpr uint8_t shuffle_bytes_even[kSimd128Size] = {

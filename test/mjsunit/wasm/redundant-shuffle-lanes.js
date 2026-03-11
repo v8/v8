@@ -1071,3 +1071,59 @@ d8.file.execute('test/mjsunit/value-helper.js');
   const wasm = builder.instantiate().exports;
   assertEquals(wasm.simd(0), 0);
 })();
+
+(function ExtMulLowWithTwoExtracts() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+  builder.addFunction('extract', kSig_i_ii).addLocals(kWasmS128, 3)
+      .addBody([
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 2,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalTee, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23,
+        kExprLocalGet, 2,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle,
+        8, 9, 10, 11, 12, 13, 14, 15,
+        0, 1, 2, 3, 4, 5, 6, 7,
+        // ExtMulLow on the two shuffled vectors.
+        ...SimdInstr(kExprI16x8ExtMulLowI8x16S),
+        kExprLocalTee, 4,
+        // Two lane-0 extracts of the ExtMulLow result.
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprLocalGet, 4,
+        kSimdPrefix, kExprI16x8ExtractLaneS, 0,
+        kExprI32Add,
+      ])
+      .exportFunc();
+
+  builder.addFunction('scalar', kSig_i_ii).addLocals(kWasmI32, 1)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32LoadMem8S, 0, 8,
+        kExprLocalTee, 2,
+        kExprLocalGet, 2,
+        kExprI32Mul,
+        kExprI32Const, 2,
+        kExprI32Mul,
+      ])
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+  const mem = new Uint8Array(wasm.memory.buffer);
+  const base0 = 0;
+  const base1 = 32;
+  for (let i = 0; i < 64; ++i) {
+    mem[i] = int8_array[i % int8_array.length];
+  }
+
+  assertEquals(wasm.scalar(base0, base1), wasm.extract(base0, base1));
+})();
