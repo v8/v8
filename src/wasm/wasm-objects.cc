@@ -891,6 +891,12 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeDirectHandle<JSArrayBuffer> maybe_buffer,
     std::shared_ptr<BackingStore> backing_store, int maximum,
     wasm::AddressType address_type) {
+  DCHECK(maximum == kNoMaximum || maximum >= 0);
+  static_assert(wasm::kSpecMaxMemory32Pages <= kMaxInt);
+  static_assert(wasm::kSpecMaxMemory64Pages <= kMaxInt);
+  DCHECK_LE(maximum, address_type == wasm::AddressType::kI64
+                         ? wasm::kSpecMaxMemory64Pages
+                         : wasm::kSpecMaxMemory32Pages);
   // Note: On serialization, we set up a `WasmMemoryObject` without AB and
   // without backing store; they are created and linked later.
   size_t byte_size = backing_store ? backing_store->byte_length()

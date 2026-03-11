@@ -2464,11 +2464,22 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
+
   uint8_t memory64_byte;
   if (!ReadByte(&memory64_byte)) return {};
   if (memory64_byte > 1) return {};
   wasm::AddressType address_type =
       memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
+
+  // Validate maximum_pages.
+  size_t max_supported_pages = address_type == wasm::AddressType::kI64
+                                   ? wasm::kSpecMaxMemory64Pages
+                                   : wasm::kSpecMaxMemory32Pages;
+  if (maximum_pages != WasmMemoryObject::kNoMaximum &&
+      (maximum_pages < 0 ||
+       static_cast<size_t>(maximum_pages) > max_supported_pages)) {
+    return {};
+  }
 
   // To break a cycle on deserialization, we first allocate the
   // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.
