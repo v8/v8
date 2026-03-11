@@ -1745,7 +1745,7 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
 #if V8_TARGET_ARCH_ARM64
-DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
+DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
