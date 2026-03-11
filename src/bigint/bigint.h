@@ -320,16 +320,20 @@ class Processor {
   Status FromString(RWDigits Z, FromStringAccumulator* accumulator);
 
   // Modulo division that's optimized for small inputs and repeatedly-used
-  // divisors. {CachedMod_MakeInverse} must be called first; callers of
-  // {CachedMod} must ensure that the divisor {B} matches the one for which
-  // the cached inverse was created.
+  // divisors. {CachedMod_MakeInverse} must be called first; the divisor {B}
+  // given to it will be reused by {CachedMod}.
   // Note: {CachedMod} uses schoolbook multiplication internally, so the
   // value of {kMaxCachedModDivisorSize} shouldn't be much bigger than
   // {kKaratsubaThreshold} defined in {bigint-inl.h}.
   // 32 digits is enough for 2048 bit divisors on a 64-bit platform.
   static constexpr uint32_t kMaxCachedModDivisorSize = 32;
   void CachedMod_MakeInverse(Digits& B);
-  digit_t CachedMod(RWDigits& R, Digits& A, Digits& B);
+  digit_t CachedMod(RWDigits& R, Digits& A);
+  Digits& GetCachedDivisor() {
+    BIGINT_H_DCHECK(cached_divisor_.digits() != nullptr);
+    return cached_divisor_;
+  }
+
   // To help callers determine divisors that are worth caching, we offer
   // a counter.
   int inc_divisor_count() { return ++divisor_count_; }
@@ -363,18 +367,12 @@ class Processor {
     return cached_inverse_;
   }
 
-  RWDigits& AllocateCachedInverse(uint32_t len) {
-    if (len > cached_inverse_allocated_length_) {
-      cached_inverse_storage_ = std::make_unique_for_overwrite<digit_t[]>(len);
-      cached_inverse_allocated_length_ = len;
-    }
-    cached_inverse_ = RWDigits(cached_inverse_storage_.get(), len);
-    return cached_inverse_;
-  }
+  RWDigits& AllocateCachedInverseFor(Digits& divisor);
 
  private:
   std::unique_ptr<digit_t[]> small_scratch_;
   std::unique_ptr<digit_t[]> cached_inverse_storage_;
+  RWDigits cached_divisor_{nullptr, 0};
   RWDigits cached_inverse_{nullptr, 0};
   uint32_t cached_inverse_allocated_length_{0};
   int divisor_count_{0};

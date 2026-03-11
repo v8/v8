@@ -334,7 +334,7 @@ class Runner {
         ScratchDigits A(a_len);
         for (uint32_t j = 0; j < 200; j++) {
           GenerateRandom(A);
-          processor()->CachedMod(R, A, B);
+          processor()->CachedMod(R, A);
 
           auto [done, top] = ModuloSmall(R_exp, A, B);
           if (!done) {

@@ -938,7 +938,8 @@ inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
   return {false, 0};
 }
 
-ALWAYS_INLINE digit_t Processor::CachedMod(RWDigits& R, Digits& A, Digits& B) {
+ALWAYS_INLINE digit_t Processor::CachedMod(RWDigits& R, Digits& A) {
+  Digits& B = GetCachedDivisor();
   Digits& inv = GetCachedInverse();
   uint32_t n = B.len();
   DCHECK(n >= 2);

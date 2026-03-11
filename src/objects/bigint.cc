@@ -1651,11 +1651,10 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   Heap* heap = isolate->heap();
   if (y == heap->cached_bigint_divisor()) [[likely]] {
     bigint::Digits X = x->digits();
-    bigint::Digits Y = y->digits();
-    if (X.len() <= 2 * Y.len()) [[likely]] {
+    bigint::Processor* processor = isolate->bigint_processor();
+    if (X.len() <= 2 * processor->GetCachedDivisor().len()) [[likely]] {
       bigint::RWDigits Z = result->rw_digits();
-      bigint::digit_t top_digit =
-          isolate->bigint_processor()->CachedMod(Z, X, Y);
+      bigint::digit_t top_digit = processor->CachedMod(Z, X);
       MutableBigInt::Canonicalize(result, Z.len(), top_digit);
       return 0;
     }
