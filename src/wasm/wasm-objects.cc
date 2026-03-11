@@ -1015,13 +1015,15 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
   const bool is_shared = new_buffer->is_shared();
   const bool is_resizable = new_buffer->is_resizable_by_js();
   if (is_shared) {
+    if (is_resizable) {
+      // GSABs read the byte length from the backing store. Fix this before
+      // doing any allocation, as allocations can trigger GC and GC will fail
+      // with a DCHECK if a byte length is still set.
+      new_buffer->set_byte_length(0);
+    }
     // Per spec, freeze the buffer. This cannot fail.
     JSReceiver::SetIntegrityLevel(isolate, new_buffer, FROZEN, kDontThrow)
         .Check();
-    if (is_resizable) {
-      // GSABs read the byte length from the backing store.
-      new_buffer->set_byte_length(0);
-    }
     // Only Wasm memory can be shared, and it always has a backing store.
     std::shared_ptr<BackingStore> backing_store = new_buffer->GetBackingStore();
     DCHECK(backing_store->is_wasm_memory());
