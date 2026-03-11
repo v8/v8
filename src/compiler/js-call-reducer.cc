@@ -6774,13 +6774,37 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
   }
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps() ||
-      !inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
-    return NoChange();
-  }
+  if (inference.HaveMaps() &&
+      inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
+  } else {
+    // If we have no reliable map feedback (e.g. megamorphic next() calls),
+    // we can still inline the generator resume by emitting a dynamic
+    // instance type check, and deoptimizing if it's not a generator.
 
-  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control, p.feedback());
+    // 1. Check if receiver is a Smi.
+    Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+    Node* is_not_smi = graph()->NewNode(simplified()->BooleanNot(), is_smi);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kSmi, p.feedback()), is_not_smi,
+        effect, control);
+
+    // 2. Check if receiver's InstanceType is JS_GENERATOR_OBJECT_TYPE.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
+    Node* receiver_instance_type = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+        receiver_map, effect, control);
+    Node* is_generator =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
+                         jsgraph()->ConstantNoHole(JS_GENERATOR_OBJECT_TYPE));
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType,
+                              p.feedback()),
+        is_generator, effect, control);
+  }
 
   // Check if the {receiver} is running or already closed.
   Node* receiver_continuation = effect =
