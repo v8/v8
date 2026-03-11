@@ -140,8 +140,7 @@ double MemoryController<Trait>::DynamicGrowingFactor(
   return factor;
 }
 
-template <typename Trait>
-size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
+size_t V8HeapTrait::MinimumAllocationLimitGrowingStep(
     Heap::HeapGrowingMode growing_mode) {
   const size_t kRegularAllocationLimitGrowingStep = 8;
   const size_t kLowMemoryAllocationLimitGrowingStep = 2;
@@ -151,27 +150,26 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
                       : kRegularAllocationLimitGrowingStep);
 }
 
-template <typename Trait>
-size_t MemoryController<Trait>::BoundAllocationLimit(
-    Isolate* isolate, size_t current_size, uint64_t limit, size_t min_size,
-    size_t max_size, size_t new_space_capacity,
+size_t V8HeapTrait::BoundAllocationLimit(uint64_t current_size, uint64_t limit,
+                                         size_t min_size, size_t max_size,
+                                         Heap::HeapGrowingMode growing_mode) {
+  CHECK_LT(0, current_size);
+  limit = std::max(
+      limit, current_size + MinimumAllocationLimitGrowingStep(growing_mode));
+  const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
+  return base::saturated_cast<size_t>(
+      std::clamp<uint64_t>(limit, min_size, halfway_to_the_max));
+}
+
+size_t GlobalMemoryTrait::BoundAllocationLimit(
+    uint64_t current_size, uint64_t limit, size_t min_size, size_t max_size,
     Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
-  limit = std::max(limit, static_cast<uint64_t>(current_size) +
-                              MinimumAllocationLimitGrowingStep(growing_mode)) +
-          new_space_capacity;
-  const uint64_t halfway_to_the_max =
-      (static_cast<uint64_t>(current_size) + max_size) / 2;
-  const uint64_t limit_or_halfway =
-      std::min<uint64_t>(limit, halfway_to_the_max);
-  const size_t result =
-      static_cast<size_t>(std::max<uint64_t>(limit_or_halfway, min_size));
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
-    isolate->PrintWithTimestamp(
-        "[%s] Limit: old size: %zu KB, new limit: %zu KB\n", Trait::kName,
-        current_size / KB, result / KB);
-  }
-  return result;
+  const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
+  const uint64_t result =
+      std::clamp<uint64_t>(limit, min_size, halfway_to_the_max);
+  return base::saturated_cast<size_t>(
+      std::max(result, current_size + kMinimumAllocationLimitGrowingStep));
 }
 
 template class V8_EXPORT_PRIVATE MemoryController<V8HeapTrait>;
@@ -247,10 +245,10 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
   const size_t computed_old_generation_allocation_limit =
       old_gen_consumed_bytes_at_last_gc * v8_growing_factor;
   const size_t preliminary_old_generation_allocation_limit =
-      MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          isolate(), old_gen_consumed_bytes_at_last_gc,
-          computed_old_generation_allocation_limit, min_old_generation_size_,
-          max_old_generation_size(), new_space_capacity, mode);
+      V8HeapTrait::BoundAllocationLimit(
+          old_gen_consumed_bytes_at_last_gc,
+          computed_old_generation_allocation_limit + new_space_capacity,
+          min_old_generation_size_, max_old_generation_size(), mode);
 
   const double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
@@ -259,18 +257,19 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
                v8_flags.external_memory_max_growing_factor.value());
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
-  const size_t global_consumed_bytes_at_last_gc = GlobalConsumedBytesAtLastGC();
-  const size_t computed_global_allocation_limit =
+  const uint64_t global_consumed_bytes_at_last_gc =
+      GlobalConsumedBytesAtLastGC();
+  const uint64_t computed_global_allocation_limit =
       (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
           global_growing_factor +
       (v8_flags.external_memory_accounted_in_global_limit
            ? external_memory_low_since_last_gc() * external_growing_factor
            : 0);
   const size_t preliminary_global_allocation_limit =
-      MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          isolate(), global_consumed_bytes_at_last_gc,
-          computed_global_allocation_limit, min_global_memory_size_,
-          max_global_memory_size(), new_space_capacity, mode);
+      GlobalMemoryTrait::BoundAllocationLimit(
+          global_consumed_bytes_at_last_gc,
+          computed_global_allocation_limit + new_space_capacity,
+          min_global_memory_size_, max_global_memory_size(), mode);
 
   // Now enforce provided boundaries on computed/preliminary limits.
   const size_t next_old_generation_allocation_limit =
@@ -318,14 +317,10 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
         dict.Add("external_growing_factor", external_growing_factor);
         dict.Add("external_memory_low_since_last_gc",
                  external_memory_low_since_last_gc());
-        dict.Add(
-            "v8_min_allocation_limit_growing_step",
-            MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
-                mode));
-        dict.Add(
-            "global_min_allocation_limit_growing_step",
-            MemoryController<
-                GlobalMemoryTrait>::MinimumAllocationLimitGrowingStep(mode));
+        dict.Add("v8_min_allocation_limit_growing_step",
+                 V8HeapTrait::MinimumAllocationLimitGrowingStep(mode));
+        dict.Add("global_min_allocation_limit_growing_step",
+                 GlobalMemoryTrait::kMinimumAllocationLimitGrowingStep);
         dict.Add("max_old_generation_size", max_old_generation_size());
         dict.Add("max_global_memory_size", max_global_memory_size());
         dict.Add("boundary_min_old_gen_allocation_limit",
@@ -354,17 +349,16 @@ void HeapLimits::ShrinkAllocationLimitIfNotConfigured(
   if (!using_initial_limit()) {
     return;
   }
-  const size_t minimum_growing_step =
-      MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(mode);
   size_t new_old_generation_allocation_limit =
-      std::max(old_generation_consumed + minimum_growing_step,
+      std::max(old_generation_consumed +
+                   V8HeapTrait::MinimumAllocationLimitGrowingStep(mode),
                static_cast<size_t>(
                    static_cast<double>(old_generation_allocation_limit()) *
                    (tracer()->AverageSurvivalRatio() / 100)));
   new_old_generation_allocation_limit = std::min(
       new_old_generation_allocation_limit, old_generation_allocation_limit());
   size_t new_global_allocation_limit = std::max(
-      global_consumed + minimum_growing_step,
+      global_consumed + GlobalMemoryTrait::kMinimumAllocationLimitGrowingStep,
       static_cast<size_t>(static_cast<double>(global_allocation_limit()) *
                           (tracer()->AverageSurvivalRatio() / 100)));
   new_global_allocation_limit =
@@ -447,7 +441,7 @@ size_t HeapLimits::OldGenerationConsumedBytesAtLastGC() const {
   return old_generation_size_at_last_gc_ + old_generation_wasted_at_last_gc_;
 }
 
-size_t HeapLimits::GlobalConsumedBytesAtLastGC() const {
+uint64_t HeapLimits::GlobalConsumedBytesAtLastGC() const {
   return OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_ +
          (v8_flags.external_memory_accounted_in_global_limit
               ? external_memory_low_since_last_gc()

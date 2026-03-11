@@ -7284,7 +7284,7 @@ TEST(Regress9701) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   // Start with an empty new space.
-  heap::EmptyNewSpaceUsingGC(heap);
+  InvokeMinorGC(heap);
 
   int mark_sweep_count_before = heap->ms_count();
   // Allocate many short living array buffers.

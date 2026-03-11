@@ -23,31 +23,33 @@ struct BaseControllerTrait {
   static constexpr double kTargetMutatorUtilization = 0.97;
 };
 
-struct V8HeapTrait : public BaseControllerTrait {
+struct V8_EXPORT_PRIVATE V8HeapTrait : public BaseControllerTrait {
   static constexpr char kName[] = "HeapController";
+  static size_t MinimumAllocationLimitGrowingStep(
+      Heap::HeapGrowingMode growing_mode);
+
+  static size_t BoundAllocationLimit(uint64_t current_size, uint64_t limit,
+                                     size_t min_size, size_t max_size,
+                                     Heap::HeapGrowingMode growing_mode);
 };
 
-struct GlobalMemoryTrait : public BaseControllerTrait {
+struct V8_EXPORT_PRIVATE GlobalMemoryTrait : public BaseControllerTrait {
   static constexpr char kName[] = "GlobalMemoryController";
+  static constexpr size_t kMinimumAllocationLimitGrowingStep = 8 * MB;
+
+  static size_t BoundAllocationLimit(uint64_t current_size, uint64_t limit,
+                                     size_t min_size, size_t max_size,
+                                     Heap::HeapGrowingMode growing_mode);
 };
 
 template <typename Trait>
 class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
  public:
-  // Computes the growing step when the limit increases.
-  static size_t MinimumAllocationLimitGrowingStep(
-      Heap::HeapGrowingMode growing_mode);
-
   static double GrowingFactor(Isolate* isolate, uint64_t physical_memory,
                               size_t max_heap_size,
                               std::optional<double> gc_speed,
                               double mutator_speed,
                               Heap::HeapGrowingMode growing_mode);
-
-  static size_t BoundAllocationLimit(Isolate* isolate, size_t current_size,
-                                     uint64_t limit, size_t min_size,
-                                     size_t max_size, size_t new_space_capacity,
-                                     Heap::HeapGrowingMode growing_mode);
 
  private:
   static double MaxGrowingFactor(uint64_t physical_memory,
@@ -136,7 +138,7 @@ class V8_EXPORT_PRIVATE HeapLimits {
   size_t OldGenerationConsumedBytesAtLastGC() const;
 
   // Returns the global amount of bytes after the last MarkCompact GC.
-  size_t GlobalConsumedBytesAtLastGC() const;
+  uint64_t GlobalConsumedBytesAtLastGC() const;
 
   size_t PromotedSinceLastGC(size_t old_generation_size) const;
 
