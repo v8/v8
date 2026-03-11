@@ -931,11 +931,17 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 
   DCHECK(!isolate->context().is_null());
 
-  // TODO(14616): Pass the correct instance data.
+  DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data;
+  if (trusted_instance_data->module()->has_shared_part) {
+    // For now, we never pass the shared WTID to this runtime function.
+    DCHECK_NE(*trusted_instance_data, trusted_instance_data->shared_part());
+    shared_trusted_instance_data =
+        direct_handle(trusted_instance_data->shared_part(), isolate);
+  }
   std::optional<MessageTemplate> opt_error =
       WasmTrustedInstanceData::InitTableEntries(
-          isolate, trusted_instance_data, trusted_instance_data, table_index,
-          elem_segment_index, dst, src, count);
+          isolate, trusted_instance_data, shared_trusted_instance_data,
+          table_index, elem_segment_index, dst, src, count);
   if (opt_error.has_value()) {
     return ThrowWasmError(isolate, opt_error.value());
   }

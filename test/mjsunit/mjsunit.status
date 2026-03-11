@@ -2517,21 +2517,7 @@
 
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
-  'wasm/custom-descriptors-validity': [SKIP],
-  'wasm/shared-everything/*': [SKIP],
-  'wasm/subtyping-invalid': [SKIP],
-  'wasm/generate-random-module': [SKIP],
-  'wasm/generate-random-module-no-staging': [SKIP],
-  'regress/regress-461464257': [SKIP],
   'regress/regress-461969023': [SKIP],
-  'regress/wasm/regress-369652650': [SKIP],
-  'regress/wasm/regress-382816108': [SKIP],
-  'regress/wasm/regress-388934347-a': [SKIP],
-  'regress/wasm/regress-434008619': [SKIP],
-  'regress/wasm/regress-454276076': [SKIP],
-  'regress/wasm/regress-474491347': [SKIP],
-  'regress/wasm/regress-475896261': [SKIP],
-  'regress/wasm/regress-487750545': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],
