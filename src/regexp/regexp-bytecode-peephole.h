@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class RegExpData;
 class RegExpBytecodeWriter;
 class TrustedByteArray;
 
@@ -22,7 +23,7 @@ class RegExpBytecodePeepholeOptimization : public AllStatic {
   // Performs peephole optimization on the bytecode in the given src_writer and
   // returns the optimized bytecode.
   static DirectHandle<TrustedByteArray> OptimizeBytecode(
-      Isolate* isolate, Zone* zone, DirectHandle<String> source,
+      Isolate* isolate, Zone* zone, DirectHandle<RegExpData> re_data,
       RegExpBytecodeWriter* src_writer);
 };
 

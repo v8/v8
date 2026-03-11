@@ -17,7 +17,7 @@
 namespace v8::internal {
 
 bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
-                                      DirectHandle<String> pattern,
+                                      DirectHandle<String> original_source,
                                       RegExpFlags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine ||
          v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
@@ -25,23 +25,23 @@ bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
       ExperimentalRegExpCompiler::CanBeHandled(tree, flags, capture_count);
   if (!can_be_handled && v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Pattern not supported by experimental engine: "
-                   << pattern << std::endl;
+                   << original_source << std::endl;
   }
   return can_be_handled;
 }
 
 void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
-                                    DirectHandle<String> source,
+                                    DirectHandle<String> original_source,
                                     DirectHandle<String> escaped_source,
                                     RegExpFlags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   if (v8_flags.trace_experimental_regexp_engine) {
-    StdoutStream{} << "Initializing experimental regexp " << *source
+    StdoutStream{} << "Initializing experimental regexp " << *original_source
                    << std::endl;
   }
 
   isolate->factory()->SetRegExpExperimentalData(
-      re, source, escaped_source, JSRegExp::AsJSRegExpFlags(flags),
+      re, original_source, escaped_source, JSRegExp::AsJSRegExpFlags(flags),
       capture_count);
 }
 
@@ -82,7 +82,7 @@ std::optional<CompilationResult> CompileImpl(
     Isolate* isolate, DirectHandle<IrRegExpData> re_data) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  DirectHandle<String> source(re_data->source(), isolate);
+  DirectHandle<String> original_source(re_data->original_source(), isolate);
 
   // Parse and compile the regexp source.
   RegExpCompileData parse_result;
@@ -90,13 +90,12 @@ std::optional<CompilationResult> CompileImpl(
 
   RegExpFlags flags = JSRegExp::AsRegExpFlags(re_data->flags());
   bool parse_success = RegExpParser::ParseRegExpFromHeapString(
-      isolate, &zone, source, flags, &parse_result);
+      isolate, &zone, original_source, flags, &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.
     DCHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
-    USE(RegExp::ThrowRegExpException(isolate, flags, source,
-                                     parse_result.error));
+    RegExp::ThrowRegExpException(isolate, re_data, parse_result.error);
     return std::nullopt;
   }
 
@@ -120,9 +119,10 @@ bool ExperimentalRegExp::Compile(Isolate* isolate,
   if (v8_flags.verify_heap) re_data->IrRegExpDataVerify(isolate);
 #endif
 
-  DirectHandle<String> source(re_data->source(), isolate);
+  DirectHandle<String> original_source(re_data->original_source(), isolate);
   if (v8_flags.trace_experimental_regexp_engine) {
-    StdoutStream{} << "Compiling experimental regexp " << *source << std::endl;
+    StdoutStream{} << "Compiling experimental regexp " << *original_source
+                   << std::endl;
   }
 
   std::optional<CompilationResult> compilation_result =
@@ -184,8 +184,8 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
   DisallowGarbageCollection no_gc;
 
   if (v8_flags.trace_experimental_regexp_engine) {
-    StdoutStream{} << "Executing experimental regexp " << regexp_data->source()
-                   << std::endl;
+    StdoutStream{} << "Executing experimental regexp "
+                   << regexp_data->original_source() << std::endl;
   }
 
   static constexpr bool kIsLatin1 = true;
@@ -282,7 +282,7 @@ int32_t ExperimentalRegExp::OneshotExecRaw(
 
   if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Experimental execution (oneshot) of regexp "
-                   << regexp_data->source() << std::endl;
+                   << regexp_data->original_source() << std::endl;
   }
 
   std::optional<CompilationResult> compilation_result =

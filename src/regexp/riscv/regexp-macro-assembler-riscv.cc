@@ -782,7 +782,7 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
   Label return_a0;
@@ -1126,8 +1126,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   if (v8_flags.print_regexp_code) {
     Print(*code);
   }
-  LOG(masm_->isolate(),
-      RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 

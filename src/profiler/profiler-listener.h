@@ -58,7 +58,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
   void SetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override;
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
+                             DirectHandle<String> escaped_source,
                              RegExpFlags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;

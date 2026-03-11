@@ -90,8 +90,9 @@ class RegExp final : public AllStatic {
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Compile(
-      Isolate* isolate, DirectHandle<JSRegExp> re, DirectHandle<String> pattern,
-      RegExpFlags flags, uint32_t backtrack_limit);
+      Isolate* isolate, DirectHandle<JSRegExp> re,
+      DirectHandle<String> original_source, RegExpFlags flags,
+      uint32_t backtrack_limit);
 
   // Ensures that a regexp is fully compiled and ready to be executed on a
   // subject string.  Returns true on success. Throw and return false on
@@ -164,7 +165,7 @@ class RegExp final : public AllStatic {
 
   V8_WARN_UNUSED_RESULT
   static MaybeDirectHandle<Object> ThrowRegExpException(
-      Isolate* isolate, RegExpFlags flags, DirectHandle<String> pattern,
+      Isolate* isolate, RegExpFlags flags, DirectHandle<String> original_source,
       RegExpError error);
   static void ThrowRegExpException(Isolate* isolate,
                                    DirectHandle<RegExpData> re_data,

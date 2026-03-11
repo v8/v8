@@ -331,7 +331,7 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                            DirectHandle<String> source,
+                                            DirectHandle<String> escaped_source,
                                             RegExpFlags flags) {
   DCHECK(is_listening_to_code_events());
   // Note we don't call Init due to the required pprof demangling hack for
@@ -340,7 +340,7 @@ void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
   // https://github.com/google/pprof/blob/4cf4322d492d108a9d6526d10844e04792982cbb/internal/symbolizer/symbolizer.go#L312.
   name_buffer_->AppendBytes("RegExp.<");
   name_buffer_->AppendBytes(" src: '");
-  name_buffer_->AppendString(*source);
+  name_buffer_->AppendString(*escaped_source);
   name_buffer_->AppendBytes("' flags: '");
   DirectHandle<String> flags_str =
       JSRegExp::StringFromFlags(isolate_, JSRegExp::AsJSRegExpFlags(flags));
@@ -615,14 +615,14 @@ void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void ExternalLogEventListener::RegExpCodeCreateEvent(
-    DirectHandle<AbstractCode> code, DirectHandle<String> source,
+    DirectHandle<AbstractCode> code, DirectHandle<String> escaped_source,
     RegExpFlags flags) {
   PtrComprCageBase cage_base(isolate_);
   CodeEvent code_event;
   code_event.code_start_address =
       static_cast<uintptr_t>(code->InstructionStart(cage_base));
   code_event.code_size = static_cast<size_t>(code->InstructionSize(cage_base));
-  code_event.function_name = source;
+  code_event.function_name = escaped_source;
   code_event.script_name = isolate_->factory()->empty_string();
   code_event.script_line = 0;
   code_event.script_column = 0;
@@ -1682,7 +1682,7 @@ void V8FileLogger::SetterCallbackEvent(DirectHandle<Name> name,
 }
 
 void V8FileLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                         DirectHandle<String> source,
+                                         DirectHandle<String> escaped_source,
                                          RegExpFlags flags) {
   if (!is_listening_to_code_events()) return;
   if (!v8_flags.log_code) return;
@@ -1690,7 +1690,7 @@ void V8FileLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
   MSG_BUILDER();
   AppendCodeCreateHeader(isolate_, msg, LogEventListener::CodeTag::kRegExp,
                          *code, Time());
-  msg << *source;
+  msg << *escaped_source;
   msg.WriteToLogFile();
 }
 

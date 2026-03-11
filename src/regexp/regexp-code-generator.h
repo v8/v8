@@ -39,7 +39,8 @@ class RegExpCodeGenerator final {
     DirectHandle<Code> code_;
   };
 
-  V8_NODISCARD Result Assemble(DirectHandle<String> source, RegExpFlags flags);
+  V8_NODISCARD Result Assemble(DirectHandle<RegExpData> re_data,
+                               RegExpFlags flags);
 
  private:
   // Returns the value for |operand_id| of the current bytecode in the format

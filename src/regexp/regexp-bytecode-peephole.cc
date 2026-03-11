@@ -1092,7 +1092,7 @@ Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 // static
 DirectHandle<TrustedByteArray>
 RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-    Isolate* isolate, Zone* zone, DirectHandle<String> source,
+    Isolate* isolate, Zone* zone, DirectHandle<RegExpData> re_data,
     RegExpBytecodeWriter* src_writer) {
   RegExpBytecodeWriter second_writer(zone);
   RegExpBytecodeWriter* dst_writer = &second_writer;
@@ -1130,13 +1130,15 @@ RegExpBytecodePeepholeOptimization::OptimizeBytecode(
   MemCopy(array->begin(), optimized_bytecode, optimized_length);
 
   if (any_pass_optimized && v8_flags.trace_regexp_peephole_optimization) {
+    std::unique_ptr<char[]> pattern_cstring =
+        re_data->escaped_source()->ToCString();
     PrintF("Original Bytecode:\n");
     RegExpBytecodeDisassemble(original_bytecode->data(),
                               static_cast<uint32_t>(original_bytecode->size()),
-                              source->ToCString().get());
+                              pattern_cstring.get());
     PrintF("Optimized Bytecode:\n");
     RegExpBytecodeDisassemble(array->begin(), optimized_length,
-                              source->ToCString().get());
+                              pattern_cstring.get());
   }
 
   return array;

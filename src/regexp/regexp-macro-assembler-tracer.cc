@@ -624,12 +624,13 @@ RegExpMacroAssembler::IrregexpImplementation
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerTracer::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   DirectHandle<String> flags_str =
       JSRegExp::StringFromFlags(isolate(), JSRegExp::AsJSRegExpFlags(flags));
-  PrintF(" GetCode('%s', '%s');\n", source->ToCString().get(),
+  PrintF(" GetCode('%s', '%s');\n",
+         re_data->escaped_source()->ToCString().get(),
          flags_str->ToCString().get());
-  return assembler_->GetCode(source, flags);
+  return assembler_->GetCode(re_data, flags);
 }
 
 }  // namespace internal

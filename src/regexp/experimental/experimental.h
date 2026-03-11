@@ -20,12 +20,13 @@ class ExperimentalRegExp final : public AllStatic {
   // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, DirectHandle<String> pattern,
+  static bool CanBeHandled(RegExpTree* tree,
+                           DirectHandle<String> original_source,
                            RegExpFlags flags, int capture_count);
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
-                         DirectHandle<String> pattern,
-                         DirectHandle<String> escaped_pattern,
-                         RegExpFlags flags, int capture_count);
+                         DirectHandle<String> original_source,
+                         DirectHandle<String> escaped_source, RegExpFlags flags,
+                         int capture_count);
   static bool IsCompiled(DirectHandle<IrRegExpData> re_data, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
   static bool Compile(Isolate* isolate, DirectHandle<IrRegExpData> re_data);

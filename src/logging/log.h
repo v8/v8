@@ -193,7 +193,7 @@ class V8FileLogger : public LogEventListener {
   void SetterCallbackEvent(DirectHandle<Name> name,
                            Address entry_point) override;
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
+                             DirectHandle<String> escaped_source,
                              RegExpFlags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
@@ -447,7 +447,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
+                             DirectHandle<String> escaped_source,
                              RegExpFlags flags) override;
   void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
   void GetterCallbackEvent(DirectHandle<Name> name,
@@ -520,7 +520,7 @@ class ExternalLogEventListener : public LogEventListener {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                             DirectHandle<String> source,
+                             DirectHandle<String> escaped_source,
                              RegExpFlags flags) override;
   void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
   void GetterCallbackEvent(DirectHandle<Name> name,

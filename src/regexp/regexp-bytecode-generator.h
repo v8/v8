@@ -218,7 +218,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
   MacroAssembler* masm() override { return nullptr; }
 
   IrregexpImplementation Implementation() override;
-  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+  DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
                                    RegExpFlags flags) override;
 
  private:

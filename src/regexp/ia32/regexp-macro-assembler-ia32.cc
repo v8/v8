@@ -749,7 +749,7 @@ void RegExpMacroAssemblerIA32::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   Label return_eax;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
@@ -1085,8 +1085,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 

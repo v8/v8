@@ -62,7 +62,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
-  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+  DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
                                    RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;

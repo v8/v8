@@ -1259,7 +1259,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
       subject_length = kTruncateSubjectAtLength;
       opt_truncated = " (truncated)";
     }
-    Tagged<String> pattern = Cast<String>(regexp_data->source());
+    Tagged<String> pattern = regexp_data->escaped_source();
     PrintF("\n\nStart bytecode interpreter. Pattern /%s/ Subject '%s'%s\n",
            pattern->ToCString().get(),
            subject_string->ToCString(0, subject_length).get(), opt_truncated);

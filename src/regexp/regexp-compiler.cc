@@ -335,7 +335,7 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
 
 RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     Isolate* isolate, RegExpMacroAssembler* macro_assembler, RegExpNode* start,
-    int capture_count, DirectHandle<String> pattern) {
+    int capture_count, DirectHandle<RegExpData> re_data) {
   macro_assembler_ = macro_assembler;
 
   auto ReportError = [this]() {
@@ -371,7 +371,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     return ReportError();
   }
 
-  DirectHandle<HeapObject> code = macro_assembler_->GetCode(pattern, flags_);
+  DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 

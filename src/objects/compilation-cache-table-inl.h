@@ -151,7 +151,7 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
     Tagged<RegExpDataWrapper> re_wrapper = Cast<RegExpDataWrapper>(object);
     Isolate* isolate = Isolate::Current();
     Tagged<RegExpData> data = re_wrapper->data(isolate);
-    return RegExpHash(data->source(), Smi::FromInt(data->flags()));
+    return RegExpHash(data->original_source(), Smi::FromInt(data->flags()));
   }
 
   // Eval: See EvalCacheKey::ToHandle for the encoding.

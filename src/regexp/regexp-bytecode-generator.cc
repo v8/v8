@@ -579,16 +579,16 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
 }
 
 DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   Bind(&backtrack_);
   Backtrack();
 
   DirectHandle<TrustedByteArray> array;
   if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-        isolate_, zone(), source, this);
+        isolate_, zone(), re_data, this);
   } else {
-    array = isolate_->factory()->NewTrustedByteArray(length());
+    array = isolate_->factory()->NewTrustedByteArray(pc_);
     CopyBufferTo(array->begin());
   }
 

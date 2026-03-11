@@ -52,8 +52,11 @@ class RegExpMacroAssembler {
   RegExpMacroAssembler(const RegExpMacroAssembler& other) V8_NOEXCEPT = default;
   virtual ~RegExpMacroAssembler() = default;
 
-  virtual DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+  virtual DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
                                            RegExpFlags flags) = 0;
+
+  void LogCode(Isolate* isolate, DirectHandle<Code> code,
+               DirectHandle<RegExpData> re_data, RegExpFlags flags);
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.

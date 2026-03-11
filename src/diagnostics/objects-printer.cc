@@ -1021,7 +1021,7 @@ void RegExpData::RegExpDataPrint(std::ostream& os) {
     default:
       UNREACHABLE();
   }
-  os << "\n - source: " << source();
+  os << "\n - original_source: " << original_source();
   os << "\n - escaped_source: " << escaped_source();
   JSRegExp::FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);

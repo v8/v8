@@ -168,7 +168,7 @@ class RegExpKey : public HashTableKey {
   // is not great.
   bool IsMatch(Tagged<Object> obj) override {
     Tagged<RegExpData> val = Cast<RegExpDataWrapper>(obj)->data(isolate_);
-    return string_->Equals(val->source()) && (flags_ == val->flags());
+    return string_->Equals(val->original_source()) && (flags_ == val->flags());
   }
 
   Isolate* isolate_;

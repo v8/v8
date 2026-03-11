@@ -151,7 +151,7 @@ DirectHandle<String> JSRegExp::StringFromFlags(Isolate* isolate,
 
 // static
 MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
-                                          DirectHandle<String> pattern,
+                                          DirectHandle<String> original_source,
                                           Flags flags,
                                           uint32_t backtrack_limit) {
   DirectHandle<JSFunction> constructor = isolate->regexp_function();
@@ -162,13 +162,14 @@ MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
   // during compilation.
   regexp->clear_data();
 
-  return JSRegExp::Initialize(isolate, regexp, pattern, flags, backtrack_limit);
+  return JSRegExp::Initialize(isolate, regexp, original_source, flags,
+                              backtrack_limit);
 }
 
 // static
 MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
-    DirectHandle<String> source, DirectHandle<String> flags_string) {
+    DirectHandle<String> original_source, DirectHandle<String> flags_string) {
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
@@ -176,23 +177,24 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
-  return Initialize(isolate, regexp, source, flags.value());
+  return Initialize(isolate, regexp, original_source, flags.value());
 }
 
 // static
-MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
-                                                 DirectHandle<JSRegExp> regexp,
-                                                 DirectHandle<String> source,
-                                                 Flags flags,
-                                                 uint32_t backtrack_limit) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> original_source, Flags flags,
+    uint32_t backtrack_limit) {
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = factory->query_colon_string();
+  if (original_source->length() == 0) {
+    original_source = factory->query_colon_string();
+  }
 
-  source = String::Flatten(isolate, source);
+  original_source = String::Flatten(isolate, original_source);
 
-  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source,
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, original_source,
                                                JSRegExp::AsRegExpFlags(flags),
                                                backtrack_limit));
 

@@ -2347,7 +2347,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 void RegExpData::RegExpDataVerify(Isolate* isolate) {
   ExposedTrustedObjectVerify(isolate);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
-  CHECK(IsString(source()));
+  CHECK(IsString(original_source()));
   CHECK(IsString(escaped_source()));
   CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
 }

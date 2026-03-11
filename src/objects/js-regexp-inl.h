@@ -68,8 +68,8 @@ void RegExpData::set_type_tag(Type type) {
       *this, Smi::FromInt(static_cast<uint8_t>(type)));
 }
 
-ACCESSORS_CHECKED(RegExpData, source, Tagged<String>, kSourceOffset,
-                  value->IsFlat())
+ACCESSORS_CHECKED(RegExpData, original_source, Tagged<String>,
+                  kOriginalSourceOffset, value->IsFlat())
 ACCESSORS_CHECKED(RegExpData, escaped_source, Tagged<String>,
                   kEscapedSourceOffset, value->IsFlat())
 

@@ -556,7 +556,7 @@ class RegExpCompiler {
 
   CompilationResult Assemble(Isolate* isolate, RegExpMacroAssembler* assembler,
                              RegExpNode* start, int capture_count,
-                             DirectHandle<String> pattern);
+                             DirectHandle<RegExpData> re_data);
 
   // Preprocessing is the final step of node creation before analysis
   // and assembly. It includes:

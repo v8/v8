@@ -8,6 +8,9 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
+#include "src/logging/log.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/special-case.h"
@@ -29,6 +32,15 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
       isolate_(isolate),
       zone_(zone),
       mode_(mode) {}
+
+void RegExpMacroAssembler::LogCode(Isolate* isolate, DirectHandle<Code> code,
+                                   DirectHandle<RegExpData> re_data,
+                                   RegExpFlags flags) {
+  PROFILE(isolate,
+          RegExpCodeCreateEvent(
+              Cast<AbstractCode>(code),
+              direct_handle(re_data->escaped_source(), isolate), flags));
+}
 
 bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;

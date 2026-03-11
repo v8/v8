@@ -37,7 +37,7 @@ RegExpCodeGenerator::RegExpCodeGenerator(
       has_unsupported_bytecode_(false) {}
 
 RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   USE(isolate_);
   USE(masm_);
 
@@ -47,7 +47,8 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
     RegExpBytecodeAnalysis analysis(isolate_, &zone_, bytecode_);
     analysis.Analyze();
     if (v8_flags.trace_regexp_bytecode_analysis) {
-      std::unique_ptr<char[]> pattern_cstring = source->ToCString();
+      std::unique_ptr<char[]> pattern_cstring =
+          re_data->escaped_source()->ToCString();
       RegExpBytecodeDisassemble(bytecode_->begin(),
                                 bytecode_->ulength().value(),
                                 pattern_cstring.get(), &analysis);
@@ -58,7 +59,7 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
   iter_.reset();
   VisitBytecodes();
   if (has_unsupported_bytecode_) return Result::UnsupportedBytecode();
-  DirectHandle<Code> code = CheckedCast<Code>(masm_->GetCode(source, flags));
+  DirectHandle<Code> code = CheckedCast<Code>(masm_->GetCode(re_data, flags));
   return Result{code};
 }
 

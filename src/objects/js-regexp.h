@@ -30,16 +30,16 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<JSRegExp> New(
-      Isolate* isolate, DirectHandle<String> source, Flags flags,
+      Isolate* isolate, DirectHandle<String> original_source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
   static MaybeDirectHandle<JSRegExp> Initialize(
       Isolate* isolate, DirectHandle<JSRegExp> regexp,
-      DirectHandle<String> source, Flags flags,
+      DirectHandle<String> original_source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
   static MaybeDirectHandle<JSRegExp> Initialize(
       Isolate* isolate, DirectHandle<JSRegExp> regexp,
-      DirectHandle<String> source, DirectHandle<String> flags_string);
+      DirectHandle<String> original_source, DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
@@ -163,7 +163,7 @@ class RegExpData : public ExposedTrustedObject {
   inline Type type_tag() const;
   inline void set_type_tag(Type);
 
-  DECL_ACCESSORS(source, Tagged<String>)
+  DECL_ACCESSORS(original_source, Tagged<String>)
   DECL_ACCESSORS(escaped_source, Tagged<String>)
 
   inline JSRegExp::Flags flags() const;
@@ -182,13 +182,13 @@ class RegExpData : public ExposedTrustedObject {
   DECL_PRINTER(RegExpData)
   DECL_VERIFIER(RegExpData)
 
-#define FIELD_LIST(V)                  \
-  V(kTypeTagOffset, kTaggedSize)       \
-  V(kSourceOffset, kTaggedSize)        \
-  V(kEscapedSourceOffset, kTaggedSize) \
-  V(kFlagsOffset, kTaggedSize)         \
-  V(kWrapperOffset, kTaggedSize)       \
-  V(kHeaderSize, 0)                    \
+#define FIELD_LIST(V)                   \
+  V(kTypeTagOffset, kTaggedSize)        \
+  V(kOriginalSourceOffset, kTaggedSize) \
+  V(kEscapedSourceOffset, kTaggedSize)  \
+  V(kFlagsOffset, kTaggedSize)          \
+  V(kWrapperOffset, kTaggedSize)        \
+  V(kHeaderSize, 0)                     \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
