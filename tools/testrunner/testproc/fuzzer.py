@@ -82,8 +82,8 @@ EXTRA_FLAGS = [
     (0.25, '--experimental-wasm-revectorize'),
     (0.1, '--no-memory-pool'),
     (0.1, '--wasm-assert-types'),
-    (0.5, '--proto-assign-seq-opt'),
-    (0.1, '--proto-assign-seq-opt --proto-assign-seq-opt-count=1'),
+    (0.5, '--private-field-bytecodes'),
+    (0.5, '--proto-assign-seq-lazy-func-opt --proto-assign-seq-opt-count=1'),
 ]
 
 MIN_DEOPT = 1
