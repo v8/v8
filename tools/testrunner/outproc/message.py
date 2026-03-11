@@ -68,7 +68,5 @@ class OutProc(base.ExpectedOutProc):
         # Android linker warning.
         string.startswith('WARNING: linker:') or  #
         # Testing on Android devices mixes stderr into stdout.
-        string ==
-        "V8 is running with experimental features enabled. Stability and security will suffer."
-        or  #
+        string.startswith("V8 is running with") or
         string == "Concurrent maglev has been disabled for tracing.")
