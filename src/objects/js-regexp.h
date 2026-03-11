@@ -44,7 +44,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
   // Instance fields accessors.
-  inline Tagged<String> source() const;
+  // Returns the escaped source as specced by
+  // https://tc39.es/ecma262/#sec-escaperegexppattern.
+  inline Tagged<String> source(IsolateForSandbox isolate) const;
   inline Flags flags() const;
 
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
@@ -84,8 +86,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   V8_EXPORT_PRIVATE static DirectHandle<String> StringFromFlags(
       Isolate* isolate, Flags flags);
-
-  inline Tagged<String> EscapedPattern();
 
   // Each capture (including the match itself) needs two registers.
   static constexpr int RegistersForCaptureCount(int count) {
@@ -164,6 +164,7 @@ class RegExpData : public ExposedTrustedObject {
   inline void set_type_tag(Type);
 
   DECL_ACCESSORS(source, Tagged<String>)
+  DECL_ACCESSORS(escaped_source, Tagged<String>)
 
   inline JSRegExp::Flags flags() const;
   inline void set_flags(JSRegExp::Flags flags);
@@ -181,12 +182,13 @@ class RegExpData : public ExposedTrustedObject {
   DECL_PRINTER(RegExpData)
   DECL_VERIFIER(RegExpData)
 
-#define FIELD_LIST(V)            \
-  V(kTypeTagOffset, kTaggedSize) \
-  V(kSourceOffset, kTaggedSize)  \
-  V(kFlagsOffset, kTaggedSize)   \
-  V(kWrapperOffset, kTaggedSize) \
-  V(kHeaderSize, 0)              \
+#define FIELD_LIST(V)                  \
+  V(kTypeTagOffset, kTaggedSize)       \
+  V(kSourceOffset, kTaggedSize)        \
+  V(kEscapedSourceOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)         \
+  V(kWrapperOffset, kTaggedSize)       \
+  V(kHeaderSize, 0)                    \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)

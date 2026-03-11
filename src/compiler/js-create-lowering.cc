@@ -1989,9 +1989,7 @@ Node* JSCreateLowering::AllocateLiteralRegExp(
 
   // Sanity check that JSRegExp object layout hasn't changed.
   static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  static_assert(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
-  static_assert(JSRegExp::kFlagsOffset ==
-                JSRegExp::kSourceOffset + kTaggedSize);
+  static_assert(JSRegExp::kFlagsOffset == JSRegExp::kDataOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
   static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
@@ -2006,8 +2004,6 @@ Node* JSCreateLowering::AllocateLiteralRegExp(
                 jsgraph()->EmptyFixedArrayConstant());
 
   builder.Store(AccessBuilder::ForJSRegExpData(), boilerplate.data(broker()));
-  builder.Store(AccessBuilder::ForJSRegExpSource(),
-                boilerplate.source(broker()));
   builder.Store(AccessBuilder::ForJSRegExpFlags(),
                 jsgraph()->SmiConstant(boilerplate.flags()));
   builder.Store(AccessBuilder::ForJSRegExpLastIndex(),

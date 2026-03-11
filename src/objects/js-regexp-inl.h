@@ -34,8 +34,8 @@ OBJECT_CONSTRUCTORS_IMPL(RegExpDataWrapper, Struct)
 
 ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 
-Tagged<String> JSRegExp::source() const {
-  return Cast<String>(TorqueGeneratedClass::source());
+Tagged<String> JSRegExp::source(IsolateForSandbox isolate) const {
+  return data(isolate)->escaped_source();
 }
 
 JSRegExp::Flags JSRegExp::flags() const {
@@ -58,11 +58,6 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
   return buffer.begin();
 }
 
-Tagged<String> JSRegExp::EscapedPattern() {
-  DCHECK(IsString(source()));
-  return Cast<String>(source());
-}
-
 RegExpData::Type RegExpData::type_tag() const {
   Tagged<Smi> value = TaggedField<Smi, kTypeTagOffset>::load(*this);
   return Type(value.value());
@@ -73,7 +68,10 @@ void RegExpData::set_type_tag(Type type) {
       *this, Smi::FromInt(static_cast<uint8_t>(type)));
 }
 
-ACCESSORS(RegExpData, source, Tagged<String>, kSourceOffset)
+ACCESSORS_CHECKED(RegExpData, source, Tagged<String>, kSourceOffset,
+                  value->IsFlat())
+ACCESSORS_CHECKED(RegExpData, escaped_source, Tagged<String>,
+                  kEscapedSourceOffset, value->IsFlat())
 
 JSRegExp::Flags RegExpData::flags() const {
   Tagged<Smi> value = TaggedField<Smi, kFlagsOffset>::load(*this);

@@ -935,6 +935,8 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro ArrayListElements(ArrayList): FixedArray;
 
 extern macro LoadObjectField(HeapObject, constexpr int32): Object;
+extern macro LoadTrustedPointerFromObject(
+    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;

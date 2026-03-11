@@ -724,7 +724,6 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   IndirectHandle<RegExpBoilerplateDescription> object() const;
 
   HeapObjectRef data(JSHeapBroker* broker) const;
-  StringRef source(JSHeapBroker* broker) const;
   int flags() const;
 };
 

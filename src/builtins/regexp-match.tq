@@ -12,11 +12,7 @@ const kIRREGEXP: constexpr uint8
     generates 'static_cast<uint8_t>(RegExpData::Type::IRREGEXP)';
 const kEXPERIMENTAL: constexpr uint8
     generates 'static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL)';
-const kRegExpDataIndirectPointerTag:
-    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
-extern macro LoadTrustedPointerFromObject(
-    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 extern transitioning macro RegExpBuiltinsAssembler::RegExpMatchGlobal(
     implicit context: Context)(JSRegExp, String, RegExpData): JSAny;
 

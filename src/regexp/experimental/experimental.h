@@ -23,8 +23,9 @@ class ExperimentalRegExp final : public AllStatic {
   static bool CanBeHandled(RegExpTree* tree, DirectHandle<String> pattern,
                            RegExpFlags flags, int capture_count);
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
-                         DirectHandle<String> pattern, RegExpFlags flags,
-                         int capture_count);
+                         DirectHandle<String> pattern,
+                         DirectHandle<String> escaped_pattern,
+                         RegExpFlags flags, int capture_count);
   static bool IsCompiled(DirectHandle<IrRegExpData> re_data, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
   static bool Compile(Isolate* isolate, DirectHandle<IrRegExpData> re_data);

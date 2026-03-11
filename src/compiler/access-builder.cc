@@ -713,15 +713,6 @@ FieldAccess AccessBuilder::ForJSRegExpLastIndex() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSRegExpSource() {
-  FieldAccess access = {kTaggedBase,         JSRegExp::kSourceOffset,
-                        MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
-                        kFullWriteBarrier,   "JSRegExpSource"};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForFixedArrayLength() {
   FieldAccess access = {kTaggedBase,
                         offsetof(FixedArray, length_),

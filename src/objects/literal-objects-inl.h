@@ -191,14 +191,6 @@ void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
   data_.store(this, value, mode);
 }
 
-Tagged<String> RegExpBoilerplateDescription::source() const {
-  return source_.load();
-}
-void RegExpBoilerplateDescription::set_source(Tagged<String> value,
-                                              WriteBarrierMode mode) {
-  source_.store(this, value, mode);
-}
-
 int RegExpBoilerplateDescription::flags() const {
   return flags_.load().value();
 }

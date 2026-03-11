@@ -423,8 +423,6 @@ transitioning macro RegExpCreate(
 }
 
 extern macro ClearTrustedPointerField(HeapObject, constexpr int31): void;
-const kJSRegExpRegExpDataOffset:
-    constexpr int31 generates 'JSRegExp::kDataOffset';
 
 @export
 transitioning macro RegExpCreate(

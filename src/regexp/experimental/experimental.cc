@@ -32,6 +32,7 @@ bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
 
 void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                     DirectHandle<String> source,
+                                    DirectHandle<String> escaped_source,
                                     RegExpFlags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   if (v8_flags.trace_experimental_regexp_engine) {
@@ -40,7 +41,8 @@ void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
   }
 
   isolate->factory()->SetRegExpExperimentalData(
-      re, source, JSRegExp::AsJSRegExpFlags(flags), capture_count);
+      re, source, escaped_source, JSRegExp::AsJSRegExpFlags(flags),
+      capture_count);
 }
 
 bool ExperimentalRegExp::IsCompiled(DirectHandle<IrRegExpData> re_data,

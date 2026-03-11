@@ -1712,11 +1712,6 @@ HeapObjectRef RegExpBoilerplateDescriptionRef::data(
       broker, Cast<HeapObject>(object()->data(broker->isolate())));
 }
 
-StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->source());
-}
-
 int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
 
 Address FunctionTemplateInfoRef::callback(JSHeapBroker* broker) const {

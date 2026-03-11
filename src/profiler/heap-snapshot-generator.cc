@@ -910,7 +910,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
       Tagged<JSRegExp> re = Cast<JSRegExp>(object);
       return AddEntry(object, HeapEntry::kRegExp,
-                      names_->GetName(re->source()));
+                      names_->GetName(re->source(isolate())));
     }
     // TODO(v8:12674) Fix and run full gcmole.
     DisableGCMole no_gcmole;

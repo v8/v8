@@ -910,7 +910,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
 
 void ValueSerializer::WriteJSRegExp(DirectHandle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(direct_handle(regexp->source(), isolate_));
+  WriteString(direct_handle(regexp->source(isolate_), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->flags()));
 }
 

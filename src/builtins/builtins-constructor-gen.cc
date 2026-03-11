@@ -479,10 +479,8 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
   GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
     static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-    static_assert(JSRegExp::kSourceOffset ==
-                  JSRegExp::kDataOffset + kTaggedSize);
     static_assert(JSRegExp::kFlagsOffset ==
-                  JSRegExp::kSourceOffset + kTaggedSize);
+                  JSRegExp::kDataOffset + kTaggedSize);
     static_assert(JSRegExp::kHeaderSize ==
                   JSRegExp::kFlagsOffset + kTaggedSize);
     static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
@@ -509,10 +507,6 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
         CAST(LoadTrustedPointerFromObject(
             boilerplate, offsetof(RegExpBoilerplateDescription, data_),
             kRegExpDataIndirectPointerTag)));
-    StoreObjectFieldNoWriteBarrier(
-        new_object, JSRegExp::kSourceOffset,
-        LoadObjectField(boilerplate,
-                        offsetof(RegExpBoilerplateDescription, source_)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kFlagsOffset,
         LoadObjectField(boilerplate,

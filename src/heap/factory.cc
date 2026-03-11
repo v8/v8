@@ -4406,35 +4406,38 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
 
 void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
                                 DirectHandle<String> source,
+                                DirectHandle<String> escaped_source,
                                 JSRegExp::Flags flags,
                                 DirectHandle<String> pattern) {
   DirectHandle<RegExpData> regexp_data =
-      NewAtomRegExpData(source, flags, pattern);
+      NewAtomRegExpData(source, escaped_source, flags, pattern);
   regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
                                     DirectHandle<String> source,
+                                    DirectHandle<String> escaped_source,
                                     JSRegExp::Flags flags, int capture_count,
                                     uint32_t backtrack_limit,
                                     uint32_t bit_field) {
-  DirectHandle<RegExpData> regexp_data =
-      NewIrRegExpData(source, flags, capture_count, backtrack_limit, bit_field);
+  DirectHandle<RegExpData> regexp_data = NewIrRegExpData(
+      source, escaped_source, flags, capture_count, backtrack_limit, bit_field);
   regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
                                         DirectHandle<String> source,
+                                        DirectHandle<String> escaped_source,
                                         JSRegExp::Flags flags,
                                         int capture_count) {
   DirectHandle<RegExpData> regexp_data =
-      NewExperimentalRegExpData(source, flags, capture_count);
+      NewExperimentalRegExpData(source, escaped_source, flags, capture_count);
   regexp->set_data(*regexp_data);
 }
 
 DirectHandle<RegExpData> Factory::NewAtomRegExpData(
-    DirectHandle<String> source, JSRegExp::Flags flags,
-    DirectHandle<String> pattern) {
+    DirectHandle<String> source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, DirectHandle<String> pattern) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = AtomRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4444,6 +4447,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::ATOM);
   instance->set_source(*source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->set_pattern(*pattern);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
@@ -4452,11 +4456,10 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   return direct_handle(instance, isolate());
 }
 
-DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
-                                                  JSRegExp::Flags flags,
-                                                  int capture_count,
-                                                  uint32_t backtrack_limit,
-                                                  uint32_t bit_field) {
+DirectHandle<RegExpData> Factory::NewIrRegExpData(
+    DirectHandle<String> source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
+    uint32_t bit_field) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4466,6 +4469,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::IRREGEXP);
   instance->set_source(*source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->clear_latin1_code();
   instance->clear_uc16_code();
@@ -4487,7 +4491,8 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
 }
 
 DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
-    DirectHandle<String> source, JSRegExp::Flags flags, int capture_count) {
+    DirectHandle<String> source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, int capture_count) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4504,6 +4509,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::EXPERIMENTAL);
   instance->set_source(*source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->clear_latin1_code();
   instance->clear_uc16_code();

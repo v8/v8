@@ -1002,7 +1002,6 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRegExp");
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << "\n - data: " << Brief(data(isolate));
-  os << "\n - source: " << Brief(source());
   FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
   JSObjectPrintBody(os, *this);
@@ -1023,6 +1022,7 @@ void RegExpData::RegExpDataPrint(std::ostream& os) {
       UNREACHABLE();
   }
   os << "\n - source: " << source();
+  os << "\n - escaped_source: " << escaped_source();
   JSRegExp::FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
 }
@@ -1215,7 +1215,6 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   PrintHeader(os, "RegExpBoilerplate");
   os << "\n - data: " << Brief(data(isolate));
-  os << "\n - source: " << source();
   os << "\n - flags: " << flags();
   os << "\n";
 }

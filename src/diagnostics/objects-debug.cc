@@ -2327,9 +2327,7 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 }
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
-  Tagged<Object> source = TaggedField<Object>::load(*this, kSourceOffset);
   Tagged<Object> flags = TaggedField<Object>::load(*this, kFlagsOffset);
-  CHECK(IsString(source) || IsUndefined(source));
   CHECK(IsSmi(flags) || IsUndefined(flags));
   if (!has_data()) return;
 
@@ -2350,6 +2348,7 @@ void RegExpData::RegExpDataVerify(Isolate* isolate) {
   ExposedTrustedObjectVerify(isolate);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
   CHECK(IsString(source()));
+  CHECK(IsString(escaped_source()));
   CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
 }
 
@@ -2761,11 +2760,6 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
     auto o = data(isolate);
     Object::VerifyPointer(isolate, o);
     CHECK(IsRegExpData(o));
-  }
-  {
-    auto o = source();
-    Object::VerifyPointer(isolate, o);
-    CHECK(IsString(o));
   }
   CHECK(IsSmi(flags_.load()));
 }

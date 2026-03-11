@@ -139,10 +139,6 @@ V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
   inline void set_data(Tagged<RegExpData> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<String> source() const;
-  inline void set_source(Tagged<String> value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   inline int flags() const;
   inline void set_flags(int value);
 
@@ -157,14 +153,13 @@ V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
   friend struct ObjectTraits<RegExpBoilerplateDescription>;
 
   TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
-  TaggedMember<String> source_;
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
 template <>
 struct ObjectTraits<RegExpBoilerplateDescription> {
   using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptor<offsetof(RegExpBoilerplateDescription, source_),
+      FixedBodyDescriptor<offsetof(RegExpBoilerplateDescription, flags_),
                           sizeof(RegExpBoilerplateDescription),
                           sizeof(RegExpBoilerplateDescription)>,
       WithStrongTrustedPointer<offsetof(RegExpBoilerplateDescription, data_),

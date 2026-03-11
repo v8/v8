@@ -686,13 +686,11 @@ DirectHandle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
 template <typename Impl>
 DirectHandle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
-    DirectHandle<RegExpData> data, DirectHandle<String> source,
-    Tagged<Smi> flags) {
+    DirectHandle<RegExpData> data, Tagged<Smi> flags) {
   auto result = NewStructInternal<RegExpBoilerplateDescription>(
       REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   result->set_data(*data);
-  result->set_source(*source);
   result->set_flags(flags.value());
   return direct_handle(result, isolate());
 }

@@ -1355,8 +1355,10 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&if_patternisfastregexp);
     {
+      TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+          CAST(pattern), JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
       TNode<JSAny> source =
-          CAST(LoadObjectField(CAST(pattern), JSRegExp::kSourceOffset));
+          LoadObjectField<String>(data, RegExpData::kSourceOffset);
       var_pattern = source;
 
       {
@@ -1472,8 +1474,10 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 
     const TNode<JSRegExp> pattern = CAST(maybe_pattern);
     const TNode<String> new_flags = FlagsGetter(context, pattern, true);
+    const TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
+        pattern, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
     const TNode<Object> new_pattern =
-        LoadObjectField(pattern, JSRegExp::kSourceOffset);
+        LoadObjectField<String>(data, RegExpData::kSourceOffset);
 
     var_flags = new_flags;
     var_pattern = new_pattern;

@@ -390,7 +390,6 @@ class JSRegExp::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
     IterateTrustedPointer(obj, kDataOffset, v, IndirectPointerMode::kStrong,
                           kRegExpDataIndirectPointerTag);
-    IteratePointer(obj, kSourceOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
@@ -412,6 +411,7 @@ class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
     // tags).
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
     IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
   }
 
@@ -428,6 +428,7 @@ class AtomRegExpData::BodyDescriptor final : public BodyDescriptorBase {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
     IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
 
     IteratePointer(obj, kPatternOffset, v);
@@ -446,6 +447,7 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
     IteratePointer(obj, kSourceOffset, v);
+    IteratePointer(obj, kEscapedSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
 
     IterateProtectedPointer(obj, kLatin1BytecodeOffset, v);

@@ -19,7 +19,6 @@ extern class ArrayBoilerplateDescription extends Struct {
 @cppObjectLayoutDefinition
 extern class RegExpBoilerplateDescription extends Struct {
   data: TrustedPointer<RegExpData>;
-  source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }
 

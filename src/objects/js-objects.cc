@@ -2930,12 +2930,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     case JS_REG_EXP_TYPE: {
+      Isolate* isolate = Isolate::Current();
       accumulator->Add("<JSRegExp");
       Tagged<JSRegExp> regexp = Cast<JSRegExp>(*this);
-      if (IsString(regexp->source())) {
-        accumulator->Add(" ");
-        Cast<String>(regexp->source())->StringShortPrint(accumulator);
-      }
+      accumulator->Add(" ");
+      Cast<String>(regexp->source(isolate))->StringShortPrint(accumulator);
       accumulator->Add(">");
 
       break;

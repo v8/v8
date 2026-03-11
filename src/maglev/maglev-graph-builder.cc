@@ -14977,7 +14977,7 @@ VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
   using Shape = VirtualJSRegExpShape;
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
   int slot_count = Shape::header_slot_count + JSRegExp::kInObjectFieldCount;
-  SBXCHECK_EQ(slot_count, 7);
+  SBXCHECK_EQ(slot_count, 6);
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
@@ -14988,7 +14988,6 @@ VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
   vobj->set(JSRegExp::kDataOffset,
             GetTrustedConstant(literal.data(broker()),
                                kRegExpDataIndirectPointerTag));
-  vobj->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
   vobj->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
   vobj->set(JSRegExp::kLastIndexOffset,
             GetInt32Constant(JSRegExp::kInitialLastIndexValue));

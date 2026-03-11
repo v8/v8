@@ -5817,7 +5817,6 @@ struct VirtualJSRegExpShape : VirtualJSObjectShape {
   V(data, T::kDataOffset,                                     \
     V8_ENABLE_SANDBOX_BOOL ? vobj::FieldType::kTrustedPointer \
                            : vobj::FieldType::kTagged)        \
-  V(source, T::kSourceOffset, vobj::FieldType::kTagged)       \
   V(flags, T::kFlagsOffset, vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST

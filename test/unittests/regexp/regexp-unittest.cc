@@ -579,8 +579,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
           .ToHandleChecked();
   DirectHandle<IrRegExpData> re_data =
       TrustedCast<IrRegExpData>(isolate->factory()->NewIrRegExpData(
-          pattern, JSRegExp::AsJSRegExpFlags(flags), compile_data.capture_count,
-          JSRegExp::kNoBacktrackLimit, 0));
+          pattern, pattern, JSRegExp::AsJSRegExpFlags(flags),
+          compile_data.capture_count, JSRegExp::kNoBacktrackLimit, 0));
 
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
                             sample_subject, re_data, is_one_byte);
@@ -677,10 +677,9 @@ static DirectHandle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
   DirectHandle<JSFunction> constructor = isolate->regexp_function();
   DirectHandle<JSRegExp> regexp =
       Cast<JSRegExp>(factory->NewJSObject(constructor));
-  regexp->set_source(*source);
   regexp->set_flags(Smi::FromInt(0));
 
-  factory->SetRegExpIrregexpData(regexp, source, {}, 0,
+  factory->SetRegExpIrregexpData(regexp, source, source, {}, 0,
                                  JSRegExp::kNoBacktrackLimit, true);
   Tagged<IrRegExpData> data = TrustedCast<IrRegExpData>(regexp->data(isolate));
   const bool is_latin1 = !is_unicode;

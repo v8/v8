@@ -1130,11 +1130,9 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   }
 
   DirectHandle<RegExpData> data(regexp_instance->data(isolate), isolate);
-  DirectHandle<String> source(Cast<String>(regexp_instance->source()), isolate);
   DirectHandle<RegExpBoilerplateDescription> boilerplate =
       isolate->factory()->NewRegExpBoilerplateDescription(
-          data, source,
-          Smi::FromInt(static_cast<int>(regexp_instance->flags())));
+          data, Smi::FromInt(static_cast<int>(regexp_instance->flags())));
 
   vector->SynchronizedSet(literal_slot, *boilerplate);
   DCHECK(HasBoilerplate(
