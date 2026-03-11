@@ -381,17 +381,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     // Verify the instruction sequence has the same hash in two stages.
     VerifyGeneratedCodeIsIdempotent();
 
-#ifdef BUILTIN_BLOCK_POSITION
-    if (V8_UNLIKELY(data_->pipeline_kind() == TurboshaftPipelineKind::kCSA ||
-                    data_->pipeline_kind() ==
-                        TurboshaftPipelineKind::kTSABuiltin)) {
-      if (data_->has_graph() && data_->graph().has_profile()) {
-        RUN_MAYBE_ABORT(BlockPositioningPhase);
-        TraceSequence("after block positioning");
-      }
-    }
-#endif
-
     RUN_MAYBE_ABORT(FrameElisionPhase);
 
     // TODO(mtrofin): move this off to the register allocator.

@@ -252,7 +252,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BlockPositioning)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmInlining)                    \

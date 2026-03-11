@@ -77,7 +77,6 @@ def parse_log_file(log_file):
   branches = []
   builtin_hashes = {}
   max_execution_count = 0
-  raw_profile = []
   try:
     with open(log_file, "r") as f:
       for line in f.readlines():
@@ -93,7 +92,6 @@ def parse_log_file(log_file):
           while len(block_counts[builtin_name]) <= block_id:
             block_counts[builtin_name].append(0)
           block_counts[builtin_name][block_id] += count
-          raw_profile.append(line)
         elif fields[0] == BUILTIN_HASH_MARKER:
           builtin_name = fields[1]
           builtin_hash = int(fields[2])
@@ -104,7 +102,6 @@ def parse_log_file(log_file):
                 "versions: {old_hash} != {builtin_hash}")
           else:
             builtin_hashes[builtin_name] = builtin_hash
-            raw_profile.append(line)
         elif fields[0] == BRANCH_HINT_MARKER:
           builtin_name = fields[1]
           true_block_id = int(fields[2])
@@ -113,9 +110,7 @@ def parse_log_file(log_file):
   except IOError as e:
     print(f"Cannot read from {log_file}. {e.strerror}.")
     sys.exit(1)
-  return [
-      block_counts, branches, builtin_hashes, max_execution_count, raw_profile
-  ]
+  return [block_counts, branches, builtin_hashes, max_execution_count]
 
 
 def get_branch_hints(block_counts, branches, min_count, threshold_ratio):
@@ -154,7 +149,7 @@ def normalize_count(block_counts, max_count):
 
 
 def write_hints_to_output(output_file, branch_hints, builtin_hashes,
-                          block_counts, raw_profile):
+                          block_counts):
   try:
     with open(output_file, "w") as f:
       for key in branch_hints:
@@ -180,21 +175,17 @@ def write_hints_to_output(output_file, branch_hints, builtin_hashes,
       for builtin_name in builtin_hashes:
         f.write("{},{},{}\n".format(BUILTIN_HASH_MARKER, builtin_name,
                                     builtin_hashes[builtin_name]))
-
-      for line in raw_profile:
-        f.write(line)
-
   except IOError as e:
     print(f"Cannot read from {output_file}. {e.strerror}.")
     sys.exit(1)
 
 
-[block_counts, branches, builtin_hashes, max_count,
- raw_profile] = parse_log_file(ARGS['log_file'])
+[block_counts, branches, builtin_hashes,
+ max_count] = parse_log_file(ARGS['log_file'])
 branch_hints = get_branch_hints(block_counts, branches, ARGS['min'],
                                 ARGS['ratio'])
 
 block_counts = normalize_count(block_counts, max_count)
 
 write_hints_to_output(ARGS['output_file'], branch_hints, builtin_hashes,
-                      block_counts, raw_profile)
+                      block_counts)
