@@ -5418,7 +5418,18 @@ TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
     m.Return(m.S128Or(m.I64x2Shl(x, m.Int32Constant(1)),
                       m.I64x2ShrU(x, m.Int32Constant(63))));
     Stream s = m.Build();
-    ASSERT_EQ(4U, s.size());
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64S128And, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(kArm64Xar, s[1]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+      EXPECT_EQ(s.ToInt32(s[1]->InputAt(1)), 0);
+      EXPECT_EQ(s.ToInt32(s[1]->InputAt(2)), 63);
+    } else {
+      ASSERT_EQ(4U, s.size());
+    }
   }
 }
 

@@ -545,6 +545,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   bool CanCoverProtectedLoad(turboshaft::OpIndex user,
                              turboshaft::OpIndex node) const;
 
+  // Checks that node is in the current schedule block.
+  bool InCurrentBlock(turboshaft::OpIndex node) const;
+
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
   // and that {user} is the only user of {node} in this basic block.  This

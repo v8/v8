@@ -1648,8 +1648,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Xar: {
       DCHECK(CpuFeatures::IsSupported(SHA3));
       CpuFeatureScope scope(masm(), SHA3);
-      __ Xar(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
-             i.InputSimd128Register(1).V2D(), i.InputInt6(2));
+      if (instr->InputAt(1)->IsImmediate() && i.InputInt32(1) == 0) {
+        // Use the pre-assigned fp_zero register for a rotate.
+        __ Xar(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+               fp_zero.V2D(), i.InputInt6(2));
+      } else {
+        __ Xar(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+               i.InputSimd128Register(1).V2D(), i.InputInt6(2));
+      }
       break;
     }
     case kArm64Sadalp: {

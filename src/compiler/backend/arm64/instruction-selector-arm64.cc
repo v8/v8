@@ -5119,6 +5119,12 @@ bool TryEmitS128Xar(InstructionSelector* selector, OpIndex node) {
   // Where c0 + c1 == 64, and so results in the or performing a rotation.
 
   const Simd128BinopOp& or_op = selector->Get(node).Cast<Simd128BinopOp>();
+
+  if (!selector->CanCover(node, or_op.left()) ||
+      !selector->CanCover(node, or_op.right())) {
+    return false;
+  }
+
   const Simd128ShiftOp* shl_op =
       selector->TryCast<Opmask::kSimd128I64x2Shl>(or_op.left());
   const Simd128ShiftOp* shru_op =
@@ -5141,15 +5147,23 @@ bool TryEmitS128Xar(InstructionSelector* selector, OpIndex node) {
   if (shl_const + shru_const != 64 || shl_op->input() != shru_op->input()) {
     return false;
   }
+
+  Arm64OperandGenerator g(selector);
   if (const Simd128BinopOp* xor_op =
           selector->TryCast<Opmask::kSimd128Xor>(shl_op->input())) {
-    Arm64OperandGenerator g(selector);
-    selector->Emit(kArm64Xar, g.DefineAsRegister(node),
-                   g.UseRegister(xor_op->left()),
-                   g.UseRegister(xor_op->right()), g.UseImmediate(shru_const));
-    return true;
+    if (xor_op->saturated_use_count.Is(2) &&
+        selector->InCurrentBlock(shl_op->input())) {
+      selector->Emit(
+          kArm64Xar, g.DefineAsRegister(node), g.UseRegister(xor_op->left()),
+          g.UseRegister(xor_op->right()), g.UseImmediate(shru_const));
+      return true;
+    }
   }
-  return false;
+  // If we don't find an xor, pass a zero so we perform a rotate and no xor.
+  selector->Emit(kArm64Xar, g.DefineAsRegister(node),
+                 g.UseRegister(shl_op->input()), g.TempImmediate(0),
+                 g.UseImmediate(shru_const));
+  return true;
 }
 
 }  // namespace

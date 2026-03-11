@@ -358,9 +358,13 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
 }
 }  // namespace
 
+bool InstructionSelector::InCurrentBlock(OpIndex node) const {
+  return block(schedule(), node) == current_block_;
+}
+
 bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   // 1. Both {user} and {node} must be in the same basic block.
-  if (block(schedule(), node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     return false;
   }
 
@@ -2116,7 +2120,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (this->block(schedule_, binop) != current_block_) {
+  if (!InCurrentBlock(binop)) {
     // {binop} is not supposed to be defined in the current block, so let's not
     // pull it in this block (the checks would need to be stronger, and it's
     // unlikely that it's doable because of effect levels and all).
@@ -2136,7 +2140,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
       continue;
     }
     if (IsDefined(use)) continue;
-    if (this->block(schedule_, use) != current_block_) {
+    if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
       // that operations that don't produce values are not marked as Defined,
       // like Return for instance, so it's possible that {use} has been visited
@@ -2159,7 +2163,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     }
 
     if (this->Get(use).template Is<PhiOp>()) {
-      DCHECK_EQ(this->block(schedule_, use), current_block_);
+      DCHECK(InCurrentBlock(use));
       // If {projection0} is used by a Phi in the current block, then it has to
       // be a loop phi, and {projection0} has to be its backedge value. This
       // doesn't prevent scheduling {projection0} now, since anyways it
@@ -2522,7 +2526,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
 
   DCHECK_EQ(projection->input_count, 1);
   OpIndex node = projection->input();
-  if (block(schedule_, node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     // The projection input is not in the current block, so it shouldn't be
     // emitted now, so we don't need to eagerly schedule its Projection[0].
     return;
@@ -2545,7 +2549,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
     return;
   }
 
-  if (block(schedule_, result.value()) != current_block_) {
+  if (!InCurrentBlock(result.value())) {
     // {result} wasn't planned to be scheduled in {current_block_}. To
     // avoid adding checks to see if it can still be scheduled now, we
     // just bail out.
@@ -2561,8 +2565,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   for (OpIndex use : turboshaft_uses(result.value())) {
     // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
     // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) &&
-        block(schedule_, use) == current_block_ && !Is<PhiOp>(use)) {
+    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
+        !Is<PhiOp>(use)) {
       return;
     }
   }
