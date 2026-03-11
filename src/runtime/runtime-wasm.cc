@@ -389,18 +389,17 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   DisallowHeapAllocation no_gc;
   SealHandleScope scope(isolate);
-  std::shared_ptr<wasm::NativeModule> native_module =
-      trusted_instance_data->native_module();
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
 
   DCHECK(isolate->context().is_null());
   DCHECK(trusted_instance_data->has_native_context());
   isolate->set_context(trusted_instance_data->native_context());
-  bool success = wasm::CompileLazy(isolate, native_module.get(), func_index);
+  bool success = wasm::CompileLazy(isolate, native_module, func_index);
   native_module->counter_updates()->Publish(isolate);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
-    wasm::ThrowLazyCompilationError(isolate, native_module.get(), func_index);
+    wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
@@ -441,11 +440,10 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   int declared_func_index = args.smi_value_at(1);
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  std::shared_ptr<wasm::NativeModule> native_module =
-      trusted_instance_data->native_module();
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
-  *native_module_stack_slot = native_module.get();
+  *native_module_stack_slot = native_module;
   return AllocateFeedbackVector(isolate, trusted_instance_data,
                                 declared_func_index);
 }

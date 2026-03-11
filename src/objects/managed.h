@@ -100,12 +100,16 @@ class Managed : public Foreign {
   V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
       : Foreign(ptr, SkipTypeCheckTag{}) {}
 
-  // TODO(emaxx): Change this back to a raw pointer, but require the
-  // DisallowHeapAllocation witness.
-  V8_INLINE std::shared_ptr<CppType> raw() { return get(); }
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  Managed* operator->() { return this; }
+  const Managed* operator->() const { return this; }
 
-  // Get the shared pointer to the C++ object.
-  V8_INLINE std::shared_ptr<CppType> get() { return *GetSharedPtrPtr(); }
+  // Get a raw pointer to the C++ object.
+  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+
+  // Get a reference to the shared pointer to the C++ object.
+  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
   // Read back the memory estimate that was provided when creating this Managed.
   size_t estimated_size() const { return GetDestructor()->estimated_size_; }
@@ -150,12 +154,16 @@ class TrustedManaged : public TrustedForeign {
   V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
       : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
 
-  // TODO(emaxx): Change this back to a raw pointer, but require the
-  // DisallowHeapAllocation witness.
-  V8_INLINE std::shared_ptr<CppType> raw() { return get(); }
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  TrustedManaged* operator->() { return this; }
+  const TrustedManaged* operator->() const { return this; }
 
-  // Get the shared pointer to the C++ object.
-  V8_INLINE std::shared_ptr<CppType> get() { return *GetSharedPtrPtr(); }
+  // Get a raw pointer to the C++ object.
+  V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
+
+  // Get a reference to the shared pointer to the C++ object.
+  V8_INLINE const std::shared_ptr<CppType>& get() { return *GetSharedPtrPtr(); }
 
   // Create a {Managed<CppType>} from an existing {std::shared_ptr} or
   // {std::unique_ptr} (which will implicitly convert to {std::shared_ptr}).

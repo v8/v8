@@ -8843,7 +8843,7 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
                               i::Isolate::Current());
   size_t length;
   std::unique_ptr<char[]> cstring = url->ToCString(&length);
-  return CompiledWasmModule(obj->shared_native_module(),
+  return CompiledWasmModule(std::move(obj->shared_native_module()),
                             {cstring.get(), length});
 #else
   UNREACHABLE();

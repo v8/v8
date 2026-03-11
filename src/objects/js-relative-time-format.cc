@@ -250,8 +250,8 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
 DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::RelativeDateTimeFormatter> formatter =
-      format_holder->icu_formatter()->get();
+  icu::RelativeDateTimeFormatter* formatter =
+      format_holder->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
   DirectHandle<JSObject> result =
       factory->NewJSObject(isolate->object_function());
@@ -355,8 +355,7 @@ MaybeDirectHandle<T> FormatCommon(
                      MessageTemplate::kNotFiniteNumber,
                      isolate->factory()->NewStringFromAsciiChecked(func_name)));
   }
-  std::shared_ptr<icu::RelativeDateTimeFormatter> formatter =
-      format->icu_formatter()->get();
+  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {

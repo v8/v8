@@ -188,7 +188,7 @@ TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
   buffer.write_u32(kWasmMagic);
   buffer.write_u32(kWasmVersion);
   EmitCompilationHintsToBuffer(
-      buffer, builder.trusted_instance_data()->native_module().get());
+      buffer, builder.trusted_instance_data()->native_module());
 
   // Now compile the new module emitted in {buffer}.
   ErrorThrower thrower(isolate(), "test wasm compilation hints");

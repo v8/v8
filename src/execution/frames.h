@@ -5,8 +5,6 @@
 #ifndef V8_EXECUTION_FRAMES_H_
 #define V8_EXECUTION_FRAMES_H_
 
-#include <memory>
-
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
 #include "src/codegen/handler-table.h"
@@ -1366,7 +1364,7 @@ class WasmFrame : public TypedFrame {
   // Accessors.
   virtual V8_EXPORT_PRIVATE Tagged<WasmInstanceObject> wasm_instance() const;
   virtual Tagged<WasmTrustedInstanceData> trusted_instance_data() const;
-  V8_EXPORT_PRIVATE std::shared_ptr<wasm::NativeModule> native_module() const;
+  V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
 
   virtual wasm::WasmCode* wasm_code() const;
   int function_index() const;

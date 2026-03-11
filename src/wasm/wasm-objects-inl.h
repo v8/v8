@@ -88,18 +88,18 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
   }
 
 // WasmModuleObject
-std::shared_ptr<wasm::NativeModule> WasmModuleObject::native_module() const {
-  return managed_native_module()->get();
+wasm::NativeModule* WasmModuleObject::native_module() const {
+  return managed_native_module()->raw();
 }
-std::shared_ptr<wasm::NativeModule> WasmModuleObject::shared_native_module()
-    const {
+const std::shared_ptr<wasm::NativeModule>&
+WasmModuleObject::shared_native_module() const {
   return managed_native_module()->get();
 }
 
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>, kInstancesOffset)
 
-std::shared_ptr<BackingStore> WasmMemoryObject::backing_store() const {
+const std::shared_ptr<BackingStore>& WasmMemoryObject::backing_store() const {
   return managed_backing_store()->get();
 }
 
@@ -313,9 +313,8 @@ bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
   return maybe_table != Smi::zero();
 }
 
-std::shared_ptr<wasm::NativeModule> WasmTrustedInstanceData::native_module()
-    const {
-  return managed_native_module()->get();
+wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
+  return managed_native_module()->get().get();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
@@ -356,13 +355,11 @@ PROTECTED_POINTER_ACCESSORS(WasmDispatchTableForImports, protected_offheap_data,
                             TrustedManaged<WasmDispatchTableData>,
                             kProtectedOffheapDataOffset)
 
-std::shared_ptr<WasmDispatchTableData> WasmDispatchTable::offheap_data() const {
-  return protected_offheap_data()->get();
+WasmDispatchTableData* WasmDispatchTable::offheap_data() const {
+  return protected_offheap_data()->get().get();
 }
-
-std::shared_ptr<WasmDispatchTableData>
-WasmDispatchTableForImports::offheap_data() const {
-  return protected_offheap_data()->get();
+WasmDispatchTableData* WasmDispatchTableForImports::offheap_data() const {
+  return protected_offheap_data()->get().get();
 }
 
 PROTECTED_POINTER_ACCESSORS(WasmDispatchTable, protected_uses,
@@ -523,9 +520,8 @@ PROTECTED_POINTER_ACCESSORS(WasmJSFunctionData, protected_offheap_data,
                             TrustedManaged<WasmJSFunctionData::OffheapData>,
                             kProtectedOffheapDataOffset)
 
-std::shared_ptr<WasmJSFunctionData::OffheapData>
-WasmJSFunctionData::offheap_data() const {
-  return protected_offheap_data()->get();
+WasmJSFunctionData::OffheapData* WasmJSFunctionData::offheap_data() const {
+  return protected_offheap_data()->get().get();
 }
 
 // WasmJSFunction

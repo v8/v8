@@ -123,9 +123,9 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
             script = wasm.script();
             bool zeroth_frame = call_stack.empty();
             if (!zeroth_frame) {
-              std::shared_ptr<NativeModule> native_module =
+              const NativeModule* native_module =
                   wasm.wasm_instance()->module_object()->native_module();
-              offset = ReturnPc(native_module.get(), offset);
+              offset = ReturnPc(native_module, offset);
             }
           }
 
@@ -248,8 +248,7 @@ bool WasmModuleDebug::GetWasmLocal(Isolate* isolate, uint32_t frame_index,
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),
                                              isolate);
-      std::shared_ptr<wasm::NativeModule> native_module =
-          module_object->native_module();
+      wasm::NativeModule* native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
       if (static_cast<uint32_t>(debug_info->GetNumLocals(frame_it.frame()->pc(),
                                                          isolate)) > index) {
@@ -283,8 +282,7 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),
                                              isolate);
-      std::shared_ptr<wasm::NativeModule> native_module =
-          module_object->native_module();
+      wasm::NativeModule* native_module = module_object->native_module();
       DebugInfo* debug_info = native_module->GetDebugInfo();
       if (static_cast<uint32_t>(debug_info->GetStackDepth(
               frame_it.frame()->pc(), isolate)) > index) {

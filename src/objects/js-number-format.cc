@@ -869,8 +869,8 @@ DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
   Factory* factory = isolate->factory();
 
   UErrorCode status = U_ZERO_ERROR;
-  std::shared_ptr<icu::number::LocalizedNumberFormatter> fmt =
-      number_format->icu_number_formatter()->get();
+  icu::number::LocalizedNumberFormatter* fmt =
+      number_format->icu_number_formatter()->raw();
   icu::UnicodeString skeleton = fmt->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
@@ -2029,7 +2029,7 @@ MaybeDirectHandle<T> PartitionNumberRangePattern(
   Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
       JSNumberFormat::GetRangeFormatter(
           isolate, number_format->locale(),
-          *number_format->icu_number_formatter()->get());
+          *number_format->icu_number_formatter()->raw());
   MAYBE_RETURN(maybe_range_formatter, MaybeDirectHandle<T>());
 
   icu::number::LocalizedNumberRangeFormatter nrfmt =

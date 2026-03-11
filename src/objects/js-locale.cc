@@ -145,7 +145,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
 DirectHandle<Object> UnicodeKeywordValue(Isolate* isolate,
                                          DirectHandle<JSLocale> locale,
                                          const char* key) {
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
@@ -517,7 +517,7 @@ MaybeDirectHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
   // ICU has limitation on the length of the locale while addLikelySubtags
   // is called. Work around the issue by only perform addLikelySubtags
   // on the base locale and merge the extension if needed.
-  icu::Locale source(*(locale->icu_locale()->get()));
+  icu::Locale source(*(locale->icu_locale()->raw()));
   icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
   result.addLikelySubtags(status);
@@ -551,7 +551,7 @@ MaybeDirectHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
   // ICU has limitation on the length of the locale while minimizeSubtags
   // is called. Work around the issue by only perform addLikelySubtags
   // on the base locale and merge the extension if needed.
-  icu::Locale source(*(locale->icu_locale()->get()));
+  icu::Locale source(*(locale->icu_locale()->raw()));
   icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
   result.minimizeSubtags(status);
@@ -622,8 +622,8 @@ MaybeDirectHandle<JSArray> CalendarsForLocale(Isolate* isolate,
 
 MaybeDirectHandle<JSArray> JSLocale::GetCalendars(
     Isolate* isolate, DirectHandle<JSLocale> locale) {
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  return CalendarsForLocale(isolate, *icu_locale, true, false);
+  icu::Locale icu_locale(*(locale->icu_locale()->raw()));
+  return CalendarsForLocale(isolate, icu_locale, true, false);
 }
 
 MaybeDirectHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
@@ -633,9 +633,9 @@ MaybeDirectHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
 
 MaybeDirectHandle<JSArray> JSLocale::GetCollations(
     Isolate* isolate, DirectHandle<JSLocale> locale) {
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
+  icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   return GetKeywordValuesFromLocale<icu::Collator>(
-      isolate, "collations", "co", *icu_locale, Intl::RemoveCollation, true,
+      isolate, "collations", "co", icu_locale, Intl::RemoveCollation, true,
       true);
 }
 
@@ -643,7 +643,7 @@ MaybeDirectHandle<JSArray> JSLocale::GetHourCycles(
     Isolate* isolate, DirectHandle<JSLocale> locale) {
   // Let preferred be loc.[[HourCycle]].
   // Let locale be loc.[[Locale]].
-  icu::Locale icu_locale(*(locale->icu_locale()->get()));
+  icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   Factory* factory = isolate->factory();
 
   // Assert: locale matches the unicode_locale_id production.
@@ -701,7 +701,7 @@ MaybeDirectHandle<JSArray> JSLocale::GetNumberingSystems(
   // Let preferred be loc.[[NumberingSystem]].
 
   // Let locale be loc.[[Locale]].
-  icu::Locale icu_locale(*(locale->icu_locale()->get()));
+  icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   Factory* factory = isolate->factory();
 
   // Assert: locale matches the unicode_locale_id production.
@@ -733,7 +733,7 @@ MaybeDirectHandle<Object> JSLocale::GetTimeZones(
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]])
 
   // Let locale be loc.[[Locale]].
-  icu::Locale icu_locale(*(locale->icu_locale()->get()));
+  icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   Factory* factory = isolate->factory();
 
   // If the unicode_language_id production of locale does not contain the
@@ -781,8 +781,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetTextInfo(
       factory->NewJSObject(isolate->object_function());
 
   // Let dir be "ltr".
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  DirectHandle<String> dir = icu_locale->isRightToLeft()
+  DirectHandle<String> dir = locale->icu_locale()->raw()->isRightToLeft()
                                  ? factory->rtl_string()
                                  : factory->ltr_string();
 
@@ -810,9 +809,8 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
   DirectHandle<JSObject> info =
       factory->NewJSObject(isolate->object_function());
   UErrorCode status = U_ZERO_ERROR;
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
   std::unique_ptr<icu::Calendar> calendar(
-      icu::Calendar::createInstance(*icu_locale, status));
+      icu::Calendar::createInstance(*(locale->icu_locale()->raw()), status));
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
@@ -860,8 +858,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
 DirectHandle<Object> JSLocale::Language(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  const char* language = icu_locale->getLanguage();
+  const char* language = locale->icu_locale()->raw()->getLanguage();
   constexpr const char kUnd[] = "und";
   if (strlen(language) == 0) {
     language = kUnd;
@@ -872,16 +869,14 @@ DirectHandle<Object> JSLocale::Language(Isolate* isolate,
 DirectHandle<Object> JSLocale::Script(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  const char* script = icu_locale->getScript();
+  const char* script = locale->icu_locale()->raw()->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
 }
 DirectHandle<Object> JSLocale::Variants(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  std::string variants = icu_locale->getVariant();
+  std::string variants = locale->icu_locale()->raw()->getVariant();
   if (variants.length() == 0) return factory->undefined_value();
   // icu::Locale::getVariants() return the variants in upper case characters
   // with '_', we need to convert it to lower case and '-' before return.
@@ -897,17 +892,15 @@ DirectHandle<Object> JSLocale::Variants(Isolate* isolate,
 DirectHandle<Object> JSLocale::Region(Isolate* isolate,
                                       DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
-  const char* region = icu_locale->getCountry();
+  const char* region = locale->icu_locale()->raw()->getCountry();
   if (strlen(region) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(region);
 }
 
 DirectHandle<String> JSLocale::BaseName(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
-  std::shared_ptr<icu::Locale> icu_locale_ptr = locale->icu_locale()->get();
   icu::Locale icu_locale =
-      icu::Locale::createFromName(icu_locale_ptr->getBaseName());
+      icu::Locale::createFromName(locale->icu_locale()->raw()->getBaseName());
   std::string base_name = Intl::ToLanguageTag(icu_locale).FromJust();
   return isolate->factory()->NewStringFromAsciiChecked(base_name.c_str());
 }
@@ -939,7 +932,7 @@ DirectHandle<Object> JSLocale::HourCycle(Isolate* isolate,
 DirectHandle<Object> JSLocale::Numeric(Isolate* isolate,
                                        DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
   UErrorCode status = U_ZERO_ERROR;
   std::string numeric =
       icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
@@ -952,7 +945,7 @@ DirectHandle<Object> JSLocale::NumberingSystem(Isolate* isolate,
 }
 
 std::string JSLocale::ToString(DirectHandle<JSLocale> locale) {
-  std::shared_ptr<icu::Locale> icu_locale = locale->icu_locale()->get();
+  icu::Locale* icu_locale = locale->icu_locale()->raw();
   return Intl::ToLanguageTag(*icu_locale).FromJust();
 }
 

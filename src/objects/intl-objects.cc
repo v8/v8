@@ -1088,7 +1088,7 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
         std::static_pointer_cast<icu::UMemory>(
             collator->icu_collator()->get()));
   }
-  std::shared_ptr<icu::Collator> icu_collator = collator->icu_collator()->get();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2,
                               compare_strings_options);
 }

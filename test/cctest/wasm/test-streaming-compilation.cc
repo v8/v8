@@ -231,7 +231,9 @@ class StreamTester {
   }
 
   // Compiled native module, valid after successful compile.
-  NativeModule* native_module() const { return shared_native_module().get(); }
+  NativeModule* native_module() const {
+    return module_object()->native_module();
+  }
   std::shared_ptr<NativeModule> shared_native_module() const {
     return module_object()->shared_native_module();
   }

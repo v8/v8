@@ -157,8 +157,7 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
-  std::shared_ptr<wasm::NativeModule> native_module =
-      module_object->native_module();
+  wasm::NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   if (!module->name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
@@ -168,8 +167,7 @@ MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
 MaybeDirectHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t func_index) {
-  std::shared_ptr<wasm::NativeModule> native_module =
-      module_object->native_module();
+  wasm::NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   DCHECK_LT(func_index, module->functions.size());
   wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
@@ -184,7 +182,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   if (func_index == wasm::kAnonymousFuncIndex) {
     return base::Vector<const uint8_t>({nullptr, 0});
   }
-  std::shared_ptr<wasm::NativeModule> native_mod = native_module();
+  wasm::NativeModule* native_mod = native_module();
   const WasmModule* module = native_mod->module();
   DCHECK_GT(module->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_mod->wire_bytes());
@@ -1680,7 +1678,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     std::shared_ptr<wasm::NativeModule> native_module, bool shared) {
   // We don't read the NativeModule from the WasmModuleObject here to guard
   // against swapping attacks.
-  DCHECK_EQ(native_module, module_object->native_module());
+  DCHECK_EQ(native_module.get(), module_object->native_module());
 
   // Do first allocate all objects that will be stored in instance fields,
   // because otherwise we would have to allocate when the instance is not fully
@@ -1855,7 +1853,7 @@ void WasmTrustedInstanceData::InitDataSegmentArrays(
 }
 
 WasmCodePointer WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
-  std::shared_ptr<wasm::NativeModule> native_module = this->native_module();
+  wasm::NativeModule* native_module = this->native_module();
   SBXCHECK_BOUNDS(func_index, native_module->num_functions());
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);

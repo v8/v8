@@ -1254,7 +1254,7 @@ WASM_EXPORT auto Module::make(Store* store_abs, const vec<byte_t>& binary)
 }
 
 WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
-  std::shared_ptr<i::wasm::NativeModule> native_module =
+  const i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
@@ -1275,8 +1275,7 @@ WASM_EXPORT auto Module::imports() const -> ownvec<ImportType> {
 
 ownvec<ExportType> ExportsImpl(
     i::DirectHandle<i::WasmModuleObject> module_obj) {
-  std::shared_ptr<i::wasm::NativeModule> native_module =
-      module_obj->native_module();
+  const i::wasm::NativeModule* native_module = module_obj->native_module();
   const i::wasm::WasmModule* module = native_module->module();
   const v8::base::Vector<const uint8_t> wire_bytes =
       native_module->wire_bytes();
@@ -1306,12 +1305,12 @@ WASM_EXPORT auto Module::serialize() const -> vec<byte_t> {
   i::Isolate* isolate = impl(this)->isolate();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
-  std::shared_ptr<i::wasm::NativeModule> native_module =
+  i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
   native_module->compilation_state()->TierUpAllFunctions();
   v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
-  i::wasm::WasmSerializer serializer(native_module.get());
+  i::wasm::WasmSerializer serializer(native_module);
   size_t serial_size = serializer.GetSerializedNativeModuleSize();
   size_t size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);
   vec<byte_t> buffer =
@@ -1780,8 +1779,8 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
 
 own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
                                const vec<Val>& args, vec<Val>& results) {
-  std::shared_ptr<FuncData> func_data =
-      i::Cast<i::Managed<FuncData>>(data->embedder_data())->get();
+  FuncData* func_data =
+      i::Cast<i::Managed<FuncData>>(data->embedder_data())->raw();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1895,9 +1894,9 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
 
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
-  std::shared_ptr<FuncData> self =
+  FuncData* self =
       i::Cast<i::Managed<FuncData>>(i::Tagged<i::Object>(host_data_foreign))
-          ->get();
+          ->raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());

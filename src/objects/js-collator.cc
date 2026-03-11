@@ -90,7 +90,7 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  std::shared_ptr<icu::Collator> icu_collator = collator->icu_collator()->get();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;

@@ -1290,8 +1290,7 @@ class FeedbackMaker {
                         ->GetEntrypointWithoutSignatureCheck(handle);
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(nullptr, entry);
-    if (!code ||
-        code->native_module() != instance_data_->native_module().get() ||
+    if (!code || code->native_module() != instance_data_->native_module() ||
         code->IsAnonymous()) {
       // Was not in the main table (e.g., because it's an imported function).
       has_non_inlineable_targets_ = true;
@@ -1576,8 +1575,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 void TriggerTierUp(Isolate* isolate,
                    Tagged<WasmTrustedInstanceData> trusted_instance_data,
                    int func_index) {
-  std::shared_ptr<NativeModule> native_module =
-      trusted_instance_data->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
@@ -1617,21 +1615,19 @@ void TriggerTierUp(Isolate* isolate,
 void TierUpNowForTesting(Isolate* isolate,
                          Tagged<WasmTrustedInstanceData> trusted_instance_data,
                          int func_index) {
-  std::shared_ptr<NativeModule> native_module =
-      trusted_instance_data->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   if (v8_flags.wasm_inlining) {
     TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
                                              func_index);
   }
-  wasm::GetWasmEngine()->CompileFunction(native_module.get(), func_index,
+  wasm::GetWasmEngine()->CompileFunction(native_module, func_index,
                                          wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
 }
 
 void TierUpAllForTesting(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data) {
-  std::shared_ptr<NativeModule> native_module =
-      trusted_instance_data->native_module();
+  NativeModule* native_module = trusted_instance_data->native_module();
   const WasmModule* mod = native_module->module();
   WasmCodeRefScope code_ref_scope;
 

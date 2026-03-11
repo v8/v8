@@ -225,8 +225,7 @@ MaybeDirectHandle<T> FormatListCommon(
   MAYBE_RETURN(maybe_array, DirectHandle<T>());
   std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
-  std::shared_ptr<icu::ListFormatter> formatter =
-      format->icu_formatter()->get();
+  icu::ListFormatter* formatter = format->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;
