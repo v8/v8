@@ -110,44 +110,11 @@ Tagged<Object> ThrowWasmError(
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  SealHandleScope seal_handle_scope(isolate);
+RUNTIME_FUNCTION(Runtime_WasmWasmToJSObject) {
+  HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  Tagged<Object> value = args[0];
-  if (IsWasmFuncRef(value)) {
-    Tagged<WasmInternalFunction> internal =
-        Cast<WasmFuncRef>(value)->internal(isolate);
-    Tagged<JSFunction> external;
-    if (internal->try_get_external(&external)) return external;
-    // Slow path:
-    HandleScope handle_scope(isolate);
-    return *WasmInternalFunction::GetOrCreateExternal(
-        direct_handle(internal, isolate));
-  }
-  if (IsWasmNull(value)) return ReadOnlyRoots(isolate).null_value();
-  return value;
-}
-
-// Takes a JS object and a wasm type as Smi. Type checks the object against the
-// type; if the check succeeds, returns the object in its wasm representation;
-// otherwise throws a type error.
-RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
   DirectHandle<Object> value(args[0], isolate);
-  // Make sure CanonicalValueType fits properly in a Smi.
-  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(1);
-
-  wasm::CanonicalValueType type =
-      wasm::CanonicalValueType::FromRawBitField(raw_type);
-  const char* error_message;
-  DirectHandle<Object> result;
-  if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
-    return isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kWasmTrapJSTypeError));
-  }
-  return *result;
+  return *wasm::WasmToJSObject(isolate, value);
 }
 
 // Parameters:
