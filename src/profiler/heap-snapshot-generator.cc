@@ -923,9 +923,10 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       auto it =
           native_context_tag_map_.find(Cast<HeapObject>(maybe_context.value()));
       if (it != native_context_tag_map_.end() && it->second.tag) {
-        name = names_->GetFormatted("%s (global*) / %s", name, it->second.tag);
+        name = names_->GetFormatted("%s [JSGlobalObject] / %s", name,
+                                    it->second.tag);
       } else {
-        name = names_->GetFormatted("%s (global*)", name);
+        name = names_->GetFormatted("%s [JSGlobalObject]", name);
       }
     } else if (InstanceTypeChecker::IsJSGlobalProxy(instance_type)) {
       auto maybe_context = Cast<JSGlobalProxy>(object)->GetCreationContext();
@@ -933,12 +934,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         auto it = native_context_tag_map_.find(
             Cast<HeapObject>(maybe_context.value()));
         if (it != native_context_tag_map_.end() && it->second.tag) {
-          name = names_->GetFormatted("%s (global) / %s", name, it->second.tag);
+          name = names_->GetFormatted("%s [JSGlobalProxy] / %s", name,
+                                      it->second.tag);
         } else {
-          name = names_->GetFormatted("%s (global)", name);
+          name = names_->GetFormatted("%s [JSGlobalProxy]", name);
         }
       } else {
-        name = names_->GetFormatted("%s (global) / <detached>", name);
+        name = names_->GetFormatted("%s [JSGlobalProxy] / <detached>", name);
       }
     }
     auto it = native_context_tag_map_.find(Cast<HeapObject>(object));

@@ -2211,13 +2211,13 @@ TEST(ContextNameSimple) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("Object (global*) / Native context name"),
+  CHECK_EQ(std::string("Object [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("Object (global) / Native context name"),
+  CHECK_EQ(std::string("Object [JSGlobalProxy] / Native context name"),
            std::string(GetName(global_proxy)));
 }
 
@@ -2248,13 +2248,13 @@ TEST(ContextName) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("MyGlobal (global) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalProxy] / Native context name"),
            std::string(GetName(global_proxy)));
 }
 
@@ -2287,13 +2287,13 @@ TEST(ContextNameDetached) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("Object (global) / <detached>"),
+  CHECK_EQ(std::string("Object [JSGlobalProxy] / <detached>"),
            std::string(GetName(global_proxy)));
 }
 
@@ -3586,7 +3586,7 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
       GetChildByName(embedder_root, "EmbedderNodeC");
   CHECK_EQ(30, GetSize(embedder_node_C));
   const v8::HeapGraphNode* global_reference =
-      GetChildByName(embedder_node_C, "Object (global*)");
+      GetChildByName(embedder_node_C, "Object [JSGlobalObject]");
   CHECK(global_reference);
 }
 
