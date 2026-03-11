@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // exist.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  std::shared_ptr<wasm::InterpreterHandle> interpreter_handle =
+  wasm::InterpreterHandle* interpreter_handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   if (wasm::WasmBytecode::ContainsSimd(sig)) {
@@ -237,7 +237,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
 namespace wasm {
 
-V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle> GetInterpreterHandle(
+V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
     Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
@@ -246,9 +246,8 @@ V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle> GetInterpreterHandle(
   return TrustedCast<Managed<InterpreterHandle>>(handle)->raw();
 }
 
-V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle>
-GetOrCreateInterpreterHandle(Isolate* isolate,
-                             DirectHandle<Tuple2> interpreter_object) {
+V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
+    Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
@@ -336,7 +335,6 @@ WasmInterpreterRuntime::WasmInterpreterRuntime(
 {
   DCHECK(v8_flags.wasm_jitless);
 
-  InitGlobalAddressCache();
   InitMemoryAddresses();
   InitIndirectFunctionTables();
 
@@ -351,25 +349,13 @@ WasmInterpreterRuntime::WasmInterpreterRuntime(
                                                   wasm_to_js_code_addr);
 }
 
-void WasmInterpreterRuntime::InitGlobalAddressCache() {
-  DisallowGarbageCollection no_gc;
-  global_addresses_.resize(module_->globals.size());
-  for (size_t index = 0; index < module_->globals.size(); index++) {
-    const WasmGlobal& global = module_->globals[index];
-    if (!global.type.is_ref()) {
-      global_addresses_[index] =
-          wasm_trusted_instance_data()->GetGlobalStorage(global, no_gc);
-    }
-  }
-}
-
 // static
 void WasmInterpreterRuntime::UpdateMemoryAddress(
     DirectHandle<WasmInstanceObject> instance, uint32_t memory_index) {
   Isolate* isolate = Isolate::Current();
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  std::shared_ptr<InterpreterHandle> handle =
+  InterpreterHandle* handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -1727,7 +1713,7 @@ void WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
     uint32_t table_index, uint32_t entry_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  std::shared_ptr<InterpreterHandle> handle =
+  InterpreterHandle* handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -1743,7 +1729,7 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
     uint32_t table_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  std::shared_ptr<InterpreterHandle> handle =
+  InterpreterHandle* handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->interpreter()->GetWasmRuntime();
@@ -2994,8 +2980,7 @@ DirectHandle<WasmInstanceObject> InterpreterHandle::GetInstanceObject() {
             TrustedCast<Managed<InterpreterHandle>>(
                 WasmInterpreterObject::get_interpreter_handle(
                     instance_obj->trusted_data(isolate_)->interpreter_object()))
-                ->raw()
-                .get());
+                ->raw());
   return instance_obj;
 }
 

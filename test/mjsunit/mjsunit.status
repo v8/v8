@@ -660,12 +660,16 @@
   'wasm/extended-constants': [SKIP],
 
   # --experimental-wasm-stack-switching
+  'regress/wasm/regress-483269968': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
 
   # --experimental-wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
+  'regress/wasm/regress-473272199': [SKIP],
+  'regress/wasm/regress-488089242': [SKIP],
+  'regress/wasm/regress-489349562': [SKIP],
   'wasm/cont-bind': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
@@ -778,6 +782,11 @@
 
   # --experimental-wasm-rab-integration
   'regress/wasm/regress-451144692': [SKIP],
+  'regress/wasm/regress-476461881': [SKIP],
+  'regress/wasm/regress-482759504': [SKIP],
+  'regress/wasm/regress-483643012': [SKIP],
+  'regress/wasm/regress-487444465': [SKIP],
+  'regress/wasm/regress-489029655': [SKIP],
   'wasm/grow-huge-memory-resizable-buffer*': [SKIP],
   'wasm/grow-memory-detaching-resizable-buffer': [SKIP],
   'wasm/grow-memory-in-branch-resizable-buffer': [SKIP],
@@ -798,6 +807,8 @@
   'regress/wasm/regress-436362279': [SKIP],
   'regress/wasm/regress-436937141': [SKIP],
   'regress/wasm/regress-443377612': [SKIP],
+  'regress/wasm/regress-446122633': [SKIP],
+  'regress/wasm/regress-446124893': [SKIP],
   'regress/wasm/regress-447613211': [SKIP],
   'regress/wasm/regress-448404198': [SKIP],
   'regress/wasm/regress-452541294': [SKIP],
@@ -866,6 +877,7 @@
   'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-383356864': [SKIP],
   'regress/wasm/regress-456319253': [SKIP],
+  'regress/wasm/regress-484405356': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
@@ -889,7 +901,20 @@
   'wasm/graceful_shutdown_during_tierup': [SKIP],
 
   # --turboshaft-wasm-in-js-inlining
+  'regress/wasm/regress-382564224': [SKIP],
   'regress/wasm/regress-422639603': [SKIP],
+  'regress/wasm/regress-449028728': [SKIP],
+  'regress/wasm/regress-451240002': [SKIP],
+  'regress/wasm/regress-462045796': [SKIP],
+
+  # Turbolev
+  'turbolev/regress-475583927': [SKIP],
+  'turbolev/regress-477658238': [SKIP],
+
+  # --experimental-wasm-js-interop
+  'regress/wasm/regress-470127856': [SKIP],
+  'regress/wasm/regress-471380636': [SKIP],
+  'regress/wasm/regress-474491347': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.

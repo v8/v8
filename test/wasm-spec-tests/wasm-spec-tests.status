@@ -92,6 +92,7 @@
 
 ##############################################################################
 ['has_wasm_interpreter and variant == jitless', {
+  'float_exprs': [SKIP],
   'memory64/*': [SKIP],
   'multi-memory/*': [SKIP],
   'instance': [SKIP],

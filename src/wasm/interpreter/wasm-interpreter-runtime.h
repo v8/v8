@@ -280,7 +280,6 @@ class WasmInterpreterRuntime {
   inline bool BoundsCheckMemRange(uint32_t memory_index, uint64_t index,
                                   uint64_t* size, Address* out_address) const;
 
-  void InitGlobalAddressCache();
   inline void InitMemoryAddresses();
   void InitIndirectFunctionTables();
 
@@ -348,8 +347,6 @@ class WasmInterpreterRuntime {
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif  // __clang__
-
-  std::vector<Address> global_addresses_;
 
   struct IndirectCallValue {
     enum class Mode { kInvalid, kInternalCall, kExternalCall };

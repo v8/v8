@@ -23,6 +23,14 @@
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
 }],  # variant in (jitless, nooptimization)
 
+['variant == jitless', {
+  # Deopt tests are not supported in jitless mode.
+  'wasm-deopt-multi-instance': [SKIP],
+  'deopt-too-much-feedback': [SKIP],
+  'wasm-deopt-max-limit': [SKIP],
+  'wasm-deopt-max-input-count': [SKIP],
+}], # variant == jitless
+
 ['single_generation', {
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.

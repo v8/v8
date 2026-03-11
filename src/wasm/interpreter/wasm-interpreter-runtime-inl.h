@@ -51,7 +51,9 @@ inline bool WasmInterpreterRuntime::BoundsCheckMemRange(
 
 inline Address WasmInterpreterRuntime::GetGlobalAddress(uint32_t index) {
   DCHECK_LT(index, module_->globals.size());
-  return global_addresses_[index];
+  DisallowGarbageCollection no_gc;
+  const WasmGlobal& global = module_->globals[index];
+  return wasm_trusted_instance_data()->GetGlobalStorage(global, no_gc);
 }
 
 inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(

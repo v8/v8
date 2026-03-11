@@ -75,11 +75,10 @@ class WasmInterpreterObject {
 };
 
 namespace wasm {
-V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle> GetInterpreterHandle(
+V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
     Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
-V8_EXPORT_PRIVATE std::shared_ptr<InterpreterHandle>
-GetOrCreateInterpreterHandle(Isolate* isolate,
-                             DirectHandle<Tuple2> interpreter_object);
+V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
+    Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
 }  // namespace wasm
 
 }  // namespace internal

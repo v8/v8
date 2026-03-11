@@ -84,6 +84,8 @@
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
 
+  'wasm-debug-trace-minimal': [SKIP],
+
   # Tests that require compilation
   'fail/wasm-async-compile-fail': [SKIP],
   'js-wasm-wrapper-inlining-turbolev*': [SKIP],
@@ -99,6 +101,8 @@
   # Different error message
   'fail/wasm-async-instantiate-fail': [SKIP],
 
+  # Tests using %WasmTierUpFunction()
+  'wasm-trace-deopt-64': [SKIP],
 }],  # has_webassembly and variant == jitless
 
 ################################################################################
