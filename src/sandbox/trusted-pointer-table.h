@@ -52,6 +52,10 @@ struct TrustedPointerTableEntry {
   // Returns true if this entry contains a pointer with the given tag.
   inline bool HasPointer(IndirectPointerTagRange tag_range) const;
 
+  // Returns the payload if the tag matches either {tag_range} or
+  // {kUnpublishedIndirectPointerTag}.
+  inline Address GetMaybeUnpublished(IndirectPointerTagRange tag_range) const;
+
   // Returns the tag of this entry.
   inline IndirectPointerTag GetTag() const;
 
