@@ -59,6 +59,13 @@
 #include "src/wasm/wasm-module-builder.h"
 #endif
 
+#if defined(__clang__)
+#if __has_warning("-Wlifetime-safety-dangling-global")
+// TODO(crbug/482994758): Fix the violations.
+#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
+#endif
+#endif
+
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;

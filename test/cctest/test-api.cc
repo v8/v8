@@ -95,6 +95,13 @@
 #include "test/common/wasm/wasm-macro-gen.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if defined(__clang__)
+#if __has_warning("-Wlifetime-safety-dangling-global")
+// TODO(crbug/482994758): Fix the violations.
+#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
+#endif
+#endif
+
 static const v8::EmbedderDataTypeTag kTestTypeTagA = 1;
 static const v8::EmbedderDataTypeTag kTestTypeTagB = 2;
 
