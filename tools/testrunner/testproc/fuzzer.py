@@ -73,6 +73,7 @@ EXTRA_FLAGS = [
     (0.2, '--turboshaft-verify-load-store-taggedness'),
     (0.1, '--turboshaft-verify-reductions'),
     (0.1, '--maglev-assert-types'),
+    (0.5, '--maglev-untagged-phis'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--conservative-stack-scanning'),
