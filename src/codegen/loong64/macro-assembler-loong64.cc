@@ -3141,6 +3141,68 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   bind(&done);
 }
 
+void MacroAssembler::Float64Mod(DoubleRegister out, DoubleRegister left,
+                                DoubleRegister right) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(left, f0);
+  DCHECK_EQ(right, f1);
+  DCHECK_EQ(out, f0);
+
+  Label slow, done_mod;
+  {
+    UseScratchRegisterScope temps(this);
+    DoubleRegister dst_temp = temps.AcquireFp();
+    DoubleRegister zero_temp = temps.AcquireFp();
+
+    movgr2fr_d(zero_temp, zero_reg);
+    // Check if left is a positive integer.
+    frint_d(dst_temp, left);
+    CompareF64(left, dst_temp, CUNE);
+    BranchTrueShortF(&slow);
+    CompareF64(left, zero_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // Check if right is a positive integer.
+    frint_d(dst_temp, right);
+    CompareF64(right, dst_temp, CUNE);
+    BranchTrueShortF(&slow);
+    CompareF64(right, zero_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // Both are positive integers. The fast path is only valid if the computed
+    // remainder stays within the range [0, right).
+    fdiv_d(dst_temp, left, right);
+    Ftintrz_l_d(dst_temp, dst_temp);
+    ffint_d_l(dst_temp, dst_temp);
+    fnmsub_d(dst_temp, dst_temp, right, left);
+
+    // If quotient rounding changed the integer truncation result, the computed
+    // remainder escapes [0, right) and we must fall back to the precise slow
+    // path.
+    CompareF64(dst_temp, zero_temp, CULT);
+    BranchTrueShortF(&slow);
+    CompareF64(right, dst_temp, CLE);
+    BranchTrueShortF(&slow);
+
+    // If the remainder is in the range (0, right), result remains unchanged;
+    // If the remainder is 0, the result calculated in fnmsub_d is -0.0,
+    // which is changed to +0.0 here.
+    fabs_d(out, dst_temp);
+    Branch(&done_mod);
+  }
+
+  bind(&slow);
+  {
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    PrepareCallCFunction(0, 2, scratch);
+    CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  }
+
+  bind(&done_mod);
+}
+
 void MacroAssembler::CompareWord(Condition cond, Register dst, Register lhs,
                                  const Operand& rhs) {
   switch (cond) {

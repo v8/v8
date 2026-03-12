@@ -838,8 +838,7 @@ void Float64Modulus::SetValueLocationConstraints() {
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ PrepareCallCFunction(0, 2);
-  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  __ Float64Mod(f0, f0, f1);
 }
 
 void Float64Negate::SetValueLocationConstraints() {

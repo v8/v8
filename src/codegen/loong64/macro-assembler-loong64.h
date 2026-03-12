@@ -694,6 +694,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DoubleRegister double_input, StubCallMode stub_mode);
 
+  void Float64Mod(DoubleRegister out, DoubleRegister left,
+                  DoubleRegister right);
+
   // Conditional move.
   void Movz(Register rd, Register rj, Register rk);
   void Movn(Register rd, Register rj, Register rk);
