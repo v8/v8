@@ -88,6 +88,11 @@ enum ImportExportKindCode : uint8_t {
   kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
+enum CompactImportCode : uint8_t {
+  kCompactImportByModule = 0x7F,
+  kCompactImportByModuleAndType = 0x7E,
+};
+
 // The limits structure: valid for both memory and table limits.
 enum LimitsFlags : uint8_t {
   kNoMaximum = 0x00,

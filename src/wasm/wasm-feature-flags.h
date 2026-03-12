@@ -71,7 +71,12 @@
   V(compilation_hints, "compilation hints", false)                             \
                                                                                \
   /* V8 side owner: thibaudm */                                                \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(growable_stacks, "growable stacks for jspi", false)                        \
+                                                                               \
+  /* Compact Import Section proposal. */                                       \
+  /* https://github.com/WebAssembly/compact-import-section */                  \
+  /* V8 side owner: ryandiaz */                                                \
+  V(compact_imports, "compact import section", false)
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via
