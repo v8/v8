@@ -3966,8 +3966,8 @@ FullObjectSlot WasmLiftoffSetupFrame::wasm_instance_data_slot() const {
 }
 
 Address WasmLiftoffSetupFrame::CallingPC() const {
-  return Memory<Address>(fp() +
-                         WasmLiftoffSetupFrameConstants::kCallingPCOffset);
+  return ReadPC(reinterpret_cast<Address*>(
+      fp() + WasmLiftoffSetupFrameConstants::kCallingPCOffset));
 }
 
 void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
