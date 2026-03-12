@@ -3747,19 +3747,13 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
 DirectHandle<Object> WasmToJSObject(Isolate* isolate,
                                     DirectHandle<Object> value) {
   if (IsWasmNull(*value)) {
-    return direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
+    return isolate->factory()->null_value();
+  } else if (IsWasmFuncRef(*value)) {
+    return i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
+        i::Cast<i::WasmFuncRef>(*value)->internal(isolate), isolate));
+  } else {
+    return value;
   }
-  if (IsWasmFuncRef(*value)) {
-    DirectHandle<WasmInternalFunction> internal(
-        Cast<WasmFuncRef>(value)->internal(isolate), isolate);
-    Tagged<JSFunction> external;
-    if (internal->try_get_external(&external)) {
-      return direct_handle(external, isolate);
-    }
-    // Slow path:
-    return WasmInternalFunction::GetOrCreateExternal(internal);
-  }
-  return value;
 }
 
 // The WasmArray header is not a multiple of 8 bytes. For shared i64 arrays each

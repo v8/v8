@@ -84,6 +84,7 @@ extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
 extern runtime WasmStringFromCodePoint(Context, Number): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
+extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 

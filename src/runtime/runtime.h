@@ -736,7 +736,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTableGrow, 3, 1)                                         \
   F(WasmTableFill, 5, 1)                                         \
   F(WasmJSToWasmObject, 2, 1)                                    \
-  F(WasmWasmToJSObject, 1, 1)                                    \
+  F(WasmGenericJSToWasmObject, 2, 1)                             \
+  F(WasmGenericWasmToJSObject, 1, 1)                             \
   F(WasmCompileLazy, 2, 1)                                       \
   F(WasmAllocateFeedbackVector, 3, 1)                            \
   F(WasmLiftoffDeoptFinish, 1, 1)                                \
