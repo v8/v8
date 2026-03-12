@@ -253,6 +253,7 @@ class ParserBase {
       : scope_(nullptr),
         original_scope_(nullptr),
         function_state_(nullptr),
+        has_generator_in_scope_chain_(false),
         fni_(ast_value_factory),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory, zone),
@@ -277,6 +278,13 @@ class ParserBase {
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
   bool has_module_in_scope_chain() const { return has_module_in_scope_chain_; }
+
+  bool has_generator_in_scope_chain() const {
+    return has_generator_in_scope_chain_;
+  }
+  void set_has_generator_in_scope_chain(bool has_generator) {
+    has_generator_in_scope_chain_ = has_generator;
+  }
 
   // DebugEvaluate code
   bool IsParsingWhileDebugging() const {
@@ -449,7 +457,7 @@ class ParserBase {
   class FunctionState final : public BlockState {
    public:
     FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
-                  DeclarationScope* scope);
+                  DeclarationScope* scope, bool* has_generator_in_scope_chain);
     ~FunctionState();
 
     DeclarationScope* scope() const { return scope_->AsDeclarationScope(); }
@@ -548,6 +556,9 @@ class ParserBase {
 
     // Track if a function or eval occurs within this FunctionState
     bool contains_function_or_eval_;
+
+    bool* has_generator_in_scope_chain_ptr_;
+    bool previous_has_generator_in_scope_chain_;
 
     friend Impl;
   };
@@ -1749,6 +1760,7 @@ class ParserBase {
   Scope* object_literal_scope_ = nullptr;
   Scope* original_scope_;  // The top scope for the current parsing item.
   FunctionState* function_state_;  // Function state stack.
+  bool has_generator_in_scope_chain_;
   FuncNameInferrer fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
@@ -1827,7 +1839,7 @@ class ParserBase {
 template <typename Impl>
 ParserBase<Impl>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack,
-    DeclarationScope* scope)
+    DeclarationScope* scope, bool* has_generator_in_scope_chain)
     : BlockState(scope_stack, scope),
       expected_property_count_(0),
       suspend_count_(0),
@@ -1837,18 +1849,23 @@ ParserBase<Impl>::FunctionState::FunctionState(
       dont_optimize_reason_(BailoutReason::kNoReason),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
-      contains_function_or_eval_(false) {
+      contains_function_or_eval_(false),
+      has_generator_in_scope_chain_ptr_(has_generator_in_scope_chain),
+      previous_has_generator_in_scope_chain_(*has_generator_in_scope_chain) {
   *function_state_stack = this;
   if (outer_function_state_) {
     outer_function_state_->previous_function_was_likely_called_ =
         outer_function_state_->next_function_is_likely_called_;
     outer_function_state_->next_function_is_likely_called_ = false;
   }
+  *has_generator_in_scope_chain_ptr_ =
+      previous_has_generator_in_scope_chain_ || IsGeneratorFunction(kind());
 }
 
 template <typename Impl>
 ParserBase<Impl>::FunctionState::~FunctionState() {
   *function_state_stack_ = outer_function_state_;
+  *has_generator_in_scope_chain_ptr_ = previous_has_generator_in_scope_chain_;
 }
 
 template <typename Impl>
@@ -2874,7 +2891,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
 
   if (Check(Token::kAssign)) {
     FunctionState initializer_state(&function_state_, &scope_,
-                                    initializer_scope);
+                                    initializer_scope,
+                                    &has_generator_in_scope_chain_);
 
     AcceptINScope scope(this, true);
     auto result = ParseAssignmentExpression();
@@ -2893,7 +2911,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   DeclarationScope* initializer_scope =
       class_info->EnsureStaticElementsScope(this, position(), PeekNextInfoId());
 
-  FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
+  FunctionState initializer_state(&function_state_, &scope_, initializer_scope,
+                                  &has_generator_in_scope_chain_);
   FunctionParsingScope body_parsing_scope(impl());
   AcceptINScope accept_in(this, true);
 
@@ -5105,7 +5124,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   StatementListT body(pointer_buffer());
   {
     FunctionState function_state(&function_state_, &scope_,
-                                 formal_parameters.scope);
+                                 formal_parameters.scope,
+                                 &has_generator_in_scope_chain_);
 
     Consume(Token::kArrow);
 
@@ -5153,7 +5173,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
           DeclarationScope* function_scope = next_arrow_function_info_.scope;
           FunctionState inner_function_state(&function_state_, &scope_,
-                                             function_scope);
+                                             function_scope,
+                                             &has_generator_in_scope_chain_);
           Scanner::Location loc(function_scope->start_position(),
                                 end_position());
           FormalParametersT parameters(function_scope);
@@ -6469,13 +6490,16 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
   Consume(Token::kTry);
   int pos = position();
 
-  std::optional<typename Scope::Snapshot>
-      try_catch_with_outer_generator_snapshot;
-  if (scope()->HasOuterGenerator()) {
-    try_catch_with_outer_generator_snapshot.emplace(scope());
+  std::optional<typename Scope::Snapshot> try_catch_snapshot;
+  if (has_generator_in_scope_chain()) {
+    try_catch_snapshot.emplace(scope());
   }
 
   BlockT try_block = ParseBlock(nullptr);
+
+  if (try_catch_snapshot.has_value()) {
+    try_catch_snapshot->MarkUnresolvedVariablesAsInsideTryCatch();
+  }
 
   CatchInfo catch_info(this);
 
@@ -6580,11 +6604,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
   }
 
   RETURN_IF_PARSE_ERROR;
-
-  if (try_catch_with_outer_generator_snapshot.has_value()) {
-    try_catch_with_outer_generator_snapshot
-        ->MarkUnresolvedVariablesAsInsideTryCatchWithOuterGenerator();
-  }
 
   return impl()->RewriteTryStatement(try_block, catch_block, catch_range,
                                      finally_block, finally_range, catch_info,

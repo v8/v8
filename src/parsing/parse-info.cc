@@ -209,7 +209,8 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
       is_streaming_compilation_(false),
-      has_module_in_scope_chain_(flags.is_module()) {
+      has_module_in_scope_chain_(flags.is_module()),
+      has_generator_in_scope_chain_(false) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }

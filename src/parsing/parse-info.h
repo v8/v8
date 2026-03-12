@@ -352,6 +352,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
   bool has_module_in_scope_chain() const { return has_module_in_scope_chain_; }
   void set_has_module_in_scope_chain() { has_module_in_scope_chain_ = true; }
 
+  bool has_generator_in_scope_chain() const {
+    return has_generator_in_scope_chain_;
+  }
+  void set_has_generator_in_scope_chain() {
+    has_generator_in_scope_chain_ = true;
+  }
+
   void SetCompileHintCallbackAndData(CompileHintCallback callback, void* data) {
     DCHECK_NULL(compile_hint_callback_);
     DCHECK_NULL(compile_hint_callback_data_);
@@ -405,6 +412,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   bool is_background_compilation_ : 1;
   bool is_streaming_compilation_ : 1;
   bool has_module_in_scope_chain_ : 1;
+  bool has_generator_in_scope_chain_ : 1;
 };
 
 }  // namespace internal
