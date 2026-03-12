@@ -575,8 +575,9 @@ TF_BUILTIN(ForOfNextLoadDoneEagerDeoptContinuation, IteratorBuiltinsAssembler) {
   auto result_object = Parameter<Object>(Descriptor::kResultObject);
   auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
 
-  ThrowIfNotJSReceiver(context, result_object,
-                       MessageTemplate::kIteratorResultNotAnObject, "");
+  Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
+  BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
+  BIND(&is_jsreceiver);
 
   TVARIABLE(Object, var_value);
   TVARIABLE(Object, var_done);
@@ -603,6 +604,10 @@ TF_BUILTIN(ForOfNextLoadDoneEagerDeoptContinuation, IteratorBuiltinsAssembler) {
   StoreValueAndDoneInRegisterPair(context, var_value.value(), var_done.value(),
                                   value_done_reg);
   Return(var_value.value(), var_done.value());
+
+  BIND(&if_notjsreceiver);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
+  Unreachable();
 }
 
 TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
