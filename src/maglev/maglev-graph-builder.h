@@ -326,7 +326,7 @@ class MaglevGraphBuilder {
   }
   NodeType GetType(ValueNode* node,
                    AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kDontAllow) {
+                       AllowWideningSmiToInt32::kAllow) {
     return reducer_.GetType(node, allow_widening_smi_to_int32);
   }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
@@ -338,10 +338,8 @@ class MaglevGraphBuilder {
   bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
     return reducer_.HaveDisjointTypes(lhs, rhs);
   }
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type,
-                       AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                           AllowWideningSmiToInt32::kDontAllow) {
-    return reducer_.HasDisjointType(lhs, rhs_type, allow_widening_smi_to_int32);
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
+    return reducer_.HasDisjointType(lhs, rhs_type);
   }
 
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,

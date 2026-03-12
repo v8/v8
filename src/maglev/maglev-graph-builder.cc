@@ -4299,9 +4299,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(
-          IntersectType(GetType(object, AllowWideningSmiToInt32::kAllow),
-                        NodeType::kNumber))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
   if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
@@ -16305,8 +16303,7 @@ MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
     }
     return builder.AlwaysFalse();
   }
-  if (HasDisjointType(node, NodeType::kOddball,
-                      AllowWideningSmiToInt32::kAllow)) {
+  if (HasDisjointType(node, NodeType::kOddball)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfUndefinedOrNull>({node});
@@ -16522,8 +16519,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
   }
   if (CheckType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysTrue();
-  } else if (HasDisjointType(value, NodeType::kJSReceiver,
-                             AllowWideningSmiToInt32::kAllow)) {
+  } else if (HasDisjointType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfJSReceiver>({value});

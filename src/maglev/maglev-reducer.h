@@ -604,7 +604,7 @@ class MaglevReducer {
   }
   NodeType GetType(ValueNode* node,
                    AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kDontAllow) {
+                       AllowWideningSmiToInt32::kAllow) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
@@ -624,10 +624,8 @@ class MaglevReducer {
     return HasDisjointType(lhs, rhs_type);
   }
 
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type,
-                       AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                           AllowWideningSmiToInt32::kDontAllow) {
-    NodeType lhs_type = GetType(lhs, allow_widening_smi_to_int32);
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
+    NodeType lhs_type = GetType(lhs);
     return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
 
