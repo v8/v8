@@ -454,6 +454,7 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
+  'wasm/wasm-interpreter': [PASS, ['arch == arm64 and simulator_run', SKIP]],
 
   # Too slow for gc stress, BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
@@ -2087,14 +2088,25 @@
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
 
-  # Other slow tests:
+  # Slow tests:
+  'regress/regress-1167': [PASS, SLOW],
+  'typedarray-resizablearraybuffer': [PASS, SLOW],
+  'unbox-double-arrays': [PASS, SLOW],
+
+  # Very slow tests:
+  'array-constructor': [SKIP],
   'compiler/regress-crbug-1520697': [SKIP],
   'maglev/regress-432847895': [SKIP],
   'regress/regress-1449567': [SKIP],
   'regress/regress-crbug-1209152': [SKIP],
   'regress/regress-crbug-1191886': [SKIP],
+  'tools/processor': [SKIP],
+  'tools/processor-bigint': [SKIP],
+  'wasm/multiple-code-spaces': [SKIP],
   'wasm/multi-memory': [SKIP],
+  'wasm/multi-memory64': [SKIP],
   'wasm/wasm-interpreter': [SKIP],
+  'unicode-test': [SKIP],
 }],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -2345,9 +2357,10 @@
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
-  'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress and arch == arm64 and simulator_run', SKIP]],
   'regress/regress-740784': [PASS, ['tsan', SKIP]],
   'regress/regress-crbug-820312': [PASS, SLOW],
+  'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################

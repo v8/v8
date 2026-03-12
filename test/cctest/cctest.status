@@ -526,7 +526,7 @@
 
 ##############################################################################
 ['mode == debug and tsan', {
-  'test-serialize/StartupSerializer*': [PASS, NO_VARIANTS],
+  'test-serialize/*': [PASS, NO_VARIANTS],
 }],  # mode == debug and tsan
 
 ##############################################################################

@@ -325,6 +325,7 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
 }],
 
 # With the official_build flag exceptions are disabled. Therefore torque

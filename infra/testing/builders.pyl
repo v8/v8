@@ -1339,7 +1339,7 @@
         'name': 'v8testing',
         'suffix': 'isolates',
         'test_args': ['--isolates'],
-        'shards': 6,
+        'shards': 8,
       },
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       # Nosse3.
@@ -1359,7 +1359,7 @@
         'name': 'v8testing',
         'suffix': 'nosse3',
         'test_args': ['--extra-flags', '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
-        'shards': 3
+        'shards': 4
       },
       # Nossse3.
       {
@@ -1378,7 +1378,7 @@
         'name': 'v8testing',
         'suffix': 'nossse3',
         'test_args': ['--extra-flags', '--noenable-ssse3 --noenable-sse4-1 --noenable-avx'],
-        'shards': 3
+        'shards': 4
       },
       # Nosse4.
       {
@@ -1397,7 +1397,7 @@
         'name': 'v8testing',
         'suffix': 'nosse4',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
-        'shards': 3
+        'shards': 4
       },
       # Noavx.
       {
@@ -1416,7 +1416,7 @@
         'name': 'v8testing',
         'suffix': 'noavx',
         'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 3
+        'shards': 4
       },
     ],
   },
@@ -1833,7 +1833,7 @@
       {
         'name': 'd8testing',
         'test_args': ['--gc-stress'],
-        'shards': 5,
+        'shards': 7,
       },
       {
         'name': 'mjsunit',
@@ -2110,7 +2110,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -2330,7 +2330,7 @@
       'os': 'Windows-10-19045',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'shards': 7},
     ],
   },
   'V8 Win64 PGO instrumentation - builder' : {
@@ -2416,7 +2416,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 9},
-      {'name': 'v8testing', 'variant': 'turbolev'},
+      {'name': 'v8testing', 'variant': 'turbolev', 'shards': 2},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -2507,13 +2507,13 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 3},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
       {
         'name': 'v8testing',
         'suffix': 'all_features',
         'variant': 'default',
         'test_args': ['--extra-flags', '--sim-arm64-optional-features="all"'],
-        'shards': 3,
+        'shards': 4,
       },
     ],
   },
@@ -2530,7 +2530,7 @@
       {
         'name': 'd8testing',
         'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 12
+        'shards': 14
       },
     ],
   },
