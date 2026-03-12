@@ -1294,9 +1294,9 @@ DEFINE_IMPLICATION(always_use_string_forwarding_table, experimental)
 // With --always-use-string-forwarding-table, we can have young generation
 // string entries in the forwarding table, requiring table updates when these
 // strings get promoted to old space. Parallel GCs in client isolates
-// (enabled by --shared-string-table) are not supported using a single shared
+// (enabled by --shared-heap) are not supported using a single shared
 // forwarding table.
-DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
+DEFINE_NEG_IMPLICATION(shared_heap, always_use_string_forwarding_table)
 
 DEFINE_BOOL(transition_strings_during_gc_with_stack, false,
             "Transition strings during a full GC with stack")

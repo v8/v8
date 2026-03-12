@@ -427,7 +427,7 @@ void IncrementalMarking::StartPointerTableBlackAllocation() {
   heap()->js_dispatch_table_space()->set_allocate_black(true);
 
   // Enable black allocation for shared spaces we own.
-  if (isolate()->is_shared_space_isolate()) {
+  if (isolate()->owns_shareable_data()) {
 #ifdef V8_COMPRESS_POINTERS
     isolate()->shared_external_pointer_space()->set_allocate_black(true);
 #endif  // V8_COMPRESS_POINTERS
@@ -449,7 +449,7 @@ void IncrementalMarking::StopPointerTableBlackAllocation() {
   heap()->js_dispatch_table_space()->set_allocate_black(false);
 
   // Disable black allocation for shared spaces we own.
-  if (isolate()->is_shared_space_isolate()) {
+  if (isolate()->owns_shareable_data()) {
 #ifdef V8_COMPRESS_POINTERS
     isolate()->shared_external_pointer_space()->set_allocate_black(false);
 #endif  // V8_COMPRESS_POINTERS

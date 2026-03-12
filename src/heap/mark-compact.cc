@@ -443,6 +443,11 @@ void MarkCompactCollector::StartMarking(
   heap_->young_external_pointer_space()->StartCompactingIfNeeded();
   heap_->old_external_pointer_space()->StartCompactingIfNeeded();
   heap_->cpp_heap_pointer_space()->StartCompactingIfNeeded();
+  if (heap_->isolate()->owns_shareable_data()) {
+    heap_->isolate()
+        ->shared_external_pointer_space()
+        ->StartCompactingIfNeeded();
+  }
 #endif  // V8_COMPRESS_POINTERS
 
   // CppHeap's marker must be initialized before the V8 marker to allow
@@ -2847,11 +2852,20 @@ class FullStringForwardingTableCleaner final
            v8_flags.transition_strings_during_gc_with_stack);
     StringForwardingTable* forwarding_table =
         isolate_->string_forwarding_table();
+#ifdef V8_COMPRESS_POINTERS
+    // Black allocate EPT entries for external strings, since marking is already
+    // finished when we transition strings. We only transition strings that are
+    // alive.
+    isolate_->shared_external_pointer_space()->set_allocate_black(true);
+#endif  // V8_COMPRESS_POINTERS
     forwarding_table->IterateElements(
         [&](StringForwardingTable::Record* record) {
           TransitionStrings(record);
         });
     forwarding_table->Reset();
+#ifdef V8_COMPRESS_POINTERS
+    isolate_->shared_external_pointer_space()->set_allocate_black(false);
+#endif  // V8_COMPRESS_POINTERS
   }
 
   // When performing GC with a stack, we conservatively assume that
@@ -3063,7 +3077,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   Isolate* const isolate = heap_->isolate();
   std::atomic<int> string_table_removed_count{0};
 
-  if (isolate->OwnsStringTables()) {
+  if (isolate->is_shared_space_isolate() ||
+      V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
@@ -5791,7 +5806,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // All entries are objects in shared space (unless
     // --always-use-forwarding-table), so we only need to update pointers during
     // a shared GC.
-    if (heap_->isolate()->OwnsStringTables() ||
+    if (heap_->isolate()->is_shared_space_isolate() ||
         V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
       heap_->isolate()->string_forwarding_table()->UpdateAfterFullEvacuation();
     }
