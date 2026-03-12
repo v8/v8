@@ -926,10 +926,13 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
       // Clear the JSArrayBuffer such that we allocate a fresh one on the next
       // access. Check that the stored backing store is correct, because that
       // will be used to create the new JSArrayBuffer.
-      // TODO(jkummerow): Wouldn't it be nice to only refresh those array
-      // buffers whose associated Wasm memory actually grew?
+      // Only refresh array buffers whose associated Wasm memory actually grew.
       DCHECK_EQ(shared_ab->GetBackingStore(), memory_object->backing_store());
-      memory_object->set_array_buffer(ReadOnlyRoots{isolate}.undefined_value());
+      if (shared_ab->byte_length() <
+          memory_object->backing_store()->byte_length()) {
+        memory_object->set_array_buffer(
+            ReadOnlyRoots{isolate}.undefined_value());
+      }
     }
   }
 }
