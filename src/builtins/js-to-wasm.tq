@@ -878,6 +878,10 @@ macro WasmToJSObject(context: NativeContext, value: Object): JSAny {
       return runtime::WasmWasmToJSObject(context, value);
     }
   }
+  if (Is<String>(value) && InSharedSpace(UnsafeCast<String>(value))) {
+    // Slow path.
+    return runtime::WasmWasmToJSObject(context, value);
+  }
   return UnsafeCast<JSAny>(value);
 }
 

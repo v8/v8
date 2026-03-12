@@ -3762,6 +3762,12 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
     // Slow path:
     return WasmInternalFunction::GetOrCreateExternal(internal);
   }
+  if (IsString(*value)) {
+    DirectHandle<String> string = Cast<String>(value);
+    if (HeapLayout::InWritableSharedSpace(*string)) {
+      return String::Unshare(isolate, string);
+    }
+  }
   return value;
 }
 

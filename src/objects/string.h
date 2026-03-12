@@ -328,6 +328,13 @@ V8_OBJECT class String : public Name {
   static inline HandleType<String> Share(Isolate* isolate,
                                          HandleType<T> string);
 
+  // Creates an unshared copy of the string. Assumes the string is allocated in
+  // shared space.
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
+  static inline HandleType<String> Unshare(Isolate* isolate,
+                                           HandleType<T> string);
+
   // String relational comparison, implemented according to ES6 section 7.2.11
   // Abstract Relational Comparison (step 5): The comparison of Strings uses a
   // simple lexicographic ordering on sequences of code unit values. There is no

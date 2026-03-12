@@ -1093,6 +1093,26 @@ HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
   }
 }
 
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
+HandleType<String> String::Unshare(Isolate* isolate, HandleType<T> string) {
+  DCHECK(HeapLayout::InWritableSharedSpace(*string));
+  uint32_t length = string->length();
+  if (string->IsOneByteRepresentation()) {
+    HandleType<SeqOneByteString> copy =
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    WriteToFlat(*string, copy->GetChars(no_gc), 0, length);
+    return copy;
+  } else {
+    HandleType<SeqTwoByteString> copy =
+        isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    WriteToFlat(*string, copy->GetChars(no_gc), 0, length);
+    return copy;
+  }
+}
+
 uint16_t String::Get(uint32_t index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return GetImpl(index, SharedStringAccessGuardIfNeeded::NotNeeded());

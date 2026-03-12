@@ -11,6 +11,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let kSharedRefExtern = wasmRefType(kWasmExternRef).shared();
 
+  let struct = builder.addStruct({fields: [makeField(kSharedRefExtern, true)],
+                                  shared: true})
+
   let foo = builder.addImportedGlobal(
       "'", "foo", wasmRefType(kWasmExternRef), false);
   let shared_foo = builder.addImportedGlobal(
@@ -28,16 +31,43 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprGlobalGet, one_char_string])
     .exportFunc();
 
+  builder.addFunction("struct_new", makeSig([kSharedRefExtern],
+                                            [wasmRefType(struct)]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+
+  builder.addFunction("struct_get", makeSig([wasmRefType(struct)],
+                                            [kSharedRefExtern]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  builder.addFunction("struct_new_internal", makeSig([], [wasmRefType(struct)]))
+    .addBody([kExprGlobalGet, 1, kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+
   let instance = builder.instantiate({}, {importedStringConstants: "'"});
 
-  assertEquals("foo", instance.exports.get_foo());
-  assertEquals("shared_foo", instance.exports.get_shared_foo());
-  assertEquals("o", instance.exports.get_one_char_string());
+  let wasm = instance.exports;
 
-  assertFalse(%IsSharedString(instance.exports.get_foo()));
-  assertFalse(%IsInWritableSharedSpace(instance.exports.get_foo()));
-  assertTrue(%IsSharedString(instance.exports.get_shared_foo()));
-  assertTrue(%IsInWritableSharedSpace(instance.exports.get_shared_foo()));
-  assertTrue(%IsSharedString(instance.exports.get_one_char_string()));
-  assertTrue(%IsInWritableSharedSpace(instance.exports.get_one_char_string()));
+  assertEquals("foo", wasm.get_foo());
+  assertEquals("shared_foo", wasm.get_shared_foo());
+  assertEquals("o", wasm.get_one_char_string());
+
+  // Make sure strings get unshared at the Wasm-JS boundary.
+  assertFalse(%IsSharedString(wasm.get_foo()));
+  assertFalse(%IsInWritableSharedSpace(wasm.get_foo()));
+  assertFalse(%IsSharedString(wasm.get_shared_foo()));
+  assertFalse(%IsInWritableSharedSpace(wasm.get_shared_foo()));
+  assertFalse(%IsSharedString(wasm.get_one_char_string()));
+  assertFalse(%IsInWritableSharedSpace(wasm.get_one_char_string()));
+
+  // Make sure a JS string gets shared when entering Wasm as a shared
+  // externref and can be assigned to a shared object.
+  assertEquals("bar", wasm.struct_get(wasm.struct_new("bar")));
+  // Make sure a shared Wasm string can be assigned to a shared object...
+  assertEquals("shared_foo", wasm.struct_get(wasm.struct_new_internal()));
+  // ... but when it exits to JS it is not shared.
+  assertFalse(%IsSharedString(wasm.struct_get(wasm.struct_new_internal())));
+  assertFalse(%IsInWritableSharedSpace(
+      wasm.struct_get(wasm.struct_new_internal())));
 })();
