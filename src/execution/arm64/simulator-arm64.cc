@@ -371,7 +371,8 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       icount_for_stop_sim_at_(0),
-      isolate_(isolate) {
+      isolate_(isolate),
+      builtins_(isolate_) {
   // Setup the decoder.
   decoder_->AppendVisitor(this);
 
@@ -388,7 +389,8 @@ Simulator::Simulator()
       guard_pages_(ENABLE_CONTROL_FLOW_INTEGRITY_BOOL),
       last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
-      isolate_(nullptr) {
+      isolate_(nullptr),
+      builtins_(isolate_) {
   Init(stdout);
   CHECK(!v8_flags.trace_sim);
 }
@@ -676,7 +678,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   int64_t external =
       reinterpret_cast<int64_t>(redirection->external_function());
 
-  TraceSim("Call to host function at %p\n", redirection->external_function());
+  TraceSim("Call to host function at %p %s\n", redirection->external_function(),
+           ExternalReferenceTable::NameOfIsolateIndependentAddress(
+               reinterpret_cast<Address>(pc()),
+               IsolateGroup::current()->external_ref_table()));
 
   // SP must be 16-byte-aligned at the call interface.
   bool stack_alignment_exception = ((sp() & 0xF) != 0);
@@ -1964,9 +1969,16 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
     case BL:
       set_lr(instr->following());
       [[fallthrough]];
-    case B:
+    case B: {
       set_pc(instr->ImmPCOffsetTarget());
+      if (v8_flags.trace_sim) {
+        const char* name = builtins_.Lookup(reinterpret_cast<Address>(pc()));
+        if (name != nullptr) {
+          TraceSim("Simulator: calling builtin %s\n", name);
+        }
+      }
       break;
+    }
     default:
       UNREACHABLE();
   }
