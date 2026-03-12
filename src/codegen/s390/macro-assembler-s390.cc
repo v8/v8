@@ -3937,12 +3937,8 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));
 #else
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    cih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    cgr(src1, scratch);
-  }
+  LoadSmiLiteral(scratch, smi);
+  cgr(src1, scratch);
 #endif
 }
 
