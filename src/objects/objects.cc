@@ -6532,7 +6532,16 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
   Dictionary<DERIVED, SHAPE>::Shrink(Isolate* isolate, DirectHandle<DERIVED>); \
   template V8_EXPORT_PRIVATE IndirectHandle<DERIVED>                           \
   Dictionary<DERIVED, SHAPE>::Shrink(Isolate* isolate,                         \
-                                     IndirectHandle<DERIVED>);
+                                     IndirectHandle<DERIVED>);                 \
+  template V8_EXPORT_PRIVATE void Dictionary<DERIVED, SHAPE>::UncheckedAdd(    \
+      Isolate* isolate, DirectHandle<DERIVED>, Key, DirectHandle<Object>,      \
+      PropertyDetails);                                                        \
+  template V8_EXPORT_PRIVATE void Dictionary<DERIVED, SHAPE>::UncheckedAdd(    \
+      LocalIsolate* isolate, DirectHandle<DERIVED>, Key, DirectHandle<Object>, \
+      PropertyDetails);                                                        \
+  template V8_EXPORT_PRIVATE void Dictionary<DERIVED, SHAPE>::UncheckedAdd(    \
+      Isolate* isolate, IndirectHandle<DERIVED>, Key, DirectHandle<Object>,    \
+      PropertyDetails);
 
 #define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)                     \
   EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                                     \
