@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c9202dd8ca1d4255bd9e505988b945746ddb378a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '08d96365cc4f5c0548c11d2aff921a352c095352',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fef8d6947fa54202e8a00c58d5ac8fd15780bc33',
   'buildtools/linux64': {
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '4cead1b0fc9987f994de97c7914e1f0c94047579',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '3a764e6f6339ae06c19540682dad4a1a9021f072',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '04bb12d7ca5e16c58b55012acb32f07c89dd4e2b',
   'third_party/re2/src':
@@ -486,7 +486,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '99af94d26d9b9859e672b11de62836efedfc6c0d',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '8800dfac0a52d5860cad29bd9b6afea45bf39bc1',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
