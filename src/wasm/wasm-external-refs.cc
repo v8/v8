@@ -1142,9 +1142,6 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
 }
 
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
-  // Clear the external stack pointer from the WasmStackObject to avoid UAFs.
-  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
-  from->stack_obj()->set_stack(isolate, nullptr);
   return_stack(isolate, to);
 }
 

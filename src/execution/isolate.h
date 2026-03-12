@@ -2376,11 +2376,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
                     Address fp, Address pc);
 
-  // Retires the stack owned by {continuation}, to be called when returning or
-  // throwing from this continuation.
+  // Retires {stack}, to be called when returning or throwing from this
+  // stack.
   // This updates the {StackMemory} state, removes it from the global
-  // {wasm_stacks_} vector and nulls the EPT entry. This does not update the
-  // {ActiveContinuation} root or the stack limit.
+  // {wasm_stacks_} vector and clears the EPT entry of the {WasmStackObject}.
+  // This does not update the {ActiveContinuation} root or the stack limit.
   void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
