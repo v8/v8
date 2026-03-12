@@ -317,11 +317,8 @@ void JSFunction::SetTieringInProgress(Isolate* isolate, bool in_progress,
                                       BytecodeOffset osr_offset) {
   if (!has_feedback_vector()) return;
   if (osr_offset.IsNone()) {
-    bool was_in_progress = tiering_in_progress();
     feedback_vector()->set_tiering_in_progress(in_progress);
-    if (!in_progress && was_in_progress) {
-      SetInterruptBudget(isolate, BudgetModification::kReduce);
-    }
+    SetInterruptBudget(isolate, BudgetModification::kReset);
   } else {
     feedback_vector()->set_osr_tiering_in_progress(in_progress);
   }
