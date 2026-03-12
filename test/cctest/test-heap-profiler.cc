@@ -3076,7 +3076,7 @@ TEST(CheckCodeNames) {
   const char* builtin_path1[] = {
       "::(GC roots)",
       "::(Builtins)",
-      "::(KeyedLoadIC_PolymorphicName builtin code)",
+      "::system / Code / KeyedLoadIC_PolymorphicName (builtin)",
   };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env.isolate(), snapshot, builtin_path1, arraysize(builtin_path1));
@@ -3085,13 +3085,13 @@ TEST(CheckCodeNames) {
   const char* builtin_path2[] = {
       "::(GC roots)",
       "::(Builtins)",
-      "::(CompileLazy builtin code)",
+      "::system / Code / CompileLazy (builtin)",
   };
   node = GetNodeByPath(env.isolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env.isolate(), node->GetName());
-  CHECK_EQ(0, strcmp("(CompileLazy builtin code)", *node_name));
+  CHECK_EQ(0, strcmp("system / Code / CompileLazy (builtin)", *node_name));
 }
 
 
