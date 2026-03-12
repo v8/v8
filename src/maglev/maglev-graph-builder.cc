@@ -4179,7 +4179,7 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(
     ValueNode* object, bool elidable,
     AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
-  if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
+  if (object->StaticTypeIs(broker(), NodeType::kSmi) && elidable) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
   if (IsEmptyNodeType(IntersectType(
