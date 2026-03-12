@@ -4120,6 +4120,11 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
+  if constexpr (SmiValuesAre31Bits()) {
+    if (Phi* value_as_phi = object->TryCast<Phi>()) {
+      value_as_phi->SetUseRequires31BitValue();
+    }
+  }
   // For constants, we may be able to skip the runtime check.
   if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
     if (Smi::IsValid(constant_value.value())) return object;
