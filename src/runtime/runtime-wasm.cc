@@ -673,7 +673,9 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     int func_index = frame_finder.frame()->function_index();
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
-    if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
+    if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up &&
+                    !v8_flags.wasm_generate_compilation_hints &&
+                    !v8_flags.trace_wasm_generate_compilation_hints)) {
       if (!trusted_data->native_module()->HasCodeWithTier(
               func_index, wasm::ExecutionTier::kTurbofan)) {
         wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
