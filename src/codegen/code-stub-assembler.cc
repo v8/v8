@@ -20205,6 +20205,9 @@ void CodeStubAssembler::SharedValueBarrier(
   GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(value_instance_type),
          &skip_barrier);
   GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
+#if V8_ENABLE_WEBASSEMBLY
+  GotoIf(IsWasmObjectInstanceType(value_instance_type), &check_in_shared_heap);
+#endif  // V8_ENABLE_WEBASSEMBLY
   Goto(&slow);
 
   BIND(&check_in_shared_heap);
