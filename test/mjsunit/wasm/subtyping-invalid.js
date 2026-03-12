@@ -28,58 +28,60 @@ function Test(recgroup1, recgroup2, result) {
 }
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(0), false)]);
-  builder.addStruct([makeField(wasmRefType(1), false)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)]});
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)], supertype: 0});
 }, OK);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(1), false)]);
-  builder.addStruct([makeField(wasmRefType(0), false)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)]});
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(0), true)]);
-  builder.addStruct([makeField(wasmRefType(1), true)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(0), true)]});
+  builder.addStruct({fields: [makeField(wasmRefType(1), true)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(1), false)]);
-  builder.addStruct([makeField(wasmRefType(1), true)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)]});
+  builder.addStruct({fields: [makeField(wasmRefType(1), true)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(1), true)]);
-  builder.addStruct([makeField(wasmRefType(1), false)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(1), true)]});
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(0), false)], kNoSuperType, true);
-  builder.addStruct([makeField(wasmRefType(1), false)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)], final: true});
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)], supertype: 0});
 }, /type 1 extends final type 0/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(0), false)], kNoSuperType, false, true);
-  builder.addStruct([makeField(wasmRefType(1), false)], 0);
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)], shared: true});
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([makeField(wasmRefType(0), false)]);
-  builder.addStruct([makeField(wasmRefType(1), false)], 0, false, true);
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)]});
+  builder.addStruct({fields: [makeField(wasmRefType(1), false)],
+                     supertype: 0, shared: true});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addStruct([]);
-  builder.addStruct([makeField(wasmRefType(0), false)], kNoSuperType, false, true);
+  builder.addStruct({fields: []});
+  builder.addStruct({fields: [makeField(wasmRefType(0), false)], shared: true});
 }, /shared struct must have shared field types/);
 
 Test((builder) => {
-  builder.addStruct([makeField(kWasmI32, true), makeField(kWasmI32, true)]);
-  builder.addStruct([makeField(kWasmI32, true)], 0);
+  builder.addStruct({fields: [makeField(kWasmI32, true),
+                              makeField(kWasmI32, true)]});
+  builder.addStruct({fields: [makeField(kWasmI32, true)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
   builder.addArray(kWasmI32, false);
-  builder.addStruct([makeField(kWasmI32, false)], 0);
+  builder.addStruct({fields: [makeField(kWasmI32, false)], supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {

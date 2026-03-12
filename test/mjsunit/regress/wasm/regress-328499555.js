@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let createI31Ref = [...wasmI32Const(836029236), kGCPrefix, kExprRefI31];
 
 const builder = new WasmModuleBuilder();
-builder.addStruct([], kNoSuperType, false);
+builder.addStruct([]);
 builder.addArray(kWasmI32, true, kNoSuperType, false);
 builder.addType(makeSig([], [kWasmI32]));
 builder.addMemory(16, 32);

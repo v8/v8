@@ -46,8 +46,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestSharedStructWithUnsharedField() {
   const builder = new WasmModuleBuilder();
   builder.addStruct(
-    [makeField(kWasmI32, false), makeField(kWasmFuncRef, false)],
-    kNoSuperType, false, /*is_shared*/ true);
+      {fields: [makeField(kWasmI32, false), makeField(kWasmFuncRef, false)],
+       shared: true});
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
     /Type 0: shared struct must have shared field types, actual type for field 1 is funcref/);
 })();

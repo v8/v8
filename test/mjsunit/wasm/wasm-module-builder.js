@@ -1376,7 +1376,11 @@ function MustBeNumber(x, name) {
 }
 
 class WasmStruct {
-  constructor(fields, is_final, is_shared, supertype_idx) {
+  constructor(fields_or_options) {
+    let fields = fields_or_options;
+    let is_final = false;
+    let is_shared = false;
+    let supertype_idx = kNoSuperType;
     let descriptor = undefined;
     let describes = undefined;
     if (Array.isArray(fields)) {
@@ -1559,13 +1563,11 @@ class WasmModuleBuilder {
     return this.stringrefs.length - 1;
   }
 
-  // {fields} may be a list of fields, in which case the other parameters are
-  // relevant; or an options bag, which replaces the other parameters.
-  // Example: addStruct({fields: [...], supertype: 3})
-  addStruct(fields, supertype_idx = kNoSuperType, is_final = false,
-            is_shared = false) {
-    this.types.push(
-        new WasmStruct(fields, is_final, is_shared, supertype_idx));
+  // {fields} may be a list of fields, or an options bag with more attributes.
+  // Example:
+  // addStruct({fields: [...], supertype: 3, final: true, shared: true})
+  addStruct(fields_or_options) {
+    this.types.push(new WasmStruct(fields_or_options));
     return this.types.length - 1;
   }
 

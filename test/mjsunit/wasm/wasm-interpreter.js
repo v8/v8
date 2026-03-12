@@ -1507,7 +1507,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let structTypes = [];
   for (let i = 0; i < 50; i++) {
     structTypes[i] = structSuper;
-    structSuper = builder.addStruct([makeField(kWasmI32, true)], structSuper);
+    structSuper = builder.addStruct(
+        {fields: [makeField(kWasmI32, true)], supertype: structSuper});
   }
 
   builder.addFunction("main", kSig_v_v)

@@ -12,8 +12,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestSpeculativeInliningInstanceCacheReturnCallRef() {
   const builder = new WasmModuleBuilder();
-  let $struct2 =
-    builder.addStruct([makeField(kWasmI32, false)], kNoSuperType, false);
+  let $struct2 = builder.addStruct([makeField(kWasmI32, false)]);
   builder.startRecGroup();
   let $array4 = builder.addArray(kWasmI32, true, kNoSuperType, false);
   let $sig5 = builder.addType(makeSig([], [kWasmI32]));

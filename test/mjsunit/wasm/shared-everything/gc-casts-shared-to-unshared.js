@@ -11,7 +11,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   let sharedArrayT = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
   let sharedStructT = builder.addStruct(
-      [makeField(kWasmI32, true)], kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
   let arrayT = builder.addArray(kWasmI32, true);
   let structT = builder.addStruct([makeField(kWasmI32, true)]);
   builder.addFunction("newSharedStruct",

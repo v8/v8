@@ -444,11 +444,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
   let mid_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], super_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: super_struct});
   let sub_struct = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true),
-     makeField(kWasmI32, true)],
-    mid_struct);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true),
+                makeField(kWasmI32, true)],
+       supertype: mid_struct});
 
   let addToLocal = [kExprLocalGet, 1, kExprI32Add, kExprLocalSet, 1];
 
@@ -511,9 +512,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
 
   let callee_sig = makeSig([wasmRefNullType(struct_a)], [kWasmI32]);
   let callee = builder.addFunction("callee", callee_sig)
@@ -553,9 +556,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
 
   let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
   let callee = builder.addFunction("callee", callee_sig)
@@ -585,9 +590,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_b = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_super});
   let struct_a = builder.addStruct(
-    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+      {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
+       supertype: struct_super});
   let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
 
   builder.addFunction("mkStruct", makeSig([], [kWasmExternRef]))
@@ -870,7 +877,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct_base = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_sub = builder.addStruct([makeField(kWasmI32, true)], struct_base);
+  let struct_sub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_base});
 
   // This function counts all the structs stored in local[1] which are of type
   // struct_sub (which in this case are all the values).
@@ -915,7 +923,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   let struct_base = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct_sub = builder.addStruct([makeField(kWasmI32, true)], struct_base);
+  let struct_sub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: struct_base});
 
   // This function counts all the structs stored in local[1] which are of type
   // struct_sub (which in this case is only the first).

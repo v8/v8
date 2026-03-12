@@ -14,7 +14,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
   builder.endRecGroup();
   builder.startRecGroup();
-  let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
+  let structSub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: structSuper});
   builder.endRecGroup();
   builder.startRecGroup();
   let array = builder.addArray(kWasmI32);
@@ -663,12 +664,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
-  let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
+  let structSub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: structSuper});
   let array = builder.addArray(kWasmI32);
 
   // Helpers to be able to instantiate a true externref value from wasm.
   let createExternSig = builder.addType(makeSig([], [kWasmExternRef]));
-  let createExternIdx = builder.addImport('import', 'createExtern', createExternSig);
+  let createExternIdx =
+      builder.addImport('import', 'createExtern', createExternSig);
   let createExtern = () => undefined;
 
   let types = {

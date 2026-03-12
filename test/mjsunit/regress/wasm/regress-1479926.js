@@ -7,7 +7,9 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addStruct([makeField(kWasmI32, false), makeField(kWasmI32, false), makeField(wasmRefNullType(kWasmNullFuncRef), false)]);
+builder.addStruct([makeField(kWasmI32, false),
+                   makeField(kWasmI32, false),
+                   makeField(wasmRefNullType(kWasmNullFuncRef), false)]);
 builder.addArray(kWasmI32, true);
 builder.addArray(kWasmI16, true);
 builder.startRecGroup();

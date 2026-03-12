@@ -12,8 +12,8 @@ builder.endRecGroup();
 builder.startRecGroup();
 builder.addArray(kWasmI16, true, kNoSuperType, true);
 builder.endRecGroup();
-builder.addStruct([], kNoSuperType, false);
-builder.addStruct([], 2, false);
+builder.addStruct({fields: []});
+builder.addStruct({fields: [], supertype: 2});
 builder.addMemory(16, 32);
 builder.addPassiveDataSegment([1, 2, 3]);
 builder.addTable(kWasmFuncRef, 2, 2, undefined)

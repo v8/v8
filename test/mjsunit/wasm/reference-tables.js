@@ -459,7 +459,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let struct_type_invalid = builder.addStruct([makeField(kWasmI64, false)]);
   let struct_type_sub = builder.addStruct(
-      [makeField(kWasmI32, false), makeField(kWasmI32, false)], struct_type);
+      {fields: [makeField(kWasmI32, false), makeField(kWasmI32, false)],
+       supertype: struct_type});
   builder.addImportedTable(
       'imports', 'table', 1, 100, wasmRefNullType(struct_type));
 
@@ -503,16 +504,16 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let exporting_instance = (() => {
     let builder = new WasmModuleBuilder();
     let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
-    let struct_type =
-        builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
+    let struct_type = builder.addStruct(
+        {fields: [makeField(kWasmI32, false)], supertype: struct_type_base});
     builder.addTable(wasmRefNullType(struct_type), 1, 100).exportAs('table');
     return builder.instantiate({});
   })();
 
   let builder = new WasmModuleBuilder();
   let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type =
-      builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
+  let struct_type = builder.addStruct(
+      {fields: [makeField(kWasmI32, false)], supertype: struct_type_base});
   builder.addImportedTable(
       'imports', 'table', 1, 100, wasmRefNullType(struct_type));
 
@@ -579,7 +580,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let super_struct = builder.addStruct([makeField(kWasmI32, false)]);
   let sub_struct = builder.addStruct(
-    [makeField(kWasmI32, false), makeField(kWasmI32, false)], super_struct);
+      {fields: [makeField(kWasmI32, false), makeField(kWasmI32, false)],
+       supertype: super_struct});
   let super_sig = builder.addType(
     makeSig([kWasmI32], [wasmRefType(super_struct)]), kNoSuperType, false);
   let sub_sig = builder.addType(

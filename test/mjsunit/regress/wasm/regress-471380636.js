@@ -8,7 +8,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
 
-let $struct = builder.addStruct({ fields: [] });
+let $struct = builder.addStruct([]);
 let $array_externref =
   builder.addArray(kWasmExternRef, true, kNoSuperType, true);
 let $array_funcref = builder.addArray(kWasmFuncRef, true, kNoSuperType, true);

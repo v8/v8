@@ -15,7 +15,7 @@ builder.endRecGroup();
 builder.startRecGroup();
 builder.addArray(kWasmI16, true, kNoSuperType, true);
 builder.endRecGroup();
-builder.addStruct([], kNoSuperType, false);
+builder.addStruct([]);
 let mainSig = builder.addType(
     makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 let decodeSig = builder.addType(makeSig(

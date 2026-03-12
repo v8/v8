@@ -14,8 +14,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
-    let type_sub =
-        builder.addStruct([makeField(kWasmI32, false)], type_super);
+    let type_sub = builder.addStruct(
+        {fields: [makeField(kWasmI32, false)], supertype: type_super});
     let type_other = builder.addStruct([makeField(kWasmI64, false)]);
 
     builder.addGlobal(wasmRefType(type_super), false, false,
@@ -64,8 +64,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     print(`test ${type} imports ${global}`);
     let builder = new WasmModuleBuilder();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
-    let type_sub =
-      builder.addStruct([makeField(kWasmI32, false)], type_super);
+    let type_sub = builder.addStruct(
+        {fields: [makeField(kWasmI32, false)], supertype: type_super});
 
     let types = {
       super: wasmRefType(type_super),
@@ -104,8 +104,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
-    let type_sub =
-        builder.addStruct([makeField(kWasmI32, false)], type_super);
+    let type_sub = builder.addStruct(
+        {fields: [makeField(kWasmI32, false)], supertype: type_super});
     let type_other = builder.addStruct([makeField(kWasmI64, false)]);
 
     builder.addFunction("create_super", makeSig([], [kWasmExternRef]))
@@ -154,8 +154,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     print(`test ${type} imports ${imported_value}`);
     let builder = new WasmModuleBuilder();
     let type_super = builder.addStruct([makeField(kWasmI32, false)]);
-    let type_sub =
-      builder.addStruct([makeField(kWasmI32, false)], type_super);
+    let type_sub = builder.addStruct(
+        {fields: [makeField(kWasmI32, false)], supertype: type_super});
     let types = {
       super: wasmRefType(type_super),
       sub: wasmRefType(type_sub),
