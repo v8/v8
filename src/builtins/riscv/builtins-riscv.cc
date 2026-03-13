@@ -3121,13 +3121,14 @@ static void SaveVectorRegisters(MacroAssembler* masm,
                                 const VRegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
-  Label done;
+  Label not_simd, done;
 
   ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
   __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
-  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Since the builtins are compiled into a snapshot, we can't query the
   // actual hardware vector length. This means that we are not allowed to use
@@ -3138,7 +3139,9 @@ static void SaveVectorRegisters(MacroAssembler* masm,
     __ SubWord(sp, sp, Operand(kSimd128Size));
     __ vs(vector_reg, sp, 0, E8);
   }
-
+  __ Branch(&done);
+  __ bind(&not_simd);
+  __ SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
   __ bind(&done);
 }
 
@@ -3146,12 +3149,13 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
                                    const VRegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
-  Label done;
+  Label not_simd, done;
   ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
   __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
-  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Since the builtins are compiled into a snapshot, we can't query the
   // actual hardware vector length. This means that we are not allowed to use
@@ -3163,6 +3167,9 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
     __ AddWord(sp, sp, Operand(kSimd128Size));
   }
 
+  __ Branch(&done);
+  __ bind(&not_simd);
+  __ AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
   __ bind(&done);
 }
 
@@ -3171,6 +3178,8 @@ static void SaveWasmParams(MacroAssembler* masm) {
   // overwritten in the subsequent runtime call. We don't have any
   // callee-saved registers in Wasm, so no need to store anything else.
   __ MultiPush(kSavedGpRegs);
+  static_assert(kSavedVectorRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedVpParamRegs);
   SaveVectorRegisters(masm, kSavedVectorRegs);
   __ MultiPushFPU(kSavedFpRegs);
 }
