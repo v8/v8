@@ -2805,7 +2805,29 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Save registers.
   __ MultiPush(kSavedGpRegs);
-  __ MultiPushFPU(kSavedFpRegs);
+  {
+    // Check if machine has simd enabled, if so push vector registers. If not
+    // then only push double registers.
+    Label push_doubles, simd_pushed;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&push_doubles, le, a1, Operand(zero_reg));
+    // Save vector registers.
+    {
+      CpuFeatureScope msa_scope(
+          masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      __ MultiPushMSA(kSavedFpRegs);
+    }
+    __ Branch(&simd_pushed);
+    __ bind(&push_doubles);
+    __ MultiPushFPU(kSavedFpRegs);
+    // kFixedFrameSizeFromFp is hard coded to include space for Simd
+    // registers, so we still need to allocate extra (unused) space on the stack
+    // as if they were saved.
+    __ Dsubu(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
+    __ bind(&simd_pushed);
+  }
   __ Push(ra);
 
   // Arguments to the runtime function: instance data, func_index, and an
@@ -2818,7 +2840,25 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Restore registers and frame type.
   __ Pop(ra);
-  __ MultiPopFPU(kSavedFpRegs);
+  {
+    // Restore registers.
+    Label pop_doubles, simd_popped;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
+    // Pop vector registers.
+    {
+      CpuFeatureScope msa_scope(
+          masm, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      __ MultiPopMSA(kSavedFpRegs);
+    }
+    __ Branch(&simd_popped);
+    __ bind(&pop_doubles);
+    __ Daddu(sp, sp, kSavedFpRegs.Count() * kDoubleSize);
+    __ MultiPopFPU(kSavedFpRegs);
+    __ bind(&simd_popped);
+  }
   __ MultiPop(kSavedGpRegs);
   __ Ld(kWasmImplicitArgRegister,
         MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
