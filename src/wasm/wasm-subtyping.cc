@@ -136,8 +136,9 @@ StandardType UpcastToStandardType(ValueTypeBase type) {
     case RefTypeKind::kCont:
       return StandardType::kCont;
     case RefTypeKind::kOther:
-      UNREACHABLE();
+      break;
   }
+  UNREACHABLE();
 }
 
 // Format: subtype, supertype

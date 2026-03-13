@@ -602,6 +602,7 @@ class ValueTypeBase {
       return payload >= value_type_impl::kNumberOfGenericKinds &&
              payload < value_type_impl::kNumberOfStandardTypes;
     }
+    if (ref_type_kind() > RefTypeKind::kLastValue) return false;
     if (!has_index()) {
       // Generic types must be part of the predefined set.
       if (payload >= value_type_impl::kNumberOfGenericKinds) return false;
