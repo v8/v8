@@ -1534,23 +1534,28 @@ void Debug::PrepareStep(StepAction step_action) {
           // by some other async function, should resume the latter. The return
           // value here is either a JSPromise or a JSGeneratorObject (for the
           // initial yield of async generators).
-          DirectHandle<JSReceiver> return_value(
-              Cast<JSReceiver>(thread_local_.return_value_), isolate_);
-          DirectHandle<Object> awaited_by_holder = JSReceiver::GetDataProperty(
-              isolate_, return_value,
-              isolate_->factory()->promise_awaited_by_symbol());
-          if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
-            auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
-            if (weak_fixed_array->ulength().value() == 1 &&
-                weak_fixed_array->get(0).IsWeak()) {
-              DirectHandle<HeapObject> awaited_by(
-                  weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
-                  isolate_);
-              if (IsJSGeneratorObject(*awaited_by)) {
-                DCHECK(!has_suspended_generator());
-                thread_local_.suspended_generator_ = *awaited_by;
-                ClearStepping();
-                return;
+          // It's possible to change the return value to something else though
+          // via the Chrome DevTools Protocol, so double-check first.
+          if (IsJSReceiver(thread_local_.return_value_)) {
+            DirectHandle<JSReceiver> return_value(
+                Cast<JSReceiver>(thread_local_.return_value_), isolate_);
+            DirectHandle<Object> awaited_by_holder =
+                JSReceiver::GetDataProperty(
+                    isolate_, return_value,
+                    isolate_->factory()->promise_awaited_by_symbol());
+            if (IsWeakFixedArray(*awaited_by_holder, isolate_)) {
+              auto weak_fixed_array = Cast<WeakFixedArray>(awaited_by_holder);
+              if (weak_fixed_array->ulength().value() == 1 &&
+                  weak_fixed_array->get(0).IsWeak()) {
+                DirectHandle<HeapObject> awaited_by(
+                    weak_fixed_array->get(0).GetHeapObjectAssumeWeak(isolate_),
+                    isolate_);
+                if (IsJSGeneratorObject(*awaited_by)) {
+                  DCHECK(!has_suspended_generator());
+                  thread_local_.suspended_generator_ = *awaited_by;
+                  ClearStepping();
+                  return;
+                }
               }
             }
           }
