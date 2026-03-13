@@ -85,7 +85,12 @@ class WasmValue {
   // TODO(manoskouk): Do we have to somehow also represent a waitqueue's Managed
   // object?
   static WasmValue WaitQueue(int32_t value) {
-    return WasmValue(reinterpret_cast<const uint8_t*>(&value), kWasmWaitQueue);
+    // kWasmWaitQueue has value_kind_size() larger than sizeof(int32_t),
+    // so we cannot pass &value directly to the raw-bytes constructor.
+    // Zero-initialize a buffer of sufficient size and copy only the int32.
+    uint8_t buf[kMaxValueTypeSize] = {};
+    memcpy(buf, &value, sizeof(value));
+    return WasmValue(buf, kWasmWaitQueue);
   }
 
   int32_t to_wait_queue_value() const {
