@@ -91,6 +91,15 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
     if (Object::SameValue(*desc->value(), *current.value())) {
       return Just(true);
     }
+
+    // If the property is read-only, we cannot overwrite it with a different
+    // value (which we know it is because of the SameValue check above).
+    if (it.property_details().IsReadOnly()) {
+      RETURN_FAILURE(
+          isolate, GetShouldThrow(isolate, should_throw),
+          NewTypeError(MessageTemplate::kRedefineDisallowed, it.GetName()));
+    }
+
     return Object::SetDataProperty(&it, desc->value());
   }
   return Just(true);
