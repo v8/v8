@@ -2205,7 +2205,7 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (is_immutable) {
-    array_buffer->set_is_immutable(true);
+    array_buffer->MakeImmutable(isolate_);
   }
 
   if (byte_length > 0) {

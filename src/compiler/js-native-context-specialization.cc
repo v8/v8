@@ -3936,7 +3936,13 @@ JSNativeContextSpecialization::
   }
 
   // See if we can skip the detaching check.
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool is_store = keyed_mode.IsStore();
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      is_store ? dependencies()->DependOnArrayBufferMutableProtector() : true;
+
+  if (!depend_on_mutable || !depend_on_detaching) {
     // Load the buffer for the {receiver}.
     Node* buffer =
         typed_array.has_value()
@@ -3946,19 +3952,19 @@ JSNativeContextSpecialization::
                        AccessBuilder::ForJSArrayBufferViewBuffer()),
                    receiver, effect, control));
 
-    // Deopt if the {buffer} was detached.
+    // Deopt if the {buffer} was detached or immutable.
     // Note: A detached buffer leads to megamorphic feedback.
     Node* buffer_bit_field = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
         buffer, effect, control);
     Node* check = graph()->NewNode(
         simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
-                keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
-                                     : TypedArrayAccessMode::kRead))),
+        graph()->NewNode(simplified()->NumberBitwiseAnd(), buffer_bit_field,
+                         jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
+                             is_store ? TypedArrayAccessMode::kWrite
+                                      : TypedArrayAccessMode::kRead))),
         jsgraph()->ZeroConstant());
+
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached), check,
         effect, control);

@@ -359,6 +359,7 @@ class RootVisitor;
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_detaching_protector,                            \
     ArrayBufferDetachingProtector)                                             \
+  V(PropertyCell, array_buffer_mutable_protector, ArrayBufferMutableProtector) \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
   V(PropertyCell, promise_resolve_protector, PromiseResolveProtector)          \
   V(PropertyCell, map_iterator_protector, MapIteratorProtector)                \

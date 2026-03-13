@@ -660,6 +660,7 @@ class V8_EXPORT Isolate {
     kHtmlWrapperMethods = 181,
     kWasmCustomDescriptors = 182,
     kWasmResizableBuffers = 183,
+    kInvalidatedArrayBufferMutableProtector = 184,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

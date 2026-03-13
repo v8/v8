@@ -9087,7 +9087,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
   if (obj->backing_store() &&
       static_cast<i::BackingStore*>(obj->GetBackingStore().get())
           ->is_immutable()) {
-    obj->set_is_immutable(true);
+    obj->MakeImmutable(i_isolate);
   }
   return Utils::ToLocal(obj);
 }

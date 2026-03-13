@@ -238,6 +238,18 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
   array_buffer->set_byte_length(0);
 }
 
+void JSArrayBuffer::MakeImmutable(Isolate* isolate) {
+  if (is_immutable()) return;
+  DCHECK(!was_detached());
+  set_is_immutable(true);
+  if (auto backing_store = GetBackingStore()) {
+    backing_store->set_is_immutable(true);
+  }
+  if (Protectors::IsArrayBufferMutableIntact(isolate)) {
+    Protectors::InvalidateArrayBufferMutable(isolate);
+  }
+}
+
 size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
                                      Address raw_array_buffer) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it

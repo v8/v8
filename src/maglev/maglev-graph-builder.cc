@@ -6304,12 +6304,19 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     // mechanism instead, so that we do not need to check this early.
     return {};
   }
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool is_store = keyed_mode.IsStore();
+  bool depend_on_detaching =
+      broker()->dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      is_store ? broker()->dependencies()->DependOnArrayBufferMutableProtector()
+               : true;
+  if (!depend_on_detaching || !depend_on_mutable) {
     // TODO(leszeks): Eliminate this check.
     RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
-        {object}, keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
-                                       : TypedArrayAccessMode::kRead));
+        {object},
+        is_store ? TypedArrayAccessMode::kWrite : TypedArrayAccessMode::kRead));
   }
+
   ValueNode* index;
   ValueNode* length;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
@@ -10275,7 +10282,8 @@ template <typename StoreNode, typename Function>
 MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     const CallArguments& args, ExternalArrayType type, Function&& getValue) {
   if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector() ||
+      !broker()->dependencies()->DependOnArrayBufferMutableProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return {};
   }

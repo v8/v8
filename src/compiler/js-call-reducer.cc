@@ -8964,7 +8964,14 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   // if we anyways have to load it (to reduce register pressure).
   Node* buffer_or_receiver = receiver;
 
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      access == DataViewAccess::kSet
+          ? dependencies()->DependOnArrayBufferMutableProtector()
+          : true;
+
+  if (!depend_on_detaching || !depend_on_mutable) {
     // Get the underlying buffer and check that it has not been detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
