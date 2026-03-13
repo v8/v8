@@ -166,7 +166,7 @@ static bool supportsSTFLE() {
 
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
-  return CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1);
+  return true;
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -271,6 +271,14 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_.Add(VECTOR_ENHANCE_FACILITY_3);
 #endif
   supported_.Add(FPU);
+
+  // Support of the following facilities are mandatory.
+  CHECK(supported_.contains(DISTINCT_OPS));
+  CHECK(supported_.contains(GENERAL_INSTR_EXT));
+  CHECK(supported_.contains(FLOATING_POINT_EXT));
+  CHECK(supported_.contains(VECTOR_FACILITY));
+  CHECK(supported_.contains(MISC_INSTR_EXT2));
+  CHECK(supported_.contains(VECTOR_ENHANCE_FACILITY_1));
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()

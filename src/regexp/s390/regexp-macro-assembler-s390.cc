@@ -149,7 +149,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
-    if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
+    if (is_int8(by)) {
       __ agsi(register_location(reg), Operand(by));
     } else {
       __ LoadU64(r2, register_location(reg), r0);
