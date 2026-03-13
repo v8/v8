@@ -1581,7 +1581,8 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
 // Returns 1 if the computation is interrupted.
 int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr) {
+                                                 Address y_addr,
+                                                 Address isolate_addr) {
   Tagged<BigInt> x = Cast<BigInt>(Tagged<Object>(x_addr));
   Tagged<BigInt> y = Cast<BigInt>(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
@@ -1596,7 +1597,7 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
     return 0;
   }
 
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(isolate_addr);
 
   bigint::Status status = isolate->bigint_processor()->MultiplyLarge(Z, X, Y);
   if (status == bigint::Status::kInterrupted) {
@@ -1609,7 +1610,8 @@ int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
 
 int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr) {
+                                                 Address y_addr,
+                                                 Address isolate_addr) {
   Tagged<BigInt> x = Cast<BigInt>(Tagged<Object>(x_addr));
   Tagged<BigInt> y = Cast<BigInt>(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
@@ -1625,7 +1627,7 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
     return 0;
   }
 
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(isolate_addr);
 
   bigint::Status status = isolate->bigint_processor()->DivideLarge(Z, X, Y);
   if (status == bigint::Status::kInterrupted) {
@@ -1638,7 +1640,8 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
 
 int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr) {
+                                                 Address y_addr,
+                                                 Address isolate_addr) {
   Tagged<BigInt> x = Cast<BigInt>(Tagged<Object>(x_addr));
   Tagged<BigInt> y = Cast<BigInt>(Tagged<Object>(y_addr));
   Tagged<MutableBigInt> result =
@@ -1647,7 +1650,7 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
   // Check for the cached fast path first. This code is tuned to avoid
   // overhead, which includes ordering operations such that as little
   // spilling as possible is necessary.
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(isolate_addr);
   Heap* heap = isolate->heap();
   if (y == heap->cached_bigint_divisor()) [[likely]] {
     bigint::Digits X = x->digits();
