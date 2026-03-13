@@ -4105,7 +4105,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(arg_buffer);
 
   Label ok;
-  __ JumpIf(not_equal, target_stack, 0, &ok);
+  // Do not use {JumpIf} for the null check as it emits a {cmpl}.
+  __ testq(target_stack, target_stack);
+  __ j(not_zero, &ok);
   // No handler found.
   __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
