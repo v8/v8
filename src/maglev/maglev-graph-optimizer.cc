@@ -2236,8 +2236,16 @@ ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow(
   if (auto lhs_range = GetRange(node->input_node(0))) {
     if (auto rhs_range = GetRange(node->input_node(1))) {
       if (Range::Mul(*lhs_range, *rhs_range).IsInt32()) {
-        return ReplaceWith<Int32Multiply>(
-            {node->input_node(0), node->input_node(1)});
+        bool lhs_can_be_zero = lhs_range->min() <= 0 && lhs_range->max() >= 0;
+        bool rhs_can_be_zero = rhs_range->min() <= 0 && rhs_range->max() >= 0;
+        bool lhs_can_be_neg = lhs_range->min() < 0;
+        bool rhs_can_be_neg = rhs_range->min() < 0;
+        bool can_be_neg_zero = (lhs_can_be_zero && rhs_can_be_neg) ||
+                               (rhs_can_be_zero && lhs_can_be_neg);
+        if (!can_be_neg_zero) {
+          return ReplaceWith<Int32Multiply>(
+              {node->input_node(0), node->input_node(1)});
+        }
       }
     }
   }
