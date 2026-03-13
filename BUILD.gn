@@ -5658,6 +5658,7 @@ if (v8_enable_wasm_simd256_revec) {
 }
 
 exclude_from_compiler_cluster = [
+  "src/compiler/turboshaft/turbolev-graph-builder.cc",  # Slow.
   "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",  # Pipeline::GenerateWasmCode.
   "src/compiler/bytecode-analysis.cc",  # Top-level 'using incl.
                                         # 'interpreter::Register'.

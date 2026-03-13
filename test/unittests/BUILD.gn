@@ -191,6 +191,7 @@ v8_cluster_source_set("cppgc_unittests_sources") {
     "heap/cppgc/object-size-trait-unittest.cc",
     "heap/cppgc/persistent-family-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
+    "heap/cppgc/sanitizer-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/testing-unittest.cc",
     "heap/cppgc/visitor-unittest.cc",
