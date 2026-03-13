@@ -6855,10 +6855,18 @@ Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
       callable.descriptor().GetStackParameterCount(),
       CallDescriptor::kNeedsFrameState);
 
+  // Use a GeneratorNextLazyDeoptContinuation to wrap the yielded value
+  // correctly in case of a lazy deopt.
+  Node* lazy_deopt_parameters[] = {receiver};
+  Node* frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kGeneratorNextLazyDeoptContinuation, context,
+      lazy_deopt_parameters, arraysize(lazy_deopt_parameters), n.frame_state(),
+      ContinuationFrameStateMode::LAZY);
+
   Node* result = e_receiverisrunning = if_receiverisrunning = graph()->NewNode(
       common()->Call(descriptor),
       jsgraph()->HeapConstantNoHole(callable.code()), value, receiver, context,
-      n.frame_state(), e_receiverisrunning, if_receiverisrunning);
+      frame_state, e_receiverisrunning, if_receiverisrunning);
 
   // Close the generator if there was an exception.
   Node* if_exception = graph()->NewNode(

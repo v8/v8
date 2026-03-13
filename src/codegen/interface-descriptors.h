@@ -138,6 +138,7 @@ namespace internal {
   V(RunMicrotasks)                                              \
   V(RunMicrotasksEntry)                                         \
   V(SingleParameterOnStack)                                     \
+  V(GeneratorNextLazyDeoptContinuation)                         \
   V(Store)                                                      \
   V(StoreNoFeedback)                                            \
   V(StoreBaseline)                                              \
@@ -1778,6 +1779,19 @@ class SingleParameterOnStackDescriptor final
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(SingleParameterOnStackDescriptor)
+
+  static constexpr auto registers();
+};
+
+class GeneratorNextLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          GeneratorNextLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kGenerator, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(GeneratorNextLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

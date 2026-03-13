@@ -752,6 +752,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(AsyncFunctionConstructor, kDontAdaptArgumentsSentinel)                   \
   TFC(SuspendGeneratorBaseline, SuspendGeneratorBaseline)                      \
   TFC(ResumeGeneratorBaseline, ResumeGeneratorBaseline)                        \
+  TFC(GeneratorNextLazyDeoptContinuation, GeneratorNextLazyDeoptContinuation)  \
                                                                                \
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
