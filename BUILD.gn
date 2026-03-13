@@ -225,6 +225,11 @@ declare_args() {
   # the `--trace-turbo` .json file from `mksnapshot`.
   v8_log_builtins_block_count_input = ""
 
+  # This build flag is used to enable block positioning in profile-guided
+  # optimization of builtins based on raw execution counts (as opposed to
+  # branch hints).
+  v8_enable_builtins_block_position = false
+
   # This build flag is used to control whether reorder builtins according to
   # the call graph with C3 algorithm based builtin PGO profiling.
   v8_enable_builtins_reordering = true
@@ -1252,6 +1257,9 @@ config("features") {
   }
   if (v8_log_builtins_block_count_input != "") {
     defines += [ "LOG_BUILTIN_BLOCK_COUNT" ]
+  }
+  if (v8_enable_builtins_block_position) {
+    defines += [ "BUILTIN_BLOCK_POSITION" ]
   }
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
@@ -4933,6 +4941,10 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
+  if (v8_enable_builtins_block_position) {
+    sources += [ "src/compiler/backend/block-position.h" ]
+  }
+
   if (v8_enable_i18n_support) {
     sources += [
       "src/objects/intl-objects.h",
@@ -5678,6 +5690,10 @@ exclude_from_compiler_cluster = [
   "src/compiler/heap-refs.cc",  # Is64() function.
   "src/compiler/wasm-load-elimination.cc",  # MayAlias.
 ]
+
+if (v8_enable_builtins_block_position) {
+  v8_compiler_sources += [ "src/compiler/backend/block-position.cc" ]
+}
 
 # The src/compiler files for use in mksnapshot.
 # - These might be built with additional optimizations if
