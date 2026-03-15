@@ -1699,15 +1699,11 @@ std::unique_ptr<icu::SimpleDateFormat> GetSimpleDateTimeForTemporal(
   return result;
 }
 
-icu::UnicodeString ReplaceUnicodeSpaces(icu::UnicodeString& string) {
+icu::UnicodeString Replace202F(icu::UnicodeString& string) {
   // Revert ICU 72 change that introduced U+202F instead of U+0020
   // to separate time from AM/PM. See https://crbug.com/1414292.
-  //
-  // Revert ICU 78 change that inroduced U+2009 instead of U+0020
-  // to separate date and time in "zh" locales.
-  return string
-      .findAndReplace(icu::UnicodeString(0x202f), icu::UnicodeString(0x20))
-      .findAndReplace(icu::UnicodeString(0x2009), icu::UnicodeString(0x20));
+  return string.findAndReplace(icu::UnicodeString(0x202f),
+                               icu::UnicodeString(0x20));
 }
 std::optional<icu::UnicodeString> CallICUFormat(
     const icu::SimpleDateFormat& date_format,
@@ -1726,7 +1722,7 @@ std::optional<icu::UnicodeString> CallICUFormat(
     if (U_FAILURE(status)) {
       return std::nullopt;
     }
-    result = ReplaceUnicodeSpaces(result);
+    result = Replace202F(result);
     return result;
   }
   // For other Temporal objects, lazy generate a SimpleDateFormat for the kind.
@@ -1740,7 +1736,7 @@ std::optional<icu::UnicodeString> CallICUFormat(
   if (U_FAILURE(status)) {
     return std::nullopt;
   }
-  result = ReplaceUnicodeSpaces(result);
+  result = Replace202F(result);
   return result;
 }
 
@@ -1787,7 +1783,7 @@ MaybeDirectHandle<String> FormatDateTime(
              date_format.getSmpFmtLocale().getLanguage()) == 0) {
     // Revert ICU 72 change that introduced U+202F instead of U+0020
     // to separate time from AM/PM. See https://crbug.com/1414292.
-    result = ReplaceUnicodeSpaces(result);
+    result = Replace202F(result);
   }
   ApplyBritishRemoveFullWeekdayComma(result, date_format);
 
@@ -3366,7 +3362,7 @@ std::optional<MaybeDirectHandle<String>> FormattedToString(
   icu::ConstrainedFieldPosition cfpos;
   while (formatted.nextPosition(cfpos, status)) {
     if (cfpos.getCategory() == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
-      return Intl::ToString(isolate, ReplaceUnicodeSpaces(result));
+      return Intl::ToString(isolate, Replace202F(result));
     }
   }
   return std::nullopt;
@@ -3381,7 +3377,7 @@ std::optional<MaybeDirectHandle<JSArray>> FormattedDateIntervalToJSArray(
     Isolate* isolate, const icu::FormattedValue& formatted) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
-  result = ReplaceUnicodeSpaces(result);
+  result = Replace202F(result);
 
   Factory* factory = isolate->factory();
   DirectHandle<JSArray> array = factory->NewJSArray(0);
