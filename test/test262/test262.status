@@ -1188,4 +1188,17 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/expressions/dynamic-import/import-attributes/2nd-param-with-type-text': [SKIP],
+  'language/import/import-attributes/text-empty': [SKIP],
+  'language/import/import-attributes/text-javascript': [SKIP],
+  'language/import/import-attributes/text-self': [SKIP],
+  'language/import/import-attributes/text-string': [SKIP],
+  'language/import/import-attributes/text-via-namespace': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
