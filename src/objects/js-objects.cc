@@ -584,6 +584,9 @@ Tagged<String> JSReceiver::class_name() {
     if (IsJSSharedArray(*this)) return roots.SharedArray_string();
     if (IsJSAtomicsMutex(*this)) return roots.AtomicsMutex_string();
     if (IsJSAtomicsCondition(*this)) return roots.AtomicsCondition_string();
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*this)) return roots.Object_string();
+#endif
     // Other shared values are primitives.
     UNREACHABLE();
   }
