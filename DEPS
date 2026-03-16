@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f05f529c87391f7526e8d85305873c0b2aae9ffb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f123ee3617656ae843bd7f68f173c651fe2ec4bf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '95ed44cf5f06dbb5861030b91c9db9ccb4316762',
   'buildtools/linux64': {
@@ -292,7 +292,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'db838d918570d4e381ecf9f5cc70a0098c9c2cd6',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'fd9bad0830907c4729426180b276e67e6a05b4e0',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '851188a1329844b28215a7eb9f503b8e0f4c1ea0',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9887f1b3cb6c1c9c8c72a515a882d5eeea0d13c6',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '09f2475998ce66a7710f26640ddd144ce82613b6',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '04bb12d7ca5e16c58b55012acb32f07c89dd4e2b',
   'third_party/re2/src':
@@ -486,7 +486,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '8800dfac0a52d5860cad29bd9b6afea45bf39bc1',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'fb2b21755298402c36e3a1348fab0d12a03af35a',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
