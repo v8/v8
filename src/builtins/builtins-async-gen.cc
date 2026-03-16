@@ -104,7 +104,24 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
     GotoIf(TaggedIsSmi(value), &if_non_thenable_fast_path);
     TNode<HeapObject> value_heap_object = CAST(value);
     TNode<Map> value_map = LoadMap(value_heap_object);
-    Branch(IsJSReceiverMap(value_map), &if_thenable_slow_path,
+    GotoIfNot(IsJSReceiverMap(value_map), &if_non_thenable_fast_path);
+
+    // "then" is an interesting property, so the map's
+    // may_have_interesting_properties bit tells us whether the object could
+    // have a "then" own property. When the bit is not set, we know:
+    // - No named interceptors (cuts off proxies, API objects)
+    // - Not a dictionary-mode object
+    // - No access checks needed
+    // - No "then" in own descriptors
+    // We still need to verify the prototype chain doesn't have "then".
+    TNode<Uint32T> bit_field3 = LoadMapBitField3(value_map);
+    GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(bit_field3),
+           &if_thenable_slow_path);
+    TNode<Object> object_prototype = LoadContextElementNoCell(
+        native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), object_prototype),
+              &if_thenable_slow_path);
+    Branch(IsPromiseThenProtectorCellInvalid(), &if_thenable_slow_path,
            &if_non_thenable_fast_path);
   }
 

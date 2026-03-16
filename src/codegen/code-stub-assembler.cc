@@ -12717,6 +12717,7 @@ TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
   // these strings and interesting symbols.
   GotoIf(IsToJSONString(name), &return_true);
   GotoIf(IsGetString(name), &return_true);
+  GotoIf(IsThenString(name), &return_true);
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(LoadMap(name)), SYMBOL_TYPE),
             &return_false);
   Branch(IsSetWord32<Symbol::IsInterestingSymbolBit>(
