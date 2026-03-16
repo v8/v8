@@ -269,6 +269,10 @@
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 
   'arbitrary-length-varargs': [PASS, ['(mode == debug and simulator_run) or lower_limits_mode', SKIP]],
+
+  # TODO(493179861): Implement shared custom descriptors.
+  'regress/wasm/regress-475896261': [SKIP],
+  'wasm/custom-descriptors-validity-shared': [SKIP],
 }],  # ALWAYS
 
 ################################################################################

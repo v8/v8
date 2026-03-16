@@ -1778,6 +1778,9 @@ DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_strings)
+// TODO(493179861): Add support for shared custom descriptors.
+DEFINE_NEG_IMPLICATION(experimental_wasm_shared,
+                       experimental_wasm_custom_descriptors)
 #endif
 
 DEFINE_BOOL(
