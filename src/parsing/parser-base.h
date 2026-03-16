@@ -2062,8 +2062,11 @@ template <typename Impl>
 bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
                                              RegExpFlags flags,
                                              RegExpError* regexp_error) {
-  // TODO(jgruber): If already validated in the preparser, skip validation in
-  // the parser.
+  if (this->flags().is_lazy_compile()) {
+    // Lazy compilation implies this has already been validated.
+    return true;
+  }
+
   DisallowGarbageCollection no_gc;
   ZoneScope zone_scope(zone());  // Free regexp parser memory after use.
   const unsigned char* d = pattern->raw_data();
