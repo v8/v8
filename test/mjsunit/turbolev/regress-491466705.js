@@ -46,9 +46,12 @@ assertEquals(true, test3(0, -1));
 // === Test 4: Float64Array sign bit corruption ===
 function test4(a, b) {
   if (a >= 0 && a <= 10 && b >= -5 && b <= -1) {
-    let f64 = new Float64Array(1);
-    f64[0] = a * b;
-    return new Uint8Array(f64.buffer)[7];  // Sign byte
+    const buf = new ArrayBuffer(8);
+    const view = new DataView(buf);
+
+    // Write value in little-endian form
+    view.setFloat64(0, a * b, true);
+    return view.getUint8(7); // Sign byte
   }
   return -1;
 }
