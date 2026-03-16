@@ -101,8 +101,8 @@ class FutexWaitList {
   };
 
   // `mutex` protects the composition of the fields below (i.e. no elements may
-  // be added or removed without holding this mutex), as well as the `prev_`
-  // and `next_` fields for each individual list node that is currently
+  // be added or removed without holding this mutex), as well as the `waiting_`
+  // and `interrupted_` fields for each individual list node that is currently
   // part of the list. It must be the mutex used together with the `cond_`
   // condition variable of such nodes.
   base::Mutex mutex_;
@@ -141,18 +141,25 @@ bool FutexWaitListNode::CancelTimeoutTask() {
 
 void FutexWaitListNode::NotifyWake() {
   DCHECK(!IsAsync());
-  // Lock this node's mutex before notifying. We know that the mutex
+  // Lock the correct mutex before notifying. We know that the mutex
   // will have been unlocked if we are currently waiting on the condition
   // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
   // locked it yet. In that case, we set the interrupted_
   // flag to true, which will be tested after the mutex locked by a future wait.
-  NoGarbageCollectionMutexGuard lock_guard(&mutex_);
+  // If the node is waiting on a Wasm managed object, we have to take the mutex
+  // of the respective FutexManagedObjectWaitList, otherwise the global
+  // FutexWaitList mutex.
+#if V8_ENABLE_WEBASSEMBLY
+  FutexManagedObjectWaitList* list = futex_managed_object_wait_list_.load();
+  NoGarbageCollectionMutexGuard lock_guard(list ? list->mutex()
+                                                : GetWaitList()->mutex());
+#else
+  NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
+#endif
 
-  // Set interrupted_ before waking the thread. This way we guarantee that the
-  // woken thread will see the flag set.
-  interrupted_ = true;
   // if not waiting, this will not have any effect.
   cond_.NotifyOne();
+  interrupted_ = true;
 }
 
 class ResolveAsyncWaiterPromisesTask : public CancelableTask {
@@ -349,17 +356,15 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
       Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
           object, offset + wasm::kWaitQueueManagedOffset));
   const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
-
   NoGarbageCollectionMutexGuard lock_guard(&wait_list->mutex_);
-  std::optional<base::MutexGuard> node_lock_guard{&node->mutex_};
 
   int32_t loaded_control_value =
       reinterpret_cast<std::atomic<int32_t>*>(object->address() + offset)
           ->load();
 
   return *WaitSyncImpl<FutexManagedObjectWaitList>(
-      isolate, wait_list.get(), node, lock_guard, node_lock_guard, use_timeout,
-      timeout_time, expected_value, loaded_control_value, {});
+      isolate, wait_list.get(), node, lock_guard, use_timeout, timeout_time,
+      expected_value, loaded_control_value, {});
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -415,7 +420,6 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
   }
 
   NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-  std::optional<base::MutexGuard> node_lock_guard{&node->mutex_};
 
   std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
   T loaded_value = p->load();
@@ -427,16 +431,15 @@ Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
   }
 #endif
 
-  return *WaitSyncImpl<FutexWaitList, T>(
-      isolate, wait_list, node, lock_guard, node_lock_guard, use_timeout,
-      timeout_time, value, loaded_value, {wait_location});
+  return *WaitSyncImpl<FutexWaitList, T>(isolate, wait_list, node, lock_guard,
+                                         use_timeout, timeout_time, value,
+                                         loaded_value, {wait_location});
 }
 
 template <typename WaitList, typename T>
 DirectHandle<Object> FutexEmulation::WaitSyncImpl(
     Isolate* isolate, WaitList* wait_list, FutexWaitListNode* node,
-    NoGarbageCollectionMutexGuard& lock_guard,
-    std::optional<base::MutexGuard>& node_lock_guard, bool use_timeout,
+    NoGarbageCollectionMutexGuard& lock_guard, bool use_timeout,
     base::TimeTicks timeout_time, T value, T loaded_value,
     std::optional<void*> wait_location) {
   DirectHandle<Object> result;
@@ -455,9 +458,8 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
       // Reset the interrupted flag while still holding the mutex.
       node->interrupted_ = false;
 
-      // Unlock the mutexes here to prevent deadlock from lock ordering between
+      // Unlock the mutex here to prevent deadlock from lock ordering between
       // mutex and mutexes locked by HandleInterrupts.
-      node_lock_guard.reset();
       lock_guard.Unlock();
 
       // Because the mutex is unlocked, we have to be careful about not
@@ -477,7 +479,6 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
           isolate->stack_guard()->HandleInterrupts();
 
       lock_guard.Lock();
-      node_lock_guard.emplace(&node->mutex_);
 
       if (IsExceptionHole(interrupt_object, isolate)) {
         result = direct_handle(interrupt_object, isolate);
@@ -505,17 +506,13 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
         break;
       }
 
-      node_lock_guard.reset();
       base::TimeDelta time_until_timeout = timeout_time - current_time;
       DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
       bool wait_for_result =
           node->cond_.WaitFor(wait_list->mutex(), time_until_timeout);
       USE(wait_for_result);
-      node_lock_guard.emplace(&node->mutex_);
     } else {
-      node_lock_guard.reset();
       node->cond_.Wait(wait_list->mutex());
-      node_lock_guard.emplace(&node->mutex_);
     }
 
     // Spurious wakeup, interrupt or timeout.
@@ -693,7 +690,6 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
 
   FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
-    std::optional<base::MutexGuard> node_lock_guard(&node->mutex_);
     if (!node->waiting_) {
       node = node->next_;
       continue;
@@ -768,7 +764,6 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
     FutexWaitListNode* next_node = node->next_;
     if (delete_this_node) {
       wait_list->RemoveNode(node);
-      node_lock_guard.reset();
       delete node;
     }
     node = next_node;
@@ -794,7 +789,6 @@ int FutexEmulation::Wake(Address raw_object, int32_t offset,
 
   FutexWaitListNode* node = wait_list->head_;
   while (node && num_waiters_to_wake > 0) {
-    base::MutexGuard node_lock_guard(&node->mutex_);
     DCHECK(!node->IsAsync());
     if (!node->waiting_) {
       node = node->next_;
@@ -818,8 +812,8 @@ int FutexEmulation::Wake(Address raw_object, int32_t offset,
 void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
   DCHECK(node->IsAsync());
   // This function must run in the main thread of node's Isolate. This function
-  // may allocate memory. To avoid deadlocks, we shouldn't be holding
-  // GetWaitList()->mutex().
+  // may allocate memory. To avoid deadlocks, we shouldn't be holding the
+  // FutexEmulationGlobalState::mutex.
 
   Isolate* isolate = node->async_state_->isolate_for_async_waiters;
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -1007,7 +1001,6 @@ int FutexEmulation::NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
   if (it == location_lists.end()) return num_waiters;
 
   for (FutexWaitListNode* node = it->second.head; node; node = node->next_) {
-    base::MutexGuard node_lock_guard(&node->mutex_);
     if (!node->waiting_) continue;
     if (node->IsAsync()) {
       if (node->async_state_->backing_store.expired()) continue;
@@ -1030,7 +1023,6 @@ int FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   auto& isolate_map = wait_list->isolate_promises_to_resolve_;
   for (const auto& it : isolate_map) {
     for (FutexWaitListNode* node = it.second.head; node; node = node->next_) {
-      base::MutexGuard node_lock_guard(&node->mutex_);
       DCHECK(node->IsAsync());
       if (node->waiting_) continue;
       if (wait_location != node->wait_location_) continue;
