@@ -5061,6 +5061,20 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
+void MacroAssembler::SmiUntagUnsigned(Register dst, const MemOperand& src) {
+  if (SmiValuesAre32Bits()) {
+    Ld_wu(dst, MemOperand(src.base(), SmiWordOffset(src.offset())));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Ld_wu(dst, src);
+    } else {
+      Ld_d(dst, src);
+    }
+    SmiUntagUnsigned(dst);
+  }
+}
+
 void MacroAssembler::JumpIfSmi(Register value, Label* smi_label) {
   DCHECK_EQ(0, kSmiTag);
   UseScratchRegisterScope temps(this);
@@ -5951,6 +5965,11 @@ void MacroAssembler::LoadTaggedSignedField(Register destination,
 
 void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
+}
+
+void MacroAssembler::SmiUntagFieldUnsigned(Register dst,
+                                           const MemOperand& src) {
+  SmiUntagUnsigned(dst, src);
 }
 
 void MacroAssembler::StoreTaggedField(Register src, const MemOperand& dst,

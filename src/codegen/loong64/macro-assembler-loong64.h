@@ -588,6 +588,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void SmiTag(Register reg) { SmiTag(reg, reg); }
 
+  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
@@ -598,7 +599,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
-  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+  void SmiUntagUnsigned(Register reg) { SmiUntagUnsigned(reg, reg); }
+  void SmiUntagUnsigned(Register dst, const MemOperand& src);
+  void SmiUntagUnsigned(Register dst, Register src) {
+    if (SmiValuesAre32Bits()) {
+      srli_d(dst, src, kSmiShift);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      srli_w(dst, src, kSmiShift);
+    }
+  }
 
   // Left-shifted from int32 equivalent of Smi.
   void SmiScale(Register dst, Register src, int scale) {
@@ -1009,6 +1019,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(Register src, const MemOperand& dst,

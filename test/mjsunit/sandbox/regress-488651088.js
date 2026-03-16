@@ -22,7 +22,7 @@ let b_ptr = getPtr(b);
 let bound_args = getField(b_ptr, kJSBoundFunctionBoundArgumentsOffset);
 
 // Corrupt bound args length.
-setField(bound_args, kFixedArrayLengthOffset, 0x81ff0000);
+setField(bound_args, kFixedArrayLengthOffset, 0xffff0000);
 
 // Trigger stack overflow.
 assertThrows(b, RangeError, /Maximum call stack size exceeded/);
