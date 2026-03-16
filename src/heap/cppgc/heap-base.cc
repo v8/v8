@@ -100,7 +100,8 @@ HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
     StackSupport stack_support, MarkingType marking_support,
-    SweepingType sweeping_support, GarbageCollector& garbage_collector)
+    SweepingType sweeping_support, GarbageCollector& garbage_collector,
+    std::optional<cppgc::StackStartMarker> stack_start_marker)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
@@ -129,7 +130,11 @@ HeapBase::HeapBase(
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
-  stack_->SetStackStart();
+  if (stack_start_marker) {
+    stack_->SetStackStart(stack_start_marker->stack_start());
+  } else {
+    stack_->SetStackStart(v8::base::Stack::GetStackStart());
+  }
 }
 
 HeapBase::~HeapBase() = default;

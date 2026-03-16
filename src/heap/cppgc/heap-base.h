@@ -95,7 +95,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support, MarkingType marking_support,
-           SweepingType sweeping_support, GarbageCollector& garbage_collector);
+           SweepingType sweeping_support, GarbageCollector& garbage_collector,
+           std::optional<cppgc::StackStartMarker> stack_start_marker);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
