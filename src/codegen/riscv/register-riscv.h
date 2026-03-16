@@ -68,10 +68,11 @@ namespace internal {
   V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23)  \
   V(v27) V(v28) V(v29) V(v30) V(v31)
 
-#define ALLOCATABLE_DOUBLE_REGISTERS(V)                              \
-  V(ft1)  V(ft2) V(ft3) V(ft4)  V(ft5) V(ft6) V(ft7) V(ft8)          \
-  V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
-  V(fa6)  V(fa7)
+#define ALLOCATABLE_DOUBLE_REGISTERS(V)                           \
+  V(ft1) V(ft2) V(ft3) V(ft4) V(ft5) V(ft6) V(ft7) V(fa0) V(fa1)  \
+  V(fa2) V(fa3) V(fa4) V(fa5) V(fa6) V(fa7) V(ft8) V(ft9) V(ft10) \
+  V(ft11)
+
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
