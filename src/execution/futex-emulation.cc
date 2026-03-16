@@ -141,25 +141,17 @@ bool FutexWaitListNode::CancelTimeoutTask() {
 
 void FutexWaitListNode::NotifyWake() {
   DCHECK(!IsAsync());
-  // Lock the correct mutex before notifying. We know that the mutex
+  // Lock the global mutex before notifying. We know that the mutex
   // will have been unlocked if we are currently waiting on the condition
   // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
   // locked it yet. In that case, we set the interrupted_
   // flag to true, which will be tested after the mutex locked by a future wait.
-  // If the node is waiting on a Wasm managed object, we have to take the mutex
-  // of the respective FutexManagedObjectWaitList, otherwise the global
-  // FutexWaitList mutex.
-#if V8_ENABLE_WEBASSEMBLY
-  FutexManagedObjectWaitList* list = futex_managed_object_wait_list_.load();
-  NoGarbageCollectionMutexGuard lock_guard(list ? list->mutex()
-                                                : GetWaitList()->mutex());
-#else
   NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
-#endif
 
+  // Set the flag first so a woken thread will see it set.
+  interrupted_ = true;
   // if not waiting, this will not have any effect.
   cond_.NotifyOne();
-  interrupted_ = true;
 }
 
 class ResolveAsyncWaiterPromisesTask : public CancelableTask {
@@ -356,7 +348,7 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
       Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
           object, offset + wasm::kWaitQueueManagedOffset));
   const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
-  NoGarbageCollectionMutexGuard lock_guard(&wait_list->mutex_);
+  NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
 
   int32_t loaded_control_value =
       reinterpret_cast<std::atomic<int32_t>*>(object->address() + offset)
@@ -509,10 +501,10 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
       base::TimeDelta time_until_timeout = timeout_time - current_time;
       DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
       bool wait_for_result =
-          node->cond_.WaitFor(wait_list->mutex(), time_until_timeout);
+          node->cond_.WaitFor(GetWaitList()->mutex(), time_until_timeout);
       USE(wait_for_result);
     } else {
-      node->cond_.Wait(wait_list->mutex());
+      node->cond_.Wait(GetWaitList()->mutex());
     }
 
     // Spurious wakeup, interrupt or timeout.
@@ -788,7 +780,7 @@ int FutexEmulation::Wake(Address raw_object, int32_t offset,
           offset + wasm::kWaitQueueManagedOffset));
   const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
 
-  NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
+  NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
 
   FutexWaitListNode* node = wait_list->head_;
   while (node && num_waiters_to_wake > 0) {

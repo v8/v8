@@ -125,7 +125,7 @@ class FutexWaitListNode {
   };
 
   base::ConditionVariable cond_;
-  // prev_ and next_ are protected by FutexEmulationGlobalState::mutex.
+  // prev_ and next_ are protected by `GetWaitList()::mutex()`.
   FutexWaitListNode* prev_ = nullptr;
   FutexWaitListNode* next_ = nullptr;
 
@@ -137,16 +137,7 @@ class FutexWaitListNode {
   // this node is alive.
   void* wait_location_ = nullptr;
 
-#if V8_ENABLE_WEBASSEMBLY
-  // The list this node is currently in. This is used to take a lock when we
-  // wake an interrupted thread.
-  std::atomic<FutexManagedObjectWaitList*> futex_managed_object_wait_list_ =
-      nullptr;
-#endif
-
-  // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
-  // if this node is currently contained in
-  // FutexEmulationGlobalState::wait_list.
+  // waiting_ and interrupted_ are protected by `GetWaitList()::mutex()`.
   bool waiting_ = false;
   bool interrupted_ = false;
 
@@ -175,7 +166,6 @@ class FutexManagedObjectWaitList {
       node->next_ = nullptr;
       tail_ = node;
     }
-    node->futex_managed_object_wait_list_.store(this);
   }
 
   void RemoveNode(FutexWaitListNode* node) {
@@ -193,10 +183,7 @@ class FutexManagedObjectWaitList {
       tail_ = node->prev_;
     }
     node->prev_ = node->next_ = nullptr;
-    node->futex_managed_object_wait_list_.store(nullptr);
   }
-
-  base::Mutex* mutex() { return &mutex_; }
 
  private:
   friend class FutexEmulation;
@@ -207,9 +194,6 @@ class FutexManagedObjectWaitList {
     }
     return false;
   }
-
-  // Protects the fields below.
-  base::Mutex mutex_;
 
   FutexWaitListNode* head_ = nullptr;
   FutexWaitListNode* tail_ = nullptr;
