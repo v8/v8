@@ -8,7 +8,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let $array6 = builder.addArray(kWasmI32, true, kNoSuperType, false);
+let $array6 = builder.addArray(kWasmI32);
 let $sig8 = builder.addType(makeSig([], []));
 let $sig9 = builder.addType(makeSig([kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmF64, kWasmS128], []));
 let $sig10 = builder.addType(makeSig([], [wasmRefType($array6)]));

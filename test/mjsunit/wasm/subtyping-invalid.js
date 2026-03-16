@@ -85,96 +85,96 @@ Test((builder) => {
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(kWasmI32, true);
-  builder.addArray(kWasmI32, false, 0);
+  builder.addArray(kWasmI32);
+  builder.addArray(kWasmI32, {mutable: false, supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(kWasmI32, false);
-  builder.addArray(kWasmI32, true, 0);
+  builder.addArray(kWasmI32, {mutable: false});
+  builder.addArray(kWasmI32, {mutable: true, supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), true);
-  builder.addArray(wasmRefType(1), false, 0);
+  builder.addArray(wasmRefType(0));
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), true);
-  builder.addArray(wasmRefType(1), true, 0);
+  builder.addArray(wasmRefType(0));
+  builder.addArray(wasmRefType(1), {supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), true);
-  builder.addArray(wasmRefType(0), true, 0);
+  builder.addArray(wasmRefType(0));
+  builder.addArray(wasmRefType(0), {supertype: 0});
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false);
-  builder.addArray(wasmRefType(1), false, 0);
+  builder.addArray(wasmRefType(0), {mutable: false});
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 0});
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(1), false, 0);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 0});
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(0), false, 0);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(0), {mutable: false, supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(kWasmI32, true);
-  builder.addArray(wasmRefType(0), true, kNoSuperType, true, true);
+  builder.addArray(kWasmI32);
+  builder.addArray(wasmRefType(0), {final: true, shared: true});
 }, /shared array must have shared element type/);
 
 Test((builder) => {
-  builder.addArray(kWasmI32, true, kNoSuperType, false, true);
-  builder.addArray(wasmRefType(0), true);
+  builder.addArray(kWasmI32, {shared: true});
+  builder.addArray(wasmRefType(0));
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, (builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(1), false, 1);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 1});
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, (builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(0), false, 0);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(0), {mutable: false, supertype: 0});
 }, OK);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, (builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(1), false, 0);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 0});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, (builder) => {
-  builder.addArray(wasmRefType(1), false);
-  builder.addArray(wasmRefType(0), false, 1);
+  builder.addArray(wasmRefType(1), {mutable: false});
+  builder.addArray(wasmRefType(0), {mutable: false, supertype: 1});
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(1), false);
+  builder.addArray(wasmRefType(1), {mutable: false});
 }, (builder) => {
-  builder.addArray(wasmRefType(1), false, 0);
+  builder.addArray(wasmRefType(1), {mutable: false, supertype: 0});
 }, /Type index 1 is out of bounds/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false, 1);
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false, supertype: 1});
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, /invalid supertype 1/);
 
 Test((builder) => {
-  builder.addArray(wasmRefType(0), false, 1);
+  builder.addArray(wasmRefType(0), {mutable: false, supertype: 1});
 }, (builder) => {
-  builder.addArray(wasmRefType(0), false);
+  builder.addArray(wasmRefType(0), {mutable: false});
 }, /invalid supertype 1/);

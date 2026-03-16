@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 builder.addType(makeSig([], []));
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
-builder.addArray(kWasmF32, true);
+builder.addArray(kWasmF32);
 builder.addMemory(16, 32);
 builder.addPassiveDataSegment([148, 214, 121, 119]);
 builder.addFunction(undefined, 1 /* sig */)

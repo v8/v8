@@ -10,7 +10,7 @@ let builder = new WasmModuleBuilder();
 let tag0 = builder.addTag(kSig_v_v);
 
 builder.startRecGroup();
-let kArrayI8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let kArrayI8 = builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 let kArray8Ref = wasmRefNullType(kArrayI8);
 let kRefExtern = wasmRefType(kWasmExternRef);

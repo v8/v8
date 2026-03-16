@@ -10,10 +10,10 @@ let generateUselessCode = (n) => new Array(n).fill([kExprMemoryGrow, 0]).flat();
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-builder.addArray(kWasmI8, true, kNoSuperType, true);
+builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI16, true, kNoSuperType, true);
+builder.addArray(kWasmI16, {final: true});
 builder.endRecGroup();
 builder.addStruct([]);
 let mainSig = builder.addType(

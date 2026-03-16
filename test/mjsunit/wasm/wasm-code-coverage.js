@@ -436,7 +436,7 @@ TestCoverage(
 function testCoverageWithRefBranch() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
 
   builder.addFunction("main", kSig_i_v)
     .addBody([

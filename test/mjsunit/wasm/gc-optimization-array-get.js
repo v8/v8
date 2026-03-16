@@ -13,7 +13,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(wasmRefType(struct), true);
+  let array = builder.addArray(wasmRefType(struct));
 
   builder.addFunction("arrayGetSameType",
     makeSig([kWasmI32, wasmRefNullType(array)], [kWasmI32]))

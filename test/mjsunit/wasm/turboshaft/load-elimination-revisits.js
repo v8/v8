@@ -30,7 +30,7 @@ const nestedLoopCount = 30;
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmAnyRef, true);
+  let array = builder.addArray(kWasmAnyRef);
   let struct = builder.addStruct([
     makeField(wasmRefType(array), true)
   ]);

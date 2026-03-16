@@ -29,7 +29,7 @@ function setField(obj, offset, value) {
 
 let builder = new WasmModuleBuilder();
 
-let $u8arr = builder.addArray(kWasmI8, true);
+let $u8arr = builder.addArray(kWasmI8);
 let $sig_i_l = builder.addType(kSig_i_l, kNoSuperType, false);
 let $sig_l_l = builder.addType(kSig_l_l, kNoSuperType, false);
 let $sig_u8arr_i = builder.addType(makeSig([kWasmI32], [wasmRefType($u8arr)]));

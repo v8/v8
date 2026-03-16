@@ -8,9 +8,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let $array0 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let $array0 = builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
-let $array7 = builder.addArray(kWasmI64, true, kNoSuperType, false);
+let $array7 = builder.addArray(kWasmI64);
 let $sig21 = builder.addType(makeSig([kWasmExternRef], [wasmRefType($array0)]));
 let encodeStringToUTF8Array = builder.addImport('wasm:text-encoder', 'encodeStringToUTF8Array', $sig21);
 let $func18 = builder.addFunction(undefined, kSig_v_v);

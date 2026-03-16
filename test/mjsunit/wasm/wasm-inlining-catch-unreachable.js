@@ -15,7 +15,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   // Make it a wasm-gc module to enable inlining.
-  builder.addArray(kWasmI32, true);
+  builder.addArray(kWasmI32);
 
   let except = builder.addTag(makeSig([], []));
 

@@ -211,7 +211,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let exporting_instance = (function() {
     let builder = new WasmModuleBuilder();
     let type_struct = builder.addStruct([makeField(kWasmI32, false)]);
-    let type_array = builder.addArray(kWasmI32);
+    let type_array = builder.addArray(kWasmI32, {mutable: false});
 
     builder.addFunction("create_struct", makeSig([], [kWasmExternRef]))
     .addBody([
@@ -291,7 +291,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("imports", "anyref_global", kWasmAnyRef, true);
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
 
   builder.addFunction("get_extern", makeSig([], [kWasmExternRef]))
   .addBody([kExprGlobalGet, 0, kGCPrefix, kExprExternConvertAny])
@@ -357,7 +357,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("imports", "eqref_global", kWasmEqRef, true);
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
 
   builder.addFunction("get_extern", makeSig([], [kWasmExternRef]))
   .addBody([kExprGlobalGet, 0, kGCPrefix, kExprExternConvertAny])
@@ -417,7 +417,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("imports", "structref_global", kWasmStructRef, true);
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
 
   builder.addFunction("get_struct_val", makeSig([], [kWasmI32]))
   .addBody([
@@ -461,7 +461,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addImportedGlobal("imports", "arrayref_global", kWasmArrayRef, true);
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
 
   builder.addFunction("get_array_val", makeSig([], [kWasmI32]))
   .addBody([

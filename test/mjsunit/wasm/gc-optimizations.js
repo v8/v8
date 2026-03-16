@@ -174,7 +174,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   // parameter: unknown array index
   builder.addFunction("main", makeSig([kWasmI32], [kWasmI32]))
@@ -253,7 +253,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   let value_0 = 19;
   let value_1 = 55;
@@ -320,7 +320,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
   builder.addFunction("producer", makeSig([kWasmI32], [wasmRefType(array)]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprArrayNewDefault, array])
     .exportFunc();
@@ -674,7 +674,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function ArrayLenMultipleNullChecks() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction("arrayLenMultiple",
                       makeSig([wasmRefNullType(array)], [kWasmI32, kWasmI32]))
@@ -693,7 +693,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function RedundantExternalizeInternalize() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('createArray',
       makeSig([kWasmI32], [kWasmExternRef]))
@@ -728,7 +728,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function RedundantIsNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('checkIsNullAfterNonNullCast',
       makeSig([kWasmExternRef], [kWasmI32]))
@@ -815,9 +815,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function ArrayNewRefTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array_base = builder.addArray(kWasmI32, true);
-  let array_sub = builder.addArray(kWasmI32, true, array_base);
-  let array_other = builder.addArray(kWasmI64, true);
+  let array_base = builder.addArray(kWasmI32);
+  let array_sub = builder.addArray(kWasmI32, {supertype: array_base});
+  let array_other = builder.addArray(kWasmI64);
 
   builder.addFunction('arrayNewRefTest',
       makeSig([], [kWasmI32, kWasmI32, kWasmI32]))
@@ -842,8 +842,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TypePropagationPhi() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array_base = builder.addArray(kWasmI32, true);
-  let array_sub = builder.addArray(kWasmI32, true, array_base);
+  let array_base = builder.addArray(kWasmI32);
+  let array_sub = builder.addArray(kWasmI32, {supertype: array_base});
 
   builder.addFunction('typePhi',
       makeSig([kWasmI32], [kWasmI32]))

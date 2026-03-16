@@ -8,14 +8,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-builder.addArray(kWasmI8, true, kNoSuperType, true);
+builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI16, true, kNoSuperType, true);
+builder.addArray(kWasmI16, {final: true});
 builder.endRecGroup();
 builder.addStruct({fields: [makeField(kWasmS128, false), makeField(kWasmI8, true), makeField(wasmRefType(0), true)]});
 builder.addStruct({fields: [makeField(kWasmS128, false), makeField(kWasmI8, true), makeField(wasmRefType(0), true), makeField(kWasmI8, true), makeField(kWasmI8, true)], supertype: 2});
-builder.addArray(kWasmI32, true, kNoSuperType, false);
+builder.addArray(kWasmI32);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.startRecGroup();
 builder.addType(makeSig([kWasmEqRef, wasmRefType(kWasmFuncRef), kWasmFuncRef, wasmRefNullType(kWasmArrayRef), kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], [wasmRefType(1), wasmRefType(kWasmExternRef), wasmRefNullType(3), wasmRefType(kWasmFuncRef), wasmRefType(5), kWasmI32, wasmRefNullType(kWasmNullFuncRef), kWasmI64, kWasmI64, kWasmI64, wasmRefNullType(7), wasmRefType(5), wasmRefType(kWasmFuncRef), wasmRefNullType(kWasmNullFuncRef)]));

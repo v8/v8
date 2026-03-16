@@ -35,7 +35,7 @@ builder.addType(makeSig([kWasmF32], [kWasmAnyRef]));
 // 6
 builder.addType(makeSig([], []));
 // 7
-builder.addArray(kWasmAnyRef, true);
+builder.addArray(kWasmAnyRef);
 // 8
 builder.addStruct([
   makeField(kWasmF32, true),
@@ -94,7 +94,7 @@ builder.addStruct([
 // 19
 builder.addStruct([makeField(wasmRefType(0), true)]);
 // 20
-builder.addArray(kWasmI32, true);
+builder.addArray(kWasmI32);
 // 21
 builder.addArray(kWasmI64, false);
 builder.endRecGroup();

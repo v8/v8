@@ -7,10 +7,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-builder.addArray(kWasmI8, true, kNoSuperType, true);
+builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 builder.startRecGroup();
-builder.addArray(kWasmI16, true, kNoSuperType, true);
+builder.addArray(kWasmI16, {final: true});
 builder.endRecGroup();
 builder.addStruct({fields: []});
 builder.addStruct({fields: [], supertype: 2});

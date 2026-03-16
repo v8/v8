@@ -101,7 +101,7 @@ async function instantiateWasm(module_name, add_extra_types) {
   let array_type;
   if (add_extra_types) {
     builder.startRecGroup();
-    array_type = builder.addArray(kWasmI32, true);
+    array_type = builder.addArray(kWasmI32);
     builder.endRecGroup();
   }
   builder.startRecGroup();

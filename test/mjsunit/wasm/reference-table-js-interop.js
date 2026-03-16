@@ -51,7 +51,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let creatorSig = builder.addType(makeSig([], [type]));
   let creatorAnySig = builder.addType(makeSig([], [kWasmAnyRef]));
   let struct = builder.addStruct([makeField(kWasmI32, false)]);
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addImportedTable("imports", "table", size, maxSize, type);
   builder.addFunction("tableSet",

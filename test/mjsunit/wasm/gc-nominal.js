@@ -12,8 +12,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       {fields: [makeField(kWasmI32, true), makeField(kWasmI32, true)],
        supertype: struct1});
 
-  let array1 = builder.addArray(kWasmI32, true);
-  let array2 = builder.addArray(kWasmI32, true, array1);
+  let array1 = builder.addArray(kWasmI32);
+  let array2 = builder.addArray(kWasmI32, {supertype: array1});
 
   builder.addFunction("main", kSig_v_v)
       .addLocals(wasmRefNullType(struct1), 1)

@@ -8,7 +8,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let i8array = builder.addArray(kWasmI8, true, kNoSuperType, true);
+let i8array = builder.addArray(kWasmI8, {final: true});
 builder.endRecGroup();
 
 let kSig_e_aii = builder.addType(

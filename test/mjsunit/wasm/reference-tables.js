@@ -145,7 +145,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
 
   let table = builder.addTable(kWasmAnyRef, 4, 4);
@@ -206,7 +206,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
 
   let table = builder.addTable(wasmRefType(kWasmAnyRef), 3, 6,
@@ -357,7 +357,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array_type = builder.addArray(kWasmI32);
+  let array_type = builder.addArray(kWasmI32, {mutable: false});
 
   let table = builder.addTable(wasmRefNullType(array_type), 4, 4);
   builder.addActiveElementSegment(

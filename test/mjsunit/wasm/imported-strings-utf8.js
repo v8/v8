@@ -62,7 +62,7 @@ let kStringMeasureUtf8;
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  kArrayI8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  kArrayI8 = builder.addArray(kWasmI8, {final: true});
   builder.endRecGroup();
   let array8ref = wasmRefNullType(kArrayI8);
 

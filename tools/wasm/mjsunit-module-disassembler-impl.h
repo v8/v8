@@ -1313,6 +1313,7 @@ class MjsunitModuleDis {
       const TypeDefinition& type = module_->types[i];
       ModuleTypeIndex supertype = type.supertype;
       bool is_final = type.is_final;
+      bool is_shared = type.is_shared;
       if (needed_at[i] > i) {
         out_ << "let ";
         names()->PrintTypeVariableName(out_, ModuleTypeIndex{i});
@@ -1338,7 +1339,7 @@ class MjsunitModuleDis {
           names()->PrintTypeVariableName(out_, supertype);
         }
         if (is_final) out_ << ", final: true";
-        if (type.is_shared) out_ << ", shared: true";
+        if (is_shared) out_ << ", shared: true";
         if (type.has_descriptor()) {
           out_ << ", descriptor: ";
           names()->PrintTypeVariableName(out_, type.descriptor);
@@ -1353,14 +1354,33 @@ class MjsunitModuleDis {
         const ArrayType* array_type = module_->types[i].array_type;
         out_ << "builder.addArray(";
         names()->PrintValueType(out_, array_type->element_type(), kEmitObjects);
-        out_ << ", ";
-        out_ << (array_type->mutability() ? "true" : "false") << ", ";
-        if (supertype != kNoSuperType) {
-          names()->PrintTypeIndex(out_, supertype, kEmitObjects);
-        } else {
-          out_ << "kNoSuperType";
+        bool immutable = !array_type->mutability();
+        if (immutable || supertype != kNoSuperType || is_final || is_shared) {
+          out_ << ", {";
+          bool need_comma = false;
+          if (immutable) {
+            out_ << "mutable: false";
+            need_comma = true;
+          }
+          if (supertype != kNoSuperType) {
+            if (need_comma) out_ << ", ";
+            out_ << "supertype: ";
+            names()->PrintTypeIndex(out_, supertype, kEmitObjects);
+            need_comma = true;
+          }
+          if (is_final) {
+            if (need_comma) out_ << ", ";
+            out_ << "final: true";
+            need_comma = true;
+          }
+          if (is_shared) {
+            if (need_comma) out_ << ", ";
+            out_ << "shared: true";
+            need_comma = true;
+          }
+          out_ << "}";
         }
-        out_ << ", " << (is_final ? "true" : "false") << ");";
+        out_ << ");";
         out_.NextLine(0);
       } else {
         DCHECK(module_->has_signature(ModuleTypeIndex{i}));
@@ -1374,7 +1394,8 @@ class MjsunitModuleDis {
           } else {
             out_ << "kNoSuperType";
           }
-          if (!is_final) out_ << ", false";
+          if (!is_final || is_shared) out_ << (is_final ? ", true" : ", false");
+          if (is_shared) out_ << ", true";
         }
         out_ << ");";
         out_.NextLine(0);

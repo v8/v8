@@ -18,7 +18,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       {fields: [makeField(kWasmI32, true)], supertype: structSuper});
   builder.endRecGroup();
   builder.startRecGroup();
-  let array = builder.addArray(kWasmI32);
+  let array = builder.addArray(kWasmI32, {mutable: false});
   builder.endRecGroup();
 
   // Note: Casting between unrelated types is allowed as long as the types
@@ -666,7 +666,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
   let structSub = builder.addStruct(
       {fields: [makeField(kWasmI32, true)], supertype: structSuper});
-  let array = builder.addArray(kWasmI32);
+  let array = builder.addArray(kWasmI32, {mutable: false});
 
   // Helpers to be able to instantiate a true externref value from wasm.
   let createExternSig = builder.addType(makeSig([], [kWasmExternRef]));

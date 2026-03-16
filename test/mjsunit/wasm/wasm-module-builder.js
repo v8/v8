@@ -1395,13 +1395,14 @@ class WasmStruct {
       // Fall through.
     } else if (fields.constructor === Object) {
       // Options bag.
-      is_final = fields.is_final ?? fields.final ?? false;
-      is_shared = fields.is_shared ?? fields.shared ?? false;
+      is_final = fields.is_final ?? fields.final ?? is_final;
+      is_shared = fields.is_shared ?? fields.shared ?? is_shared;
       supertype_idx = MustBeNumber(
-          fields.supertype_idx ?? fields.supertype ?? kNoSuperType,
+          fields.supertype_idx ?? fields.supertype ?? supertype_idx,
           "supertype");
-      descriptor = MustBeNumber(fields.descriptor, "'descriptor'");
-      describes = MustBeNumber(fields.describes, "'describes'");
+      descriptor = MustBeNumber(
+          fields.descriptor ?? descriptor, "'descriptor'");
+      describes = MustBeNumber(fields.describes ?? describes, "'describes'");
       fields = fields.fields ?? [];  // This must happen last.
     } else {
       throw new Error('struct fields must be an array');
@@ -1417,10 +1418,22 @@ class WasmStruct {
 }
 
 class WasmArray {
-  constructor(type, mutability, is_final, is_shared, supertype_idx) {
+  constructor(type, options) {
+    let mutability = true;
+    let is_final = false;
+    let is_shared = false;
+    let supertype_idx = kNoSuperType;
+    if (typeof options === 'object') {
+      mutability = options.mutable ?? options.mutability ?? mutability;
+      is_final = options.is_final ?? options.final ?? is_final;
+      is_shared = options.is_shared ?? options.shared ?? is_shared;
+      supertype_idx = MustBeNumber(
+          options.supertype_idx ?? options.supertype ?? supertype_idx,
+          "supertype");
+    }
     this.type = type;
-    this.mutability = mutability;
     this.type_form = kWasmArrayTypeForm;
+    this.mutability = mutability;
     this.is_final = is_final;
     this.is_shared = is_shared;
     this.supertype = supertype_idx;
@@ -1702,10 +1715,10 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false,
-           is_shared = false) {
-    this.types.push(
-        new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
+  // {options}: mutable (default: true), final (default: false),
+  //            shared (default: false), supertype (default: kNoSuperType)
+  addArray(type, options) {
+    this.types.push(new WasmArray(type, options));
     return this.types.length - 1;
   }
 

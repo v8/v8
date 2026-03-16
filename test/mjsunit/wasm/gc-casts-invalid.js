@@ -43,10 +43,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     for (let cast of casts) {
       let builder = new WasmModuleBuilder();
       assertEquals(struct, builder.addStruct([makeField(kWasmI32, true)]));
-      assertEquals(array, builder.addArray(kWasmI32));
+      assertEquals(array, builder.addArray(kWasmI32, {mutable: false}));
       assertEquals(sig, builder.addType(makeSig([kWasmI32], [])));
-      assertEquals(sharedArray,
-        builder.addArray(kWasmI32, true, kNoSuperType, false, true));
+      assertEquals(sharedArray, builder.addArray(kWasmI32, {shared: true}));
       builder.addFunction('refTest', makeSig([source_type], []))
       .addBody([
         kExprLocalGet, 0,

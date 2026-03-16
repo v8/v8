@@ -38,7 +38,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestSharedArrayWithUnsharedElement() {
   const builder = new WasmModuleBuilder();
-  builder.addArray(kWasmFuncRef, false, kNoSuperType, false, /*is_shared*/ true);
+  builder.addArray(kWasmFuncRef, {mutable: false, shared: true});
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
     /shared array must have shared element type/);
 })();

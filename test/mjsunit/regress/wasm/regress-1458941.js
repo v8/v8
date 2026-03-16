@@ -10,7 +10,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function foo() {
     let builder = new WasmModuleBuilder();
-    let array = builder.addArray(kWasmI32);
+    let array = builder.addArray(kWasmI32, {mutable: false});
     builder.addFunction(`brOnCastFail`,
                         makeSig([], [kWasmI32]))
         .addBody([

@@ -25,7 +25,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                         makeField(kWasmI8, false)]);
   // Also try wasmRefNullType(struct_index), other numeric types.
   let array_type = kWasmI32;
-  var array_index = builder.addArray(array_type, true);
+  var array_index = builder.addArray(array_type);
   var from = builder.addGlobal(wasmRefNullType(array_index), true, false);
   var to = builder.addGlobal(wasmRefNullType(array_index), true, false);
 
@@ -117,7 +117,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, true)]);
   let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
-  var array_index = builder.addArray(array_type, true);
+  var array_index = builder.addArray(array_type);
 
   let array_new = builder.addFunction(
       "array_new", makeSig([], [wasmRefNullType(array_index)]))
@@ -158,7 +158,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, true)]);
   let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
-  var array_index = builder.addArray(array_type, true);
+  var array_index = builder.addArray(array_type);
 
   let array_new = builder.addFunction(
       "array_new", makeSig([], [wasmRefNullType(array_index)]))

@@ -60,7 +60,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let table = builder.addTable(kWasmExternRef, 1);
-  let array_index = builder.addArray(kWasmI32, true);
+  let array_index = builder.addArray(kWasmI32);
   let new_space_full_index = builder.addImport('m', 'new_space_full', kSig_v_v);
   builder.addFunction("test", kSig_i_r)
       .addBody([
