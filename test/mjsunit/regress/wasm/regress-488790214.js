@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --trace-wasm-generate-compilation-hints
-// Flags: --liftoff --no-wasm-lazy-compilation --no-disable-optimizing-compilers
+// Flags: --liftoff --wasm-lazy-compilation --no-disable-optimizing-compilers
 
 // This test used to fail under ASAN.
 

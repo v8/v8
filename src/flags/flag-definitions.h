@@ -2342,24 +2342,25 @@ DEFINE_BOOL(trace_wasm_compilation_hints, false,
 DEFINE_TEST_ONLY_FLAG(
     wasm_generate_compilation_hints,
     "enable emitting compilation-hints sections for Wasm to a file")
-// Feedback collection is guarded by the --wasm-inlining flag.
-DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
-// We need liftoff to generate feedback when generating compilation hints.
-DEFINE_IMPLICATION(wasm_generate_compilation_hints, liftoff)
-// Despite functions not being tiered up in this mode, we need this to track
-// which functions were marked for tierup to generate the compilation-priority
-// section.
-DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
 DEFINE_TEST_ONLY_FLAG(trace_wasm_generate_compilation_hints,
                       "enable tracing wasm compilation hints generation")
 // Feedback collection is guarded by the --wasm-inlining flag.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
 // We need liftoff to generate feedback when generating compilation hints.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, liftoff)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
 // Despite functions not being tiered up in this mode, we need this to track
 // which functions were marked for tierup to generate the compilation-priority
 // section.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
+// Compilation hints generation is not compatible with
+// --no-wasm-dynamic-tiering or --no-wasm-lazy-compilation.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_dynamic_tiering)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_dynamic_tiering)
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_lazy_compilation)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_lazy_compilation)
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
