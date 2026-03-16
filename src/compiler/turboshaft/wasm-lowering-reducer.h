@@ -274,7 +274,9 @@ class WasmLoweringReducer : public Next {
                             WriteBarrierKind write_barrier) {
     // TODO(rezvan): We do not support AcqRel memory order for non-memory
     // instructions currently.
-    DCHECK_NE(memory_order, AtomicMemoryOrder::kAcqRel);
+    if (memory_order == AtomicMemoryOrder::kAcqRel) {
+      memory_order = AtomicMemoryOrder::kSeqCst;
+    }
     // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
     // WasmNull to 8 bytes.
     bool requires_aligned_access =
@@ -365,7 +367,9 @@ class WasmLoweringReducer : public Next {
                            WriteBarrierKind write_barrier) {
     // TODO(rezvan): We do not support AcqRel memory order for non-memory
     // instructions currently.
-    DCHECK_NE(memory_order, AtomicMemoryOrder::kAcqRel);
+    if (memory_order == AtomicMemoryOrder::kAcqRel) {
+      memory_order = AtomicMemoryOrder::kSeqCst;
+    }
     StoreOp::Kind store_kind = StoreOp::Kind::TaggedBase();
     if (memory_order.has_value()) {
       store_kind = store_kind.Atomic();
