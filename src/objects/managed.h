@@ -108,8 +108,14 @@ class Managed : public Foreign {
   Managed* operator->() { return this; }
   const Managed* operator->() const { return this; }
 
-  // Get a raw pointer to the C++ object.
+  // Deprecated. Get a raw pointer to the C++ object.
+  // TODO(crbug/485286897): Remove this by using the no_gc variant instead.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
+
+  // Get a raw pointer to the C++ object.
+  V8_INLINE CppType* raw(const DisallowGarbageCollection& no_gc) {
+    return GetSharedPtrPtr(GetDestructor())->get();
+  }
 
   // Get a reference to the shared pointer to the C++ object.
   V8_INLINE const std::shared_ptr<CppType>& get() {

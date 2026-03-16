@@ -654,14 +654,16 @@ DirectHandle<Object> GetTimeZone(
 
 DirectHandle<String> JSDateTimeFormat::Calendar(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
-  return GetCalendar(isolate,
-                     *(date_time_format->icu_simple_date_format()->raw()));
+  std::shared_ptr<icu::SimpleDateFormat> icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->get();
+  return GetCalendar(isolate, *icu_simple_date_format);
 }
 
 DirectHandle<Object> JSDateTimeFormat::TimeZone(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
-  return GetTimeZone(isolate,
-                     *(date_time_format->icu_simple_date_format()->raw()));
+  std::shared_ptr<icu::SimpleDateFormat> icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->get();
+  return GetTimeZone(isolate, *icu_simple_date_format);
 }
 
 // https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
@@ -676,11 +678,12 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   DirectHandle<String> locale(date_time_format->locale(), isolate);
   DCHECK(!date_time_format->icu_locale().is_null());
-  DCHECK_NOT_NULL(date_time_format->icu_locale()->raw());
-  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
+  std::shared_ptr<icu::Locale> icu_locale =
+      date_time_format->icu_locale()->get();
+  DCHECK_NOT_NULL(icu_locale);
 
-  icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  std::shared_ptr<icu::SimpleDateFormat> icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->get();
   DirectHandle<Object> timezone =
       JSDateTimeFormat::TimeZone(isolate, date_time_format);
 
@@ -978,7 +981,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalInstant(
   // 4. Return the Record { [[pattern]]: pattern.[[pattern]], [[rangePatterns]]:
   // pattern.[[rangePatterns]], [[epochNanoseconds]]: instant.[[Nanoseconds]] }.
 
-  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
+  DisallowGarbageCollection no_gc;
+  double milliseconds = instant->instant()->raw(no_gc)->epoch_milliseconds();
   return Just(DateTimeValueRecord{milliseconds, PatternKind::kInstant});
 }
 
@@ -991,11 +995,14 @@ template <typename T>
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     PatternKind kind, DirectHandle<T> temporal) {
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
+
   // Onlt perform this check for calendared types (not Time)
   if constexpr (T::kTypeContainsCalendar) {
     auto calendar_kind = temporal->wrapped_rust()->calendar().kind();
-    bool throw_mismatch_calendar = !CalendarEquals(
-        calendar_kind, *(date_time_format->icu_simple_date_format()->raw()));
+    bool throw_mismatch_calendar =
+        !CalendarEquals(calendar_kind, *icu_date_format);
     if (std::is_same<T, JSTemporalPlainDateTime>::value ||
         std::is_same<T, JSTemporalPlainDate>::value) {
       throw_mismatch_calendar &=
@@ -1008,8 +1015,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
   }
   // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
   // isoDateTime, compatible).
-  DirectHandle<Object> time_zone_obj = GetTimeZone(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()));
+  DirectHandle<Object> time_zone_obj = GetTimeZone(isolate, *icu_date_format);
   DirectHandle<String> time_zone_str;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone_str,
                              Object::ToString(isolate, time_zone_obj));
@@ -1797,11 +1803,12 @@ MaybeDirectHandle<String> FormatDateTime(
 MaybeDirectHandle<String> FormatMillisecondsByKindToString(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> value, PatternKind kind, double x) {
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
   UErrorCode status = U_ZERO_ERROR;
   std::optional<icu::UnicodeString> result = CallICUFormat(
-      *(date_time_format->icu_simple_date_format()->raw()),
-      date_time_format->explicit_components_in_options(), kind,
-      date_time_format->date_style(), date_time_format->time_style(),
+      *icu_date_format, date_time_format->explicit_components_in_options(),
+      kind, date_time_format->date_style(), date_time_format->time_style(),
       date_time_format->has_to_locale_string_time_zone(), x, nullptr, status);
   if (U_FAILURE(status) || !result.has_value()) {
     THROW_NEW_ERROR(
@@ -1809,8 +1816,7 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));
   }
   icu::UnicodeString result_unwrapped = std::move(result).value();
-  auto simple = date_time_format->icu_simple_date_format()->raw();
-  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *simple);
+  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *icu_date_format);
   return Intl::ToString(isolate, result_unwrapped);
 }
 
@@ -1852,8 +1858,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::DateTimeFormat(
     x = Object::NumberValue(*date);
   }
   // 5. Return FormatDateTime(dtf, x).
-  icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+  std::shared_ptr<icu::SimpleDateFormat> format =
+      date_time_format->icu_simple_date_format()->get();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1928,8 +1934,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
             date_time_format->icu_simple_date_format()->get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
-  icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+  std::shared_ptr<icu::SimpleDateFormat> format =
+      date_time_format->icu_simple_date_format()->get();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1992,12 +1998,19 @@ MaybeDirectHandle<String> JSDateTimeFormat::TemporalZonedDateTimeToLocaleString(
   // CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is
   // false, then
   auto calendar_kind = zdt->wrapped_rust()->calendar().kind();
-  if (calendar_kind != temporal_rs::AnyCalendarKind::Value::Iso &&
-      !CalendarEquals(calendar_kind,
-                      *(date_time_format->icu_simple_date_format()->raw()))) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kMismatchedCalendars));
+  if (calendar_kind != temporal_rs::AnyCalendarKind::Value::Iso) {
+    bool equals;
+    {
+      DisallowGarbageCollection no_gc;
+      equals = CalendarEquals(
+          calendar_kind,
+          *(date_time_format->icu_simple_date_format()->raw(no_gc)));
+    }
+    if (!equals) {
+      // a. Throw a RangeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kMismatchedCalendars));
+    }
   }
   // 5. Let instant be
   // ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
@@ -2315,15 +2328,16 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     PatternKind kind, JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone) {
-  Tagged<Managed<icu::DateIntervalFormat>> managed_format =
-      date_time_format->icu_date_interval_format();
-  if (kind == PatternKind::kDate && managed_format->get()) {
-    return std::unique_ptr<icu::DateIntervalFormat>(
-        managed_format->raw()->clone());
+  if (kind == PatternKind::kDate) {
+    DisallowGarbageCollection no_gc;
+    icu::DateIntervalFormat* icu_format =
+        date_time_format->icu_date_interval_format()->raw(no_gc);
+    if (icu_format)
+      return std::unique_ptr<icu::DateIntervalFormat>(icu_format->clone());
   }
   UErrorCode status = U_ZERO_ERROR;
 
-  icu::Locale loc = *(date_time_format->icu_locale()->raw());
+  icu::Locale loc = *(date_time_format->icu_locale()->get());
   // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
   // extension.
   std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
@@ -2331,8 +2345,8 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     loc.setUnicodeKeywordValue("hc", hcString, status);
   }
 
-  icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  std::shared_ptr<icu::SimpleDateFormat> icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->get();
 
   icu::UnicodeString skeleton = GetSkeletonForPatternKind(
       SkeletonFromDateFormat(*icu_simple_date_format),
@@ -2350,8 +2364,10 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
       Managed<icu::DateIntervalFormat>::From(isolate, 0,
                                              std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
+
+  DisallowGarbageCollection no_gc;
   return std::unique_ptr<icu::DateIntervalFormat>(
-      managed_interval_format->raw()->clone());
+      managed_interval_format->raw(no_gc)->clone());
 }
 
 JSDateTimeFormat::HourCycle HourCycleFromPattern(
@@ -3166,10 +3182,11 @@ MaybeDirectHandle<JSArray> FormatMillisecondsByKindToArray(
     bool output_source) {
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
   auto formatted = CallICUFormat(
-      *(date_time_format->icu_simple_date_format()->raw()),
-      date_time_format->explicit_components_in_options(), kind,
-      date_time_format->date_style(), date_time_format->time_style(),
+      *icu_date_format, date_time_format->explicit_components_in_options(),
+      kind, date_time_format->date_style(), date_time_format->time_style(),
       date_time_format->has_to_locale_string_time_zone(), x, &fp_iter, status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
@@ -3243,9 +3260,10 @@ MaybeDirectHandle<JSArray> JSDateTimeFormat::FormatToParts(
   if (!DateCache::TryTimeClip(&date_value)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
-  return FormatMillisecondsToArray(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()), date_value,
-      output_source);
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
+  return FormatMillisecondsToArray(isolate, *icu_date_format, date_value,
+                                   output_source);
 }
 
 namespace {
@@ -3469,8 +3487,8 @@ std::optional<MaybeDirectHandle<T>> PartitionDateTimeRangePattern(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  icu::SimpleDateFormat* date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  std::shared_ptr<icu::SimpleDateFormat> date_format =
+      date_time_format->icu_simple_date_format()->get();
   const icu::Calendar* calendar = date_format->getCalendar();
 
   return CallICUFormatRange<T, Format>(isolate, date_time_format, format.get(),
@@ -3555,11 +3573,11 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  const icu::Calendar* calendar =
-      date_time_format->icu_simple_date_format()->raw()->getCalendar();
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
 
   std::optional<MaybeDirectHandle<T>> result = CallICUFormatRange<T, Format>(
-      isolate, date_time_format, format.get(), calendar,
+      isolate, date_time_format, format.get(), icu_date_format->getCalendar(),
       x_record.epoch_milliseconds, y_record.epoch_milliseconds);
   if (result.has_value()) return *result;
   return Fallback(isolate, date_time_format, x_obj, x_record.kind,
@@ -3586,8 +3604,9 @@ MaybeDirectHandle<T> FormatRangeCommon(
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,
                                                method_name);
   if (result.has_value()) return *result;
-  return Fallback(isolate, *(date_time_format->icu_simple_date_format()->raw()),
-                  x);
+  std::shared_ptr<icu::SimpleDateFormat> icu_date_format =
+      date_time_format->icu_simple_date_format()->get();
+  return Fallback(isolate, *icu_date_format, x);
 }
 
 }  // namespace
