@@ -59,13 +59,6 @@
 #include "src/wasm/wasm-module-builder.h"
 #endif
 
-#if defined(__clang__)
-#if __has_warning("-Wlifetime-safety-dangling-global")
-// TODO(crbug/482994758): Fix the violations.
-#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
-#endif
-#endif
-
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
@@ -3604,6 +3597,7 @@ TEST(EmbedderGraph) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshot(env.isolate(), snapshot);
+  global_object_pointer = nullptr;
 }
 
 void BuildEmbedderGraphWithNamedEdges(v8::Isolate* v8_isolate,
@@ -3669,6 +3663,7 @@ TEST(EmbedderGraphWithNamedEdges) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphWithNamedEdges(env.isolate(), snapshot);
+  global_object_pointer = nullptr;
 }
 
 struct GraphBuildingContext {
@@ -3749,6 +3744,8 @@ TEST(EmbedderGraphMultipleCallbacks) {
   CHECK_EQ(context.counter, 1);
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshotWithContext(env.isolate(), snapshot, &context);
+
+  global_object_pointer = nullptr;
 }
 
 TEST(StrongHandleAnnotation) {
@@ -3828,6 +3825,8 @@ TEST(EmbedderGraphWithWrapperNode) {
   const v8::HeapGraphNode* wrapper_node2 =
       GetChildByName(embedder_node, "WrapperNode2");
   CHECK(!wrapper_node2);
+
+  global_object_pointer = nullptr;
 }
 
 class EmbedderNodeWithPrefix : public v8::EmbedderGraph::Node {
@@ -3871,6 +3870,7 @@ TEST(EmbedderGraphWithPrefix) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* node = GetChildByName(global, "Detached Node");
   CHECK(node);
+  global_object_pointer = nullptr;
 }
 
 static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }

@@ -134,13 +134,6 @@
 #define CHECK(condition) assert(condition)
 #endif
 
-#if defined(__clang__)
-#if __has_warning("-Wlifetime-safety-dangling-global")
-// TODO(crbug/482994758): Fix the violations.
-#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
-#endif
-#endif
-
 namespace v8 {
 
 namespace {
@@ -7603,6 +7596,8 @@ int Shell::Main(int argc, char* argv[]) {
   }
   utf8_filenames.clear();
 #endif
+
+  Shell::array_buffer_allocator = nullptr;
 
   return result;
 }
