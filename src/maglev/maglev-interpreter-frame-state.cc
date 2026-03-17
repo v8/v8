@@ -1000,13 +1000,13 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
-  NodeType type =
+  NodeType unmerged_type =
       unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
 
-  result->merge_post_loop_type(type);
+  result->merge_post_loop_type(unmerged_type);
   // We've just merged the backedge, which means that future uses of this Phi
   // will be after the loop, so we can now promote `post_loop_type` to the
   // regular `type`.
@@ -1021,7 +1021,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     // sminess.
     if (result->uses_require_smi()) {
       unmerged_phi->SetUseRequiresSmi();
-    } else if (NodeTypeIs(unmerged_phi->type(), NodeType::kSmi)) {
+    } else if (NodeTypeIs(unmerged_type, NodeType::kSmi)) {
       // The backedge has Smi type, but it's possible that this is only true
       // because {result} itself is eventually known to be a Smi, thanks to for
       // instance a CheckedSmiUntag. If we don't set {use_requires_smi}, then
@@ -1029,6 +1029,10 @@ void MergePointInterpreterFrameState::MergeLoopValue(
       // invalidating the type of the backedge, and in turn potentially
       // invalidating some Phi untagging without us realizing it.
       unmerged_phi->SetUseRequiresSmi();
+    } else {
+      // If the static type of {unmerged_phi} was kSmi, we should have gone into
+      // the branch above and called SetUseRequiresSmi.
+      DCHECK(!NodeTypeIs(unmerged_phi->type(), NodeType::kSmi));
     }
     if (result->uses_require_heap_object()) {
       unmerged_phi->SetUseRequiresHeapObject();
