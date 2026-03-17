@@ -1765,7 +1765,6 @@ class PrototypesSetup : public wasm::Decoder {
             .set_map(isolate_->strict_function_with_readonly_prototype_map())
             .Build();
     constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
-    prototype->map()->SetConstructor(*constructor);
 
     PropertyDescriptor constructor_prop;
     constructor_prop.set_enumerable(false);
