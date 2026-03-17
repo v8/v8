@@ -778,6 +778,7 @@ class V8_EXPORT ScriptCompiler {
     kNoCacheBecauseResourceWithNoCacheHandler,
     kNoCacheBecauseDeferredProduceCodeCache,
     kNoCacheBecauseStaticCodeCache,
+    kNoCacheBecauseInlineScriptCacheTooCold,
   };
 
   /**
