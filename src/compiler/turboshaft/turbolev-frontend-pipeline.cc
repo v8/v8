@@ -313,7 +313,9 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
     // landing.
     Run<PostOptimizerPhase>(nullptr);
   }
-  Run<PhiUntaggingPhase>();
+  if (v8_flags.turbolev_untagged_phis) {
+    Run<PhiUntaggingPhase>();
+  }
   if (v8_flags.maglev_range_analysis) {
     maglev::NodeRanges ranges(graph_);
     Run<RangeAnalysisPhase>(ranges);
