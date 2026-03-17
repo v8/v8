@@ -1178,7 +1178,9 @@ class ParserBase {
     // i.e. flags().is_module() is false), thus allowing await as an identifier
     // by default, the immediate outer scope is a module scope.
     DCHECK(!IsModule(kind) ||
-           (flags().is_eval() && function_state_->scope() == original_scope_ &&
+           (flags().is_eval() &&
+            function_state_->scope()->IsOuterScopeUpToClosureScopeOf(
+                original_scope_) &&
             IsModule(function_state_->kind())));
     return IsAsyncFunction(kind) ||
            kind == FunctionKind::kClassStaticInitializerFunction;
