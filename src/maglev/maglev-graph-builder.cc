@@ -7952,7 +7952,6 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
   }
 
   ValueNode* object = LoadRegister(3);
-  ValueNode* value = GetAccumulator();
   FeedbackSlot slot = GetSlotOperand(4);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -7960,34 +7959,16 @@ ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kStore, std::nullopt);
 
-  auto build_generic_access = [this, object, name, value, &feedback_source]() {
-    ValueNode* current_context = GetContext();
-    return AddNewNode<SetKeyedGeneric>(
-        {current_context, object, name.value(), value}, feedback_source);
+  auto build_generic_access = [this, object, name, &feedback_source]() {
+    ValueNode* context = GetContext();
+    ValueNode* value = GetAccumulator();
+    return AddNewNode<SetKeyedGeneric>({context, object, name.value(), value},
+                                       feedback_source);
   };
 
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          name.value(),
-          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
-          DeoptimizeReason::kKeyedAccessChanged));
-
-      MaybeReduceResult result = TryBuildNamedAccess(
-          object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kStore, build_generic_access);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-      break;
-    }
-    default:
-      break;
-  }
-
-  return SetAccumulator(build_generic_access());
+  return BuildSetKeyedProperty(object, name.value(),
+                               compiler::AccessMode::kStore, feedback_source,
+                               processed_feedback, build_generic_access);
 }
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
