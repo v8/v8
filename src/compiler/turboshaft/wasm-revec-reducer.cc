@@ -353,6 +353,13 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         result = true;
         break;
       } else if (input > start) {
+        // Check whether the input is already a force-packing node.
+        PackNode* pnode = GetPackNode(input);
+        if (pnode && pnode->IsForcePackNode()) {
+          result = true;
+          break;
+        }
+
         // Check side effect from input to start's previous node to simplify
         // reducing of force-packing nodes.
         OpIndex start_prev = graph().PreviousIndex(start);
