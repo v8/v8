@@ -412,6 +412,11 @@ void InliningTree::Inline() {
             callee_index >= data_->module->functions.size()) {
           has_non_inlineable_targets = true;
         }
+        if (callee_index >= data_->module->functions.size()) {
+          // The hint is out-of-bounds.
+          function_calls[i] = nullptr;
+          continue;
+        }
         uint32_t code_length =
             callee_index < data_->module->functions.size()
                 ? data_->module->functions[callee_index].code.length()
@@ -469,15 +474,10 @@ void InliningTree::FullyExpand() {
       }
     }
     queue.pop();
+    DCHECK_LT(top->function_index_, data_->module->functions.size());
     if (top->function_index_ < data_->module->num_imported_functions) {
       if (v8_flags.trace_wasm_inlining && top != this) {
         PrintF("imported function]\n");
-      }
-      continue;
-    }
-    if (top->function_index_ >= data_->module->functions.size()) {
-      if (v8_flags.trace_wasm_inlining && top != this) {
-        PrintF("(hinted) function index out of bounds]\n");
       }
       continue;
     }
