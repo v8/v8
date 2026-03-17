@@ -9,6 +9,7 @@
 #include <stack>
 #include <vector>
 
+#include "src/base/small-vector.h"
 #include "src/common/simd128.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/frame-translation-builder.h"
@@ -485,15 +486,15 @@ class TranslatedState {
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
 
-  using iterator = std::vector<TranslatedFrame>::iterator;
+  using iterator = base::SmallVector<TranslatedFrame, 3>::iterator;
   iterator begin() { return frames_.begin(); }
   iterator end() { return frames_.end(); }
 
-  using const_iterator = std::vector<TranslatedFrame>::const_iterator;
+  using const_iterator = base::SmallVector<TranslatedFrame, 3>::const_iterator;
   const_iterator begin() const { return frames_.begin(); }
   const_iterator end() const { return frames_.end(); }
 
-  std::vector<TranslatedFrame>& frames() { return frames_; }
+  base::SmallVector<TranslatedFrame, 3>& frames() { return frames_; }
 
   TranslatedFrame* GetFrameFromJSFrameIndex(int jsframe_index);
   TranslatedFrame* GetArgumentsInfoFromJSFrameIndex(int jsframe_index,
@@ -585,7 +586,7 @@ class TranslatedState {
   static Simd128 getSimd128Slot(Address fp, int slot_index);
 
   Purpose const purpose_;
-  std::vector<TranslatedFrame> frames_;
+  base::SmallVector<TranslatedFrame, 3> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
   uint32_t formal_parameter_count_;

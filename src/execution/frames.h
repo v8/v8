@@ -7,6 +7,7 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/base/small-vector.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/assert-scope.h"
@@ -640,7 +641,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // The functions are ordered bottom-to-top (i.e. summaries.last() is the
 // top-most activation; caller comes before callee).
 struct FrameSummaries {
-  std::vector<FrameSummary> frames;
+  base::SmallVector<FrameSummary, 3> frames;
   bool top_frame_is_construct_call = false;
 
   FrameSummaries() = default;
