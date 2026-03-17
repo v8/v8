@@ -1168,7 +1168,7 @@ class PreParser : public ParserBase<PreParser> {
         is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
         &was_added);
     if (!was_added) {
-      Scanner::Location loc(property.position(), property.position() + 1);
+      Scanner::Location loc(position(), end_position());
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                       property_name.string_);
     }

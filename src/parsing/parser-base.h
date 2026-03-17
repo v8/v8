@@ -2659,7 +2659,10 @@ bool ParserBase<Impl>::VerifyCanHaveAutoAccessorOrThrow(
       return true;
     default:
       impl()->ReportUnexpectedTokenAt(
-          Scanner::Location(name_token_position, name_expression->position()),
+          Scanner::Location(name_token_position,
+                            name_expression->position() == -1
+                                ? name_token_position
+                                : name_expression->position()),
           Token::kAccessor);
       return false;
   }
@@ -3316,7 +3319,10 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
 
     if (!impl()->IsIdentifier(expression) && !expression->is_parenthesized()) {
       impl()->ReportMessageAt(
-          Scanner::Location(expression->position(), position()),
+          Scanner::Location(expression->position() == kNoSourcePosition
+                                ? lhs_beg_pos
+                                : expression->position(),
+                            position()),
           MessageTemplate::kMalformedArrowFunParamList);
       return impl()->FailureExpression();
     }

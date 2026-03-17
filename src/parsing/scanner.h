@@ -265,9 +265,9 @@ class V8_EXPORT_PRIVATE Scanner {
     Location() : beg_pos(0), end_pos(0) { }
 
     int length() const { return end_pos - beg_pos; }
-    bool IsValid() const { return base::IsInRange(beg_pos, 0, end_pos); }
+    bool IsValid() const { return beg_pos >= 0 && beg_pos <= end_pos; }
 
-    static Location invalid() { return Location(-1, 0); }
+    static Location invalid() { return Location(-1, -1); }
 
     int beg_pos;
     int end_pos;
