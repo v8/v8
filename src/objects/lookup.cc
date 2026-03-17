@@ -94,7 +94,9 @@ void LookupIterator::Next() {
 }
 
 template <bool is_element>
-void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
+void LookupIterator::NextInternal(Tagged<Map> orig_map,
+                                  Tagged<JSReceiver> holder) {
+  Tagged<Map> map = orig_map;
   do {
     Tagged<JSReceiver> maybe_holder = NextHolder(map);
     if (maybe_holder.is_null()) {
@@ -149,6 +151,10 @@ void LookupIterator::NextInternal(Tagged<Map> map, Tagged<JSReceiver> holder) {
       return;
     }
   } while (!IsFound());
+
+  if (V8_UNLIKELY(is_element && IsJSArrayMap(*orig_map))) {
+    isolate_->CountUsage(v8::Isolate::kHoleyArrayReadthrough);
+  }
 
   holder_ = direct_handle(holder, isolate_);
 }
