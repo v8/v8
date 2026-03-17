@@ -641,6 +641,7 @@
 
   # --experimental-wasm-memory-control
   'wasm/memory-control': [SKIP],
+  'regress/wasm/regress-493307331': [SKIP],
 
   # exnref
   'regress/wasm/regress-14689': [SKIP],
@@ -2201,6 +2202,7 @@
 
   # WebAssembly memory control is only implemented on Linux so far.
   'wasm/memory-control': [SKIP],
+  'regress/wasm/regress-493307331': [SKIP],
 }],
 
 ##############################################################################

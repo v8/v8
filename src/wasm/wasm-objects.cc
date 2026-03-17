@@ -1348,6 +1348,10 @@ bool WasmMemoryMapDescriptor::UnmapDescriptor() {
   CHECK(v8_flags.experimental_wasm_memory_control);
   DisallowGarbageCollection no_gc;
 
+  if (this->memory().IsCleared()) {
+    return false;
+  }
+
   i::Tagged<i::WasmMemoryObject> memory =
       Cast<i::WasmMemoryObject>(MakeStrong(this->memory()));
   if (memory.is_null()) {
