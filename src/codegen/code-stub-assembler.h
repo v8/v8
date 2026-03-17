@@ -4172,6 +4172,49 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GenerateStrictEqualAndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs,
                                           TNode<Int32T> current_type_feedback,
                                           TNode<UintPtrT> feedback_offset);
+  void GenerateEqualAndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs,
+                                    TNode<Int32T> current_type_feedback,
+                                    TNode<UintPtrT> feedback_offset);
+  void GenerateSmiEqual(TNode<Object> lhs, TNode<Object> rhs,
+                        TNode<UintPtrT> feedback_offset,
+                        Builtin fallback_builtin);
+  void GenerateNumberEqual(TNode<Object> lhs, TNode<Object> rhs,
+                           TNode<UintPtrT> feedback_offset,
+                           Builtin fallback_builtin);
+  void GenerateStringEqual(TNode<Object> lhs, TNode<Object> rhs,
+                           TNode<UintPtrT> feedback_offset,
+                           Builtin fallback_builtin);
+
+  using TypeCheckHelper = std::function<TNode<BoolT>(TNode<HeapObject>)>;
+  void GenerateTypedTaggedEqual(TNode<Object> lhs, TNode<Object> rhs,
+                                TNode<UintPtrT> feedback_offset,
+                                TypeCheckHelper type_check_helper,
+                                Builtin fallback_builtin,
+                                TNode<Int32T> type_feedback);
+  void GenerateRelationalCompareAndTryPatchCode(
+      TNode<Object> lhs, TNode<Object> rhs, TNode<Int32T> operation_type,
+      TNode<Int32T> current_type_feedback, TNode<UintPtrT> feedback_offset);
+
+#define DECLARE_RELATIONAL_COMPARE_GENERATOR(Name)                           \
+  void Generate##Name##AndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs, \
+                                       TNode<Int32T> current_type_feedback,  \
+                                       TNode<UintPtrT> feedback_offset);
+
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(LessThan)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(LessThanOrEqual)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(GreaterThan)
+  DECLARE_RELATIONAL_COMPARE_GENERATOR(GreaterThanOrEqual)
+#undef DECLARE_RELATIONAL_COMPARE_GENERATOR
+
+  void GenerateSmiRelationalCompare(Operation op, TNode<Object> lhs,
+                                    TNode<Object> rhs,
+                                    TNode<UintPtrT> feedback_offset,
+                                    Builtin fallback_builtin);
+
+  void GenerateNumberRelationalCompare(Operation op, TNode<Object> lhs,
+                                       TNode<Object> rhs,
+                                       TNode<UintPtrT> feedback_offset,
+                                       Builtin fallback_builtin);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,

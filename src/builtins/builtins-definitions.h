@@ -114,8 +114,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   LOAD_IC_HANDLER_LIST(V, GENERATE_BUILTIN_LOAD_IC_DEFINITION)
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OPERATION, TYPE) \
+  V(OPERATION##_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+
 #define TYPED_STRICTEQUAL_HANDLER_HELPER(V, TYPE) \
-  V(StrictEqual_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, StrictEqual, TYPE)
+
+#define TYPED_EQUAL_HANDLER_HELPER(V, TYPE) \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, Equal, TYPE)
 
 #define GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER(V)     \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, Any)                \
@@ -126,7 +132,21 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, InternalizedString) \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, SignedSmall)        \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, None)
+
+#define GENERATE_BUILTIN_TYPED_EQUAL_HANDLER(V)     \
+  TYPED_EQUAL_HANDLER_HELPER(V, Any)                \
+  TYPED_EQUAL_HANDLER_HELPER(V, Number)             \
+  TYPED_EQUAL_HANDLER_HELPER(V, String)             \
+  TYPED_EQUAL_HANDLER_HELPER(V, InternalizedString) \
+  TYPED_EQUAL_HANDLER_HELPER(V, Receiver)           \
+  TYPED_EQUAL_HANDLER_HELPER(V, SignedSmall)        \
+  TYPED_EQUAL_HANDLER_HELPER(V, None)
 #endif
+
+#define GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER(V, OP) \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, Number)          \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, SignedSmall)     \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, None)
 
 /* Tiering related builtins
  *
@@ -941,18 +961,33 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(Add_RhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
   TFC(Add_RhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
-  /* Compare ops with feedback collection */                                   \
-  TFC(Equal_Baseline, Compare_WithEmbeddedFeedbackOffset)                      \
-  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+  /* Typed Comparison baseline stubs */                                        \
+  TFC(Equal_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)              \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_EQUAL_HANDLER, TFC)                 \
+  IF_SPARKPLUG_PLUS(TFC, EqualAndTryPatchCode, CompareAndTryPatchCode)         \
                                                                                \
-  /* Typed StirctEqual baseline stubs */                                       \
+  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
   IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER, TFC)           \
   IF_SPARKPLUG_PLUS(TFC, StrictEqualAndTryPatchCode, CompareAndTryPatchCode)   \
                                                                                \
-  TFC(LessThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                   \
-  TFC(GreaterThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
-  TFC(LessThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)            \
-  TFC(GreaterThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)         \
+  TFC(LessThan_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)           \
+  TFC(GreaterThan_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+  TFC(LessThanOrEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)    \
+  TFC(GreaterThanOrEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset) \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    LessThan)                                                  \
+  IF_SPARKPLUG_PLUS(TFC, LessThanAndTryPatchCode, CompareAndTryPatchCode)      \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    GreaterThan)                                               \
+  IF_SPARKPLUG_PLUS(TFC, GreaterThanAndTryPatchCode, CompareAndTryPatchCode)   \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    LessThanOrEqual)                                           \
+  IF_SPARKPLUG_PLUS(TFC, LessThanOrEqualAndTryPatchCode,                       \
+                    CompareAndTryPatchCode)                                    \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    GreaterThanOrEqual)                                        \
+  IF_SPARKPLUG_PLUS(TFC, GreaterThanOrEqualAndTryPatchCode,                    \
+                    CompareAndTryPatchCode)                                    \
                                                                                \
   TFC(Equal_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)                \
   TFC(StrictEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)          \
