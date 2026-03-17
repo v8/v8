@@ -538,18 +538,10 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
   isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_fixed_array());
 }
 
-bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
-  return canonical_types_[index]->kind == CanonicalType::kFunction;
-}
-bool TypeCanonicalizer::IsStruct(CanonicalTypeIndex index) const {
-  return canonical_types_[index]->kind == CanonicalType::kStruct;
-}
-bool TypeCanonicalizer::IsArray(CanonicalTypeIndex index) const {
-  return canonical_types_[index]->kind == CanonicalType::kArray;
-}
 bool TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
   return canonical_types_[index]->is_shared;
 }
+// Currently only used for heap verification.
 bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
   return canonical_types_[index]->descriptor.valid();
 }

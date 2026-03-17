@@ -1127,15 +1127,6 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   compilation_stats_.reset();
 }
 
-void WasmEngine::DumpTurboStatistics() {
-  base::MutexGuard guard(&mutex_);
-  if (compilation_stats_ != nullptr) {
-    StdoutStream os;
-    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_, false}
-       << std::endl;
-  }
-}
-
 CodeTracer* WasmEngine::GetCodeTracer() {
   base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));

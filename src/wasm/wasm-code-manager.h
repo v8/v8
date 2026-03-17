@@ -788,32 +788,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return liftoff_bailout_count_.load(std::memory_order_relaxed);
   }
 
-  void AddLazyCompilationTimeSample(int64_t sample);
-
-  int num_lazy_compilations() const {
-    return num_lazy_compilations_.load(std::memory_order_relaxed);
-  }
-
-  int64_t sum_lazy_compilation_time_in_ms() const {
-    return sum_lazy_compilation_time_in_micro_sec_.load(
-               std::memory_order_relaxed) /
-           1000;
-  }
-
-  int64_t max_lazy_compilation_time_in_ms() const {
-    return max_lazy_compilation_time_in_micro_sec_.load(
-               std::memory_order_relaxed) /
-           1000;
-  }
-
-  // To avoid double-reporting, only the first instantiation should report lazy
-  // compilation performance metrics.
-  bool ShouldLazyCompilationMetricsBeReported() {
-    return should_metrics_be_reported_.exchange(false,
-                                                std::memory_order_relaxed);
-  }
-
-  // Similar to above, scheduling a repeated task to write out PGO data is only
+  // Scheduling a repeated task to write out PGO data is only
   // needed once per module, not per instantiation.
   bool ShouldPgoDataBeWritten() {
     return should_pgo_data_be_written_.exchange(false,
@@ -1153,12 +1128,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
-
-  // Metrics for lazy compilation.
-  std::atomic<int> num_lazy_compilations_{0};
-  std::atomic<int64_t> sum_lazy_compilation_time_in_micro_sec_{0};
-  std::atomic<int64_t> max_lazy_compilation_time_in_micro_sec_{0};
-  std::atomic<bool> should_metrics_be_reported_{true};
 
   // Whether the next instantiation should trigger repeated output of PGO data
   // (if --experimental-wasm-pgo-to-file is enabled).

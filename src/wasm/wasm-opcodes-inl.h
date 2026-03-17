@@ -57,35 +57,6 @@ constexpr bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
 }
 
 // static
-constexpr bool WasmOpcodes::IsControlOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-#define CHECK_OPCODE(name, ...) case kExpr##name:
-    FOREACH_CONTROL_OPCODE(CHECK_OPCODE)
-#undef CHECK_OPCODE
-    return true;
-    default:
-      return false;
-  }
-}
-
-// static
-constexpr bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
-  switch (opcode) {
-    case kExprUnreachable:
-    case kExprBr:
-    case kExprBrTable:
-    case kExprReturn:
-    case kExprReturnCall:
-    case kExprReturnCallIndirect:
-    case kExprThrow:
-    case kExprRethrow:
-      return true;
-    default:
-      return false;
-  }
-}
-
-// static
 constexpr bool WasmOpcodes::IsBreakable(WasmOpcode opcode) {
   switch (opcode) {
     case kExprBlock:
@@ -96,33 +67,6 @@ constexpr bool WasmOpcodes::IsBreakable(WasmOpcode opcode) {
       return false;
     default:
       return true;
-  }
-}
-
-// static
-constexpr bool WasmOpcodes::IsExternRefOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-    case kExprRefNull:
-    case kExprRefIsNull:
-    case kExprRefFunc:
-    case kExprRefAsNonNull:
-      return true;
-    default:
-      return false;
-  }
-}
-
-// static
-constexpr bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
-  // TODO(8729): Trapping opcodes are not yet considered to be throwing.
-  switch (opcode) {
-    case kExprThrow:
-    case kExprRethrow:
-    case kExprCallFunction:
-    case kExprCallIndirect:
-      return true;
-    default:
-      return false;
   }
 }
 
@@ -150,23 +94,6 @@ constexpr bool WasmOpcodes::IsAtomicRmwOpcode(WasmOpcode opcode) {
   return opcode >= kExprI32AtomicAdd &&
          opcode <= kExprI64AtomicCompareExchange32U;
 }
-
-#if DEBUG
-// static
-constexpr bool WasmOpcodes::IsMemoryAccessOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-#define MEM_OPCODE(name, ...) case WasmOpcode::kExpr##name:
-    FOREACH_LOAD_MEM_OPCODE(MEM_OPCODE)
-    FOREACH_STORE_MEM_OPCODE(MEM_OPCODE)
-    FOREACH_ATOMIC_OPCODE(MEM_OPCODE)
-    FOREACH_SIMD_MEM_OPCODE(MEM_OPCODE)
-    FOREACH_SIMD_MEM_1_OPERAND_OPCODE(MEM_OPCODE)
-    return true;
-    default:
-      return false;
-  }
-}
-#endif  // DEBUG
 
 constexpr uint8_t WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
   // See comment on {WasmOpcode} for the encoding.
@@ -298,36 +225,6 @@ constexpr const FunctionSig* WasmOpcodes::SignatureForAtomicOp(
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), (opcode & 0xff));
   return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode & 0xff]];
-}
-
-constexpr MessageTemplate WasmOpcodes::TrapReasonToMessageId(
-    TrapReason reason) {
-  switch (reason) {
-#define TRAPREASON_TO_MESSAGE(name) \
-  case k##name:                     \
-    return MessageTemplate::kWasm##name;
-    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
-#undef TRAPREASON_TO_MESSAGE
-    case kTrapCount:
-      UNREACHABLE();
-  }
-}
-
-constexpr TrapReason WasmOpcodes::MessageIdToTrapReason(
-    MessageTemplate message) {
-  switch (message) {
-#define MESSAGE_TO_TRAPREASON(name)  \
-  case MessageTemplate::kWasm##name: \
-    return k##name;
-    FOREACH_WASM_TRAPREASON(MESSAGE_TO_TRAPREASON)
-#undef MESSAGE_TO_TRAPREASON
-    default:
-      UNREACHABLE();
-  }
-}
-
-const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
-  return MessageFormatter::TemplateString(TrapReasonToMessageId(reason));
 }
 
 }  // namespace wasm

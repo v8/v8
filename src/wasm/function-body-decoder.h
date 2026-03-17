@@ -11,7 +11,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
-#include "src/common/globals.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -168,11 +167,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   bool has_next() const { return pc_ < end_; }
-
-  WasmOpcode prefixed_opcode() {
-    auto [opcode, length] = read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
-    return opcode;
-  }
 
   const uint8_t* pc() const { return pc_; }
 };

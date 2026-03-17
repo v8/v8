@@ -473,10 +473,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, Operand(instance, offset));
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  movq(liftoff::kInstanceDataOperand, instance);
-}
-
 void LiftoffAssembler::ResetOSRTarget() {
   movq(liftoff::kOSRTargetSlot, Immediate(0));
 }
@@ -520,17 +516,6 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                      static_cast<uint32_t>(offset_imm));
   movq(dst, src_op);
 }
-
-#ifdef V8_ENABLE_SANDBOX
-void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
-                                                        Register src_addr,
-                                                        int offset_imm) {
-  Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
-                                     static_cast<uint32_t>(offset_imm));
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
-                                                   kWasmEntrypointTag);
-}
-#endif
 
 void LiftoffAssembler::EmitWriteBarrier(Register target_object,
                                         Operand store_location,

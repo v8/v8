@@ -464,8 +464,9 @@ Node* WasmGraphAssembler::LoadSharedFunctionInfo(Node* js_function) {
       wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
 }
 Node* WasmGraphAssembler::LoadContextNoCellFromJSFunction(Node* js_function) {
-  return LoadFromObject(MachineType::TaggedPointer(), js_function,
-                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
+  return LoadFromObject(
+      MachineType::TaggedPointer(), js_function,
+      wasm::ObjectAccess::ToTagged(JSFunction::kContextOffset));
 }
 
 Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
@@ -477,13 +478,6 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
       kWasmExportedFunctionDataIndirectPointerTag);
 }
 
-Node* WasmGraphAssembler::LoadExportedFunctionIndexAsSmi(
-    Node* exported_function_data) {
-  return LoadImmutableFromObject(
-      MachineType::TaggedSigned(), exported_function_data,
-      wasm::ObjectAccess::ToTagged(
-          WasmExportedFunctionData::kFunctionIndexOffset));
-}
 Node* WasmGraphAssembler::LoadExportedFunctionInstanceData(
     Node* exported_function_data) {
   return LoadImmutableProtectedPointerFromObject(

@@ -125,10 +125,6 @@ void WasmGlobalObject::set_unsafe_type(wasm::ValueType value) {
   set_raw_type(static_cast<int>(value.raw_bit_field()));
 }
 
-int WasmGlobalObject::unsafe_type_size() const {
-  return unsafe_type().value_kind_size();
-}
-
 int32_t WasmGlobalObject::GetI32() const {
   DCHECK(unsafe_type().is_numeric());
   DCHECK_EQ(unsafe_type().numeric_kind(), wasm::NumericKind::kI32);
@@ -299,18 +295,6 @@ uint8_t* WasmTrustedInstanceData::memory_base(uint32_t memory_index) const {
 size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
   DCHECK_EQ(memory0_size(), memory_bases_and_sizes()->get(1));
   return memory_bases_and_sizes()->get(2 * memory_index + 1);
-}
-
-Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
-    uint32_t table_index) {
-  Tagged<Object> table = dispatch_tables()->get(table_index);
-  return TrustedCast<WasmDispatchTable>(table);
-}
-
-bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
-  Tagged<Object> maybe_table = dispatch_tables()->get(table_index);
-  DCHECK(maybe_table == Smi::zero() || IsWasmDispatchTable(maybe_table));
-  return maybe_table != Smi::zero();
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
@@ -720,28 +704,6 @@ DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
   }
 }
 
-// Conversions from Numeric objects.
-// static
-template <typename ElementType>
-ElementType WasmObject::FromNumber(Tagged<Object> value) {
-  // The value must already be prepared for storing to numeric fields.
-  DCHECK(IsNumber(value));
-  if (IsSmi(value)) {
-    return static_cast<ElementType>(Smi::ToInt(value));
-
-  } else if (IsHeapNumber(value)) {
-    double double_value = Cast<HeapNumber>(value)->value();
-    if (std::is_same_v<ElementType, double> ||
-        std::is_same_v<ElementType, float>) {
-      return static_cast<ElementType>(double_value);
-    } else {
-      CHECK(std::is_integral_v<ElementType>);
-      return static_cast<ElementType>(DoubleToInt32(double_value));
-    }
-  }
-  UNREACHABLE();
-}
-
 // static
 void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   // WasmStructs can be bigger than the {map.instance_size_in_words} field
@@ -784,12 +746,6 @@ void WasmStruct::SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
 
 ACCESSORS_CHECKED(WasmStruct, described_rtt, Tagged<Map>, kHeaderSize,
                   GcSafeType(map())->is_descriptor())
-
-wasm::CanonicalTypeIndex WasmArray::type_index(Tagged<Map> map) {
-  DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
-  Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
-  return type_info->type().ref_index();
-}
 
 const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());

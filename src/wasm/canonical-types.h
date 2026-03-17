@@ -124,9 +124,6 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE static void ClearWasmCanonicalTypesForTesting(
       Isolate* isolate);
 
-  bool IsFunctionSignature(CanonicalTypeIndex index) const;
-  bool IsStruct(CanonicalTypeIndex index) const;
-  bool IsArray(CanonicalTypeIndex index) const;
   bool IsShared(CanonicalTypeIndex index) const;
   bool has_descriptor(CanonicalTypeIndex index) const;
 

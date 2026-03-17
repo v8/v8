@@ -764,60 +764,6 @@ void WasmTableObject::SetFunctionTablePlaceholder(
   table->entries()->set(entry_index, *tuple);
 }
 
-// static
-void WasmTableObject::GetFunctionTableEntry(
-    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-    bool* is_valid, bool* is_null,
-    MaybeDirectHandle<WasmTrustedInstanceData>* instance_data,
-    int* function_index, MaybeDirectHandle<WasmJSFunction>* maybe_js_function) {
-#if DEBUG
-  if (table->has_trusted_data()) {
-    const wasm::WasmModule* module = table->trusted_data(isolate)->module();
-    DCHECK(wasm::IsSubtypeOf(table->type(module), wasm::kWasmFuncRef, module));
-  } else {
-    // A function table defined outside a module may only have type exactly
-    // {funcref}.
-    DCHECK(table->unsafe_type() == wasm::kWasmFuncRef);
-  }
-  DCHECK_LT(entry_index, table->current_length());
-#endif
-  // We initialize {is_valid} with {true}. We may change it later.
-  *is_valid = true;
-  DirectHandle<Object> element(table->entries()->get(entry_index), isolate);
-
-  *is_null = IsWasmNull(*element, isolate);
-  if (*is_null) return;
-
-  if (IsWasmFuncRef(*element)) {
-    DirectHandle<WasmInternalFunction> internal{
-        Cast<WasmFuncRef>(*element)->internal(isolate), isolate};
-    element = WasmInternalFunction::GetOrCreateExternal(internal);
-  }
-  if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
-    auto target_func = Cast<WasmExportedFunction>(element);
-    auto func_data = target_func->shared()->wasm_exported_function_data();
-    *instance_data = direct_handle(func_data->instance_data(), isolate);
-    *function_index = func_data->function_index();
-    *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
-    return;
-  }
-  if (WasmJSFunction::IsWasmJSFunction(*element)) {
-    *instance_data = MaybeDirectHandle<WasmTrustedInstanceData>();
-    *maybe_js_function = Cast<WasmJSFunction>(element);
-    return;
-  }
-  if (IsTuple2(*element)) {
-    auto tuple = Cast<Tuple2>(element);
-    *instance_data = direct_handle(
-        Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
-        isolate);
-    *function_index = Cast<Smi>(tuple->value2()).value();
-    *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
-    return;
-  }
-  *is_valid = false;
-}
-
 DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
     Isolate* isolate, DirectHandle<JSReceiver> callable) {
   DirectHandle<JSFunction> suspending_ctor(
@@ -1485,34 +1431,6 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
   }
 
   return global_obj;
-}
-
-FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
-    Isolate* isolate,
-    DirectHandle<WasmTrustedInstanceData> target_instance_data,
-    int target_func_index) {
-  implicit_arg_ = target_instance_data;
-  if (target_func_index <
-      static_cast<int>(
-          target_instance_data->module()->num_imported_functions)) {
-    // The function in the target instance was imported. Load the ref from the
-    // dispatch table for imports.
-    implicit_arg_ = direct_handle(
-        TrustedCast<TrustedObject>(
-            target_instance_data->dispatch_table_for_imports()->implicit_arg(
-                target_func_index)),
-        isolate);
-#if V8_ENABLE_DRUMBRAKE
-    target_func_index_ = target_instance_data->imported_function_indices()->get(
-        target_func_index);
-#endif  // V8_ENABLE_DRUMBRAKE
-  } else {
-    // The function in the target instance was not imported.
-#if V8_ENABLE_DRUMBRAKE
-    target_func_index_ = target_func_index;
-#endif  // V8_ENABLE_DRUMBRAKE
-  }
-  call_target_ = target_instance_data->GetCallTarget(target_func_index);
 }
 
 void ImportedFunctionEntry::SetWasmToWrapper(
@@ -2620,11 +2538,6 @@ void WasmDispatchTableForImports::Clear(
     int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   DispatchTableClear<WasmDispatchTableForImports>(*this, index,
                                                   new_or_existing);
-}
-
-std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>
-WasmDispatchTable::MaybeGetWrapperHandle(int index) {
-  return offheap_data()->MaybeGetWrapperHandle(index);
 }
 
 std::optional<std::shared_ptr<wasm::WasmWrapperHandle>>

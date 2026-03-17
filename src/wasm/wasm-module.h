@@ -20,7 +20,6 @@
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/well-known-imports.h"
 
@@ -40,10 +39,7 @@ class WasmInterpreterRuntime;
 class WellKnownImportsList;
 class TypeCanonicalizer;
 class ArrayType;
-class CanonicalArrayType;
 class ContType;
-class CanonicalContType;
-class CanonicalStructType;
 class StructType;
 
 enum class AddressType : uint8_t { kI32, kI64 };
@@ -118,7 +114,7 @@ using WasmTagSig = FunctionSig;
 
 // Static representation of a wasm tag type.
 struct WasmTag {
-  explicit WasmTag(const WasmTagSig* sig, ModuleTypeIndex sig_index)
+  WasmTag(const WasmTagSig* sig, ModuleTypeIndex sig_index)
       : sig(sig), sig_index(sig_index) {}
   const FunctionSig* ToFunctionSig() const { return sig; }
 
@@ -992,9 +988,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
     size_t num_types = types.size();
     V8_ASSUME(index.index < num_types);
     return types[index.index].supertype;
-  }
-  bool has_supertype(ModuleTypeIndex index) const {
-    return supertype(index).valid();
   }
 
   // Linear search. Returns CanonicalTypeIndex::Invalid() if types are empty.

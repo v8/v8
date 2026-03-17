@@ -22,16 +22,9 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
 
-namespace v8::internal {
-class Counters;
-class TurbofanCompilationJob;
-}  // namespace v8::internal
-
 namespace v8::internal::wasm {
 
 class NativeModule;
-class WasmCode;
-class WasmEngine;
 struct WasmFunction;
 
 // Stores assumptions that a Wasm compilation job made while executing,
@@ -126,6 +119,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
 static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
+// TODO(jkummerow): Most of this could move into the .cc file.
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
@@ -138,12 +132,8 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   JSToWasmWrapperCompilationUnit& operator=(JSToWasmWrapperCompilationUnit&&)
       V8_NOEXCEPT = default;
 
-  Isolate* isolate() const { return isolate_; }
-
   void Execute();
   DirectHandle<Code> Finalize();
-
-  const CanonicalSig* sig() const { return sig_; }
 
   // Run a compilation unit synchronously.
   static DirectHandle<Code> CompileJSToWasmWrapper(

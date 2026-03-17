@@ -101,13 +101,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   void AbortIfNot(V<Word32> condition, AbortReason abort_reason);
 
-  V<Smi> LoadExportedFunctionIndexAsSmi(V<Object> exported_function_data) {
-    return __ Load(exported_function_data,
-                   LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::TaggedSigned(),
-                   WasmExportedFunctionData::kFunctionIndexOffset);
-  }
-
   V<Smi> BuildChangeInt32ToSmi(V<Word32> value) {
     // With pointer compression, only the lower 32 bits are used.
     return COMPRESS_POINTERS_BOOL ? __ BitcastWord32ToSmi(__ Word32ShiftLeft(

@@ -5541,14 +5541,17 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
 }
 
 TEST_F(LocalDeclDecoderTest, UseEncoder) {
-  const uint8_t* data = nullptr;
-  const uint8_t* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
   local_decls.AddLocals(5, kWasmF32);
   local_decls.AddLocals(1337, kWasmI32);
   local_decls.AddLocals(212, kWasmI64);
-  local_decls.Prepend(zone(), &data, &end);
+
+  size_t size = local_decls.Size();
+  uint8_t* buffer = zone()->AllocateArray<uint8_t>(size);
+  local_decls.Emit(buffer);
+  const uint8_t* data = buffer;
+  const uint8_t* end = data + size;
 
   BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);

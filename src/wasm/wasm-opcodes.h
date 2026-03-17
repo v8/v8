@@ -996,26 +996,14 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
                                                            bool is_memory64);
   static constexpr const FunctionSig* AsmjsSignature(WasmOpcode);
   static constexpr bool IsPrefixOpcode(WasmOpcode);
-  static constexpr bool IsControlOpcode(WasmOpcode);
-  static constexpr bool IsExternRefOpcode(WasmOpcode);
-  static constexpr bool IsThrowingOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
   static constexpr bool IsFP16SimdOpcode(WasmOpcode);
   static constexpr bool IsAtomicRmwOpcode(WasmOpcode);
-#if DEBUG
-  static constexpr bool IsMemoryAccessOpcode(WasmOpcode);
-#endif  // DEBUG
-  // Check whether the given opcode always jumps, i.e. all instructions after
-  // this one in the current block are dead. Returns false for |end|.
-  static constexpr bool IsUnconditionalJump(WasmOpcode);
-  static constexpr bool IsBreakable(WasmOpcode);
 
-  static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
-  static constexpr TrapReason MessageIdToTrapReason(MessageTemplate message);
+  static constexpr bool IsBreakable(WasmOpcode);
 
   // Extract the prefix byte (or 0x00) from a {WasmOpcode}.
   static constexpr uint8_t ExtractPrefix(WasmOpcode);
-  static inline const char* TrapReasonMessage(TrapReason);
 };
 
 }  // namespace wasm

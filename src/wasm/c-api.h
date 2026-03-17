@@ -42,11 +42,6 @@ class StoreImpl {
 
   v8::Local<v8::Context> context() const { return context_.Get(isolate_); }
 
-  static StoreImpl* get(i::Isolate* isolate) {
-    return static_cast<StoreImpl*>(
-        reinterpret_cast<v8::Isolate*>(isolate)->GetData(0));
-  }
-
   void SetHostInfo(i::DirectHandle<i::Object> object, void* info,
                    void (*finalizer)(void*));
   void* GetHostInfo(i::DirectHandle<i::Object> key);

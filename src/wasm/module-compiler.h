@@ -31,10 +31,7 @@ class Vector;
 
 namespace internal {
 
-class JSArrayBuffer;
-class JSPromise;
 class WasmModuleObject;
-class WasmInstanceObject;
 class WasmTrustedInstanceData;
 
 namespace wasm {
@@ -47,6 +44,7 @@ class NativeModule;
 class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
+class WasmError;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE
@@ -193,8 +191,6 @@ class AsyncCompileJob {
                      DirectHandle<WasmModuleObject> deserialized_module_object,
                      bool cache_hit) &&;
   void Failed() &&;
-
-  void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
 
   void StartForegroundTask();
   void StartBackgroundTask();

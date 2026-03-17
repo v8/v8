@@ -520,10 +520,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   mov(dst, Operand{instance, offset});
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  mov(liftoff::GetInstanceDataOperand(), instance);
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,

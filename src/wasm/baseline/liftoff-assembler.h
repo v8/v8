@@ -664,9 +664,6 @@ class LiftoffAssembler : public MacroAssembler {
   bool ValidateCacheState() const;
 #endif
 
-  inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
-                                          LiftoffRegList pinned);
-
   inline void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
                              int32_t offset);
 
@@ -704,7 +701,6 @@ class LiftoffAssembler : public MacroAssembler {
                                int size);
   inline void LoadTaggedPointerFromInstance(Register dst, Register instance,
                                             int offset);
-  inline void SpillInstanceData(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
@@ -720,10 +716,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
   inline void LoadCodePointer(Register dst, Register src_addr, int32_t offset);
-#ifdef V8_ENABLE_SANDBOX
-  inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
-                                               int offset_imm);
-#endif
+
   enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,
                                Register stored_value, LiftoffRegList pinned);

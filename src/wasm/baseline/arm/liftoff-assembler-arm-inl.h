@@ -785,10 +785,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   ldr(dst, MemOperand{instance, offset});
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  str(instance, liftoff::GetInstanceDataOperand());
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 namespace liftoff {

@@ -133,23 +133,6 @@ class LEBHelper {
     } while (val > 0);
     return size;
   }
-
-  // Compute the size of {val} if emitted as a signed LEB64.
-  static size_t sizeof_i64v(int64_t val) {
-    size_t size = 1;
-    if (val >= 0) {
-      while (val >= 0x40) {  // prevent sign extension.
-        size++;
-        val >>= 7;
-      }
-    } else {
-      while ((val >> 6) != -1) {
-        size++;
-        val >>= 7;
-      }
-    }
-    return size;
-  }
 };
 
 }  // namespace wasm

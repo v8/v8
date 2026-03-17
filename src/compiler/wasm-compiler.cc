@@ -746,7 +746,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(callable_node);
     Node* flags = gasm_->LoadFromObject(
         MachineType::Int32(), shared_function_info,
-        wasm::ObjectAccess::FlagsOffsetInSharedFunctionInfo());
+        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFlagsOffset));
     Node* strict_check = gasm_->Word32And(
         flags, Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
                              SharedFunctionInfo::IsStrictBit::kMask));

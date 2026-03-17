@@ -183,8 +183,6 @@ class WasmSectionIterator {
     return static_cast<uint32_t>(section_end_ - payload_start_);
   }
 
-  const uint8_t* section_end() const { return section_end_; }
-
   // Advances to the next section, checking that decoding the current section
   // stopped at {section_end_}.
   void advance(bool move_to_section_end = false) {

@@ -690,11 +690,6 @@ class CompilationStateImpl {
     return compile_failed_.load(std::memory_order_relaxed);
   }
 
-  bool baseline_compilation_finished() const {
-    base::MutexGuard guard(&callbacks_mutex_);
-    return outstanding_baseline_units_ == 0;
-  }
-
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     base::MutexGuard guard(&mutex_);
@@ -931,10 +926,6 @@ void CompilationState::InitializeAfterDeserialization(
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
 
-bool CompilationState::baseline_compilation_finished() const {
-  return Impl(this)->baseline_compilation_finished();
-}
-
 void CompilationState::set_compilation_id(int compilation_id) {
   Impl(this)->set_compilation_id(compilation_id);
 }
@@ -1113,20 +1104,17 @@ bool IsLazyModule(const WasmModule* module) {
 
 class CompileLazyTimingScope {
  public:
-  CompileLazyTimingScope(Counters* counters, NativeModule* native_module)
-      : counters_(counters), native_module_(native_module) {
+  explicit CompileLazyTimingScope(Counters* counters) : counters_(counters) {
     timer_.Start();
   }
 
   ~CompileLazyTimingScope() {
     base::TimeDelta elapsed = timer_.Elapsed();
-    native_module_->AddLazyCompilationTimeSample(elapsed.InMicroseconds());
     counters_->wasm_lazy_compile_time()->AddTimedSample(elapsed);
   }
 
  private:
   Counters* counters_;
-  NativeModule* native_module_;
   base::ElapsedTimer timer_;
 };
 
@@ -1142,7 +1130,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   // function itself, which has constant overhead).
   std::optional<CompileLazyTimingScope> lazy_compile_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
-    lazy_compile_time_scope.emplace(counters, native_module);
+    lazy_compile_time_scope.emplace(counters);
   }
 
   DCHECK(!native_module->lazy_compile_frozen());

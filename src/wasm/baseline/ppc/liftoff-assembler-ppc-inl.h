@@ -446,10 +446,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand(instance, offset), r0);
 }
 
-void LiftoffAssembler::SpillInstanceData(Register instance) {
-  StoreU64(instance, liftoff::GetInstanceDataOperand(), r0);
-}
-
 void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
