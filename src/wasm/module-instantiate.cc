@@ -1647,39 +1647,53 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
   // which is indicated by the asm.js spec in section 7 ("Linking") as well.
   PropertyKey key(isolate_, Cast<Name>(import_name));
   LookupIterator it(isolate_, ffi_.ToHandleChecked(), key);
-  switch (it.state()) {
-    case LookupIterator::ACCESS_CHECK:
-    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::JSPROXY:
-    case LookupIterator::WASM_OBJECT:
-    case LookupIterator::ACCESSOR:
-    case LookupIterator::TRANSITION:
-      thrower_->LinkError("%s: not a data property",
-                          ImportName(index, import_name).c_str());
-      return {};
-    case LookupIterator::NOT_FOUND:
-      // Accepting missing properties as undefined does not cause any
-      // observable difference from JavaScript semantics, we are lenient.
-      return isolate_->factory()->undefined_value();
-    case LookupIterator::DATA: {
-      DirectHandle<Object> value = it.GetDataValue();
-      // For legacy reasons, we accept functions for imported globals (see
-      // {ProcessImportedGlobal}), but only if we can easily determine that
-      // their Number-conversion is side effect free and returns NaN (which is
-      // the case as long as "valueOf" (or others) are not overwritten).
-      if (IsJSFunction(*value) &&
-          module_->import_table[index].kind == kExternalGlobal &&
-          !HasDefaultToNumberBehaviour(isolate_, Cast<JSFunction>(value))) {
-        thrower_->LinkError("%s: function has special ToNumber behaviour",
+  for (;; it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::WASM_OBJECT:
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::TRANSITION:
+        thrower_->LinkError("%s: not a data property",
                             ImportName(index, import_name).c_str());
         return {};
+      case LookupIterator::NOT_FOUND:
+        // Accepting missing properties as undefined does not cause any
+        // observable difference from JavaScript semantics, we are lenient.
+        return isolate_->factory()->undefined_value();
+      case LookupIterator::DATA: {
+        DirectHandle<Object> value = it.GetDataValue();
+        // For legacy reasons, we accept functions for imported globals (see
+        // {ProcessImportedGlobal}), but only if we can easily determine that
+        // their Number-conversion is side effect free and returns NaN (which
+        // is the case as long as "valueOf" (or others) are not overwritten).
+        if (IsJSFunction(*value) &&
+            module_->import_table[index].kind == kExternalGlobal &&
+            !HasDefaultToNumberBehaviour(isolate_, Cast<JSFunction>(value))) {
+          thrower_->LinkError("%s: function has special ToNumber behaviour",
+                              ImportName(index, import_name).c_str());
+          return {};
+        }
+        return value;
       }
-      return value;
+      case LookupIterator::MODULE_NAMESPACE: {
+        // Deferred module namespaces trigger evaluation on property access,
+        // which is an observable side-effect. Treat as non-data property.
+        DirectHandle<JSModuleNamespace> ns = it.GetHolder<JSModuleNamespace>();
+        if (IsJSDeferredModuleNamespace(*ns)) {
+          thrower_->LinkError("%s: not a data property",
+                              ImportName(index, import_name).c_str());
+          return {};
+        }
+        // For regular module namespaces, continue the iteration to look up
+        // the property in the namespace's exports.
+        continue;
+      }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
     }
-    case LookupIterator::MODULE_NAMESPACE:
-    case LookupIterator::STRING_LOOKUP_START_OBJECT:
-      UNREACHABLE();
   }
 }
 
