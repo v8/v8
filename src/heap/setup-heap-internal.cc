@@ -325,7 +325,7 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
 
 AllocationResult Heap::Allocate(DirectHandle<Map> map,
                                 AllocationType allocation_type) {
-  DCHECK(map->instance_type() != MAP_TYPE);
+  DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
   int size = map->instance_size();
   Tagged<HeapObject> result;
   AllocationResult allocation = AllocateRaw(size, allocation_type);

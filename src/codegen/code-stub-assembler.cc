@@ -2596,8 +2596,7 @@ TNode<Object> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {
   BIND(&loop);
   {
     GotoIf(TaggedIsSmi(result.value()), &done);
-    TNode<BoolT> is_map_type =
-        InstanceTypeEqual(LoadInstanceType(CAST(result.value())), MAP_TYPE);
+    TNode<BoolT> is_map_type = IsMap(CAST(result.value()));
     GotoIfNot(is_map_type, &done);
     result =
         LoadObjectField(CAST(result.value()),
@@ -8492,7 +8491,11 @@ TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
 }
 
 TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> object) {
-  return HasInstanceType(object, MAP_TYPE);
+  return IsMapInstanceType(LoadInstanceType(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsMapInstanceType(TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, MAP_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperInstanceType(

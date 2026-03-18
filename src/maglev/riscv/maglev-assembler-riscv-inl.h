@@ -326,6 +326,8 @@ inline Condition MaglevAssembler::CheckSmi(Register src) {
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
+// TODO(riscv): move this function to MacroAssembler as it is done on all other
+// ports.
 inline void MaglevAssembler::AssertMap(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);

@@ -1361,10 +1361,13 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, Map::kStartOfStrongFieldsOffset,
                     Map::kEndOfStrongFieldsOffset, v);
     IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
+    // Some maps have additional fields after the transitions or prototype
+    // info.
+    IteratePointers(obj, Map::kEndOfWeakFieldsOffset, object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return Map::kSize;
+    return UncheckedCast<Map>(obj)->AllocatedSize();
   }
 };
 

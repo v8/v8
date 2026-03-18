@@ -467,14 +467,18 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
                       code_name));
   }
 
-  if (map.SafeEquals(*object_)) {
+  if (IsMetaMap(*object_)) {
     if (map == ReadOnlyRoots(isolate()).meta_map()) {
       DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
       sink_->Put(kNewContextlessMetaMap, "NewContextlessMetaMap");
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+      sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
     } else {
       DCHECK_EQ(space, SnapshotSpace::kOld);
       DCHECK(IsContext(map->native_context_or_null()));
       sink_->Put(kNewContextfulMetaMap, "NewContextfulMetaMap");
+      sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+      sink_->PutUint30(map->instance_type(), "MetaMapInstanceType");
 
       // Defer serialization of the native context in order to break
       // a potential cycle through the map slot:

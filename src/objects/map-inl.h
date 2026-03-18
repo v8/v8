@@ -395,6 +395,8 @@ void Map::set_instance_type(InstanceType value) {
   RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
 
+int Map::AllocatedSize() const { return Map::kSize; }
+
 int Map::UnusedPropertyFields() const {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasmObjectMap(*this));

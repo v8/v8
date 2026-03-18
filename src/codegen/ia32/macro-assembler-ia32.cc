@@ -843,6 +843,19 @@ void MacroAssembler::AssertSmi(Operand object) {
   Check(equal, AbortReason::kOperandIsNotASmi);
 }
 
+void MacroAssembler::AssertMap(Register object, Register scratch) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  test(object, Immediate(kSmiTagMask));
+  Check(not_equal, AbortReason::kOperandIsNotAMap);
+  Push(object);
+  LoadMap(object, object);
+  CmpObjectType(object, MAP_TYPE, scratch);
+  Pop(object);
+  Check(equal, AbortReason::kOperandIsNotAMap);
+}
+
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);

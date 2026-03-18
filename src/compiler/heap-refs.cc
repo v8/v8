@@ -855,8 +855,12 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
     return Cast<Map>(map_data->object())->instance_type();
   }
   if (this == map_data) {
-    // Handle infinite recursion in case this object is a contextful meta map.
-    return MAP_TYPE;
+    // Handle infinite recursion in case this object is a meta map (i.e. has
+    // itself as a map) by reading instance type from the object.
+    InstanceType instance_type =
+        static_cast<const MapData*>(this)->instance_type();
+    CHECK(InstanceTypeChecker::IsMap(instance_type));
+    return instance_type;
   }
   return map_data->AsMap()->instance_type();
 }
@@ -1115,11 +1119,10 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
 
   // Ensure that the original instance type matches the one of the serialized
   // object (if the object was serialized). In particular, this is important
-  // for Maps: in GetMapInstanceType we have special handling for maps and will
-  // report MAP_TYPE for objects whose map pointer points back to itself. With
-  // heap corruption, a non-map object can be made to point to itself though,
-  // in which case we may later treat a non-MapData object as a MapData object.
-  // See also crbug.com/326700497 for more details.
+  // for Maps: in GetMapInstanceType we have special handling for meta maps.
+  // With heap corruption, a non-map object can be made to point to itself
+  // though, in which case we may later treat a non-MapData object as a MapData
+  // object. See also crbug.com/326700497 for more details.
   if (!object_data->should_access_heap()) {
     SBXCHECK_EQ(
         instance_type,

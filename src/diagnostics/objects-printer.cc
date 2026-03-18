@@ -273,7 +273,7 @@ void HeapObjectLayout::PrintHeader(std::ostream& os, const char* id) {
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (!SafeEquals(GetReadOnlyRoots().meta_map())) {
+  if (!IsMetaMap(*this)) {
     os << "\n - map: " << Brief(map(cage_base));
   }
 }
@@ -3921,7 +3921,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(*this);
-      if (map->instance_type() == MAP_TYPE) {
+      if (IsMetaMapMap(map)) {
         // This is one of the meta maps, print only relevant fields.
         os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
       } else {
@@ -4345,7 +4345,7 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
-  bool is_meta_map = instance_type() == MAP_TYPE;
+  bool is_meta_map = IsMetaMapMap(*this);
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_map = IsWasmObjectMap(*this);
 #else
@@ -4357,17 +4357,18 @@ void Map::MapPrint(std::ostream& os) {
   os << (is_meta_map ? "MetaMap=" : "Map=") << reinterpret_cast<void*>(ptr());
 #endif
   os << "\n - type: " << instance_type();
+  if (is_meta_map) {
+    // This is one of the meta maps, print only relevant fields.
+    os << "\n - native_context: " << Brief(native_context_or_null());
+    os << "\n - meta map size: " << AllocatedSize();
+    os << "\n";
+    return;
+  }
   os << "\n - instance size: ";
   if (instance_size() == kVariableSizeSentinel) {
     os << "variable";
   } else {
     os << instance_size();
-  }
-  if (is_meta_map) {
-    // This is one of the meta maps, print only relevant fields.
-    os << "\n - native_context: " << Brief(native_context_or_null());
-    os << "\n";
-    return;
   }
 
   if (IsJSObjectMap(*this)) {

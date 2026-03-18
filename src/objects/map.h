@@ -284,6 +284,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   }
   inline void set_instance_type(InstanceType value);
 
+  // Size of this map object.
+  inline int AllocatedSize() const;
+
   // Returns the size of the used in-object area including object header
   // (only used for JSObject in fast mode, for the other kinds of objects it
   // is equal to the instance size).
@@ -1188,6 +1191,7 @@ class NormalizedMapCache : public WeakFixedArray {
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
+inline bool IsMetaMapMap(Tagged<Map> map);
 inline bool IsNullMap(Tagged<Map> map);
 inline bool IsUndefinedMap(Tagged<Map> map);
 inline bool IsBooleanMap(Tagged<Map> map);

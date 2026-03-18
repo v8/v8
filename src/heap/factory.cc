@@ -309,7 +309,7 @@ Tagged<HeapObject> Factory::AllocateRaw(int size, AllocationType allocation,
 Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
     DirectHandle<Map> map, AllocationType allocation,
     DirectHandle<AllocationSite> allocation_site) {
-  DCHECK_NE(map->instance_type(), MAP_TYPE);
+  DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
   const auto [write_barrier_mode, should_allocate_memento] =
       allocation == AllocationType::kYoung
           ? std::pair{SKIP_WRITE_BARRIER, !allocation_site.is_null()}
@@ -347,7 +347,7 @@ void Factory::InitializeAllocationMemento(
 
 Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
                                 AllocationType allocation) {
-  DCHECK_NE(map->instance_type(), MAP_TYPE);
+  DCHECK(!InstanceTypeChecker::IsMap(map->instance_type()));
   int size = map->instance_size();
   DCHECK_NE(size, kVariableSizeSentinel);
   Tagged<HeapObject> result =

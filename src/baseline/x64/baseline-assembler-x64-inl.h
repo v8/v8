@@ -158,9 +158,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            Label* target,
                                            Label::Distance distance) {
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
+    __ AssertMap(map);
   }
   __ CmpInstanceType(map, instance_type);
   __ j(cc, target, distance);

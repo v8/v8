@@ -1409,7 +1409,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
       LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
           closure, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
+  GotoIfNot(IsMap(maybe_map), &runtime);
   TNode<Map> map = CAST(maybe_map);
 
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(

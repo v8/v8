@@ -699,6 +699,19 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) {
   return IsHashTable(obj, cage_base);
 }
 
+// This should be in objects/map-inl.h, but can't, because of a cyclic
+// dependency.
+bool IsMetaMapMap(Tagged<Map> map) {
+  return InstanceTypeChecker::IsMap(map->instance_type());
+}
+
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMetaMap) {
+  if (!InstanceTypeChecker::IsMap(obj->map(cage_base)->instance_type())) {
+    return false;
+  }
+  return IsMetaMapMap(UncheckedCast<Map>(obj));
+}
+
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
   return IsHashTable(obj, cage_base);
 }

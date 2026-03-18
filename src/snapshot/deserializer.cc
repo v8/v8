@@ -900,8 +900,10 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
-  const int size_in_bytes = Map::kSize;
-  const int size_in_tagged = size_in_bytes / kTaggedSize;
+  const int size_in_tagged = source_.GetUint30();
+  const int size_in_bytes = size_in_tagged * kTaggedSize;
+  const InstanceType instance_type =
+      static_cast<InstanceType>(source_.GetUint30());
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
@@ -918,7 +920,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   }
 
   // Set the instance-type manually, to allow backrefs to read it.
-  UncheckedCast<Map>(*obj)->set_instance_type(MAP_TYPE);
+  DCHECK(InstanceTypeChecker::IsMap(instance_type));
+  UncheckedCast<Map>(*obj)->set_instance_type(instance_type);
 
   ReadData(obj, 1, size_in_tagged);
   PostProcessNewObject(Cast<Map>(obj), obj, space);

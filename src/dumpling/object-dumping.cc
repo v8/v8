@@ -410,7 +410,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
   switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(obj);
-      if (map->instance_type() == MAP_TYPE) {
+      if (IsMetaMapMap(map)) {
         os << "<MetaMap>";
       } else {
         os << "<Map";

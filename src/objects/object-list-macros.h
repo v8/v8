@@ -311,6 +311,7 @@ namespace internal {
   V(JSContextExtensionObject)       \
   V(JSError)                        \
   V(MapCache)                       \
+  V(MetaMap)                        \
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \
   V(ScriptWrapper)                  \
