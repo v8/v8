@@ -30,9 +30,6 @@ static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
 static_assert(Internals::kCallbackInfoDataOffset ==
               InterceptorInfo::kDataOffset);
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
-
 Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
   return callback_.load();
 }

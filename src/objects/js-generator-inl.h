@@ -9,8 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-promise-inl.h"
-
-#include "src/objects/objects-inl.h"  // Needed for write barriers
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,11 +18,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/js-generator-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest)
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);

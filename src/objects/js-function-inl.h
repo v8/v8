@@ -34,11 +34,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/js-function-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunctionOrWrappedFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWrappedFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunction)
-
 ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
           kFeedbackCellOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,

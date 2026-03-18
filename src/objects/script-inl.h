@@ -22,8 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/script-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
-
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
                   kEvalFromSharedOrWrappedArgumentsOffset,

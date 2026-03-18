@@ -8,7 +8,7 @@
 #include "src/objects/js-array.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"  // Needed for write barriers
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,10 +17,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/js-array-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateLiteralObject)
 
 DEF_GETTER(JSArray, length, Tagged<Number>) {
   return TaggedField<Number, kLengthOffset>::load(cage_base, *this);

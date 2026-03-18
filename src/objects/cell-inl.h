@@ -19,8 +19,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/cell-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
-
 DEF_RELAXED_GETTER(Cell, maybe_value, Tagged<MaybeObject>) {
   return TaggedField<MaybeObject, kMaybeValueOffset>::Relaxed_Load(cage_base,
                                                                    *this);

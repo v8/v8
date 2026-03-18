@@ -138,8 +138,6 @@ void InterpreterData::clear_interpreter_trampoline() {
   interpreter_trampoline_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
-
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info,
                           Tagged<NameOrScopeInfoT>, kNameOrScopeInfoOffset)
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script, Tagged<HeapObject>,
@@ -1233,8 +1231,6 @@ bool SharedFunctionInfo::are_properties_final() const {
   bool bit = properties_are_final();
   return bit && is_class_constructor();
 }
-
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWrapper, TrustedObject)
 
 ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,
           kSharedInfoOffset)

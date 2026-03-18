@@ -25,10 +25,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-disposable-stack-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisposableStackBase)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSyncDisposableStack)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncDisposableStack)
-
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, state,
                     JSDisposableStackBase::StateBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needs_await,

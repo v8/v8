@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
-
 SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
 PROTECTED_POINTER_ACCESSORS(BytecodeArray, handler_table, TrustedByteArray,
@@ -193,8 +191,6 @@ void BytecodeArray::MarkVerified(IsolateForSandbox isolate) {
   // expect to see in-sandbox references to unpublished objects.
   wrapper()->set_bytecode(*this);
 }
-
-OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
 
 TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
                           kBytecodeOffset, kBytecodeArrayIndirectPointerTag)

@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
-
 uint32_t InstructionStream::body_size() const {
   return ReadField<uint32_t>(kBodySizeOffset);
 }

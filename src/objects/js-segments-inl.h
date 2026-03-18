@@ -22,8 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-segments-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegments)
-
 // Base segments accessors.
 ACCESSORS(JSSegments, icu_iterator_with_text,
           Tagged<Managed<IcuBreakIteratorWithText>>, kIcuIteratorWithTextOffset)

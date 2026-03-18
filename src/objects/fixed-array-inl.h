@@ -439,8 +439,6 @@ constexpr uint32_t TaggedArrayBase<D, S, P>::NewCapacityForIndex(
   return capacity;
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
-
 inline int WeakArrayList::capacity(RelaxedLoadTag) const {
   int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
   return value;

@@ -23,8 +23,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
-
 RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, Tagged<HeapObject>, kValueOffset)
 
 void FeedbackCell::clear_padding() {

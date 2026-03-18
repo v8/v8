@@ -3950,8 +3950,7 @@ class FieldOffsetsGenerator {
   bool header_size_emitted_ = false;
 };
 
-void GenerateClassExport(const ClassType* type, std::ostream& header,
-                         std::ostream& inl_header) {
+void GenerateClassExport(const ClassType* type, std::ostream& header) {
   const ClassType* super = type->GetSuperClass();
   std::string parent = "TorqueGenerated" + type->name() + "<" + type->name() +
                        ", " + super->name() + ">";
@@ -3962,7 +3961,6 @@ void GenerateClassExport(const ClassType* type, std::ostream& header,
   }
   header << "  TQ_OBJECT_CONSTRUCTORS(" << type->name() << ")\n";
   header << "};\n\n";
-  inl_header << "TQ_OBJECT_CONSTRUCTORS_IMPL(" << type->name() << ")\n";
 }
 
 }  // namespace
@@ -4388,7 +4386,7 @@ void CppClassGenerator::GenerateClass() {
       parent = (*parent)->parent()->ClassSupertype();
     }
 
-    GenerateClassExport(type_, hdr_, inl_);
+    GenerateClassExport(type_, hdr_);
   }
 }
 
@@ -4477,14 +4475,6 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  inline explicit constexpr " << gen_name_
        << "(Address ptr, typename P::SkipTypeCheckTag\n)";
   hdr_ << "    : P(ptr, typename P::SkipTypeCheckTag{}) {}\n";
-  hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
-
-  inl_ << "template<class D, class P>\n";
-  inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
-  inl_ << "    : P(ptr) {\n";
-  inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
-       << "_NonInline(*this));\n";
-  inl_ << "}\n";
 }
 
 namespace {

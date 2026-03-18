@@ -59,8 +59,6 @@ Tagged<Context> ScriptContextTable::get(int i, AcquireLoadTag tag) const {
   return Super::get(i, tag);
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
-
 RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
 
 bool Context::IsElementTheHole(int index) {
@@ -370,8 +368,6 @@ Tagged<Map> NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
 }
-
-OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
 inline std::ostream& operator<<(std::ostream& os, ContextCell::State state) {
   switch (state) {

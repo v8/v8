@@ -99,7 +99,6 @@ template <class CppType>
 class Managed : public Foreign {
  public:
   Managed() : Foreign() {}
-  explicit Managed(Address ptr) : Foreign(ptr) {}
   V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
       : Foreign(ptr, SkipTypeCheckTag{}) {}
 
@@ -168,7 +167,6 @@ template <class CppType>
 class TrustedManaged : public TrustedForeign {
  public:
   TrustedManaged() : TrustedForeign() {}
-  explicit TrustedManaged(Address ptr) : TrustedForeign(ptr) {}
   V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
       : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
 

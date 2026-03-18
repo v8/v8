@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(TrustedObject, HeapObject)
-
 template <typename T>
 Tagged<T> TrustedObject::ReadProtectedPointerField(int offset) const {
   return TaggedField<T, 0, TrustedSpaceCompressionScheme>::load(*this, offset);
@@ -83,8 +81,6 @@ void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
   Object::VerifyPointer(isolate, ReadProtectedPointerField(offset));
 }
 #endif
-
-OBJECT_CONSTRUCTORS_IMPL(ExposedTrustedObject, TrustedObject)
 
 void ExposedTrustedObject::InitAndPublish(Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX

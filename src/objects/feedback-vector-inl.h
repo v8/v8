@@ -29,9 +29,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
-OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
-
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,

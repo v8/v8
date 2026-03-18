@@ -19,8 +19,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/synthetic-module-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(SyntheticModule)
-
 }  // namespace internal
 }  // namespace v8
 

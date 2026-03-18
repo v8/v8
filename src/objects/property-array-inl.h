@@ -21,8 +21,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyArray)
-
 SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(PropertyArray, length_and_hash,
                               kLengthAndHashOffset)

@@ -44,22 +44,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSReceiver)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSObjectWithEmbedderSlots)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAPIObjectWithEmbedderSlots)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSpecialObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDate)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
-JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSMessageObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSValidIteratorWrapper)
-
 DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
   return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
 }
@@ -696,8 +680,6 @@ JSObject::DefineOwnPropertyIgnoreAttributes(LookupIterator* it,
       semantics));
   return value;
 }
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
 void* JSExternalObject::value(ExternalPointerTagRange tag_range) const {
   i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();

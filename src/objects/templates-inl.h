@@ -22,13 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/templates-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfoWithProperties)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
-
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag,
                is_object_template_call_handler,
                IsObjectTemplateCallHandlerBit::kShift)

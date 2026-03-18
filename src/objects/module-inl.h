@@ -8,11 +8,11 @@
 #include "src/objects/module.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,10 +21,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/module-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDeferredModuleNamespace)
 
 Tagged<Object> ScriptOrModule::resource_name() const {
   return resource_name_.load();

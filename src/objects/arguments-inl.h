@@ -21,9 +21,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/arguments-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry)
-
 Tagged<Context> SloppyArgumentsElements::context() const {
   return context_.load();
 }

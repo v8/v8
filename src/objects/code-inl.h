@@ -26,9 +26,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Code, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
-
 Tagged<Code> GcSafeCode::UnsafeCastToCode() const {
   return UncheckedCast<Code>(*this);
 }
@@ -944,7 +941,6 @@ inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
                                                         handle.value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
 CODE_POINTER_ACCESSORS(CodeWrapper, code, kCodeOffset)
 
 }  // namespace internal

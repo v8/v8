@@ -44,33 +44,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(AsmWasmData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFuncRef)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmImportData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInternalFunction)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmMemoryMapDescriptor)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmNull)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmResumeData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspenderObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspendingObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStackObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTableObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTagObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
-
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)       \
   DEF_GETTER(holder, has_##name, bool) {                     \
     Tagged<Object> value =                                   \
@@ -203,7 +176,6 @@ Address WasmGlobalObject::storage() const {
 }
 
 // WasmTrustedInstanceData
-OBJECT_CONSTRUCTORS_IMPL(WasmTrustedInstanceData, ExposedTrustedObject)
 
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
                     kMemory0StartOffset)
@@ -329,8 +301,6 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 }
 
 // WasmDispatchTable
-OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTableForImports, TrustedObject)
 
 PROTECTED_POINTER_ACCESSORS(WasmDispatchTable, protected_offheap_data,
                             TrustedManaged<WasmDispatchTableData>,
@@ -419,13 +389,7 @@ inline uint32_t WasmDispatchTable::function_index(int index) const {
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-// WasmExceptionPackage
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)
-
 // WasmExportedFunction
-WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
-  SLOW_DCHECK(IsWasmExportedFunction(*this));
-}
 
 template <>
 struct CastTraits<WasmExportedFunction> {
@@ -509,9 +473,6 @@ WasmJSFunctionData::OffheapData* WasmJSFunctionData::offheap_data() const {
 }
 
 // WasmJSFunction
-WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
-  SLOW_DCHECK(IsWasmJSFunction(*this));
-}
 
 template <>
 struct CastTraits<WasmJSFunction> {
@@ -524,9 +485,6 @@ struct CastTraits<WasmJSFunction> {
 };
 
 // WasmCapiFunction
-WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
-  SLOW_DCHECK(IsWasmCapiFunction(*this));
-}
 
 template <>
 struct CastTraits<WasmCapiFunction> {
@@ -539,9 +497,6 @@ struct CastTraits<WasmCapiFunction> {
 };
 
 // WasmExternalFunction
-WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
-  SLOW_DCHECK(IsWasmExternalFunction(*this));
-}
 
 template <>
 struct CastTraits<WasmExternalFunction> {

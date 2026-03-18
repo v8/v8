@@ -42,8 +42,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/map-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
-
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED2(Map, instance_descriptors, Tagged<DescriptorArray>,
                    kInstanceDescriptorsOffset,

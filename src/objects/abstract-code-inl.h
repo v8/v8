@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
-
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Tagged<Map> map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {

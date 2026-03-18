@@ -9,9 +9,9 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
-#include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,16 +21,6 @@ namespace v8 {
 namespace internal {
 
 #include "torque-generated/src/objects/js-regexp-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultWithIndices)
-
-OBJECT_CONSTRUCTORS_IMPL(RegExpData, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(AtomRegExpData, RegExpData)
-OBJECT_CONSTRUCTORS_IMPL(IrRegExpData, RegExpData)
-OBJECT_CONSTRUCTORS_IMPL(RegExpDataWrapper, Struct)
 
 ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
 

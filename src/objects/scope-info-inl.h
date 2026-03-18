@@ -23,8 +23,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/scope-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ScopeInfo)
-
 bool ScopeInfo::IsAsmModule() const { return IsAsmModuleBit::decode(Flags()); }
 
 bool ScopeInfo::HasSimpleParameters() const {

@@ -22,8 +22,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/foreign-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
-
 template <ExternalPointerTag tag>
 Address Foreign::foreign_address(IsolateForSandbox isolate) const {
   return HeapObject::ReadExternalPointerField<tag>(kForeignAddressOffset,
