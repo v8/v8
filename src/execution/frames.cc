@@ -1921,7 +1921,8 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
       reinterpret_cast<wasm::CanonicalSig*>(maybe_sig);
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
-                                           wasm::kFpParamRegisters, 0);
+                                           wasm::kFpParamRegisters,
+                                           wasm::kSimd128ParamRegisters, 0);
   // The first parameter is the instance data, which we don't have to scan. We
   // have to tell the LinkageLocationAllocator about it though.
   allocator.Next(MachineRepresentation::kTaggedPointer);

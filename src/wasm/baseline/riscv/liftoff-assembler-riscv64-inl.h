@@ -95,7 +95,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       if (src.offset() != 0) {
         assm->AddWord(src_reg, src.rm(), src.offset());
       }
-      assm->vl(dst.fp().toV(), src_reg, 0, E8);
+      assm->vl(dst.simd128(), src_reg, 0, E8);
       break;
     }
     default:
@@ -127,7 +127,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       if (dst.offset() != 0) {
         assm->Add64(kScratchReg, dst.rm(), dst.offset());
       }
-      assm->vs(src.fp().toV(), dst_reg, 0, VSew::E8);
+      assm->vs(src.simd128(), dst_reg, 0, VSew::E8);
       break;
     }
     default:
@@ -157,7 +157,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
     case kS128: {
       assm->VU.SetSimd128(E8);
       assm->addi(sp, sp, -kSystemPointerSize * 2);
-      assm->vs(reg.fp().toV(), sp, 0, VSew::E8);
+      assm->vs(reg.simd128(), sp, 0, VSew::E8);
       break;
     }
     default:
@@ -193,7 +193,7 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
         assm->VU.SetSimd128(E8);
         Register dst_reg = temps.Acquire();
         assm->Add64(dst_reg, dst.rm(), dst.offset());
-        assm->vs(src.reg().fp().toV(), dst_reg, 0, VSew::E8);
+        assm->vs(src.reg().simd128(), dst_reg, 0, VSew::E8);
         return;
       }
       default:
@@ -225,10 +225,10 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
         assm->VU.SetSimd128(E8);
         Register src_reg = temp;
         assm->Add64(src_reg, sp, src.offset());
-        assm->vl(kScratchDoubleReg.toV(), src_reg, 0, VSew::E8);
+        assm->vl(kSimd128ScratchReg, src_reg, 0, VSew::E8);
         Register dst_reg = temp;
         assm->Add64(dst_reg, dst.rm(), dst.offset());
-        assm->vs(kScratchDoubleReg.toV(), dst_reg, 0, VSew::E8);
+        assm->vs(kSimd128ScratchReg, dst_reg, 0, VSew::E8);
         return;
       }
       default:
@@ -387,7 +387,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
         MacroAssembler::AddWord(src_reg, src_op.rm(), src_op.offset());
       }
       trapper(pc_offset());
-      vl(dst.fp().toV(), src_reg, 0, E8);
+      vl(dst.simd128(), src_reg, 0, E8);
       break;
     }
     case LoadType::kF32LoadF16:
@@ -441,7 +441,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         Add64(kScratchReg, dst_op.rm(), dst_op.offset());
       }
       trapper(pc_offset());
-      vs(src.fp().toV(), dst_reg, 0, VSew::E8);
+      vs(src.simd128(), dst_reg, 0, VSew::E8);
       break;
     }
     default:
@@ -1125,21 +1125,30 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   }
 }
 
-void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
   DCHECK_NE(dst, src);
   // TODO(ksreten): Handle different sizes here.
   MacroAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
-                            ValueKind kind) {
+template <>
+inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                                   ValueKind kind) {
+  DCHECK(kind == kF32 || kind == kF64);
   DCHECK_NE(dst, src);
-  if (kind != kS128) {
-    MacroAssembler::Move(dst, src);
-  } else {
-    VU.SetSimd128(E8);
-    MacroAssembler::vmv_vv(dst.toV(), src.toV());
-  }
+  MacroAssembler::Move(dst, src);
+}
+
+template <>
+inline void LiftoffAssembler::Move(Simd128Register dst, Simd128Register src,
+                                   ValueKind kind) {
+  DCHECK_EQ(kS128, kind);
+  DCHECK_NE(dst, src);
+  // TODO(floitsch): we should check whether we even need to change the sew
+  // here.
+  VU.SetSimd128(E8);
+  MacroAssembler::vmv_vv(dst, src);
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
@@ -1166,7 +1175,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       if (dst.offset() != 0) {
         Add64(kScratchReg, dst.rm(), dst.offset());
       }
-      vs(reg.fp().toV(), dst_reg, 0, VSew::E8);
+      vs(reg.simd128(), dst_reg, 0, VSew::E8);
       break;
     }
     default:
@@ -1224,7 +1233,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       if (src.offset() != 0) {
         MacroAssembler::Add64(src_reg, src.rm(), src.offset());
       }
-      vl(reg.fp().toV(), src_reg, 0, E8);
+      vl(reg.simd128(), src_reg, 0, E8);
       break;
     }
     default:
@@ -1687,7 +1696,7 @@ void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
   VU.SetSimd128(E64);
-  vslidedown_vi(kSimd128ScratchReg, lhs.fp().toV(), imm_lane_idx);
+  vslidedown_vi(kSimd128ScratchReg, lhs.simd128(), imm_lane_idx);
   vmv_xs(dst.gp(), kSimd128ScratchReg);
 }
 
@@ -1815,7 +1824,7 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   Register scratch = temps.Acquire();
   MemOperand src_op =
       liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
-  VRegister dst_v = dst.fp().toV();
+  VRegister dst_v = dst.simd128();
   auto trapper = [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = static_cast<uint32_t>(offset);
   };
@@ -1907,25 +1916,25 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.SetSimd128(E8);
-    vmerge_vx(dst.fp().toV(), scratch, dst.fp().toV());
+    vmerge_vx(dst.simd128(), scratch, dst.simd128());
   } else if (mem_type == MachineType::Int16()) {
     Lhu(scratch, src_op, trapper);
     VU.SetSimd128(E16);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.fp().toV(), scratch, dst.fp().toV());
+    vmerge_vx(dst.simd128(), scratch, dst.simd128());
   } else if (mem_type == MachineType::Int32()) {
     Lwu(scratch, src_op, trapper);
     VU.SetSimd128(E32);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.fp().toV(), scratch, dst.fp().toV());
+    vmerge_vx(dst.simd128(), scratch, dst.simd128());
   } else if (mem_type == MachineType::Int64()) {
     Ld(scratch, src_op, trapper);
     VU.SetSimd128(E64);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.fp().toV(), scratch, dst.fp().toV());
+    vmerge_vx(dst.simd128(), scratch, dst.simd128());
   } else {
     UNREACHABLE();
   }
@@ -1946,23 +1955,23 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
   };
   if (rep == MachineRepresentation::kWord8) {
     VU.SetSimd128(E8);
-    vslidedown_vi(kSimd128ScratchReg, src.fp().toV(), lane);
+    vslidedown_vi(kSimd128ScratchReg, src.simd128(), lane);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     Sb(kScratchReg, dst_op, trapper);
   } else if (rep == MachineRepresentation::kWord16) {
     VU.SetSimd128(E16);
-    vslidedown_vi(kSimd128ScratchReg, src.fp().toV(), lane);
+    vslidedown_vi(kSimd128ScratchReg, src.simd128(), lane);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     Sh(kScratchReg, dst_op, trapper);
   } else if (rep == MachineRepresentation::kWord32) {
     VU.SetSimd128(E32);
-    vslidedown_vi(kSimd128ScratchReg, src.fp().toV(), lane);
+    vslidedown_vi(kSimd128ScratchReg, src.simd128(), lane);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     Sw(kScratchReg, dst_op, trapper);
   } else {
     DCHECK_EQ(MachineRepresentation::kWord64, rep);
     VU.SetSimd128(E64);
-    vslidedown_vi(kSimd128ScratchReg, src.fp().toV(), lane);
+    vslidedown_vi(kSimd128ScratchReg, src.simd128(), lane);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     Sd(kScratchReg, dst_op, trapper);
   }
@@ -1973,7 +1982,7 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   VU.SetSimd128(E64);
-  vmv_vx(dst.fp().toV(), src.gp());
+  vmv_vx(dst.simd128(), src.gp());
 }
 
 void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
@@ -1983,33 +1992,33 @@ void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
   VU.SetSimd128(E64);
   li(kScratchReg, 0x1 << imm_lane_idx);
   vmv_sx(v0, kScratchReg);
-  vmerge_vx(dst.fp().toV(), src2.gp(), src1.fp().toV());
+  vmerge_vx(dst.simd128(), src2.gp(), src1.simd128());
 }
 
 void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E64);
   const int64_t kNaN = 0x7ff8000000000000L;
-  vmfeq_vv(v0, lhs.fp().toV(), lhs.fp().toV());
-  vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
+  vmfeq_vv(v0, lhs.simd128(), lhs.simd128());
+  vmfeq_vv(kSimd128ScratchReg, rhs.simd128(), rhs.simd128());
   vand_vv(v0, v0, kSimd128ScratchReg);
   li(kScratchReg, kNaN);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
-  vfmin_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
-  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
+  vfmin_vv(kSimd128ScratchReg, rhs.simd128(), lhs.simd128(), Mask);
+  vmv_vv(dst.simd128(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E64);
   const int64_t kNaN = 0x7ff8000000000000L;
-  vmfeq_vv(v0, lhs.fp().toV(), lhs.fp().toV());
-  vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
+  vmfeq_vv(v0, lhs.simd128(), lhs.simd128());
+  vmfeq_vv(kSimd128ScratchReg, rhs.simd128(), rhs.simd128());
   vand_vv(v0, v0, kSimd128ScratchReg);
   li(kScratchReg, kNaN);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
-  vfmax_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
-  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
+  vfmax_vv(kSimd128ScratchReg, rhs.simd128(), lhs.simd128(), Mask);
+  vmv_vv(dst.simd128(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
@@ -2022,10 +2031,10 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
   li(kScratchReg, 0x0007000500030001);
   vmv_sx(kSimd128ScratchReg3, kScratchReg);
   VU.SetSimd128(E16);
-  vrgather_vv(kSimd128ScratchReg2, src.fp().toV(), kSimd128ScratchReg);
-  vrgather_vv(kSimd128ScratchReg, src.fp().toV(), kSimd128ScratchReg3);
+  vrgather_vv(kSimd128ScratchReg2, src.simd128(), kSimd128ScratchReg);
+  vrgather_vv(kSimd128ScratchReg, src.simd128(), kSimd128ScratchReg3);
   VU.SetSimd128Half(E16);
-  vwadd_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
+  vwadd_vv(dst.simd128(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
@@ -2038,10 +2047,10 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
   li(kScratchReg, 0x0007000500030001);
   vmv_sx(kSimd128ScratchReg3, kScratchReg);
   VU.SetSimd128(E16);
-  vrgather_vv(kSimd128ScratchReg2, src.fp().toV(), kSimd128ScratchReg);
-  vrgather_vv(kSimd128ScratchReg, src.fp().toV(), kSimd128ScratchReg3);
+  vrgather_vv(kSimd128ScratchReg2, src.simd128(), kSimd128ScratchReg);
+  vrgather_vv(kSimd128ScratchReg, src.simd128(), kSimd128ScratchReg3);
   VU.SetSimd128Half(E16);
-  vwaddu_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
+  vwaddu_vv(dst.simd128(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
@@ -2054,10 +2063,10 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
   li(kScratchReg, 0x0F0D0B0907050301);
   vmv_sx(kSimd128ScratchReg3, kScratchReg);
   VU.SetSimd128(E8);
-  vrgather_vv(kSimd128ScratchReg2, src.fp().toV(), kSimd128ScratchReg);
-  vrgather_vv(kSimd128ScratchReg, src.fp().toV(), kSimd128ScratchReg3);
+  vrgather_vv(kSimd128ScratchReg2, src.simd128(), kSimd128ScratchReg);
+  vrgather_vv(kSimd128ScratchReg, src.simd128(), kSimd128ScratchReg3);
   VU.SetSimd128Half(E8);
-  vwadd_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
+  vwadd_vv(dst.simd128(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
@@ -2070,10 +2079,10 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
   li(kScratchReg, 0x0F0D0B0907050301);
   vmv_sx(kSimd128ScratchReg3, kScratchReg);
   VU.SetSimd128(E8);
-  vrgather_vv(kSimd128ScratchReg2, src.fp().toV(), kSimd128ScratchReg);
-  vrgather_vv(kSimd128ScratchReg, src.fp().toV(), kSimd128ScratchReg3);
+  vrgather_vv(kSimd128ScratchReg2, src.simd128(), kSimd128ScratchReg);
+  vrgather_vv(kSimd128ScratchReg, src.simd128(), kSimd128ScratchReg3);
   VU.SetSimd128Half(E8);
-  vwaddu_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
+  vwaddu_vv(dst.simd128(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::CallCWithStackBuffer(

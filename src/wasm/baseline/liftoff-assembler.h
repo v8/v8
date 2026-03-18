@@ -815,8 +815,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueKind);
 
-  inline void Move(Register dst, Register src, ValueKind);
-  inline void Move(DoubleRegister dst, DoubleRegister src, ValueKind);
+  template <typename T>
+  inline void Move(T dst, T src, ValueKind);
 
   inline void Spill(int offset, LiftoffRegister, ValueKind);
   inline void Spill(int offset, WasmValue);

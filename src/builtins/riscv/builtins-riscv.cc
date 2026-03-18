@@ -3119,20 +3119,17 @@ constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
   return saved_fp_regs;
 })();
 
-constexpr VRegList kSavedVectorRegs = ([]() constexpr {
-  // The JIT aliases FPU and vector registers. As such, we need to save the
-  // vectors that have the same code as argument FPU registers.
-  VRegList saved_vector_regs;
-  for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-    saved_vector_regs.set(VRegister::from_code(fp_param_reg.code()));
+constexpr Simd128RegList kSavedSimd128Regs = ([]() constexpr {
+  Simd128RegList saved_simd128_regs;
+  for (Simd128Register simd128_param_reg : wasm::kSimd128ParamRegisters) {
+    saved_simd128_regs.set(VRegister::from_code(simd128_param_reg.code()));
   }
 
-  CHECK_EQ(saved_vector_regs.Count(), kSavedFpRegs.Count());
-  return saved_vector_regs;
+  return saved_simd128_regs;
 })();
 
 static void SaveVectorRegisters(MacroAssembler* masm,
-                                const VRegList& reg_list) {
+                                const Simd128RegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
@@ -3160,7 +3157,7 @@ static void SaveVectorRegisters(MacroAssembler* masm,
 }
 
 static void RestoreVectorRegisters(MacroAssembler* masm,
-                                   const VRegList& reg_list) {
+                                   const Simd128RegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
@@ -3191,16 +3188,20 @@ static void SaveWasmParams(MacroAssembler* masm) {
   // Save all parameter registers (see wasm-linkage.h). They might be
   // overwritten in the subsequent runtime call. We don't have any
   // callee-saved registers in Wasm, so no need to store anything else.
-  __ MultiPush(kSavedGpRegs);
-  static_assert(kSavedVectorRegs.Count() ==
+  static_assert(kSavedSimd128Regs.Count() ==
                 WasmLiftoffSetupFrameConstants::kNumberOfSavedVpParamRegs);
-  SaveVectorRegisters(masm, kSavedVectorRegs);
+  static_assert(kSavedGpRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs);
+  static_assert(kSavedFpRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs);
+  __ MultiPush(kSavedGpRegs);
+  SaveVectorRegisters(masm, kSavedSimd128Regs);
   __ MultiPushFPU(kSavedFpRegs);
 }
 
 static void RestoreWasmParams(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
-  RestoreVectorRegisters(masm, kSavedVectorRegs);
+  RestoreVectorRegisters(masm, kSavedSimd128Regs);
   __ MultiPop(kSavedGpRegs);
 }
 

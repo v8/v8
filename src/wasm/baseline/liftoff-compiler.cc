@@ -10303,12 +10303,22 @@ class LiftoffCompiler {
     // Note that this DCHECK is skipped for arm 32 bit as its deoptimizer
     // decides to handle all available double / simd registers.
     const RegisterConfiguration* config = RegisterConfiguration::Default();
+    if constexpr (kHasIndependentSimd128Regs) {
+      DCHECK_LE(kLiftoffAssemblerSimd128CacheRegs.Count(),
+                config->num_allocatable_simd128_registers());
+      for (Simd128Register reg : kLiftoffAssemblerSimd128CacheRegs) {
+        const int* end = config->allocatable_simd128_codes() +
+                         config->num_allocatable_simd128_registers();
+        DCHECK(std::find(config->allocatable_simd128_codes(), end,
+                         reg.code()) != end);
+      }
+    }
     DCHECK_LE(kLiftoffAssemblerFpCacheRegs.Count(),
-              config->num_allocatable_simd128_registers());
+              config->num_allocatable_double_registers());
     for (DoubleRegister reg : kLiftoffAssemblerFpCacheRegs) {
-      const int* end = config->allocatable_simd128_codes() +
-                       config->num_allocatable_simd128_registers();
-      DCHECK(std::find(config->allocatable_simd128_codes(), end, reg.code()) !=
+      const int* end = config->allocatable_double_codes() +
+                       config->num_allocatable_double_registers();
+      DCHECK(std::find(config->allocatable_double_codes(), end, reg.code()) !=
              end);
     }
 #endif
