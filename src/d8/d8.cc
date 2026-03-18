@@ -2504,6 +2504,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = data->realms_[index].Get(isolate);
   data->realms_[index].Reset();
+  context->DetachGlobal();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
   isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
