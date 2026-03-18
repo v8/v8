@@ -1407,6 +1407,93 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
 }
 
 template <typename BaseT>
+template <bool flip>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldToBoolean(ValueNode* value) {
+  if (IsConstantNode(value->opcode())) {
+    return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
+                              flip);
+  }
+
+  switch (value->value_representation()) {
+    case ValueRepresentation::kHoleyFloat64:
+      value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kFloat64:
+      return AddNewNodeNoInputConversion<Float64ToBoolean>({value}, flip);
+
+    case ValueRepresentation::kUint32:
+      value = AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kInt32:
+      return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
+
+    case ValueRepresentation::kIntPtr:
+      return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
+
+    case ValueRepresentation::kTagged:
+      break;
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+
+  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
+  if (node_info) {
+    if (ValueNode* as_int32 = node_info->alternative().int32()) {
+      return AddNewNodeNoInputConversion<Int32ToBoolean>({as_int32}, flip);
+    }
+    if (ValueNode* as_float64 = node_info->alternative().float64()) {
+      return AddNewNodeNoInputConversion<Float64ToBoolean>({as_float64}, flip);
+    }
+  }
+
+  NodeType value_type;
+  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
+    auto test_result = TryFoldTestUndetectable(value);
+    if (test_result.IsDoneWithAbort()) return test_result;
+    ValueNode* result;
+    if (test_result.HasValue()) {
+      result = test_result.value();
+    } else {
+      result = AddNewNodeNoInputConversion<TestUndetectable>(
+          {value}, CheckType::kOmitHeapObjectCheck);
+    }
+    if constexpr (!flip) {
+      auto not_result = TryFoldLogicalNot(result);
+      if (not_result.HasValue()) {
+        return not_result.value();
+      }
+      return AddNewNode<LogicalNot>({result});
+    }
+    return result;
+  }
+
+  ValueNode* falsy_value = nullptr;
+  if (CheckType(value, NodeType::kString)) {
+    falsy_value = graph()->GetRootConstant(RootIndex::kempty_string);
+  } else if (CheckType(value, NodeType::kSmi)) {
+    falsy_value = graph()->GetSmiConstant(0);
+  }
+  if (falsy_value != nullptr) {
+    return AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
+        {value, falsy_value});
+  }
+
+  if (CheckType(value, NodeType::kBoolean)) {
+    if constexpr (flip) {
+      auto not_result = TryFoldLogicalNot(value);
+      if (not_result.HasValue()) {
+        return not_result.value();
+      }
+      return AddNewNode<LogicalNot>({value});
+    }
+    return value;
+  }
+
+  return {};
+}
+
+template <typename BaseT>
 template <typename MapContainer>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
     ValueNode* object, ValueNode* object_map, const MapContainer& maps,

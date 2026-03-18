@@ -351,6 +351,8 @@ class MaglevReducer {
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
   MaybeReduceResult TryFoldTestUndetectable(ValueNode* value);
+  template <bool flip>
+  MaybeReduceResult TryFoldToBoolean(ValueNode* value);
 
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =

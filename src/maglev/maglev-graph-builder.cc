@@ -14057,83 +14057,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 
 template <bool flip>
 ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
-  if (IsConstantNode(value->opcode())) {
-    return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
-                              flip);
-  }
+  RETURN_IF_DONE(reducer_.TryFoldToBoolean<flip>(value));
 
-  switch (value->value_representation()) {
-    case ValueRepresentation::kHoleyFloat64:
-      value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
-      [[fallthrough]];
-    case ValueRepresentation::kFloat64:
-      // The ToBoolean of both the_hole and NaN is false, so we can use the
-      // same operation for HoleyFloat64 and Float64.
-      return AddNewNodeNoInputConversion<Float64ToBoolean>({value}, flip);
-
-    case ValueRepresentation::kUint32:
-      // Uint32 has the same logic as Int32 when converting ToBoolean, namely
-      // comparison against zero, so we can cast it and ignore the signedness.
-      value = AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
-      [[fallthrough]];
-    case ValueRepresentation::kInt32:
-      return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
-
-    case ValueRepresentation::kIntPtr:
-      return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
-
-    case ValueRepresentation::kTagged:
-      break;
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-
-  NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
-  if (node_info) {
-    if (ValueNode* as_int32 = node_info->alternative().int32()) {
-      return AddNewNodeNoInputConversion<Int32ToBoolean>({as_int32}, flip);
-    }
-    if (ValueNode* as_float64 = node_info->alternative().float64()) {
-      return AddNewNodeNoInputConversion<Float64ToBoolean>({as_float64}, flip);
-    }
-  }
-
-  NodeType value_type;
-  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
-    ValueNode* result;
-    GET_VALUE_OR_ABORT(result, BuildTestUndetectable(value));
-    // TODO(victorgomes): Check if it is worth to create
-    // TestUndetectableLogicalNot or to remove ToBooleanLogicalNot, since we
-    // already optimize LogicalNots by swapping the branches.
-    if constexpr (!flip) {
-      GET_VALUE_OR_ABORT(result, BuildLogicalNot(result));
-    }
-    return result;
-  }
-  ValueNode* falsy_value = nullptr;
-  if (CheckType(value, NodeType::kString)) {
-    falsy_value = GetRootConstant(RootIndex::kempty_string);
-  } else if (CheckType(value, NodeType::kSmi)) {
-    falsy_value = GetSmiConstant(0);
-  }
-  if (falsy_value != nullptr) {
-    return AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
-        {value, falsy_value});
-  }
-  if (CheckType(value, NodeType::kBoolean)) {
-    if constexpr (flip) {
-      GET_VALUE_OR_ABORT(value, BuildLogicalNot(value));
-    }
-    return value;
-  }
   // Note that we don't pass {value} to GetCheckType since
   // PhiRepresentationSelection has a special-case to optimize
   // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
   // don't need to preserve HeapObjectness here.
   constexpr ValueNode* kTargetForCheckType = nullptr;
   return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-      {value}, GetCheckType(value_type, kTargetForCheckType));
+      {value}, GetCheckType(GetType(value), kTargetForCheckType));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
