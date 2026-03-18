@@ -14295,7 +14295,8 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
                       ? &done
                       : &update_value_and_bailout;
   TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
-      typed_array, buffer, TypedArrayAccessMode::kWrite, is_rab_gsab, failed);
+      typed_array, buffer, TypedArrayAccessMode::kWrite, is_rab_gsab, failed,
+      Int32Constant(elements_kind));
 
   if (StoreModeIgnoresTypeArrayOOB(store_mode)) {
     // Skip the store if we write beyond the length or

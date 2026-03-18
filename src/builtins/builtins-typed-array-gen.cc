@@ -576,7 +576,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
   // the TypedArray out of bounds.
   TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
       typed_array, TypedArrayAccessMode::kWrite,
-      if_detached_or_immutable_or_out_of_bounds);
+      if_detached_or_immutable_or_out_of_bounds, Int32Constant(elements_kind));
 
   GotoIf(UintPtrGreaterThanOrEqual(index, length),
          if_detached_or_immutable_or_out_of_bounds);
