@@ -1475,15 +1475,6 @@ class MaglevGraphBuilder {
   // array with elements kind |kind|.
   ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
 
-  enum InferHasInPrototypeChainResult {
-    kMayBeInPrototypeChain,
-    kIsInPrototypeChain,
-    kIsNotInPrototypeChain
-  };
-  InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      ValueNode* receiver, compiler::HeapObjectRef prototype);
-  MaybeReduceResult TryBuildFastHasInPrototypeChain(
-      ValueNode* object, compiler::HeapObjectRef prototype);
   ReduceResult BuildHasInPrototypeChain(ValueNode* object,
                                         compiler::HeapObjectRef prototype);
   MaybeReduceResult TryBuildFastOrdinaryHasInstance(

@@ -20,6 +20,7 @@
 #include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1542,6 +1543,108 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
   }
 
   return {};
+}
+
+template <typename BaseT>
+typename MaglevReducer<BaseT>::InferHasInPrototypeChainResult
+MaglevReducer<BaseT>::InferHasInPrototypeChain(
+    ValueNode* receiver, compiler::HeapObjectRef prototype) {
+  MapInference<MaglevReducer<BaseT>> inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  if (!possible_maps) {
+    return kMayBeInPrototypeChain;
+  }
+
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_maps->is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return kIsNotInPrototypeChain;
+  }
+
+  // Since we only consider fresh maps, it is not necessary to emit map checks.
+  const bool all_maps_are_fresh = inference.all_maps_are_fresh();
+
+  ZoneVector<compiler::MapRef> receiver_map_refs(zone());
+
+  // Try to determine either that all of the {receiver_maps} have the given
+  // {prototype} in their chain, or that none do. If we can't tell, return
+  // kMayBeInPrototypeChain.
+  bool all = true;
+  bool none = true;
+  for (compiler::MapRef map : *possible_maps) {
+    receiver_map_refs.push_back(map);
+    if (!all_maps_are_fresh && !map.is_stable()) {
+      return kMayBeInPrototypeChain;
+    }
+    while (true) {
+      if (IsSpecialReceiverInstanceType(map.instance_type())) {
+        return kMayBeInPrototypeChain;
+      }
+      if (!map.IsJSObjectMap()) {
+        all = false;
+        break;
+      }
+      compiler::HeapObjectRef map_prototype = map.prototype(broker());
+      if (map_prototype.equals(prototype)) {
+        none = false;
+        break;
+      }
+      map = map_prototype.map(broker());
+      // TODO(v8:11457) Support dictionary mode protoypes here.
+      if (!map.is_stable() || map.is_dictionary_map()) {
+        return kMayBeInPrototypeChain;
+      }
+      if (map.oddball_type(broker()) == compiler::OddballType::kNull) {
+        all = false;
+        break;
+      }
+    }
+  }
+  DCHECK(!receiver_map_refs.empty());
+  DCHECK_IMPLIES(all, !none);
+  if (!all && !none) return kMayBeInPrototypeChain;
+
+  {
+    compiler::OptionalJSObjectRef last_prototype;
+    if (all) {
+      // We don't need to protect the full chain if we found the prototype, we
+      // can stop at {prototype}.  In fact we could stop at the one before
+      // {prototype} but since we're dealing with multiple receiver maps this
+      // might be a different object each time, so it's much simpler to include
+      // {prototype}. That does, however, mean that we must check {prototype}'s
+      // map stability.
+      if (!prototype.IsJSObject() || !prototype.map(broker()).is_stable()) {
+        return kMayBeInPrototypeChain;
+      }
+      last_prototype = prototype.AsJSObject();
+    }
+    // TODO(jgruber): Investigate whether it's possible for all_maps_are_fresh
+    // to be false here, considering we bail out on unstable maps above. For
+    // now, match TurboFan behavior in
+    // JSNativeContextSpecialization::InferHasInPrototypeChain.
+    WhereToStart start =
+        all_maps_are_fresh ? kStartAtPrototype : kStartAtReceiver;
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        receiver_map_refs, start, last_prototype);
+  }
+
+  DCHECK_EQ(all, !none);
+  return all ? kIsInPrototypeChain : kIsNotInPrototypeChain;
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastHasInPrototypeChain(
+    ValueNode* object, compiler::HeapObjectRef prototype) {
+  auto in_prototype_chain = InferHasInPrototypeChain(object, prototype);
+  if (in_prototype_chain == kMayBeInPrototypeChain) return {};
+
+  return GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain);
 }
 
 template <typename BaseT>
