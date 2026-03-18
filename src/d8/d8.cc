@@ -1055,7 +1055,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   if (!maybe_result.ToLocal(&result)) {
     if (try_catch.HasTerminated()) {
       // Re-request terminate execution as it's been cleared, so
-      // Shell::FinishExecution doesn't waste time draining all enqueued tasks
+      // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
       // and microtasks.
       isolate->TerminateExecution();
       return true;
@@ -1864,15 +1864,21 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
     module_data->origin = absolute_path;
 
-    MaybeLocal<Value> maybe_result;
     if (root_module
             ->InstantiateModule(realm, ResolveModuleCallback,
                                 ResolveModuleSourceCallback)
             .FromMaybe(false)) {
-      maybe_result = root_module->Evaluate(realm);
-      CHECK(!maybe_result.IsEmpty());
-      global_result_promise.Reset(isolate,
-                                  maybe_result.ToLocalChecked().As<Promise>());
+      Local<Value> result;
+      if (root_module->Evaluate(realm).ToLocal(&result)) {
+        global_result_promise.Reset(isolate, result.As<Promise>());
+      } else {
+        CHECK(try_catch.HasTerminated());
+        // Re-request terminate execution as it's been cleared, so
+        // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
+        // and microtasks.
+        isolate->TerminateExecution();
+        return true;
+      }
     }
   }
 
