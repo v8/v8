@@ -1795,6 +1795,8 @@ TEST_F(RegExpTestWithContext, UseCountRegExp) {
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
+
+  global_use_counts = nullptr;
 }
 
 class UncachedExternalStringResource

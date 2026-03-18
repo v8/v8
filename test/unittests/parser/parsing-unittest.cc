@@ -4242,6 +4242,7 @@ TEST_F(ParsingTest, UseAsmUseCount) {
       "var foo = 1;\n"
       "function bar() { \"use asm\"; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kUseAsm]);
+  global_use_counts = nullptr;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -4254,6 +4255,7 @@ TEST_F(ParsingTest, StrictModeUseCount) {
       "function bar() { var baz = 1; }");  // strict mode inherits
   CHECK_LT(0, use_counts[v8::Isolate::kStrictMode]);
   CHECK_EQ(0, use_counts[v8::Isolate::kSloppyMode]);
+  global_use_counts = nullptr;
 }
 
 TEST_F(ParsingTest, SloppyModeUseCount) {
@@ -4266,6 +4268,7 @@ TEST_F(ParsingTest, SloppyModeUseCount) {
   RunJS("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
   CHECK_EQ(0, use_counts[v8::Isolate::kStrictMode]);
+  global_use_counts = nullptr;
 }
 
 TEST_F(ParsingTest, BothModesUseCount) {
@@ -4277,6 +4280,7 @@ TEST_F(ParsingTest, BothModesUseCount) {
   RunJS("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
   CHECK_LT(0, use_counts[v8::Isolate::kStrictMode]);
+  global_use_counts = nullptr;
 }
 
 TEST_F(ParsingTest, LineOrParagraphSeparatorAsLineTerminator) {

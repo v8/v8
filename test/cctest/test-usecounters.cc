@@ -56,6 +56,8 @@ TEST(AssigmentExpressionLHSIsCall) {
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
+
+  global_use_counts = nullptr;
 }
 
 TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
@@ -73,6 +75,8 @@ TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
   CompileRun("let p = { [Symbol.match]: true }; new RegExp(p);");
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
+
+  global_use_counts = nullptr;
 }
 
 TEST(RegExpMatchIsFalseishOnJSRegExp) {
@@ -90,6 +94,8 @@ TEST(RegExpMatchIsFalseishOnJSRegExp) {
   CompileRun("let p = /./; p[Symbol.match] = false; new RegExp(p);");
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
+
+  global_use_counts = nullptr;
 }
 
 TEST(ObjectPrototypeHasElements) {
@@ -108,6 +114,8 @@ TEST(ObjectPrototypeHasElements) {
 
   CompileRun("Object.prototype[0] = 2;");
   CHECK_EQ(1, use_counts[v8::Isolate::kObjectPrototypeHasElements]);
+
+  global_use_counts = nullptr;
 }
 
 TEST(HoleyArrayReadthrough) {
@@ -145,6 +153,8 @@ TEST(HoleyArrayReadthrough) {
   // No readthrough: not a JSArray.
   CompileRun("var x = {length: 1}; x.__proto__ = [4]; x[0];");
   CHECK_EQ(0, use_counts[v8::Isolate::kHoleyArrayReadthrough]);
+
+  global_use_counts = nullptr;
 }
 
 TEST(ArrayPrototypeHasElements) {
@@ -163,6 +173,8 @@ TEST(ArrayPrototypeHasElements) {
 
   CompileRun("Array.prototype[1] = 2;");
   CHECK_EQ(1, use_counts[v8::Isolate::kArrayPrototypeHasElements]);
+
+  global_use_counts = nullptr;
 }
 
 }  // namespace test_usecounters
