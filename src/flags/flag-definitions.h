@@ -750,6 +750,8 @@ DEFINE_BOOL(maglev_untagged_phis, false,
             "enable phi untagging in the maglev optimizing compiler")
 DEFINE_BOOL(turbolev_untagged_phis, false,
             "enable phi untagging in the Turbolev optimizing compiler")
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
+
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
