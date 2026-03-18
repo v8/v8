@@ -281,6 +281,12 @@ class MaglevReducer {
     }
   }
 
+  ReduceResult BuildCheckMaps(
+      ValueNode* object, base::Vector<const compiler::MapRef> maps,
+      std::optional<ValueNode*> map = std::nullopt,
+      bool has_deprecated_map_without_migration_target = false,
+      bool migration_done_outside = false);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
@@ -344,6 +350,8 @@ class MaglevReducer {
   MaybeReduceResult TryFoldCheckMaps(ValueNode* object, ValueNode* object_map,
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
+  MaybeReduceResult TryFoldTestUndetectable(ValueNode* value);
+
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
                            AllowWideningSmiToInt32::kDontAllow);
@@ -696,6 +704,9 @@ class MaglevReducer {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
+
+  template <typename T>
+  friend class MapInference;
 
  private:
   BaseT* base_;

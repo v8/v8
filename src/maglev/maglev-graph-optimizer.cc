@@ -2052,7 +2052,8 @@ ProcessResult MaglevGraphOptimizer::VisitTestInstanceOf(
 
 ProcessResult MaglevGraphOptimizer::VisitTestUndetectable(
     TestUndetectable* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldTestUndetectable(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 

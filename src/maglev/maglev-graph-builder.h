@@ -47,6 +47,9 @@ namespace maglev {
 
 class CallArguments;
 
+template <typename ReducerT>
+class MapInference;
+
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   bool exception_handler_was_used = false;
@@ -80,6 +83,11 @@ struct MaglevCallSiteInfo {
 
 class MaglevGraphBuilder {
  public:
+  template <typename T>
+  friend class MapInference;
+
+  using MapInference = maglev::MapInference<MaglevGraphBuilder>;
+
   class EagerDeoptFrameScope;
   class LazyDeoptFrameScope;
 
@@ -1162,7 +1170,11 @@ class MaglevGraphBuilder {
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
       std::optional<ValueNode*> map = {},
       bool has_deprecated_map_without_migration_target = false,
-      bool migration_done_outside = false);
+      bool migration_done_outside = false) {
+    return reducer_.BuildCheckMaps(object, maps, map,
+                                   has_deprecated_map_without_migration_target,
+                                   migration_done_outside);
+  }
   ReduceResult BuildTransitionElementsKindOrCheckMap(
       ValueNode* heap_object, ValueNode* object_map,
       const ZoneVector<compiler::MapRef>& transition_sources,
@@ -2073,8 +2085,6 @@ class MaglevGraphBuilder {
 
   // When set, inline only small functions.
   bool only_inline_small_ = false;
-
-  friend class MapInference;
 };
 
 template <bool is_possible_map_change>

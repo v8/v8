@@ -7,8 +7,8 @@
 
 #include <iostream>
 
-#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-known-node-aspects.h"
+#include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +16,7 @@ namespace maglev {
 
 // This class is a thin wrapper around fetching and using maps known for
 // `object`.
+template <typename ReducerT>
 class MapInference {
  public:
   enum Variant {
@@ -28,16 +29,16 @@ class MapInference {
     kAll,
   };
 
-  MapInference(MaglevGraphBuilder* builder, ValueNode* object)
-      : MapInference(builder, object,
+  MapInference(ReducerT* reducer, ValueNode* object)
+      : MapInference(reducer, object,
                      V8_LIKELY(v8_flags.maglev_use_unreliable_maps)
                          ? Variant::kAll
                          : Variant::kOnlyFresh) {}
 
-  MapInference(MaglevGraphBuilder* builder, ValueNode* object, Variant variant)
-      : builder_(builder),
+  MapInference(ReducerT* reducer, ValueNode* object, Variant variant)
+      : reducer_(reducer),
         object_(object),
-        node_info_(builder_->known_node_aspects().TryGetInfoFor(object)),
+        node_info_(reducer->known_node_aspects().TryGetInfoFor(object)),
         variant_(variant) {}
 
   bool HaveMaps() const {
@@ -82,14 +83,14 @@ class MapInference {
       }
 
       RETURN_IF_ABORT(
-          builder_->BuildCheckMaps(object_, base::VectorOf(maps_vector)));
+          reducer_->BuildCheckMaps(object_, base::VectorOf(maps_vector)));
     }
 
     // Maps are now fresh.
     node_info_->MarkFresh();
 
     // We have unstable maps and must re-enable invalidation tracking.
-    builder_->known_node_aspects().MarkSideEffectsRequireInvalidation();
+    reducer_->known_node_aspects().MarkSideEffectsRequireInvalidation();
 
     return ReduceResult::Done();
   }
@@ -102,7 +103,7 @@ class MapInference {
   }
 
  private:
-  MaglevGraphBuilder* const builder_;
+  ReducerT* const reducer_;
   ValueNode* const object_;
   NodeInfo* const node_info_;
   const Variant variant_;

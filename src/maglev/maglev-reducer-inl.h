@@ -16,6 +16,7 @@
 #include "src/base/ieee754.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-map-inference.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
@@ -1318,6 +1319,89 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
 
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
+
+  return {};
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckMaps(
+    ValueNode* object, base::Vector<const compiler::MapRef> maps,
+    std::optional<ValueNode*> map,
+    bool has_deprecated_map_without_migration_target,
+    bool migration_done_outside) {
+  KnownMapsMerger<base::Vector<const compiler::MapRef>> merger(broker(), zone(),
+                                                               maps);
+  RETURN_IF_DONE(TryFoldCheckMaps(object, nullptr, maps, merger));
+
+  NodeInfo* known_info = GetOrCreateInfoFor(object);
+
+  // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
+  // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
+
+  // Emit checks.
+  if (merger.emit_check_with_migration() && !migration_done_outside) {
+    RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
+        {object}, merger.intersect_set(),
+        GetCheckType(known_info->type(), object)));
+  } else if (has_deprecated_map_without_migration_target &&
+             !migration_done_outside) {
+    RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigrationAndDeopt>(
+        {object}, merger.intersect_set(),
+        GetCheckType(known_info->type(), object)));
+  } else if (map) {
+    RETURN_IF_ABORT(AddNewNode<CheckMapsWithAlreadyLoadedMap>(
+        {object, *map}, merger.intersect_set()));
+  } else {
+    RETURN_IF_ABORT(
+        AddNewNode<CheckMaps>({object}, merger.intersect_set(),
+                              GetCheckType(known_info->type(), object)));
+  }
+
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
+  return ReduceResult::Done();
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
+    ValueNode* value) {
+  if (value->properties().value_representation() ==
+      ValueRepresentation::kHoleyFloat64) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    return AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>({value});
+#else
+    return AddNewNodeNoInputConversion<HoleyFloat64IsHole>({value});
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  } else if (value->properties().value_representation() !=
+             ValueRepresentation::kTagged) {
+    return GetBooleanConstant(false);
+  }
+
+  if (auto maybe_constant = TryGetConstant<HeapObject>(value)) {
+    auto map = maybe_constant.value().map(broker());
+    return GetBooleanConstant(map.is_undetectable());
+  }
+
+  NodeType node_type;
+  if (CheckType(value, NodeType::kSmi, &node_type)) {
+    return GetBooleanConstant(false);
+  }
+
+  MapInference<MaglevReducer<BaseT>> inference(this, value);
+  if (auto possible_maps = inference.TryGetPossibleMaps()) {
+    DCHECK_GT(possible_maps->size(), 0);
+    bool first_is_undetectable = possible_maps->at(0).is_undetectable();
+    bool all_the_same_value =
+        std::all_of(possible_maps->begin(), possible_maps->end(),
+                    [first_is_undetectable](compiler::MapRef map) {
+                      bool is_undetectable = map.is_undetectable();
+                      return (first_is_undetectable && is_undetectable) ||
+                             (!first_is_undetectable && !is_undetectable);
+                    });
+    if (all_the_same_value) {
+      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+      return GetBooleanConstant(first_is_undetectable);
+    }
+  }
 
   return {};
 }
