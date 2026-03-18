@@ -10182,7 +10182,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   inline CallKnownJSFunction(
-      uint64_t bitfield, compiler::ObjectRef target_object,
+      uint64_t bitfield,
       JSDispatchHandle dispatch_handle,
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
       ValueNode* context, ValueNode* receiver, ValueNode* new_target,
@@ -10215,7 +10215,6 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
   UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
 
  private:
-  compiler::ObjectRef target_object_;
   JSDispatchHandle dispatch_handle_;
   const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in

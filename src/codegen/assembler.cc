@@ -340,11 +340,6 @@ IndirectHandle<HeapObject> AssemblerBase::GetEmbeddedObject(
   return embedded_objects_[index];
 }
 
-void AssemblerBase::RecordJSDispatchHandle(JSDispatchHandle handle,
-                                           IndirectHandle<Object> owner) {
-  js_dispatch_handles_.push_back({handle, owner});
-}
-
 int Assembler::WriteCodeComments() {
   if (!v8_flags.code_comments) return 0;
   CHECK_IMPLIES(code_comments_writer_.entry_count() > 0,

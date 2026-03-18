@@ -8706,8 +8706,7 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
@@ -8783,10 +8782,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   KnownNodeAspects* call_aspects = known_node_aspects().Clone(zone());
 
   CallKnownJSFunction* generic_call;
-  GET_VALUE_OR_ABORT(
-      generic_call,
-      BuildCallKnownJSFunction(context, function, new_target, target_object,
-                               dispatch_handle, shared, arguments));
+  GET_VALUE_OR_ABORT(generic_call, BuildCallKnownJSFunction(
+                                       context, function, new_target,
+                                       dispatch_handle, shared, arguments));
 
   // Note: We point to the generic call exception handler instead of
   // jump_targets_ because the former contains a BasicBlockRef that is
@@ -11992,14 +11990,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
         BuildCallSelf(context_node, closure, new_target, shared, args));
   }
   return TryBuildCallKnownJSFunction(
-      context_node, closure, new_target, function, function.dispatch_handle(),
-      shared, function.raw_feedback_cell(broker()), args, feedback_source);
+      context_node, closure, new_target, function.dispatch_handle(), shared,
+      function.raw_feedback_cell(broker()), args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   ValueNode* receiver = args.receiver();
@@ -12028,14 +12025,13 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
         }
         return ReduceResult::Done();
       },
-      target_object, dispatch_handle, shared, tagged_function, tagged_context,
-      tagged_receiver, tagged_new_target, feedback_source);
+      dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
+      tagged_new_target, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     base::Vector<ValueNode*> arguments) {
   DCHECK_GT(arguments.size(), 0);
   constexpr int kSkipReceiver = 1;
@@ -12062,14 +12058,13 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
         }
         return ReduceResult::Done();
       },
-      target_object, dispatch_handle, shared, tagged_function, tagged_context,
-      tagged_receiver, tagged_new_target, compiler::FeedbackSource{});
+      dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
+      tagged_new_target, compiler::FeedbackSource{});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   // Truncate args when they are unreachable.
@@ -12083,10 +12078,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   }
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlineCall(context, function, new_target,
-                                      target_object, dispatch_handle, shared,
-                                      feedback_cell, args, feedback_source));
+                                      dispatch_handle, shared, feedback_cell,
+                                      args, feedback_source));
   }
-  return BuildCallKnownJSFunction(context, function, new_target, target_object,
+  return BuildCallKnownJSFunction(context, function, new_target,
                                   dispatch_handle, shared, feedback_cell, args,
                                   feedback_source);
 }
@@ -12317,7 +12312,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForTarget(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     ValueNode* target_node, ValueNode* target_context,
-    compiler::ObjectRef target_object, compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   // Do not reduce calls to functions with break points.
@@ -12333,9 +12328,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     }
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
-        GetRootConstant(RootIndex::kUndefinedValue), target_object,
-        feedback_cell.dispatch_handle(), shared, feedback_cell, args,
-        feedback_source));
+        GetRootConstant(RootIndex::kUndefinedValue), dispatch_handle, shared,
+        feedback_cell, args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
@@ -12446,7 +12440,7 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
         PROCESS_AND_RETURN_IF_DONE(
             TryBuildCallKnownJSFunction(
                 context, target_node,
-                GetRootConstant(RootIndex::kUndefinedValue), feedback_cell,
+                GetRootConstant(RootIndex::kUndefinedValue),
                 feedback_cell.dispatch_handle(), shared.value(), feedback_cell,
                 args, feedback_source),
             SetAccumulator);
@@ -12652,7 +12646,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
           target_node->TryCast<FastCreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
         fast_create_closure, fast_create_closure->ContextInput().node(),
-        fast_create_closure->feedback_cell(),
+        fast_create_closure->feedback_cell().dispatch_handle(),
         fast_create_closure->shared_function_info(),
         fast_create_closure->feedback_cell(), args, feedback_source);
     RETURN_IF_DONE(result);
@@ -12660,8 +12654,9 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
                  target_node->TryCast<CreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
         create_closure, create_closure->ContextInput().node(),
-        create_closure->feedback_cell(), create_closure->shared_function_info(),
-        create_closure->feedback_cell(), args, feedback_source);
+        create_closure->feedback_cell().dispatch_handle(),
+        create_closure->shared_function_info(), create_closure->feedback_cell(),
+        args, feedback_source);
     RETURN_IF_DONE(result);
   }
 

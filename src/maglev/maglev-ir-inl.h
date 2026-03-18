@@ -92,13 +92,11 @@ inline void UseAndClobberFixed(Input input, Register reg) {
 }
 
 CallKnownJSFunction::CallKnownJSFunction(
-    uint64_t bitfield, compiler::ObjectRef target_object,
-    JSDispatchHandle dispatch_handle,
+    uint64_t bitfield, JSDispatchHandle dispatch_handle,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
     ValueNode* context, ValueNode* receiver, ValueNode* new_target,
     const compiler::FeedbackSource& feedback_source)
     : Base(bitfield),
-      target_object_(target_object),
       dispatch_handle_(dispatch_handle),
       shared_function_info_(shared_function_info),
       expected_parameter_count_(

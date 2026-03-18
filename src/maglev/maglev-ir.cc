@@ -6782,7 +6782,6 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
 
     __ CallJSBuiltin(builtin, expected_parameter_count_);
   } else {
-    __ RecordJSDispatchHandle(dispatch_handle_, target_object_.object());
     __ CallJSDispatchEntry(dispatch_handle_, expected_parameter_count_);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
