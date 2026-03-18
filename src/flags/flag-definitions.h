@@ -3836,8 +3836,14 @@ DEFINE_BOOL(detailed_line_info, false,
 
 DEFINE_BOOL(prof_include_idle, false, "Include idle samples in the profile")
 
+#if defined(V8_USE_PERFETTO)
 DEFINE_BOOL(perfetto_code_logger, false,
             "Enable the Perfetto code data source.")
+#else
+DEFINE_BOOL_READONLY(perfetto_code_logger, false,
+                     "Enable the Perfetto code data source (requires the "
+                     "v8_use_perfetto gn arg)")
+#endif
 
 #if defined(ANDROID)
 // Phones and tablets have processors that are much slower than desktop
