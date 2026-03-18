@@ -469,6 +469,7 @@ class ExceptionHandlerInfo;
   V(SetContinuationPreservedEmbedderData)     \
   V(FulfillPromise)                           \
   V(CheckMaglevType)                          \
+  V(Trap)                                     \
   GAP_MOVE_NODE_LIST(V)                       \
   TURBOLEV_NON_VALUE_NODE_LIST(V)
 
@@ -10926,6 +10927,16 @@ class Abort : public TerminalControlNodeT<0, Abort> {
   static constexpr int kAbortReasonBitSize =
       std::bit_width(static_cast<unsigned>(AbortReason::kLastReason));
   using AbortReasonField = Base::NextBitField<AbortReason, kAbortReasonBitSize>;
+};
+
+class Trap : public FixedInputNodeT<0, Trap> {
+ public:
+  explicit Trap(uint64_t bitfield) : Base(bitfield) {
+    DCHECK_EQ(NodeBase::opcode(), opcode_of<Trap>);
+  }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class Return : public TerminalControlNodeT<1, Return> {

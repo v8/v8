@@ -2706,6 +2706,11 @@ ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitTrap(Trap* node,
+                                              const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitReturn(Return* node,
                                                 const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

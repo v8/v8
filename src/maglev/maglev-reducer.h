@@ -608,9 +608,18 @@ class MaglevReducer {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
-      ReduceResult result = AddNewNode<CheckMaglevType>(
-          {node}, type, allow_widening_smi_to_int32);
-      USE(result);
+      if (type == NodeType::kNone) {
+        // We're generating code which should never be executed.
+        ReduceResult result = AddNewNode<Trap>({});
+        CHECK(result.IsDoneWithPayload());
+      } else {
+        // TODO(marja): Consider adding different CheckMaglevType variants
+        // based on node->value_representation(). Then we wouldn't need to
+        // convert the value to tagged.
+        ReduceResult result = AddNewNode<CheckMaglevType>(
+            {node}, type, allow_widening_smi_to_int32);
+        CHECK(result.IsDoneWithPayload());
+      }
     }
     return type;
   }
