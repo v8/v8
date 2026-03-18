@@ -1718,6 +1718,9 @@ class WasmModuleBuilder {
   // {options}: mutable (default: true), final (default: false),
   //            shared (default: false), supertype (default: kNoSuperType)
   addArray(type, options) {
+    if (options !== undefined && typeof options !== 'object') {
+      throw new Error(`options must be an object, is ${options}`);
+    }
     this.types.push(new WasmArray(type, options));
     return this.types.length - 1;
   }

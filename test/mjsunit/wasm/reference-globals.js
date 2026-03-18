@@ -344,7 +344,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array_index = builder.addArray(kWasmI31Ref, false);
+  let array_index = builder.addArray(kWasmI31Ref, {mutable: false});
 
   let values = [0, 10, -22, 0x7fffffff, -1];
 

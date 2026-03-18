@@ -80,7 +80,7 @@ Test((builder) => {
 }, /invalid explicit supertype/);
 
 Test((builder) => {
-  builder.addArray(kWasmI32, false);
+  builder.addArray(kWasmI32, {mutable: false});
   builder.addStruct({fields: [makeField(kWasmI32, false)], supertype: 0});
 }, /invalid explicit supertype/);
 
