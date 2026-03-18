@@ -1430,7 +1430,7 @@ class PrototypesSetup : public wasm::Decoder {
               isolate()->factory()->constructor_string()));
           return ReadOnlyRoots(isolate()).exception();
         }
-        DirectHandle<WasmExportedFunction> constructor;
+        DirectHandle<JSFunction> constructor;
         if (!NextFunction().To(&constructor)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
@@ -1453,7 +1453,7 @@ class PrototypesSetup : public wasm::Decoder {
           for (uint32_t i = 0; i < num_statics; i++) {
             Method method = NextMethod(true);
             if (!ok()) break;
-            DirectHandle<WasmExportedFunction> function;
+            DirectHandle<JSFunction> function;
             if (!NextFunction().To(&function) ||
                 !InstallMethod(wrapped_constructor, method, function)) {
               DCHECK(isolate()->has_exception());
@@ -1642,7 +1642,7 @@ class PrototypesSetup : public wasm::Decoder {
             .name = {name_start, name_length}};
   }
 
-  MaybeDirectHandle<WasmExportedFunction> NextFunction() {
+  MaybeDirectHandle<JSFunction> NextFunction() {
     DirectHandle<Object> maybe_func = NextFunctionInternal();
     if (maybe_func.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1657,7 +1657,7 @@ class PrototypesSetup : public wasm::Decoder {
     DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(maybe_func);
     DirectHandle<WasmInternalFunction> internal_function(
         funcref->internal(isolate_), isolate_);
-    return Cast<WasmExportedFunction>(
+    return Cast<JSFunction>(
         WasmInternalFunction::GetOrCreateExternal(internal_function));
   }
 
@@ -1739,7 +1739,7 @@ class PrototypesSetup : public wasm::Decoder {
   // Returns the wrapped constructor on success.
   DirectHandle<JSFunction> InstallConstructor(
       DirectHandle<JSReceiver> prototype,
-      DirectHandle<WasmExportedFunction> wasm_function,
+      DirectHandle<JSFunction> wasm_function,
       base::Vector<const uint8_t> name_vec,
       DirectHandle<Object> all_constructors) {
     DirectHandle<String> name;
