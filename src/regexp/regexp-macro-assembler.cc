@@ -23,6 +23,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
                                            Mode mode)
@@ -35,7 +36,7 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
 
 void RegExpMacroAssembler::LogCode(Isolate* isolate, DirectHandle<Code> code,
                                    DirectHandle<RegExpData> re_data,
-                                   RegExpFlags flags) {
+                                   Flags flags) {
   PROFILE(isolate,
           RegExpCodeCreateEvent(
               Cast<AbstractCode>(code),
@@ -47,7 +48,7 @@ bool RegExpMacroAssembler::has_backtrack_limit() const {
 }
 
 int RegExpMacroAssembler::stack_limit_slack_slot_count() const {
-  return RegExpStack::kStackLimitSlackSlotCount;
+  return Stack::kStackLimitSlackSlotCount;
 }
 
 bool RegExpMacroAssembler::CanReadUnaligned() const {
@@ -71,8 +72,8 @@ int RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(Address byte_offset1,
   base::uc16* substring2 = reinterpret_cast<base::uc16*>(byte_offset2);
 
   for (size_t i = 0; i < length; i++) {
-    UChar32 c1 = RegExpCaseFolding::Canonicalize(substring1[i]);
-    UChar32 c2 = RegExpCaseFolding::Canonicalize(substring2[i]);
+    UChar32 c1 = CaseFolding::Canonicalize(substring1[i]);
+    UChar32 c2 = CaseFolding::Canonicalize(substring2[i]);
     if (c1 != c2) {
       return 0;
     }
@@ -668,7 +669,7 @@ const uint8_t RegExpMacroAssembler::word_character_map_[] = {
 Address NativeRegExpMacroAssembler::GrowStack(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
 
-  RegExpStack* regexp_stack = isolate->regexp_stack();
+  Stack* regexp_stack = isolate->regexp_stack();
   const size_t old_size = regexp_stack->memory_size();
 
 #ifdef DEBUG
@@ -684,5 +685,6 @@ Address NativeRegExpMacroAssembler::GrowStack(Isolate* isolate) {
   return regexp_stack->stack_pointer();
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /* clang-format off
  *
@@ -647,7 +648,7 @@ void RegExpMacroAssemblerLOONG64::PopRegExpBasePointer(
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
-    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   Label return_v0;
   if (0 /* todo masm_->has_exception()*/) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -1334,7 +1335,7 @@ void RegExpMacroAssemblerLOONG64::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ li(a0, l);
   __ Ld_d(a0, MemOperand(a0, 0));
-  __ Sub_d(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ Sub_d(a0, a0, Operand(Stack::kStackLimitSlackSize));
   __ Branch(&no_stack_overflow, hi, backtrack_stackpointer(), Operand(a0));
   __ DebugBreak();
   __ bind(&no_stack_overflow);
@@ -1378,6 +1379,7 @@ void RegExpMacroAssemblerLOONG64::LoadCurrentCharacterUnchecked(
 
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

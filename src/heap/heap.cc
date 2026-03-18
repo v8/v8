@@ -2721,9 +2721,9 @@ void Heap::MarkCompactEpilogue() {
 void Heap::MarkCompactPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->descriptor_lookup_cache()->Clear();
-  RegExpResultsCache::Clear(string_split_cache());
-  RegExpResultsCache::Clear(regexp_multiple_cache());
-  RegExpResultsCache_MatchGlobalAtom::Clear(this);
+  regexp::ResultsCache::Clear(string_split_cache());
+  regexp::ResultsCache::Clear(regexp_multiple_cache());
+  regexp::ResultsCache_MatchGlobalAtom::Clear(this);
 
   // Flush the number to string caches.
   smi_string_cache()->Clear();

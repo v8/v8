@@ -15,8 +15,10 @@ class Object;
 class RegExpMatchInfo;
 class String;
 
+namespace regexp {
+
 // Helper methods for C++ regexp builtins.
-class RegExpUtils : public AllStatic {
+class Utils : public AllStatic {
  public:
   // Last match info accessors.
   static Handle<String> GenericCaptureGetter(
@@ -54,6 +56,7 @@ class RegExpUtils : public AllStatic {
       DirectHandle<String> string, bool unicode);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

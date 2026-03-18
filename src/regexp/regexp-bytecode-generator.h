@@ -12,20 +12,21 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
+class V8_EXPORT_PRIVATE BytecodeWriter {
  public:
-  explicit RegExpBytecodeWriter(Zone* zone);
-  virtual ~RegExpBytecodeWriter() = default;
+  explicit BytecodeWriter(Zone* zone);
+  virtual ~BytecodeWriter() = default;
 
   // Helpers for peephole optimization.
   template <typename T>
   void OverwriteValue(T value, int absolute_offset);
   // MUST start and end at a bytecode boundary.
   void EmitRawBytecodeStream(const uint8_t* data, int length);
-  void EmitRawBytecodeStream(const RegExpBytecodeWriter* src_writer,
-                             int src_offset, int length);
-  void Finalize(RegExpBytecode bc);
+  void EmitRawBytecodeStream(const BytecodeWriter* src_writer, int src_offset,
+                             int length);
+  void Finalize(Bytecode bc);
 
   // Bytecode buffer access.
   // TODO(jgruber): Remove access to details, at least the non-const accessors.
@@ -36,7 +37,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   // Code and bitmap emission.
   template <typename T>
   inline void Emit(T value, int offset);
-  inline void EmitBytecode(RegExpBytecode bc);
+  inline void EmitBytecode(Bytecode bc);
 
   // Update bookkeeping at bytecode boundaries.
   inline void ResetPc(int new_pc);
@@ -44,16 +45,16 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   void Reset();
 
   // Templated code emission.
-  template <RegExpBytecode bytecode, typename... Args>
+  template <Bytecode bytecode, typename... Args>
   void Emit(Args... args);
-  template <RegExpBytecodeOperandType OperandType, typename T>
+  template <BytecodeOperandType OperandType, typename T>
   void EmitOperand(T value, int offset);
-  template <RegExpBytecodeOperandType OperandType, typename T>
+  template <BytecodeOperandType OperandType, typename T>
   auto GetCheckedBasicOperandValue(T value);
 
   // Runtime versions.
   template <typename T>
-  void EmitOperand(RegExpBytecodeOperandType type, T value, int offset);
+  void EmitOperand(BytecodeOperandType type, T value, int offset);
 
   uint32_t length() const {
     DCHECK_GE(pc_, 0);
@@ -86,7 +87,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
 
  private:
   // Stores jump edges emitted for the bytecode (used by
-  // RegExpBytecodePeepholeOptimization).
+  // BytecodePeepholeOptimization).
   // Key: jump source (offset in buffer_ where jump destination is stored).
   // Value: jump destination (offset in buffer_ to jump to).
   ZoneMap<int, int> jump_edges_;
@@ -107,8 +108,8 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
 };
 
 // An assembler/generator for the Irregexp byte code.
-class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
-                                                  public RegExpBytecodeWriter {
+class V8_EXPORT_PRIVATE BytecodeGenerator : public RegExpMacroAssembler,
+                                            public BytecodeWriter {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -118,8 +119,8 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
   // The assembler allocates and grows its own buffer, and buffer_size
   // determines the initial buffer size. The buffer is owned by the assembler
   // and deallocated upon destruction of the assembler.
-  RegExpBytecodeGenerator(Isolate* isolate, Zone* zone, Mode mode);
-  ~RegExpBytecodeGenerator() override;
+  BytecodeGenerator(Isolate* isolate, Zone* zone, Mode mode);
+  ~BytecodeGenerator() override;
   void Bind(Label* label) override;
   void AdvanceCurrentPosition(int by) override;  // Signed cp change.
   void PopCurrentPosition() override;
@@ -219,12 +220,12 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
 
   IrregexpImplementation Implementation() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
-                                   RegExpFlags flags) override;
+                                   Flags flags) override;
 
  private:
-  template <RegExpBytecode bytecode, typename... Args>
+  template <Bytecode bytecode, typename... Args>
   void Emit(Args... args);
-  using RegExpBytecodeWriter::Emit;
+  using BytecodeWriter::Emit;
 
   void EmitSkipTable(DirectHandle<ByteArray> table);
 
@@ -232,9 +233,10 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
 
   Isolate* isolate_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpBytecodeGenerator);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeGenerator);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

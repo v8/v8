@@ -394,7 +394,7 @@ void PerfettoLogger::SetterCallbackEvent(DirectHandle<Name> name,
                                          Address entry_point) {}
 void PerfettoLogger::RegExpCodeCreateEvent(
     DirectHandle<AbstractCode> abstract_code,
-    DirectHandle<String> escaped_source, RegExpFlags flags) {
+    DirectHandle<String> escaped_source, regexp::Flags flags) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsCode(*abstract_code));
   Tagged<Code> code = abstract_code->GetCode();

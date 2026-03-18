@@ -1104,15 +1104,15 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-std::optional<RegExpFlags> Scanner::ScanRegExpFlags() {
+std::optional<regexp::Flags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::kRegExpLiteral, next().token);
 
-  RegExpFlags flags;
+  regexp::Flags flags;
   next().literal_chars.Start();
   while (IsIdentifierPart(c0_)) {
-    std::optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    std::optional<regexp::Flag> maybe_flag = JSRegExp::FlagFromChar(c0_);
     if (!maybe_flag.has_value()) return {};
-    RegExpFlag flag = maybe_flag.value();
+    regexp::Flag flag = maybe_flag.value();
     if (flags & flag) return {};
     AddLiteralCharAdvance();
     flags |= flag;

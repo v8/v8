@@ -4781,7 +4781,7 @@ void Isolate::Deinit() {
   // use those.
   cancelable_task_manager()->CancelAndWait();
 
-  // Delete any remaining RegExpResultVector instances.
+  // Delete any remaining regexp::ResultVector instances.
   for (int32_t* v : active_dynamic_regexp_result_vectors_) {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     SandboxFree(v);
@@ -5012,7 +5012,7 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = nullptr;
 
-  RegExpStack::Delete(regexp_stack_);
+  regexp::Stack::Delete(regexp_stack_);
   regexp_stack_ = nullptr;
 
   delete descriptor_lookup_cache_;
@@ -5816,7 +5816,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
-  regexp_stack_ = RegExpStack::New();
+  regexp_stack_ = regexp::Stack::New();
   isolate_data_.set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();

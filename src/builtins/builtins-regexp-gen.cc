@@ -435,7 +435,7 @@ RegExpBuiltinsAssembler::LoadOrAllocateRegExpResultVector(
          GotoHint::kFallthrough);
 
   // Take ownership of the static vector. See also:
-  // RegExpResultVectorScope::Initialize.
+  // regexp::ResultVectorScope::Initialize.
   StoreNoWriteBarrier(MachineType::PointerRepresentation(),
                       address_of_regexp_static_result_offsets_vector,
                       IntPtrConstant(0));

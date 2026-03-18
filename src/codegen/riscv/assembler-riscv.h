@@ -68,6 +68,10 @@
 namespace v8 {
 namespace internal {
 
+namespace regexp {
+class RegExpMacroAssemblerRISCV;
+}
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -909,7 +913,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   friend class EnsureSpace;
   friend class ConstantPool;
   friend class RelocInfo;
-  friend class RegExpMacroAssemblerRISCV;
+  friend class regexp::RegExpMacroAssemblerRISCV;
 };
 
 class EnsureSpace {

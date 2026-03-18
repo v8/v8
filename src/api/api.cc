@@ -8065,13 +8065,13 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
   auto regexp = Utils::OpenHandle(this);
   auto subject_string = Utils::OpenDirectHandle(*subject);
 
-  // TODO(jgruber): RegExpUtils::RegExpExec was not written with efficiency in
+  // TODO(jgruber): regexp::Utils::RegExpExec was not written with efficiency in
   // mind. It fetches the 'exec' property and then calls it through JSEntry.
   // Unfortunately, this is currently the only full implementation of
   // RegExp.prototype.exec available in C++.
   i::DirectHandle<i::JSAny> result;
-  if (!i::RegExpUtils::RegExpExec(i_isolate, regexp, subject_string,
-                                  i_isolate->factory()->undefined_value())
+  if (!i::regexp::Utils::RegExpExec(i_isolate, regexp, subject_string,
+                                    i_isolate->factory()->undefined_value())
            .ToHandle(&result)) {
     return {};
   }

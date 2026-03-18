@@ -17,10 +17,12 @@ namespace internal {
 
 class TrustedByteArray;
 
-class RegExpBytecodeAnalysis : public ZoneObject {
+namespace regexp {
+
+class BytecodeAnalysis : public ZoneObject {
  public:
-  RegExpBytecodeAnalysis(Isolate* isolate, Zone* zone,
-                         DirectHandle<TrustedByteArray> bytecode);
+  BytecodeAnalysis(Isolate* isolate, Zone* zone,
+                   DirectHandle<TrustedByteArray> bytecode);
 
   // Runs the analysis.
   void Analyze();
@@ -113,6 +115,7 @@ class RegExpBytecodeAnalysis : public ZoneObject {
   DisallowGarbageCollection no_gc_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

@@ -1345,9 +1345,9 @@ class ParserBase {
   const AstRawString* GetNextSymbolForRegExpLiteral() const {
     return scanner()->NextSymbol(ast_value_factory());
   }
-  bool ValidateRegExpFlags(RegExpFlags flags);
-  bool ValidateRegExpLiteral(const AstRawString* pattern, RegExpFlags flags,
-                             RegExpError* regexp_error);
+  bool ValidateRegExpFlags(regexp::Flags flags);
+  bool ValidateRegExpLiteral(const AstRawString* pattern, regexp::Flags flags,
+                             regexp::Error* regexp_error);
   ExpressionT ParseRegExpLiteral();
 
   ExpressionT ParseBindingPattern();
@@ -2056,14 +2056,14 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
 }
 
 template <typename Impl>
-bool ParserBase<Impl>::ValidateRegExpFlags(RegExpFlags flags) {
+bool ParserBase<Impl>::ValidateRegExpFlags(regexp::Flags flags) {
   return RegExp::VerifyFlags(flags);
 }
 
 template <typename Impl>
 bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
-                                             RegExpFlags flags,
-                                             RegExpError* regexp_error) {
+                                             regexp::Flags flags,
+                                             regexp::Error* regexp_error) {
   if (this->flags().is_lazy_compile()) {
     // Lazy compilation implies this has already been validated.
     return true;
@@ -2093,7 +2093,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
 
   const AstRawString* pattern = GetNextSymbolForRegExpLiteral();
-  std::optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  std::optional<regexp::Flags> flags = scanner()->ScanRegExpFlags();
   const AstRawString* flags_as_ast_raw_string = GetNextSymbolForRegExpLiteral();
   if (!flags.has_value() || !ValidateRegExpFlags(flags.value())) {
     Next();
@@ -2101,11 +2101,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
     return impl()->FailureExpression();
   }
   Next();
-  RegExpError regexp_error;
+  regexp::Error regexp_error;
   if (!ValidateRegExpLiteral(pattern, flags.value(), &regexp_error)) {
-    if (RegExpErrorIsStackOverflow(regexp_error)) set_stack_overflow();
+    if (regexp::ErrorIsStackOverflow(regexp_error)) set_stack_overflow();
     ReportMessage(MessageTemplate::kMalformedRegExp, pattern,
-                  flags_as_ast_raw_string, RegExpErrorString(regexp_error));
+                  flags_as_ast_raw_string, regexp::ErrorString(regexp_error));
     return impl()->FailureExpression();
   }
   return factory()->NewRegExpLiteral(pattern, flags.value(), pos);

@@ -14,15 +14,15 @@
 #include "src/regexp/regexp-result-vector.h"
 #include "src/utils/ostreams.h"
 
-namespace v8::internal {
+namespace v8::internal::regexp {
 
-bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
+bool ExperimentalRegExp::CanBeHandled(Tree* tree,
                                       DirectHandle<String> original_source,
-                                      RegExpFlags flags, int capture_count) {
+                                      Flags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine ||
          v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
   bool can_be_handled =
-      ExperimentalRegExpCompiler::CanBeHandled(tree, flags, capture_count);
+      ExperimentalCompiler::CanBeHandled(tree, flags, capture_count);
   if (!can_be_handled && v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Pattern not supported by experimental engine: "
                    << original_source << std::endl;
@@ -33,7 +33,7 @@ bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
 void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                     DirectHandle<String> original_source,
                                     DirectHandle<String> escaped_source,
-                                    RegExpFlags flags, int capture_count) {
+                                    Flags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Initializing experimental regexp " << *original_source
@@ -85,21 +85,21 @@ std::optional<CompilationResult> CompileImpl(
   DirectHandle<String> original_source(re_data->original_source(), isolate);
 
   // Parse and compile the regexp source.
-  RegExpCompileData parse_result;
+  CompileData parse_result;
   DCHECK(!isolate->has_exception());
 
-  RegExpFlags flags = JSRegExp::AsRegExpFlags(re_data->flags());
-  bool parse_success = RegExpParser::ParseRegExpFromHeapString(
+  Flags flags = JSRegExp::AsRegExpFlags(re_data->flags());
+  bool parse_success = Parser::ParseRegExpFromHeapString(
       isolate, &zone, original_source, flags, &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.
-    DCHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
+    DCHECK_EQ(parse_result.error, Error::kStackOverflow);
     RegExp::ThrowRegExpException(isolate, re_data, parse_result.error);
     return std::nullopt;
   }
 
-  ZoneList<RegExpInstruction> bytecode = ExperimentalRegExpCompiler::Compile(
+  ZoneList<Instruction> bytecode = ExperimentalCompiler::Compile(
       parse_result.tree, JSRegExp::AsRegExpFlags(re_data->flags()), &zone);
 
   CompilationResult result;
@@ -138,14 +138,13 @@ bool ExperimentalRegExp::Compile(Isolate* isolate,
   return true;
 }
 
-base::Vector<RegExpInstruction> AsInstructionSequence(
+base::Vector<Instruction> AsInstructionSequence(
     Tagged<TrustedByteArray> raw_bytes) {
-  RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
+  Instruction* inst_begin = reinterpret_cast<Instruction*>(raw_bytes->begin());
   uint32_t raw_bytes_len = raw_bytes->ulength().value();
-  uint32_t inst_num = raw_bytes_len / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes_len);
-  return base::Vector<RegExpInstruction>(inst_begin, inst_num);
+  uint32_t inst_num = raw_bytes_len / sizeof(Instruction);
+  DCHECK_EQ(sizeof(Instruction) * inst_num, raw_bytes_len);
+  return base::Vector<Instruction>(inst_begin, inst_num);
 }
 
 namespace {
@@ -327,4 +326,4 @@ std::optional<int> ExperimentalRegExp::OneshotExec(
   UNREACHABLE();
 }
 
-}  // namespace v8::internal
+}  // namespace v8::internal::regexp

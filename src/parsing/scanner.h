@@ -416,7 +416,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
   // Scans the input as regular expression flags. Returns the flags on success.
-  std::optional<RegExpFlags> ScanRegExpFlags();
+  std::optional<regexp::Flags> ScanRegExpFlags();
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {

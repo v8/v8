@@ -332,7 +332,7 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 
 void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                                             DirectHandle<String> escaped_source,
-                                            RegExpFlags flags) {
+                                            regexp::Flags flags) {
   DCHECK(is_listening_to_code_events());
   // Note we don't call Init due to the required pprof demangling hack for
   // regexp patterns.
@@ -616,7 +616,7 @@ void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
 
 void ExternalLogEventListener::RegExpCodeCreateEvent(
     DirectHandle<AbstractCode> code, DirectHandle<String> escaped_source,
-    RegExpFlags flags) {
+    regexp::Flags flags) {
   PtrComprCageBase cage_base(isolate_);
   CodeEvent code_event;
   code_event.code_start_address =
@@ -1683,7 +1683,7 @@ void V8FileLogger::SetterCallbackEvent(DirectHandle<Name> name,
 
 void V8FileLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                                          DirectHandle<String> escaped_source,
-                                         RegExpFlags flags) {
+                                         regexp::Flags flags) {
   if (!is_listening_to_code_events()) return;
   if (!v8_flags.log_code) return;
   VMStateIfMainThread<LOGGING> state(isolate_);

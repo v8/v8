@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /* clang-format off
  * This assembler uses the following register assignment convention
@@ -782,7 +783,7 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
-    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
   Label return_a0;
@@ -1459,7 +1460,7 @@ void RegExpMacroAssemblerRISCV::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ li(a0, l);
   __ LoadWord(a0, MemOperand(a0, 0));
-  __ SubWord(a0, a0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ SubWord(a0, a0, Operand(Stack::kStackLimitSlackSize));
   __ Branch(&no_stack_overflow, Ugreater, backtrack_stackpointer(),
             Operand(a0));
   __ DebugBreak();
@@ -1523,5 +1524,6 @@ void RegExpMacroAssemblerRISCV::CallCFunctionFromIrregexpCode(
 }
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

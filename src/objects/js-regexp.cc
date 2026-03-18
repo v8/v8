@@ -128,11 +128,11 @@ std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
   // A longer flags string cannot be valid.
   if (length > JSRegExp::kFlagCount) return {};
 
-  RegExpFlags value;
+  regexp::Flags value;
   FlatStringReader reader(isolate, String::Flatten(isolate, flags));
 
   for (int i = 0; i < length; i++) {
-    std::optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    std::optional<regexp::Flag> flag = JSRegExp::FlagFromChar(reader.Get(i));
     if (!flag.has_value()) return {};
     if (value & flag.value()) return {};  // Duplicate.
     value |= flag.value();

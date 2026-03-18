@@ -1107,23 +1107,32 @@ ExternalReference::invoke_named_interceptor_setter_callback() {
 }
 
 #if V8_TARGET_ARCH_X64
-#define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32
-#define re_stack_check_func RegExpMacroAssemblerIA32::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerIA32::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM64
-#define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
-#define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerARM::CheckStackGuardState
 #elif V8_TARGET_ARCH_PPC64
-#define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
-#define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_LOONG64
-#define re_stack_check_func RegExpMacroAssemblerLOONG64::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerLOONG64::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390X
-#define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
-#define re_stack_check_func RegExpMacroAssemblerRISCV::CheckStackGuardState
+#define re_stack_check_func \
+  regexp::RegExpMacroAssemblerRISCV::CheckStackGuardState
 #else
 UNREACHABLE();
 #endif
@@ -1131,30 +1140,34 @@ UNREACHABLE();
 FUNCTION_REFERENCE(re_check_stack_guard_state, re_stack_check_func)
 #undef re_stack_check_func
 
-FUNCTION_REFERENCE(re_grow_stack, NativeRegExpMacroAssembler::GrowStack)
+FUNCTION_REFERENCE(re_grow_stack, regexp::NativeRegExpMacroAssembler::GrowStack)
 
 FUNCTION_REFERENCE(re_match_for_call_from_js,
-                   IrregexpInterpreter::MatchForCallFromJs)
+                   regexp::IrregexpInterpreter::MatchForCallFromJs)
 
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
-                   ExperimentalRegExp::MatchForCallFromJs)
+                   regexp::ExperimentalRegExp::MatchForCallFromJs)
 
 FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
 
-FUNCTION_REFERENCE(allocate_regexp_result_vector, RegExpResultVector::Allocate)
-FUNCTION_REFERENCE(free_regexp_result_vector, RegExpResultVector::Free)
+FUNCTION_REFERENCE(allocate_regexp_result_vector,
+                   regexp::ResultVector::Allocate)
+FUNCTION_REFERENCE(free_regexp_result_vector, regexp::ResultVector::Free)
 
-FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
-                   NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+FUNCTION_REFERENCE(
+    re_case_insensitive_compare_unicode,
+    regexp::NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 
-FUNCTION_REFERENCE(re_case_insensitive_compare_non_unicode,
-                   NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
+FUNCTION_REFERENCE(
+    re_case_insensitive_compare_non_unicode,
+    regexp::NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 FUNCTION_REFERENCE(re_is_character_in_range_array,
-                   RegExpMacroAssembler::IsCharacterInRangeArray)
+                   regexp::RegExpMacroAssembler::IsCharacterInRangeArray)
 
 ExternalReference ExternalReference::re_word_character_map() {
-  return ExternalReference(RegExpMacroAssembler::word_character_map_address());
+  return ExternalReference(
+      regexp::RegExpMacroAssembler::word_character_map_address());
 }
 
 ExternalReference

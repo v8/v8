@@ -525,6 +525,10 @@ class ConstPool {
   static constexpr uint32_t kMoveRipRelativeInstr = 0x00058B48;
 };
 
+namespace regexp {
+class RegExpMacroAssemblerX64;
+}
+
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -3537,7 +3541,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                int safepoint_table_offset, int handler_table_offset);
 
   friend class EnsureSpace;
-  friend class RegExpMacroAssemblerX64;
+  friend class regexp::RegExpMacroAssemblerX64;
 
   // code generation
   RelocInfoWriter reloc_info_writer;

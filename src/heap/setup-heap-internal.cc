@@ -1451,11 +1451,11 @@ void Heap::CreateInitialMutableObjects() {
 
   // Allocate regexp caches.
   set_string_split_cache(*factory->NewFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+      regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_multiple_cache(*factory->NewFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+      regexp::ResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_match_global_atom_cache(*factory->NewFixedArray(
-      RegExpResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
+      regexp::ResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
 
   set_detached_contexts(roots.empty_weak_array_list());
 

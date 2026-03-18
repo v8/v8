@@ -66,11 +66,11 @@ enum class IsolateFieldId : uint8_t;
     "Debug::step_suspended_generator_address()")                               \
   V(context_address, "Isolate::context_address()")                             \
   V(address_of_regexp_stack_limit_address,                                     \
-    "RegExpStack::limit_address_address()")                                    \
+    "regexp::Stack::limit_address_address()")                                  \
   V(address_of_regexp_stack_memory_top_address,                                \
-    "RegExpStack::memory_top_address_address()")                               \
+    "regexp::Stack::memory_top_address_address()")                             \
   V(address_of_regexp_stack_stack_pointer,                                     \
-    "RegExpStack::stack_pointer_address()")                                    \
+    "regexp::Stack::stack_pointer_address()")                                  \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
@@ -477,21 +477,21 @@ enum class IsolateFieldId : uint8_t;
   IF_TSAN(V, tsan_relaxed_load_function_64_bits,                               \
           "tsan_relaxed_load_function_64_bits")                                \
   V(re_case_insensitive_compare_unicode,                                       \
-    "RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")                   \
+    "regexp::RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")           \
   V(re_case_insensitive_compare_non_unicode,                                   \
-    "RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")                \
+    "regexp::RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")        \
   V(re_is_character_in_range_array,                                            \
-    "RegExpMacroAssembler::IsCharacterInRangeArray()")                         \
+    "regexp::RegExpMacroAssembler::IsCharacterInRangeArray()")                 \
   V(re_check_stack_guard_state,                                                \
-    "RegExpMacroAssembler*::CheckStackGuardState()")                           \
+    "regexp::RegExpMacroAssembler*::CheckStackGuardState()")                   \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
-  V(re_word_character_map, "RegExpMacroAssembler::word_character_map")         \
+  V(re_word_character_map, "regexp::RegExpMacroAssembler::word_character_map") \
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
   V(re_atom_exec_raw, "RegExp::AtomExecRaw")                                   \
-  V(allocate_regexp_result_vector, "RegExpResultVector::Allocate")             \
-  V(free_regexp_result_vector, "RegExpResultVector::Free")                     \
+  V(allocate_regexp_result_vector, "regexp::ResultVector::Allocate")           \
+  V(free_regexp_result_vector, "regexp::ResultVector::Free")                   \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
     "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \

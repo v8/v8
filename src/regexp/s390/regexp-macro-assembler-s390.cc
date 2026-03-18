@@ -17,6 +17,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 /*
  * This assembler uses the following register assignment convention
@@ -704,7 +705,7 @@ void RegExpMacroAssemblerS390::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
-    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, Flags flags) {
   Label return_r2;
 
   // Finalize code - write the entry point code now we know how many
@@ -1468,7 +1469,7 @@ void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
   auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ mov(r2, Operand(l));
   __ LoadU64(r2, MemOperand(r2));
-  __ SubS64(r2, r2, Operand(RegExpStack::kStackLimitSlackSize));
+  __ SubS64(r2, r2, Operand(Stack::kStackLimitSlackSize));
   __ CmpU64(backtrack_stackpointer(), r2);
   __ bgt(&no_stack_overflow);
   __ DebugBreak();
@@ -1494,7 +1495,6 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   }
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
-
 
 void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
@@ -1536,6 +1536,7 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
 
 #undef __
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

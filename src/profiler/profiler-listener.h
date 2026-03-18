@@ -59,7 +59,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
                            Address entry_point) override;
   void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                              DirectHandle<String> escaped_source,
-                             RegExpFlags flags) override;
+                             regexp::Flags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,

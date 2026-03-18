@@ -21,6 +21,8 @@ class JSRegExp;
 class Label;
 class String;
 
+namespace regexp {
+
 static const base::uc32 kLeadSurrogateStart = 0xd800;
 static const base::uc32 kLeadSurrogateEnd = 0xdbff;
 static const base::uc32 kTrailSurrogateStart = 0xdc00;
@@ -53,10 +55,10 @@ class RegExpMacroAssembler {
   virtual ~RegExpMacroAssembler() = default;
 
   virtual DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
-                                           RegExpFlags flags) = 0;
+                                           Flags flags) = 0;
 
   void LogCode(Isolate* isolate, DirectHandle<Code> code,
-               DirectHandle<RegExpData> re_data, RegExpFlags flags);
+               DirectHandle<RegExpData> re_data, Flags flags);
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
@@ -366,7 +368,7 @@ class RegExpMacroAssembler {
   const Mode mode_;
 };
 
-class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
+class NativeRegExpMacroAssembler : public RegExpMacroAssembler {
  public:
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching
@@ -441,6 +443,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
       range_array_cache_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

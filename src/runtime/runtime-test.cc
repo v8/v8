@@ -2077,7 +2077,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              Address entry_point) final {}
     void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                                DirectHandle<String> source,
-                               RegExpFlags flags) final {}
+                               regexp::Flags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
     void BytecodeMoveEvent(Tagged<BytecodeArray> from,
