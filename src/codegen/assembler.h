@@ -477,6 +477,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // generated code.
   static constexpr int kDefaultBufferSize = 4 * KB;
 
+  void RecordJSDispatchHandle(JSDispatchHandle handle,
+                              IndirectHandle<Object> owner);
+  const std::vector<std::pair<JSDispatchHandle, IndirectHandle<Object>>>&
+  js_dispatch_handles() const {
+    return js_dispatch_handles_;
+  }
+
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.
@@ -552,6 +559,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
                      IndirectHandle<HeapObject>::hash,
                      IndirectHandle<HeapObject>::equal_to>
       embedded_objects_map_;
+
+  std::vector<std::pair<JSDispatchHandle, IndirectHandle<Object>>>
+      js_dispatch_handles_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;

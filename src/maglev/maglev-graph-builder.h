@@ -992,11 +992,13 @@ class MaglevGraphBuilder {
   bool IsTheHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-      JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
+      compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
+      compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult BuildCallKnownJSFunction(ValueNode* context, ValueNode* function,
                                         ValueNode* new_target,
+                                        compiler::ObjectRef target_object,
                                         JSDispatchHandle dispatch_handle,
                                         compiler::SharedFunctionInfoRef shared,
                                         base::Vector<ValueNode*> arguments);
@@ -1005,7 +1007,8 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-      JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
+      compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
+      compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
@@ -1021,7 +1024,7 @@ class MaglevGraphBuilder {
                                     CallArguments& args, float call_frequency);
   MaybeReduceResult TryBuildInlineCall(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-      JSDispatchHandle dispatch_handle,
+      compiler::ObjectRef target_object, JSDispatchHandle dispatch_handle,
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1036,8 +1039,7 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceCallForNewClosure(
       ValueNode* target_node, ValueNode* target_context,
-      JSDispatchHandle dispatch_handle,
-      compiler::SharedFunctionInfoRef shared,
+      compiler::ObjectRef target_object, compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownApiFunction(

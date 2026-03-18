@@ -129,5 +129,20 @@ InstructionStream::WriteBarrierPromise::~WriteBarrierPromise() {
 }
 #endif
 
+void InstructionStream::ValidateJSDispatchHandles(const CodeDesc& desc) {
+  if (desc.origin) {
+    for (const auto& pair : desc.origin->js_dispatch_handles()) {
+      JSDispatchHandle handle = pair.first;
+      Tagged<Object> target = *pair.second;
+      if (IsJSFunction(target)) {
+        SBXCHECK_EQ(handle, Cast<JSFunction>(target)->dispatch_handle());
+      } else {
+        DCHECK(IsFeedbackCell(target));
+        SBXCHECK_EQ(handle, Cast<FeedbackCell>(target)->dispatch_handle());
+      }
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
