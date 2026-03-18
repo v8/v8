@@ -1449,6 +1449,13 @@ class PrototypesSetup : public wasm::Decoder {
         uint32_t num_statics = consume_u32v("number of statics");
         if (!ok()) break;
         if (num_statics != 0) {
+          if (num_statics > wasm::kMaxConfigureAllStaticProperties) {
+            isolate()->Throw(*isolate()->factory()->NewRangeError(
+                MessageTemplate::kOutOfMemory,
+                isolate()->factory()->NewStringFromAsciiChecked(
+                    "too many constructor properties in configureAll")));
+            return ReadOnlyRoots(isolate()).exception();
+          }
           ToDictionaryMode(wrapped_constructor, num_statics);
           for (uint32_t i = 0; i < num_statics; i++) {
             Method method = NextMethod(true);
@@ -1472,6 +1479,13 @@ class PrototypesSetup : public wasm::Decoder {
 
       uint32_t num_methods = consume_u32v("number of methods");
       if (!ok()) break;
+      if (num_methods > wasm::kMaxConfigureAllMethods) {
+        isolate()->Throw(*isolate()->factory()->NewRangeError(
+            MessageTemplate::kOutOfMemory,
+            isolate()->factory()->NewStringFromAsciiChecked(
+                "too many methods in configureAll")));
+        return ReadOnlyRoots(isolate()).exception();
+      }
       DirectHandle<NameDictionary> dictionary;
       if (!prototype_is_null) {
         if (IsJSObject(*prototype)) {

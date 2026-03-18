@@ -63,6 +63,11 @@ constexpr size_t kV8MaxWasmStructFields = 10'000;
 constexpr uint32_t kV8MaxRttSubtypingDepth = 63;
 constexpr size_t kV8MaxWasmArrayNewFixedLength = 10'000;
 
+// Custom-descriptors proposal.
+// TODO(403372470): Clarify exact limit values in Spec.
+constexpr size_t kMaxConfigureAllStaticProperties = 100'000;
+constexpr size_t kMaxConfigureAllMethods = 100'000;
+
 // Stringref proposal. This limit is not standardized yet.
 constexpr size_t kV8MaxWasmStringLiterals = 1'000'000;
 
