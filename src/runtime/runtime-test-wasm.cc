@@ -575,6 +575,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
     if (!IsSmi(*value)) {
       // Note: This will leak string views to JS. This should be fine for a
       // debugging function.
+      if (Is<WasmContinuationObject>(value)) {
+        return CrashUnlessFuzzing(isolate);
+      }
       value = wasm::WasmToJSObject(isolate, value);
     }
     externalized_values->set(i, *value);
