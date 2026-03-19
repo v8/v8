@@ -92,20 +92,22 @@ RUNTIME_FUNCTION(Runtime_VarargStackOverflow) {
   }
 
   int nargs = args.length();
-  auto maybe_receiver =
-      args.at<JSAny>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
-  auto maybe_target =
-      args.at<JSAny>(nargs - SuperSpreadArgs::kTargetOffsetFromEnd);
+  if (nargs >= SuperSpreadArgs::kNumExtraArgs) {
+    auto maybe_receiver =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+    auto maybe_target =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kTargetOffsetFromEnd);
 
-  if (v8_flags.superspreading) {
-    if (Handle<JSFunction> target; TryCast(maybe_target, &target)) {
-      if (Handle<JSReceiver> receiver; TryCast(maybe_receiver, &receiver)) {
+    if (v8_flags.superspreading) {
+      if (Handle<JSFunction> target; TryCast(maybe_target, &target)) {
+        if (Handle<JSReceiver> receiver; TryCast(maybe_receiver, &receiver)) {
 #define CASE(Name, Handler)                                      \
   if (target->code(isolate)->builtin_id() == Builtin::k##Name) { \
     return Handler(isolate, args);                               \
   }
       SUPERSPREAD_BUILTINS(CASE)
 #undef CASE
+        }
       }
     }
   }
