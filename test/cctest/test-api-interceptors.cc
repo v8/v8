@@ -1536,12 +1536,16 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
 }
 
 // Test load of a non-existing global when a global object has an interceptor.
-THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
+void InterceptorLoadGlobalICGlobalWithInterceptor(bool masking) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
-  templ_global->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      EmptyInterceptorGetter, EmptyInterceptorSetter));
+  v8::NamedPropertyHandlerConfiguration config(EmptyInterceptorGetter,
+                                               EmptyInterceptorSetter);
+  if (!masking) {
+    config.flags = v8::PropertyHandlerFlags::kNonMasking;
+  }
+  templ_global->SetHandler(config);
 
   LocalContext context(nullptr, templ_global);
   i::DirectHandle<i::JSReceiver> global_proxy =
@@ -1597,15 +1601,29 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   CHECK(value->BooleanValue(isolate));
 }
 
+THREADED_TEST(InterceptorLoadGlobalICGlobalWithNonMaskingInterceptor) {
+  const bool masking = false;
+  InterceptorLoadGlobalICGlobalWithInterceptor(masking);
+}
+
+THREADED_TEST(InterceptorLoadGlobalICGlobalWithMaskingInterceptor) {
+  const bool masking = true;
+  InterceptorLoadGlobalICGlobalWithInterceptor(masking);
+}
+
 // Test load of a non-existing global through prototype chain when a global
 // object has an interceptor.
-THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
+void InterceptorLoadICGlobalWithInterceptor(bool masking) {
   i::v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
-  templ_global->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      GenericInterceptorGetter, GenericInterceptorSetter));
+  v8::NamedPropertyHandlerConfiguration config(GenericInterceptorGetter,
+                                               GenericInterceptorSetter);
+  if (!masking) {
+    config.flags = v8::PropertyHandlerFlags::kNonMasking;
+  }
+  templ_global->SetHandler(config);
 
   LocalContext context(nullptr, templ_global);
   i::DirectHandle<i::JSReceiver> global_proxy =
@@ -1632,6 +1650,16 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       "  return f(obj);"
       "})();",
       42);
+}
+
+THREADED_TEST(InterceptorLoadICGlobalWithNonMaskingInterceptor) {
+  const bool masking = false;
+  InterceptorLoadICGlobalWithInterceptor(masking);
+}
+
+THREADED_TEST(InterceptorLoadICGlobalWithMaskingInterceptor) {
+  const bool masking = true;
+  InterceptorLoadICGlobalWithInterceptor(masking);
 }
 
 namespace {
