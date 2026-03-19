@@ -6,9 +6,12 @@
 #define V8_OBJECTS_MANAGED_H_
 
 #include <memory>
+#include <utility>
 
 #include "include/v8-external-memory-accounter.h"
+#include "include/v8config.h"
 #include "src/api/api.h"
+#include "src/base/compiler-specific.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -98,28 +101,82 @@ V8_EXPORT_PRIVATE void ManagedObjectFinalizer(
 template <class CppType>
 class Managed : public Foreign {
  public:
+  // Exposes the underlying C++ object and keeps the ref counter incremented.
+  //
+  // Usage examples:
+  //
+  //   managed1.ptr()->DoStuff();  // `Ptr` lives till end of full-expression
+  //
+  //   ReadFrom(*managed2.ptr());  // ditto
+  //
+  //   Managed<T>::Ptr ptr = managed3.ptr();  // kept for multiple statements
+  //   ReadFrom(*ptr);
+  //   WriteTo(ptr.raw());
+  //
+  // Note: it's generally unsafe to dereference the raw pointer after the `Ptr`
+  // went out of scope and GC happened.
+  class Ptr final {
+   public:
+    V8_INLINE Ptr(Ptr&& other) V8_NOEXCEPT = default;
+    Ptr(const Ptr&) = delete;
+    V8_INLINE Ptr& operator=(Ptr&& other) V8_NOEXCEPT = default;
+    Ptr& operator=(const Ptr&) = delete;
+
+    V8_INLINE CppType* operator->() V8_LIFETIME_BOUND { return ptr_.get(); }
+    V8_INLINE const CppType* operator->() const V8_LIFETIME_BOUND {
+      return ptr_.get();
+    }
+
+    V8_INLINE CppType& operator*() V8_LIFETIME_BOUND { return *ptr_; }
+    V8_INLINE const CppType& operator*() const V8_LIFETIME_BOUND {
+      return *ptr_;
+    }
+
+    V8_INLINE CppType* raw() V8_LIFETIME_BOUND { return ptr_.get(); }
+    V8_INLINE const CppType* raw() const V8_LIFETIME_BOUND {
+      return ptr_.get();
+    }
+
+    V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
+    V8_INLINE bool operator!=(std::nullptr_t) const { return ptr_ != nullptr; }
+
+   private:
+    friend class Managed;
+
+    V8_INLINE explicit Ptr(std::shared_ptr<CppType> ptr)
+        : ptr_(std::move(ptr)) {}
+
+    std::shared_ptr<CppType> ptr_;
+  };
+
   Managed() : Foreign() {}
   V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
       : Foreign(ptr, SkipTypeCheckTag{}) {}
 
-  // For every object, add a `->` operator which returns a pointer to this
-  // object. This will allow smoother transition between T and Tagged<T>.
-  Managed* operator->() { return this; }
-  const Managed* operator->() const { return this; }
-
   // Deprecated. Get a raw pointer to the C++ object.
-  // TODO(crbug/485286897): Remove this by using the no_gc variant instead.
+  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
 
-  // Get a raw pointer to the C++ object.
-  V8_INLINE CppType* raw(const DisallowGarbageCollection& no_gc) {
+  // Get a raw pointer to the C++ object. The returned pointer is only valid as
+  // long as no GC happens; prefer `ptr()` unless on performance-critical code
+  // paths.
+  V8_INLINE CppType* raw(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
     return GetSharedPtrPtr(GetDestructor())->get();
   }
 
-  // Get a reference to the shared pointer to the C++ object.
+  // Deprecated. Get a reference to the shared pointer to the C++ object.
+  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
   V8_INLINE const std::shared_ptr<CppType>& get() {
     return *GetSharedPtrPtr(GetDestructor());
   }
+
+  // Get the wrapper that exposes access to the C++ object.
+  //
+  // The wrapper keeps the ref counter incremented, guaranteeing that the C++
+  // object stays alive even if our Foreign gets corrupted by an in-sandbox
+  // corruption and collected by GC.
+  V8_INLINE Ptr ptr() { return Ptr(*GetSharedPtrPtr(GetDestructor())); }
 
   // Read back the memory estimate that was provided when creating this Managed.
   size_t estimated_size() const { return GetDestructor()->estimated_size_; }
