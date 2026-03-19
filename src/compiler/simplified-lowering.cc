@@ -1221,7 +1221,8 @@ class RepresentationSelector {
       return MachineRepresentation::kNone;
     } else if (type.Is(Type::Signed32()) || type.Is(Type::Unsigned32())) {
       return MachineRepresentation::kWord32;
-    } else if (type.Is(Type::NumberOrOddball()) && use.IsUsedAsWord32()) {
+    } else if (type.Is(Type::NumberOrOddball()) && use.IsUsedAsWord32() &&
+               !use.check_safe_integer()) {
       return MachineRepresentation::kWord32;
     } else if (type.Is(Type::Boolean())) {
       return MachineRepresentation::kBit;

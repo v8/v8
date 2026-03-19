@@ -155,6 +155,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   untagging_kinds.resize(node->input_count(), UntaggingKind::kNone);
 
   bool has_tagged_phi_input = false;
+  bool has_float64_constant_input = false;
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input(i).node();
     if (input->Is<SmiConstant>()) {
@@ -163,12 +164,19 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       // never downgrade Float64 to Int32, as it could cause deopt loops).
       input_reprs.Add(ValueRepresentation::kInt32);
       untagging_kinds[i] = UntaggingKind::kSmiConstant;
+    } else if (input->Is<Float64Constant>()) {
+      // TODO(victorgomes): maybe we should check if the float64 constant is
+      // actually an integer and treat it as such.
+      has_float64_constant_input = true;
+      input_reprs.Add(ValueRepresentation::kFloat64);
+      untagging_kinds[i] = UntaggingKind::kKnownNumber;
     } else if (Constant* constant = input->TryCast<Constant>()) {
       if (constant->object().IsHeapNumber()) {
         double value = constant->object().AsHeapNumber().value();
         if (IsInt32Double(value)) {
           input_reprs.Add(ValueRepresentation::kInt32);
         } else {
+          has_float64_constant_input = true;
           input_reprs.Add(ValueRepresentation::kFloat64);
         }
         untagging_kinds[i] = UntaggingKind::kHeapNumberConstant;
@@ -426,7 +434,11 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
   } else if (enable_truncated_int32_phis_ && !has_ignored_tagged_use &&
+             !has_float64_constant_input &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
+    // If the input is Float64/HoleyFloat64 we emit a check truncating
+    // conversion, but if we know it is a float64 constant, we know we cannot
+    // truncate it.
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,
                        /*truncating=*/true);
