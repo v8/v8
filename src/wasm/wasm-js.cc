@@ -3195,17 +3195,14 @@ void WebAssemblyGlobalSetValueImpl(
     thrower.TypeError("Can't set the value of an immutable global.");
     return;
   }
-  if (info.Length() == 0) {
-    thrower.TypeError("Argument 0 is required");
-    return;
-  }
 
+  Local<Value> value = info[0];  // potentially `undefined`.
   Local<Context> context = isolate->GetCurrentContext();
   i::wasm::ValueType unsafe_type = receiver->unsafe_type();
   switch (unsafe_type.kind()) {
     case i::wasm::kI32: {
       int32_t i32_value = 0;
-      if (!info[0]->Int32Value(context).To(&i32_value)) {
+      if (!value->Int32Value(context).To(&i32_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI32(i32_value);
@@ -3213,7 +3210,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kI64: {
       v8::Local<v8::BigInt> bigint_value;
-      if (!info[0]->ToBigInt(context).ToLocal(&bigint_value)) {
+      if (!value->ToBigInt(context).ToLocal(&bigint_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI64(bigint_value->Int64Value());
@@ -3221,7 +3218,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF32: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF32(i::DoubleToFloat32(f64_value));
@@ -3229,7 +3226,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF64: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF64(f64_value);
@@ -3244,15 +3241,15 @@ void WebAssemblyGlobalSetValueImpl(
           receiver->has_trusted_data()
               ? receiver->trusted_data(i_isolate)->module()
               : nullptr;
-      i::DirectHandle<i::Object> value = Utils::OpenDirectHandle(*info[0]);
+      i::DirectHandle<i::Object> value_handle = Utils::OpenDirectHandle(*value);
       const char* error_message;
-      if (!i::wasm::JSToWasmObject(i_isolate, module, value, unsafe_type,
+      if (!i::wasm::JSToWasmObject(i_isolate, module, value_handle, unsafe_type,
                                    &error_message)
-               .ToHandle(&value)) {
+               .ToHandle(&value_handle)) {
         thrower.TypeError("%s", error_message);
         return;
       }
-      receiver->SetRef(value);
+      receiver->SetRef(value_handle);
       return;
     }
     case i::wasm::kI8:
