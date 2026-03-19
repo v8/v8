@@ -27,8 +27,11 @@ def parse_arguments():
       help='target cpu to build the profile for: x64 or arm64')
   parser.add_argument(
       '--benchmark_path',
-      default=Path('./JetStream2/cli.js'),
-      help='path to benchmark runner .js file, usually JetStream2\'s `cli.js`',
+      # Note, this path entry is currently defining the JetStream version to
+      # use, see: recipes/recipe_modules/v8_builtins_pgo/builders.py in the
+      # build repository.
+      default=Path('./JetStream3/cli.js'),
+      help='path to benchmark runner .js file, usually JetStream3\'s `cli.js`',
       type=Path)
   parser.add_argument(
       '--d8-path',
@@ -50,7 +53,10 @@ def run_benchmark(benchmark_path, d8_path, output_dir):
   assert d8_path_abs.exists(), "Could not find d8 path!"
 
   log_path = benchmark_log_path(output_dir)
-  cmd = [d8_path_abs, f"--turbo-profiling-output={log_path}", benchmark_file]
+  cmd = [d8_path_abs, f"--turbo-profiling-output={log_path}"]
+  if "JetStream3" in str(benchmark_path):
+    cmd.append("--trace-gc")
+  cmd.append(benchmark_file)
   run(cmd, cwd=benchmark_dir)
   assert log_path.exists(), "Could not find benchmark logs path!"
 
