@@ -1387,7 +1387,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
     return GetBooleanConstant(false);
   }
 
-  MapInference<MaglevReducer<BaseT>> inference(this, value);
+  MapInference<MaglevReducer<BaseT>> inference(
+      this, value, MapInference<MaglevReducer<BaseT>>::kOnlyFresh);
   if (auto possible_maps = inference.TryGetPossibleMaps()) {
     DCHECK_GT(possible_maps->size(), 0);
     bool first_is_undetectable = possible_maps->at(0).is_undetectable();
@@ -1399,7 +1400,6 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
                              (!first_is_undetectable && !is_undetectable);
                     });
     if (all_the_same_value) {
-      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
       return GetBooleanConstant(first_is_undetectable);
     }
   }
