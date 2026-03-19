@@ -766,6 +766,12 @@ bool ValidateFunctionNowIfNeeded(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   DCHECK(!v8_flags.wasm_jitless);
 
+  if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
+                  v8_flags.trace_wasm_generate_compilation_hints)) {
+    // These flags expect functions to remain compiled with Liftoff.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   HandleScope scope(isolate);
   if (args.length() != 1 ||
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
