@@ -136,16 +136,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   void Finalize() {
-    // Updating the source_positions.
-    if (!Asm().input_graph().source_positions().empty()) {
-      for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
-        OpIndex origin = Asm().output_graph().operation_origins()[index];
-        Asm().output_graph().source_positions()[index] =
-            origin.valid() ? Asm().input_graph().source_positions()[origin]
-                           : SourcePosition::Unknown();
-      }
-    }
-    // Updating the operation origins.
+    // Updating the operation origins in `PipelineData`'s origin tracking,
+    // which is persistent over multiple phases.
     NodeOriginTable* origins = Asm().data()->node_origins();
     if (origins) {
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
