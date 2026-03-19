@@ -79,7 +79,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:d22fa2d126d8e4db585e9db0f3fb2fb4e0bf601b',
+  'gn_version': 'git_revision:335219e2893b5a3b30ec8ce27d48ec762c7de1d5',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7344e69ded7ed29ef7134b9d4f54763245a43466',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '166f3230f69fdb95cf3da587e6ee143c2c03c971',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '95ed44cf5f06dbb5861030b91c9db9ccb4316762',
   'buildtools/linux64': {
@@ -212,7 +212,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f7a1fb2d8f3d155f6d52e95fa486bf91a9ebca81',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a41fdb3aa561b3ae158e35ecbf44f4a14ff1e934',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd819b798b712d4064ad12b7bd9257acf78e34cb0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8e07900125ba28f056008bded80053b297837aab',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -482,7 +482,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '86b5fd79d4b80995610e5e6eb822ae1243e52384',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '69bb79a132d32d67b6f6820226b02e50f1945202',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
@@ -492,31 +492,31 @@ deps = {
     'bucket': 'chromium-browser-clang',
     'objects': [
       {
-        'object_name': 'Linux_x64/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-2-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
-        'sha256sum': '71ea8d8f981d1093ac30e884aefca789962a2eb6e0c31dcddc6fdc83a33c5bd6',
-        'size_bytes': 270756972,
-        'generation': 1772730062708394,
+        'object_name': 'Linux_x64/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-7-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
+        'sha256sum': 'afbb00d27b8f9f65e6a754fb21e80dff084993285cf7f3c0020dece59c5bd67a',
+        'size_bytes': 271641712,
+        'generation': 1773769777991797,
         'condition': 'host_os == "linux"',
       },
       {
-        'object_name': 'Mac/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-2-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
-        'sha256sum': '434ada87593ad29df8eb6bb266d37edcdc7380d1bafbf907f7d39c22d5739084',
-        'size_bytes': 258367196,
-        'generation': 1772730064822309,
+        'object_name': 'Mac/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-7-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
+        'sha256sum': '70b86e82f1cb55777d40b5828ddcb80afea49510085290424b61251d22e9f959',
+        'size_bytes': 259443552,
+        'generation': 1773769780408342,
         'condition': 'host_os == "mac" and host_cpu == "x64"',
       },
       {
-        'object_name': 'Mac_arm64/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-2-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
-        'sha256sum': 'c8e89b991e325f8bfd64fc7a04cfa0eb0b7a953af01fc0a23f0a4b1c1dc34280',
-        'size_bytes': 241717196,
-        'generation': 1772730066996695,
+        'object_name': 'Mac_arm64/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-7-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
+        'sha256sum': 'e2e19684f31b653ce9238f6303aec22576085528c294757a7157d4ab5e1926dc',
+        'size_bytes': 242768940,
+        'generation': 1773769782590875,
         'condition': 'host_os == "mac" and host_cpu == "arm64"',
       },
       {
-        'object_name': 'Win/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-2-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
-        'sha256sum': '2a2463ffc005f0c98be420203bd5a0d5b54b1b6669bb2a9d491cfcab2338f851',
-        'size_bytes': 409485148,
-        'generation': 1772730069048739,
+        'object_name': 'Win/rust-toolchain-6f54d591c3116ee7f8ce9321ddeca286810cc142-7-llvmorg-23-init-5669-g8a0be0bc.tar.xz',
+        'sha256sum': '37dd250549fed5a9765c3a88e3487409189e0c9c63b691fc77daa0b5f214bced',
+        'size_bytes': 409536908,
+        'generation': 1773769784773096,
         'condition': 'host_os == "win"',
       },
     ],
