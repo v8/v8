@@ -7156,6 +7156,9 @@ class DeleteNative {
   }
 };
 
+// The test only runs on 64-bit, because it simulates allocating ~9Gb
+// external memory.
+#if defined(V8_TARGET_ARCH_64_BIT)
 TEST(Regress8014) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Heap* heap = isolate->heap();
@@ -7173,6 +7176,7 @@ TEST(Regress8014) {
   // The bad case triggers 10000 GCs.
   CHECK_LE(heap->ms_count(), ms_count + 10);
 }
+#endif
 
 TEST(Regress8617) {
   if (!v8_flags.incremental_marking) return;

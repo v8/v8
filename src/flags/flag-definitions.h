@@ -2615,10 +2615,10 @@ DEFINE_NEG_IMPLICATION(
     enable_allocation_failures_optimize_memory,
     enable_allocation_failures_optimize_memory_ignoring_priority)
 DEFINE_BOOL(
-    external_memory_accounted_in_global_limit, false,
+    external_memory_accounted_in_global_limit, true,
     "External memory limits are computed as part of global limits in v8 Heap.")
 DEFINE_FLOAT(
-    external_memory_max_growing_factor, 1.3,
+    external_memory_max_growing_factor, 1.1,
     "When external memory limits are computed as poart of the global limits,"
     "this is the upper bound for growing factor imposed on external memory.")
 DEFINE_INT(external_memory_max_reasonable_size, 32,
