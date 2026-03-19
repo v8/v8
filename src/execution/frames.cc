@@ -3171,9 +3171,22 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
       // Get the correct receiver in the optimized frame.
       static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
+      // Check GetRawValue() against arguments_marker() first to see whether
+      // calling GetValue() allocates.
       Tagged<Object> receiver_obj = translated_values->GetRawValue();
-      CHECK_NE(receiver_obj, ReadOnlyRoots(isolate()).arguments_marker());
-      DirectHandle<Object> receiver = direct_handle(receiver_obj, isolate());
+      DirectHandle<Object> receiver;
+      if (receiver_obj == ReadOnlyRoots(isolate()).arguments_marker() &&
+          never_allocate) {
+        // Calling GetValue() would definitely trigger allocation but with
+        // `never_allocate` allocations are not allowed. Simply pick `undefined`
+        // as receiver instead even though it is off. `never_allocate` is
+        // currently only used for OOM stacks, where we don't even emit the
+        // receiver but want to see as many stack frames as possible.
+        receiver = isolate()->factory()->undefined_value();
+      } else {
+        receiver = translated_values->GetValue();
+      }
+
       translated_values++;
 
       // Determine the underlying code object and the position within it from
