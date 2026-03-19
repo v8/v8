@@ -978,6 +978,11 @@ int32_t suspender_has_js_frames(Isolate* isolate) {
   wasm::StackMemory* from_stack = isolate->isolate_data()->active_stack();
   Tagged<WasmSuspenderObject> suspender =
       isolate->isolate_data()->active_suspender();
+  if (!suspender->has_parent()) {
+    // This is the sentinel suspender. It only exists to represent the parent of
+    // the first actual suspender, but it is not suspendable.
+    return true;
+  }
   Tagged<WasmSuspenderObject> parent = suspender->parent();
   wasm::StackMemory* to_stack = parent->stack();
   for (wasm::StackMemory* stack = from_stack; stack != to_stack;
