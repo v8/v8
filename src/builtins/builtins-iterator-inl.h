@@ -431,7 +431,7 @@ MaybeDirectHandle<Object> IterableForEach(
               IteratorClose(isolate, iterator);
               return MaybeDirectHandle<Object>();
             }
-            auto num = isolate->factory()->NewNumberFromUint(len);
+            auto num = isolate->factory()->NewNumberFromUint(kMaxUInt32);
             array_iterator->set_next_index(*num);
             return isolate->root_handle(RootIndex::kUndefinedValue);
           }
@@ -468,8 +468,8 @@ MaybeDirectHandle<Object> IterableForEach(
           IteratorClose(isolate, iterator);
           return MaybeDirectHandle<Object>();
         }
-        auto num = isolate->factory()->NewNumberFromUint(capacity);
-        set_iterator->set_index(*num);
+        set_iterator->set_table(
+            ReadOnlyRoots(isolate).empty_ordered_hash_set());
         return isolate->root_handle(RootIndex::kUndefinedValue);
       }
     }
