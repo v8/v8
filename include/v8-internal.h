@@ -248,18 +248,6 @@ constexpr size_t kSandboxAlignment = kPtrComprCageBaseAlignment;
 // constant specifies the shift amount.
 constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
-// Size of the guard regions surrounding the sandbox. This assumes a worst-case
-// scenario of a 32-bit unsigned index used to access an array of 64-bit values
-// with an additional 4GB (compressed pointer) offset. In particular, accesses
-// to TypedArrays are effectively computed as
-// `entry_pointer = array->base + array->offset + index * array->element_size`.
-// See also https://crbug.com/40070746 for more details.
-constexpr size_t kSandboxGuardRegionSize = 32ULL * GB + 4ULL * GB;
-
-static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
-              "The size of the guard regions around the sandbox must be a "
-              "multiple of its required alignment.");
-
 // On OSes where reserving virtual memory is too expensive to reserve the
 // entire address space backing the sandbox, notably Windows pre 8.1, we create
 // a partially reserved sandbox that doesn't actually reserve most of the
@@ -281,15 +269,28 @@ static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
 // able to construct a buffer that appears larger than the guard regions and
 // thereby "reach out of" the sandbox.
 constexpr size_t kMaxSafeBufferSizeForSandbox = 32ULL * GB - 1;
-static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
-              "The maximum allowed buffer size must not be larger than the "
-              "sandbox's guard regions");
 
 constexpr size_t kBoundedSizeShift = 29;
 static_assert(1ULL << (64 - kBoundedSizeShift) ==
                   kMaxSafeBufferSizeForSandbox + 1,
               "The maximum size of a BoundedSize must be synchronized with the "
               "kMaxSafeBufferSizeForSandbox");
+
+// Size of the guard regions surrounding the sandbox. This assumes a worst-case
+// scenario of a 32-bit unsigned index used to access an array of 64-bit values
+// with an additional 32GB (bounded size) offset. In particular, accesses to
+// TypedArrays are effectively computed as
+// `entry_pointer = array->base + array->offset + index * array->element_size`.
+// See also https://crbug.com/40070746 for more details.
+constexpr size_t kSandboxGuardRegionSize =
+    32ULL * GB + (kMaxSafeBufferSizeForSandbox + 1);
+
+static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
+              "The size of the guard regions around the sandbox must be a "
+              "multiple of its required alignment.");
+static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
+              "The maximum allowed buffer size must not be larger than the "
+              "sandbox's guard regions");
 
 #endif  // V8_ENABLE_SANDBOX
 

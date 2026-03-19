@@ -213,8 +213,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   const size_t kAdditionalTrailingGuardRegionSize = 0;
 #else
   // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
-  // size) + 4GB (additional offset for TypedArray access).
-  const size_t kTotalTrailingGuardRegionSize = 260ULL * GB;
+  // size) + 32GB (additional bounded size offset for TypedArray access).
+  const size_t kTotalTrailingGuardRegionSize = 288ULL * GB;
   const size_t kAdditionalTrailingGuardRegionSize =
       kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
 #endif
