@@ -1780,6 +1780,19 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       // the thread info below instead.
       continue;
     }
+    if (!stack->has_frames() && stack->jmpbuf()->pc != kNullAddress) {
+      // This is a WasmFX stack that has been reserved for a new continuation
+      // but hasn't been started yet. It does not contain any frames yet, but
+      // the jump buffer PC points to the stack entry wrapper, so we must keep
+      // the wrapper alive.
+      WasmCode* stack_entry_wrapper =
+          wasm::GetWasmCodeManager()->LookupCode(isolate, stack->jmpbuf()->pc);
+      DCHECK_NOT_NULL(stack_entry_wrapper);
+      DCHECK_EQ(stack_entry_wrapper->kind(),
+                WasmCode::Kind::kWasmStackEntryWrapper);
+      live_wasm_code.insert(stack_entry_wrapper);
+      continue;
+    }
     for (StackFrameIterator it(isolate, stack.get()); !it.done();
          it.Advance()) {
       StackFrame* const frame = it.frame();

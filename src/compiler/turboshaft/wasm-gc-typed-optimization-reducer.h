@@ -203,8 +203,9 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    if (type.is_string_view()) {
-      // String views aren't castable.
+    if (type.is_string_view() ||
+        (type.is_ref() && type.ref_type_kind() == wasm::RefTypeKind::kCont)) {
+      // String views and continuation types aren't castable.
       return;
     }
 
