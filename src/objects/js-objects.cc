@@ -2563,6 +2563,9 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSGlobalObject::kHeaderSize;
     case JS_BOUND_FUNCTION_TYPE:
       return JSBoundFunction::kHeaderSize;
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
+      DCHECK(!function_has_prototype_slot);
+      return JSFunctionWithoutPrototype::kHeaderSize;
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -2572,7 +2575,8 @@ int JSObject::GetHeaderSize(InstanceType type,
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-      return JSFunction::GetHeaderSize(function_has_prototype_slot);
+      DCHECK(function_has_prototype_slot);
+      return JSFunctionWithPrototype::kHeaderSize;
     case JS_PRIMITIVE_WRAPPER_TYPE:
       return JSPrimitiveWrapper::kHeaderSize;
     case JS_DATE_TYPE:
@@ -2950,6 +2954,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
     case JS_CLASS_CONSTRUCTOR_TYPE:
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE: {
       Tagged<JSFunction> function = Cast<JSFunction>(*this);
       std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();

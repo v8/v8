@@ -1830,8 +1830,7 @@ TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
       Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   // Initial map for the builtin Array functions should be Map.
-  CSA_DCHECK(this, IsMap(CAST(LoadObjectField(
-                       target, JSFunction::kPrototypeOrInitialMapOffset))));
+  CSA_DCHECK(this, IsMap(LoadJSFunctionPrototypeOrInitialMap(target)));
 
   // We should either have undefined or a valid AllocationSite
   CSA_DCHECK(this, Word32Or(IsUndefined(maybe_allocation_site),

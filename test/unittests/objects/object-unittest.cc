@@ -716,7 +716,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
 
       default:
         // All the other functions must have the default instance type.
-        CHECK_EQ(instance_type, JS_FUNCTION_TYPE);
+        CHECK(InstanceTypeChecker::IsJSFunction(instance_type));
         break;
     }
   }

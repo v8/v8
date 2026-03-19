@@ -10,7 +10,6 @@
 
 #include <optional>
 
-
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
@@ -360,13 +359,23 @@ Tagged<NativeContext> JSFunction::native_context() {
   return context()->native_context();
 }
 
-RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map,
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(JSFunctionWithPrototype,
+                                  prototype_or_initial_map,
                                   (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
                                   kPrototypeOrInitialMapOffset,
                                   map()->has_prototype_slot())
 
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(
+    JSFunction, prototype_or_initial_map,
+    (Tagged<UnionOf<JSPrototype, Map, TheHole>>),
+    JSFunctionWithPrototype::kPrototypeOrInitialMapOffset, has_prototype_slot())
+
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
-  return map(cage_base)->has_prototype_slot();
+  // It's slightly cheaper to check for JSFunctionWithoutPrototype because
+  // there's only one such instance type.
+  bool result = !IsJSFunctionWithoutPrototypeMap(*map(cage_base));
+  DCHECK_EQ(result, map(cage_base)->has_prototype_slot());
+  return result;
 }
 
 DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {

@@ -982,8 +982,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> boolean_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::BOOLEAN_FUNCTION_INDEX));
-    TNode<Map> boolean_initial_map = LoadObjectField<Map>(
-        boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> boolean_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(boolean_constructor));
     TNode<JSPrototype> boolean_prototype =
         LoadMapPrototype(boolean_initial_map);
     var_default = BooleanToStringConstant();
@@ -1015,8 +1015,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> number_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::NUMBER_FUNCTION_INDEX));
-    TNode<Map> number_initial_map = LoadObjectField<Map>(
-        number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> number_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(number_constructor));
     TNode<JSPrototype> number_prototype = LoadMapPrototype(number_initial_map);
     var_default = NumberToStringConstant();
     var_holder = number_prototype;
@@ -1059,8 +1059,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> string_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::STRING_FUNCTION_INDEX));
-    TNode<Map> string_initial_map = LoadObjectField<Map>(
-        string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> string_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(string_constructor));
     TNode<JSPrototype> string_prototype = LoadMapPrototype(string_initial_map);
     var_default = StringToStringConstant();
     var_holder = string_prototype;
@@ -1073,8 +1073,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> symbol_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::SYMBOL_FUNCTION_INDEX));
-    TNode<Map> symbol_initial_map = LoadObjectField<Map>(
-        symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> symbol_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(symbol_constructor));
     TNode<JSPrototype> symbol_prototype = LoadMapPrototype(symbol_initial_map);
     var_default = ObjectToStringConstant();
     var_holder = symbol_prototype;
@@ -1087,8 +1087,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> bigint_constructor = CAST(LoadContextElementNoCell(
         native_context, Context::BIGINT_FUNCTION_INDEX));
-    TNode<Map> bigint_initial_map = LoadObjectField<Map>(
-        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    TNode<Map> bigint_initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(bigint_constructor));
     TNode<JSPrototype> bigint_prototype = LoadMapPrototype(bigint_initial_map);
     var_default = ObjectToStringConstant();
     var_holder = bigint_prototype;
@@ -1407,8 +1407,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   GotoIfForceSlowPath(&runtime);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
   TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
-      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
-          closure, JSFunction::kPrototypeOrInitialMapOffset);
+      LoadJSFunctionPrototypeOrInitialMap(closure);
   GotoIfNot(IsMap(maybe_map), &runtime);
   TNode<Map> map = CAST(maybe_map);
 
@@ -1459,7 +1458,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Goto(&done);
 
   BIND(&done);
-  { Return(result); }
+  {
+    Return(result);
+  }
 
   BIND(&runtime);
   {

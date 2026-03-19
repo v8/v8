@@ -4557,8 +4557,15 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   // TODO(syg): Does sloppy/strict function map distinction need to exist
   // anymore after V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS is removed?
   bool has_prototype = IsFunctionModeWithPrototype(function_mode);
-  int header_size = has_prototype ? JSFunction::kSizeWithPrototype
-                                  : JSFunction::kSizeWithoutPrototype;
+  InstanceType instance_type;
+  int header_size;
+  if (has_prototype) {
+    instance_type = JS_FUNCTION_TYPE;
+    header_size = JSFunctionWithPrototype::kHeaderSize;
+  } else {
+    instance_type = JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE;
+    header_size = JSFunctionWithoutPrototype::kHeaderSize;
+  }
   int descriptors_count = has_prototype ? 3 : 2;
 #ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
   descriptors_count += 2;
@@ -4567,7 +4574,7 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   if (IsFunctionModeWithName(function_mode)) ++inobject_properties_count;
 
   DirectHandle<Map> map = NewContextfulMapForCurrentContext(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
+      instance_type, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   {
     DisallowGarbageCollection no_gc;
@@ -4656,8 +4663,15 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
 DirectHandle<Map> Factory::CreateStrictFunctionMap(
     FunctionMode function_mode, DirectHandle<JSFunction> empty_function) {
   bool has_prototype = IsFunctionModeWithPrototype(function_mode);
-  int header_size = has_prototype ? JSFunction::kSizeWithPrototype
-                                  : JSFunction::kSizeWithoutPrototype;
+  InstanceType instance_type;
+  int header_size;
+  if (has_prototype) {
+    instance_type = JS_FUNCTION_TYPE;
+    header_size = JSFunctionWithPrototype::kHeaderSize;
+  } else {
+    instance_type = JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE;
+    header_size = JSFunctionWithoutPrototype::kHeaderSize;
+  }
   int inobject_properties_count = 0;
   // length and prototype accessors or just length accessor.
   int descriptors_count = IsFunctionModeWithPrototype(function_mode) ? 2 : 1;
@@ -4669,7 +4683,7 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
   descriptors_count += inobject_properties_count;
 
   DirectHandle<Map> map = NewContextfulMapForCurrentContext(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kTaggedSize,
+      instance_type, header_size + inobject_properties_count * kTaggedSize,
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   {
     DisallowGarbageCollection no_gc;
@@ -4737,7 +4751,7 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
 DirectHandle<Map> Factory::CreateClassFunctionMap(
     DirectHandle<JSFunction> empty_function) {
   DirectHandle<Map> map = NewContextfulMapForCurrentContext(
-      JS_CLASS_CONSTRUCTOR_TYPE, JSFunction::kSizeWithPrototype);
+      JS_CLASS_CONSTRUCTOR_TYPE, JSFunctionWithPrototype::kMinSize);
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
@@ -5172,15 +5186,19 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       }
     }
 
+    int header_size;
     if (function->has_prototype_slot()) {
+      header_size = JSFunctionWithPrototype::kHeaderSize;
       function->set_prototype_or_initial_map(
           ReadOnlyRoots(isolate).the_hole_value(), kReleaseStore,
           SKIP_WRITE_BARRIER);
+    } else {
+      header_size = JSFunctionWithoutPrototype::kHeaderSize;
     }
+    DCHECK_EQ(JSObject::GetHeaderSize(*map), header_size);
 
     // Potentially body initialization.
-    factory->InitializeJSObjectBody(
-        function, *map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
+    factory->InitializeJSObjectBody(function, *map, header_size);
 
     function_handle = handle(function, isolate_);
   }

@@ -1418,8 +1418,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
-                8 * kTaggedSize);
+  static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
+  static_assert(JSFunctionWithPrototype::kHeaderSize == 8 * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
@@ -1476,7 +1476,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {
-    VerifyObjectField(isolate, kPrototypeOrInitialMapOffset);
+    VerifyObjectField(isolate,
+                      JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
   }
 
   if (has_prototype_property()) {

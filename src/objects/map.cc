@@ -205,6 +205,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_EXTERNAL_OBJECT_TYPE:
       return kVisitJSExternalObject;
 
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:

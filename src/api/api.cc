@@ -6836,8 +6836,9 @@ bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
     case i::JS_GLOBAL_OBJECT_TYPE:
     case i::JS_GLOBAL_PROXY_TYPE:
     case i::JS_PRIMITIVE_WRAPPER_TYPE:
-    case i::JS_FUNCTION_TYPE:
     /* Function types */
+    case i::JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
+    case i::JS_FUNCTION_TYPE:
     case i::BIGINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::BIGUINT64_TYPED_ARRAY_CONSTRUCTOR_TYPE:
     case i::FLOAT16_TYPED_ARRAY_CONSTRUCTOR_TYPE:

@@ -254,11 +254,14 @@ FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
-  FieldAccess access = {
-      kTaggedBase,          JSFunction::kPrototypeOrInitialMapOffset,
-      MaybeHandle<Name>(),  OptionalMapRef(),
-      Type::Any(),          MachineType::TaggedPointer(),
-      kPointerWriteBarrier, "JSFunctionPrototypeOrInitialMap"};
+  FieldAccess access = {kTaggedBase,
+                        JSFunctionWithPrototype::kPrototypeOrInitialMapOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::Any(),
+                        MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,
+                        "JSFunctionPrototypeOrInitialMap"};
   return access;
 }
 

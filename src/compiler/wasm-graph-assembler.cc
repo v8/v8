@@ -647,4 +647,18 @@ Node* WasmGraphAssembler::HasInstanceType(Node* heap_object,
   return Word32Equal(instance_type, Int32Constant(type));
 }
 
+Node* WasmGraphAssembler::HasInstanceTypeInRange(Node* heap_object,
+                                                 InstanceType lower_limit,
+                                                 InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+  Node* map = LoadMap(heap_object);
+  Node* instance_type = LoadInstanceType(map);
+  if (lower_limit == 0) {
+    return Uint32LessThanOrEqual(instance_type, Int32Constant(higher_limit));
+  }
+  return Uint32LessThanOrEqual(
+      Int32Sub(instance_type, Int32Constant(lower_limit)),
+      Int32Constant(higher_limit - lower_limit));
+}
+
 }  // namespace v8::internal::compiler

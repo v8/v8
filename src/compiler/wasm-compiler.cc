@@ -231,7 +231,8 @@ void WasmGraphBuilder::Start(unsigned params) {
     case kJSFunctionAbiMode: {
       Node* param = Param(Linkage::kJSCallClosureParamIndex, "%closure");
       if (v8_flags.debug_code) {
-        Assert(gasm_->HasInstanceType(param, JS_FUNCTION_TYPE),
+        Assert(gasm_->HasInstanceTypeInRange(param, FIRST_JS_FUNCTION_TYPE,
+                                             LAST_JS_FUNCTION_TYPE),
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadExportedFunctionInstanceData(

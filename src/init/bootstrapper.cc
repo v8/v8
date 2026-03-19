@@ -483,7 +483,7 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
       type, instance_size, elements_kind, inobject_properties);
   initial_map->SetConstructor(*result);
   if (type == JS_FUNCTION_TYPE) {
-    DCHECK_EQ(instance_size, JSFunction::kSizeWithPrototype);
+    DCHECK_EQ(instance_size, JSFunctionWithPrototype::kMinSize);
     // Since we are creating an initial map for JSFunction objects with
     // prototype slot, set the respective bit.
     initial_map->set_has_prototype_slot(true);
@@ -578,7 +578,7 @@ V8_NOINLINE DirectHandle<JSFunction> InstallFunction(
 V8_NOINLINE void SetConstructorInstanceType(
     Isolate* isolate, DirectHandle<JSFunction> constructor,
     InstanceType constructor_type) {
-  DCHECK(InstanceTypeChecker::IsJSFunction(constructor_type));
+  DCHECK(InstanceTypeChecker::IsJSFunctionWithPrototype(constructor_type));
   DCHECK_NE(constructor_type, JS_FUNCTION_TYPE);
 
   Tagged<Map> map = constructor->map();
@@ -978,9 +978,13 @@ DirectHandle<Map> CreateNonConstructorMap(Isolate* isolate,
   DirectHandle<Map> map = Map::Copy(isolate, source_map, reason);
   // Ensure the resulting map has prototype slot (it is necessary for storing
   // initial map even when the prototype property is not required).
+  DCHECK(map->instance_type() == JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE ||
+         map->instance_type() == JS_FUNCTION_TYPE);
+  DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(*map), !map->has_prototype_slot());
   if (!map->has_prototype_slot()) {
     // Re-set the unused property fields after changing the instance size.
     int unused_property_fields = map->UnusedPropertyFields();
+    map->set_instance_type(JS_FUNCTION_TYPE);
     map->set_instance_size(map->instance_size() + kTaggedSize);
     // The prototype slot shifts the in-object properties area by one slot.
     map->SetInObjectPropertiesStartInWords(
@@ -2280,7 +2284,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     DirectHandle<JSFunction> prototype = empty_function;
     DirectHandle<JSFunction> function_fun =
         InstallFunction(isolate_, global, "Function", JS_FUNCTION_TYPE,
-                        JSFunction::kSizeWithPrototype, 0, prototype,
+                        JSFunctionWithPrototype::kMinSize, 0, prototype,
                         Builtin::kFunctionConstructor, 1, kDontAdapt);
     // Function instances are sloppy by default.
     function_fun->set_prototype_or_initial_map(*isolate_->sloppy_function_map(),
@@ -5219,7 +5223,7 @@ void Genesis::InitializeIteratorFunctions() {
         iter.GetCurrent<JSObject>(), isolate);
     DirectHandle<JSFunction> generator_function_function = CreateFunction(
         isolate, "GeneratorFunction", JS_FUNCTION_TYPE,
-        JSFunction::kSizeWithPrototype, 0, generator_function_prototype,
+        JSFunctionWithPrototype::kMinSize, 0, generator_function_prototype,
         Builtin::kGeneratorFunctionConstructor, 1, kDontAdapt);
     generator_function_function->set_prototype_or_initial_map(
         native_context->generator_function_map(), kReleaseStore);
@@ -5248,7 +5252,8 @@ void Genesis::InitializeIteratorFunctions() {
 
     DirectHandle<JSFunction> async_generator_function_function = CreateFunction(
         isolate, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
-        JSFunction::kSizeWithPrototype, 0, async_generator_function_prototype,
+        JSFunctionWithPrototype::kMinSize, 0,
+        async_generator_function_prototype,
         Builtin::kAsyncGeneratorFunctionConstructor, 1, kDontAdapt);
     async_generator_function_function->set_prototype_or_initial_map(
         native_context->async_generator_function_map(), kReleaseStore);
@@ -5351,7 +5356,7 @@ void Genesis::InitializeIteratorFunctions() {
 
     DirectHandle<JSFunction> async_function_constructor = CreateFunction(
         isolate, "AsyncFunction", JS_FUNCTION_TYPE,
-        JSFunction::kSizeWithPrototype, 0, async_function_prototype,
+        JSFunctionWithPrototype::kMinSize, 0, async_function_prototype,
         Builtin::kAsyncFunctionConstructor, 1, kDontAdapt);
     async_function_constructor->set_prototype_or_initial_map(
         native_context->async_function_map(), kReleaseStore);

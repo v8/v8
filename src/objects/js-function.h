@@ -92,6 +92,9 @@ class JSWrappedFunction
 enum class BudgetModification { kReduce, kRaise, kReset };
 
 // JSFunction describes JavaScript functions.
+// This abstract class represents JS function objects with and without
+// prototype. Respective subclass defines the layout of the object in memory
+// but all the JSFunction related logic lives in this class.
 class JSFunction : public TorqueGeneratedJSFunction<
                        JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
@@ -389,11 +392,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled(IsolateForSandbox isolate) const;
 
-  static int GetHeaderSize(bool function_has_prototype_slot) {
-    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
-                                       : JSFunction::kSizeWithoutPrototype;
-  }
-
   std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
 
@@ -444,12 +442,13 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // info.
   CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
- private:
-  // JSFunction doesn't have a fixed header size:
+ protected:
+  // JSFunction doesn't have a fixed header size, one should use either
+  // JSFunctionWithoutPrototype or JSFunctionWithPrototype instead.
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
-  static const int kHeaderSize;
+  using TorqueGeneratedClass::kHeaderSize;
 
-
+ private:
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
 
@@ -476,11 +475,33 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // kind if this becomes more convenient in the future.
   CodeKinds GetAttachedCodeKinds(IsolateForSandbox isolate) const;
 
- public:
-  static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = TorqueGeneratedClass::kHeaderSize;
-
   TQ_OBJECT_CONSTRUCTORS(JSFunction)
+};
+
+// Defines layout of JavaScript functions without prototype.
+class JSFunctionWithoutPrototype
+    : public TorqueGeneratedJSFunctionWithoutPrototype<
+          JSFunctionWithoutPrototype, JSFunction> {
+ public:
+  // Defines the size of the object without internal fields.
+  static constexpr int kMinSize = TorqueGeneratedClass::kHeaderSize;
+
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionWithoutPrototype)
+};
+
+// Defines layout of JavaScript functions with prototype.
+class JSFunctionWithPrototype
+    : public TorqueGeneratedJSFunctionWithPrototype<JSFunctionWithPrototype,
+                                                    JSFunction> {
+ public:
+  // Defines the size of the object without internal fields.
+  static constexpr int kMinSize = TorqueGeneratedClass::kHeaderSize;
+
+  // [prototype_or_initial_map]:
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
+                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
+
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionWithPrototype)
 };
 
 }  // namespace v8::internal

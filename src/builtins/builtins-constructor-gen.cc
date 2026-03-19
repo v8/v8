@@ -266,7 +266,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
-                                        JSFunction::kSizeWithoutPrototype);
+                                        JSFunctionWithoutPrototype::kMinSize);
 
   // Initialize the rest of the function.
   StoreObjectFieldRoot(result, JSObject::kPropertiesOrHashOffset,
@@ -280,13 +280,14 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
            &done);
 
     BIND(&init_prototype);
-    StoreObjectFieldRoot(result, JSFunction::kPrototypeOrInitialMapOffset,
+    StoreObjectFieldRoot(result,
+                         JSFunctionWithPrototype::kPrototypeOrInitialMapOffset,
                          RootIndex::kTheHoleValue);
     Goto(&done);
     BIND(&done);
   }
 
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunctionWithoutPrototype::kMinSize == 7 * kTaggedSize);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
                                  feedback_cell);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -492,8 +493,8 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     // Initialize Object fields.
     TNode<JSFunction> regexp_function = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
-    TNode<Map> initial_map = CAST(LoadObjectField(
-        regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Map> initial_map =
+        CAST(LoadJSFunctionPrototypeOrInitialMap(regexp_function));
     StoreMapNoWriteBarrier(new_object, initial_map);
     // Initialize JSReceiver fields.
     StoreObjectFieldRoot(new_object, JSReceiver::kPropertiesOrHashOffset,

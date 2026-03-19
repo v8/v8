@@ -1569,14 +1569,15 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
           js_fun->prototype_or_initial_map(kAcquireLoad);
       if (!IsTheHole(proto_or_map)) {
         if (!IsMap(proto_or_map)) {
-          SetPropertyReference(entry, roots.prototype_string(), proto_or_map,
-                               nullptr,
-                               JSFunction::kPrototypeOrInitialMapOffset);
+          SetPropertyReference(
+              entry, roots.prototype_string(), proto_or_map, nullptr,
+              JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(entry, roots.prototype_string(),
                                js_fun->prototype());
-          SetInternalReference(entry, "initial_map", proto_or_map,
-                               JSFunction::kPrototypeOrInitialMapOffset);
+          SetInternalReference(
+              entry, "initial_map", proto_or_map,
+              JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
         }
       }
     }

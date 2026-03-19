@@ -88,7 +88,7 @@ operator '.source' macro RegExpSource(regexp: JSRegExp): String {
 }
 
 @doNotGenerateCast
-extern class JSRegExpConstructor extends JSFunction
+extern class JSRegExpConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 
 extern shape JSRegExpResult extends JSArray {

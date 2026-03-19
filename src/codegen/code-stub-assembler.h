@@ -222,6 +222,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<JSFunction> HeapObjectToJSFunctionWithPrototypeSlot(
       TNode<HeapObject> heap_object, Label* fail) {
+    // TODO(http://crbug.com/492211940): remove IsJSFunctionWithPrototypeSlot
+    // machinery in favor of instance type check.
+    CSA_DCHECK(this, Word32Equal(IsJSFunctionWithPrototype(heap_object),
+                                 IsJSFunctionWithPrototypeSlot(heap_object)));
     GotoIfNot(IsJSFunctionWithPrototypeSlot(heap_object), fail);
     return CAST(heap_object);
   }
@@ -1752,9 +1756,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* if_true, Label* if_false);
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
                                             TNode<Map> map, Label* runtime);
+
+  TNode<Union<JSReceiver, Map, TheHole>> LoadJSFunctionPrototypeOrInitialMap(
+      TNode<JSFunction> function);
+  void StoreJSFunctionPrototypeOrInitialMap(
+      TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value);
+
   // Load the "prototype" property of a JSFunction.
-  TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
-                                            Label* if_bailout);
+  TNode<JSPrototype> LoadJSFunctionPrototype(TNode<JSFunction> function,
+                                             Label* if_bailout);
 
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
@@ -2896,11 +2906,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayIterator(TNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsFunctionInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionWithoutPrototypeInstanceType(
+      TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSFunctionWithPrototypeInstanceType(
+      TNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionInstanceType(TNode<Int32T> instance_type);
 #if V8_ENABLE_WEBASSEMBLY
   TNode<BoolT> IsWasmObjectInstanceType(TNode<Int32T> instance_type);
 #endif
+  TNode<BoolT> IsJSFunctionWithoutPrototypeMap(TNode<Map> map);
+  TNode<BoolT> IsJSFunctionWithPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
+  TNode<BoolT> IsJSFunctionWithoutPrototype(TNode<HeapObject> object);
+  TNode<BoolT> IsJSFunctionWithPrototype(TNode<HeapObject> object);
   TNode<BoolT> IsJSFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(TNode<HeapObject> object);

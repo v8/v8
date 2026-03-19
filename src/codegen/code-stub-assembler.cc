@@ -3828,6 +3828,7 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
       static_cast<uint32_t>(FunctionKind::kConciseGeneratorMethod));
 }
 
+// TODO(http://crbug.com/492211940): remove this machinery.
 TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(
     TNode<HeapObject> object) {
   // Only JSFunction maps may have HasPrototypeSlotBit set.
@@ -3858,14 +3859,30 @@ void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
          runtime);
 }
 
-TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
+TNode<Union<JSReceiver, Map, TheHole>>
+CodeStubAssembler::LoadJSFunctionPrototypeOrInitialMap(
+    TNode<JSFunction> function) {
+  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
+  TNode<UnionOf<JSReceiver, Map, TheHole>> proto_or_map_or_hole =
+      CAST(LoadObjectField(
+          function, JSFunctionWithPrototype::kPrototypeOrInitialMapOffset));
+  return proto_or_map_or_hole;
+}
+
+void CodeStubAssembler::StoreJSFunctionPrototypeOrInitialMap(
+    TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value) {
+  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
+  StoreObjectField(
+      function, JSFunctionWithPrototype::kPrototypeOrInitialMapOffset, value);
+}
+
+TNode<JSPrototype> CodeStubAssembler::LoadJSFunctionPrototype(
     TNode<JSFunction> function, Label* if_bailout) {
   CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
   CSA_DCHECK(this, IsClearWord32<Map::Bits1::HasNonInstancePrototypeBit>(
                        LoadMapBitField(LoadMap(function))));
   TNode<UnionOf<JSPrototype, Map, TheHole>> proto_or_map_or_hole =
-      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
-          function, JSFunction::kPrototypeOrInitialMapOffset);
+      LoadJSFunctionPrototypeOrInitialMap(function);
   GotoIf(IsTheHole(proto_or_map_or_hole), if_bailout);
   TNode<UnionOf<JSPrototype, Map>> proto_or_map = CAST(proto_or_map_or_hole);
 
@@ -3877,10 +3894,8 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   Goto(&done);
 
   BIND(&done);
-  return var_result.value();
+  return CAST(var_result.value());
 }
-
-
 
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
     TNode<SharedFunctionInfo> sfi) {
@@ -8935,10 +8950,22 @@ TNode<BoolT> CodeStubAssembler::IsFunctionInstanceType(
                    FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_OR_WRAPPED_FUNCTION_TYPE,
                    LAST_JS_FUNCTION_OR_BOUND_FUNCTION_OR_WRAPPED_FUNCTION_TYPE);
 }
+
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     TNode<Int32T> instance_type) {
   return IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE,
                    LAST_JS_FUNCTION_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithoutPrototypeInstanceType(
+    TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, FIRST_JS_FUNCTION_WITH_PROTOTYPE_TYPE,
+                   LAST_JS_FUNCTION_WITH_PROTOTYPE_TYPE);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -8953,12 +8980,31 @@ TNode<BoolT> CodeStubAssembler::IsJSFunction(TNode<HeapObject> object) {
   return IsJSFunctionMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithoutPrototype(
+    TNode<HeapObject> object) {
+  return IsJSFunctionWithoutPrototypeMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototype(
+    TNode<HeapObject> object) {
+  return IsJSFunctionWithPrototypeMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSBoundFunction(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_BOUND_FUNCTION_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(TNode<Map> map) {
   return IsJSFunctionInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithoutPrototypeMap(
+    TNode<Map> map) {
+  return IsJSFunctionWithoutPrototypeInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeMap(TNode<Map> map) {
+  return IsJSFunctionWithPrototypeInstanceType(LoadMapInstanceType(map));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(
@@ -13225,8 +13271,7 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
 
     // Get the "prototype" (or initial map) of the {callable}.
     TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_callable_prototype =
-        LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
-            callable, JSFunction::kPrototypeOrInitialMapOffset);
+        LoadJSFunctionPrototypeOrInitialMap(CAST(callable));
     // {maybe_callable_prototype} is TheHole if the "prototype" property
     // hasn't been requested so far.
     GotoIf(IsTheHole(maybe_callable_prototype), &return_runtime);
@@ -19227,8 +19272,8 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
       maybe_native_context ? *maybe_native_context : LoadNativeContext(context);
   const TNode<Map> map = CAST(LoadContextElementNoCell(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
-  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  const TNode<HeapObject> fun = Allocate(JSFunctionWithoutPrototype::kMinSize);
+  static_assert(JSFunctionWithoutPrototype::kMinSize == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(fun, map);
   StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

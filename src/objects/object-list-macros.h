@@ -165,6 +165,8 @@ namespace internal {
   V(JSExternalObject)                           \
   V(JSFinalizationRegistry)                     \
   V(JSFunction)                                 \
+  V(JSFunctionWithoutPrototype)                 \
+  V(JSFunctionWithPrototype)                    \
   V(JSFunctionOrBoundFunctionOrWrappedFunction) \
   V(JSGeneratorObject)                          \
   V(JSGlobalObject)                             \

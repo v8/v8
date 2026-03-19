@@ -566,22 +566,20 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
 class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSObject::BodyDescriptor::kStartOffset;
-  static const int kCodeFieldOffset = JSFunction::kDispatchHandleOffset;
+  static const int kDispatchHandleOffset = JSFunction::kDispatchHandleOffset;
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // Iterate JSFunction header fields first.
-    int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
-    DCHECK_GE(object_size, header_size);
-    IteratePointers(obj, kStartOffset, kCodeFieldOffset, v);
+    // Iterate JSFunction header fields up to dispatch handle field.
+    DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(map), !map->has_prototype_slot());
+    IteratePointers(obj, kStartOffset, kDispatchHandleOffset, v);
 
     IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
 
-    // Iterate rest of the header fields
-    IteratePointers(obj, kCodeFieldOffset + kTaggedSize, header_size, v);
-    // Iterate rest of the fields starting after the header.
-    IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
+    // Iterate rest of the header fields and JSObject body.
+    IterateJSObjectBodyImpl(map, obj, kDispatchHandleOffset + kTaggedSize,
+                            object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

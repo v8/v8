@@ -182,6 +182,10 @@ enum InstanceType : uint16_t {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_TWO_BYTE_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
+  // This is a convenience alias to minimize the code churn from splitting
+  // JSFunction into JSFunctionWithoutPrototype and JSFunctionWithPrototype.
+  // Prefer using it instead of JS_FUNCTION_WITH_PROTOTYPE_TYPE.
+  JS_FUNCTION_TYPE = JS_FUNCTION_WITH_PROTOTYPE_TYPE,
   // Callable JS Functions are all JS Functions except class constructors.
   FIRST_CALLABLE_JS_FUNCTION_TYPE = FIRST_JS_FUNCTION_TYPE,
   LAST_CALLABLE_JS_FUNCTION_TYPE = JS_CLASS_CONSTRUCTOR_TYPE - 1,

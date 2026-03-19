@@ -312,6 +312,8 @@ class WasmGraphAssembler : public GraphAssembler {
   // Generic helpers.
 
   Node* HasInstanceType(Node* heap_object, InstanceType type);
+  Node* HasInstanceTypeInRange(Node* heap_object, InstanceType lower_limit,
+                               InstanceType higher_limit);
 
   void TrapIf(Node* condition, TrapId reason) {
     // Initially wasm traps don't have a FrameState.

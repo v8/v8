@@ -918,10 +918,10 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
   GotoIfForceSlowPath(&out);
 
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<HeapObject> regexp_fun = CAST(
+  const TNode<JSFunction> regexp_fun = CAST(
       LoadContextElementNoCell(native_context, Context::REGEXP_FUNCTION_INDEX));
   const TNode<Object> initial_map =
-      LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+      LoadJSFunctionPrototypeOrInitialMap(regexp_fun);
   const TNode<BoolT> has_initialmap = TaggedEqual(map, initial_map);
 
   var_result = has_initialmap;
@@ -960,8 +960,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_fun = CAST(
       LoadContextElementNoCell(native_context, Context::REGEXP_FUNCTION_INDEX));
-  TNode<Map> initial_map = CAST(
-      LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset));
+  TNode<Map> initial_map =
+      CAST(LoadJSFunctionPrototypeOrInitialMap(regexp_fun));
   TNode<BoolT> has_initialmap = TaggedEqual(map, initial_map);
 
   GotoIfNot(has_initialmap, if_ismodified, GotoHint::kFallthrough);
@@ -1407,8 +1407,8 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&allocate_jsregexp);
     {
-      const TNode<Map> initial_map = CAST(LoadObjectField(
-          regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
+      const TNode<Map> initial_map =
+          CAST(LoadJSFunctionPrototypeOrInitialMap(regexp_function));
       var_regexp = CAST(AllocateJSObjectFromMap(initial_map));
       Goto(&next);
     }
