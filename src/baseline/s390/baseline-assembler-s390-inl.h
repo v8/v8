@@ -179,9 +179,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ CompareObjectType(map, type, type, MAP_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
+    __ AssertMap(map);
   }
   __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   JumpIf(cc, type, Operand(instance_type), target);
