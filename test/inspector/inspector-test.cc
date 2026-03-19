@@ -856,7 +856,7 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
 };
 
 int InspectorTestMain(int argc, char* argv[]) {
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  CHECK(v8::V8::InitializeICUDefaultLocation(argv[0]));
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
   v8_flags.abort_on_contradictory_flags = true;
