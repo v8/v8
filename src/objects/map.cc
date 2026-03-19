@@ -2361,7 +2361,7 @@ bool Map::EquivalentToForTransition(
   if (new_instance_type) {
     if (*new_instance_type != other->instance_type()) return false;
   } else {
-    CHECK_EQ(instance_type(), other->instance_type());
+    if (instance_type() != other->instance_type()) return false;
   }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {
