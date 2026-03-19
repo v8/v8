@@ -261,6 +261,54 @@
   'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
 
+  # ISO range should not be checked when converting to milliseconds for formatting
+  # b/489023921
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-non-latin-numerals': [SKIP],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-weekday': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip-weekday': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip-weekday': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip-weekday': [SKIP],
+
+  # DateTimeFormat doesn't like negative years
+  # (These tests also fail due to b/489023921)
+  # b/494305111
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip': [SKIP],
+
+  # DateTimeFormat doesn't respect hourCycle for Temporal
+  # b/468559222
+  'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+
+  # DateTimeFormat should ignore timezone setting when formatting plain dates
+  # b/494308555
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-ignore-timezone': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/ignore-timezone': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/ignore-timezone': [SKIP],
+
+  # Formatting a Plain* object should not break the formatter for Instant
+  # b/494309393
+  'intl402/Temporal/Instant/prototype/toLocaleString/respect-timezone-after-formatting-plaindatetime': [SKIP],
+
+  # Adjusting of dateStyle
+  # b/494309457
+  'intl402/Temporal/Instant/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
+
+  # ICU4X and ICU4C do not implement the same algorithm for Chinese
+  # b/434224293
+  'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
+
   # End Temporal test expectations
 
   # https://github.com/tc39/test262/pull/3988
@@ -1061,39 +1109,8 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/hourcycle': [SKIP],
-  'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
-  'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-ignore-timezone': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-ignore-timezone': [SKIP],
   'intl402/Intl/supportedValuesOf/numberingSystems-with-simple-digit-mappings': [SKIP],
   'intl402/NumberFormat/prototype/format/numbering-systems': [SKIP],
-  'intl402/Temporal/Instant/prototype/toLocaleString/respect-timezone-after-formatting-plaindatetime': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/ignore-timezone': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/ignore-timezone': [SKIP],
-  'intl402/Temporal/PlainMonthDay/from/chinese-leap-month-codes-common': [SKIP],
-  'intl402/Temporal/PlainMonthDay/from/dangi-leap-month-codes-common': [SKIP],
-  'intl402/Temporal/PlainMonthDay/from/islamic-civil-month-codes': [SKIP],
-  'intl402/Temporal/PlainMonthDay/from/islamic-tbla-month-codes': [SKIP],
   'staging/sm/String/string-upper-lower-mapping': [SKIP],
 }],
 # End roll-watcher patch
@@ -1123,68 +1140,11 @@
   'built-ins/Promise/allSettledKeyed/not-a-constructor': [SKIP],
   'built-ins/Promise/allSettledKeyed/prop-desc': [SKIP],
   'built-ins/Promise/allSettledKeyed/proto': [SKIP],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-weekday-long': [SKIP],
   'language/import/import-bytes/bytes-from-empty': [SKIP],
   'language/import/import-bytes/bytes-from-js': [SKIP],
   'language/import/import-bytes/bytes-from-json': [SKIP],
   'language/import/import-bytes/bytes-from-png': [SKIP],
   'language/import/import-bytes/bytes-from-txt': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Temporal/Duration/prototype/round/rounding-increment-relativeto': [SKIP],
-  'built-ins/Temporal/PlainDate/compare/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/from/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/prototype/equals/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/prototype/since/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/prototype/toPlainDateTime/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDate/prototype/until/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/compare/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/from/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/equals/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/since/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/until/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/withPlainTime/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainMonthDay/from/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainMonthDay/from/iso-year-used-only-for-overflow': [SKIP],
-  'built-ins/Temporal/PlainMonthDay/prototype/equals/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainMonthDay/prototype/with/iso-year-used-only-for-overflow': [SKIP],
-  'built-ins/Temporal/PlainTime/compare/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainTime/from/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainTime/prototype/equals/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainTime/prototype/since/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainTime/prototype/until/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/compare/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/from/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/prototype/equals/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/prototype/since/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/prototype/until/argument-string-too-many-decimals': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/argument-string-too-many-decimals': [SKIP],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-non-latin-numerals': [SKIP],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/Temporal/Instant/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/datestyle-not-adjusted-when-no-conflicting-options': [SKIP],
 }],
 # End roll-watcher patch
 ####
