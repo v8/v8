@@ -131,7 +131,8 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {r3, r4,  r5,  r6,  r7, r8,
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12};
 
-constexpr Simd128RegList kLiftoffAssemblerSimd128CacheRegs = {};
+constexpr Simd128RegList kLiftoffAssemblerSimd128CacheRegs = {
+    v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12};
 
 // For the "WasmLiftoffFrameSetup" builtin.
 constexpr Register kLiftoffFrameSetupFunctionReg = r15;

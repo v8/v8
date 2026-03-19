@@ -99,8 +99,8 @@ constexpr Register kGpParamRegisters[] = {r10, r3, r5, r6, r7, r8, r9};
 constexpr Register kGpReturnRegisters[] = {r3, r4};
 constexpr DoubleRegister kFpParamRegisters[] = {d1, d2, d3, d4, d5, d6, d7, d8};
 constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
-constexpr std::array<Simd128Register, 0> kSimd128ParamRegisters{};
-constexpr std::array<Simd128Register, 0> kSimd128ReturnRegisters{};
+constexpr std::array kSimd128ParamRegisters = {v1, v2, v3, v4, v5, v6, v7, v8};
+constexpr std::array kSimd128ReturnRegisters = {v1, v2};
 
 #elif V8_TARGET_ARCH_S390X
 // ===========================================================================
