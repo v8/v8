@@ -989,7 +989,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       BIND(&if_non_masking);
       {
         // The lookup is over, property was not found.
-        exit_point->Return(UndefinedConstant());
+        if (on_nonexistent == OnNonExistent::kThrowReferenceError) {
+          exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError,
+                                        p->context(), p->name());
+        } else {
+          DCHECK_EQ(OnNonExistent::kReturnUndefined, on_nonexistent);
+          exit_point->Return(UndefinedConstant());
+        }
       }
       BIND(&if_masking);
       {
@@ -1041,9 +1047,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
     BIND(&is_the_hole);
     {
-      TNode<Smi> message = SmiConstant(MessageTemplate::kNotDefined);
       exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context(),
-                                    message, p->name());
+                                    p->name());
     }
   }
 
