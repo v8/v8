@@ -921,7 +921,11 @@ class SaturatedUint8 {
  private:
   explicit SaturatedUint8(uint8_t val) : val(val) {}
   uint8_t val = 0;
+#ifdef V8_LOWER_LIMITS_MODE
+  static constexpr uint8_t kMax = 5;
+#else
   static constexpr uint8_t kMax = std::numeric_limits<uint8_t>::max();
+#endif
 };
 
 // underlying_operation<> is used to extract the operation type from OpMaskT
