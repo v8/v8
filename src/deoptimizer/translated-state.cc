@@ -1259,8 +1259,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 }
 
 // static
-void TranslatedFrame::AdvanceIterator(
-    std::deque<TranslatedValue>::iterator* iter) {
+void TranslatedFrame::AdvanceIterator(ValuesContainer::iterator* iter) {
   int values_to_skip = 1;
   while (values_to_skip > 0) {
     // Consume the current element.

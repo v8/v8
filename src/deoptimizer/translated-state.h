@@ -274,6 +274,8 @@ class TranslatedFrame {
     return raw_bytecode_array_;
   }
 
+  using ValuesContainer = base::SmallVector<TranslatedValue, 8>;
+
   class iterator {
    public:
     iterator& operator++() {
@@ -305,11 +307,10 @@ class TranslatedFrame {
    private:
     friend TranslatedFrame;
 
-    explicit iterator(std::deque<TranslatedValue>::iterator position,
-                      int input_index = 0)
+    explicit iterator(ValuesContainer::iterator position, int input_index = 0)
         : position_(position), input_index_(input_index) {}
 
-    std::deque<TranslatedValue>::iterator position_;
+    ValuesContainer::iterator position_;
     int input_index_;
   };
 
@@ -376,7 +377,7 @@ class TranslatedFrame {
     return TranslatedFrame(kInvalid, {}, {}, 0);
   }
 
-  static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
+  static void AdvanceIterator(ValuesContainer::iterator* iter);
 
   explicit TranslatedFrame(Kind kind,
                            Tagged<SharedFunctionInfo> raw_shared_info,
@@ -415,8 +416,6 @@ class TranslatedFrame {
   int formal_parameter_count_ = -1;
 
   enum HandleState { kRawPointers, kHandles } handle_state_;
-
-  using ValuesContainer = std::deque<TranslatedValue>;
 
   ValuesContainer values_;
 
@@ -596,7 +595,7 @@ class TranslatedState {
     int frame_index_;
     int value_index_;
   };
-  std::deque<ObjectPosition> object_positions_;
+  std::vector<ObjectPosition> object_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;
