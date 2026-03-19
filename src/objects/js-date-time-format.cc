@@ -1750,32 +1750,6 @@ std::optional<icu::UnicodeString> CallICUFormat(
   return result;
 }
 
-// Apply transformation requested by --icu-british-remove-full-weekday-comma
-void ApplyBritishRemoveFullWeekdayComma(
-    icu::UnicodeString& result, const icu::SimpleDateFormat& date_format) {
-  if (v8_flags.icu_british_remove_full_weekday_comma) {
-    // Revert ICU 76 adding a comma after a full weekday for en-AU/GB/IN.
-    int32_t found = result.indexOf(',');
-    if (found != -1) {
-      const icu::Locale& locale = date_format.getSmpFmtLocale();
-      if (strcmp(locale.getLanguage(), "en") == 0 &&
-          (strcmp(locale.getCountry(), "AU") == 0 ||
-           strcmp(locale.getCountry(), "GB") == 0 ||
-           strcmp(locale.getCountry(), "IN") == 0)) {
-        // https://github.com/unicode-org/cldr/pull/3879 changed formats like
-        // "EEEE d MMM y" to "EEEE, d MMM y", adding a comma. Check if the
-        // format begins with "EEEE," and if so remove the first comma. This is
-        // the last check because toPattern() allocates a new string.
-        icu::UnicodeString pattern;
-        date_format.toPattern(pattern);
-        if (pattern.startsWith("EEEE,")) {
-          result = result.remove(found, 1);
-        }
-      }
-    }
-  }
-}
-
 // https://tc39.es/ecma402/#sec-formatdatetime
 // FormatDateTime( dateTimeFormat, x )
 MaybeDirectHandle<String> FormatDateTime(
@@ -1795,7 +1769,6 @@ MaybeDirectHandle<String> FormatDateTime(
     // to separate time from AM/PM. See https://crbug.com/1414292.
     result = ReplaceUnicodeSpaces(result);
   }
-  ApplyBritishRemoveFullWeekdayComma(result, date_format);
 
   return Intl::ToString(isolate, result);
 }
@@ -1816,7 +1789,6 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));
   }
   icu::UnicodeString result_unwrapped = std::move(result).value();
-  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *icu_date_format);
   return Intl::ToString(isolate, result_unwrapped);
 }
 
