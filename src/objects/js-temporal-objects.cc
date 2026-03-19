@@ -3664,51 +3664,6 @@ V8_WARN_UNUSED_RESULT Maybe<temporal_rs::TimeZone> ToRustTimeZone(
                                tz, TimeZoneProvider()));
 }
 
-// Partial implementation:
-//
-// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldatetime
-Maybe<int64_t> GetEpochMillisecondsForDateTime(
-    Isolate* isolate, const temporal_rs::PlainDateTime& date,
-    std::string_view time_zone) {
-  temporal_rs::TimeZone tz;
-  MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
-
-  //  2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
-  //  isoDateTime, compatible).
-  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, zdt,
-      ExtractRustResult(isolate,
-                        date.to_zoned_date_time_with_provider(
-                            tz, temporal_rs::Disambiguation::Compatible,
-                            TimeZoneProvider())));
-  return Just(zdt->epoch_milliseconds());
-}
-
-// Partial implementation:
-//
-// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
-// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
-Maybe<int64_t> GetEpochMillisecondsForDate(
-    Isolate* isolate, const temporal_rs::PlainDate& date,
-    std::string_view time_zone, const temporal_rs::PlainTime* time = nullptr) {
-  temporal_rs::TimeZone tz;
-  MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
-
-  // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]],
-  // NoonTimeRecord()).
-  // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
-  // isoDateTime, compatible).
-
-  std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, zdt,
-      ExtractRustResult(isolate, date.to_zoned_date_time_with_provider(
-                                     tz, time, TimeZoneProvider())));
-  return Just(zdt->epoch_milliseconds());
-}
-
 }  // namespace temporal
 
 // https://tc39.es/proposal-temporal/#sec-temporal.duration
@@ -4572,10 +4527,9 @@ MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
 #endif  // V8_INTL_SUPPORT
 }
 
-Maybe<int64_t> JSTemporalPlainDate::GetEpochMillisecondsFor(
-    Isolate* isolate, std::string_view time_zone) {
-  return temporal::GetEpochMillisecondsForDate(
-      isolate, *this->wrapped_rust().get(), time_zone);
+Maybe<int64_t> JSTemporalPlainDate::GetEpochMillisecondsForUtc(
+    Isolate* isolate) {
+  return ExtractRustResult(isolate, this->wrapped_rust()->epoch_ms_for_utc());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
@@ -5063,10 +5017,8 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
 V8_WARN_UNUSED_RESULT Maybe<int64_t>
-JSTemporalPlainDateTime::GetEpochMillisecondsFor(Isolate* isolate,
-                                                 std::string_view time_zone) {
-  return temporal::GetEpochMillisecondsForDateTime(isolate, *wrapped_rust(),
-                                                   time_zone);
+JSTemporalPlainDateTime::GetEpochMillisecondsForUtc(Isolate* isolate) {
+  return ExtractRustResult(isolate, this->wrapped_rust()->epoch_ms_for_utc());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday
@@ -5273,15 +5225,9 @@ MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
-Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
-    Isolate* isolate, std::string_view time_zone) {
-  temporal_rs::TimeZone tz;
-  MOVE_RETURN_ON_EXCEPTION(isolate, tz,
-                           temporal::ToRustTimeZone(isolate, time_zone));
-
-  return ExtractRustResult(
-      isolate,
-      this->wrapped_rust()->epoch_ms_for_with_provider(tz, TimeZoneProvider()));
+Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsForUtc(
+    Isolate* isolate) {
+  return ExtractRustResult(isolate, this->wrapped_rust()->epoch_ms_for_utc());
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5555,15 +5501,9 @@ MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
-Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
-    Isolate* isolate, std::string_view time_zone) {
-  temporal_rs::TimeZone tz;
-  MOVE_RETURN_ON_EXCEPTION(isolate, tz,
-                           temporal::ToRustTimeZone(isolate, time_zone));
-
-  return ExtractRustResult(
-      isolate,
-      this->wrapped_rust()->epoch_ms_for_with_provider(tz, TimeZoneProvider()));
+Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsForUtc(
+    Isolate* isolate) {
+  return ExtractRustResult(isolate, this->wrapped_rust()->epoch_ms_for_utc());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
@@ -5988,25 +5928,10 @@ MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
 #endif  // V8_INTL_SUPPORT
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-Maybe<int64_t> JSTemporalPlainTime::GetEpochMillisecondsFor(
-    Isolate* isolate, std::string_view time_zone) {
-  // 1. Let isoDate be CreateISODateRecord(1970, 1, 1).
-
-  std::unique_ptr<temporal_rs::PlainDate> pd;
-  MOVE_RETURN_ON_EXCEPTION(
-      isolate, pd,
-      ExtractRustResult(isolate,
-                        temporal_rs::PlainDate::try_new(
-                            1970, 1, 1, temporal_rs::AnyCalendarKind::Iso)));
-
-  // 2. Let isoDateTime be CombineISODateAndTimeRecord(isoDate,
-  // temporalTime.[[Time]]).
-  // 3. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
-  // isoDateTime, compatible).
-
-  return temporal::GetEpochMillisecondsForDate(isolate, *pd, time_zone,
-                                               wrapped_rust().get());
+// https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaltime
+Maybe<int64_t> JSTemporalPlainTime::GetEpochMillisecondsForUtc(
+    Isolate* isolate) {
+  return ExtractRustResult(isolate, this->wrapped_rust()->epoch_ms_for_utc());
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime

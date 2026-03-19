@@ -341,8 +341,8 @@ class JSTemporalPlainDate
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
-      Isolate* isolate, std::string_view time_zone);
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsForUtc(
+      Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainDate)
   DECL_CTOR_HELPER()
@@ -461,8 +461,8 @@ class JSTemporalPlainDateTime
               DirectHandle<JSTemporalPlainDateTime> date_time);
 
   // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
-      Isolate* isolate, std::string_view time_zone);
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsForUtc(
+      Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainDateTime)
 
@@ -524,8 +524,8 @@ class JSTemporalPlainMonthDay
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
-  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
-      Isolate* isolate, std::string_view time_zone);
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsForUtc(
+      Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
@@ -617,8 +617,8 @@ class JSTemporalPlainTime
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
-      Isolate* isolate, std::string_view time_zone);
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsForUtc(
+      Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainTime)
 
@@ -703,8 +703,8 @@ class JSTemporalPlainYearMonth
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporaldate
-  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsFor(
-      Isolate* isolate, std::string_view time_zone);
+  V8_WARN_UNUSED_RESULT Maybe<int64_t> GetEpochMillisecondsForUtc(
+      Isolate* isolate);
 
   // Abstract Operations
 

@@ -261,16 +261,7 @@
   'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
 
-  # ISO range should not be checked when converting to milliseconds for formatting
-  # b/489023921
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-non-latin-numerals': [SKIP],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-no-time-clip-weekday': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-no-time-clip-weekday': [SKIP],
-
   # DateTimeFormat doesn't like negative years
-  # (These tests also fail due to b/489023921)
   # b/494305111
   'intl402/DateTimeFormat/prototype/format/temporal-objects-no-time-clip': [SKIP],
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-no-time-clip': [SKIP],
