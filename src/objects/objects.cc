@@ -2657,9 +2657,37 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
 
       case LookupIterator::MODULE_NAMESPACE: {
-        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
-                       NewTypeError(MessageTemplate::kStrictCannotSetProperty,
-                                    it->GetName(), it->GetReceiver()));
+        PropertyDescriptor desc;
+        Maybe<bool> owned =
+            JSReceiver::GetOwnPropertyDescriptor(&own_lookup, &desc);
+        MAYBE_RETURN(owned, Nothing<bool>());
+        if (!owned.FromJust()) {
+          // Property not found on namespace (non-exported key).
+          // Spec: OrdinarySetWithOwnDescriptor step 2.d.ii calls
+          // CreateDataProperty(Receiver, P, V), which invokes
+          // Receiver.[[DefineOwnProperty]] ->
+          // JSModuleNamespace::DefineOwnProperty
+          // -> throws kRedefineDisallowed TypeError.
+          // We shortcut to RedefineIncompatibleProperty for the same result.
+          return RedefineIncompatibleProperty(isolate, it->GetName(), value,
+                                              should_throw);
+        }
+        if (PropertyDescriptor::IsAccessorDescriptor(&desc) ||
+            !desc.writable()) {
+          return RedefineIncompatibleProperty(isolate, it->GetName(), value,
+                                              should_throw);
+        }
+        // Module namespace [[GetOwnProperty]] returns writable: true for
+        // initialized exports. So this DefineOwnProperty path is reached for
+        // normal exports. DefineOwnProperty dispatches to
+        // JSModuleNamespace::DefineOwnProperty which validates that the
+        // new value equals the current value (non-configurable property
+        // constraint) and throws TypeError (kRedefineDisallowed) when it
+        // doesn't match.
+        PropertyDescriptor value_desc;
+        value_desc.set_value(Cast<JSAny>(value));
+        return JSReceiver::DefineOwnProperty(isolate, receiver, it->GetName(),
+                                             &value_desc, should_throw);
       }
 
       case LookupIterator::TRANSITION:
