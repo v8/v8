@@ -427,44 +427,68 @@ bool Scope::is_debug_evaluate_scope() const {
 }
 
 template <typename IsolateT>
-Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
-                                    Tagged<ScopeInfo> scope_info,
-                                    DeclarationScope* script_scope,
-                                    AstValueFactory* ast_value_factory,
-                                    DeserializationMode deserialization_mode,
-                                    ParseInfo* parse_info) {
+Scope* Scope::DeserializeScopeChain(
+    IsolateT* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
+    DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
+    DeserializationMode deserialization_mode, Tagged<Script> script,
+    Tagged<ScopeInfo> eval_outer_info, ParseInfo* parse_info) {
   CHECK_IMPLIES(parse_info != nullptr && parse_info->flags().is_toplevel(),
                 parse_info->flags().is_eval());
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
+
   while (!scope_info.is_null()) {
+    if (scope_info == eval_outer_info) {
+      // This block handles the reconstruction of `eval` scopes during
+      // deserialization. The `ScopeInfo` chain for `eval`'d code doesn't always
+      // contain a scope for the `eval` call itself. We need to inject a
+      // synthetic `EVAL_SCOPE` into the deserialized scope chain to represent
+      // it.
+      //
+      // `eval_outer_info` holds the `ScopeInfo` of the scope *from which* the
+      // `eval` was called. When the deserialization process (walking up the
+      // `scope_info` chain) reaches this outer scope, we know it's time to
+      // inject our synthetic `EVAL_SCOPE`.
+      //
+      // This also handles nested `evals`. After injecting a scope, `script` and
+      // `eval_outer_info` are updated to point to the next outer `eval`'s
+      // context, allowing us to correctly reconstruct the entire chain of
+      // nested `eval` calls.
+      //
+      // Evals that do have a scope in the chain are handled below.
+      DeclarationScope* eval_scope =
+          zone->New<DeclarationScope>(zone, EVAL_SCOPE, ast_value_factory,
+                                      isolate->factory()->empty_scope_info());
+      eval_scope->num_heap_slots_ = 0;
+      int position = script->eval_from_position();
+      eval_scope->set_start_position(position);
+      eval_scope->set_end_position(position);
+
+      if (current_scope != nullptr) {
+        eval_scope->AddInnerScope(current_scope);
+      }
+      current_scope = eval_scope;
+      if (innermost_scope == nullptr) innermost_scope = current_scope;
+
+      if (script->has_eval_from_shared()) {
+        script = Cast<Script>(script->eval_from_shared()->script());
+        eval_outer_info = script->has_eval_from_scope_info()
+                              ? Cast<ScopeInfo>(script->eval_from_scope_info())
+                              : Tagged<ScopeInfo>();
+      } else {
+        script = Tagged<Script>();
+        eval_outer_info = Tagged<ScopeInfo>();
+      }
+      continue;
+    }
+
     if (parse_info && IsGeneratorFunction(scope_info->function_kind())) {
       parse_info->set_has_generator_in_scope_chain();
     }
 
-    if (scope_info->scope_type() == WITH_SCOPE) {
-      if (scope_info->IsDebugEvaluateScope()) {
-        outer_scope =
-            zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
-                                        handle(scope_info, isolate));
-        outer_scope->set_is_dynamic_scope();
-      } else {
-        // For scope analysis, debug-evaluate is equivalent to a with scope.
-        outer_scope = zone->New<Scope>(zone, WITH_SCOPE, ast_value_factory,
-                                       handle(scope_info, isolate));
-      }
-    } else if (scope_info->is_script_scope()) {
-      // If we reach a script scope, it's the outermost scope. Install the
-      // scope info of this script context onto the existing script scope to
-      // avoid nesting script scopes.
-      if (deserialization_mode == DeserializationMode::kIncludingVariables) {
-        script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
-      }
-      DCHECK(!scope_info->HasOuterScopeInfo());
-      break;
-    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
+    if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, FUNCTION_SCOPE, ast_value_factory, handle(scope_info, isolate));
 #if V8_ENABLE_WEBASSEMBLY
@@ -472,9 +496,6 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
         outer_scope->AsDeclarationScope()->set_is_asm_module(true);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (scope_info->scope_type() == EVAL_SCOPE) {
-      outer_scope = zone->New<DeclarationScope>(
-          zone, EVAL_SCOPE, ast_value_factory, handle(scope_info, isolate));
     } else if (scope_info->scope_type() == CLASS_SCOPE) {
       outer_scope = zone->New<ClassScope>(isolate, zone, ast_value_factory,
                                           handle(scope_info, isolate));
@@ -484,6 +505,40 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
             zone, BLOCK_SCOPE, ast_value_factory, handle(scope_info, isolate));
       } else {
         outer_scope = zone->New<Scope>(zone, BLOCK_SCOPE, ast_value_factory,
+                                       handle(scope_info, isolate));
+      }
+    } else if (scope_info->is_script_scope()) {
+      // If we reach a script scope, it's the outermost scope. Install the
+      // scope info of this script context onto the existing script scope to
+      // avoid nesting script scopes.
+      if (deserialization_mode == DeserializationMode::kIncludingVariables) {
+        script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
+      }
+      script_scope->set_start_position(scope_info->StartPosition());
+      script_scope->set_end_position(scope_info->EndPosition());
+      DCHECK(!scope_info->HasOuterScopeInfo());
+      break;
+    } else if (scope_info->scope_type() == EVAL_SCOPE) {
+      outer_scope = zone->New<DeclarationScope>(
+          zone, EVAL_SCOPE, ast_value_factory, handle(scope_info, isolate));
+      if (!script.is_null() && script->has_eval_from_shared()) {
+        script = Cast<Script>(script->eval_from_shared()->script());
+        eval_outer_info = script->has_eval_from_scope_info()
+                              ? Cast<ScopeInfo>(script->eval_from_scope_info())
+                              : Tagged<ScopeInfo>();
+      } else {
+        script = Tagged<Script>();
+        eval_outer_info = Tagged<ScopeInfo>();
+      }
+    } else if (scope_info->scope_type() == WITH_SCOPE) {
+      if (scope_info->IsDebugEvaluateScope()) {
+        outer_scope =
+            zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
+                                        handle(scope_info, isolate));
+        outer_scope->set_is_dynamic_scope();
+      } else {
+        // For scope analysis, debug-evaluate is equivalent to a with scope.
+        outer_scope = zone->New<Scope>(zone, WITH_SCOPE, ast_value_factory,
                                        handle(scope_info, isolate));
       }
     } else if (scope_info->scope_type() == MODULE_SCOPE) {
@@ -520,6 +575,7 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
 
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
+
     scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
                                                  : Tagged<ScopeInfo>();
   }
@@ -555,12 +611,14 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         Isolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode, ParseInfo* parse_info);
+        DeserializationMode deserialization_mode, Tagged<Script> script,
+        Tagged<ScopeInfo> eval_outer_info, ParseInfo* parse_info);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
         LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
-        DeserializationMode deserialization_mode, ParseInfo* parse_info);
+        DeserializationMode deserialization_mode, Tagged<Script> script,
+        Tagged<ScopeInfo> eval_outer_info, ParseInfo* parse_info);
 
 DeclarationScope* Scope::AsDeclarationScope() {
   // Here and below: if an attacker corrupts the in-sandox SFI::unique_id or
@@ -2898,9 +2956,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
   DCHECK(scope->scope_info_.is_null());
 
   MaybeHandle<ScopeInfo> outer_scope;
-  if (scope->outer_scope_ != nullptr) {
+  if (Scope* outer = scope->GetOuterScopeWithContext()) {
     DCHECK((std::is_same_v<Isolate, v8::internal::Isolate>));
-    outer_scope = scope->outer_scope_->scope_info_;
+    outer_scope = outer->scope_info_;
   }
 
   if (scope->needs_private_name_context_chain_recalc()) {

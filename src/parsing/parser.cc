@@ -657,14 +657,32 @@ template <typename IsolateT>
 void Parser::DeserializeScopeChain(
     IsolateT* isolate, ParseInfo* info,
     MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-    Scope::DeserializationMode mode) {
+    Scope::DeserializationMode mode, DirectHandle<Script> script) {
   InitializeEmptyScopeChain(info);
   DirectHandle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+    Tagged<Script> eval_from_script = *script;
+    Tagged<ScopeInfo> eval_from_scope_info;
+    if (eval_from_script->has_eval_from_scope_info()) {
+      if (info->flags().is_eval()) {
+        // If we're compiling the eval string itself, we skip the script created
+        // for the eval script. This eval scope will be created by the parser as
+        // an unresolved scope.
+        eval_from_script =
+            Cast<Script>(eval_from_script->eval_from_shared()->script());
+      }
+      if (eval_from_script->has_eval_from_scope_info()) {
+        eval_from_scope_info =
+            Cast<ScopeInfo>(eval_from_script->eval_from_scope_info());
+      }
+    }
+
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
-        ast_value_factory(), mode, info);
+        ast_value_factory(), mode, eval_from_script, eval_from_scope_info,
+        info);
 
     DeclarationScope* receiver_scope = original_scope_->GetReceiverScope();
     if (receiver_scope->HasReceiverToDeserialize()) {
@@ -682,11 +700,11 @@ void Parser::DeserializeScopeChain(
 template void Parser::DeserializeScopeChain(
     Isolate* isolate, ParseInfo* info,
     MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-    Scope::DeserializationMode mode);
+    Scope::DeserializationMode mode, DirectHandle<Script> script);
 template void Parser::DeserializeScopeChain(
     LocalIsolate* isolate, ParseInfo* info,
     MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-    Scope::DeserializationMode mode);
+    Scope::DeserializationMode mode, DirectHandle<Script> script);
 
 namespace {
 
@@ -718,7 +736,8 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
 
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
-                        Scope::DeserializationMode::kIncludingVariables);
+                        Scope::DeserializationMode::kIncludingVariables,
+                        script);
 
   DCHECK_EQ(script->is_wrapped(), info->is_wrapped_as_function());
   if (script->is_wrapped()) {
@@ -1053,11 +1072,13 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
 
+  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
+
   DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
-                        Scope::DeserializationMode::kIncludingVariables);
+                        Scope::DeserializationMode::kIncludingVariables,
+                        script);
   DCHECK_EQ(factory()->zone(), info->zone());
 
-  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
   if (shared_info->is_wrapped()) {
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }

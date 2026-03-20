@@ -169,12 +169,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static Scope* DeserializeScopeChain(IsolateT* isolate, Zone* zone,
-                                      Tagged<ScopeInfo> scope_info,
-                                      DeclarationScope* script_scope,
-                                      AstValueFactory* ast_value_factory,
-                                      DeserializationMode deserialization_mode,
-                                      ParseInfo* info = nullptr);
+  static Scope* DeserializeScopeChain(
+      IsolateT* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
+      DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
+      DeserializationMode deserialization_mode,
+      Tagged<Script> script = Tagged<Script>(),
+      Tagged<ScopeInfo> eval_outer_info = Tagged<ScopeInfo>(),
+      ParseInfo* info = nullptr);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -1008,7 +1009,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       //   3. This is a debug evaluate and all bets are off.
       DeclarationScope* outer_decl_scope = outer_scope()->GetDeclarationScope();
       while (outer_decl_scope->is_eval_scope()) {
-        outer_decl_scope = outer_decl_scope->GetDeclarationScope();
+        outer_decl_scope =
+            outer_decl_scope->outer_scope_->GetDeclarationScope();
       }
       if (V8_UNLIKELY(outer_decl_scope->is_debug_evaluate_scope())) {
         // Don't check anything.

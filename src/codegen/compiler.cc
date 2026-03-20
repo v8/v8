@@ -1831,7 +1831,10 @@ class MergeAssumptionChecker final : public ObjectVisitor {
         } else if (IsScopeInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kNormalObject && !is_weak) ||
-                (current_object_kind_ == kScriptInfosList && is_weak));
+                (current_object_kind_ == kScriptInfosList && is_weak) ||
+                (IsScript(host) &&
+                 current.address() ==
+                     host.address() + Script::kEvalFromScopeInfoOffset));
         } else if (IsScript(obj)) {
           CHECK(IsSharedFunctionInfo(host) &&
                 current == MaybeObjectSlot(host.address() +
@@ -2002,7 +2005,7 @@ void BackgroundCompileTask::Run(
     }
     parser.DeserializeScopeChain(
         isolate, &info, maybe_outer_scope_info,
-        Scope::DeserializationMode::kIncludingVariables);
+        Scope::DeserializationMode::kIncludingVariables, script_);
   }
 
   parser.ParseOnBackground(isolate, &info, script_, start_position_,
@@ -3401,6 +3404,10 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
     script->set_eval_from_position(eval_position);
+    if (!maybe_outer_scope_info.is_null()) {
+      script->set_eval_from_scope_info(
+          *maybe_outer_scope_info.ToHandleChecked());
+    }
 
     if (!v8::internal::CompileToplevel(&parse_info, script,
                                        maybe_outer_scope_info, isolate,

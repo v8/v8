@@ -49,7 +49,13 @@ ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Tagged<Object>,
                   CHECK_SCRIPT_NOT_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       CHECK_SCRIPT_NOT_WASM)
+ACCESSORS_CHECKED(Script, eval_from_scope_info, Tagged<Object>,
+                  kEvalFromScopeInfoOffset, CHECK_SCRIPT_NOT_WASM)
 #undef CHECK_SCRIPT_NOT_WASM
+
+bool Script::has_eval_from_scope_info() const {
+  return IsScopeInfo(eval_from_scope_info());
+}
 
 ACCESSORS(Script, compiled_lazy_function_positions, Tagged<Object>,
           kCompiledLazyFunctionPositionsOffset)

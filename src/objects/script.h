@@ -82,6 +82,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // code from which eval was called, as negative integer.
   DECL_INT_ACCESSORS(eval_from_position)
 
+  DECL_ACCESSORS(eval_from_scope_info, Tagged<Object>)
+  inline bool has_eval_from_scope_info() const;
+
   // [infos]: weak fixed array containing all shared function infos and scope
   // infos for eval created from this script.
   DECL_ACCESSORS(infos, Tagged<WeakFixedArray>)
