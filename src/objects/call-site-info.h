@@ -69,10 +69,6 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   inline int flags() const;
   inline void set_flags(int value);
 
-  inline Tagged<FixedArray> parameters() const;
-  inline void set_parameters(Tagged<FixedArray> value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
   DECL_PRINTER(CallSiteInfo)
@@ -146,7 +142,6 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
   TaggedMember<Smi> flags_;
-  TaggedMember<FixedArray> parameters_;
 } V8_OBJECT_END;
 
 template <>

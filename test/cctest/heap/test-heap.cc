@@ -3250,6 +3250,8 @@ TEST(Regress1465) {
   CHECK_EQ(1, transitions_after);
 }
 
+#ifdef DEBUG
+
 static i::Handle<JSObject> GetByName(const char* name) {
   return i::Cast<i::JSObject>(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
@@ -3258,7 +3260,6 @@ static i::Handle<JSObject> GetByName(const char* name) {
               .ToLocalChecked())));
 }
 
-#ifdef DEBUG
 static void AddTransitions(int transitions_count) {
   AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
   for (int i = 0; i < transitions_count; i++) {
@@ -3834,179 +3835,6 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
   isolate->Dispose();
 }
 
-// TODO(mmarchini) also write tests for async/await and Promise.all
-void DetailedErrorStackTraceTest(const char* src,
-                                 std::function<void(Handle<FixedArray>)> test) {
-  v8_flags.detailed_error_stack_trace = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  v8::TryCatch try_catch(CcTest::isolate());
-  CompileRun(src);
-
-  CHECK(try_catch.HasCaught());
-  DirectHandle<Object> exception =
-      v8::Utils::OpenDirectHandle(*try_catch.Exception());
-
-  test(CcTest::i_isolate()->GetSimpleStackTrace(Cast<JSReceiver>(exception)));
-}
-
-Tagged<FixedArray> ParametersOf(DirectHandle<FixedArray> stack_trace,
-                                int frame_index) {
-  return Cast<CallSiteInfo>(stack_trace->get(frame_index))->parameters();
-}
-
-// * Test interpreted function error
-TEST(DetailedErrorStackTrace) {
-  static const char* source =
-      "function func1(arg1) {       "
-      "  let err = new Error();     "
-      "  throw err;                 "
-      "}                            "
-      "function func2(arg1, arg2) { "
-      "  func1(42);                 "
-      "}                            "
-      "class Foo {};                "
-      "function main(arg1, arg2) {  "
-      "  func2(arg1, false);        "
-      "}                            "
-      "var foo = new Foo();         "
-      "main(foo);                   ";
-
-  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
-    Tagged<FixedArray> foo_parameters = ParametersOf(stack_trace, 0);
-    CHECK_EQ(foo_parameters->length().value(), 1u);
-    CHECK(IsSmi(foo_parameters->get(0)));
-    CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
-
-    Tagged<FixedArray> bar_parameters = ParametersOf(stack_trace, 1);
-    CHECK_EQ(bar_parameters->length().value(), 2u);
-    CHECK(IsJSObject(bar_parameters->get(0)));
-    CHECK(IsBoolean(bar_parameters->get(1)));
-    DirectHandle<Object> foo = Cast<Object>(GetByName("foo"));
-    CHECK_EQ(bar_parameters->get(0), *foo);
-    CHECK(!Object::BooleanValue(bar_parameters->get(1), CcTest::i_isolate()));
-
-    Tagged<FixedArray> main_parameters = ParametersOf(stack_trace, 2);
-    CHECK_EQ(main_parameters->length().value(), 2u);
-    CHECK(IsJSObject(main_parameters->get(0)));
-    CHECK(IsUndefined(main_parameters->get(1)));
-    CHECK_EQ(main_parameters->get(0), *foo);
-  });
-}
-
-// * Test optimized function with inline frame error
-TEST(DetailedErrorStackTraceInline) {
-  v8_flags.allow_natives_syntax = true;
-  static const char* source =
-      "function add(x) {                     "
-      " if (x == 42)                         "
-      "  throw new Error();                  "
-      " return x + x;                        "
-      "}                                     "
-      "add(0);                               "
-      "add(1);                               "
-      "function foo(x) {                     "
-      " return add(x + 1)                    "
-      "}                                     "
-      "%PrepareFunctionForOptimization(foo); "
-      "foo(40);                              "
-      "%OptimizeFunctionOnNextCall(foo);     "
-      "foo(41);                              ";
-
-  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
-    Tagged<FixedArray> parameters_add = ParametersOf(stack_trace, 0);
-    CHECK_EQ(parameters_add->length().value(), 1u);
-    CHECK(IsSmi(parameters_add->get(0)));
-    CHECK_EQ(Smi::ToInt(parameters_add->get(0)), 42);
-
-    Tagged<FixedArray> parameters_foo = ParametersOf(stack_trace, 1);
-    CHECK_EQ(parameters_foo->length().value(), 1u);
-    CHECK(IsSmi(parameters_foo->get(0)));
-    CHECK_EQ(Smi::ToInt(parameters_foo->get(0)), 41);
-  });
-}
-
-// * Test builtin exit error
-TEST(DetailedErrorStackTraceBuiltinExitNoAdaptation) {
-  // The test needs to call CPP builtin that doesn't adapt arguments and might
-  // throw an exception under certain conditions.
-  CHECK(Builtins::IsCpp(Builtin::kNumberPrototypeToFixed));
-  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kNumberPrototypeToFixed),
-           kDontAdaptArgumentsSentinel);
-
-  static const char* source =
-      "function test(arg1) {                     "
-      "  (new Number()).toFixed(arg1, 42, -153); "
-      "}                                         "
-      "test(9999);                               ";
-
-  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
-    Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
-
-    CHECK_EQ(parameters->length().value(), 3u);
-    CHECK_EQ(Smi::ToInt(parameters->get(0)), 9999);
-    CHECK_EQ(Smi::ToInt(parameters->get(1)), 42);
-    CHECK_EQ(Smi::ToInt(parameters->get(2)), -153);
-  });
-}
-
-TEST(DetailedErrorStackTraceBuiltinExitWithAdaptation) {
-  // The test needs to call CPP builtin that adapts arguments and might
-  // throw an exception under certain conditions.
-  CHECK(Builtins::IsCpp(Builtin::kObjectDefineProperty));
-  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kObjectDefineProperty),
-           JSParameterCount(3));
-
-  static const char* source =
-      "function test() {                  "
-      "  Object.defineProperty(153, -42); "
-      "}                                  "
-      "test();                            ";
-
-  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
-    Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
-
-    CHECK_EQ(parameters->length().value(), 3u);
-    CHECK_EQ(Smi::ToInt(parameters->get(0)), 153);
-    CHECK_EQ(Smi::ToInt(parameters->get(1)), -42);
-    CHECK(IsUndefined(parameters->get(2)));
-  });
-}
-
-// Ensure that inlined call of CPP builtin works correctly with stack traces.
-// See https://crbug.com/v8/14409.
-TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
-  v8_flags.allow_natives_syntax = true;
-  CHECK(Builtins::IsCpp(Builtin::kArrayShift));
-  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kArrayShift),
-           kDontAdaptArgumentsSentinel);
-
-  constexpr int slow_path_length = JSArray::kMaxCopyElements + 20;
-  auto source = base::OwnedVector<char>::NewForOverwrite(1024);
-  base::SNPrintF(source.as_vector(),
-                 "var length = %d;"
-                 "var array = new Array(length);"
-                 "var ro_array = Object.freeze(new Array(length));"
-                 "function test(a) {"
-                 "  return a.shift(55, 77, 99);"
-                 "};"
-                 "%%PrepareFunctionForOptimization(test);"
-                 "test(array);"
-                 "%%OptimizeFunctionOnNextCall(test);"
-                 "test(ro_array);",
-                 slow_path_length);
-
-  DetailedErrorStackTraceTest(
-      source.begin(), [](DirectHandle<FixedArray> stack_trace) {
-        Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
-
-        CHECK_EQ(parameters->length().value(), 3u);
-        CHECK_EQ(Smi::ToInt(parameters->get(0)), 55);
-        CHECK_EQ(Smi::ToInt(parameters->get(1)), 77);
-        CHECK_EQ(Smi::ToInt(parameters->get(2)), 99);
-      });
-}
 
 TEST(Regress169928) {
   v8_flags.allow_natives_syntax = true;

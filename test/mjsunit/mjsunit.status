@@ -1062,7 +1062,6 @@
 ##############################################################################
 ['full_debug', {
   # Slow tests.
-  'regress/regress-1000635': [PASS, SLOW],
   'regress/regress-crbug-854299': [PASS, SLOW],
 
   # Tests too slow in non-optimized debug mode.
@@ -1826,7 +1825,6 @@
   'harmony/atomics-waitasync-*': [FUZZ_RARE, PASS],
   'harmony/regexp-property-*': [FUZZ_RARE, PASS],
   'harmony/sharedarraybuffer-worker-gc-stress': [FUZZ_RARE, PASS],
-  'regress/regress-1000635': [FUZZ_RARE, PASS],
   'regress/regress-1020031': [FUZZ_RARE, PASS],
   'regress/regress-crbug-632800': [FUZZ_RARE, PASS],
   'regress/regress-crbug-854299': [FUZZ_RARE, PASS],

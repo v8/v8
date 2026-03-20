@@ -86,14 +86,6 @@ void CallSiteInfo::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<FixedArray> CallSiteInfo::parameters() const {
-  return parameters_.load();
-}
-void CallSiteInfo::set_parameters(Tagged<FixedArray> value,
-                                  WriteBarrierMode mode) {
-  parameters_.store(this, value, mode);
-}
-
 }  // namespace internal
 }  // namespace v8
 

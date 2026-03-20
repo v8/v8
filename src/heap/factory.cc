@@ -4263,7 +4263,7 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
     DirectHandle<JSAny> receiver_or_instance,
     DirectHandle<UnionOf<Smi, JSFunction>> function,
     DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
-    int flags, DirectHandle<FixedArray> parameters) {
+    int flags) {
   auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
                                               AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -4272,7 +4272,6 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
   info->set_code_object(*code_object, SKIP_WRITE_BARRIER);
   info->set_code_offset_or_source_position(code_offset_or_source_position);
   info->set_flags(flags);
-  info->set_parameters(*parameters, SKIP_WRITE_BARRIER);
   return handle(info, isolate());
 }
 

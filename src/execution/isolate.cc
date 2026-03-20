@@ -939,16 +939,7 @@ class CallSiteBuilder {
         function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
 
-    DirectHandle<FixedArray> parameters =
-        isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(v8_flags.detailed_error_stack_trace)) {
-      parameters = isolate_->factory()->CopyFixedArrayUpTo(
-          direct_handle(generator_object->parameters_and_registers(), isolate_),
-          function->shared()
-              ->internal_formal_parameter_count_without_receiver());
-    }
-
-    AppendFrame(receiver, function, code, offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags);
   }
 
   void AppendPromiseCombinatorFrame(DirectHandle<JSFunction> element_function,
@@ -965,14 +956,11 @@ class CallSiteBuilder {
     DirectHandle<Code> code(combinator->code(isolate_), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
-    DirectHandle<FixedArray> parameters =
-        isolate_->factory()->empty_fixed_array();
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
     int promise_index = Smi::ToInt(element_function->GetIdentityHash()) - 1;
-
-    AppendFrame(receiver, combinator, code, promise_index, flags, parameters);
+    AppendFrame(receiver, combinator, code, promise_index, flags);
   }
 
   void AppendJavaScriptFrame(
@@ -989,8 +977,7 @@ class CallSiteBuilder {
     if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function,
-                summary.abstract_code(), summary.code_offset(), flags,
-                summary.parameters());
+                summary.abstract_code(), summary.code_offset(), flags);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1008,8 +995,7 @@ class CallSiteBuilder {
     DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
-                code, summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                code, summary.code_offset(), flags);
   }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1033,8 +1019,7 @@ class CallSiteBuilder {
     int flags = CallSiteInfo::kIsWasm;
     AppendFrame(summary.wasm_instance(),
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
-                code, summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                code, summary.code_offset(), flags);
   }
 
   void AppendBuiltinFrame(FrameSummary::BuiltinFrameSummary const& summary) {
@@ -1044,8 +1029,7 @@ class CallSiteBuilder {
                                isolate_);
     int flags = CallSiteInfo::kIsBuiltin;
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function, code,
-                summary.code_offset(), flags,
-                isolate_->factory()->empty_fixed_array());
+                summary.code_offset(), flags);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1117,16 +1101,14 @@ class CallSiteBuilder {
 
   void AppendFrame(DirectHandle<UnionOf<JSAny, Hole>> receiver_or_instance,
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
-                   DirectHandle<HeapObject> code, int offset, int flags,
-                   DirectHandle<FixedArray> parameters) {
+                   DirectHandle<HeapObject> code, int offset, int flags) {
     if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
     }
     auto info = isolate_->factory()->NewCallSiteInfo(
-        Cast<JSAny>(receiver_or_instance), function, code, offset, flags,
-        parameters);
+        Cast<JSAny>(receiver_or_instance), function, code, offset, flags);
     elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
     skipped_prev_frame_ = false;
   }

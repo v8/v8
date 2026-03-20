@@ -3454,7 +3454,6 @@ void CallSiteInfo::CallSiteInfoPrint(std::ostream& os) {
   os << "\n - code_offset_or_source_position: "
      << code_offset_or_source_position();
   os << "\n - flags: " << flags();
-  os << "\n - parameters: " << Brief(parameters());
   os << "\n";
 }
 

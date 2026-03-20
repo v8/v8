@@ -25,5 +25,4 @@ extern class CallSiteInfo extends Struct {
   function: JSFunction|Smi;
   code_offset_or_source_position: Smi;
   flags: SmiTagged<CallSiteInfoFlags>;
-  parameters: FixedArray;
 }

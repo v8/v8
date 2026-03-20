@@ -3272,9 +3272,7 @@ DEFINE_BOOL(hashes_collide, false,
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")
-DEFINE_BOOL(
-    detailed_error_stack_trace, false,
-    "includes arguments for each function call in the error stack frames array")
+
 DEFINE_BOOL(adjust_os_scheduling_parameters, true,
             "adjust OS specific scheduling params for the isolate")
 DEFINE_BOOL(experimental_flush_embedded_blob_icache, true,
