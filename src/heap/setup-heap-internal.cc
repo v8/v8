@@ -994,7 +994,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
                                   SKIP_WRITE_BARRIER);
-    int flags = ScopeInfo::IsEmptyBit::encode(true);
+    int flags = 0;
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
               VariableAllocationInfo::NONE);

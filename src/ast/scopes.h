@@ -392,9 +392,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
            (is_block_scope() && is_block_scope_for_object_literal());
   }
   bool is_block_scope_for_object_literal() const {
-    DCHECK_IMPLIES(IsBlockScopeForObjectLiteralField::decode(flags_),
-                   is_block_scope());
-    return IsBlockScopeForObjectLiteralField::decode(flags_);
+    return is_block_scope() &&
+           IsBlockScopeForObjectLiteralField::decode(flags_);
   }
   void set_is_block_scope_for_object_literal() {
     DCHECK(is_block_scope());
@@ -420,8 +419,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   bool is_wrapped_function() const {
-    DCHECK_IMPLIES(IsWrappedFunctionField::decode(flags_), is_function_scope());
-    return IsWrappedFunctionField::decode(flags_);
+    return is_function_scope() && IsWrappedFunctionField::decode(flags_);
   }
   void set_is_wrapped_function() {
     DCHECK(is_function_scope());
@@ -434,6 +432,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // compiled are asm modules.
   bool ContainsAsmModule() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  bool is_hoisted_in_context() const {
+    return IsHoistedInContextField::decode(flags_);
+  }
+  void set_is_hoisted_in_context(bool value) {
+    flags_ = IsHoistedInContextField::update(flags_, value);
+  }
 
   // Does this scope have the potential to execute declarations non-linearly?
   bool is_nonlinear() const { return ScopeNonlinearField::decode(flags_); }
@@ -939,10 +944,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   using HasAwaitUsingDeclarationField = HasUsingDeclarationField::Next<bool, 1>;
   // If the scope was generated for wrapped function syntax, which will affect
   // its UniqueIdInScript.
-  using IsWrappedFunctionField = HasAwaitUsingDeclarationField::Next<bool, 1>;
+  // This shares the same bit as IsBlockScopeForObjectLiteralField.
+  using IsWrappedFunctionField = IsBlockScopeForObjectLiteralField;
   // The context associated with the scope might have context cells.
-  using HasContextCellsField = IsWrappedFunctionField::Next<bool, 1>;
-  using LastScopeField = HasContextCellsField;
+  using HasContextCellsField = HasAwaitUsingDeclarationField::Next<bool, 1>;
+  using IsHoistedInContextField = HasContextCellsField::Next<bool, 1>;
+  using LastScopeField = IsHoistedInContextField;
 
   uint32_t flags_;
 };

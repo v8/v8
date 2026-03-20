@@ -580,6 +580,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
     raw_sfi->set_has_static_private_methods_or_accessors(
         lit->has_static_private_methods_or_accessors());
 
+    raw_sfi->set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
+
     raw_sfi->set_is_toplevel(is_toplevel);
     DCHECK(IsTheHole(raw_sfi->outer_scope_info()));
     Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
@@ -809,6 +811,7 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
   }
   SetFunctionTokenPosition(lit->function_token_position(),
                            lit->start_position());
+  set_is_hoisted_in_context(lit->scope()->is_hoisted_in_context());
 }
 
 CachedTieringDecision SharedFunctionInfo::cached_tiering_decision() {

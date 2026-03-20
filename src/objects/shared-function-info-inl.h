@@ -433,6 +433,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, live_edited,
                     SharedFunctionInfo::LiveEditedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_hoisted_in_context,
+                    SharedFunctionInfo::IsHoistedInContextBit)
 
 bool SharedFunctionInfo::optimization_disabled(CodeKind kind) const {
   switch (kind) {

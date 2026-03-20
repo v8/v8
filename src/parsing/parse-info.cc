@@ -60,6 +60,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
 
+  flags.set_is_hoisted_in_context(shared->is_hoisted_in_context());
+
   return flags;
 }
 

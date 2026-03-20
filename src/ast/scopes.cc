@@ -276,6 +276,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
     }
   }
   set_has_context_cells(scope_info->HasContextCells());
+  set_is_hoisted_in_context(scope_info->is_hoisted_in_context());
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
@@ -2098,6 +2099,7 @@ void Scope::Print(int n) {
     Indent(n1, "// scope skips outer class for #-names\n");
   }
   if (inner_scope_calls_eval()) Indent(n1, "// inner scope calls 'eval'\n");
+  if (is_hoisted_in_context()) Indent(n1, "// is hoisted in context\n");
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
@@ -2870,6 +2872,9 @@ void Scope::AllocateScopeInfosRecursively(
     DCHECK_IMPLIES(scope->sibling_, scope->sibling_->UniqueIdInScript() !=
                                         scope->UniqueIdInScript());
 #endif
+    if (!NeedsContext()) {
+      scope->set_is_hoisted_in_context(is_hoisted_in_context());
+    }
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
       FunctionKind inner_closure_kind =

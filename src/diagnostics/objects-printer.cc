@@ -3795,7 +3795,17 @@ void PrintScopeInfoList(Tagged<ScopeInfo> scope_info, std::ostream& os,
   os << "\n - " << list_name;
   os << " {\n";
   for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
-    os << "    - " << it->index() << ": " << it->name() << "\n";
+    os << "    - " << it->index() << ": " << it->name();
+    if (scope_info->ContextLocalIsParameter(it->index())) {
+      os << " [parameter "
+         << scope_info->ContextLocalParameterNumber(it->index()) << "]";
+    } else {
+      int pos = scope_info->ContextLocalInitializerPosition(it->index());
+      if (pos != kNoSourcePosition) {
+        os << " [position " << pos << "]";
+      }
+    }
+    os << "\n";
   }
   os << "  }";
 }

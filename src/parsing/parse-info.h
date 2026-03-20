@@ -65,7 +65,8 @@ class Zone;
   V(is_repl_mode, bool, 1, _)                                   \
   V(produce_compile_hints, bool, 1, _)                          \
   V(compile_hints_magic_enabled, bool, 1, _)                    \
-  V(compile_hints_per_function_magic_enabled, bool, 1, _)
+  V(compile_hints_per_function_magic_enabled, bool, 1, _)       \
+  V(is_hoisted_in_context, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:

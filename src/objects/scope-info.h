@@ -38,6 +38,7 @@ struct VariableLookupResult {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  int initializer_position;
 };
 
 // ScopeInfo represents information about different scopes of a source
@@ -56,6 +57,10 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Return the type of this scope.
   ScopeType scope_type() const;
+
+  // The maximum distance from the start position that can be stored for a
+  // variable's initializer position. High distance results in kMaxInt.
+  static constexpr int kMaxVariablePositionDistance = 0xFFFF;
 
   // Return the language mode of this scope.
   LanguageMode language_mode() const;
@@ -136,6 +141,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   inline bool HasContextCells() const;
 
+  inline bool is_hoisted_in_context() const;
+
   // Return the function_name if present.
   V8_EXPORT_PRIVATE Tagged<UnionOf<Smi, String>> FunctionName() const;
 
@@ -185,6 +192,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   bool ContextLocalIsParameter(int var) const;
   uint32_t ContextLocalParameterNumber(int var) const;
+  int ContextLocalInitializerPosition(int var) const;
 
   // Return the initialization flag of the given context local.
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
@@ -207,7 +215,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // is never 0).
   int ModuleIndex(Tagged<String> name, VariableMode* mode,
                   InitializationFlag* init_flag,
-                  MaybeAssignedFlag* maybe_assigned_flag);
+                  MaybeAssignedFlag* maybe_assigned_flag = nullptr,
+                  int* initializer_position = nullptr);
 
   int ModuleVariableCount() const;
 
@@ -371,7 +380,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   void ModuleVariable(int i, Tagged<String>* name, int* index,
                       VariableMode* mode = nullptr,
                       InitializationFlag* init_flag = nullptr,
-                      MaybeAssignedFlag* maybe_assigned_flag = nullptr);
+                      MaybeAssignedFlag* maybe_assigned_flag = nullptr,
+                      int* initializer_position = nullptr);
 
   static const int kFunctionNameEntries =
       TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;

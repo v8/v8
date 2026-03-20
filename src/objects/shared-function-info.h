@@ -666,6 +666,9 @@ class SharedFunctionInfo
   // Indicates that the shared function info was live-edited.
   DECL_BOOLEAN_ACCESSORS(live_edited)
 
+  // Indicates that the function is a hoisted-in-context declaration.
+  DECL_BOOLEAN_ACCESSORS(is_hoisted_in_context)
+
   inline FunctionKind kind() const;
 
   int UniqueIdInScript() const;

@@ -6,6 +6,9 @@
 
 #include <stdlib.h>
 
+#include <optional>
+#include <set>
+
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/init/bootstrapper.h"
@@ -286,7 +289,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsHiddenBit::encode(scope->is_hidden()) |
         IsWrappedFunctionBit::encode(scope->is_wrapped_function()) |
-        HasContextCellsBit::encode(scope->has_context_cells());
+        HasContextCellsBit::encode(scope->has_context_cells()) |
+        IsHoistedInContextBit::encode(scope->is_hoisted_in_context());
     scope_info->set_flags(flags, kRelaxedStore);
 
     scope_info->set_parameter_count(parameter_count);
@@ -319,12 +323,25 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           int local_index = var->index() - scope->ContextHeaderLength();
           DCHECK_LE(0, local_index);
           DCHECK_LT(local_index, context_local_count);
-          uint32_t info =
-              VariableModeBits::encode(var->mode()) |
-              InitFlagBit::encode(var->initialization_flag()) |
-              MaybeAssignedFlagBit::encode(var->maybe_assigned()) |
-              ParameterNumberBits::encode(ParameterNumberBits::kMax) |
-              IsStaticFlagBit::encode(var->is_static_flag());
+          uint32_t info = VariableModeBits::encode(var->mode()) |
+                          InitFlagBit::encode(var->initialization_flag()) |
+                          MaybeAssignedFlagBit::encode(var->maybe_assigned()) |
+                          IsParameterBit::encode(false) |
+                          IsStaticFlagBit::encode(var->is_static_flag());
+          int position = var->initializer_position();
+          if (position != kNoSourcePosition) {
+            int relative_position =
+                std::max(0, position - scope->start_position());
+            if (relative_position >=
+                static_cast<int>(ParameterNumberOrPositionBits::kMax)) {
+              relative_position = ParameterNumberOrPositionBits::kMax;
+            }
+            info =
+                ParameterNumberOrPositionBits::update(info, relative_position);
+          } else {
+            info = ParameterNumberOrPositionBits::update(
+                info, ParameterNumberOrPositionBits::kMax);
+          }
           if (has_inlined_local_names) {
             scope_info->set(context_local_base + local_index, *var->name(),
                             *mode);
@@ -353,8 +370,22 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               VariableModeBits::encode(var->mode()) |
               InitFlagBit::encode(var->initialization_flag()) |
               MaybeAssignedFlagBit::encode(var->maybe_assigned()) |
-              ParameterNumberBits::encode(ParameterNumberBits::kMax) |
+              IsParameterBit::encode(false) |
               IsStaticFlagBit::encode(var->is_static_flag());
+          int position = var->initializer_position();
+          if (position != kNoSourcePosition) {
+            int relative_position =
+                std::max(0, position - scope->start_position());
+            if (relative_position >=
+                static_cast<int>(ParameterNumberOrPositionBits::kMax)) {
+              relative_position = ParameterNumberOrPositionBits::kMax;
+            }
+            properties = ParameterNumberOrPositionBits::update(
+                properties, relative_position);
+          } else {
+            properties = ParameterNumberOrPositionBits::update(
+                properties, ParameterNumberOrPositionBits::kMax);
+          }
           scope_info->set(
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kPropertiesOffset /
@@ -382,7 +413,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         int param_index = parameter->index() - scope->ContextHeaderLength();
         int info_index = context_local_info_base + param_index;
         int info = Smi::ToInt(scope_info->get(info_index));
-        info = ParameterNumberBits::update(info, i);
+        info = IsParameterBit::update(info, true);
+        info = ParameterNumberOrPositionBits::update(info, i);
         scope_info->set(info_index, Smi::FromInt(info));
       }
     }
@@ -504,7 +536,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false) |
-      IsWrappedFunctionBit::encode(false);
+      IsWrappedFunctionBit::encode(false) |
+      IsHoistedInContextBit::encode(false);
   scope_info->set_flags(flags, kRelaxedStore);
 
   scope_info->set_parameter_count(0);
@@ -613,7 +646,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
       IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false) |
-      HasContextCellsBit::encode(false);
+      HasContextCellsBit::encode(false) | IsHoistedInContextBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags, kRelaxedStore);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -631,12 +664,13 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   }
   DCHECK_EQ(index, raw_scope_info->ContextLocalInfosIndex());
   if (context_local_count > 0) {
-    const uint32_t value =
-        VariableModeBits::encode(VariableMode::kConst) |
-        InitFlagBit::encode(kCreatedInitialized) |
-        MaybeAssignedFlagBit::encode(kNotAssigned) |
-        ParameterNumberBits::encode(ParameterNumberBits::kMax) |
-        IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
+    const uint32_t value = VariableModeBits::encode(VariableMode::kConst) |
+                           InitFlagBit::encode(kCreatedInitialized) |
+                           MaybeAssignedFlagBit::encode(kNotAssigned) |
+                           IsParameterBit::encode(false) |
+                           ParameterNumberOrPositionBits::encode(
+                               ParameterNumberOrPositionBits::kMax) |
+                           IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
     raw_scope_info->set(index++, Smi::FromInt(value));
   }
 
@@ -721,7 +755,9 @@ Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
   return ReadOnlyRoots(isolate).empty_scope_info();
 }
 
-bool ScopeInfo::IsEmpty() const { return IsEmptyBit::decode(Flags()); }
+bool ScopeInfo::IsEmpty() const {
+  return *this == EarlyGetReadOnlyRoots().empty_scope_info();
+}
 
 ScopeType ScopeInfo::scope_type() const {
   DCHECK(!this->IsEmpty());
@@ -995,13 +1031,23 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) const {
 
 bool ScopeInfo::ContextLocalIsParameter(int var) const {
   int value = context_local_infos(var);
-  return ParameterNumberBits::decode(value) != ParameterNumberBits::kMax;
+  return IsParameterBit::decode(value);
 }
 
 uint32_t ScopeInfo::ContextLocalParameterNumber(int var) const {
   DCHECK(ContextLocalIsParameter(var));
   int value = context_local_infos(var);
-  return ParameterNumberBits::decode(value);
+  return ParameterNumberOrPositionBits::decode(value);
+}
+
+int ScopeInfo::ContextLocalInitializerPosition(int var) const {
+  DCHECK(!ContextLocalIsParameter(var));
+  int value = context_local_infos(var);
+  int position = ParameterNumberOrPositionBits::decode(value);
+  if (position == static_cast<int>(ParameterNumberOrPositionBits::kMax)) {
+    return kMaxInt;
+  }
+  return StartPosition() + position;
 }
 
 MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
@@ -1026,7 +1072,8 @@ int ScopeInfo::ModuleVariableCount() const {
 
 int ScopeInfo::ModuleIndex(Tagged<String> name, VariableMode* mode,
                            InitializationFlag* init_flag,
-                           MaybeAssignedFlag* maybe_assigned_flag) {
+                           MaybeAssignedFlag* maybe_assigned_flag,
+                           int* initializer_position) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsInternalizedString(name));
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
@@ -1039,7 +1086,8 @@ int ScopeInfo::ModuleIndex(Tagged<String> name, VariableMode* mode,
     Tagged<String> var_name = module_variables_name(i);
     if (name->Equals(var_name)) {
       int index;
-      ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag);
+      ModuleVariable(i, nullptr, &index, mode, init_flag, maybe_assigned_flag,
+                     initializer_position);
       return index;
     }
   }
@@ -1077,6 +1125,9 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name,
     lookup_result->init_flag = ContextLocalInitFlag(index);
     lookup_result->maybe_assigned_flag = ContextLocalMaybeAssignedFlag(index);
     lookup_result->is_repl_mode = IsReplModeScope();
+    lookup_result->initializer_position =
+        ContextLocalIsParameter(index) ? kNoSourcePosition
+                                       : ContextLocalInitializerPosition(index);
     int context_slot = ContextHeaderLength() + index;
     DCHECK_LT(context_slot, ContextLength());
     return context_slot;
@@ -1190,7 +1241,8 @@ int ScopeInfo::ModuleVariablesIndex() const {
 void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
                                VariableMode* mode,
                                InitializationFlag* init_flag,
-                               MaybeAssignedFlag* maybe_assigned_flag) {
+                               MaybeAssignedFlag* maybe_assigned_flag,
+                               int* initializer_position) {
   int properties = module_variables_properties(i);
 
   if (name != nullptr) {
@@ -1208,6 +1260,14 @@ void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
   }
   if (maybe_assigned_flag != nullptr) {
     *maybe_assigned_flag = MaybeAssignedFlagBit::decode(properties);
+  }
+  if (initializer_position != nullptr) {
+    int position = ParameterNumberOrPositionBits::decode(properties);
+    if (position == static_cast<int>(ParameterNumberOrPositionBits::kMax)) {
+      *initializer_position = kMaxInt;
+    } else {
+      *initializer_position = StartPosition() + position;
+    }
   }
 }
 

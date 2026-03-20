@@ -880,6 +880,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   UnoptimizedCompileState new_compile_state;
   UnoptimizedCompileFlags new_flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);
+  new_flags.set_is_hoisted_in_context(flags.is_hoisted_in_context());
   new_flags.set_is_eager(true);
   ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
                            &reusable_state);

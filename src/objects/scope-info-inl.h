@@ -33,6 +33,10 @@ bool ScopeInfo::HasContextCells() const {
   return HasContextCellsBit::decode(Flags());
 }
 
+bool ScopeInfo::is_hoisted_in_context() const {
+  return IsHoistedInContextBit::decode(Flags());
+}
+
 uint32_t ScopeInfo::Flags() const { return flags(kRelaxedLoad); }
 int ScopeInfo::ParameterCount() const { return parameter_count(); }
 int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
