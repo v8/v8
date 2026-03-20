@@ -129,10 +129,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, AbortReason reason, Register rs, Operand rt);
+  void Assert(Condition cc, AbortReason reason, Register rs,
+              Operand rt) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
-                   AbortReason abort_reason);
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not smi nor in the main pointer
   // compression cage, enabled via --debug-code.

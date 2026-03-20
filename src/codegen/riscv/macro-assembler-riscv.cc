@@ -6526,6 +6526,7 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::Trap() { stop(); }
 void MacroAssembler::DebugBreak() { stop(); }
 
+#ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::Assert(Condition cc, AbortReason reason, Register rs,
                             Operand rt) {
   if (v8_flags.debug_code) Check(cc, reason, rs, rt);
@@ -6563,8 +6564,6 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
   bind(&ok);
 }
 
-#ifdef V8_ENABLE_DEBUG_CODE
-
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -6579,6 +6578,20 @@ void MacroAssembler::AssertSignExtended(Register int32_register) {
          int32_register, Operand(kMaxInt));
   Assert(Condition::ge, AbortReason::k32BitValueInRegisterIsNotSignExtended,
          int32_register, Operand(kMinInt));
+}
+
+void MacroAssembler::AssertMap(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  Label ConditionMet, Done;
+  MacroAssembler::JumpIfObjectType(&Done, Condition::kEqual, object, MAP_TYPE,
+                                   temp);
+  Abort(AbortReason::kOperandIsNotAMap);
+  bind(&Done);
 }
 
 void MacroAssembler::AssertRange(Condition cond, AbortReason reason,
