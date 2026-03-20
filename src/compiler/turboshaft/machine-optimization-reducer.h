@@ -1219,14 +1219,15 @@ class MachineOptimizationReducer : public Next {
       const OpIndex child = children.back();
       children.pop_back();
       if (const WordBinopOp* child_binop =
-              matcher_.Get(child).TryCast<WordBinopOp>();
+              matcher_.Get(child).template TryCast<WordBinopOp>();
           child_binop && child_binop->kind == WordBinopOp::Kind::kAdd) {
         // explore add's children too
         children.push_back(child_binop->left());
         children.push_back(child_binop->right());
         continue;
       } else if (const Simd128ExtractLaneOp* child_extract =
-                     matcher_.Get(child).TryCast<Simd128ExtractLaneOp>();
+                     matcher_.Get(child)
+                         .template TryCast<Simd128ExtractLaneOp>();
                  child_extract &&
                  child_extract->kind == Simd128ExtractLaneOp::Kind::kI32x4) {
         // check extract, and record to check future ones against
