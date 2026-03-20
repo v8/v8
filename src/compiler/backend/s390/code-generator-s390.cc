@@ -1302,6 +1302,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             size_t expected = isolate()->js_dispatch_table().GetParameterCount(
                 dispatch_handle);
             if (num_arguments >= expected) {
+              __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
               __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
