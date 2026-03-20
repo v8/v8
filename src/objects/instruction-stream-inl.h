@@ -160,6 +160,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
         code, kReleaseStore);
   }
 
+  InstructionStream::ValidateJSDispatchHandles(heap, desc);
+
   // Trigger the write barriers after we dropped the JIT write permissions.
   RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
                                 no_gc);
