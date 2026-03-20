@@ -2350,6 +2350,10 @@ DEFINE_TEST_ONLY_FLAG(trace_wasm_generate_compilation_hints,
 // Feedback collection is guarded by the --wasm-inlining flag.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
+// --wasm-code-coverage implies --no-wasm-inlining.
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, wasm_code_coverage)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
+                       wasm_code_coverage)
 // We need liftoff to generate feedback when generating compilation hints.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, liftoff)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
