@@ -2582,8 +2582,11 @@ void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
 
 void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
     Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SourceTextModuleInfoEntryVerify(*this,
-                                                                 isolate);
+  StructVerify(isolate);
+  CHECK(IsSourceTextModuleInfoEntry(this));
+  Object::VerifyPointer(isolate, export_name());
+  Object::VerifyPointer(isolate, local_name());
+  Object::VerifyPointer(isolate, import_name());
   CHECK_IMPLIES(IsString(import_name()), module_request() >= 0);
   CHECK_IMPLIES(IsString(export_name()) && IsString(import_name()),
                 IsUndefined(local_name(), isolate));
@@ -2615,7 +2618,10 @@ void Module::ModuleVerify(Isolate* isolate) {
 }
 
 void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleRequestVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsModuleRequest(this));
+  Object::VerifyPointer(isolate, specifier());
+  Object::VerifyPointer(isolate, import_attributes());
   uint32_t import_attributes_len = import_attributes()->ulength().value();
   CHECK_EQ(0, import_attributes_len % ModuleRequest::kAttributeEntrySize);
 
@@ -2907,6 +2913,11 @@ void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(IsTuple2(this));
   Object::VerifyPointer(isolate, value1_.load());
   Object::VerifyPointer(isolate, value2_.load());
+}
+
+void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAliasedArgumentsEntry(this));
 }
 
 void AccessorPair::AccessorPairVerify(Isolate* isolate) {

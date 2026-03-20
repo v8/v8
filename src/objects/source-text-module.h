@@ -283,10 +283,21 @@ class SourceTextModuleInfo : public FixedArray {
   };
 };
 
-class ModuleRequest
-    : public TorqueGeneratedModuleRequest<ModuleRequest, Struct> {
+V8_OBJECT class ModuleRequest : public StructLayout {
  public:
+  inline Tagged<String> specifier() const;
+  inline void set_specifier(Tagged<String> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> import_attributes() const;
+  inline void set_import_attributes(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
+
   DECL_VERIFIER(ModuleRequest)
+  DECL_PRINTER(ModuleRequest)
 
   template <typename IsolateT>
   static Handle<ModuleRequest> New(IsolateT* isolate,
@@ -309,14 +320,40 @@ class ModuleRequest
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(ModuleRequest)
-};
-
-class SourceTextModuleInfoEntry
-    : public TorqueGeneratedSourceTextModuleInfoEntry<SourceTextModuleInfoEntry,
-                                                      Struct> {
  public:
+  TaggedMember<String> specifier_;
+  TaggedMember<FixedArray> import_attributes_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+V8_OBJECT class SourceTextModuleInfoEntry : public StructLayout {
+ public:
+  inline Tagged<UnionOf<String, Undefined>> export_name() const;
+  inline void set_export_name(Tagged<UnionOf<String, Undefined>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<String, Undefined>> local_name() const;
+  inline void set_local_name(Tagged<UnionOf<String, Undefined>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<String, Undefined>> import_name() const;
+  inline void set_import_name(Tagged<UnionOf<String, Undefined>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int module_request() const;
+  inline void set_module_request(int value);
+
+  inline int cell_index() const;
+  inline void set_cell_index(int value);
+
+  inline int beg_pos() const;
+  inline void set_beg_pos(int value);
+
+  inline int end_pos() const;
+  inline void set_end_pos(int value);
+
   DECL_VERIFIER(SourceTextModuleInfoEntry)
+  DECL_PRINTER(SourceTextModuleInfoEntry)
 
   template <typename IsolateT>
   static Handle<SourceTextModuleInfoEntry> New(
@@ -327,8 +364,15 @@ class SourceTextModuleInfoEntry
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
-};
+ public:
+  TaggedMember<UnionOf<String, Undefined>> export_name_;
+  TaggedMember<UnionOf<String, Undefined>> local_name_;
+  TaggedMember<UnionOf<String, Undefined>> import_name_;
+  TaggedMember<Smi> module_request_;
+  TaggedMember<Smi> cell_index_;
+  TaggedMember<Smi> beg_pos_;
+  TaggedMember<Smi> end_pos_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

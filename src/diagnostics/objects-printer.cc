@@ -3351,10 +3351,38 @@ void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void ModuleRequest::ModuleRequestPrint(std::ostream& os) {
+  PrintHeader(os, "ModuleRequest");
+  os << "\n - specifier: " << Brief(specifier());
+  os << "\n - import_attributes: " << Brief(import_attributes());
+  os << "\n - position: " << position();
+  os << "\n - phase: " << static_cast<int>(phase());
+  os << '\n';
+}
+
+void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryPrint(
+    std::ostream& os) {
+  PrintHeader(os, "SourceTextModuleInfoEntry");
+  os << "\n - export_name: " << Brief(export_name());
+  os << "\n - local_name: " << Brief(local_name());
+  os << "\n - import_name: " << Brief(import_name());
+  os << "\n - module_request: " << module_request();
+  os << "\n - cell_index: " << cell_index();
+  os << "\n - beg_pos: " << beg_pos();
+  os << "\n - end_pos: " << end_pos();
+  os << '\n';
+}
+
 void Tuple2::Tuple2Print(std::ostream& os) {
   this->PrintHeader(os, "Tuple2");
   os << "\n - value1: " << Brief(this->value1());
   os << "\n - value2: " << Brief(this->value2());
+  os << '\n';
+}
+
+void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(std::ostream& os) {
+  PrintHeader(os, "AliasedArgumentsEntry");
+  os << "\n - aliased_context_slot: " << aliased_context_slot();
   os << '\n';
 }
 
