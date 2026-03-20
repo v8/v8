@@ -1253,6 +1253,12 @@ inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   }
 }
 
+template <>
+inline void LiftoffAssembler::Move(Simd128Register dst, Simd128Register src,
+                                   ValueKind kind) {
+  UNIMPLEMENTED();
+}
+
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
