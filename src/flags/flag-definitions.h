@@ -73,8 +73,13 @@
 #define DEFINE_GENERIC_IMPLICATION(cond, statement) \
   if (cond) statement;
 
-// TODO(457654443): can we use FlagError for this, too?
-#define DEFINE_REQUIREMENT(statement) CHECK_NO_SECURITY_IMPACT(statement);
+#define DEFINE_REQUIREMENT(statement) \
+  do {                                \
+    if (V8_UNLIKELY(!(statement))) {  \
+      FlagError{} << #statement;      \
+      UNREACHABLE();                  \
+    }                                 \
+  } while (false);
 
 // Enforce that a flag was not explicitly set via command line. Setting a value
 // via implications is still allowed.
@@ -2598,8 +2603,10 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
 DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
+DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
+DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
 DEFINE_BOOL(enable_allocation_failures_optimize_memory, true,
             "Enable eager allocations failures due to memory optimizations")
 DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,

@@ -419,7 +419,7 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     CHECK_NE(size, -1);
     perf_output_handle_ =
         base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
-    CHECK_NOT_NULL(perf_output_handle_);
+    CHECK_NO_SECURITY_IMPACT(perf_output_handle_ != nullptr);
     setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
   }
 }

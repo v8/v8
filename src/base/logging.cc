@@ -69,6 +69,10 @@ void SetPrintStackTrace(void (*print_stack_trace)()) {
   g_print_stack_trace = print_stack_trace;
 }
 
+void PrintStackTraceIfAvailable() {
+  if (g_print_stack_trace) g_print_stack_trace();
+}
+
 void SetDcheckFunction(void (*dcheck_function)(const char*, int, const char*)) {
   g_dcheck_function = dcheck_function ? dcheck_function : &DefaultDcheckHandler;
 }
@@ -88,7 +92,7 @@ void FatalOOM(OOMType type, const char* msg) {
   const char* type_str = type == OOMType::kProcess ? "process" : "JavaScript";
   OS::PrintError("\n\n#\n# Fatal %s out of memory: %s\n#", type_str, msg);
 
-  if (g_print_stack_trace) v8::base::g_print_stack_trace();
+  v8::base::PrintStackTraceIfAvailable();
 
   fflush(stderr);
   if (FatalErrorsWithNoSecurityImpactShouldExit()) {
@@ -108,7 +112,7 @@ void FatalNoSecurityImpact(const char* format, ...) {
 
   OS::PrintError("\n#\n");
 
-  if (g_print_stack_trace) v8::base::g_print_stack_trace();
+  v8::base::PrintStackTraceIfAvailable();
 
   fflush(stderr);
   if (FatalErrorsWithNoSecurityImpactShouldExit()) {
@@ -226,7 +230,7 @@ void V8_Fatal(const char* format, ...) {
   // Print the message object's address to force stack allocation.
   v8::base::OS::PrintError("\n#\n#\n#\n#FailureMessage Object: %p", &message);
 
-  if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
+  v8::base::PrintStackTraceIfAvailable();
 
   fflush(stderr);
   v8::base::OS::Abort();

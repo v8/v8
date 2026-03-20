@@ -87,6 +87,7 @@ class CheckMessageStream : public std::ostringstream {};
 
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
+V8_BASE_EXPORT void PrintStackTraceIfAvailable();
 
 // Override the default function that handles DCHECKs.
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,

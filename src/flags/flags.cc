@@ -20,6 +20,7 @@
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags-impl.h"
@@ -119,6 +120,7 @@ struct FlagError : public std::ostringstream {
   ~FlagError() {
     base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
     base::OS::PrintError("%s\n", kHint);
+    base::PrintStackTraceIfAvailable();
     // TODO(457654443): consider merging exit_on_contradictory_flags and
     // abort_on_contradictory_flags into a single, more generic flag specifying
     // how to handle flag processing errors.
