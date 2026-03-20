@@ -198,6 +198,32 @@ void RegExpBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
+Tagged<ObjectBoilerplateDescription>
+PrototypeSharedClosureInfo::boilerplate_description() const {
+  return boilerplate_description_.load();
+}
+void PrototypeSharedClosureInfo::set_boilerplate_description(
+    Tagged<ObjectBoilerplateDescription> value, WriteBarrierMode mode) {
+  boilerplate_description_.store(this, value, mode);
+}
+
+Tagged<ClosureFeedbackCellArray>
+PrototypeSharedClosureInfo::closure_feedback_cell_array() const {
+  return closure_feedback_cell_array_.load();
+}
+void PrototypeSharedClosureInfo::set_closure_feedback_cell_array(
+    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
+  closure_feedback_cell_array_.store(this, value, mode);
+}
+
+Tagged<Context> PrototypeSharedClosureInfo::context() const {
+  return context_.load();
+}
+void PrototypeSharedClosureInfo::set_context(Tagged<Context> value,
+                                             WriteBarrierMode mode) {
+  context_.store(this, value, mode);
+}
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

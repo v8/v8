@@ -2886,14 +2886,6 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
-    std::ostream& os) {
-  PrintHeader(os, "PrototypeSharedClosureInfo");
-  os << "\n - context: " << Brief(context());
-  os << "\n - closure feedback cell array: "
-     << Brief(closure_feedback_cell_array());
-}
-
 void JSDeferredModuleNamespace::JSDeferredModuleNamespacePrint(
     std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDeferredModuleNamespace");
@@ -3370,6 +3362,31 @@ void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryPrint(
   os << "\n - cell_index: " << cell_index();
   os << "\n - beg_pos: " << beg_pos();
   os << "\n - end_pos: " << end_pos();
+  os << '\n';
+}
+
+void FunctionTemplateRareData::FunctionTemplateRareDataPrint(std::ostream& os) {
+  PrintHeader(os, "FunctionTemplateRareData");
+  os << "\n - prototype_template: " << Brief(prototype_template());
+  os << "\n - prototype_provider_template: "
+     << Brief(prototype_provider_template());
+  os << "\n - parent_template: " << Brief(parent_template());
+  os << "\n - named_property_handler: " << Brief(named_property_handler());
+  os << "\n - indexed_property_handler: " << Brief(indexed_property_handler());
+  os << "\n - instance_template: " << Brief(instance_template());
+  os << "\n - instance_call_handler: " << Brief(instance_call_handler());
+  os << "\n - access_check_info: " << Brief(access_check_info());
+  os << "\n - c_function_overloads: " << Brief(c_function_overloads());
+  os << '\n';
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PrototypeSharedClosureInfo");
+  os << "\n - boilerplate_description: " << Brief(boilerplate_description());
+  os << "\n - closure_feedback_cell_array: "
+     << Brief(closure_feedback_cell_array());
+  os << "\n - context: " << Brief(context());
   os << '\n';
 }
 

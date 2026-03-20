@@ -24,17 +24,32 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/literal-objects-tq.inc"
 
-class PrototypeSharedClosureInfo
-    : public TorqueGeneratedPrototypeSharedClosureInfo<
-          PrototypeSharedClosureInfo, Struct> {
+V8_OBJECT class PrototypeSharedClosureInfo : public StructLayout {
  public:
+  inline Tagged<ObjectBoilerplateDescription> boilerplate_description() const;
+  inline void set_boilerplate_description(
+      Tagged<ObjectBoilerplateDescription> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
+  inline void set_closure_feedback_cell_array(
+      Tagged<ClosureFeedbackCellArray> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Context> context() const;
+  inline void set_context(Tagged<Context> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(PrototypeSharedClosureInfo)
   DECL_VERIFIER(PrototypeSharedClosureInfo)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(PrototypeSharedClosureInfo)
-};
+ public:
+  TaggedMember<ObjectBoilerplateDescription> boilerplate_description_;
+  TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
+  TaggedMember<Context> context_;
+} V8_OBJECT_END;
 
 class ObjectBoilerplateDescriptionShape final : public AllStatic {
  public:

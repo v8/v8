@@ -678,7 +678,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
           current, FunctionTemplateInfo::kRareDataOffset);
       GotoIf(IsUndefined(current_rare), &holder_next);
       var_template = LoadObjectField<HeapObject>(
-          current_rare, FunctionTemplateRareData::kParentTemplateOffset);
+          current_rare, offsetof(FunctionTemplateRareData, parent_template_));
       Goto(&template_loop);
     }
 

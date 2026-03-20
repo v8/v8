@@ -2672,12 +2672,6 @@ void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
   }
 }
 
-void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
-    Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PrototypeSharedClosureInfoVerify(*this,
-                                                                  isolate);
-}
-
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PrototypeInfoVerify(*this, isolate);
   if (IsWeakArrayList(prototype_users())) {
@@ -2912,6 +2906,32 @@ void StructLayout::StructVerify(Isolate* isolate) {
   Cast<Struct>(this)->StructVerify(isolate);
 }
 
+void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
+    Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsFunctionTemplateRareData(this));
+  Object::VerifyPointer(isolate, prototype_template());
+  Object::VerifyPointer(isolate, prototype_provider_template());
+  Object::VerifyPointer(isolate, parent_template());
+  Object::VerifyPointer(isolate, named_property_handler());
+  Object::VerifyPointer(isolate, indexed_property_handler());
+  Object::VerifyPointer(isolate, instance_template());
+  Object::VerifyPointer(isolate, instance_call_handler());
+  Object::VerifyPointer(isolate, access_check_info());
+  Object::VerifyPointer(isolate, c_function_overloads());
+  CHECK(IsFixedArray(c_function_overloads()) ||
+        IsUndefined(c_function_overloads(), isolate));
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
+    Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsPrototypeSharedClosureInfo(this));
+  Object::VerifyPointer(isolate, boilerplate_description());
+  Object::VerifyPointer(isolate, closure_feedback_cell_array());
+  Object::VerifyPointer(isolate, context());
+}
+
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   StructVerify(isolate);
   CHECK(IsTuple2(this));
@@ -3083,12 +3103,6 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
-    Isolate* isolate) {
-  CHECK(IsFixedArray(c_function_overloads()) ||
-        IsUndefined(c_function_overloads(), isolate));
 }
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {

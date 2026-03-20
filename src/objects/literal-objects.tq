@@ -33,6 +33,7 @@ extern class ClassBoilerplate extends Struct {
   instance_computed_properties: FixedArray;
 }
 
+@cppObjectLayoutDefinition
 extern class PrototypeSharedClosureInfo extends Struct {
   boilerplate_description: ObjectBoilerplateDescription;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
