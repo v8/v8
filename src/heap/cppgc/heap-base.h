@@ -180,6 +180,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   virtual void set_override_stack_state(EmbedderStackState state) = 0;
   virtual void clear_overridden_stack_state() = 0;
 
+  std::optional<cppgc::StackStartMarker> stack_start_marker();
+
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in
   // destructors. Exceeding the loop bound results in a crash.
@@ -331,6 +333,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const StackSupport stack_support_;
   EmbedderStackState stack_state_of_prev_gc_ =
       EmbedderStackState::kNoHeapPointers;
+
+  const std::optional<StackStartMarker> stack_start_marker_;
 
   bool in_atomic_pause_ = false;
 

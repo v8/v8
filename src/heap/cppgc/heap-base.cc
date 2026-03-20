@@ -126,6 +126,7 @@ HeapBase::HeapBase(
       remembered_set_(*this),
 #endif  // defined(CPPGC_YOUNG_GENERATION)
       stack_support_(stack_support),
+      stack_start_marker_(stack_start_marker),
       marking_support_(marking_support),
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
@@ -355,6 +356,10 @@ bool HeapBase::IsGCAllowed() const {
 
 bool HeapBase::CurrentThreadIsHeapThread() const {
   return heap_thread_id_ == v8::base::OS::GetCurrentThreadId();
+}
+
+std::optional<cppgc::StackStartMarker> HeapBase::stack_start_marker() {
+  return stack_start_marker_;
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

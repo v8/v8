@@ -35,7 +35,7 @@ using StackVisitorCallback = void (*)(StackVisitor*);
 class V8_EXPORT_PRIVATE Stack final {
  public:
   // Sets the start of the stack to the provided stack start.
-  void SetStackStart(void* stack_start) {
+  void SetStackStart(const void* stack_start) {
     current_segment_.start = stack_start;
 #ifdef V8_USE_ADDRESS_SANITIZER
     current_segment_.asan_fake_stack = __asan_get_current_fake_stack();

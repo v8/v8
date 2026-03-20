@@ -2320,6 +2320,8 @@ class Heap final {
   StackState embedder_stack_state_ = StackState::kMayContainHeapPointers;
   std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
+  const void* stack_start_marker_ = nullptr;
+
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
 

@@ -5198,10 +5198,17 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   code_range_size_ = constraints.code_range_size_in_bytes();
 
   heap_profiler_ = std::make_unique<HeapProfiler>(this);
+
   if (cpp_heap) {
     AttachCppHeap(cpp_heap);
     owning_cpp_heap_.reset(CppHeap::From(cpp_heap));
+    auto stack_start_marker = CppHeap::From(cpp_heap)->stack_start_marker();
+    if (stack_start_marker) {
+      stack_start_marker_ = stack_start_marker->stack_start();
+    }
   }
+
+  SetStackStart();
 
   configured_ = true;
 }
@@ -6396,7 +6403,19 @@ void Heap::SetStackStart() {
   // If no main thread local heap has been set up (we're still in the
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
-  stack().SetStackStart(v8::base::Stack::GetStackStart());
+
+  void* actual_stack_start = v8::base::Stack::GetStackStart();
+
+  // Because of v8::Locker an isolate might be migrated between threads. In such
+  // situations the provided stack start marker should only be used on the right
+  // thread.
+  if (stack_start_marker_ && actual_stack_start >= stack_start_marker_ &&
+      reinterpret_cast<uintptr_t>(stack_start_marker_) >=
+          static_cast<uintptr_t>(GetCurrentStackPosition())) {
+    stack().SetStackStart(stack_start_marker_);
+  } else {
+    stack().SetStackStart(actual_stack_start);
+  }
 }
 
 ::heap::base::Stack& Heap::stack() {
