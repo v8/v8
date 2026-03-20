@@ -19,6 +19,37 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-generator-tq-inl.inc"
 
+Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> AsyncGeneratorRequest::next()
+    const {
+  return next_.load();
+}
+void AsyncGeneratorRequest::set_next(
+    Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> value,
+    WriteBarrierMode mode) {
+  next_.store(this, value, mode);
+}
+
+int AsyncGeneratorRequest::resume_mode() const {
+  return resume_mode_.load().value();
+}
+void AsyncGeneratorRequest::set_resume_mode(int value) {
+  resume_mode_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> AsyncGeneratorRequest::value() const { return value_.load(); }
+void AsyncGeneratorRequest::set_value(Tagged<Object> value,
+                                      WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+Tagged<JSPromise> AsyncGeneratorRequest::promise() const {
+  return promise_.load();
+}
+void AsyncGeneratorRequest::set_promise(Tagged<JSPromise> value,
+                                        WriteBarrierMode mode) {
+  promise_.store(this, value, mode);
+}
+
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);
   DCHECK_LT(kGeneratorClosed, 0);

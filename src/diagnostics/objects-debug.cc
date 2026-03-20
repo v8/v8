@@ -2570,7 +2570,11 @@ void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
 }
 
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::AsyncGeneratorRequestVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsAsyncGeneratorRequest(this));
+  Object::VerifyPointer(isolate, next());
+  Object::VerifyPointer(isolate, value());
+  Object::VerifyPointer(isolate, promise());
   CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
   CHECK_LE(resume_mode(), JSGeneratorObject::kThrow);
 }
