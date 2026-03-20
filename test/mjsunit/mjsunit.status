@@ -2959,6 +2959,7 @@
 
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
+  'regress/regress-7558019': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
