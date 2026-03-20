@@ -5245,7 +5245,8 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
                                          isolate);
   DirectHandle<WeakArrayList> prototype_users(
       Cast<WeakArrayList>(proto_info->prototype_users()), isolate);
-  DCHECK_EQ(prototype_users->Get(slot), MakeWeak(*user));
+  DCHECK_GE(slot, 0);
+  DCHECK_EQ(prototype_users->Get(static_cast<uint32_t>(slot)), MakeWeak(*user));
   PrototypeUsers::MarkSlotEmpty(*prototype_users, slot);
   if (v8_flags.trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",
@@ -5324,8 +5325,9 @@ void InvalidatePrototypeChainsInternal(Tagged<Map> map) {
     }
     Tagged<WeakArrayList> prototype_users =
         Cast<WeakArrayList>(proto_info->prototype_users());
+    const uint32_t prototype_users_len = prototype_users->length().value();
     // For now, only maps register themselves as users.
-    for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
+    for (uint32_t i = PrototypeUsers::kFirstIndex; i < prototype_users_len;
          ++i) {
       Tagged<HeapObject> heap_object;
       if (prototype_users->Get(i).GetHeapObjectIfWeak(&heap_object) &&

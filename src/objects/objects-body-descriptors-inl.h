@@ -1654,6 +1654,14 @@ class ArrayList::BodyDescriptor final
   }
 };
 
+class WeakArrayList::BodyDescriptor final
+    : public SuffixRangeWeakBodyDescriptor<HeapObject::kHeaderSize> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<WeakArrayList>(raw_object)->AllocatedSize();
+  }
+};
+
 class ObjectBoilerplateDescription::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<HeapObject::kHeaderSize> {
  public:

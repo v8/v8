@@ -1190,8 +1190,10 @@ void Debug::RecordWasmScriptWithBreakpoints(DirectHandle<Script> script) {
   }
   {
     DisallowGarbageCollection no_gc;
-    for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
-         --idx) {
+    const uint32_t wasm_scripts_len =
+        wasm_scripts_with_break_points_->length().value();
+    DCHECK_LE(wasm_scripts_len, kMaxInt);
+    for (int idx = static_cast<int>(wasm_scripts_len) - 1; idx >= 0; --idx) {
       Tagged<HeapObject> wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &wasm_script) &&
@@ -1223,8 +1225,10 @@ void Debug::ClearAllBreakPoints() {
   // Clear all wasm breakpoints.
   if (!wasm_scripts_with_break_points_.is_null()) {
     DisallowGarbageCollection no_gc;
-    for (int idx = wasm_scripts_with_break_points_->length() - 1; idx >= 0;
-         --idx) {
+    const uint32_t wasm_scripts_len =
+        wasm_scripts_with_break_points_->length().value();
+    DCHECK_LE(wasm_scripts_len, kMaxInt);
+    for (int idx = static_cast<int>(wasm_scripts_len) - 1; idx >= 0; --idx) {
       Tagged<HeapObject> raw_wasm_script;
       if (wasm_scripts_with_break_points_->Get(idx).GetHeapObject(
               &raw_wasm_script)) {
@@ -2427,7 +2431,8 @@ DirectHandle<FixedArray> Debug::GetLoadedScripts() {
     return factory->empty_fixed_array();
   }
   auto array = Cast<WeakArrayList>(factory->script_list());
-  Handle<FixedArray> results = factory->NewFixedArray(array->length());
+  const uint32_t array_length = array->length().value();
+  Handle<FixedArray> results = factory->NewFixedArray(array_length);
   int length = 0;
   {
     Script::Iterator iterator(isolate_);

@@ -24,9 +24,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/fixed-array-tq.inc"
-
 // Limit all fixed arrays to the same max capacity, so that non-resizing
 // transitions between different elements kinds (like Smi to Double) will not
 // error.
@@ -636,15 +633,28 @@ V8_OBJECT class ProtectedWeakFixedArray
   class BodyDescriptor;
 } V8_OBJECT_END;
 
+class WeakArrayListShape final : public AllStatic {
+ public:
+  using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kWeakArrayListMap;
+  static constexpr bool kLengthEqualsCapacity = false;
+
+  V8_ARRAY_EXTRA_FIELDS({ TaggedMember<Smi> length_; });
+};
+
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
 // adding more elements. length() returns the number of elements in the list and
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList
-    : public TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject> {
+V8_OBJECT class WeakArrayList
+    : public TaggedArrayBase<WeakArrayList, WeakArrayListShape> {
+  using Super = TaggedArrayBase<WeakArrayList, WeakArrayListShape>;
+
  public:
   DECL_PRINTER(WeakArrayList)
+  DECL_VERIFIER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
       Isolate* isolate, Handle<WeakArrayList> array,
@@ -667,32 +677,30 @@ class WeakArrayList
   // Compact weak references to the beginning of the array.
   V8_EXPORT_PRIVATE void Compact(Isolate* isolate);
 
-  inline Tagged<MaybeObject> Get(int index) const;
-  inline Tagged<MaybeObject> Get(PtrComprCageBase cage_base, int index) const;
-  // TODO(jgruber): Remove this once it's no longer needed for compatibility
-  // with WeakFixedArray.
-  inline Tagged<MaybeObject> get(int index) const;
+  inline Tagged<MaybeObject> Get(uint32_t index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
   // instead.
-  inline void Set(int index, Tagged<MaybeObject> value,
+  inline void Set(uint32_t index, Tagged<MaybeObject> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Set(int index, Tagged<Smi> value);
+  inline void Set(uint32_t index, Tagged<Smi> value);
 
-  using TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject>::capacity;
-  inline int capacity(RelaxedLoadTag) const;
+  inline SafeHeapObjectSize capacity() const;
+  inline SafeHeapObjectSize capacity(RelaxedLoadTag) const;
 
   // The function returns an alias instead of uint32_t to incrementally convert
   // callsites without missing any implicit casts.
+  inline SafeHeapObjectSize length() const;
   inline SafeHeapObjectSize ulength() const;
+  inline void set_length(uint32_t value);
 
-  static constexpr int SizeForCapacity(int capacity) {
+  static constexpr int SizeForCapacity(uint32_t capacity) {
     return SizeFor(capacity);
   }
 
-  static constexpr int CapacityForLength(int length) {
-    return length + std::max(length / 2, 2);
+  static constexpr uint32_t CapacityForLength(uint32_t length) {
+    return length + std::max(length / 2, 2u);
   }
 
   // Gives access to raw memory which stores the array's data.
@@ -718,14 +726,14 @@ class WeakArrayList
   static_assert(Smi::IsValid(SizeFor(static_cast<int>(kMaxCapacity))));
 
   static Handle<WeakArrayList> EnsureSpace(
-      Isolate* isolate, Handle<WeakArrayList> array, int length,
+      Isolate* isolate, Handle<WeakArrayList> array, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns the number of non-cleaned weak references in the array.
-  int CountLiveWeakReferences() const;
+  uint32_t CountLiveWeakReferences() const;
 
   // Returns the number of non-cleaned elements in the array.
-  int CountLiveElements() const;
+  uint32_t CountLiveElements() const;
 
   // Returns whether an entry was found and removed. Will move the elements
   // around in the array - this method can only be used in cases where the user
@@ -738,13 +746,16 @@ class WeakArrayList
 
   class Iterator;
 
+  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = kCapacityOffset + kTaggedSize;
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kTaggedSize;
+  static_assert(sizeof(Super::Header) == kHeaderSize);
+
  private:
   static constexpr int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kTaggedSize;
   }
-
-  TQ_OBJECT_CONSTRUCTORS(WeakArrayList)
-};
+} V8_OBJECT_END;
 
 class WeakArrayList::Iterator {
  public:
@@ -755,7 +766,7 @@ class WeakArrayList::Iterator {
   inline Tagged<HeapObject> Next();
 
  private:
-  int index_;
+  uint32_t index_;
   Tagged<WeakArrayList> array_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
@@ -779,15 +790,14 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   template <class IsolateT>
   static inline DirectHandle<ArrayList> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung);
 
-  // TODO(375937549): Convert usages to uint32_t.
   inline int length() const;
-  inline void set_length(uint32_t value);
-  // The function returns an alias instead of uint32_t to incrementally convert
-  // callsites without missing any implicit casts.
+  // The function returns an alias instead of uint32_t to force conversion at
+  // the callsites without missing any implicit casts.
   inline SafeHeapObjectSize ulength() const;
+  inline void set_length(uint32_t value);
 
   V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
       Isolate* isolate, DirectHandle<ArrayList> array, Tagged<Smi> obj,
@@ -815,7 +825,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
  private:
   static DirectHandle<ArrayList> EnsureSpace(
-      Isolate* isolate, DirectHandle<ArrayList> array, int length,
+      Isolate* isolate, DirectHandle<ArrayList> array, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 } V8_OBJECT_END;
 

@@ -989,7 +989,8 @@ void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
 void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   Tagged<WeakArrayList> instances = this->instances();
-  for (int i = 0, len = instances->length(); i < len; ++i) {
+  const uint32_t instances_len = instances->length().value();
+  for (uint32_t i = 0; i < instances_len; ++i) {
     Tagged<MaybeObject> elem = instances->Get(i);
     if (elem.IsCleared()) continue;
     Tagged<WasmInstanceObject> instance_object =

@@ -519,7 +519,8 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
           *isolate->factory()->feedback_vectors_for_profiling_tools()));
       auto list = Cast<ArrayList>(
           isolate->factory()->feedback_vectors_for_profiling_tools());
-      for (int i = 0; i < list->length(); i++) {
+      const uint32_t list_len = list->ulength().value();
+      for (uint32_t i = 0; i < list_len; i++) {
         Tagged<FeedbackVector> vector = Cast<FeedbackVector>(list->get(i));
         Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
         DCHECK(shared->IsSubjectToDebugging());

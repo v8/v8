@@ -4369,7 +4369,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     Tagged<DependentCode> dependency = site->dependent_code();
     CHECK_NE(dependency,
              DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
-    CHECK_EQ(dependency->length(), DependentCode::kSlotsPerEntry);
+    CHECK_EQ(dependency->length().value(), DependentCode::kSlotsPerEntry);
     Tagged<MaybeObject> code =
         dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code.IsWeak());

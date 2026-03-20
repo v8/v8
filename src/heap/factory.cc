@@ -2840,8 +2840,7 @@ Handle<FixedArray> Factory::CopyFixedArrayWithMap(
 }
 
 Handle<WeakArrayList> Factory::NewUninitializedWeakArrayList(
-    int capacity, AllocationType allocation) {
-  DCHECK_LE(0, capacity);
+    uint32_t capacity, AllocationType allocation) {
   if (capacity == 0) return empty_weak_array_list();
 
   Tagged<HeapObject> heap_object =
@@ -2856,10 +2855,10 @@ Handle<WeakArrayList> Factory::NewUninitializedWeakArrayList(
 }
 
 DirectHandle<WeakArrayList> Factory::NewWeakArrayList(
-    int capacity, AllocationType allocation) {
+    uint32_t capacity, AllocationType allocation) {
   DirectHandle<WeakArrayList> result =
       NewUninitializedWeakArrayList(capacity, allocation);
-  MemsetTagged(ObjectSlot(result->data_start()),
+  MemsetTagged(result->RawFieldOfFirstElement(),
                read_only_roots().undefined_value(), capacity);
   return result;
 }
@@ -2883,26 +2882,27 @@ DirectHandle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
 }
 
 Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
-    DirectHandle<WeakArrayList> src, int grow_by, AllocationType allocation) {
-  int old_capacity = src->capacity();
-  int new_capacity = old_capacity + grow_by;
+    DirectHandle<WeakArrayList> src, uint32_t grow_by,
+    AllocationType allocation) {
+  const uint32_t old_capacity = src->capacity().value();
+  const uint32_t new_capacity = old_capacity + grow_by;
   DCHECK_GE(new_capacity, old_capacity);
   Handle<WeakArrayList> result =
       NewUninitializedWeakArrayList(new_capacity, allocation);
   DisallowGarbageCollection no_gc;
   Tagged<WeakArrayList> raw = *result;
-  int old_len = src->length();
+  const uint32_t old_len = src->length().value();
   raw->set_length(old_len);
   // Copy the content.
   WriteBarrierModeScope mode = raw->GetWriteBarrierMode(no_gc);
   raw->CopyElements(isolate(), 0, *src, 0, old_len, *mode);
-  MemsetTagged(ObjectSlot(raw->data_start() + old_len),
+  MemsetTagged(raw->RawFieldOfElementAt(old_len),
                read_only_roots().undefined_value(), new_capacity - old_len);
   return result;
 }
 
 DirectHandle<WeakArrayList> Factory::CompactWeakArrayList(
-    DirectHandle<WeakArrayList> src, int new_capacity,
+    DirectHandle<WeakArrayList> src, uint32_t new_capacity,
     AllocationType allocation) {
   DirectHandle<WeakArrayList> result =
       NewUninitializedWeakArrayList(new_capacity, allocation);
@@ -2912,15 +2912,15 @@ DirectHandle<WeakArrayList> Factory::CompactWeakArrayList(
   Tagged<WeakArrayList> raw_src = *src;
   Tagged<WeakArrayList> raw_result = *result;
   WriteBarrierModeScope mode = raw_result->GetWriteBarrierMode(no_gc);
-  int copy_to = 0, length = raw_src->length();
-  for (int i = 0; i < length; i++) {
+  uint32_t copy_to = 0, length = raw_src->length().value();
+  for (uint32_t i = 0; i < length; i++) {
     Tagged<MaybeObject> element = raw_src->Get(i);
     if (element.IsCleared()) continue;
     raw_result->Set(copy_to++, element, *mode);
   }
   raw_result->set_length(copy_to);
 
-  MemsetTagged(ObjectSlot(raw_result->data_start() + copy_to),
+  MemsetTagged(raw_result->RawFieldOfElementAt(copy_to),
                read_only_roots().undefined_value(), new_capacity - copy_to);
   return result;
 }

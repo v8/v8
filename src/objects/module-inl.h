@@ -143,14 +143,14 @@ void SourceTextModule::AddAsyncParentModule(
 }
 
 Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
-    Isolate* isolate, int index) {
+    Isolate* isolate, uint32_t index) {
   Handle<SourceTextModule> module(
       Cast<SourceTextModule>(async_parent_modules()->get(index)), isolate);
   return module;
 }
 
-int SourceTextModule::AsyncParentModuleCount() {
-  return async_parent_modules()->length();
+uint32_t SourceTextModule::AsyncParentModuleCount() {
+  return async_parent_modules()->ulength().value();
 }
 
 bool SourceTextModule::HasAsyncEvaluationOrdinal() const {

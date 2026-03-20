@@ -43,6 +43,7 @@ namespace internal {
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
   APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)                     \
+  APPLY(V, WeakArrayList, WEAK_ARRAY_LIST)                               \
   APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)                             \
   APPLY(V, WeakHomomorphicFixedArray, WEAK_HOMOMORPHIC_FIXED_ARRAY)
 
@@ -289,7 +290,6 @@ namespace internal {
   IF_WASM(V, WasmTagObject)                     \
   IF_WASM(V, WasmTypeInfo)                      \
   IF_WASM(V, WasmValueObject)                   \
-  V(WeakArrayList)                              \
   V(WeakCell)                                   \
   TORQUE_DEFINED_CLASS_LIST(V)                  \
   SIMPLE_HEAP_OBJECT_LIST1(V)

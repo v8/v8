@@ -35,9 +35,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-
-#include "torque-generated/src/objects/fixed-array-tq-inl.inc"
-
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity() const {
   int capacity = capacity_.load().value();
@@ -439,15 +436,28 @@ constexpr uint32_t TaggedArrayBase<D, S, P>::NewCapacityForIndex(
   return capacity;
 }
 
-inline int WeakArrayList::capacity(RelaxedLoadTag) const {
-  int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
-  return value;
+inline SafeHeapObjectSize WeakArrayList::capacity() const {
+  int value = capacity_.load().value();
+  DCHECK_GE(value, 0);
+  return SafeHeapObjectSize(static_cast<uint32_t>(value));
 }
 
-inline SafeHeapObjectSize WeakArrayList::ulength() const {
-  int len = length();
+inline SafeHeapObjectSize WeakArrayList::capacity(RelaxedLoadTag) const {
+  int value = capacity_.Relaxed_Load().value();
+  DCHECK_GE(value, 0);
+  return SafeHeapObjectSize(static_cast<uint32_t>(value));
+}
+
+inline SafeHeapObjectSize WeakArrayList::length() const {
+  int len = length_.load().value();
   DCHECK_GE(len, 0);
   return SafeHeapObjectSize(static_cast<uint32_t>(len));
+}
+
+inline SafeHeapObjectSize WeakArrayList::ulength() const { return length(); }
+
+inline void WeakArrayList::set_length(uint32_t value) {
+  length_.store(this, Smi::FromUInt(value));
 }
 
 bool FixedArray::is_the_hole(Isolate* isolate, uint32_t index) {
@@ -495,7 +505,8 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
 }
 
 inline int WeakArrayList::AllocatedSize() const {
-  return SizeFor(capacity(kRelaxedLoad));
+  // TODO(375937549): Convert to uint32_t.
+  return SizeFor(static_cast<int>(capacity(kRelaxedLoad).value()));
 }
 
 template <class D, class S, class P>
@@ -768,52 +779,34 @@ Handle<ProtectedWeakFixedArray> ProtectedWeakFixedArray::New(
   return result;
 }
 
-Tagged<MaybeObject> WeakArrayList::Get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return Get(cage_base, index);
-}
-Tagged<MaybeObject> WeakArrayList::get(int index) const { return Get(index); }
-
-Tagged<MaybeObject> WeakArrayList::Get(PtrComprCageBase cage_base,
-                                       int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
-  return objects(cage_base, index, kRelaxedLoad);
+Tagged<MaybeObject> WeakArrayList::Get(uint32_t index) const {
+  return get(index);
 }
 
-void WeakArrayList::Set(int index, Tagged<MaybeObject> value,
+void WeakArrayList::Set(uint32_t index, Tagged<MaybeObject> value,
                         WriteBarrierMode mode) {
-  set_objects(index, value, kRelaxedStore, mode);
+  set(index, value, kRelaxedStore, mode);
 }
 
-void WeakArrayList::Set(int index, Tagged<Smi> value) {
+void WeakArrayList::Set(uint32_t index, Tagged<Smi> value) {
   Set(index, value, SKIP_WRITE_BARRIER);
-}
-
-MaybeObjectSlot WeakArrayList::data_start() {
-  return RawMaybeWeakField(kObjectsOffset);
 }
 
 void WeakArrayList::CopyElements(Isolate* isolate, uint32_t dst_index,
                                  Tagged<WeakArrayList> src, uint32_t src_index,
                                  uint32_t len, WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, capacity());
-  DCHECK_LE(src_index + len, src->capacity());
-  DisallowGarbageCollection no_gc;
-
-  MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src->data_start() + src_index);
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+  Super::CopyElements(isolate, this, dst_index, src, src_index, len, mode);
 }
 
 Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
-    while (index_ < array_->length()) {
+    const uint32_t array_len = array_->length().value();
+    while (index_ < array_len) {
       Tagged<MaybeObject> item = array_->Get(index_++);
       DCHECK(item.IsWeakOrCleared());
       if (!item.IsCleared()) return item.GetHeapObjectAssumeWeak();
     }
-    array_ = WeakArrayList();
+    array_ = Tagged<WeakArrayList>();
   }
   return Tagged<HeapObject>();
 }
@@ -834,17 +827,15 @@ void ArrayList::set_length(uint32_t value) {
 
 // static
 template <class IsolateT>
-DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
+DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, uint32_t capacity,
                                        AllocationType allocation) {
   if (capacity == 0) return isolate->factory()->empty_array_list();
 
-  // TODO(375937549): Convert capacity to uint32_t.
-  DCHECK_GT(capacity, 0);
-  DCHECK_LE(static_cast<uint32_t>(capacity), kMaxCapacity);
+  DCHECK_LE(capacity, kMaxCapacity);
 
   std::optional<DisallowGarbageCollection> no_gc;
-  DirectHandle<ArrayList> result = Cast<ArrayList>(
-      Allocate(isolate, static_cast<uint32_t>(capacity), &no_gc, allocation));
+  DirectHandle<ArrayList> result =
+      Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
   result->set_length(0);
   ReadOnlyRoots roots{isolate};
   MemsetTagged(result->RawFieldOfFirstElement(), roots.undefined_value(),

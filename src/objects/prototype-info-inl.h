@@ -39,7 +39,7 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap() {
   }
   // Index 0 is the map for object create
   Tagged<WeakArrayList> derived_list = Cast<WeakArrayList>(derived);
-  DCHECK_GT(derived_list->length(), 0);
+  DCHECK_GT(derived_list->length().value(), 0);
   Tagged<MaybeObject> el = derived_list->Get(0);
   DCHECK(el.IsWeakOrCleared());
   return el;
@@ -52,7 +52,7 @@ Tagged<MaybeObject> PrototypeInfo::ObjectCreateMap(AcquireLoadTag tag) {
   }
   // Index 0 is the map for object create
   Tagged<WeakArrayList> derived_list = Cast<WeakArrayList>(derived);
-  DCHECK_GT(derived_list->length(), 0);
+  DCHECK_GT(derived_list->length().value(), 0);
   Tagged<MaybeObject> el = derived_list->Get(0);
   DCHECK(el.IsWeakOrCleared());
   return el;
@@ -70,7 +70,7 @@ void PrototypeInfo::SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
   } else {
     Tagged<WeakArrayList> derived = Cast<WeakArrayList>(info->derived_maps());
     DCHECK(derived->Get(0).IsCleared());
-    DCHECK_GT(derived->length(), 0);
+    DCHECK_GT(derived->length().value(), 0);
     derived->Set(0, MakeWeak(*map));
   }
 }
@@ -80,8 +80,9 @@ Tagged<MaybeObject> PrototypeInfo::GetDerivedMap(DirectHandle<Map> from) {
     return Tagged<MaybeObject>();
   }
   auto derived = Cast<WeakArrayList>(derived_maps());
+  const uint32_t derived_length = derived->length().value();
   // Index 0 is the map for object create
-  for (int i = 1; i < derived->length(); ++i) {
+  for (uint32_t i = 1; i < derived_length; ++i) {
     Tagged<MaybeObject> el = derived->Get(i);
     Tagged<Map> map_obj;
     if (el.GetHeapObjectIfWeak(&map_obj)) {
@@ -109,9 +110,10 @@ void PrototypeInfo::AddDerivedMap(DirectHandle<PrototypeInfo> info,
     return;
   }
   auto derived = handle(Cast<WeakArrayList>(info->derived_maps()), isolate);
+  const uint32_t derived_length = derived->length().value();
   // Index 0 is the map for object create
-  int i = 1;
-  for (; i < derived->length(); ++i) {
+  uint32_t i = 1;
+  for (; i < derived_length; ++i) {
     Tagged<MaybeObject> el = derived->Get(i);
     if (el.IsCleared()) {
       derived->Set(i, MakeWeak(*to));
@@ -135,9 +137,10 @@ bool PrototypeInfo::IsPrototypeInfoFast(Tagged<Object> object) {
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
                ShouldBeFastBit::kShift)
 
+// TODO(375937549): Convert index to uint32_t.
 void PrototypeUsers::MarkSlotEmpty(Tagged<WeakArrayList> array, int index) {
   DCHECK_GT(index, 0);
-  DCHECK_LT(index, array->length());
+  DCHECK_LT(static_cast<uint32_t>(index), array->length().value());
   // Chain the empty slots into a linked list (each empty slot contains the
   // index of the next empty slot).
   array->Set(index, empty_slot_index(array));

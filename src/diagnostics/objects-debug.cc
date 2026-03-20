@@ -1014,6 +1014,19 @@ void ArrayList::ArrayListVerify(Isolate* isolate) {
   }
 }
 
+void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
+  CHECK(IsSmi(capacity_.load()));
+  CHECK(IsSmi(length_.load()));
+  const uint32_t len = length().value();
+  const uint32_t cap = capacity().value();
+  CHECK_LE(len, cap);
+  CHECK_IMPLIES(cap == 0,
+                this == ReadOnlyRoots(isolate).empty_weak_array_list());
+  for (uint32_t i = 0; i < cap; ++i) {
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
+  }
+}
+
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);
   const uint32_t len = length().value();
@@ -2656,32 +2669,34 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   Tagged<HeapObject> derived = derived_maps(isolate);
   if (!IsUndefined(derived)) {
     auto derived_list = Cast<WeakArrayList>(derived);
-    CHECK_GT(derived_list->length(), 0);
-    for (int i = 0; i < derived_list->length(); ++i) {
+    const uint32_t derived_length = derived_list->length().value();
+    CHECK_GT(derived_length, 0);
+    for (uint32_t i = 0; i < derived_length; ++i) {
       derived_list->Get(i).IsWeakOrCleared();
     }
   }
 }
 
 void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
-  if (array->length() == 0) {
+  const uint32_t array_len = array->length().value();
+  if (array_len == 0) {
     // Allow empty & uninitialized lists.
     return;
   }
   // Verify empty slot chain.
   int empty_slot = Smi::ToInt(empty_slot_index(array));
-  int empty_slots_count = 0;
+  uint32_t empty_slots_count = 0;
   while (empty_slot != kNoEmptySlotsMarker) {
     CHECK_GT(empty_slot, 0);
-    CHECK_LT(empty_slot, array->length());
+    CHECK_LT(empty_slot, array_len);
     empty_slot = array->Get(empty_slot).ToSmi().value();
     ++empty_slots_count;
   }
 
   // Verify that all elements are either weak pointers or SMIs marking empty
   // slots.
-  int weak_maps_count = 0;
-  for (int i = kFirstIndex; i < array->length(); ++i) {
+  uint32_t weak_maps_count = 0;
+  for (uint32_t i = kFirstIndex; i < array_len; ++i) {
     Tagged<HeapObject> heap_object;
     Tagged<MaybeObject> object = array->Get(i);
     if ((object.GetHeapObjectIfWeak(&heap_object) && IsMap(heap_object)) ||
@@ -2692,7 +2707,7 @@ void PrototypeUsers::Verify(Tagged<WeakArrayList> array) {
     }
   }
 
-  CHECK_EQ(weak_maps_count + empty_slots_count + 1, array->length());
+  CHECK_EQ(weak_maps_count + empty_slots_count + 1, array_len);
 }
 
 void EnumCache::EnumCacheVerify(Isolate* isolate) {

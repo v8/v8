@@ -977,7 +977,7 @@ size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
     list =
         direct_handle(Cast<ArrayList>(context->serialized_objects()), isolate_);
   }
-  size_t index = static_cast<size_t>(list->length());
+  size_t index = list->ulength().value();
   list = ArrayList::Add(isolate_, list, obj);
   context->set_serialized_objects(*list);
   return index;
@@ -995,7 +995,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
     list = direct_handle(
         Cast<ArrayList>(isolate_->heap()->serialized_objects()), isolate_);
   }
-  size_t index = static_cast<size_t>(list->length());
+  size_t index = list->ulength().value();
   list = ArrayList::Add(isolate_, list, obj);
   isolate_->heap()->SetSerializedObjects(*list);
   return index;

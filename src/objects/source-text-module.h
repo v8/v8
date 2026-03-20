@@ -119,10 +119,10 @@ class SourceTextModule
   // Returns a SourceTextModule, the
   // ith parent in depth first traversal order of a given async child.
   inline Handle<SourceTextModule> GetAsyncParentModule(Isolate* isolate,
-                                                       int index);
+                                                       uint32_t index);
 
   // Returns the number of async parent modules for a given async child.
-  inline int AsyncParentModuleCount();
+  inline uint32_t AsyncParentModuleCount();
 
   inline bool HasAsyncEvaluationOrdinal() const;
 

@@ -913,7 +913,9 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
   Tagged<WeakArrayList> shared_wasm_memories =
       Cast<WeakArrayList>(isolate->root(RootIndex::kSharedWasmMemories));
 
-  for (int i = 0, e = shared_wasm_memories->length(); i < e; ++i) {
+  const uint32_t shared_wasm_memories_len =
+      shared_wasm_memories->length().value();
+  for (uint32_t i = 0; i < shared_wasm_memories_len; ++i) {
     Tagged<HeapObject> obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 

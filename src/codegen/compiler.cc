@@ -3073,7 +3073,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     // Log lazy function compilation.
     DirectHandle<ArrayList> list;
     if (IsUndefined(script->compiled_lazy_function_positions())) {
-      constexpr int kInitialLazyFunctionPositionListSize = 100;
+      constexpr uint32_t kInitialLazyFunctionPositionListSize = 100;
       list = ArrayList::New(isolate, kInitialLazyFunctionPositionListSize);
     } else {
       list = direct_handle(

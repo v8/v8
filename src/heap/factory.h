@@ -611,7 +611,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> NewWeakArrayList(
-      int capacity, AllocationType allocation = AllocationType::kYoung);
+      uint32_t capacity, AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakFixedArray> CopyWeakFixedArray(
       DirectHandle<WeakFixedArray> array);
@@ -620,11 +620,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WeakFixedArray> array, uint32_t grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
-      DirectHandle<WeakArrayList> array, int grow_by,
+      DirectHandle<WeakArrayList> array, uint32_t grow_by,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> CompactWeakArrayList(
-      DirectHandle<WeakArrayList> array, int new_capacity,
+      DirectHandle<WeakArrayList> array, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<PropertyArray> CopyPropertyArrayAndGrow(
@@ -1437,7 +1437,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       NewJSObjectType = NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
-      int capacity, AllocationType allocation = AllocationType::kYoung);
+      uint32_t capacity, AllocationType allocation = AllocationType::kYoung);
 
 #if V8_ENABLE_WEBASSEMBLY
   // The resulting array will be uninitialized, which means GC might fail for

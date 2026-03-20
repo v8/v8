@@ -433,7 +433,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationAlignment alignment = kTaggedAligned);
   Tagged<HeapObject> AllocateRawFixedArray(int length,
                                            AllocationType allocation);
-  Tagged<HeapObject> AllocateRawWeakArrayList(int length,
+  Tagged<HeapObject> AllocateRawWeakArrayList(uint32_t length,
                                               AllocationType allocation);
 
   template <typename StructType>

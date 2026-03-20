@@ -2919,12 +2919,13 @@ template <class T>
 int AppendUniqueCallbacks(Isolate* isolate, DirectHandle<ArrayList> callbacks,
                           DirectHandle<typename T::Array> array,
                           int valid_descriptors) {
-  int nof_callbacks = callbacks->length();
+  uint32_t nof_callbacks = callbacks->ulength().value();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
-  for (int i = nof_callbacks - 1; i >= 0; i--) {
+  DCHECK_LE(nof_callbacks, kMaxInt);
+  for (int i = static_cast<int>(nof_callbacks) - 1; i >= 0; i--) {
     DirectHandle<AccessorInfo> entry(Cast<AccessorInfo>(callbacks->get(i)),
                                      isolate);
     DirectHandle<Name> key(Cast<Name>(entry->name()), isolate);
@@ -2962,8 +2963,9 @@ int AccessorInfo::AppendUnique(Isolate* isolate,
                                DirectHandle<FixedArray> array,
                                int valid_descriptors) {
   auto callbacks = Cast<ArrayList>(descriptors);
-  DCHECK_GE(array->ulength().value(),
-            static_cast<uint32_t>(callbacks->length() + valid_descriptors));
+  DCHECK_GE(
+      array->ulength().value(),
+      callbacks->ulength().value() + static_cast<uint32_t>(valid_descriptors));
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }
@@ -3887,7 +3889,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
                                           Handle<WeakArrayList> array,
                                           DirectHandle<Map> value,
                                           int* assigned_index) {
-  int length = array->length();
+  uint32_t length = array->length().value();
   if (length == 0) {
     // Uninitialized WeakArrayList; need to initialize empty_slot_index.
     array = WeakArrayList::EnsureSpace(isolate, array, kFirstIndex + 1);
@@ -3917,7 +3919,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
   if (empty_slot != kNoEmptySlotsMarker) {
     DCHECK_GE(empty_slot, kFirstIndex);
-    CHECK_LT(empty_slot, array->length());
+    CHECK_LT(static_cast<uint32_t>(empty_slot), array->length().value());
     int next_empty_slot = array->Get(empty_slot).ToSmi().value();
 
     array->Set(empty_slot, MakeWeak(*value));
@@ -3939,7 +3941,8 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
 // static
 void PrototypeUsers::ScanForEmptySlots(Tagged<WeakArrayList> array) {
-  for (int i = kFirstIndex; i < array->length(); i++) {
+  const uint32_t array_len = array->length().value();
+  for (uint32_t i = kFirstIndex; i < array_len; i++) {
     if (array->Get(i).IsCleared()) {
       PrototypeUsers::MarkSlotEmpty(array, i);
     }
@@ -3950,11 +3953,12 @@ Tagged<WeakArrayList> PrototypeUsers::Compact(DirectHandle<WeakArrayList> array,
                                               Heap* heap,
                                               CompactionCallback callback,
                                               AllocationType allocation) {
-  if (array->length() == 0) {
+  const uint32_t array_len = array->length().value();
+  if (array_len == 0) {
     return *array;
   }
-  int new_length = kFirstIndex + array->CountLiveWeakReferences();
-  if (new_length == array->length()) {
+  uint32_t new_length = kFirstIndex + array->CountLiveWeakReferences();
+  if (new_length == array_len) {
     return *array;
   }
 
@@ -3964,8 +3968,8 @@ Tagged<WeakArrayList> PrototypeUsers::Compact(DirectHandle<WeakArrayList> array,
       new_length, allocation);
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live objects again.
-  int copy_to = kFirstIndex;
-  for (int i = kFirstIndex; i < array->length(); i++) {
+  uint32_t copy_to = kFirstIndex;
+  for (uint32_t i = kFirstIndex; i < array_len; i++) {
     Tagged<MaybeObject> element = array->Get(i);
     Tagged<HeapObject> value;
     if (element.GetHeapObjectIfWeak(&value)) {

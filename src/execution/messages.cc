@@ -154,11 +154,11 @@ void MessageHandler::ReportMessageNoExceptions(
 
   DirectHandle<ArrayList> global_listeners =
       isolate->factory()->message_listeners();
-  int global_length = global_listeners->length();
+  const uint32_t global_length = global_listeners->ulength().value();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
   } else {
-    for (int i = 0; i < global_length; i++) {
+    for (uint32_t i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (IsUndefined(global_listeners->get(i), isolate)) continue;
       Tagged<FixedArray> listener = Cast<FixedArray>(global_listeners->get(i));

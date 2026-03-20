@@ -793,7 +793,9 @@ void SourceTextModule::GatherAvailableAncestors(
     worklist.pop();
 
     // 1. For each Module m of module.[[AsyncParentModules]], do
-    for (int i = module->AsyncParentModuleCount(); i-- > 0;) {
+    const uint32_t module_count = module->AsyncParentModuleCount();
+    DCHECK_LE(module_count, kMaxInt);
+    for (int i = static_cast<int>(module_count); i-- > 0;) {
       Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
 
       // a. If execList does not contain m and
@@ -1103,7 +1105,8 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   }
 
   // 8. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
-  for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
+  const uint32_t module_count = module->AsyncParentModuleCount();
+  for (uint32_t i = 0; i < module_count; i++) {
     // a. Perform AsyncModuleExecutionRejected(m, error).
     DirectHandle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
     AsyncModuleExecutionRejected(isolate, m, exception);

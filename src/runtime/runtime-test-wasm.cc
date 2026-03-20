@@ -591,13 +591,14 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<WasmModuleObject> module_obj = args.at<WasmModuleObject>(0);
-  int instance_count = 0;
+  uint32_t instance_count = 0;
   Tagged<WeakArrayList> weak_instance_list =
       module_obj->script()->wasm_weak_instance_list();
-  for (int i = 0; i < weak_instance_list->length(); ++i) {
+  const uint32_t weak_instance_len = weak_instance_list->length().value();
+  for (uint32_t i = 0; i < weak_instance_len; ++i) {
     if (weak_instance_list->Get(i).IsWeak()) instance_count++;
   }
-  return Smi::FromInt(instance_count);
+  return Smi::FromUInt(instance_count);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {

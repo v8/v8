@@ -6570,7 +6570,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 
   // Add collected feedback vectors to the root list lest we lose them to GC.
   DirectHandle<ArrayList> list =
-      ArrayList::New(this, static_cast<int>(vectors.size()));
+      ArrayList::New(this, static_cast<uint32_t>(vectors.size()));
   for (const auto& vector : vectors) list = ArrayList::Add(this, list, vector);
   SetFeedbackVectorsForProfilingTools(*list);
 }
@@ -7518,10 +7518,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
   HandleScope scope(this);
   DirectHandle<WeakArrayList> detached_contexts =
       factory()->detached_contexts();
-  int length = detached_contexts->length();
+  const uint32_t length = detached_contexts->length().value();
   if (length == 0) return;
-  int new_length = 0;
-  for (int i = 0; i < length; i += 2) {
+  uint32_t new_length = 0;
+  for (uint32_t i = 0; i < length; i += 2) {
     Tagged<MaybeObject> context = detached_contexts->Get(i);
     DCHECK(context.IsWeakOrCleared());
     if (!context.IsCleared()) {
@@ -7532,7 +7532,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   detached_contexts->set_length(new_length);
-  int last_context_index = new_length;
+  uint32_t last_context_index = new_length;
   while (last_context_index < length) {
     detached_contexts->Set(last_context_index, Smi::zero());
     ++last_context_index;
@@ -7541,7 +7541,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (v8_flags.trace_detached_contexts) {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
-    for (int i = 0; i < new_length; i += 2) {
+    for (uint32_t i = 0; i < new_length; i += 2) {
       Tagged<MaybeObject> context = detached_contexts->Get(i);
       int mark_sweeps = detached_contexts->Get(i + 1).ToSmi().value();
       DCHECK(context.IsWeakOrCleared());
