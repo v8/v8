@@ -1012,7 +1012,7 @@ filegroup(
             "src/base/cpu/cpu-arm.cc",
         ],
         "@v8//bazel/config:v8_target_ppc64le": [
-            "src/base/cpu/cpu-ppc64.cc",
+            "src/base/cpu/cpu-ppc.cc",
         ],
         "@v8//bazel/config:v8_target_riscv64": [
             "src/base/cpu/cpu-riscv.cc",

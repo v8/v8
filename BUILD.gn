@@ -7185,7 +7185,9 @@ v8_component("v8_libbase") {
   } else if (target_cpu == "mips64") {
     sources += [ "src/base/cpu/cpu-mips.cc" ]
   } else if (target_cpu == "ppc64") {
-    sources += [ "src/base/cpu/cpu-ppc64.cc" ]
+    sources += [ "src/base/cpu/cpu-ppc.cc" ]
+  } else if (target_cpu == "s390x") {
+    sources += [ "src/base/cpu/cpu-s390.cc" ]
   }
 
   configs = [ ":internal_config_base" ]
