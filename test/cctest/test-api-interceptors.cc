@@ -17,6 +17,7 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-api.h"
 
+using ::v8::Boolean;
 using ::v8::Context;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
@@ -66,7 +67,7 @@ v8::Intercepted EmptyInterceptorGetter(
 
 v8::Intercepted EmptyInterceptorSetter(
     Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kNo;
 }
 
@@ -85,7 +86,7 @@ void EmptyInterceptorEnumerator(
 
 v8::Intercepted EmptyInterceptorDefinerWithSideEffect(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Value> result = CompileRun("interceptor_definer_side_effect()");
   if (!result->IsNull()) {
@@ -162,8 +163,9 @@ v8::Intercepted InterceptorGetter(
   return v8::Intercepted::kYes;
 }
 
-v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
-                                  const v8::PropertyCallbackInfo<void>& info) {
+v8::Intercepted InterceptorSetter(
+    Local<Name> generic_name, Local<Value> value,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   if (generic_name->IsSymbol()) return v8::Intercepted::kNo;
   Local<String> name = generic_name.As<String>();
   // Intercept accesses that set certain integer values, for which the name does
@@ -211,7 +213,7 @@ v8::Intercepted GenericInterceptorGetter(
 
 v8::Intercepted GenericInterceptorSetter(
     Local<Name> generic_name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   Local<String> str;
   if (generic_name->IsSymbol()) {
@@ -245,7 +247,7 @@ void AddAccessor(v8::Isolate* isolate, Local<FunctionTemplate> templ,
 
 void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
                               v8::NamedPropertyGetterCallback getter,
-                              v8::NamedPropertySetterCallback setter) {
+                              v8::NamedPropertySetterCallbackV2 setter) {
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       getter, setter, nullptr, nullptr, nullptr, Local<v8::Value>(),
       v8::PropertyHandlerFlags::kOnlyInterceptStrings));
@@ -253,7 +255,7 @@ void AddStringOnlyInterceptor(Local<FunctionTemplate> templ,
 
 void AddInterceptor(Local<FunctionTemplate> templ,
                     v8::NamedPropertyGetterCallback getter,
-                    v8::NamedPropertySetterCallback setter) {
+                    v8::NamedPropertySetterCallbackV2 setter) {
   templ->InstanceTemplate()->SetHandler(
       v8::NamedPropertyHandlerConfiguration(getter, setter));
 }
@@ -274,7 +276,7 @@ v8::Intercepted DummyNamedPropertyGetter(
 
 v8::Intercepted DummyIndexedPropertyDefiner(
     uint32_t index, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   return v8::Intercepted::kNo;
@@ -282,7 +284,7 @@ v8::Intercepted DummyIndexedPropertyDefiner(
 
 v8::Intercepted DummyNamedPropertyDefiner(
     Local<Name> property, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   return v8::Intercepted::kNo;
@@ -290,7 +292,7 @@ v8::Intercepted DummyNamedPropertyDefiner(
 
 v8::Intercepted DummyIndexedPropertySetter(
     uint32_t index, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   return v8::Intercepted::kNo;
@@ -298,7 +300,7 @@ v8::Intercepted DummyIndexedPropertySetter(
 
 v8::Intercepted DummyNamedPropertySetter(
     Local<Name> property, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
   return v8::Intercepted::kNo;
@@ -650,7 +652,7 @@ v8::Intercepted GetterCallback(
 }
 
 v8::Intercepted SetterCallback(Local<Name> property, Local<Value> value,
-                               const v8::PropertyCallbackInfo<void>& info) {
+                               const v8::PropertyCallbackInfo<Boolean>& info) {
   set_was_called = true;
   set_was_called_counter++;
   return v8::Intercepted::kNo;
@@ -658,7 +660,7 @@ v8::Intercepted SetterCallback(Local<Name> property, Local<Value> value,
 
 v8::Intercepted InterceptingSetterCallback(
     Local<Name> property, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kYes;
 }
 
@@ -886,7 +888,7 @@ v8::Intercepted GetterCallbackOrder(
 
 v8::Intercepted DefinerCallbackOrder(
     Local<Name> property, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   // Get called before DefineProperty because we query the descriptor first.
   CHECK(get_was_called_in_order);
   define_was_called_in_order = true;
@@ -1049,9 +1051,9 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
 namespace {
 
 void CheckInterceptorIC(v8::NamedPropertyGetterCallback getter,
-                        v8::NamedPropertySetterCallback setter,
+                        v8::NamedPropertySetterCallbackV2 setter,
                         v8::NamedPropertyQueryCallback query,
-                        v8::NamedPropertyDefinerCallback definer,
+                        v8::NamedPropertyDefinerCallbackV2 definer,
                         v8::PropertyHandlerFlags flags, const char* source,
                         std::optional<int> expected) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1918,7 +1920,7 @@ TEST(Crash_InterceptorDefineICWithSideEffectfulCallbacks) {
 namespace {
 v8::Intercepted InterceptorStoreICSetter(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   CHECK(v8_str("x")->Equals(context, key).FromJust());
   CHECK_EQ(42, value->Int32Value(context).FromJust());
@@ -2168,19 +2170,19 @@ THREADED_TEST(NamedPropertyHandlerGetter) {
 namespace {
 v8::Intercepted NotInterceptingPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kNo;
 }
 
 v8::Intercepted InterceptingPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kYes;
 }
 
 v8::Intercepted CheckDescriptorInDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(!desc.has_writable());
   CHECK(!desc.has_value());
   CHECK(!desc.has_enumerable());
@@ -2277,19 +2279,19 @@ THREADED_TEST(PropertyDefinerCallback) {
 namespace {
 v8::Intercepted NotInterceptingPropertyDefineCallbackIndexed(
     uint32_t index, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kNo;
 }
 
 v8::Intercepted InterceptingPropertyDefineCallbackIndexed(
     uint32_t index, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return v8::Intercepted::kYes;
 }
 
 v8::Intercepted CheckDescriptorInDefineCallbackIndexed(
     uint32_t index, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(!desc.has_writable());
   CHECK(!desc.has_value());
   CHECK(desc.has_enumerable());
@@ -2415,7 +2417,7 @@ THREADED_TEST(PropertyDefinerCallbackForFreeze) {
 namespace {
 v8::Intercepted CheckEnumerablePropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(desc.has_value());
   CHECK_EQ(42, desc.value()
                    ->Int32Value(info.GetIsolate()->GetCurrentContext())
@@ -2456,7 +2458,7 @@ THREADED_TEST(PropertyDefinerCallbackEnumerable) {
 namespace {
 v8::Intercepted CheckConfigurablePropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(desc.has_value());
   CHECK_EQ(42, desc.value()
                    ->Int32Value(info.GetIsolate()->GetCurrentContext())
@@ -2496,7 +2498,7 @@ THREADED_TEST(PropertyDefinerCallbackConfigurable) {
 namespace {
 v8::Intercepted CheckWritablePropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(desc.has_writable());
   CHECK(desc.writable());
   return v8::Intercepted::kYes;
@@ -2532,7 +2534,7 @@ THREADED_TEST(PropertyDefinerCallbackWritable) {
 namespace {
 v8::Intercepted CheckGetterPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(desc.has_get());
   CHECK(!desc.has_set());
   return v8::Intercepted::kYes;
@@ -2568,7 +2570,7 @@ THREADED_TEST(PropertyDefinerCallbackWithGetter) {
 namespace {
 v8::Intercepted CheckSetterPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(desc.has_set());
   CHECK(!desc.has_get());
   return v8::Intercepted::kYes;
@@ -2603,14 +2605,14 @@ namespace {
 std::vector<std::string> definer_calls;
 v8::Intercepted LogDefinerCallsAndContinueCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   String::Utf8Value utf8(info.GetIsolate(), name);
   definer_calls.push_back(*utf8);
   return v8::Intercepted::kNo;
 }
 v8::Intercepted LogDefinerCallsAndStopCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   String::Utf8Value utf8(info.GetIsolate(), name);
   definer_calls.push_back(*utf8);
   return v8::Intercepted::kYes;
@@ -3629,7 +3631,7 @@ v8::Intercepted IndexedPropertyGetter(
 
 v8::Intercepted IndexedPropertySetter(
     uint32_t index, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   if (index == 39) {
     // Side effects are allowed only when the property is present or throws.
     ApiTestFuzzer::Fuzz();
@@ -3685,7 +3687,7 @@ v8::Intercepted UnboxedDoubleIndexedPropertyGetter(
 
 v8::Intercepted UnboxedDoubleIndexedPropertySetter(
     uint32_t index, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   if (index < 25) {
     // Side effects are allowed only when the property is present or throws.
     ApiTestFuzzer::Fuzz();
@@ -5160,7 +5162,7 @@ int interceptor_ic_exception_set_count = 0;
 
 v8::Intercepted InterceptorICExceptionSetter(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   if (++interceptor_ic_exception_set_count > 20) {
     // Side effects are allowed only when the property is present or throws.
     ApiTestFuzzer::Fuzz();
@@ -5731,7 +5733,7 @@ v8::Intercepted PETNamedGetter(Local<Name> name,
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedSetter(Local<Name> name, Local<Value> value,
-                               const v8::PropertyCallbackInfo<void>& info) {
+                               const v8::PropertyCallbackInfo<Boolean>& info) {
   info.GetIsolate()->ThrowError("Named setter failed.");
   return v8::Intercepted::kYes;
 }
@@ -5742,7 +5744,7 @@ v8::Intercepted PETNamedDeleter(
 }
 v8::Intercepted PETNamedDefiner(Local<Name> name,
                                 const v8::PropertyDescriptor& desc,
-                                const v8::PropertyCallbackInfo<void>& info) {
+                                const v8::PropertyCallbackInfo<Boolean>& info) {
   info.GetIsolate()->ThrowError("Named definer failed.");
   return v8::Intercepted::kYes;
 }
@@ -5786,8 +5788,9 @@ v8::Intercepted PETIndexedGetter(uint32_t index,
   }
   return v8::Intercepted::kYes;
 }
-v8::Intercepted PETIndexedSetter(uint32_t index, Local<Value> value,
-                                 const v8::PropertyCallbackInfo<void>& info) {
+v8::Intercepted PETIndexedSetter(
+    uint32_t index, Local<Value> value,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   info.GetIsolate()->ThrowError("Indexed setter failed.");
   return v8::Intercepted::kYes;
 }
@@ -5796,9 +5799,9 @@ v8::Intercepted PETIndexedDeleter(
   info.GetIsolate()->ThrowError("Indexed deleter failed.");
   return v8::Intercepted::kYes;
 }
-v8::Intercepted PETIndexedDefiner(uint32_t index,
-                                  const v8::PropertyDescriptor& desc,
-                                  const v8::PropertyCallbackInfo<void>& info) {
+v8::Intercepted PETIndexedDefiner(
+    uint32_t index, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   info.GetIsolate()->ThrowError("Indexed definer failed.");
   return v8::Intercepted::kYes;
 }
@@ -6172,7 +6175,7 @@ v8::Intercepted ShouldNamedGetterInterceptor(
 
 v8::Intercepted ShouldNamedSetterInterceptor(
     Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedSetterInterceptor));
   auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
   if (!data->should_intercept) return v8::Intercepted::kNo;
@@ -6733,7 +6736,7 @@ v8::Intercepted DatabaseGetter(Local<Name> name,
 }
 
 v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
-                               const v8::PropertyCallbackInfo<void>& info) {
+                               const v8::PropertyCallbackInfo<Boolean>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
   if (name->Equals(context, v8_str("db")).FromJust())
     return v8::Intercepted::kNo;
@@ -6894,7 +6897,7 @@ v8::Intercepted Regress42204611_Getter(
 }
 v8::Intercepted Regress42204611_Setter(
     Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
       info.Data().As<v8::External>()->Value(kCallsTag));
 
@@ -6903,7 +6906,7 @@ v8::Intercepted Regress42204611_Setter(
 }
 v8::Intercepted Regress42204611_Definer(
     Local<Name> name, const v8::PropertyDescriptor& descriptor,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
       info.Data().As<v8::External>()->Value(kCallsTag));
 

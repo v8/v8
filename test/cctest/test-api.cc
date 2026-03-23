@@ -3047,7 +3047,8 @@ v8::Intercepted ThrowingPropertyHandlerGet(
 }
 
 v8::Intercepted ThrowingPropertyHandlerSet(
-    Local<Name> key, Local<Value>, const v8::PropertyCallbackInfo<void>& info) {
+    Local<Name> key, Local<Value>,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(!isolate->HasPendingException());
@@ -12711,7 +12712,7 @@ v8::Intercepted ShouldThrowOnErrorGetter(
 
 v8::Intercepted ShouldThrowOnErrorSetter(
     Local<Name> name, Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = info.GetIsolate();
@@ -18586,8 +18587,9 @@ v8::Intercepted FooGetInterceptor(
   return v8::Intercepted::kYes;
 }
 
-v8::Intercepted FooSetInterceptor(Local<Name> name, Local<Value> value,
-                                  const v8::PropertyCallbackInfo<void>& info) {
+v8::Intercepted FooSetInterceptor(
+    Local<Name> name, Local<Value> value,
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
@@ -18654,7 +18656,7 @@ TEST(SetterOnConstructorPrototype) {
 namespace {
 v8::Intercepted NamedPropertySetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (name->Equals(context, v8_str("x")).FromJust()) {
