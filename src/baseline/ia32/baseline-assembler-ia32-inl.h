@@ -391,7 +391,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFeedbackCell(feedback_cell);
-  __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
+  __ add(FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
          Immediate(weight));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
@@ -406,7 +406,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   Register feedback_cell = scratch_scope.AcquireScratch();
   DCHECK(!AreAliased(feedback_cell, weight));
   LoadFeedbackCell(feedback_cell);
-  __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
+  __ add(FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
          weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }

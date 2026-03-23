@@ -2365,8 +2365,7 @@ Handle<Cell> Factory::NewCell() {
 
 DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
   Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      FeedbackCell::kAlignedSize, AllocationType::kOld,
-      *no_closures_cell_map()));
+      sizeof(FeedbackCell), AllocationType::kOld, *no_closures_cell_map()));
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
@@ -2378,8 +2377,7 @@ DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
 DirectHandle<FeedbackCell> Factory::NewOneClosureCell(
     DirectHandle<ClosureFeedbackCellArray> value) {
   Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      FeedbackCell::kAlignedSize, AllocationType::kOld,
-      *one_closure_cell_map()));
+      sizeof(FeedbackCell), AllocationType::kOld, *one_closure_cell_map()));
   DisallowGarbageCollection no_gc;
   result->set_value(*value);
   result->clear_interrupt_budget();
@@ -2391,7 +2389,7 @@ DirectHandle<FeedbackCell> Factory::NewOneClosureCell(
 DirectHandle<FeedbackCell> Factory::NewManyClosuresCell(
     AllocationType allocation) {
   Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      FeedbackCell::kAlignedSize, allocation, *many_closures_cell_map()));
+      sizeof(FeedbackCell), allocation, *many_closures_cell_map()));
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
@@ -5219,8 +5217,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // their parameter count yet.
     function_handle->clear_dispatch_handle();
     HeapObject::AllocateAndInstallJSDispatchHandle(
-        function_handle, JSFunction::kDispatchHandleOffset, isolate,
-        sfi_->internal_formal_parameter_count_with_receiver(), code);
+        direct_handle(function_handle), JSFunction::kDispatchHandleOffset,
+        isolate, sfi_->internal_formal_parameter_count_with_receiver(), code);
   } else {
     DCHECK_NE(function_handle->dispatch_handle(), kNullJSDispatchHandle);
   }

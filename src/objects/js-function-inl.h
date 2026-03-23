@@ -40,7 +40,7 @@ RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, Tagged<FeedbackCell>,
 
 DEF_GETTER(JSFunction, feedback_vector, Tagged<FeedbackVector>) {
   DCHECK(has_feedback_vector(cage_base));
-  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value(cage_base));
+  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value());
 }
 
 Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
@@ -149,11 +149,9 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 }
 
 // static
-JSDispatchHandle JSFunction::AllocateDispatchHandle(Handle<JSFunction> function,
-                                                    Isolate* isolate,
-                                                    uint16_t parameter_count,
-                                                    DirectHandle<Code> code,
-                                                    WriteBarrierMode mode) {
+JSDispatchHandle JSFunction::AllocateDispatchHandle(
+    DirectHandle<JSFunction> function, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   DCHECK_EQ(function->raw_feedback_cell()->dispatch_handle(),
             kNullJSDispatchHandle);
   return AllocateAndInstallJSDispatchHandle(
@@ -330,8 +328,7 @@ bool JSFunction::osr_tiering_in_progress() {
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {
   return shared(cage_base)->is_compiled() &&
-         IsFeedbackVector(raw_feedback_cell(cage_base)->value(cage_base),
-                          cage_base);
+         IsFeedbackVector(raw_feedback_cell(cage_base)->value(), cage_base);
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {

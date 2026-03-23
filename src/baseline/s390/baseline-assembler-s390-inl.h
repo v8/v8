@@ -498,14 +498,15 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ LoadU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ LoadU32(interrupt_budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ AddS32(interrupt_budget, Operand(weight));
   __ StoreU32(
       interrupt_budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
   if (skip_interrupt_label) {
     // Use compare flags set by add
     DCHECK_LT(weight, 0);
@@ -521,14 +522,14 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ LoadU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ LoadU32(interrupt_budget,
+             FieldMemOperand(feedback_cell,
+                             offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ AddS32(interrupt_budget, interrupt_budget, weight);
-  __ StoreU32(
-      interrupt_budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ StoreU32(interrupt_budget,
+              FieldMemOperand(feedback_cell,
+                              offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) __ b(ge, skip_interrupt_label);
 }
 

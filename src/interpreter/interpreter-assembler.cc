@@ -1160,13 +1160,13 @@ TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
-      feedback_cell, FeedbackCell::kInterruptBudgetOffset);
+      feedback_cell, offsetof(FeedbackCell, interrupt_budget_));
 
   // Update budget by |weight| and check if it reaches zero.
   TNode<Int32T> new_budget = Int32Sub(old_budget, weight);
   // Update budget.
   StoreObjectFieldNoWriteBarrier(
-      feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget);
+      feedback_cell, offsetof(FeedbackCell, interrupt_budget_), new_budget);
   return new_budget;
 }
 

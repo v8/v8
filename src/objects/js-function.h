@@ -165,8 +165,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
   static inline JSDispatchHandle AllocateDispatchHandle(
-      Handle<JSFunction> function, Isolate* isolate, uint16_t parameter_count,
-      DirectHandle<Code> code,
+      DirectHandle<JSFunction> function, Isolate* isolate,
+      uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle() const;

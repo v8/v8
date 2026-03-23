@@ -1336,8 +1336,8 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
 // static
 template <typename ObjectType>
 JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
-    ObjectType host, size_t offset, Isolate* isolate, uint16_t parameter_count,
-    DirectHandle<Code> code, WriteBarrierMode mode) {
+    DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(host->field_address(offset));
   JSDispatchHandle handle =
@@ -1348,6 +1348,24 @@ JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
   // may access an uninitialized table entry and crash.
   auto location =
       reinterpret_cast<JSDispatchHandle*>(host->field_address(offset));
+  base::AsAtomic32::Release_Store(location, handle);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
+
+  return handle;
+}
+
+// static
+template <typename ObjectType>
+JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
+    DirectHandle<ObjectType> host, JSDispatchHandle* location, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
+  JSDispatchTable::Space* space = isolate->GetJSDispatchTableSpaceFor(location);
+  JSDispatchHandle handle =
+      isolate->factory()->NewJSDispatchHandle(parameter_count, code, space);
+
+  // Use a Release_Store to ensure that the store of the pointer into the table
+  // is not reordered after the store of the handle. Otherwise, other threads
+  // may access an uninitialized table entry and crash.
   base::AsAtomic32::Release_Store(location, handle);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
 

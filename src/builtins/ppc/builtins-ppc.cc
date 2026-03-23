@@ -215,9 +215,9 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadTaggedField(feedback_cell,
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset),
                      r0);
-  __ LoadTaggedField(feedback_vector,
-                     FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset),
-                     r0);
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)), r0);
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -1210,9 +1210,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadTaggedField(feedback_cell,
                      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset),
                      r0);
-  __ LoadTaggedField(feedback_vector,
-                     FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset),
-                     r0);
+  __ LoadTaggedField(
+      feedback_vector,
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)), r0);
   __ AssertFeedbackVector(feedback_vector, r11);
 
 

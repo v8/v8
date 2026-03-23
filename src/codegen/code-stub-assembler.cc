@@ -13392,7 +13392,8 @@ TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
     TNode<JSFunction> closure) {
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(closure, JSFunction::kFeedbackCellOffset);
-  return LoadObjectField<HeapObject>(feedback_cell, FeedbackCell::kValueOffset);
+  return LoadObjectField<HeapObject>(feedback_cell,
+                                     offsetof(FeedbackCell, value_));
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(

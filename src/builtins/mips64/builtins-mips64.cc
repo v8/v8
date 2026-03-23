@@ -921,7 +921,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ Ld(feedback_cell,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector,
-        FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+        FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
@@ -3985,7 +3985,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ Ld(feedback_cell,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector,
-        FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
+        FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

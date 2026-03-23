@@ -1674,13 +1674,13 @@ class FeedbackCell::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IteratePointer(obj, kValueOffset, v);
+    IteratePointer(obj, offsetof(FeedbackCell, value_), v);
 
-    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+    IterateJSDispatchEntry(obj, offsetof(FeedbackCell, dispatch_handle_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kAlignedSize;
+    return sizeof(FeedbackCell);
   }
 };
 

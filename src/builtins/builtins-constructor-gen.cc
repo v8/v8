@@ -294,7 +294,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      feedback_cell, FeedbackCell::kDispatchHandleOffset);
+      feedback_cell, offsetof(FeedbackCell, dispatch_handle_));
   CSA_DCHECK(this,
              Word32NotEqual(dispatch_handle,
                             Int32Constant(kNullJSDispatchHandle.value())));

@@ -716,7 +716,7 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
 
   // Load the feedback vector from the closure.
   mov(dst, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  mov(dst, FieldOperand(dst, FeedbackCell::kValueOffset));
+  mov(dst, FieldOperand(dst, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   mov(scratch, FieldOperand(dst, HeapObject::kMapOffset));

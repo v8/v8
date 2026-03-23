@@ -1022,7 +1022,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           *isolate->factory()->many_closures_cell());
       auto code = handle(new_sfi->GetCode(isolate), isolate);
       JSFunction::AllocateDispatchHandle(
-          js_function, isolate,
+          direct_handle(js_function), isolate,
           new_sfi->internal_formal_parameter_count_with_receiver(), code);
       js_function->set_shared(*new_sfi);
 

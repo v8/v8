@@ -495,11 +495,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch().W();
   __ Ldr(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Adds(interrupt_budget, interrupt_budget, weight);
   __ Str(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) {
     // Use compare flags set by Adds
     DCHECK_LT(weight, 0);
@@ -516,11 +518,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
   Register interrupt_budget = scratch_scope.AcquireScratch().W();
   __ Ldr(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   // Remember to set flags as part of the add!
   __ Adds(interrupt_budget, interrupt_budget, weight.W());
   __ Str(interrupt_budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+         FieldMemOperand(feedback_cell,
+                         offsetof(FeedbackCell, interrupt_budget_)));
   if (skip_interrupt_label) __ B(ge, skip_interrupt_label);
 }
 

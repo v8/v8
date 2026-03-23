@@ -288,7 +288,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
       if (fun->CanDiscardCompiled(isolate)) {
         fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
       }
-      if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
+      if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value())) {
         fun->raw_feedback_cell(cage_base)->set_value(
             i::ReadOnlyRoots(isolate).undefined_value());
       }

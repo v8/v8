@@ -290,7 +290,8 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   TaggedRegister feedback_cell(dst);
   LoadTaggedField(feedback_cell,
                   FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  LoadTaggedField(dst, FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
+  LoadTaggedField(dst,
+                  FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   IsObjectType(dst, FEEDBACK_VECTOR_TYPE, rcx);

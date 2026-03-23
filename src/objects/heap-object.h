@@ -460,10 +460,18 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // These are references to entries in the JSDispatchTable, which contain the
   // current code for a function.
+  //
+  // TODO(leszeks): Remove after JSFunction is ported to the new layout.
   template <typename ObjectType>
   static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
-      ObjectType host, size_t offset, Isolate* isolate,
+      DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
       uint16_t parameter_count, DirectHandle<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  template <typename ObjectType>
+  static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
+      DirectHandle<ObjectType> host, JSDispatchHandle* location,
+      Isolate* isolate, uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the field at offset in obj, as a read/write Object reference.

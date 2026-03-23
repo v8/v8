@@ -1147,11 +1147,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   Register scratch = temps.Acquire();
   Register budget = scratch;
 
-  __ Lw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Lw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
   __ Sub32(budget, budget, Operand(amount));
-  __ Sw(budget,
-        FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ Sw(budget, FieldMemOperand(feedback_cell,
+                                offsetof(FeedbackCell, interrupt_budget_)));
 
   ZoneLabelRef done(masm);
   Label* deferred_code = __ MakeDeferredCode(

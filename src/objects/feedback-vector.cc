@@ -235,9 +235,8 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
-    FeedbackCell::AllocateAndInstallJSDispatchHandle(
-        cell, FeedbackCell::kDispatchHandleOffset, isolate, parameter_count,
-        initial_code);
+    HeapObject::AllocateAndInstallJSDispatchHandle(
+        cell, &cell->dispatch_handle_, isolate, parameter_count, initial_code);
     cells.push_back(cell);
   }
 

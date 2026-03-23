@@ -1143,8 +1143,9 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ subl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(amount));
+  __ subl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(amount));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(less, HandleInterruptsAndTiering, done, node, type);
   __ bind(*done);

@@ -1077,11 +1077,13 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   Register budget = temps.AcquireScratch();
   __ LoadU32(
       budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
   __ SubS32(budget, budget, Operand(amount), r0);
   __ StoreU32(
       budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
   ZoneLabelRef done(masm);
   __ CmpS32(budget, Operand(0), r0);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);

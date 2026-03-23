@@ -1270,7 +1270,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSPromise::kReactionsOrResultOffset;
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
-    fields[FEEDBACK_CELL_TYPE]["value"] = FeedbackCell::kValueOffset;
+    fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         JSSegments::kIcuIteratorWithTextOffset;

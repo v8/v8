@@ -1301,6 +1301,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return heap()->js_dispatch_table_space();
   }
 
+  inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(void* owning_slot) {
+    return GetJSDispatchTableSpaceFor(reinterpret_cast<Address>(owning_slot));
+  }
+
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
   V8_INLINE Address* builtin_tier0_table() {
     return isolate_data_.builtin_tier0_table();

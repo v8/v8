@@ -2050,7 +2050,8 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   // Load the feedback vector from the closure.
   LoadTaggedField(
       dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset), r0);
-  LoadTaggedField(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset), r0);
+  LoadTaggedField(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)),
+                  r0);
 
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset), r0);

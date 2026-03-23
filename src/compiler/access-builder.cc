@@ -1524,7 +1524,7 @@ FieldAccess AccessBuilder::ForNameDictionaryFlagsIndex() {
 // static
 FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
   FieldAccess access = {kTaggedBase,
-                        FeedbackCell::kInterruptBudgetOffset,
+                        offsetof(FeedbackCell, interrupt_budget_),
                         Handle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kInt32,
@@ -1540,7 +1540,7 @@ FieldAccess AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier() {
   // they are marked as kNoWriteBarrier here (because the fields will not be
   // written to).
   FieldAccess access = {kTaggedBase,
-                        FeedbackCell::kDispatchHandleOffset,
+                        offsetof(FeedbackCell, dispatch_handle_),
                         Handle<Name>(),
                         OptionalMapRef(),
                         TypeCache::Get()->kInt32,
