@@ -4192,6 +4192,10 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
 // Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+// The memory corruption API is only allowed in sandbox testing/fuzzing mode.
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
+                                          !sandbox_testing && !sandbox_fuzzing,
+                                      expose_memory_corruption_api)
 
 #undef FLAG
 
