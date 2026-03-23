@@ -871,6 +871,18 @@ constexpr auto WasmFXSuspendDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3]);
 }
+constexpr auto WasmFXSwitchDescriptor::registers() {
+#if defined(V8_TARGET_ARCH_IA32)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], edi);
+#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], r4);
+#else
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], wasm::kGpParamRegisters[4]);
+#endif
+}
 constexpr auto WasmFXReturnDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[0]);
 }

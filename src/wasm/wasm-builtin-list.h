@@ -165,6 +165,7 @@ namespace v8::internal::wasm {
   V(WasmFXResumeThrow)                                                         \
   V(WasmFXResumeThrowRef)                                                      \
   V(WasmFXSuspend)                                                             \
+  V(WasmFXSwitch)                                                              \
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \

@@ -162,6 +162,7 @@ namespace internal {
   IF_WASM(V, WasmFXResumeThrow)                                 \
   IF_WASM(V, WasmFXResumeThrowRef)                              \
   IF_WASM(V, WasmFXSuspend)                                     \
+  IF_WASM(V, WasmFXSwitch)                                      \
   IF_WASM(V, WasmFXReturn)                                      \
   V(WasmDummy)                                                  \
   V(WasmFloat32ToNumber)                                        \
@@ -977,11 +978,31 @@ class WasmFXSuspendDescriptor final
       MachineType::TaggedPointer(),  // Param 0: tag.
       MachineType::TaggedPointer(),  // Param 1: continuation.
       MachineType::IntPtr(),         // Param 2: arg buffer.
-      MachineType::IntPtr())         // Param 3: sig.
+      MachineType::Int32())          // Param 3: canonical sig index.
   DECLARE_DESCRIPTOR(WasmFXSuspendDescriptor)
 
   static constexpr bool kNoStackScan = true;
   static constexpr int kMaxRegisterParams = 3;
+  static constexpr inline auto registers();
+};
+
+class WasmFXSwitchDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXSwitchDescriptor> {
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTag, kContinuation, kTargetStack, kArgBuffer,
+                               kSig)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),         // Result: arg buffer
+      MachineType::TaggedPointer(),  // Param 0: tag.
+      MachineType::TaggedPointer(),  // Param 1: continuation.
+      MachineType::IntPtr(),         // Param 2: target stack.
+      MachineType::IntPtr(),         // Param 3: arg buffer.
+      MachineType::Int32())          // Param 4: canonical sig index.
+  DECLARE_DESCRIPTOR(WasmFXSwitchDescriptor)
+
+  static constexpr bool kNoStackScan = true;
+  static constexpr int kMaxRegisterParams = 4;
   static constexpr inline auto registers();
 };
 

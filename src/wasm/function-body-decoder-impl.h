@@ -1731,7 +1731,7 @@ class FastZoneVector {
   bool empty() const { return begin_ == end_; }
 
   T& operator[](uint32_t index) {
-    DCHECK_GE(size(), index);
+    DCHECK_GT(size(), index);
     return begin_[index];
   }
 

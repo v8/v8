@@ -1035,29 +1035,23 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
       from, to, sp, fp, pc);
 }
 
-Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
-                             Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address arg_buffer,
-                             const CanonicalSig* sig) {
+namespace {
+wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
+                                             Address wanted_tag_raw,
+                                             bool is_switch, Address& target_sp,
+                                             Address& target_fp,
+                                             Address& target_pc) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
-  Tagged<Object> cont_obj(cont_raw);
-  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
-  DCHECK(from->Contains(arg_buffer));
-  from->set_arg_buffer(arg_buffer);
-  cont->set_stack_obj(from->stack_obj());
-  from->set_current_continuation(cont);
-  from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
-  bool found = false;
   // Search the innermost effect handler with a matching tag.
   // Unlike exception handling, we don't need to look at each frame. Only the
   // top frame of each stack can have an effect handler.
   while (true) {
     // The first frame must be the WasmFXResume, WasmFXResumeThrow or
     // WasmFXResumeThrowRef builtin with type WASM_STACK_EXIT.
-    Address target_fp = to->jmpbuf()->fp;
+    target_fp = to->jmpbuf()->fp;
     StackFrame::Type type = StackFrame::MarkerToType(base::Memory<intptr_t>(
         target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
     if (type != StackFrame::WASM_STACK_EXIT) {
@@ -1069,9 +1063,9 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
     }
 
     // The caller frame is the WASM frame that contains the handler table.
-    Address target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
+    target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
         target_fp + CommonFrameConstants::kCallerPCOffset));
-    Address target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
+    target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
     target_fp = base::Memory<Address>(target_fp +
                                       CommonFrameConstants::kCallerFPOffset);
     type = StackFrame::MarkerToType(base::Memory<intptr_t>(
@@ -1081,6 +1075,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
     // Get the handler table and search for a matching tag.
     WasmCode* wasm_code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, target_pc);
+
     base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
         target_fp + WasmFrameConstants::kWasmInstanceDataOffset));
@@ -1095,34 +1090,93 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
         uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
         auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
         if (wasm_code->instruction_start() + call_offset == target_pc &&
-            tag == wanted_tag) {
-          found = true;
+            tag == wanted_tag && !is_switch) {
           to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
           to->jmpbuf()->sp = target_sp;
           to->jmpbuf()->fp = target_fp;
-          break;
+          return to;
         }
-      } else {
-        // TODO(fgm): resume target cont.
-        UNIMPLEMENTED();
+      } else if (tag_index.is_switch() && is_switch) {
+        auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
+        if (wasm_code->instruction_start() + call_offset == target_pc &&
+            tag == wanted_tag) {
+          return to;
+        }
       }
     }
-    if (found) break;
     if (to->jmpbuf()->is_on_central_stack) {
       // We are about to skip JS/C++ frames.
-      return kNullAddress;
+      break;
     }
     to = to->jmpbuf()->parent;
   }
-  if (!found) {
-    return kNullAddress;
-  }
+  return nullptr;
+}
+
+}  // namespace
+
+Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                             Address pc, Address wanted_tag_raw,
+                             Address cont_raw, Address arg_buffer,
+                             const uint32_t sig_index) {
+  Address target_sp, target_fp, target_pc;
+  Tagged<Object> cont_obj(cont_raw);
+  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  cont->set_stack_obj(from->stack_obj());
+  wasm::StackMemory* to = find_wasmfx_handler_stack(
+      isolate, wanted_tag_raw, false, target_sp, target_fp, target_pc);
+  if (to == nullptr) return kNullAddress;
+
+  DCHECK(from->Contains(arg_buffer));
+  from->set_arg_buffer(arg_buffer);
+  from->set_current_continuation(cont);
+
+  const CanonicalSig* sig = GetTypeCanonicalizer()->LookupFunctionSignature(
+      CanonicalTypeIndex{sig_index});
+
+  from->set_param_types(sig->returns());
+
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
   isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
       from, to, sp, fp, pc);
   return reinterpret_cast<Address>(to);
+}
+
+Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                            Address pc, Address wanted_tag_raw,
+                            Address cont_raw, wasm::StackMemory* target_stack,
+                            Address arg_buffer, const uint32_t sig_index) {
+  Address target_sp, target_fp, target_pc;
+  Tagged<Object> cont_obj(cont_raw);
+  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+
+  cont->set_stack_obj(from->stack_obj());
+  wasm::StackMemory* parent = find_wasmfx_handler_stack(
+      isolate, wanted_tag_raw, true, target_sp, target_fp, target_pc);
+  if (!parent) return kNullAddress;
+
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d\n", from->id(), target_stack->id());
+    PrintF("parent is %d\n", parent->id());
+  }
+
+  const CanonicalSig* return_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(
+          CanonicalTypeIndex{sig_index});
+
+  from->set_arg_buffer(arg_buffer);
+  from->set_current_continuation(cont);
+  from->set_param_types(return_sig->parameters());
+  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
+      from, parent, sp, fp, pc);
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      parent, target_stack, parent->jmpbuf()->sp, parent->jmpbuf()->fp,
+      parent->jmpbuf()->pc);
+  return reinterpret_cast<Address>(target_stack);
 }
 
 void return_stack(Isolate* isolate, wasm::StackMemory* to) {

@@ -2791,6 +2791,8 @@ enum class AliasingKind {
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
   V(TrapResume)                    \
+  V(TrapSuspend)                   \
+  V(TrapSwitch)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {

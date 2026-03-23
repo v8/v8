@@ -16,9 +16,6 @@
   'memory64/memory64': [FAIL],
   'memory64/table64': [FAIL],
   'table': [FAIL],
-
-  # Implementation in progress.
-  'proposals/stack-switching/stack-switching/cont': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {

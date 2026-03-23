@@ -1821,7 +1821,21 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =
         std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>,
-                   V<WordPtr>>;
+                   V<Word32>>;
+    // Arg buffer.
+    using results_t = std::tuple<V<WordPtr>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct WasmFXSwitch : public Descriptor<WasmFXSwitch> {
+    static constexpr auto kFunction = Builtin::kWasmFXSwitch;
+    using arguments_t =
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>,
+                   V<WordPtr>, V<Word32>>;
     // Arg buffer.
     using results_t = std::tuple<V<WordPtr>>;
 

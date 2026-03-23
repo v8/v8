@@ -1004,6 +1004,14 @@ builtin ThrowWasmTrapResume(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapResume));
 }
 
+builtin ThrowWasmTrapSuspend(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSuspend));
+}
+
+builtin ThrowWasmTrapSwitch(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapSwitch));
+}
+
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
   return torque_internal::unsafe::NewOffHeapReference<T>(
       %RawDownCast<RawPtr<T>>(base + offset));

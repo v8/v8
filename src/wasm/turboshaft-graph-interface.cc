@@ -314,11 +314,8 @@ class TurboshaftGraphBuildingInterface
     // optimizer also types Parameter operations directly.
     if (v8_flags.wasm_assert_types) [[unlikely]] {
       for (size_t i = 0; i < decoder->sig_->parameter_count(); ++i) {
-        ValueType expected_type = decoder->sig_->GetParam(i);
-        if (expected_type.is_ref()) {
-          ssa_env_[i] =
-              __ AnnotateWasmType(V<Object>::Cast(ssa_env_[i]), expected_type);
-        }
+        ssa_env_[i] =
+            AnnotateResultIfReference(ssa_env_[i], decoder->sig_->GetParam(i));
       }
     }
 
@@ -3882,10 +3879,11 @@ class TurboshaftGraphBuildingInterface
     IterateWasmFXArgBuffer(
         input_sig->parameters(), [&](size_t index, int offset) {
           if (index < delta) {
-            DCHECK_EQ(args[index].type, input_sig->GetParam(index));
-            this->Asm().StoreOffHeap(
-                arg_buffer, args[index].op,
-                MemoryRepresentationOffHeap(args[index].type), offset);
+            DCHECK(IsSubtypeOf(args[index].type, input_sig->GetParam(index),
+                               decoder->module_));
+            __ StoreOffHeap(arg_buffer, args[index].op,
+                            MemoryRepresentationOffHeap(args[index].type),
+                            offset);
           }
         });
     V<Context> native_context = instance_cache_.native_context();
@@ -3915,13 +3913,15 @@ class TurboshaftGraphBuildingInterface
     return {stack, asm_handlers};
   }
 
-  void UnpackResumeReturns(const FunctionSig* sig, Value returns[],
-                           OpIndex result_buffer) {
-    IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
-      DCHECK_EQ(returns[index].type, sig->GetReturn(index));
-      returns[index].op =
+  void UnpackResumeReturns(base::Vector<const ValueType> return_types,
+                           Value returns[], OpIndex result_buffer) {
+    IterateWasmFXArgBuffer(return_types, [&](size_t index, int offset) {
+      DCHECK_EQ(return_types[index], returns[index].type);
+      V<Any> ith_return =
           __ LoadOffHeap(result_buffer, offset,
-                         MemoryRepresentationOffHeap(sig->GetReturn(index)));
+                         MemoryRepresentationOffHeap(return_types[index]));
+      returns[index].op =
+          AnnotateResultIfReference(ith_return, return_types[index]);
     });
   }
 
@@ -3937,17 +3937,17 @@ class TurboshaftGraphBuildingInterface
     const FunctionSig* sig =
         decoder->module_->signature(imm.cont_type->contfun_typeindex());
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
-      DCHECK_EQ(args[index].type, sig->GetParam(index));
-      this->Asm().StoreOffHeap(arg_buffer, args[index].op,
-                               MemoryRepresentationOffHeap(args[index].type),
-                               offset);
+      DCHECK(IsSubtypeOf(args[index].type, sig->GetParam(index),
+                         decoder->module_));
+      __ StoreOffHeap(arg_buffer, args[index].op,
+                      MemoryRepresentationOffHeap(args[index].type), offset);
     });
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
                                     HandleEffects::kYes>(
             decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
-    UnpackResumeReturns(sig, returns, result_buffer);
+    UnpackResumeReturns(sig->returns(), returns, result_buffer);
   }
 
   void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
@@ -3962,10 +3962,13 @@ class TurboshaftGraphBuildingInterface
     // Unpack tag params.
     const FunctionSig* sig = handler.tag.tag->sig;
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
-      DCHECK_EQ(tag_params[index].type, sig->GetParam(index));
-      tag_params[index].op = this->Asm().LoadOffHeap(
-          arg_buffer, offset,
-          MemoryRepresentationOffHeap(sig->GetParam(index)));
+      DCHECK(IsSubtypeOf(sig->GetParam(index), tag_params[index].type,
+                         decoder->module_));
+      OpIndex loaded =
+          __ LoadOffHeap(arg_buffer, offset,
+                         MemoryRepresentationOffHeap(sig->GetParam(index)));
+      tag_params[index].op =
+          AnnotateResultIfReference(loaded, tag_params[index].type);
     });
 
     instance_cache_.ReloadCachedMemory();
@@ -3995,7 +3998,7 @@ class TurboshaftGraphBuildingInterface
             CheckForException::kCatchInThisFrame);
     const FunctionSig* sig =
         decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
-    UnpackResumeReturns(sig, returns, result_buffer);
+    UnpackResumeReturns(sig->returns(), returns, result_buffer);
   }
 
   void ResumeThrowRef(FullDecoder* decoder,
@@ -4011,13 +4014,75 @@ class TurboshaftGraphBuildingInterface
             decoder, {stack, exn.op}, CheckForException::kCatchInThisFrame);
     const FunctionSig* sig =
         decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
-    UnpackResumeReturns(sig, returns, result_buffer);
+    UnpackResumeReturns(sig->returns(), returns, result_buffer);
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    UNIMPLEMENTED();
+    V<WordPtr> root = __ LoadRootRegister();
+    V<Word32> is_on_central_stack =
+        __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+                IsolateData::is_on_central_stack_flag_offset());
+    V<Context> native_context = instance_cache_.native_context();
+
+    IF (is_on_central_stack) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
+                         native_context);
+      __ Unreachable();
+    }
+
+    V<WordPtr> stack = CheckContAndGetStack(cont_ref);
+
+    const FunctionSig* sig =
+        decoder->module_->signature(con_imm.cont_type->contfun_typeindex());
+    DCHECK_GT(sig->parameters().size(), 0);
+
+    V<WasmContinuationObject> cont = AllocateContinuation(decoder);
+
+    V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    StackMemory::arg_buffer_offset());
+
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
+      if (index < sig->parameters().size() - 1) {
+        DCHECK(IsSubtypeOf(args[index].type, sig->GetParam(index),
+                           decoder->module_));
+        __ StoreOffHeap(arg_buffer, args[index].op,
+                        MemoryRepresentationOffHeap(args[index].type), offset);
+      } else {
+        __ StoreOffHeap(arg_buffer, cont,
+                        MemoryRepresentationOffHeap(sig->GetParam(index)),
+                        offset);
+      }
+    });
+
+    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(SharedFlag::kNo), TagsTable,
+        MemoryRepresentation::TaggedPointer());
+    auto wanted_tag = V<WasmExceptionTag>::Cast(
+        __ LoadFixedArrayElement(instance_tags, tag_imm.index));
+
+    const ContType* return_cont_type =
+        decoder->module_->cont_type(sig->parameters().last().ref_index());
+    const FunctionSig* return_sig =
+        decoder->module_->signature(return_cont_type->contfun_typeindex());
+
+    CanonicalTypeIndex return_csig_index = decoder->module_->canonical_type_id(
+        return_cont_type->contfun_typeindex());
+
+    auto [return_size, return_alignment] =
+        GetBufferSizeAndAlignmentFor(return_sig->parameters());
+
+    V<WordPtr> result_buffer = __ StackSlot(return_size, return_alignment);
+
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSwitch>(
+        decoder, native_context,
+        {wanted_tag, cont, stack, result_buffer,
+         __ RelocatableWasmCanonicalSignatureId(return_csig_index.index)},
+        CheckForException::kCatchInThisFrame);
+
+    UnpackResumeReturns(return_sig->parameters(), returns, result_buffer);
   }
 
   void BeginEffectHandlers(FullDecoder* decoder) {
@@ -4035,6 +4100,24 @@ class TurboshaftGraphBuildingInterface
     return MemoryRepresentation::FromMachineType(type.machine_type());
   }
 
+  V<WasmContinuationObject> AllocateContinuation(FullDecoder* decoder) {
+    compiler::turboshaft::Uninitialized<WasmContinuationObject>
+        uninitialized_cont = __ template Allocate<WasmContinuationObject>(
+            __ WordPtrConstant(WasmContinuationObject::kSize),
+            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
+    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
+    __ InitializeField(uninitialized_cont,
+                       AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
+    // The {stack_obj_} field is initialized properly in the
+    // {suspend_wasmfx_stack} or {switch_wasmfx_stack} C call.
+    __ InitializeField(
+        uninitialized_cont,
+        AccessBuilder::ForJSObjectOffset(
+            WasmContinuationObject::kStackObjOffset, compiler::kNoWriteBarrier),
+        __ LoadRoot<RootIndex::kUndefinedValue>());
+    return __ FinishInitialization(std::move(uninitialized_cont));
+  }
+
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], Value returns[]) {
     V<WordPtr> root = __ LoadRootRegister();
@@ -4047,7 +4130,6 @@ class TurboshaftGraphBuildingInterface
                          native_context);
       __ Unreachable();
     }
-
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
@@ -4056,17 +4138,7 @@ class TurboshaftGraphBuildingInterface
         MemoryRepresentation::TaggedPointer());
     auto wanted_tag = V<WasmExceptionTag>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
-    compiler::turboshaft::Uninitialized<WasmContinuationObject>
-        uninitialized_cont = __ template Allocate<WasmContinuationObject>(
-            __ WordPtrConstant(WasmContinuationObject::kSize),
-            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
-    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
-    __ InitializeField(uninitialized_cont,
-                       AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
-    // The {stack_obj_} field is initialized in the {suspend_wasmfx_stack} C
-    // call.
-    V<WasmContinuationObject> cont =
-        __ FinishInitialization(std::move(uninitialized_cont));
+    V<WasmContinuationObject> cont = AllocateContinuation(decoder);
 
     auto [arg_size, arg_alignment] =
         GetBufferSizeAndAlignmentFor(sig->parameters());
@@ -4079,28 +4151,29 @@ class TurboshaftGraphBuildingInterface
     ModuleTypeIndex sig_index = decoder->module_->tags[imm.index].sig_index;
     CanonicalTypeIndex csig_index =
         decoder->module_->canonical_type_id(sig_index);
-    const CanonicalSig* csig =
-        GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
-            csig_index);
 
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
-      DCHECK_EQ(args[index].type, sig->GetParam(index));
+      DCHECK(IsSubtypeOf(args[index].type, sig->GetParam(index),
+                         decoder->module_));
       __ StoreOffHeap(arg_buffer, args[index].op,
                       MemoryRepresentationOffHeap(args[index].type), offset);
     });
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
         decoder, native_context,
         {wanted_tag, cont, arg_buffer,
-         __ WordPtrConstant(reinterpret_cast<uintptr_t>(csig))},
+         __ RelocatableWasmCanonicalSignatureId(csig_index.index)},
         CheckForException::kCatchInThisFrame);
     instance_cache_.ReloadCachedMemory();
 
     // Unpack tag returns.
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
-      DCHECK_EQ(returns[index].type, sig->GetReturn(index));
-      returns[index].op = this->Asm().LoadOffHeap(
-          arg_buffer, offset,
-          MemoryRepresentationOffHeap(sig->GetReturn(index)));
+      DCHECK(IsSubtypeOf(sig->GetReturn(index), returns[index].type,
+                         decoder->module_));
+      OpIndex loaded =
+          __ LoadOffHeap(arg_buffer, offset,
+                         MemoryRepresentationOffHeap(sig->GetReturn(index)));
+      returns[index].op =
+          AnnotateResultIfReference(loaded, returns[index].type);
     });
   }
 
