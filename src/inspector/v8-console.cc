@@ -987,7 +987,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
 
 void V8Console::CommandLineAPIScope::accessorSetterCallback(
     v8::Local<v8::Name> name, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   CommandLineAPIScope* scope = *static_cast<CommandLineAPIScope**>(
       info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   if (scope == nullptr) return;

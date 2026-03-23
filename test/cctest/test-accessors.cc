@@ -34,15 +34,16 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using ::v8::ObjectTemplate;
-using ::v8::Value;
+using ::v8::Boolean;
 using ::v8::Context;
+using ::v8::Extension;
+using ::v8::Function;
 using ::v8::Local;
 using ::v8::Name;
-using ::v8::String;
+using ::v8::ObjectTemplate;
 using ::v8::Script;
-using ::v8::Function;
-using ::v8::Extension;
+using ::v8::String;
+using ::v8::Value;
 
 static void handle_property(Local<Name> name,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -158,7 +159,7 @@ static void GetIntValue(Local<Name> property,
 }
 
 static void SetIntValue(Local<Name> property, Local<Value> value,
-                        const v8::PropertyCallbackInfo<void>& info) {
+                        const v8::PropertyCallbackInfo<Boolean>& info) {
   int* field =
       static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
   *field = value->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust();
@@ -223,8 +224,8 @@ template <typename Info>
 Local<v8::Object> GetHolder(const Info& info);
 
 template <>
-Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
-    const v8::PropertyCallbackInfo<void>& info) {
+Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<Boolean>>(
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   return info.Holder();
 }
 
@@ -246,7 +247,7 @@ void XSetter(Local<Value> value, const Info& info, int offset) {
 }
 
 void XSetter(Local<Name> name, Local<Value> value,
-             const v8::PropertyCallbackInfo<void>& info) {
+             const v8::PropertyCallbackInfo<Boolean>& info) {
   XSetter(value, info, 0);
 }
 
@@ -462,7 +463,7 @@ static void ThrowingGetAccessor(
 }
 
 static void ThrowingSetAccessor(Local<Name> name, Local<Value> value,
-                                const v8::PropertyCallbackInfo<void>& info) {
+                                const v8::PropertyCallbackInfo<Boolean>& info) {
   info.GetIsolate()->ThrowException(value);
 }
 

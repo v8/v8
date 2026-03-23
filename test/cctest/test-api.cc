@@ -2880,7 +2880,7 @@ void SimpleAccessorGetter(Local<String> name,
 }
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
-                          const v8::PropertyCallbackInfo<void>& info) {
+                          const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Local<Object> self = info.Holder();
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
@@ -2900,7 +2900,7 @@ void SymbolAccessorGetter(Local<Name> name,
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
-                          const v8::PropertyCallbackInfo<void>& info) {
+                          const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(name->IsSymbol());
   v8::Isolate* isolate = info.GetIsolate();
@@ -7218,9 +7218,8 @@ THREADED_TEST(ElementAPIAccessor) {
 
 v8::Persistent<Value> xValue;
 
-
 static void SetXValue(Local<Name> name, Local<Value> value,
-                      const v8::PropertyCallbackInfo<void>& info) {
+                      const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   CHECK(value->Equals(context, v8_num(4)).FromJust());
@@ -7229,7 +7228,6 @@ static void SetXValue(Local<Name> name, Local<Value> value,
   CHECK(xValue.IsEmpty());
   xValue.Reset(info.GetIsolate(), value);
 }
-
 
 THREADED_TEST(SimplePropertyWrite) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -9437,7 +9435,7 @@ void YGetter(Local<Name> name,
 }
 
 void YSetter(Local<Name> name, Local<Value> value,
-             const v8::PropertyCallbackInfo<void>& info) {
+             const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Local<Object> this_obj = info.Holder();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
@@ -10295,7 +10293,7 @@ static void UnreachableGetter(Local<Name> name,
 }
 
 static void UnreachableSetter(Local<Name>, Local<Value>,
-                              const v8::PropertyCallbackInfo<void>&) {
+                              const v8::PropertyCallbackInfo<Boolean>&) {
   UNREACHABLE();  // This function should not be called.
 }
 
@@ -10997,7 +10995,7 @@ int shadow_y_setter_call_count;
 int shadow_y_getter_call_count;
 
 void ShadowYSetter(Local<Name>, Local<Value>,
-                   const v8::PropertyCallbackInfo<void>& info) {
+                   const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   shadow_y_setter_call_count++;
   shadow_y = 42;
@@ -12648,7 +12646,7 @@ void ShouldThrowOnErrorAccessorGetter(
 
 void ShouldThrowOnErrorAccessorSetter(
     Local<Name> name, Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = info.GetIsolate();
@@ -18567,7 +18565,7 @@ static void GetterWhichReturns42(
 
 static void SetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<Boolean>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   CHECK(IsJSObject(*v8::Utils::OpenDirectHandle(*info.Holder())));
   info.Holder()

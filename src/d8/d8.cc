@@ -2693,7 +2693,7 @@ void Shell::RealmSharedGet(Local<Name> property,
 }
 
 void Shell::RealmSharedSet(Local<Name> property, Local<Value> value,
-                           const PropertyCallbackInfo<void>& info) {
+                           const PropertyCallbackInfo<Boolean>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);

@@ -624,12 +624,11 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // Here we handle both cases using the AccessorNameSetterCallback signature
   // and checking whether the returned result is set to default value
   // (the undefined value).
-  // TODO(ishell, 348660658): update V8 Api to allow setter callbacks provide
-  // the result of [[Set]] operation according to JavaScript semantics.
-  AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
-      accessor_info->setter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info, holder(),
-                                 ACCESSOR_SETTER,
+  AccessorNameSetterCallbackV2 f =
+      reinterpret_cast<AccessorNameSetterCallbackV2>(
+          accessor_info->setter(isolate));
+  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Boolean, accessor_info,
+                                 holder(), ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
   // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed

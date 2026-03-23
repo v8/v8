@@ -1379,6 +1379,8 @@ i::DirectHandle<i::AccessorInfo> MakeAccessorInfo(i::Isolate* i_isolate,
   obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
   DCHECK_IMPLIES(replace_on_access, setter == nullptr);
   if (setter == nullptr) {
+    // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
+    // is deprecated and removed.
 #if (__GNUC__ >= 8) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
@@ -1549,6 +1551,17 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
   i::ApiNatives::AddNativeDataProperty(i_isolate, info, accessor_info);
 }
 }  // namespace
+
+void Template::SetNativeDataProperty(v8::Local<Name> name,
+                                     AccessorNameGetterCallback getter,
+                                     AccessorNameSetterCallbackV2 setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, attribute, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
 
 void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      AccessorNameGetterCallback getter,
@@ -5141,6 +5154,17 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
       i_isolate, self, name_i, &desc, Just(i::kDontThrow));
   USE(success);
+}
+
+Maybe<bool> Object::SetNativeDataProperty(
+    v8::Local<v8::Context> context, v8::Local<Name> name,
+    AccessorNameGetterCallback getter, AccessorNameSetterCallbackV2 setter,
+    v8::Local<Value> data, PropertyAttribute attributes,
+    SideEffectType getter_side_effect_type,
+    SideEffectType setter_side_effect_type) {
+  return ObjectSetAccessor(context, this, name, getter, setter, data,
+                           attributes, false, getter_side_effect_type,
+                           setter_side_effect_type);
 }
 
 Maybe<bool> Object::SetNativeDataProperty(

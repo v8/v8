@@ -1311,7 +1311,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
 
 namespace {
 void SetOnHolder(Local<Name> name, Local<Value> value,
-                 const v8::PropertyCallbackInfo<void>& info) {
+                 const v8::PropertyCallbackInfo<Boolean>& info) {
   info.Holder()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();

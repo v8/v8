@@ -624,7 +624,7 @@ class Shell : public i::AllStatic {
   static void RealmSharedGet(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<Name> property, Local<Value> value,
-                             const PropertyCallbackInfo<void>& info);
+                             const PropertyCallbackInfo<Boolean>& info);
 
   static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void TestVerifySourcePositions(

@@ -103,10 +103,28 @@ class V8_EXPORT Template : public Data {
    */
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
+      AccessorNameSetterCallbackV2 setter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  void SetNativeDataProperty(
+      Local<Name> name, AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  // TODO(https://crbug.com/348660658): remove once AccessorNameSetterCallback
+  // is removed.
+  void SetNativeDataProperty(
+      Local<Name> name, AccessorNameGetterCallback getter,
+      nullptr_t setter = nullptr, Local<Value> data = Local<Value>(),
+      PropertyAttribute attribute = None,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect) {
+    SetNativeDataProperty(
+        name, getter, static_cast<AccessorNameSetterCallbackV2>(setter), data,
+        attribute, getter_side_effect_type, setter_side_effect_type);
+  }
 
   /**
    * Like SetNativeDataProperty, but V8 will replace the native data property
