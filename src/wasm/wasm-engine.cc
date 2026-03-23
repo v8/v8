@@ -1859,8 +1859,7 @@ void WasmEngine::TriggerCodeGCForTesting() {
   if (!v8_flags.wasm_code_gc) return;
   base::MutexGuard guard(&mutex_);
   TRACE_CODE_GC("Wasm Code GC explicitly requested for testing:\n");
-  if (new_potentially_dead_code_size_ == 0) {
-    DCHECK(potentially_dead_code_.empty());
+  if (potentially_dead_code_.empty()) {
     // Let's not waste a GC sequence index when there is no code to free.
     TRACE_CODE_GC("But there is nothing to do.\n");
     return;
