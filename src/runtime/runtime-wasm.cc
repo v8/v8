@@ -2267,7 +2267,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
       isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
-    // the string.new_utf8_try instruction should return null.
+    // the string.new_utf8_array_try instruction should return null.
     if (result_string.is_null() && !isolate->has_exception()) {
       return *isolate->factory()->wasm_null();
     }
@@ -2374,11 +2374,15 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
   MaybeDirectHandle<String> result =
       isolate->factory()->NewStringFromUtf8(source, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_exception());
+    // If the input was invalid, then the decoder has failed silently, and
+    // the string.new_utf8_array_try instruction should return null.
     // Only instructions from the stringref proposal can set variant
     // kUtf8NoTrap, so WasmNull is appropriate here.
-    if (result.is_null()) return *isolate->factory()->wasm_null();
-    return *result.ToHandleChecked();
+    if (result.is_null() && !isolate->has_exception()) {
+      return *isolate->factory()->wasm_null();
+    }
+    // Fall through in case of a valid result, and in case of a pending
+    // exception because the requested string was too large.
   }
   RETURN_RESULT_OR_FAILURE(isolate, result);
 }
