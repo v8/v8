@@ -294,6 +294,12 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               HeapType::from_code(code, is_shared).name().c_str());
           return {kWasmBottom, 0};
         }
+        if (!VALIDATE(!is_shared)) {
+          DecodeError<ValidationTag>(
+              decoder, pc, "shared string type '%s' is not supported.",
+              HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
+        }
         return {HeapType::from_code(code, is_shared), length};
       case kNoContCode:
       case kContRefCode:
