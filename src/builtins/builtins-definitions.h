@@ -777,14 +777,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
   TFC(CallIteratorWithFeedbackLazyDeoptContinuation, SingleParameterOnStack)   \
+  TFC(ForOfNextResultDeoptContinuation, ForOfNextResultDeoptContinuation)      \
   TFC(ForOfNextLoadDoneLazyDeoptContinuation,                                  \
       ForOfNextLoadDoneLazyDeoptContinuation)                                  \
-  TFC(ForOfNextLoadDoneEagerDeoptContinuation,                                 \
-      ForOfNextLoadDoneEagerDeoptContinuation)                                 \
-  TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
-      ForOfNextLoadValueLazyDeoptContinuation)                                 \
   TFC(ForOfNextLoadValueEagerDeoptContinuation,                                \
       ForOfNextLoadValueEagerDeoptContinuation)                                \
+  TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
+      ForOfNextLoadValueLazyDeoptContinuation)                                 \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI, kDontAdaptArgumentsSentinel)                            \

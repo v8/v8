@@ -16961,8 +16961,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
 
   ValueNode* result_object;
   CallArguments args(ConvertReceiverMode::kAny, {iterator});
-  GET_VALUE_OR_ABORT(result_object,
-                     ReduceCall(next_method, args, feedback_source));
+  {
+    LazyDeoptFrameScope lazy_call_scope(
+        this, Builtin::kForOfNextResultDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {GetSmiConstant(result_pair.first.index())}));
+
+    GET_VALUE_OR_ABORT(result_object,
+                       ReduceCall(next_method, args, feedback_source));
+  }
 
   // The feedback for ForOfNext is laid out as:
   // - Call feedback for the .next() call.
@@ -16981,9 +16988,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
   ValueNode* done;
   {
     EagerDeoptFrameScope eager_done_scope(
-        this, Builtin::kForOfNextLoadDoneEagerDeoptContinuation, {},
+        this, Builtin::kForOfNextResultDeoptContinuation, {},
         base::VectorOf<ValueNode*>(
-            {result_object, GetSmiConstant(result_pair.first.index())}));
+            {GetSmiConstant(result_pair.first.index()), result_object}));
 
     // Check if result is a JSReceiver.
     RETURN_IF_ABORT(BuildCheckJSReceiver(result_object));

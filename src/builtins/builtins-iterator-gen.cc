@@ -541,39 +541,12 @@ void IteratorBuiltinsAssembler::StoreValueAndDoneInRegisterPair(
   StoreFullTaggedNoWriteBarrier(parent_frame_pointer, done_offset, done);
 }
 
-TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+// ForOfNextResultDeoptContinuation is used for the lazy deoptimization on
+// next() call and the eager deoptimization of loading done value.
+TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto result_object = Parameter<Object>(Descriptor::kResultObject);
-  auto done = Parameter<Object>(Descriptor::kDone);
   auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
-
-  TVARIABLE(Object, var_value);
-  Label if_done(this), if_not_done(this), end(this, &var_value);
-  BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
-
-  BIND(&if_done);
-  {
-    var_value = UndefinedConstant();
-    Goto(&end);
-  }
-
-  BIND(&if_not_done);
-  {
-    var_value =
-        GetProperty(context, CAST(result_object), factory()->value_string());
-    Goto(&end);
-  }
-
-  BIND(&end);
-  StoreValueAndDoneInRegisterPair(context, var_value.value(), done,
-                                  value_done_reg);
-  Return(var_value.value(), done);
-}
-
-TF_BUILTIN(ForOfNextLoadDoneEagerDeoptContinuation, IteratorBuiltinsAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
   auto result_object = Parameter<Object>(Descriptor::kResultObject);
-  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
 
   Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
   BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
@@ -610,13 +583,33 @@ TF_BUILTIN(ForOfNextLoadDoneEagerDeoptContinuation, IteratorBuiltinsAssembler) {
   Unreachable();
 }
 
-TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+  auto done = Parameter<Object>(Descriptor::kDone);
   auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
-  StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
+
+  TVARIABLE(Object, var_value);
+  Label if_done(this), if_not_done(this), end(this, &var_value);
+  BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    var_value = UndefinedConstant();
+    Goto(&end);
+  }
+
+  BIND(&if_not_done);
+  {
+    var_value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Goto(&end);
+  }
+
+  BIND(&end);
+  StoreValueAndDoneInRegisterPair(context, var_value.value(), done,
                                   value_done_reg);
-  Return(value, FalseConstant());
+  Return(var_value.value(), done);
 }
 
 TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
@@ -628,6 +621,15 @@ TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
   TNode<Object> value =
       GetProperty(context, CAST(result_object), factory()->value_string());
 
+  StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
+                                  value_done_reg);
+  Return(value, FalseConstant());
+}
+
+TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
   StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
                                   value_done_reg);
   Return(value, FalseConstant());

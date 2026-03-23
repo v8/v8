@@ -635,12 +635,12 @@ constexpr auto GetIteratorStackParameterDescriptor::registers() {
 }
 
 // static
-constexpr auto ForOfNextLoadDoneLazyDeoptContinuationDescriptor::registers() {
+constexpr auto ForOfNextResultDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
 
 // static
-constexpr auto ForOfNextLoadDoneEagerDeoptContinuationDescriptor::registers() {
+constexpr auto ForOfNextLoadDoneLazyDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
 
