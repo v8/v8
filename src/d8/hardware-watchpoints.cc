@@ -15,11 +15,13 @@
 #include <sys/wait.h>
 
 #include <atomic>
+#include <vector>
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/yield-processor.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/sandbox/testing.h"
 #include "src/utils/utils.h"
@@ -46,6 +48,10 @@ struct HardwareWatchpointSupport {
   // Initialized based on `v8_flags.random_seed`, used for random manipulation
   // of read values.
   base::RandomNumberGenerator rng{0};
+
+  // Keep objects alive as long as they have a watchpoint. Used by the `d8`
+  // process.
+  std::vector<v8::Global<v8::Value>> kept_alive;
 
   // This part is allocated in shared space and used to communicate between the
   // two processes ("d8" and "debugger").
@@ -525,6 +531,7 @@ void ResetAllHardwareWatchpoints() {
 
   TRACE("[d8] resetting all hardware watchpoints.\n");
   for (int i = 0; i < kNumWatchpoints; ++i) watchpoints[i].address = 0;
+  g_support.kept_alive.clear();
   CHECK(!g_support.shared->has_changed_watchpoints.exchange(true));
   // Signal the debugger process; this pauses execution until that process
   // continues us.
@@ -592,8 +599,17 @@ void SetHardwareWatchpointCallback(
     return;
   }
 
-  // TODO(clemensb): Make sure that the object stays where it is in memory,
-  // potentially by moving it to old space and keeping a global reference to it.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  int num_gcs = 0;
+  while (i::HeapLayout::InYoungGeneration(*object)) {
+    CHECK_LE(++num_gcs, 2);  // Should be promoted in <= 2 GCs.
+    TRACE("[d8] Running minor GC to promote object to old space\n");
+    i_isolate->heap()->PreciseCollectAllGarbage(
+        i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
+  }
+
+  // Keep the object alive, using the original `info[0]` Local handle.
+  g_support.kept_alive.emplace_back(isolate, info[0]);
 
   i::Address watch_addr = object->address() + offset;
   uint32_t current_content = *reinterpret_cast<uint32_t*>(watch_addr);
