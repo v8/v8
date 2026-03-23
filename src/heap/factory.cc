@@ -692,7 +692,6 @@ void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
 }
 
 struct NonSharedStringPolicy {
-  static constexpr bool kAllowLookupSingleCharacterString = true;
   static MaybeHandle<SeqOneByteString> AllocateOneByteString(
       Isolate* isolate, uint32_t length, AllocationType allocation) {
     return isolate->factory()->NewRawOneByteString(length, allocation);
@@ -704,7 +703,6 @@ struct NonSharedStringPolicy {
 };
 
 struct SharedStringPolicy {
-  static constexpr bool kAllowLookupSingleCharacterString = false;
   static MaybeHandle<SeqOneByteString> AllocateOneByteString(
       Isolate* isolate, uint32_t length, AllocationType allocation) {
     return isolate->factory()->NewRawSharedOneByteString(length);
@@ -730,13 +728,10 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
   if (decoder.is_one_byte()) {
-    if constexpr (StringPolicy::kAllowLookupSingleCharacterString) {
-      if (decoder.utf16_length() == 1) {
-        uint8_t codepoint;
-        decoder.Decode(&codepoint, peek_bytes());
-        return isolate->factory()->LookupSingleCharacterStringFromCode(
-            codepoint);
-      }
+    if (decoder.utf16_length() == 1) {
+      uint8_t codepoint;
+      decoder.Decode(&codepoint, peek_bytes());
+      return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
     }
     // Allocate string.
     Handle<SeqOneByteString> result;

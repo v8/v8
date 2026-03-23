@@ -3404,12 +3404,13 @@ inline bool CheckExpectedSharedness(Isolate* isolate,
                                     const char** error_message) {
   if (v8_flags.experimental_wasm_shared && (*value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (*value).cast<HeapObject>();
-    if ((expected.is_shared() == SharedFlag::kYes) !=
-        HeapLayout::InWritableSharedSpace(heap_obj)) {
-      *error_message =
-          expected.is_shared() == SharedFlag::kYes
-              ? "unshared object is not allowed for shared heap types"
-              : "shared object is not allowed for unshared heap types";
+    if (expected.is_shared() == SharedFlag::kYes &&
+        !HeapLayout::InAnySharedSpace(heap_obj)) {
+      *error_message = "unshared object is not allowed for shared heap types";
+      return false;
+    } else if (expected.is_shared() == SharedFlag::kNo &&
+               HeapLayout::InWritableSharedSpace(heap_obj)) {
+      *error_message = "shared object is not allowed for unshared heap types";
       return false;
     }
   }
@@ -3423,7 +3424,7 @@ inline bool ConvertToSharedIfExpected(Isolate* isolate,
   if (v8_flags.experimental_wasm_shared &&
       expected.is_shared() == SharedFlag::kYes && (**value).IsHeapObject()) {
     Tagged<HeapObject> heap_obj = (**value).cast<HeapObject>();
-    if (!HeapLayout::InWritableSharedSpace(heap_obj)) {
+    if (!HeapLayout::InAnySharedSpace(heap_obj)) {
       if (!Object::Share(isolate, *value, ShouldThrow::kDontThrow)
                .ToHandle(value)) {
         *error_message = "unshared object is not allowed for shared heap types";
