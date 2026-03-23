@@ -248,6 +248,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
+    for (auto reg : kSimd128ParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(), Operand(frame_size));
     AddS64(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
@@ -375,6 +376,7 @@ void LiftoffAssembler::CheckStackShrink() {
   LiftoffRegList regs_to_save;
   for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
   for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
+  for (auto reg : kSimd128ReturnRegisters) regs_to_save.set(reg);
   PushRegisters(regs_to_save);
   MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
   PrepareCallCFunction(1, r0);
@@ -2944,13 +2946,14 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   MultiPush(regs.GetGpList());
   DoubleRegList fp_regs = regs.GetFpList();
-  MultiPushF64AndV128(fp_regs, Simd128RegList::FromBits(fp_regs.bits()), ip,
-                      r0);
+  Simd128RegList simd_regs = regs.GetSimd128List();
+  MultiPushF64AndV128(fp_regs, simd_regs, ip, r0);
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   DoubleRegList fp_regs = regs.GetFpList();
-  MultiPopF64AndV128(fp_regs, Simd128RegList::FromBits(fp_regs.bits()), ip, r0);
+  Simd128RegList simd_regs = regs.GetSimd128List();
+  MultiPopF64AndV128(fp_regs, simd_regs, ip, r0);
   MultiPop(regs.GetGpList());
 }
 
