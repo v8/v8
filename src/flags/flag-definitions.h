@@ -2084,6 +2084,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "enable JS Interop part of Custom Descriptors proposal")
 DEFINE_IMPLICATION(experimental_wasm_js_interop,
                    experimental_wasm_custom_descriptors)
+DEFINE_BOOL(wasm_custom_descriptors_permitted, true,
+            "Emergency off-switch for Custom Descriptors Origin Trial")
 
 #define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
   DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)

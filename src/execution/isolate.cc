@@ -4019,6 +4019,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
 bool Isolate::IsWasmCustomDescriptorsEnabled(
     DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
+  if (!v8_flags.wasm_custom_descriptors_permitted) return false;
   v8::WasmCustomDescriptorsEnabledCallback callback =
       wasm_custom_descriptors_enabled_callback();
   if (callback) {

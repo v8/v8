@@ -257,6 +257,14 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
     EXPECT_TRUE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
     EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
                     .has_custom_descriptors());
+    {
+      // Test that the kill switch overrides any Origin Trial.
+      i::FlagScope<bool> flag_kill_switch(
+          &i::v8_flags.wasm_custom_descriptors_permitted, false);
+      EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
+      EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                       .has_custom_descriptors());
+    }
     isolate()->SetWasmCustomDescriptorsEnabledCallback(
         [](auto) { return false; });
     EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
