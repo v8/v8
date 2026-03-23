@@ -232,7 +232,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
   auto* cpp_heap = static_cast<v8::internal::CppHeap*>(heap);
   auto* isolate = cpp_heap->isolate();
   DCHECK_NOT_NULL(isolate);
-  if (v8_flags.heap_snapshot_on_oom) {
+  if (v8_flags.heap_snapshot_on_oom && !isolate->has_active_deserializer()) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
     isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC();

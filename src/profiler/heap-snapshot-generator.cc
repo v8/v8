@@ -259,6 +259,11 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
     CHECK_EQ(type, HeapGraphEdge::kWeak);
     return;
   }
+  if (type == HeapGraphEdge::kShortcut) {
+    // Shortcut references are not actually modelled in the graph via a
+    // reference.
+    return;
+  }
   Address from_address =
       reinterpret_cast<Address>(generator->FindHeapThingForHeapEntry(this));
   Address to_address =
@@ -3432,7 +3437,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   // Same as above, but no allocations, no GC run, and no progress report.
-  IsolateSafepointScope scope(heap_);
+  SafepointScope scope(heap_->isolate(), kGlobalSafepointForSharedSpaceIsolate);
   auto temporary_native_context_tags =
       v8_heap_explorer_.CollectTemporaryNativeContextTags();
   NullContextForSnapshotScope null_context_scope(heap_->isolate());

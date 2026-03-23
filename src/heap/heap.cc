@@ -1462,7 +1462,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   CompleteArrayBufferSweeping();
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
-      v8_flags.heap_snapshot_on_oom) {
+      v8_flags.heap_snapshot_on_oom && !isolate()->has_active_deserializer()) {
     heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
 
@@ -1774,7 +1774,8 @@ void Heap::CollectGarbage(
     if (v8_flags.heap_snapshot_on_gc >= 0) [[unlikely]] {
       const size_t gc_counter_filter =
           static_cast<size_t>(v8_flags.heap_snapshot_on_gc);
-      if (gc_counter_filter == 0 || gc_counter_filter == ms_count_) {
+      if (!isolate()->has_active_deserializer() &&
+          (gc_counter_filter == 0 || gc_counter_filter == ms_count_)) {
         heap_profiler()->WriteSnapshotToDiskAfterGC();
       }
     }
@@ -1820,7 +1821,8 @@ void Heap::CheckHeapLimitReached() {
   if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
     if (ReachedHeapLimit()) {
-      if (v8_flags.heap_snapshot_on_oom) {
+      if (v8_flags.heap_snapshot_on_oom &&
+          !isolate()->has_active_deserializer()) {
         heap_profiler()->WriteSnapshotToDiskAfterGC();
       }
       FatalProcessOutOfMemory("Reached heap limit");
@@ -3733,7 +3735,8 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
       consecutive_ineffective_mark_compacts_ = 0;
       return;
     }
-    if (v8_flags.heap_snapshot_on_oom) {
+    if (v8_flags.heap_snapshot_on_oom &&
+        !isolate()->has_active_deserializer()) {
       heap_profiler()->WriteSnapshotToDiskAfterGC();
     }
     FatalProcessOutOfMemory("Ineffective mark-compacts near heap limit");
