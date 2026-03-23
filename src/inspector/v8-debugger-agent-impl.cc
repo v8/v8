@@ -699,6 +699,10 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
     std::unique_ptr<protocol::Debugger::Location> location =
         setBreakpointImpl(breakpointId, script.first, condition,
                           adjustedLineNumber, adjustedColumnNumber);
+    if (!enabled()) {
+      return Response::ServerError(
+          "Debugger domain disabled during setBreakpoint");
+    }
     if (location && type != BreakpointType::kByUrlRegex) {
       hint = breakpointHint(*script.second, lineNumber, columnNumber,
                             location->getLineNumber(),
