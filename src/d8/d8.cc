@@ -6502,6 +6502,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_flag_is_not_specified(options.trace_enabled);
     check_flag_is_not_specified(options.trace_config);
     check_flag_is_not_specified(options.trace_path);
+    // Inspector security bugs must be shown through the embedder (i.e. Chrome,
+    // or content_shell).
     check_flag_is_not_specified(options.enable_inspector);
     check_flag_is_not_specified(options.lcov_file);
     check_flag_is_not_specified(options.simulate_errors);
