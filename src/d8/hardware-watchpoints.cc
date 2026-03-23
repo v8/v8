@@ -138,11 +138,13 @@ void DisassemblePreviousInstruction(struct user_regs_struct& regs,
 
   // Try disassembling at increasing offsets. Eventually this should synchronize
   // with the instruction stream and find the instruction ending at `rip`.
-  for (size_t offset = 0; offset < rip_offset; ++offset) {
-    while (offset < rip_offset) {
+  for (size_t start_offset = 0; start_offset < rip_offset; ++start_offset) {
+    disasm.clear_hit_unimplemented_opcode();
+    size_t offset = start_offset;
+    while (offset < rip_offset && !disasm.hit_unimplemented_opcode()) {
       offset += disasm.InstructionDecode(buffer, bytes_around_rip + offset);
     }
-    if (offset > rip_offset) continue;  // Overshot `rip`.
+    if (offset > rip_offset || disasm.hit_unimplemented_opcode()) continue;
     // Found the instruction!
     // The format is of the form: "4d637607     REX.W movsxlq r14,[r14+0x7]"
     TRACE("[debugger] Executed instruction was: %s\n", buffer.data());

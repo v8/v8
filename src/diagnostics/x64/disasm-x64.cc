@@ -293,18 +293,8 @@ class DisassemblerX64 {
   DisassemblerX64(const NameConverter& converter,
                   Disassembler::UnimplementedOpcodeAction unimplemented_action)
       : converter_(converter),
-        tmp_buffer_pos_(0),
         abort_on_unimplemented_(unimplemented_action ==
                                 Disassembler::kAbortOnUnimplementedOpcode),
-        rex_(0),
-        operand_size_(0),
-        group_1_prefix_(0),
-        segment_prefix_(0),
-        address_size_prefix_(0),
-        vex_byte0_(0),
-        vex_byte1_(0),
-        vex_byte2_(0),
-        byte_size_operand_(false),
         instruction_table_(GetInstructionTable()) {
     tmp_buffer_[0] = '\0';
   }
@@ -312,6 +302,8 @@ class DisassemblerX64 {
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(v8::base::Vector<char> buffer, uint8_t* instruction);
+
+  bool hit_unimplemented_opcode() const { return hit_unimplemented_opcode_; }
 
  private:
   enum OperandSize {
@@ -323,19 +315,20 @@ class DisassemblerX64 {
 
   const NameConverter& converter_;
   v8::base::EmbeddedVector<char, 128> tmp_buffer_;
-  unsigned int tmp_buffer_pos_;
+  unsigned int tmp_buffer_pos_ = 0;
   bool abort_on_unimplemented_;
   // Prefixes parsed.
-  uint8_t rex_;
-  uint8_t operand_size_;         // 0x66 or (without group 3 prefix) 0x0.
-  uint8_t group_1_prefix_;       // 0xF2, 0xF3, or (without group 1 prefix) 0.
-  uint8_t segment_prefix_;       // 0x64 or (without group 2 prefix) 0.
-  uint8_t address_size_prefix_;  // 0x67 or (without group 4 prefix) 0.
-  uint8_t vex_byte0_;            // 0xC4 or 0xC5.
-  uint8_t vex_byte1_;
-  uint8_t vex_byte2_;  // only for 3 bytes vex prefix.
+  uint8_t rex_ = 0;
+  uint8_t operand_size_ = 0;    // 0x66 or (without group 3 prefix) 0x0.
+  uint8_t group_1_prefix_ = 0;  // 0xF2, 0xF3, or (without group 1 prefix) 0.
+  uint8_t segment_prefix_ = 0;  // 0x64 or (without group 2 prefix) 0.
+  uint8_t address_size_prefix_ = 0;  // 0x67 or (without group 4 prefix) 0.
+  uint8_t vex_byte0_ = 0;            // 0xC4 or 0xC5.
+  uint8_t vex_byte1_ = 0;
+  uint8_t vex_byte2_ = 0;  // only for 3 bytes vex prefix.
   // Byte size operand override.
-  bool byte_size_operand_;
+  bool byte_size_operand_ = false;
+  bool hit_unimplemented_opcode_ = false;
   const InstructionTable* const instruction_table_;
 
   void setRex(uint8_t rex) {
@@ -493,6 +486,7 @@ class DisassemblerX64 {
   PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
+    hit_unimplemented_opcode_ = true;
     if (abort_on_unimplemented_) {
       FATAL("'Unimplemented Instruction'");
     } else {
@@ -2899,7 +2893,9 @@ const char* NameConverter::NameInCode(uint8_t* addr) const {
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     uint8_t* instruction) {
   DisassemblerX64 d(converter_, unimplemented_opcode_action());
-  return d.InstructionDecode(buffer, instruction);
+  int result = d.InstructionDecode(buffer, instruction);
+  if (d.hit_unimplemented_opcode()) hit_unimplemented_opcode_ = true;
+  return result;
 }
 
 // The X64 assembler does not use constant pools.
