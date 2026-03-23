@@ -12004,6 +12004,15 @@ TNode<NativeContext> CodeStubAssembler::GetCreationContext(
   return GetCreationContextFromMap(LoadMap(receiver), if_bailout);
 }
 
+TNode<NativeContext> CodeStubAssembler::GetCreationContextUnchecked(
+    TNode<JSReceiver> receiver) {
+  TNode<Map> meta_map = LoadMap(LoadMap(receiver));
+  TNode<Object> maybe_context =
+      LoadMapConstructorOrBackPointerOrNativeContext(meta_map);
+  CSA_DCHECK(this, Word32BinaryNot(IsNull(maybe_context)));
+  return CAST(maybe_context);
+}
+
 TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
     TNode<Context> context, TNode<JSReceiver> receiver, Label* if_bailout) {
   TVARIABLE(JSReceiver, current);

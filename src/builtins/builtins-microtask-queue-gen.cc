@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/promise.h"
@@ -155,17 +156,22 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   Label is_callable(this), is_callback(this),
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
-      is_promise_resolve_thenable_job(this),
+      is_promise_resolve_thenable_job(this), is_async_resume(this),
       is_unreachable(this, Label::kDeferred),
       rewind_entered_context_and_done(this), done(this);
 
-  int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
+  int32_t case_values[] = {CALLABLE_TASK_TYPE,
+                           CALLBACK_TASK_TYPE,
                            PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
                            PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE};
-  Label* case_labels[] = {
-      &is_callable, &is_callback, &is_promise_fulfill_reaction_job,
-      &is_promise_reject_reaction_job, &is_promise_resolve_thenable_job};
+                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
+                           ASYNC_RESUME_TASK_TYPE};
+  Label* case_labels[] = {&is_callable,
+                          &is_callback,
+                          &is_promise_fulfill_reaction_job,
+                          &is_promise_reject_reaction_job,
+                          &is_promise_resolve_thenable_job,
+                          &is_async_resume};
   static_assert(arraysize(case_values) == arraysize(case_labels), "");
   Switch(microtask_type, &is_unreachable, case_values, case_labels,
          arraysize(case_labels));
@@ -387,6 +393,59 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     BIND(&if_exception);
     {
       // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&rewind_entered_context_and_done);
+    }
+  }
+
+  BIND(&is_async_resume);
+  {
+    // Specialized handler for resuming async generators/functions when the
+    // awaited/yielded value is a non-thenable.  Avoids closure allocation
+    // and indirect Call dispatch.
+    using Traits = ObjectTraits<AsyncResumeTask>;
+    const TNode<JSGeneratorObject> generator =
+        CAST(LoadObjectField(microtask, Traits::kGeneratorOffset));
+    const TNode<Object> value =
+        LoadObjectField(microtask, Traits::kValueOffset);
+
+    TNode<NativeContext> microtask_context =
+        GetCreationContextUnchecked(generator);
+    PrepareForContext(microtask_context, &done);
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    SetupContinuationPreservedEmbedderData(microtask);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
+    // Currently only kYield exists; future kinds will add a Switch here.
+    CSA_DCHECK(this,
+               SmiEqual(LoadObjectField<Smi>(microtask, Traits::kKindOffset),
+                        SmiConstant(AsyncResumeTask::kYield)));
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      // AsyncGeneratorYieldWithAwaitResolveClosure logic:
+      // 1. SetGeneratorNotAwaiting
+      StoreObjectFieldNoWriteBarrier(
+          generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
+      // 2. AsyncGeneratorResolve(generator, value, false)
+      CallBuiltin(Builtin::kAsyncGeneratorResolve, microtask_context, generator,
+                  value, FalseConstant());
+      // 3. AsyncGeneratorResumeNext(generator)
+      CallBuiltin(Builtin::kAsyncGeneratorResumeNext, microtask_context,
+                  generator);
+    }
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    ClearContinuationPreservedEmbedderData();
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+    Goto(&rewind_entered_context_and_done);
+
+    BIND(&if_exception);
+    {
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
       Goto(&rewind_entered_context_and_done);

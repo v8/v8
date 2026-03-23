@@ -16,6 +16,7 @@ namespace internal {
 
 class StructBodyDescriptor;
 class MicrotaskQueueBuiltinsAssembler;
+class JSGeneratorObject;
 
 #include "torque-generated/src/objects/microtask-tq.inc"
 
@@ -96,12 +97,55 @@ V8_OBJECT class CallableTask : public Microtask {
   TaggedMember<NativeContext> context_;
 } V8_OBJECT_END;
 
+// Specialized microtask for resuming async generators/functions when the
+// awaited/yielded value is a non-thenable.  Avoids closure allocation and
+// indirect Call dispatch.  The |kind| field selects the resume behaviour.
+V8_OBJECT class AsyncResumeTask : public Microtask {
+ public:
+  // Determines which resume logic the microtask handler executes.
+  enum Kind {
+    // Async generator yield: resolve iterator result with done=false.
+    kYield = 0,
+  };
+
+  inline Tagged<JSGeneratorObject> generator() const;
+  inline void set_generator(Tagged<JSGeneratorObject> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> value() const;
+  inline void set_value(Tagged<Object> val,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int kind() const;
+  inline void set_kind(int kind);
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  DECL_VERIFIER(AsyncResumeTask)
+  DECL_PRINTER(AsyncResumeTask)
+
+ private:
+  friend class TorqueGeneratedAsyncResumeTaskAsserts;
+  friend struct ObjectTraits<AsyncResumeTask>;
+
+  TaggedMember<JSGeneratorObject> generator_;
+  TaggedMember<Object> value_;
+  TaggedMember<Smi> kind_;
+} V8_OBJECT_END;
+
 template <>
 struct ObjectTraits<Microtask> {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   static constexpr int kContinuationPreservedEmbedderDataOffset =
       offsetof(Microtask, continuation_preserved_embedder_data_);
 #endif
+};
+
+template <>
+struct ObjectTraits<AsyncResumeTask> {
+  static constexpr int kGeneratorOffset = offsetof(AsyncResumeTask, generator_);
+  static constexpr int kValueOffset = offsetof(AsyncResumeTask, value_);
+  static constexpr int kKindOffset = offsetof(AsyncResumeTask, kind_);
 };
 
 }  // namespace internal

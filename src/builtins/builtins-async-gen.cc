@@ -65,6 +65,45 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
                });
 }
 
+void AsyncBuiltinsAssembler::BranchIfNonThenable(TNode<Context> context,
+                                                 TNode<Object> value,
+                                                 Label* if_non_thenable,
+                                                 Label* if_slow) {
+  // Fast-check that no promise hooks or debug machinery is active.
+  TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+  GotoIf(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+             promiseHookFlags),
+         if_slow);
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  GotoIf(IsContextPromiseHookEnabled(promiseHookFlags), if_slow);
+#endif
+
+  // Non-JSReceiver values (Smis, strings, etc.) are guaranteed non-thenable
+  // per ECMA-262 CreateResolvingFunctions step 2.d.
+  GotoIf(TaggedIsSmi(value), if_non_thenable);
+  TNode<HeapObject> value_heap_object = CAST(value);
+  TNode<Map> value_map = LoadMap(value_heap_object);
+  GotoIfNot(IsJSReceiverMap(value_map), if_non_thenable);
+
+  // JSReceiver: "then" is an interesting property, so the map's
+  // may_have_interesting_properties bit tells us whether the object could
+  // have a "then" own property. When the bit is not set, we know:
+  // - No named interceptors (cuts off proxies, API objects)
+  // - Not a dictionary-mode object
+  // - No access checks needed
+  // - No "then" in own descriptors
+  // We still need to verify the prototype chain doesn't have "then".
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(value_map);
+  GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(bit_field3),
+         if_slow);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<Object> object_prototype = LoadContextElementNoCell(
+      native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+  GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), object_prototype),
+            if_slow);
+  Branch(IsPromiseThenProtectorCellInvalid(), if_slow, if_non_thenable);
+}
+
 TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
                                             TNode<JSGeneratorObject> generator,
                                             TNode<JSAny> value,
@@ -72,58 +111,13 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
                                             const GetClosures& get_closures) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
-  // Fast path for non-thenable values: when awaiting a non-thenable value
-  // and there's no debugging/hooks enabled, we can skip creating a wrapper
-  // promise and directly enqueue a microtask that will call the resolve
-  // handler with the value.
-  //
-  // Per ECMA-262 CreateResolvingFunctions
-  // (https://tc39.es/ecma262/#sec-createresolvingfunctions), step 2.d:
-  // "If resolution is not an Object, return FulfillPromise(promise,
-  // resolution)." This means primitives are never checked for a "then"
-  // property, so we don't need any protector checks for primitive prototypes.
-  //
-  // TODO(yagiznizipli): This fast path could potentially be extended to
-  // non-primitive non-thenables as well (e.g., plain objects with known maps
-  // where we can verify no "then" property exists).
+  // Fast path for non-thenable values: skip creating a wrapper promise and
+  // directly enqueue a microtask that will call the resolve handler.
   Label if_non_thenable_fast_path(this), if_thenable_slow_path(this),
       done(this);
   TVARIABLE(Object, var_result);
-  {
-    TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
-    GotoIf(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-               promiseHookFlags),
-           &if_thenable_slow_path);
-#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-    GotoIf(IsContextPromiseHookEnabled(promiseHookFlags),
-           &if_thenable_slow_path);
-#endif
-
-    // Check if value is a non-thenable (Smi or non-JSReceiver HeapObject).
-    // Non-JSReceiver values are guaranteed to be non-thenable per the spec.
-    GotoIf(TaggedIsSmi(value), &if_non_thenable_fast_path);
-    TNode<HeapObject> value_heap_object = CAST(value);
-    TNode<Map> value_map = LoadMap(value_heap_object);
-    GotoIfNot(IsJSReceiverMap(value_map), &if_non_thenable_fast_path);
-
-    // "then" is an interesting property, so the map's
-    // may_have_interesting_properties bit tells us whether the object could
-    // have a "then" own property. When the bit is not set, we know:
-    // - No named interceptors (cuts off proxies, API objects)
-    // - Not a dictionary-mode object
-    // - No access checks needed
-    // - No "then" in own descriptors
-    // We still need to verify the prototype chain doesn't have "then".
-    TNode<Uint32T> bit_field3 = LoadMapBitField3(value_map);
-    GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(bit_field3),
-           &if_thenable_slow_path);
-    TNode<Object> object_prototype = LoadContextElementNoCell(
-        native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
-    GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), object_prototype),
-              &if_thenable_slow_path);
-    Branch(IsPromiseThenProtectorCellInvalid(), &if_thenable_slow_path,
-           &if_non_thenable_fast_path);
-  }
+  BranchIfNonThenable(context, value, &if_non_thenable_fast_path,
+                      &if_thenable_slow_path);
 
   BIND(&if_non_thenable_fast_path);
   {

@@ -2129,6 +2129,14 @@ void CallableTask::CallableTaskVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, context());
 }
 
+void AsyncResumeTask::AsyncResumeTaskVerify(Isolate* isolate) {
+  MicrotaskVerify(isolate);
+  Object::VerifyPointer(isolate, generator());
+  Object::VerifyPointer(isolate, value());
+  CHECK_LE(0, kind());
+  CHECK_LE(kind(), Kind::kYield);
+}
+
 void Microtask::MicrotaskVerify(Isolate* isolate) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   Object::VerifyPointer(isolate, continuation_preserved_embedder_data());

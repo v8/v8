@@ -3480,6 +3480,15 @@ void CallableTask::CallableTaskPrint(std::ostream& os) {
   os << "\n";
 }
 
+void AsyncResumeTask::AsyncResumeTaskPrint(std::ostream& os) {
+  PrintHeader(os, "AsyncResumeTask");
+  MicrotaskPrint(os);
+  os << "\n - generator: " << Brief(generator());
+  os << "\n - value: " << Brief(value());
+  os << "\n - kind: " << kind();
+  os << "\n";
+}
+
 void PromiseReactionJobTask::PromiseReactionJobTaskPrint(std::ostream& os) {
   MicrotaskPrint(os);
   os << "\n - argument: " << Brief(argument());

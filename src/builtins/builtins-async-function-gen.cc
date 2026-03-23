@@ -215,6 +215,11 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
+  // TODO(jgruber): For non-thenable values, use AsyncResumeTask with a new
+  // kAsyncFunctionAwait kind. AwaitWithReusableClosures already caches
+  // closures after first await, but this would still eliminate the
+  // AwaitContext allocation, PromiseFulfillReactionJobTask allocation,
+  // and indirect closure dispatch on every await.
   AwaitWithReusableClosures(context, async_function_object, value,
                             outer_promise);
 

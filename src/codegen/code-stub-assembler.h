@@ -2279,6 +2279,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                  Label* if_bailout);
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
+  // Like GetCreationContext but DCHECKs instead of branching.
+  TNode<NativeContext> GetCreationContextUnchecked(TNode<JSReceiver> receiver);
   TNode<NativeContext> GetFunctionRealm(TNode<Context> context,
                                         TNode<JSReceiver> receiver,
                                         Label* if_bailout);
