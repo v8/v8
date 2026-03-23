@@ -130,9 +130,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ GetObjectType(map, type, type);
-    __ Assert(eq, AbortReason::kUnexpectedValue, type, Operand(MAP_TYPE));
+    __ AssertMap(map);
   }
   __ Ld(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(target, cc, type, Operand(instance_type));

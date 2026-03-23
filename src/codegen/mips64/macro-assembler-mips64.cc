@@ -5754,6 +5754,19 @@ void MacroAssembler::AssertSmi(Register object) {
   }
 }
 
+void MacroAssembler::AssertMap(Register object) {
+  if (v8_flags.debug_code) {
+    ASM_CODE_COMMENT(this);
+    AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    GetObjectType(object, scratch, scratch);
+    Check(eq, AbortReason::kOperandIsNotAMap, scratch, Operand(MAP_TYPE));
+  }
+}
+
 void MacroAssembler::AssertStackIsAligned() {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
