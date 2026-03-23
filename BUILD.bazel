@@ -843,8 +843,9 @@ filegroup(
         "src/base/compiler-specific.h",
         "src/base/container-utils.h",
         "src/base/contextual.h",
-        "src/base/cpu.cc",
-        "src/base/cpu.h",
+        "src/base/cpu/cpu.cc",
+        "src/base/cpu/cpu.h",
+        "src/base/cpu/cpu-helper.h",
         "src/base/debug/stack_trace.cc",
         "src/base/debug/stack_trace.h",
         "src/base/discriminated-union.h",
@@ -996,6 +997,25 @@ filegroup(
             "src/base/platform/platform-win32.cc",
             "src/base/platform/platform-win32.h",
             "src/base/win32-headers.h",
+        ],
+    }) + select({
+        "@v8//bazel/config:v8_target_x64": [
+            "src/base/cpu/cpu-x86.cc",
+        ],
+        "@v8//bazel/config:v8_target_ia32": [
+            "src/base/cpu/cpu-x86.cc",
+        ],
+        "@v8//bazel/config:v8_target_arm64": [
+            "src/base/cpu/cpu-arm.cc",
+        ],
+        "@v8//bazel/config:v8_target_arm": [
+            "src/base/cpu/cpu-arm.cc",
+        ],
+        "@v8//bazel/config:v8_target_ppc64le": [
+            "src/base/cpu/cpu-ppc64.cc",
+        ],
+        "@v8//bazel/config:v8_target_riscv64": [
+            "src/base/cpu/cpu-riscv.cc",
         ],
     }),
     visibility = ["//visibility:public"],

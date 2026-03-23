@@ -7,7 +7,7 @@
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/sys-info.h"

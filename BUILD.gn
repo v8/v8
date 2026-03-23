@@ -7041,8 +7041,8 @@ v8_component("v8_libbase") {
     "src/base/compiler-specific.h",
     "src/base/container-utils.h",
     "src/base/contextual.h",
-    "src/base/cpu.cc",
-    "src/base/cpu.h",
+    "src/base/cpu/cpu.cc",
+    "src/base/cpu/cpu.h",
     "src/base/debug/stack_trace.cc",
     "src/base/debug/stack_trace.h",
     "src/base/discriminated-union.h",
@@ -7173,6 +7173,20 @@ v8_component("v8_libbase") {
     "src/base/vlq-base64.h",
     "src/base/vlq.h",
   ]
+
+  if (target_cpu == "x86" || target_cpu == "x64") {
+    sources += [ "src/base/cpu/cpu-x86.cc" ]
+  } else if (target_cpu == "arm" || target_cpu == "arm64") {
+    sources += [ "src/base/cpu/cpu-arm.cc" ]
+  } else if (target_cpu == "riscv64") {
+    sources += [ "src/base/cpu/cpu-riscv.cc" ]
+  } else if (target_cpu == "loong64") {
+    sources += [ "src/base/cpu/cpu-loong64.cc" ]
+  } else if (target_cpu == "mips64") {
+    sources += [ "src/base/cpu/cpu-mips.cc" ]
+  } else if (target_cpu == "ppc64") {
+    sources += [ "src/base/cpu/cpu-ppc64.cc" ]
+  }
 
   configs = [ ":internal_config_base" ]
 

@@ -4,7 +4,7 @@
 
 #include "src/compiler/revectorizer.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/compiler-source-position-table.h"
