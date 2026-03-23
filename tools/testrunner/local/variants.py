@@ -104,7 +104,7 @@ ALL_VARIANT_FLAGS = {
     "turbolev_future": ["--turbolev-future"],
     "stress_turbolev_future": [
         "--turbolev-future",
-        "--max-inlined-bytecode-size-small=0",
+        "--max-turbolev-eager-inlined-bytecode-size=0",
     ],
     "concurrent_sparkplug": ["--concurrent-sparkplug", "--sparkplug"],
     "always_sparkplug": ["--always-sparkplug", "--sparkplug"],
