@@ -68,9 +68,8 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
-    constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), kIsShared);
+                           func_code.end(), SharedFlag::kNo);
     auto result = ExecuteLiftoffCompilation(
         &env, func_body,
         LiftoffOptions{.func_index = static_cast<int>(func.func_index),

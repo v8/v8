@@ -4117,7 +4117,7 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  if (destructor->shared_ && !is_shared_space_isolate()) {
+  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
     shared_space_isolate()->RegisterManagedPtrDestructor(destructor);
     return;
   }
@@ -4125,7 +4125,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
-  ManagedPtrDestructor** list = destructor->shared_
+  ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
                                     ? &shared_managed_ptr_destructors_head_
                                     : &managed_ptr_destructors_head_;
   if (*list) {
@@ -4136,7 +4136,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  if (destructor->shared_ && !is_shared_space_isolate()) {
+  if (destructor->shared_ == SharedFlag::kYes && !is_shared_space_isolate()) {
     shared_space_isolate()->UnregisterManagedPtrDestructor(destructor);
     return;
   }
@@ -4145,7 +4145,7 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
-    ManagedPtrDestructor** list = destructor->shared_
+    ManagedPtrDestructor** list = destructor->shared_ == SharedFlag::kYes
                                       ? &shared_managed_ptr_destructors_head_
                                       : &managed_ptr_destructors_head_;
     DCHECK_EQ(destructor, *list);

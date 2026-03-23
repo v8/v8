@@ -18,8 +18,9 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   isolate->UnregisterManagedPtrDestructor(destructor);
   destructor->destructor_(destructor->shared_ptr_ptr_);
-  Isolate* accounter_isolate =
-      destructor->shared_ ? isolate->shared_space_isolate() : isolate;
+  Isolate* accounter_isolate = destructor->shared_ == SharedFlag::kYes
+                                   ? isolate->shared_space_isolate()
+                                   : isolate;
   destructor->external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(accounter_isolate),
       destructor->estimated_size_);

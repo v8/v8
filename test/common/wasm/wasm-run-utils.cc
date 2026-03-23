@@ -146,7 +146,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
     const wasm::CanonicalValueType type = wasm::CanonicalValueType::Ref(
-        sig_index, wasm::kNotShared, wasm::RefTypeKind::kFunction);
+        sig_index, SharedFlag::kNo, wasm::RefTypeKind::kFunction);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, type, sig,
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
@@ -464,7 +464,7 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   // space.
   module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
-      {type, true, {}, {global_offset_}, false, false, false});
+      {type, true, {}, {global_offset_}, SharedFlag::kNo, false, false});
   global_offset_ += size;
   // limit number of globals.
   CHECK_LT(global_offset_, kMaxGlobalsSize);
@@ -506,7 +506,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       WasmTrustedInstanceData::New(isolate_, module_object,
-                                   std::move(native_module), false);
+                                   std::move(native_module), SharedFlag::kNo);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(trusted_data->has_instance_object());
   DirectHandle<WasmInstanceObject> instance_object(
@@ -548,11 +548,11 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
       base::OwnedVector<uint8_t>::NewForOverwrite(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.size());
-  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
+  // TODO(14616): Extend this to shared functions.
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end(),
-                         kIsShared};
+                         SharedFlag::kNo};
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

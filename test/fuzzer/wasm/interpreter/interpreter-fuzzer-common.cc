@@ -256,7 +256,7 @@ Handle<JSObject> CreateImportObjectInternal(
       }
       case kExternalMemory: {
         // Memory
-        SharedFlag shared = SharedFlag::kNotShared;
+        SharedFlag shared = SharedFlag::kNo;
         int memory_initial = 1;
         int memory_maximum = 32;
         DirectHandle<WasmMemoryObject> memory_obj;

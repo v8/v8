@@ -108,9 +108,7 @@ Tagged<Object> ConstructBuffer(Isolate* isolate,
   // JSArrayBuffer to avoid a complex dance during setup. We then always create
   // the AB before throwing a possible error as the creation is observable.
   const SharedFlag shared =
-      *target != target->native_context()->array_buffer_fun()
-          ? SharedFlag::kShared
-          : SharedFlag::kNotShared;
+      SharedFlag(*target != target->native_context()->array_buffer_fun());
   const ResizableFlag resizable = max_length.is_null()
                                       ? ResizableFlag::kNotResizable
                                       : ResizableFlag::kResizable;

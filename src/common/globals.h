@@ -2754,6 +2754,12 @@ inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
 }
 
+enum class SharedFlag : bool { kNo = false, kYes = true };
+
+inline std::ostream& operator<<(std::ostream& os, SharedFlag shared) {
+  return os << (shared == SharedFlag::kYes ? "shared" : "not shared");
+}
+
 // An architecture independent representation of the sets of registers available
 // for instruction creation.
 enum class AliasingKind {

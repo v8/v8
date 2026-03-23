@@ -155,7 +155,8 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
       CanonicalValueType::Primitive(NumericKind::kI32).raw_bit_field() ==
       ValueType::Primitive(NumericKind::kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
-                          CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared};
+                          CanonicalTypeIndex{kNoSuperType}, kFinal,
+                          SharedFlag::kNo};
   base::MutexGuard guard(&mutex_);
   if (V8_UNLIKELY(canonical_supertypes_.size() == kMaxCanonicalTypes)) {
     auto oom_detail = base::FormattedString{}
@@ -255,22 +256,22 @@ void TypeCanonicalizer::AddPredefinedTypes() {
     CanonicalArrayType* type =
         zone_.New<CanonicalArrayType>(element_type, kMutable);
     AddPredefinedSingletonGroup(
-        index, CanonicalType(type, kNoSuper, kFinal, kNotShared));
+        index, CanonicalType(type, kNoSuper, kFinal, SharedFlag::kNo));
   }
   // Signature types.
   static constexpr CanonicalValueType kRefExtern = kWasmRefExtern;
   static constexpr CanonicalValueType kExternRef = kWasmExternRef;
   static constexpr CanonicalValueType kI32 = kWasmI32;
   static constexpr CanonicalValueType kA8 = CanonicalValueType::RefNull(
-      kPredefinedArrayI8Index, kNotShared, RefTypeKind::kArray);
+      kPredefinedArrayI8Index, SharedFlag::kNo, RefTypeKind::kArray);
   static constexpr CanonicalValueType kA16 = CanonicalValueType::RefNull(
-      kPredefinedArrayI16Index, kNotShared, RefTypeKind::kArray);
+      kPredefinedArrayI16Index, SharedFlag::kNo, RefTypeKind::kArray);
   static constexpr CanonicalValueType kN8 = CanonicalValueType::Ref(
-      kPredefinedArrayI8Index, kNotShared, RefTypeKind::kArray);
+      kPredefinedArrayI8Index, SharedFlag::kNo, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAE = CanonicalValueType::RefNull(
-      kPredefinedArrayExternRefIndex, kNotShared, RefTypeKind::kArray);
+      kPredefinedArrayExternRefIndex, SharedFlag::kNo, RefTypeKind::kArray);
   static constexpr CanonicalValueType kAF = CanonicalValueType::RefNull(
-      kPredefinedArrayFuncRefIndex, kNotShared, RefTypeKind::kArray);
+      kPredefinedArrayFuncRefIndex, SharedFlag::kNo, RefTypeKind::kArray);
 
   static constexpr CanonicalValueType kReps_e_i[] = {kRefExtern, kI32};
   static constexpr CanonicalValueType kReps_e_rr[] = {kRefExtern, kExternRef,
@@ -315,7 +316,7 @@ void TypeCanonicalizer::AddPredefinedTypes() {
     CanonicalSig* type =
         zone_.New<CanonicalSig>(return_count, parameter_count, reps, index);
     AddPredefinedSingletonGroup(
-        index, CanonicalType(type, kNoSuper, kFinal, kNotShared));
+        index, CanonicalType(type, kNoSuper, kFinal, SharedFlag::kNo));
   }
 }
 
@@ -538,7 +539,7 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
   isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_fixed_array());
 }
 
-bool TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
+SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
   return canonical_types_[index]->is_shared;
 }
 // Currently only used for heap verification.

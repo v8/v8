@@ -121,7 +121,7 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   }
   if (!generate_value()) return;
   ModuleTypeIndex sig_index = module_->functions[function_index].sig_index;
-  bool function_is_shared = module_->type(sig_index).is_shared;
+  SharedFlag function_is_shared = module_->type(sig_index).is_shared;
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
                               function_is_shared, RefTypeKind::kFunction);
@@ -135,8 +135,8 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate_,
-          function_is_shared ? shared_trusted_instance_data_
-                             : trusted_instance_data_,
+          function_is_shared == SharedFlag::kYes ? shared_trusted_instance_data_
+                                                 : trusted_instance_data_,
           function_index);
   result->runtime_value = WasmValue(func_ref, type);
 }
@@ -147,7 +147,8 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
   DirectHandle<WasmTrustedInstanceData> data =
-      global.shared ? shared_trusted_instance_data_ : trusted_instance_data_;
+      global.shared == SharedFlag::kYes ? shared_trusted_instance_data_
+                                        : trusted_instance_data_;
   result->runtime_value = data->GetGlobalValue(isolate_, global);
 }
 
@@ -196,7 +197,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
     // TODO(14616): Support shared custom descriptors.
-    if (type.is_shared) UNIMPLEMENTED();
+    if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
@@ -206,8 +207,9 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
-        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
-    if (!type.is_shared && !v8_flags.single_generation) {
+        type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
+                                           : AllocationType::kYoung);
+    if (type.is_shared == SharedFlag::kNo && !v8_flags.single_generation) {
       mode = SKIP_WRITE_BARRIER;  // Object is in new space.
     }
   }
@@ -319,14 +321,15 @@ void ConstantExpressionInterface::StructNewDefault(
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
     // TODO(14616): Implement shared custom descriptors.
-    if (type.is_shared) UNIMPLEMENTED();
+    if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
-        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+        type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
+                                           : AllocationType::kYoung);
   }
 
   {
@@ -375,7 +378,8 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                            Value* result) {
   if (!generate_value()) return;
   bool in_old_space =
-      decoder->module_->type(imm.index).is_shared || v8_flags.single_generation;
+      decoder->module_->type(imm.index).is_shared == SharedFlag::kYes ||
+      v8_flags.single_generation;
   ArrayNewImpl(decoder, imm, length, initial_value, result,
                in_old_space && imm.array_type->element_type().is_ref()
                    ? UPDATE_WRITE_BARRIER
@@ -428,8 +432,9 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  bool in_old_space = decoder->module_->type(array_imm.index).is_shared ||
-                      v8_flags.single_generation;
+  bool in_old_space =
+      decoder->module_->type(array_imm.index).is_shared == SharedFlag::kYes ||
+      v8_flags.single_generation;
   result->runtime_value = WasmValue(
       isolate_->factory()->NewWasmArrayFromElements(
           array_imm.array_type, element_values, rtt,
@@ -547,9 +552,9 @@ void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,
 DirectHandle<WasmTrustedInstanceData>
 ConstantExpressionInterface::GetTrustedInstanceDataForTypeIndex(
     ModuleTypeIndex index) {
-  bool type_is_shared = module_->type(index).is_shared;
-  return type_is_shared ? shared_trusted_instance_data_
-                        : trusted_instance_data_;
+  SharedFlag type_is_shared = module_->type(index).is_shared;
+  return type_is_shared == SharedFlag::kYes ? shared_trusted_instance_data_
+                                            : trusted_instance_data_;
 }
 
 }  // namespace wasm

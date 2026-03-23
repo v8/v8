@@ -124,7 +124,7 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE static void ClearWasmCanonicalTypesForTesting(
       Isolate* isolate);
 
-  bool IsShared(CanonicalTypeIndex index) const;
+  SharedFlag IsShared(CanonicalTypeIndex index) const;
   bool has_descriptor(CanonicalTypeIndex index) const;
 
   // Currently only used for heap verification.
@@ -164,12 +164,12 @@ class TypeCanonicalizer {
     CanonicalTypeIndex describes{kNoType};
     Kind kind = kFunction;
     bool is_final = false;
-    bool is_shared = false;
+    SharedFlag is_shared = SharedFlag::kNo;
     // 1 unused byte in the struct.
 
     constexpr CanonicalType(const CanonicalSig* sig,
                             CanonicalTypeIndex supertype, bool is_final,
-                            bool is_shared)
+                            SharedFlag is_shared)
         : function_sig(sig),
           supertype(supertype),
           kind(kFunction),
@@ -180,7 +180,7 @@ class TypeCanonicalizer {
                             CanonicalTypeIndex supertype,
                             CanonicalTypeIndex descriptor,
                             CanonicalTypeIndex describes, bool is_final,
-                            bool is_shared)
+                            SharedFlag is_shared)
         : struct_type(type),
           supertype(supertype),
           descriptor(descriptor),
@@ -191,7 +191,7 @@ class TypeCanonicalizer {
 
     constexpr CanonicalType(const CanonicalArrayType* type,
                             CanonicalTypeIndex supertype, bool is_final,
-                            bool is_shared)
+                            SharedFlag is_shared)
         : array_type(type),
           supertype(supertype),
           kind(kArray),
@@ -200,7 +200,7 @@ class TypeCanonicalizer {
 
     constexpr CanonicalType(const CanonicalContType* type,
                             CanonicalTypeIndex supertype, bool is_final,
-                            bool is_shared)
+                            SharedFlag is_shared)
         : cont_type(type),
           supertype(supertype),
           kind(kCont),
@@ -241,8 +241,9 @@ class TypeCanonicalizer {
       // hashing.
       uint32_t supertype_index = MakeGroupRelative(type.supertype);
       static_assert(kMaxCanonicalTypes <= kMaxUInt32 >> 3);
-      uint32_t metadata =
-          (supertype_index << 2) | (type.is_shared << 1) | (type.is_final << 0);
+      uint32_t metadata = (supertype_index << 2) |
+                          ((type.is_shared == SharedFlag::kYes) << 1) |
+                          (type.is_final << 0);
       hasher.Add(metadata);
       switch (type.kind) {
         case CanonicalType::kFunction:

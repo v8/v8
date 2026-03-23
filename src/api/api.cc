@@ -4264,8 +4264,7 @@ std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store =
-        i::BackingStore::EmptyBackingStore(i::SharedFlag::kNotShared);
+    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag::kNo);
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
@@ -4283,7 +4282,7 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag::kShared);
+    backing_store = i::BackingStore::EmptyBackingStore(i::SharedFlag::kYes);
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
@@ -9108,8 +9107,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
   }
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length,
-                                i::SharedFlag::kNotShared,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kNo,
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
@@ -9152,7 +9150,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
 
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
-                                      i::SharedFlag::kNotShared);
+                                      i::SharedFlag::kNo);
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }
@@ -9180,7 +9178,7 @@ std::unique_ptr<BackingStore> v8::ArrayBuffer::NewResizableBackingStore(
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::TryAllocateAndPartiallyCommitMemory(
           nullptr, byte_length, max_byte_length, page_size, initial_pages,
-          max_pages, i::WasmMemoryFlag::kNotWasm, i::SharedFlag::kNotShared);
+          max_pages, i::WasmMemoryFlag::kNotWasm, i::SharedFlag::kNo);
   if (!backing_store) {
     i::V8::FatalProcessOutOfMemory(nullptr,
                                    "v8::ArrayBuffer::NewResizableBackingStore");
@@ -9432,7 +9430,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
                                 GetInitializedFlag(initialization_mode));
 
   if (!backing_store) {
@@ -9453,7 +9451,7 @@ MaybeLocal<SharedArrayBuffer> v8::SharedArrayBuffer::MaybeNew(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
                                 GetInitializedFlag(initialization_mode));
 
   if (!backing_store) return {};
@@ -9498,7 +9496,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   }
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
-      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kYes,
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
     if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
@@ -9519,7 +9517,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::WrapAllocation(data, byte_length, deleter, deleter_data,
-                                      i::SharedFlag::kShared);
+                                      i::SharedFlag::kYes);
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
 }

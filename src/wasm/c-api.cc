@@ -2294,7 +2294,7 @@ WASM_EXPORT auto Memory::make(Store* store_abs, const MemoryType* type)
     if (maximum > i::wasm::kSpecMaxMemory32Pages) return nullptr;
   }
   // TODO(wasm+): Support shared memory and memory64.
-  i::SharedFlag shared = i::SharedFlag::kNotShared;
+  i::SharedFlag shared = i::SharedFlag::kNo;
   i::wasm::AddressType address_type = i::wasm::AddressType::kI32;
   i::DirectHandle<i::WasmMemoryObject> memory_obj;
   if (!i::WasmMemoryObject::New(isolate, minimum, maximum, shared, address_type)

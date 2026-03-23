@@ -95,7 +95,7 @@ TEST_F(ManagedTest, DisposeCausesDestruction2) {
   }
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
   ManagedPtrDestructor* destructor =
-      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter, false);
+      new ManagedPtrDestructor(0, d2, DeleteCounter::Deleter, SharedFlag::kNo);
   i_isolate->RegisterManagedPtrDestructor(destructor);
 
   isolate->Exit();

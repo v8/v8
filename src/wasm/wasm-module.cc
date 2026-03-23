@@ -346,7 +346,8 @@ DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 
 DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                         std::optional<uint64_t> max_size,
-                                        bool shared, AddressType address_type) {
+                                        SharedFlag shared,
+                                        AddressType address_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
@@ -371,7 +372,7 @@ DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
     JSObject::AddProperty(isolate, object, maximum_string, max, NONE);
   }
   JSObject::AddProperty(isolate, object, shared_string,
-                        factory->ToBoolean(shared), NONE);
+                        factory->ToBoolean(shared == SharedFlag::kYes), NONE);
 
   JSObject::AddProperty(
       isolate, object, address_string,

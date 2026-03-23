@@ -1229,7 +1229,7 @@ void HeapObject::InitSelfIndirectPointerField(
     TrustedPointerPublishingScope* opt_publishing_scope) {
   DCHECK(IsExposedTrustedObject(*this));
   InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(*this);
+  SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(*this));
   IndirectPointerTag tag =
       IndirectPointerTagFromInstanceType(instance_type, shared);
   i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
@@ -1248,7 +1248,7 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
     TrustedPointerPublishingScope* opt_publishing_scope) {
   DCHECK(IsExposedTrustedObject(this));
   InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(this);
+  SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(this));
   IndirectPointerTag tag =
       IndirectPointerTagFromInstanceType(instance_type, shared);
   i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,

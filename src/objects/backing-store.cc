@@ -130,7 +130,7 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
   CHECK_IMPLIES(is_wasm_memory, byte_capacity != 0);
 
   base::EnumSet<Flag, uint16_t> flags;
-  if (shared == SharedFlag::kShared) flags.Add(kIsShared);
+  if (shared == SharedFlag::kYes) flags.Add(kIsShared);
   if (resizable == ResizableFlag::kResizable) flags.Add(kIsResizableByJs);
   if (immutable == ImmutableFlag::kImmutable) flags.Add(kIsImmutable);
   if (is_wasm_memory) flags.Add(kIsWasmMemory);
@@ -227,7 +227,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     if (mb_length > 0) {
       counters->array_buffer_big_allocations()->AddSample(mb_length);
     }
-    if (shared == SharedFlag::kShared) {
+    if (shared == SharedFlag::kYes) {
       counters->shared_array_allocations()->AddSample(mb_length);
     }
     auto allocate_buffer = [allocator, initialized](size_t byte_length) {
@@ -451,7 +451,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
         isolate, initial_pages * wasm::kWasmPageSize,
         maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
         maximum_pages, wasm_memory, shared, has_guard_regions);
-    if (result && shared == SharedFlag::kShared) {
+    if (result && shared == SharedFlag::kYes) {
       result->type_specific_data_.shared_wasm_memory_data =
           new SharedWasmMemoryData();
     }
@@ -483,8 +483,7 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
   // but since Wasm memories are allocated by the page allocator, the zeroing
   // cost is already built-in.
   auto new_backing_store = BackingStore::AllocateWasmMemory(
-      isolate, new_pages, max_pages, wasm_memory,
-      is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared);
+      isolate, new_pages, max_pages, wasm_memory, SharedFlag(is_shared()));
 
   if (!new_backing_store ||
       new_backing_store->has_guard_regions() != has_guard_regions()) {

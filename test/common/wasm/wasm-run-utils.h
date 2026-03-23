@@ -109,7 +109,7 @@ class TestingModuleBuilder {
 
   WasmModule* module() const { return module_.get(); }
 
-  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
+  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNo,
                      AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
 
@@ -118,7 +118,7 @@ class TestingModuleBuilder {
   template <typename T>
   T* AddMemoryElems(uint32_t count,
                     AddressType address_type = wasm::AddressType::kI32) {
-    AddMemory(count * sizeof(T), SharedFlag::kNotShared, address_type);
+    AddMemory(count * sizeof(T), SharedFlag::kNo, address_type);
     return raw_mem_start<T>();
   }
 
@@ -152,8 +152,8 @@ class TestingModuleBuilder {
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
-    const bool is_shared = false;
-    module_->AddSignatureForTesting(sig, kNoSuperType, is_final, is_shared);
+    module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
+                                    SharedFlag::kNo);
     GetTypeCanonicalizer()->AddRecursiveGroup(module_.get(), 1);
     size_t size = module_->types.size();
     // The {ModuleTypeIndex} can handle more, but users of this class
@@ -220,7 +220,7 @@ class TestingModuleBuilder {
 
   void SetMemoryShared() {
     CHECK_EQ(1, module_->memories.size());
-    module_->memories[0].is_shared = true;
+    module_->memories[0].is_shared = SharedFlag::kYes;
   }
 
   enum FunctionType { kImport, kWasm };

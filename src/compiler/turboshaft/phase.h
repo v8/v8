@@ -425,10 +425,10 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  bool wasm_shared() const { return wasm_shared_; }
+  SharedFlag wasm_shared() const { return wasm_shared_; }
 
   void SetIsWasmFunction(const wasm::WasmModule* module,
-                         const wasm::FunctionSig* sig, bool shared) {
+                         const wasm::FunctionSig* sig, SharedFlag shared) {
     wasm_module_ = module;
     wasm_module_sig_ = sig;
     wasm_shared_ = shared;
@@ -550,7 +550,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::FunctionSig* wasm_module_sig_ = nullptr;
   const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
-  bool wasm_shared_ = false;
+  SharedFlag wasm_shared_ = SharedFlag::kNo;
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
   // When creating the Turboshaft graph from Maglev for Turbolev, we record in
   // {turbolev_graph_has_inlineable_wasm_calls_} whether there are inlineable

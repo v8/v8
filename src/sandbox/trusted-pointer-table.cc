@@ -44,7 +44,8 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
 #endif
 
     // 3. The tag must match the object's instance type.
-    bool is_shared = this == &isolate->shared_trusted_pointer_table();
+    SharedFlag is_shared =
+        SharedFlag(this == &isolate->shared_trusted_pointer_table());
     IndirectPointerTag expected_tag = IndirectPointerTagFromInstanceType(
         obj->map()->instance_type(), is_shared);
     CHECK_EQ(tag, expected_tag);

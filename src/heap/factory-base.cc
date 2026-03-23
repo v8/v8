@@ -195,7 +195,7 @@ Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
 
 template <typename Impl>
 Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
-    uint32_t length, bool shared) {
+    uint32_t length, SharedFlag shared) {
   if (length == 0) return empty_protected_fixed_array();
   return ProtectedFixedArray::New(isolate(), length, shared);
 }

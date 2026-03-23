@@ -178,7 +178,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    if (type.is_shared()) {
+    if (type.is_shared() == SharedFlag::kYes) {
       // TODO(mliedtke): Extend this for shared types.
       return;
     }
@@ -516,7 +516,7 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceAnyConvertExtern(object, is_shared);
     }

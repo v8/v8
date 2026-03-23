@@ -2107,7 +2107,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
   os << '[' << array_type->element_type()
-     << ", is_shared: " << (is_shared ? "true" : "false") << "]";
+     << ", is_shared: " << (is_shared == SharedFlag::kYes ? "true" : "false")
+     << "]";
 }
 
 void StructGetOp::PrintOptions(std::ostream& os) const {

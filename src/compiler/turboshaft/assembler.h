@@ -5091,7 +5091,7 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input, bool is_shared) {
+  V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared) {
     return ReduceIfReachableAnyConvertExtern(input, is_shared);
   }
 
@@ -5165,14 +5165,14 @@ class AssemblerOpInterface : public Next {
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
                                  const wasm::ArrayType* array_type,
-                                 bool is_shared) {
+                                 SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
                                               is_shared);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
                                    const wasm::StructType* struct_type,
-                                   bool is_shared) {
+                                   SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
   }
 

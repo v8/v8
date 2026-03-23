@@ -590,8 +590,8 @@ class WasmInJsInliningInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    bool shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
+    SharedFlag shared = decoder->module_->globals[imm.index].shared;
+    if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
     }
     result->op = __ GlobalGet(trusted_instance_data_, imm.global);
@@ -599,8 +599,8 @@ class WasmInJsInliningInterface {
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    bool shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
+    SharedFlag shared = decoder->module_->globals[imm.index].shared;
+    if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
     }
     __ GlobalSet(trusted_instance_data_, value.op, imm.global);
@@ -1380,8 +1380,8 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
 
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
-  bool is_shared = module->type(func.sig_index).is_shared;
-  if (is_shared) {
+  SharedFlag is_shared = module->type(func.sig_index).is_shared;
+  if (is_shared == SharedFlag::kYes) {
     TRACE("- not inlining: shared everything is not supported");
     return WasmBodyInliningResult::Failed();
   }

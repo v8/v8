@@ -381,7 +381,7 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
 template <class IsolateT>
 Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
                                                      uint32_t capacity,
-                                                     bool shared) {
+                                                     SharedFlag shared) {
   if (V8_UNLIKELY(capacity > ProtectedFixedArray::kMaxLength)) {
     base::FatalNoSecurityImpact(
         "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
@@ -389,10 +389,10 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
-  Handle<ProtectedFixedArray> result =
-      TrustedCast<ProtectedFixedArray>(Allocate(
-          isolate, capacity, &no_gc,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted));
+  Handle<ProtectedFixedArray> result = TrustedCast<ProtectedFixedArray>(
+      Allocate(isolate, capacity, &no_gc,
+               shared == SharedFlag::kYes ? AllocationType::kSharedTrusted
+                                          : AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }

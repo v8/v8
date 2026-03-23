@@ -102,7 +102,7 @@ struct WasmGlobal {
     // `tagged_globals_buffer` or `untagged_globals_buffer`.
     uint32_t index_in_buffer;
   };
-  bool shared = false;
+  SharedFlag shared = SharedFlag::kNo;
   bool imported = false;
   bool exported = false;
   bool initializer_ends_with_struct_new = false;
@@ -146,7 +146,7 @@ struct WasmMemory {
   // Maximum declared size of the memory in 64k pages. The actual memory size at
   // runtime is capped at {kV8MaxWasmMemory32Pages} / {kV8MaxWasmMemory64Pages}.
   uint64_t maximum_pages = 0;
-  bool is_shared = false;
+  SharedFlag is_shared = SharedFlag::kNo;
   bool has_maximum_pages = false;
   AddressType address_type = AddressType::kI32;
   bool imported = false;
@@ -176,7 +176,7 @@ struct WasmStringRefLiteral {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
-  explicit WasmDataSegment(bool is_active, bool is_shared,
+  explicit WasmDataSegment(bool is_active, SharedFlag is_shared,
                            uint32_t memory_index, ConstantExpression dest_addr,
                            WireBytesRef source)
       : active(is_active),
@@ -186,11 +186,11 @@ struct WasmDataSegment {
         source(source) {}
 
   static WasmDataSegment PassiveForTesting() {
-    return WasmDataSegment{false, false, 0, {}, {}};
+    return WasmDataSegment{false, SharedFlag::kNo, 0, {}, {}};
   }
 
   bool active = true;     // true if copied automatically during instantiation.
-  bool shared = false;    // true if shared.
+  SharedFlag shared = SharedFlag::kNo;
   uint32_t memory_index;  // memory index (if active).
   ConstantExpression dest_addr;  // destination memory address (if active).
   WireBytesRef source;           // start offset in the module bytes.
@@ -206,7 +206,7 @@ struct WasmElemSegment {
   enum ElementType { kFunctionIndexElements, kExpressionElements };
 
   // Construct an active segment.
-  WasmElemSegment(bool shared, ValueType type, uint32_t table_index,
+  WasmElemSegment(SharedFlag shared, ValueType type, uint32_t table_index,
                   ConstantExpression offset, ElementType element_type,
                   uint32_t element_count, uint32_t elements_wire_bytes_offset)
       : status(kStatusActive),
@@ -220,7 +220,7 @@ struct WasmElemSegment {
 
   // Construct a passive or declarative segment, which has no table index or
   // offset.
-  WasmElemSegment(Status status, bool shared, ValueType type,
+  WasmElemSegment(Status status, SharedFlag shared, ValueType type,
                   ElementType element_type, uint32_t element_count,
                   uint32_t elements_wire_bytes_offset)
       : status(status),
@@ -236,7 +236,7 @@ struct WasmElemSegment {
   // Default constructor. Constucts an invalid segment.
   WasmElemSegment()
       : status(kStatusActive),
-        shared(false),
+        shared(SharedFlag::kNo),
         type(kWasmBottom),
         table_index(0),
         element_type(kFunctionIndexElements),
@@ -249,7 +249,7 @@ struct WasmElemSegment {
   WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
 
   Status status;
-  bool shared;
+  SharedFlag shared;
   ValueType type;
   uint32_t table_index;
   ConstantExpression offset;
@@ -412,7 +412,7 @@ struct TypeDefinition {
   };
 
   constexpr TypeDefinition(const FunctionSig* sig, ModuleTypeIndex supertype,
-                           bool is_final, bool is_shared)
+                           bool is_final, SharedFlag is_shared)
       : function_sig(sig),
         supertype{supertype},
         kind(kFunction),
@@ -420,7 +420,7 @@ struct TypeDefinition {
         is_shared(is_shared) {}
 
   constexpr TypeDefinition(const StructType* type, ModuleTypeIndex supertype,
-                           bool is_final, bool is_shared)
+                           bool is_final, SharedFlag is_shared)
       : struct_type(type),
         supertype{supertype},
         kind(kStruct),
@@ -428,7 +428,7 @@ struct TypeDefinition {
         is_shared(is_shared) {}
 
   constexpr TypeDefinition(const ArrayType* type, ModuleTypeIndex supertype,
-                           bool is_final, bool is_shared)
+                           bool is_final, SharedFlag is_shared)
       : array_type(type),
         supertype{supertype},
         kind(kArray),
@@ -436,7 +436,7 @@ struct TypeDefinition {
         is_shared(is_shared) {}
 
   constexpr TypeDefinition(const ContType* type, ModuleTypeIndex supertype,
-                           bool is_final, bool is_shared)
+                           bool is_final, SharedFlag is_shared)
       : cont_type(type),
         supertype{supertype},
         kind(kCont),
@@ -459,7 +459,7 @@ struct TypeDefinition {
   ModuleTypeIndex describes{kNoType};
   Kind kind = kFunction;
   bool is_final = false;
-  bool is_shared = false;
+  SharedFlag is_shared = SharedFlag::kNo;
   uint8_t subtyping_depth = 0;
 };
 
@@ -645,7 +645,7 @@ struct WasmTable {
   uint64_t maximum_size = 0;
   bool has_maximum_size = false;
   AddressType address_type = AddressType::kI32;
-  bool shared = false;
+  SharedFlag shared = SharedFlag::kNo;
   bool imported = false;
   bool exported = false;
   ConstantExpression initial_value = {};
@@ -875,26 +875,26 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   void AddSignatureForTesting(const FunctionSig* sig, ModuleTypeIndex supertype,
-                              bool is_final, bool is_shared) {
+                              bool is_final, SharedFlag is_shared) {
     DCHECK_NOT_NULL(sig);
     AddTypeForTesting(TypeDefinition(sig, supertype, is_final, is_shared));
   }
 
   void AddStructTypeForTesting(const StructType* type,
                                ModuleTypeIndex supertype, bool is_final,
-                               bool is_shared) {
+                               SharedFlag is_shared) {
     DCHECK_NOT_NULL(type);
     AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
 
   void AddArrayTypeForTesting(const ArrayType* type, ModuleTypeIndex supertype,
-                              bool is_final, bool is_shared) {
+                              bool is_final, SharedFlag is_shared) {
     DCHECK_NOT_NULL(type);
     AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
 
   void AddContTypeForTesting(const ContType* type, ModuleTypeIndex supertype,
-                             bool is_final, bool is_shared) {
+                             bool is_final, SharedFlag is_shared) {
     DCHECK_NOT_NULL(type);
     AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
@@ -999,7 +999,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
                              isorecursive_canonical_type_ids.end());
   }
 
-  bool function_is_shared(int func_index) const {
+  SharedFlag function_is_shared(int func_index) const {
     return type(functions[func_index].sig_index).is_shared;
   }
 
@@ -1160,7 +1160,8 @@ DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                         ValueType type);
 DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                         std::optional<uint64_t> max_size,
-                                        bool shared, AddressType address_type);
+                                        SharedFlag shared,
+                                        AddressType address_type);
 DirectHandle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                        uint32_t min_size,
                                        std::optional<uint64_t> max_size,

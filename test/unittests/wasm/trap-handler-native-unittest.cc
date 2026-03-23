@@ -88,8 +88,7 @@ class TrapHandlerTest : public TestWithIsolate,
     InstallFallbackHandler();
     SetupTrapHandler(GetParam());
     backing_store_ = BackingStore::AllocateWasmMemory(
-        i_isolate(), 1, 1, WasmMemoryFlag::kWasmMemory32,
-        SharedFlag::kNotShared);
+        i_isolate(), 1, 1, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
     CHECK(backing_store_);
     EXPECT_TRUE(backing_store_->has_guard_regions());
     // The allocated backing store ends with a guard page.

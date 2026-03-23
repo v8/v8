@@ -1719,7 +1719,7 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   IndirectPointerTag tag;
   if (IsPublished(isolate)) {
     InstanceType instance_type = map()->instance_type();
-    bool shared = HeapLayout::InAnySharedSpace(*this);
+    SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(*this));
     tag = IndirectPointerTagFromInstanceType(instance_type, shared);
   } else {
     tag = kUnpublishedIndirectPointerTag;

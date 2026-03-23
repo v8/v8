@@ -2546,9 +2546,10 @@ class LiftoffCompiler {
         return EmitIsNull(opcode, value.type);
       case kExprAnyConvertExtern: {
         VarState input_state = __ cache_state()->stack_state.back();
-        const bool is_shared = value.type.is_shared();
-        CallBuiltin(is_shared ? Builtin::kWasmAnyConvertExternShared
-                              : Builtin::kWasmAnyConvertExtern,
+        const SharedFlag is_shared = value.type.is_shared();
+        CallBuiltin(is_shared == SharedFlag::kYes
+                        ? Builtin::kWasmAnyConvertExternShared
+                        : Builtin::kWasmAnyConvertExtern,
                     MakeSig::Returns(kRefNull).Params(kRefNull), {input_state},
                     decoder->position());
         __ DropValues(1);
@@ -6436,7 +6437,8 @@ class LiftoffCompiler {
 // (ia32 doesn't require any alignment for these operation) and there are only
 // painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
+    if (field.struct_imm.shared == SharedFlag::kNo &&
+        field_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
       // unshared objects don't have the required alignment for 64 bit
       // operations.
@@ -6594,7 +6596,8 @@ class LiftoffCompiler {
 
     // Special implementation for unshared objects which don't guarantee aligned
     // i64 values.
-    if (!field.struct_imm.shared && field_kind == ValueKind::kI64) {
+    if (field.struct_imm.shared == SharedFlag::kNo &&
+        field_kind == ValueKind::kI64) {
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
       LoadObjectField(decoder, result_reg, obj.gp(), no_reg, offset, field_kind,
@@ -6720,7 +6723,8 @@ class LiftoffCompiler {
     // needed (ia32 doesn't require any alignment for these operation) and there
     // are only painfully few registers available on ia32.
 #if !V8_TARGET_ARCH_IA32
-    if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
+    if (array_obj.type.is_shared() == SharedFlag::kNo &&
+        elem_kind == ValueKind::kI64) {
       // On some architectures atomic operations require aligned accesses while
       // unshared objects don't have the required alignment for 64 bit
       // operations.
@@ -6900,7 +6904,8 @@ class LiftoffCompiler {
 
     // Special implementation for unshared objects which don't guarantee aligned
     // i64 values.
-    if (!array_obj.type.is_shared() && elem_kind == ValueKind::kI64) {
+    if (array_obj.type.is_shared() == SharedFlag::kNo &&
+        elem_kind == ValueKind::kI64) {
       LiftoffRegister result_reg =
           pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
       LoadObjectField(decoder, result_reg, array.gp(), index.gp(),
@@ -7154,7 +7159,8 @@ class LiftoffCompiler {
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     // TODO(14616): Fix sharedness.
-    CHECK(!decoder->module_->data_segments[imm.index].shared);
+    CHECK_EQ(decoder->module_->data_segments[imm.index].shared,
+             SharedFlag::kNo);
 
     LiftoffRegList pinned;
     Register instance_data = __ cache_state() -> cached_instance_data;
@@ -7510,9 +7516,10 @@ class LiftoffCompiler {
                    first_field},
                   decoder->position());
     } else {
-      bool is_shared = type.is_shared;
-      CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedStructWithRtt
-                            : Builtin::kWasmAllocateStructWithRtt,
+      SharedFlag is_shared = type.is_shared;
+      CallBuiltin(is_shared == SharedFlag::kYes
+                      ? Builtin::kWasmAllocateSharedStructWithRtt
+                      : Builtin::kWasmAllocateStructWithRtt,
                   MakeSig::Returns(kRef).Params(kRef, kI32),
                   {VarState{kRef, rtt, 0},
                    VarState{kI32, WasmStruct::Size(imm.struct_type), 0}},
@@ -7522,8 +7529,8 @@ class LiftoffCompiler {
     LiftoffRegister obj(kReturnRegister0);
     LiftoffRegList pinned{obj};
 
-    bool in_old_space =
-        type.is_shared || type.is_descriptor() || v8_flags.single_generation;
+    bool in_old_space = type.is_shared == SharedFlag::kYes ||
+                        type.is_descriptor() || v8_flags.single_generation;
 
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
@@ -7701,13 +7708,14 @@ class LiftoffCompiler {
     ValueType elem_type = imm.array_type->element_type();
     ValueKind elem_kind = elem_type.kind();
     int elem_size = value_kind_size(elem_kind);
-    const bool is_shared = decoder->module_->type(imm.index).is_shared;
+    const SharedFlag is_shared = decoder->module_->type(imm.index).is_shared;
 
     // Allocate the array.
     {
       LiftoffRegister rtt = RttCanon(decoder, imm.index, {});
-      CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
-                            : Builtin::kWasmAllocateArray_Uninitialized,
+      CallBuiltin(is_shared == SharedFlag::kYes
+                      ? Builtin::kWasmAllocateSharedArray_Uninitialized
+                      : Builtin::kWasmAllocateArray_Uninitialized,
                   MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
                   {VarState{kRef, rtt, 0},
                    __ cache_state()->stack_state.end()[-1],  // length
@@ -7736,7 +7744,8 @@ class LiftoffCompiler {
     // {obj} is in new-space (not pretenured).
     // OR
     // {value} is read-only.
-    bool in_old_space = is_shared || v8_flags.single_generation;
+    bool in_old_space =
+        is_shared == SharedFlag::kYes || v8_flags.single_generation;
     ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
                   in_old_space && imm.array_type->element_type().is_ref() &&
                           initial_value_on_stack
@@ -7957,9 +7966,11 @@ class LiftoffCompiler {
     ValueKind elem_kind = array_imm.array_type->element_type().kind();
     int32_t elem_count = length_imm.index;
     // Allocate the array.
-    const bool is_shared = decoder->module_->type(array_imm.index).is_shared;
-    CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
-                          : Builtin::kWasmAllocateArray_Uninitialized,
+    const SharedFlag is_shared =
+        decoder->module_->type(array_imm.index).is_shared;
+    CallBuiltin(is_shared == SharedFlag::kYes
+                    ? Builtin::kWasmAllocateSharedArray_Uninitialized
+                    : Builtin::kWasmAllocateArray_Uninitialized,
                 MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
                 {VarState{kRef, rtt, 0}, VarState{kI32, elem_count, 0},
                  VarState{kI32, value_kind_size(elem_kind), 0}},
@@ -7969,7 +7980,7 @@ class LiftoffCompiler {
     LiftoffRegister array(kReturnRegister0);
     if (!CheckSupportedType(decoder, elem_kind, "array.new_fixed")) return;
     compiler::WriteBarrierKind write_barrier =
-        (is_shared || v8_flags.single_generation) &&
+        (is_shared == SharedFlag::kYes || v8_flags.single_generation) &&
                 array_imm.array_type->element_type().is_ref()
             ? compiler::kFullWriteBarrier
             : compiler::kNoWriteBarrier;
@@ -8242,9 +8253,9 @@ class LiftoffCompiler {
 
   LiftoffRegister RttCanon(FullDecoder* decoder, ModuleTypeIndex type_index,
                            LiftoffRegList pinned) {
-    bool is_shared = decoder->module_->type(type_index).is_shared;
+    SharedFlag is_shared = decoder->module_->type(type_index).is_shared;
     LiftoffRegister rtt = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (is_shared) {
+    if (is_shared == SharedFlag::kYes) {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(rtt.gp(), SharedPart, pinned);
       LOAD_TAGGED_PTR_FROM_INSTANCE(rtt.gp(), ManagedObjectMaps, rtt.gp())
     } else {
@@ -8422,7 +8433,8 @@ class LiftoffCompiler {
                        Value* result_val, bool null_succeeds) {
     switch (type.generic_kind()) {
       case GenericKind::kEq:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsEqRefUnshared, null_succeeds);
@@ -8433,7 +8445,8 @@ class LiftoffCompiler {
         return AbstractTypeCheck<&LiftoffCompiler::I31Check>(decoder, obj,
                                                              null_succeeds);
       case GenericKind::kStruct:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsStructRefUnshared, null_succeeds);
@@ -8441,7 +8454,8 @@ class LiftoffCompiler {
         return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(decoder, obj,
                                                                 null_succeeds);
       case GenericKind::kArray:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsArrayRefUnshared, null_succeeds);
@@ -8536,7 +8550,8 @@ class LiftoffCompiler {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
     switch (type.generic_kind()) {
       case GenericKind::kEq:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastEqRefUnshared, null_succeeds);
@@ -8547,7 +8562,8 @@ class LiftoffCompiler {
         return AbstractTypeCast<&LiftoffCompiler::I31Check>(obj, decoder,
                                                             null_succeeds);
       case GenericKind::kStruct:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastStructRefUnshared,
@@ -8556,7 +8572,8 @@ class LiftoffCompiler {
         return AbstractTypeCast<&LiftoffCompiler::StructCheck>(obj, decoder,
                                                                null_succeeds);
       case GenericKind::kArray:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastArrayRefUnshared,
@@ -8721,7 +8738,8 @@ class LiftoffCompiler {
                         bool null_succeeds) {
     switch (type.generic_kind()) {
       case GenericKind::kEq:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -8733,7 +8751,8 @@ class LiftoffCompiler {
         return BrOnAbstractType<&LiftoffCompiler::I31Check>(obj, decoder, depth,
                                                             null_succeeds);
       case GenericKind::kStruct:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -8742,7 +8761,8 @@ class LiftoffCompiler {
         return BrOnAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case GenericKind::kArray:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -8786,7 +8806,8 @@ class LiftoffCompiler {
                             uint32_t depth, bool null_succeeds) {
     switch (type.generic_kind()) {
       case GenericKind::kEq:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -8798,7 +8819,8 @@ class LiftoffCompiler {
         return BrOnNonAbstractType<&LiftoffCompiler::I31Check>(
             obj, decoder, depth, null_succeeds);
       case GenericKind::kStruct:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -8807,7 +8829,8 @@ class LiftoffCompiler {
         return BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
       case GenericKind::kArray:
-        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+        if (v8_flags.experimental_wasm_shared &&
+            type.is_shared() == SharedFlag::kNo &&
             obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
@@ -11038,7 +11061,8 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
-  bool is_shared = native_module->module()->type(function->sig_index).is_shared;
+  SharedFlag is_shared =
+      native_module->module()->type(function->sig_index).is_shared;
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                          function_bytes.end(), is_shared};
 

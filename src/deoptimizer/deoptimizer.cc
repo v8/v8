@@ -956,7 +956,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   // change any more. We can thus hold a non-owning vector here.
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   const wasm::WasmFunction* function = &env.module->functions[function_index];
-  bool is_shared = env.module->type(function->sig_index).is_shared;
+  SharedFlag is_shared = env.module->type(function->sig_index).is_shared;
   wasm::FunctionBody body{function->sig, function->code.offset(),
                           wire_bytes.begin() + function->code.offset(),
                           wire_bytes.begin() + function->code.end_offset(),

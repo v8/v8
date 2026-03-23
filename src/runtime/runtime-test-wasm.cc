@@ -752,7 +752,7 @@ bool ValidateFunctionNowIfNeeded(Isolate* isolate,
   Zone validation_zone(isolate->allocator(), ZONE_NAME);
   wasm::WasmDetectedFeatures unused_detected_features;
   const wasm::WasmFunction* func = &module->functions[func_index];
-  bool is_shared = module->type(func->sig_index).is_shared;
+  SharedFlag is_shared = module->type(func->sig_index).is_shared;
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   wasm::FunctionBody body{
       func->sig, func->code.offset(), wire_bytes.begin() + func->code.offset(),
@@ -1117,10 +1117,10 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
   const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
   // If we get an invalid type index, make up the additional data; the result
   // may still be useful for fuzzers for causing interesting confusion.
-  wasm::ValueType t =
-      module->has_type(type_index)
-          ? wasm::ValueType::Ref(module->heap_type(type_index))
-          : wasm::ValueType::Ref(type_index, false, wasm::RefTypeKind::kStruct);
+  wasm::ValueType t = module->has_type(type_index)
+                          ? wasm::ValueType::Ref(module->heap_type(type_index))
+                          : wasm::ValueType::Ref(type_index, SharedFlag::kNo,
+                                                 wasm::RefTypeKind::kStruct);
   return Smi::FromInt(t.raw_bit_field());
 }
 

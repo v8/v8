@@ -2642,7 +2642,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
       auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
       auto backing_store = i::BackingStore::AllocateWasmMemory(
           i_isolate, pages, pages, i::WasmMemoryFlag::kWasmMemory32,
-          i::SharedFlag::kShared);
+          i::SharedFlag::kYes);
       memcpy(backing_store->buffer_start(), data, byte_length);
       i::DirectHandle<i::JSArrayBuffer> buffer =
           i_isolate->factory()->NewJSSharedArrayBuffer(

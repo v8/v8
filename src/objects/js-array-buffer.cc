@@ -51,7 +51,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     // Count usage may lead to a blink allocation, through the callback, which
     // may trigger a GC. It is important to delay this, until the array buffer
     // is properly initialized.
-    if (shared == SharedFlag::kShared) {
+    if (shared == SharedFlag::kYes) {
       isolate->CountUsage(
           v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
     }
@@ -60,9 +60,9 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   init_extension();
   set_views_or_detach_key(views);
   set_bit_field(0);
-  set_is_shared(shared == SharedFlag::kShared);
+  set_is_shared(shared == SharedFlag::kYes);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
-  set_is_detachable(shared != SharedFlag::kShared);
+  set_is_detachable(shared == SharedFlag::kNo);
   SetupLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -357,9 +357,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
 
   // Allocate a new backing store and attach it to the existing array buffer.
   size_t byte_length = self->byte_length();
-  auto backing_store =
-      BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
-                             InitializedFlag::kUninitialized);
+  auto backing_store = BackingStore::Allocate(
+      isolate, byte_length, SharedFlag::kNo, InitializedFlag::kUninitialized);
 
   if (!backing_store) {
     isolate->heap()->FatalProcessOutOfMemory("JSTypedArray::GetBuffer");
@@ -376,7 +375,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
                  array_buffer->views().GetHeapObject() == *self);
 
   // Attach the backing store to the array buffer.
-  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+  array_buffer->Setup(SharedFlag::kNo, ResizableFlag::kNotResizable,
                       std::move(backing_store), isolate, array_buffer->views());
 
   // Clear the elements of the typed array.

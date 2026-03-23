@@ -441,9 +441,11 @@ TEST_F(WasmModuleVerifyTest, ExactFuncRefGlobal) {
 
     ModuleTypeIndex index{0};
     ValueType null_type =
-        ValueType::RefNull(index, false, RefTypeKind::kFunction).AsExact();
+        ValueType::RefNull(index, SharedFlag::kNo, RefTypeKind::kFunction)
+            .AsExact();
     ValueType non_null_type =
-        ValueType::Ref(index, false, RefTypeKind::kFunction).AsExact();
+        ValueType::Ref(index, SharedFlag::kNo, RefTypeKind::kFunction)
+            .AsExact();
 
     const WasmGlobal* global = &result.value()->globals[0];
     EXPECT_EQ(null_type, global->type);
@@ -2118,7 +2120,7 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(Idx{0}, false, RefTypeKind::kFunction),
+  EXPECT_EQ(ValueType::RefNull(Idx{0}, SharedFlag::kNo, RefTypeKind::kFunction),
             result.value()->tables[0].type);
 }
 
@@ -2174,7 +2176,7 @@ TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(Idx{0}, false, RefTypeKind::kFunction),
+  EXPECT_EQ(ValueType::RefNull(Idx{0}, SharedFlag::kNo, RefTypeKind::kFunction),
             result.value()->tables[0].type);
 }
 
@@ -2192,7 +2194,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::Ref(Idx{0}, false, RefTypeKind::kFunction),
+  EXPECT_EQ(ValueType::Ref(Idx{0}, SharedFlag::kNo, RefTypeKind::kFunction),
             result.value()->tables[0].type);
 }
 
@@ -4014,7 +4016,7 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
 }
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
-  ValueType oob = ValueType::Ref(Idx{1}, false, RefTypeKind::kStruct);
+  ValueType oob = ValueType::Ref(Idx{1}, SharedFlag::kNo, RefTypeKind::kStruct);
   static const uint8_t data[] = {SECTION(
       Type, ENTRY_COUNT(1),
       WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_REF_TYPE(oob), true)))};
@@ -4023,7 +4025,8 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
 }
 
 TEST_F(WasmModuleVerifyTest, RecursiveTypeOutsideRecursiveGroup) {
-  ValueType struct0 = ValueType::Ref(Idx{0}, false, RefTypeKind::kStruct);
+  ValueType struct0 =
+      ValueType::Ref(Idx{0}, SharedFlag::kNo, RefTypeKind::kStruct);
   static const uint8_t data[] = {
       SECTION(Type, ENTRY_COUNT(1),
               WASM_STRUCT_DEF(FIELD_COUNT(1),

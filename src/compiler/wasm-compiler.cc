@@ -168,7 +168,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
-  bool is_shared = module->type(inlinee.sig_index).is_shared;
+  SharedFlag is_shared = module->type(inlinee.sig_index).is_shared;
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end(), is_shared);
   // If the inlinee was not validated before, do that now.

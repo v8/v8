@@ -120,7 +120,7 @@ void ExposedTrustedObject::Publish(IsolateForSandbox isolate) {
 
   InstanceType instance_type = map()->instance_type();
   IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, false);
+      IndirectPointerTagFromInstanceType(instance_type, SharedFlag::kNo);
   IndirectPointerHandle handle =
       ACQUIRE_READ_UINT32_FIELD(*this, kSelfIndirectPointerOffset);
   TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
@@ -137,7 +137,7 @@ void ExposedTrustedObject::Unpublish(IsolateForSandbox isolate) {
 
   InstanceType instance_type = map()->instance_type();
   IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, false);
+      IndirectPointerTagFromInstanceType(instance_type, SharedFlag::kNo);
   IndirectPointerHandle handle =
       ACQUIRE_READ_UINT32_FIELD(*this, kSelfIndirectPointerOffset);
   TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
@@ -149,7 +149,7 @@ bool ExposedTrustedObject::IsPublished(IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   InstanceType instance_type = map()->instance_type();
   IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, false);
+      IndirectPointerTagFromInstanceType(instance_type, SharedFlag::kNo);
   return !IsTrustedPointerFieldUnpublished(kSelfIndirectPointerOffset, tag,
                                            isolate);
 #else

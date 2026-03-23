@@ -1714,11 +1714,10 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return js_api_scope.AssertException();
   }
 
-  auto shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
-                                             : i::SharedFlag::kNotShared;
+  i::SharedFlag shared = i::SharedFlag(value->BooleanValue(isolate));
 
   // Throw TypeError if shared is true, and the descriptor has no "maximum".
-  if (shared == i::SharedFlag::kShared && !maybe_maximum.has_value()) {
+  if (shared == i::SharedFlag::kYes && !maybe_maximum.has_value()) {
     thrower.TypeError("If shared is true, maximum property should be defined.");
     return;
   }
@@ -2323,7 +2322,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
 
   int num_imported_functions = module->num_imported_functions;
   i::DirectHandle<i::TrustedObject> implicit_arg;
-  constexpr bool kShared = false;
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
@@ -2332,15 +2330,15 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
                           trusted_instance_data->dispatch_table_for_imports()
                               ->implicit_arg(func_index)),
                       i_isolate),
-        kShared);
+        i::SharedFlag::kNo);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
       i_isolate->factory()->NewWasmInternalFunction(
-          implicit_arg, func_index, kShared,
+          implicit_arg, func_index, i::SharedFlag::kNo,
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
-      i_isolate->factory()->NewWasmFuncRef(internal, rtt, kShared);
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt, i::SharedFlag::kNo);
   if (func_index < num_imported_functions) {
     i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
@@ -2936,7 +2934,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-  bool shared = backing_store->is_shared();
+  i::SharedFlag shared = i::SharedFlag(backing_store->is_shared());
   auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared,
                                         memory->address_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));

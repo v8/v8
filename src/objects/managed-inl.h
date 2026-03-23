@@ -29,13 +29,14 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
-  bool shared = IsSharedAllocationType(allocation_type);
+  SharedFlag shared = SharedFlag(IsSharedAllocationType(allocation_type));
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
-                                            : isolate),
+      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
+                                         ? isolate->shared_space_isolate()
+                                         : isolate),
       estimated_size);
   DirectHandle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
@@ -54,13 +55,14 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
 template <class CppType>
 DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
     Isolate* isolate, size_t estimated_size,
-    std::shared_ptr<CppType> shared_ptr, bool shared) {
+    std::shared_ptr<CppType> shared_ptr, SharedFlag shared) {
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(shared ? isolate->shared_space_isolate()
-                                            : isolate),
+      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
+                                         ? isolate->shared_space_isolate()
+                                         : isolate),
       estimated_size);
   DirectHandle<TrustedManaged<CppType>> handle =
       TrustedCast<TrustedManaged<CppType>>(

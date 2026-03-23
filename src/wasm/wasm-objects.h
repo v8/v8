@@ -63,8 +63,6 @@ class WasmTrustedInstanceData;
 class WasmJSFunction;
 class WasmModuleObject;
 
-enum class SharedFlag : uint8_t;
-
 template <typename CppType>
 class Managed;
 template <typename CppType>
@@ -180,7 +178,7 @@ class WasmModuleObject
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
-      InternalizeString, bool shared = false);
+      InternalizeString, SharedFlag shared = SharedFlag::kNo);
 
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)
 };
@@ -655,7 +653,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   static DirectHandle<WasmTrustedInstanceData> New(
       Isolate*, DirectHandle<WasmModuleObject>,
-      std::shared_ptr<wasm::NativeModule>, bool shared);
+      std::shared_ptr<wasm::NativeModule>, SharedFlag shared);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 
@@ -1659,7 +1657,7 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   int num_supertypes, bool shared);
+                                   int num_supertypes, SharedFlag shared);
 
 DirectHandle<Map> CreateContRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type);
