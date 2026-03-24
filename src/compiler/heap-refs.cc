@@ -1854,6 +1854,11 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
   return MakeRefAssumeMemoryFence(broker, bytecode_array);
 }
 
+bool SharedFunctionInfoRef::is_toplevel() const {
+  return object()->function_literal_id(kRelaxedLoad) ==
+         kFunctionLiteralIdTopLevel;
+}
+
 #define DEF_SFI_ACCESSOR(type, name) \
   HEAP_ACCESSOR_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)

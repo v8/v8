@@ -590,12 +590,11 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
                                   graph->broker()->local_isolate(), context);
   }
   if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
-    compiler::OptionalScopeInfoRef scope_info = graph->TryGetScopeInfo(context);
     for (auto& cache : loaded_context_slots_) {
       int cached_offset = std::get<int>(cache.first);
       ValueNode* cached_context = std::get<ValueNode*>(cache.first);
       if (cached_offset == offset && cached_context != context) {
-        if (graph->ContextMayAlias(cached_context, scope_info) &&
+        if (graph->ContextMayAlias(cached_context, {}) &&
             cache.second != value) {
           if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
             std::cout << kRed << "[KNA] Clear context slot: "

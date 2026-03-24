@@ -173,6 +173,19 @@ class MaglevGraphBuilder {
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return compilation_unit_->zone(); }
+
+  compiler::ScopeInfoRef GetScopeInfo(interpreter::Register reg) const {
+    auto opt_scope_info = register_scope_infos_[reg];
+    DCHECK(opt_scope_info.has_value());
+    return opt_scope_info.value();
+  }
+
+  compiler::ScopeInfoRef GetCurrentScopeInfo() const {
+    return GetScopeInfo(interpreter::Register::current_context());
+  }
+
+  void SetCurrentScopeInfo(compiler::OptionalScopeInfoRef scope_info);
+
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
   const InterpreterFrameState& current_interpreter_frame() const {
     return current_interpreter_frame_;
@@ -261,6 +274,8 @@ class MaglevGraphBuilder {
 #endif
 
  private:
+  void InitializeScopeInfo();
+
   class DeoptFrameScopeBase;
 
   // Helper class for building a subgraph with its own control flow, that is not
@@ -382,7 +397,8 @@ class MaglevGraphBuilder {
     return merge_states_[offset] != nullptr;
   }
 
-  ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
+  ValueNode* GetContextAtDepth(ValueNode* context, size_t depth,
+                               compiler::ScopeInfoRef* out_scope_info);
   bool CheckContextExtensions(size_t depth);
 
   void KillPeeledLoopTargets(int peelings);
@@ -439,25 +455,28 @@ class MaglevGraphBuilder {
   ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index,
                                           MaybeAssignedFlag assigned);
   ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
-                                       ContextMode context_mode);
+                                       ContextMode context_mode,
+                                       compiler::ScopeInfoRef scope_info);
   MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
                                                   ValueNode* value,
                                                   MaybeAssignedFlag assigned);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
-                                        ContextMode context_mode);
+                                        ContextMode context_mode,
+                                        compiler::ScopeInfoRef scope_info);
   ValueNode* TryGetParentContext(ValueNode* node);
-  void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
+  void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
+                                 compiler::ScopeInfoRef* scope_info);
   void EscapeContext();
   MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
                                             int index, VariableMode* mode);
-  MaybeAssignedFlag GetContextMaybeAssigned(ValueNode* context, int index,
-                                            VariableMode* mode);
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
-                                    int slot_index, ContextMode context_mode);
+                                    int slot_index, ContextMode context_mode,
+                                    compiler::ScopeInfoRef scope_info);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
-                                     ContextMode context_mode);
+                                     ContextMode context_mode,
+                                     compiler::ScopeInfoRef scope_info);
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
@@ -1854,6 +1873,7 @@ class MaglevGraphBuilder {
 
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
 
+  void OsrPrewalk();
   void CalculatePredecessorCounts();
 
   compiler::FeedbackVectorRef feedback() const {
@@ -1995,6 +2015,8 @@ class MaglevGraphBuilder {
   // decremented predecessor counts inside of the loop before processing the
   // body again. For this, we record offsets where we decremented the
   // predecessor count.
+  void PrewalkBytecode();
+
   ZoneVector<int> decremented_predecessor_offsets_;
   // The set of loop headers for which we decided to do loop peeling.
   BitVector loop_headers_to_peel_;
@@ -2021,6 +2043,9 @@ class MaglevGraphBuilder {
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
+  RegisterFrameArray<compiler::OptionalScopeInfoRef> register_scope_infos_;
+  compiler::OptionalScopeInfoRef accumulator_scope_info_;
+
   InterpreterFrameState current_interpreter_frame_;
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
@@ -2043,8 +2068,6 @@ class MaglevGraphBuilder {
   EagerDeoptFrameScope* current_eager_deopt_scope_ = nullptr;
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
-
-  compiler::OptionalScopeInfoRef last_suspend_scope_info_ = {};
 
   struct HandlerTableEntry {
     int end;
@@ -2076,6 +2099,10 @@ class MaglevGraphBuilder {
 
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
+
+  ZoneMap<int, compiler::OptionalScopeInfoRef> dead_scope_infos_;
+
+  bool is_resumable_function_ = false;
 
   // When set, inline only small functions.
   bool only_inline_small_ = false;

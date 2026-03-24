@@ -301,7 +301,8 @@ class MergePointInterpreterFrameState {
   static MergePointInterpreterFrameState* New(
       const MaglevCompilationUnit& info, const InterpreterFrameState& state,
       int merge_offset, int predecessor_count, BasicBlock* predecessor,
-      const compiler::BytecodeLivenessState* liveness);
+      const compiler::BytecodeLivenessState* liveness,
+      compiler::OptionalScopeInfoRef context_scope_info);
 
   static MergePointInterpreterFrameState* NewForLoop(
       const InterpreterFrameState& start_state,
@@ -313,9 +314,18 @@ class MergePointInterpreterFrameState {
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
-      bool was_used, interpreter::Register context_register, Graph* graph);
+      bool was_used, interpreter::Register context_register, Graph* graph,
+      compiler::OptionalScopeInfoRef context_scope_info);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
+  compiler::OptionalScopeInfoRef context_scope_info() const {
+    return context_scope_info_;
+  }
+  bool has_context_scope_info() const {
+    return context_scope_info_.has_value();
+  }
+  void set_context_scope_info(compiler::OptionalScopeInfoRef scope_info);
+
   // framestate.
   void Merge(MaglevGraphBuilder* graph_builder, InterpreterFrameState& unmerged,
              BasicBlock* predecessor);
@@ -325,6 +335,7 @@ class MergePointInterpreterFrameState {
   void InitializeLoop(MaglevGraphBuilder* graph_builder,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
+                      compiler::ScopeInfoRef context_scope_info,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
   void InitializeWithBasicBlock(BasicBlock* current_block);
@@ -541,7 +552,8 @@ class MergePointInterpreterFrameState {
   MergePointInterpreterFrameState(
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, int predecessors_so_far, BasicBlock** predecessors,
-      BasicBlockType type, const compiler::BytecodeLivenessState* liveness);
+      BasicBlockType type, const compiler::BytecodeLivenessState* liveness,
+      compiler::OptionalScopeInfoRef context_scope_info);
 
   void MergePhis(MaglevGraphBuilder* builder,
                  MaglevCompilationUnit& compilation_unit,
@@ -596,10 +608,11 @@ class MergePointInterpreterFrameState {
   BasicBlock** predecessors_;
 
   Phi::List phis_;
-
   CompactInterpreterFrameState frame_state_;
+
   MergePointRegisterState register_state_;
   KnownNodeAspects* known_node_aspects_ = nullptr;
+  compiler::OptionalScopeInfoRef context_scope_info_;
 
   union {
     // {pre_predecessor_alternatives_} is used to keep track of the alternatives

@@ -73,8 +73,7 @@ class Graph final : public ZoneObject {
         constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
-        inlining_tree_debug_info_(nullptr),
-        scope_infos_(zone()) {}
+        inlining_tree_debug_info_(nullptr) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -255,15 +254,8 @@ class Graph final : public ZoneObject {
 
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
-  compiler::OptionalScopeInfoRef TryGetScopeInfo(ValueNode* context,
-                                                 bool for_suspend = false);
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
-
-  void record_scope_info(ValueNode* context,
-                         compiler::OptionalScopeInfoRef scope_info) {
-    scope_infos_[context] = scope_info;
-  }
 
   SmiConstant* GetSmiConstant(int constant) {
     DCHECK(Smi::IsValid(constant));
@@ -377,7 +369,6 @@ class Graph final : public ZoneObject {
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;
   bool may_have_truncation_ = false;
-  ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
   BasicBlock::Id max_block_id_ = 0;
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_ = {};
 
@@ -407,9 +398,6 @@ class Graph final : public ZoneObject {
     }
     return it->second;
   }
-
-  compiler::OptionalScopeInfoRef TryGetScopeInfoForContextLoad(
-      ValueNode* context, int offset);
 
   template <typename Function>
   void IterateGraphAndSweepDeadBlocks(Function&& is_dead);

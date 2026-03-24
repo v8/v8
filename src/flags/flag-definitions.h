@@ -797,6 +797,7 @@ DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
 DEFINE_BOOL(trace_maglev_kna_processor, false,
             "trace maglev known node aspects processor")
+DEFINE_BOOL(trace_maglev_scope_info, false, "trace maglev scope info")
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")

@@ -1206,6 +1206,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
+  bool is_toplevel() const;
 
   // TODO(370343328): The compiler should not rely on the parameter count
   // stored on the SFI but instead use the parameter count from the
