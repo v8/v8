@@ -1102,8 +1102,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object,
                                               ExternalPointerTag tag) {
-    return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
-                                         tag);
+    return LoadExternalPointerFromObject(
+        object, offsetof(Foreign, foreign_address_), tag);
   }
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(

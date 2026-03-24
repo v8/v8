@@ -1693,6 +1693,12 @@ void Hole::HoleVerify(Isolate* isolate) {
   UNREACHABLE();
 }
 
+void Foreign::ForeignVerify(Isolate* isolate) { CHECK(IsForeign(this)); }
+
+void TrustedForeign::TrustedForeignVerify(Isolate* isolate) {
+  CHECK(IsTrustedForeign(this));
+}
+
 void Cell::CellVerify(Isolate* isolate) {
   CHECK(IsCell(this));
   Object::VerifyMaybeObjectPointer(isolate, maybe_value());

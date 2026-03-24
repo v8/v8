@@ -169,6 +169,12 @@ void MyObject::set_my_atomic_field(Tagged<Object> value, ReleaseStoreTag,
 }
 ```
 
+### Missing Functionality in `FooMember` Types
+
+As you migrate classes, you will replace static `FooField` operations (e.g., `TaggedField`, `TrustedPointerField`) with instance-based `FooMember` wrappers (e.g., `TaggedMember`, `TrustedPointerMember`).
+
+If you find that some functionality is missing on a `FooMember` type where it is available on the corresponding `FooField` type, **you should add the missing functionality directly to the `FooMember` class** instead of working around it in your ported class. The implementation of the new `FooMember` method will typically just call into the underlying `FooField` static method.
+
 ## Phase 4: Padding and Alignment
 
 V8 object sizes must always be aligned to `kTaggedSize`. When converting from Torque to C++, Torque used to automatically compute and insert padding fields if the object size was uneven (e.g., due to an odd number of 32-bit fields on a 64-bit platform). Now that the layout is explicitly in C++, you must handle this padding manually.

@@ -151,10 +151,6 @@ class Managed : public Foreign {
     std::shared_ptr<CppType> ptr_;
   };
 
-  Managed() : Foreign() {}
-  V8_INLINE constexpr Managed(Address ptr, SkipTypeCheckTag)
-      : Foreign(ptr, SkipTypeCheckTag{}) {}
-
   // Deprecated. Get a raw pointer to the C++ object.
   // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
@@ -225,10 +221,6 @@ class Managed : public Foreign {
 template <class CppType>
 class TrustedManaged : public TrustedForeign {
  public:
-  TrustedManaged() : TrustedForeign() {}
-  V8_INLINE constexpr TrustedManaged(Address ptr, SkipTypeCheckTag)
-      : TrustedForeign(ptr, SkipTypeCheckTag{}) {}
-
   // For every object, add a `->` operator which returns a pointer to this
   // object. This will allow smoother transition between T and Tagged<T>.
   TrustedManaged* operator->() { return this; }
@@ -251,7 +243,7 @@ class TrustedManaged : public TrustedForeign {
 
   // Internally the {TrustedForeign} stores a pointer to the
   // {std::shared_ptr<CppType>}.
-  std::shared_ptr<CppType>* GetSharedPtrPtr() {
+  std::shared_ptr<CppType>* GetSharedPtrPtr() const {
     auto destructor =
         reinterpret_cast<ManagedPtrDestructor*>(foreign_address());
     return reinterpret_cast<std::shared_ptr<CppType>*>(

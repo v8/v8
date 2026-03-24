@@ -5061,7 +5061,7 @@ DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
 Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr,
                                                   SharedFlag shared) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(TrustedForeign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(TrustedForeign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *trusted_foreign_map();
   Tagged<TrustedForeign> foreign =
       TrustedCast<TrustedForeign>(AllocateRawWithImmortalMap(

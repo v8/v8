@@ -24,37 +24,35 @@ namespace v8::internal {
 
 template <ExternalPointerTag tag>
 Address Foreign::foreign_address(IsolateForSandbox isolate) const {
-  return HeapObject::ReadExternalPointerField<tag>(kForeignAddressOffset,
-                                                   isolate);
+  return foreign_address_.load<tag>(isolate);
 }
 
 template <ExternalPointerTag tag>
 Address Foreign::foreign_address() const {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  return ReadExternalPointerField<tag>(kForeignAddressOffset, isolate);
+  return foreign_address<tag>(isolate);
 }
 
 template <ExternalPointerTag tag>
 void Foreign::set_foreign_address(IsolateForSandbox isolate,
                                   const Address value) {
-  WriteExternalPointerField<tag>(kForeignAddressOffset, isolate, value);
+  foreign_address_.store<tag>(isolate, value);
 }
 
 template <ExternalPointerTag tag>
 void Foreign::init_foreign_address(IsolateForSandbox isolate,
                                    const Address initial_value) {
-  InitExternalPointerField<tag>(kForeignAddressOffset, isolate, initial_value);
+  foreign_address_.Init<tag>(address(), isolate, initial_value);
 }
 
 Address Foreign::foreign_address_unchecked(IsolateForSandbox isolate) const {
-  if (HeapLayout::InAnySharedSpace(*this)) {
+  if (HeapLayout::InAnySharedSpace(this)) {
     // We differentiate this case because we have to look in the isolate's
     // shared external pointer table.
-    return ReadExternalPointerField<kAnySharedManagedExternalPointerTagRange>(
-        kForeignAddressOffset, isolate);
+    return foreign_address_.load<kAnySharedManagedExternalPointerTagRange>(
+        isolate);
   } else {
-    return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
-        kForeignAddressOffset, isolate);
+    return foreign_address_.load<kAnyForeignExternalPointerTagRange>(isolate);
   }
 }
 
@@ -65,15 +63,20 @@ Address Foreign::foreign_address_unchecked() const {
 
 ExternalPointerTag Foreign::GetTag() const {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerHandle handle =
-      RawExternalPointerField(kForeignAddressOffset,
-                              kAnyForeignExternalPointerTagRange)
-          .Relaxed_LoadHandle();
+  ExternalPointerHandle handle = foreign_address_.load_encoded();
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  return isolate.GetExternalPointerTableTagFor(*this, handle);
+  return isolate.GetExternalPointerTableTagFor(this, handle);
 #endif  // V8_ENABLE_SANDBOX
   // Without the sandbox the address is stored untagged.
   return kExternalPointerNullTag;
+}
+
+Address TrustedForeign::foreign_address() const {
+  return foreign_address_.value();
+}
+
+void TrustedForeign::set_foreign_address(Address value) {
+  foreign_address_.set_value(value);
 }
 
 }  // namespace v8::internal

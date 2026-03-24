@@ -119,7 +119,7 @@ template <ExternalPointerTag tag>
 Handle<Foreign> Factory::NewForeign(Address addr,
                                     AllocationType allocation_type) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
-  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(Foreign) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *foreign_map();
   Tagged<Foreign> foreign = Cast<Foreign>(
       AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
