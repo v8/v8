@@ -525,6 +525,7 @@ class TranslatedState {
       Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
       const DeoptimizationLiteralProvider& literal_array, Address fp,
       FILE* trace_file);
+  template <bool IsTracing>
   int CreateNextTranslatedValue(
       int frame_index, DeoptTranslationIterator* iterator,
       const DeoptimizationLiteralProvider& literal_array, Address fp,

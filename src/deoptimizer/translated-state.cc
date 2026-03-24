@@ -1339,6 +1339,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // FixedArray elements depend on dynamic information from the optimized frame.
 // Returns the number of expected nested translations from the
 // DeoptTranslationIterator.
+template <bool IsTracing>
 int TranslatedState::CreateNextTranslatedValue(
     int frame_index, DeoptTranslationIterator* iterator,
     const DeoptimizationLiteralProvider& literal_array, Address fp,
@@ -1372,7 +1373,7 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case TranslationOpcode::DUPLICATED_OBJECT: {
       int object_id = iterator->NextOperand();
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "duplicated object #%d", object_id);
       }
       object_positions_.push_back(object_positions_[object_id]);
@@ -1391,7 +1392,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::ARGUMENTS_LENGTH: {
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "arguments length field (length = %d)",
                actual_argument_count_);
       }
@@ -1404,7 +1405,7 @@ int TranslatedState::CreateNextTranslatedValue(
           actual_argument_count_ > formal_parameter_count_
               ? actual_argument_count_ - formal_parameter_count_
               : 0;
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "rest length field (length = %d)", rest_length);
       }
       frame.Add(TranslatedValue::NewUint32(this, rest_length));
@@ -1414,7 +1415,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::CAPTURED_OBJECT: {
       int field_count = iterator->NextOperand();
       int object_index = static_cast<int>(object_positions_.size());
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "captured object #%d (length = %d)", object_index,
                field_count);
       }
@@ -1427,7 +1428,7 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case TranslationOpcode::STRING_CONCAT: {
       int object_index = static_cast<int>(object_positions_.size());
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "string concatenation #%d", object_index);
       }
 
@@ -1447,7 +1448,7 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       intptr_t value = registers->GetRegister(input_reg);
       Address uncompressed_value = DecompressIfNeeded(value);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
         ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
@@ -1466,7 +1467,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (int32)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1484,7 +1485,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (int64)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1502,7 +1503,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (signed bigint64)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1520,7 +1521,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (unsigned bigint64)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1538,7 +1539,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIuPTR " ; %s (uint32)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1556,7 +1557,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; %s (bool)", value,
                converter.NameOfCPURegister(input_reg));
       }
@@ -1574,7 +1575,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       Float32 value = registers->GetFloatRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%e ; %s (float)", value.get_scalar(),
                RegisterName(FloatRegister::from_code(input_reg)));
       }
@@ -1591,7 +1592,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       Float64 value = registers->GetDoubleRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%e ; %s (double)", value.get_scalar(),
                RegisterName(DoubleRegister::from_code(input_reg)));
       }
@@ -1609,7 +1610,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       Float64 value = registers->GetDoubleRegister(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         if (value.is_hole_nan()) {
           PrintF(trace_file, "the hole");
         } else {
@@ -1632,7 +1633,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       Simd128 value = registers->GetSimd128Register(input_reg);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         Simd128::int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
@@ -1652,7 +1653,7 @@ int TranslatedState::CreateNextTranslatedValue(
           iterator->NextOperand());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       Address uncompressed_value = DecompressIfNeeded(value);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -1668,7 +1669,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%d ; (int32) [fp %c %3d] ",
                static_cast<int32_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -1682,7 +1683,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint64_t value = GetUInt64Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; (int64) [fp %c %3d] ",
                static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -1696,7 +1697,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint64_t value = GetUInt64Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; (signed bigint64) [fp %c %3d] ",
                static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -1711,7 +1712,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint64_t value = GetUInt64Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%" V8PRIdPTR " ; (unsigned bigint64) [fp %c %3d] ",
                static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
@@ -1726,7 +1727,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%u ; (uint32) [fp %c %3d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
@@ -1740,7 +1741,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%u ; (bool) [fp %c %3d] ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
@@ -1753,7 +1754,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       Float32 value = GetFloatSlot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%e ; (float) [fp %c %3d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
@@ -1766,7 +1767,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       Float64 value = GetDoubleSlot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "%e ; (double) [fp %c %d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
@@ -1780,7 +1781,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       Simd128 value = getSimd128Slot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         Simd128::int8x16 val = value.to_i8x16();
         PrintF(trace_file,
                "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
@@ -1799,7 +1800,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset = OptimizedJSFrame::StackSlotOffsetRelativeToFp(
           iterator->NextOperand());
       Float64 value = GetDoubleSlot(fp, slot_offset);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         if (value.is_hole_nan()) {
           PrintF(trace_file, "the hole");
         } else {
@@ -1817,7 +1818,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::LITERAL: {
       int literal_index = iterator->NextOperand();
       TranslatedValue translated_value = literal_array.Get(this, literal_index);
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         if (translated_value.kind() == TranslatedValue::Kind::kTagged) {
           PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ",
                  translated_value.raw_literal().ptr(), literal_index);
@@ -1863,7 +1864,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::OPTIMIZED_OUT: {
-      if (trace_file != nullptr) {
+      if constexpr (IsTracing) {
         PrintF(trace_file, "(optimized out)");
       }
 
@@ -1965,9 +1966,16 @@ void TranslatedState::Init(
         }
       }
 
-      int nested_count =
-          CreateNextTranslatedValue(frame_index, iterator, literal_array,
-                                    input_frame_pointer, registers, trace_file);
+      int nested_count;
+      if (V8_UNLIKELY(trace_file != nullptr)) {
+        nested_count = CreateNextTranslatedValue<true>(
+            frame_index, iterator, literal_array, input_frame_pointer,
+            registers, trace_file);
+      } else {
+        nested_count = CreateNextTranslatedValue<false>(
+            frame_index, iterator, literal_array, input_frame_pointer,
+            registers, trace_file);
+      }
 
       if (trace_file != nullptr) {
         PrintF(trace_file, "\n");
