@@ -6028,12 +6028,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   wasm::GetWasmEngine()->AddIsolate(this);
   // Initialize the central stack for JSPI/WasmFX:
   wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
-  memset(stack->jmpbuf(), 0, sizeof(wasm::JumpBuffer));
+  stack->jmpbuf()->state = wasm::JumpBuffer::Active;
   this->wasm_stacks().emplace_back(stack);
   stack->set_index(0);
-  thread_local_top()->central_stack_sp_ = stack->base();
-  thread_local_top()->central_stack_limit_ =
-      reinterpret_cast<Address>(stack->jslimit());
   isolate_data_.set_active_stack(wasm_stacks()[0].get());
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Set up central stack object (limit: %p, base: %p)\n",
