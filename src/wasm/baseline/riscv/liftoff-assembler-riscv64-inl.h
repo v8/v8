@@ -1916,25 +1916,25 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.SetSimd128(E8);
-    vmerge_vx(dst.simd128(), scratch, dst.simd128());
+    vmerge_vx(dst.simd128(), scratch, src.simd128());
   } else if (mem_type == MachineType::Int16()) {
     Lhu(scratch, src_op, trapper);
     VU.SetSimd128(E16);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.simd128(), scratch, dst.simd128());
+    vmerge_vx(dst.simd128(), scratch, src.simd128());
   } else if (mem_type == MachineType::Int32()) {
     Lwu(scratch, src_op, trapper);
     VU.SetSimd128(E32);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.simd128(), scratch, dst.simd128());
+    vmerge_vx(dst.simd128(), scratch, src.simd128());
   } else if (mem_type == MachineType::Int64()) {
     Ld(scratch, src_op, trapper);
     VU.SetSimd128(E64);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
-    vmerge_vx(dst.simd128(), scratch, dst.simd128());
+    vmerge_vx(dst.simd128(), scratch, src.simd128());
   } else {
     UNREACHABLE();
   }
