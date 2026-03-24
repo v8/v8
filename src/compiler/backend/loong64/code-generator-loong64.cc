@@ -869,6 +869,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.
             if (num_arguments >= expected) {
+              __ RecordJSDispatchHandle(dispatch_handle, expected);
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
               __ Abort(AbortReason::kJSSignatureMismatch);
