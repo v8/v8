@@ -3128,62 +3128,6 @@ constexpr Simd128RegList kSavedSimd128Regs = ([]() constexpr {
   return saved_simd128_regs;
 })();
 
-static void SaveVectorRegisters(MacroAssembler* masm,
-                                const Simd128RegList& reg_list) {
-  // Check if the machine has simd128 support. Otherwise, the
-  // vector registers might not exist and accessing them would SIGILL.
-  Label not_simd, done;
-
-  ASM_CODE_COMMENT(masm);
-  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
-  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
-  // If != 0, then simd is available.
-  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
-            Label::Distance::kNear);
-
-  // Since the builtins are compiled into a snapshot, we can't query the
-  // actual hardware vector length. This means that we are not allowed to use
-  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
-  // of 8 bits each.
-  __ VU.set(16, E8, m1);
-  for (VRegister vector_reg : reg_list) {
-    __ SubWord(sp, sp, Operand(kSimd128Size));
-    __ vs(vector_reg, sp, 0, E8);
-  }
-  __ Branch(&done);
-  __ bind(&not_simd);
-  __ SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
-  __ bind(&done);
-}
-
-static void RestoreVectorRegisters(MacroAssembler* masm,
-                                   const Simd128RegList& reg_list) {
-  // Check if the machine has simd128 support. Otherwise, the
-  // vector registers might not exist and accessing them would SIGILL.
-  Label not_simd, done;
-  ASM_CODE_COMMENT(masm);
-  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
-  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
-  // If != 0, then simd is available.
-  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
-            Label::Distance::kNear);
-
-  // Since the builtins are compiled into a snapshot, we can't query the
-  // actual hardware vector length. This means that we are not allowed to use
-  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
-  // of 8 bits each.
-  __ VU.set(16, E8, m1);
-  for (VRegister vector_reg : base::Reversed(reg_list)) {
-    __ vl(vector_reg, sp, 0, E8);
-    __ AddWord(sp, sp, Operand(kSimd128Size));
-  }
-
-  __ Branch(&done);
-  __ bind(&not_simd);
-  __ AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
-  __ bind(&done);
-}
-
 static void SaveWasmParams(MacroAssembler* masm) {
   // Save all parameter registers (see wasm-linkage.h). They might be
   // overwritten in the subsequent runtime call. We don't have any
@@ -3195,13 +3139,13 @@ static void SaveWasmParams(MacroAssembler* masm) {
   static_assert(kSavedFpRegs.Count() ==
                 WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs);
   __ MultiPush(kSavedGpRegs);
-  SaveVectorRegisters(masm, kSavedSimd128Regs);
+  __ SaveVectorRegisters(kSavedSimd128Regs);
   __ MultiPushFPU(kSavedFpRegs);
 }
 
 static void RestoreWasmParams(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
-  RestoreVectorRegisters(masm, kSavedSimd128Regs);
+  __ RestoreVectorRegisters(kSavedSimd128Regs);
   __ MultiPop(kSavedGpRegs);
 }
 

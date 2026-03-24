@@ -515,6 +515,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // saved in higher memory addresses.
   void MultiPush(RegList regs);
   void MultiPushFPU(DoubleRegList regs);
+  void RestoreVectorRegisters(const Simd128RegList& reg_list);
+  void SaveVectorRegisters(const Simd128RegList& reg_list);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.

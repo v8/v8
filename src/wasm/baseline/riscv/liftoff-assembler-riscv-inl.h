@@ -210,6 +210,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
     for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
+    for (auto reg : kSimd128ParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     li(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     AddWord(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
@@ -2437,6 +2438,8 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
     }
     DCHECK_EQ(offset, num_fp_regs * sizeof(double));
   }
+
+  SaveVectorRegisters(regs.GetSimd128List());
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
@@ -2458,6 +2461,8 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_offset += kSystemPointerSize;
   }
   AddWord(sp, sp, Operand(gp_offset));
+
+  RestoreVectorRegisters(regs.GetSimd128List());
 }
 
 void LiftoffAssembler::RecordSpillsInSafepoint(

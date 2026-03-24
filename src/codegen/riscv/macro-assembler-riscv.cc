@@ -2914,6 +2914,95 @@ void MacroAssembler::MultiPopFPU(DoubleRegList regs) {
   AddWord(sp, sp, stack_offset);
 }
 
+void MacroAssembler::SaveVectorRegisters(const Simd128RegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label not_simd, done;
+  ASM_CODE_COMMENT(this);
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    Lb(kScratchReg, MemOperand(kScratchReg, 0));
+    // If != 0, then simd is available.
+    Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+           Label::Distance::kNear);
+
+    // Since the builtins are compiled into a snapshot, we can't query the
+    // actual hardware vector length. This means that we are not allowed to use
+    // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+    // of 8 bits each.
+    VU.set(16, E8, m1);
+    for (VRegister vector_reg : reg_list) {
+      SubWord(sp, sp, Operand(kSimd128Size));
+      vs(vector_reg, sp, 0, E8);
+    }
+    Branch(&done);
+    bind(&not_simd);
+    SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
+    bind(&done);
+  } else {
+    // If we're not generating builtins, we can assume that the machine has
+    // simd128 support, since otherwise we wouldn't be able to run the code at
+    // all.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      VU.SetSimd128(E8);
+      for (VRegister vector_reg : reg_list) {
+        SubWord(sp, sp, Operand(kSimd128Size));
+        vs(vector_reg, sp, 0, E8);
+      }
+    } else {
+      SubWord(sp, sp,
+              Operand(-static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
+    }
+  }
+}
+
+void MacroAssembler::RestoreVectorRegisters(const Simd128RegList& reg_list) {
+  // Check if the machine has simd128 support. Otherwise, the
+  // vector registers might not exist and accessing them would SIGILL.
+  Label not_simd, done;
+  ASM_CODE_COMMENT(this);
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    Lb(kScratchReg, MemOperand(kScratchReg, 0));
+    // If != 0, then simd is available.
+    Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+           Label::Distance::kNear);
+
+    // Since the builtins are compiled into a snapshot, we can't query the
+    // actual hardware vector length. This means that we are not allowed to use
+    // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+    // of 8 bits each.
+    VU.set(16, E8, m1);
+    for (VRegister vector_reg : base::Reversed(reg_list)) {
+      vl(vector_reg, sp, 0, E8);
+      AddWord(sp, sp, Operand(kSimd128Size));
+    }
+
+    Branch(&done);
+    bind(&not_simd);
+    AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
+    bind(&done);
+  } else {
+    // If we're not generating builtins, we can assume that the machine has
+    // simd128 support, since otherwise we wouldn't be able to run the code at
+    // all.
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      VU.SetSimd128(E8);
+      for (VRegister vector_reg : base::Reversed(reg_list)) {
+        vl(vector_reg, sp, 0, E8);
+        AddWord(sp, sp, Operand(kSimd128Size));
+      }
+    } else {
+      AddWord(sp, sp,
+              Operand(static_cast<int32_t>(reg_list.Count()) * kSimd128Size));
+    }
+  }
+}
+
 #if V8_TARGET_ARCH_RISCV32
 void MacroAssembler::AddPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,

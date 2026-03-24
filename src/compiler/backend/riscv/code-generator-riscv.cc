@@ -5248,6 +5248,10 @@ void CodeGenerator::AssembleConstructFrame() {
         DoubleRegList fp_regs_to_save;
         for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
         __ MultiPushFPU(fp_regs_to_save);
+        Simd128RegList simd128_regs_to_save;
+        for (auto reg : wasm::kSimd128ParamRegisters)
+          simd128_regs_to_save.set(reg);
+        __ SaveVectorRegisters(simd128_regs_to_save);
         __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
               required_slots * kSystemPointerSize);
         __ AddWord(
@@ -5265,6 +5269,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
+        __ RestoreVectorRegisters(simd128_regs_to_save);
         __ MultiPopFPU(fp_regs_to_save);
         __ MultiPop(regs_to_save);
       } else {
@@ -5367,6 +5372,15 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     RegList regs_to_save;
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
     __ MultiPush(regs_to_save);
+
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
+    __ MultiPushFPU(fp_regs_to_save);
+    Simd128RegList simd128_regs_to_save;
+    for (auto reg : wasm::kSimd128ReturnRegisters)
+      simd128_regs_to_save.set(reg);
+    __ SaveVectorRegisters(simd128_regs_to_save);
+
     __ li(kCArgRegs[0], ExternalReference::isolate_address());
     {
       UseScratchRegisterScope temps{masm()};
@@ -5375,6 +5389,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ mv(fp, kReturnRegister0);
+    __ RestoreVectorRegisters(simd128_regs_to_save);
+    __ MultiPopFPU(fp_regs_to_save);
     __ MultiPop(regs_to_save);
     if (masm()->options().enable_simulator_code) {
       UseScratchRegisterScope temps(masm());
