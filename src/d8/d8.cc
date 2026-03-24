@@ -1891,13 +1891,22 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
 
   // Loop until module execution finishes
-  while (isolate->HasPendingBackgroundTasks() ||
-         (i::ValueHelper::HandleAsValue(global_result_promise)->State() ==
-              Promise::kPending &&
-          reinterpret_cast<i::Isolate*>(isolate)
-                  ->default_microtask_queue()
-                  ->size() > 0)) {
+  while (!try_catch.HasTerminated() &&
+         (isolate->HasPendingBackgroundTasks() ||
+          (i::ValueHelper::HandleAsValue(global_result_promise)->State() ==
+               Promise::kPending &&
+           reinterpret_cast<i::Isolate*>(isolate)
+                   ->default_microtask_queue()
+                   ->size() > 0))) {
     Shell::CompleteMessageLoop(isolate);
+  }
+
+  if (try_catch.HasTerminated()) {
+    // Re-request terminate execution as it's been cleared, so
+    // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
+    // and microtasks.
+    isolate->TerminateExecution();
+    return true;
   }
 
   {
