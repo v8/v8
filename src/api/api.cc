@@ -104,6 +104,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -1341,25 +1342,19 @@ void FunctionTemplate::SetCallHandler(
   info->set_callback_data(*Utils::OpenDirectHandle(*data), kReleaseStore);
 
   if (!c_function_overloads.empty()) {
-    // Stores the data for a sequence of CFunction overloads into a single
-    // FixedArray, as [address_0, signature_0, ... address_n-1, signature_n-1].
+    const uint32_t function_count =
+        static_cast<uint32_t>(c_function_overloads.size());
     i::DirectHandle<i::FixedArray> function_overloads =
-        i_isolate->factory()->NewFixedArray(static_cast<int>(
-            c_function_overloads.size() *
-            i::FunctionTemplateInfo::kFunctionOverloadEntrySize));
-    int function_count = static_cast<int>(c_function_overloads.size());
-    for (int i = 0; i < function_count; i++) {
+        i_isolate->factory()->NewFixedArray(function_count);
+    for (uint32_t i = 0; i < function_count; i++) {
       const CFunction& c_function = c_function_overloads.data()[i];
-      i::DirectHandle<i::Object> address = FromCData<internal::kCFunctionTag>(
-          i_isolate, c_function.GetAddress());
-      function_overloads->set(
-          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i, *address);
-      i::DirectHandle<i::Object> signature =
-          FromCData<internal::kCFunctionInfoTag>(i_isolate,
-                                                 c_function.GetTypeInfo());
-      function_overloads->set(
-          i::FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1,
-          *signature);
+      i::DirectHandle<i::Managed<i::CFunctionWithSignature>> overload =
+          i::Managed<i::CFunctionWithSignature>::From(
+              i_isolate, sizeof(i::CFunctionWithSignature),
+              std::make_shared<i::CFunctionWithSignature>(
+                  reinterpret_cast<const i::Address>(c_function.GetAddress()),
+                  c_function.GetTypeInfo()));
+      function_overloads->set(i, *overload);
     }
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,
                                                    function_overloads);

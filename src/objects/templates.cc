@@ -17,6 +17,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects.h"
@@ -170,23 +171,24 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
 
 int FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value() /
-         kFunctionOverloadEntrySize;
+  return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value();
 }
 
 Address FunctionTemplateInfo::GetCFunction(Isolate* isolate, int index) const {
   i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<kCFunctionTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize));
+  return Cast<Managed<CFunctionWithSignature>>(
+             Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+      ->raw()
+      ->address;
 }
 
 const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
                                                          int index) const {
   i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<CFunctionInfo*, kCFunctionInfoTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize + 1));
+  return Cast<Managed<CFunctionWithSignature>>(
+             Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+      ->raw()
+      ->signature;
 }
 
 // static

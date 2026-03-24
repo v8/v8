@@ -660,8 +660,6 @@ enum ExternalPointerTag : uint16_t {
   kSyntheticModuleTag,
   kMicrotaskCallbackTag,
   kMicrotaskCallbackDataTag,
-  kCFunctionTag,
-  kCFunctionInfoTag,
   kMessageListenerTag,
   kWaiterQueueForeignTag,
 
@@ -677,6 +675,7 @@ enum ExternalPointerTag : uint16_t {
   kWasmFutexManagedObjectWaitListTag = kFirstSharedManagedExternalPointerTag,
   kLastSharedManagedExternalPointerTag = kWasmFutexManagedObjectWaitListTag,
   kBackingStoreTag,
+  kCFunctionWithSignatureTag,
   kIcuBreakIteratorTag,
   kIcuListFormatterTag,
   kIcuLocaleTag,

@@ -29,6 +29,15 @@ class FunctionTemplateRareData;
 
 #include "torque-generated/src/objects/templates-tq.inc"
 
+struct CFunctionWithSignature {
+  static constexpr ExternalPointerTag kManagedTag = kCFunctionWithSignatureTag;
+  const Address address;
+  const CFunctionInfo* signature;
+
+  CFunctionWithSignature(const Address address, const CFunctionInfo* signature)
+      : address(address), signature(signature) {}
+};
+
 class TemplateInfo
     : public TorqueGeneratedTemplateInfo<TemplateInfo, HeapObject> {
  public:
@@ -308,10 +317,6 @@ class FunctionTemplateInfo
   int GetCFunctionsCount() const;
   Address GetCFunction(Isolate* isolate, int index) const;
   const CFunctionInfo* GetCSignature(Isolate* isolate, int index) const;
-
-  // CFunction data for a set of overloads is stored into a FixedArray, as
-  // [address_0, signature_0, ... address_n-1, signature_n-1].
-  static const int kFunctionOverloadEntrySize = 2;
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
