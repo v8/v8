@@ -222,8 +222,13 @@ class MaglevGraphBuilder {
 
   bool should_abort_compilation() const { return should_abort_compilation_; }
 
-  bool is_tracing_enabled() const {
-    return compilation_unit_->info()->is_tracing_enabled();
+  bool is_tracing() const {
+    return v8_flags.trace_maglev_graph_building &&
+           compilation_unit_->info()->is_tracing_enabled();
+  }
+
+  maglev::Tracer tracer() const {
+    return maglev::Tracer(compilation_unit_->info());
   }
 
   KnownNodeAspects& known_node_aspects() {
@@ -385,8 +390,6 @@ class MaglevGraphBuilder {
   void MarkBytecodeDead();
 
   void UpdateSourceAndBytecodePosition(int offset);
-
-  void PrintVirtualObjects();
 
   ReduceResult VisitSingleBytecode();
 

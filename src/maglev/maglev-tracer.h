@@ -16,41 +16,81 @@
 #endif
 
 #include "src/compiler/heap-refs.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/maglev/maglev-compilation-info.h"
-#include "src/utils/ostreams.h"
+#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
 
 namespace v8::internal::maglev {
 
-#define C_RESET (v8_flags.log_colour ? "\033[0m" : "")
-#define C_GRAY (v8_flags.log_colour ? "\033[90m" : "")
-#define C_RED (v8_flags.log_colour ? "\033[91m" : "")
-#define C_GREEN (v8_flags.log_colour ? "\033[92m" : "")
-#define C_YELLOW (v8_flags.log_colour ? "\033[93m" : "")
-#define C_BLUE (v8_flags.log_colour ? "\033[94m" : "")
-#define C_MAGENTA (v8_flags.log_colour ? "\033[95m" : "")
-#define C_CYAN (v8_flags.log_colour ? "\033[96m" : "")
+enum class TraceColor : uint8_t {
+  kWhite = 97,
+  kReset = 0,
+  kGray = 90,
+  kRed = 91,
+  kGreen = 92,
+  kYellow = 93,
+  kBlue = 94,
+  kMagenta = 95,
+  kCyan = 96,
+  kDarkGray = 30,
+  kDarkRed = 31,
+  kDarkGreen = 32,
+  kDarkYellow = 33,
+  kDarkBlue = 34,
+  kDarkMagenta = 35,
+  kDarkCyan = 36,
+  kLightGray = 37,
+  kBold = 1,
+  kDim = 2,
+  kInfo = kLightGray,
+};
 
+inline std::ostream& operator<<(std::ostream& os, const TraceColor color) {
+  if (v8_flags.log_colour) {
+    os << "\033[" << static_cast<int>(color) << "m";
+  }
+  return os;
+}
+
+struct TraceBytecode {
+  interpreter::BytecodeArrayIterator& iterator;
+};
+struct TraceVirtualObjects {
+  const VirtualObjectList& virtual_objects;
+};
+struct TraceKNA {
+  const KnownNodeAspects& kna;
+};
+
+// Trace graph building helpers.
+struct TraceNewNode {
+  Node* node;
+};
+struct TraceNewControlNode {
+  ControlNode* node;
+};
+
+// Trace inlining helpers.
 struct TracePush {
   compiler::SharedFunctionInfoRef shared;
 };
-
 struct TraceTry {
   compiler::SharedFunctionInfoRef shared;
 };
-
 struct TraceSkip {
   compiler::SharedFunctionInfoRef shared;
 };
-
 struct TraceInlineEager {
   compiler::SharedFunctionInfoRef shared;
 };
-
 struct TraceInline {
   compiler::SharedFunctionInfoRef shared;
 };
 
+// Random helpers.
 struct TraceIdent {};
+struct TraceNewline {};
 
 class TraceLogger;
 class Tracer {
@@ -58,8 +98,8 @@ class Tracer {
   explicit Tracer(const MaglevCompilationInfo* info) : info_(info) {
     std::stringstream ss;
     if (v8_flags.trace_with_compilation_id) {
-      ss << C_GRAY << (info->is_turbolev() ? "[TLV:" : "[ML:")
-         << info->trace_id() << "] " << C_RESET;
+      ss << TraceColor::kGray << (info->is_turbolev() ? "[TLV:" : "[ML:")
+         << info->trace_id() << "] " << TraceColor::kReset;
     }
     cached_prefix_ = ss.str();
   }
@@ -76,11 +116,11 @@ class Tracer {
 
 class TraceLogger {
  public:
-  explicit TraceLogger(const Tracer& tracer) : os_(std::cout) {
+  explicit TraceLogger(const Tracer& tracer) : tracer_(tracer), os_(std::cout) {
     os_ << tracer.cached_prefix_;
   }
 
-  ~TraceLogger() { os_ << std::endl; }
+  ~TraceLogger() { os_ << TraceColor::kReset << std::endl; }
 
   template <typename T>
   TraceLogger& operator<<(const T& value) {
@@ -89,37 +129,72 @@ class TraceLogger {
   }
 
   TraceLogger& operator<<(const TracePush& tag) {
-    os_ << C_YELLOW << "➕ PUSH   " << C_RESET << std::left << C_CYAN
-        << std::setw(30) << tag.shared.object()->DebugNameCStr() << C_RESET
-        << " ";
+    os_ << TraceColor::kYellow << "➕ PUSH   " << TraceColor::kReset
+        << std::left << TraceColor::kCyan << std::setw(30)
+        << tag.shared.object()->DebugNameCStr() << TraceColor::kReset << " ";
     return *this;
   }
 
   TraceLogger& operator<<(const TraceTry& tag) {
-    os_ << C_YELLOW << "🔍 TRY    " << C_RESET << std::left << C_CYAN
-        << std::setw(30) << tag.shared.object()->DebugNameCStr() << C_RESET
-        << " ";
+    os_ << TraceColor::kYellow << "🔍 TRY    " << TraceColor::kReset
+        << std::left << TraceColor::kCyan << std::setw(30)
+        << tag.shared.object()->DebugNameCStr() << TraceColor::kReset << " ";
     return *this;
   }
 
   TraceLogger& operator<<(const TraceSkip& tag) {
-    os_ << C_RED << "❌ SKIP   " << C_RESET << std::left << C_CYAN
-        << std::setw(30) << tag.shared.object()->DebugNameCStr() << C_RESET
-        << " ";
+    os_ << TraceColor::kRed << "❌ SKIP   " << TraceColor::kReset << std::left
+        << TraceColor::kCyan << std::setw(30)
+        << tag.shared.object()->DebugNameCStr() << TraceColor::kReset << " ";
     return *this;
   }
 
   TraceLogger& operator<<(const TraceInlineEager& tag) {
-    os_ << C_GREEN << "⚡ INLINE " << C_RESET << std::left << C_CYAN
-        << std::setw(30) << tag.shared.object()->DebugNameCStr() << C_RESET
-        << " ";
+    os_ << TraceColor::kGreen << "⚡ INLINE " << TraceColor::kReset << std::left
+        << TraceColor::kCyan << std::setw(30)
+        << tag.shared.object()->DebugNameCStr() << TraceColor::kReset << " ";
     return *this;
   }
 
   TraceLogger& operator<<(const TraceInline& tag) {
-    os_ << C_GREEN << "✅ INLINE " << C_RESET << std::left << C_CYAN
-        << std::setw(30) << tag.shared.object()->DebugNameCStr() << C_RESET
-        << " ";
+    os_ << TraceColor::kGreen << "✅ INLINE " << TraceColor::kReset << std::left
+        << TraceColor::kCyan << std::setw(30)
+        << tag.shared.object()->DebugNameCStr() << TraceColor::kReset << " ";
+    return *this;
+  }
+
+  TraceLogger& operator<<(const TraceBytecode& bytecode) {
+    bytecode.iterator.PrintCurrentBytecodeTo(os_);
+    return *this;
+  }
+
+  TraceLogger& operator<<(const TraceNewNode& tag) {
+    os_ << TraceColor::kDarkGreen << "+ " << tag.node << "  "
+        << PrintNodeLabel(tag.node) << ": " << PrintNode(tag.node)
+        << TraceColor::kReset;
+    return *this;
+  }
+
+  TraceLogger& operator<<(const TraceNewControlNode& tag) {
+    bool kHasRegallocData = false;
+    bool kSkipTargets = true;
+    os_ << TraceColor::kDarkGreen << "+ " << tag.node << "  "
+        << PrintNodeLabel(tag.node) << ": "
+        << PrintNode(tag.node, kHasRegallocData, kSkipTargets)
+        << TraceColor::kReset;
+    return *this;
+  }
+
+  TraceLogger& operator<<(const TraceVirtualObjects& tag) {
+    for (const VirtualObject* vo : tag.virtual_objects) {
+      GetCurrentGraphLabeller()->PrintNodeLabel(os_, vo, false);
+      os_ << "; ";
+    }
+    return *this;
+  }
+
+  TraceLogger& operator<<(const TraceKNA& tag) {
+    tag.kna.TraceLoadedProperties(this);
     return *this;
   }
 
@@ -128,7 +203,13 @@ class TraceLogger {
     return *this;
   }
 
+  TraceLogger& operator<<(const TraceNewline& tag) {
+    os_ << "\n" << tracer_.cached_prefix_;
+    return *this;
+  }
+
  private:
+  const Tracer& tracer_;
 #ifdef __cpp_lib_syncbuf
   std::osyncstream os_;
 #else

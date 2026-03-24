@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -611,45 +612,46 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   return aliased_slots_;
 }
 
-void KnownNodeAspects::PrintLoadedProperties() const {
-  std::cout << "Constant properties:\n";
+void KnownNodeAspects::TraceLoadedProperties(TraceLogger* logger) const {
+  *logger << "  Constant properties:" << TraceNewline{};
+  ;
   for (auto [key, map] : loaded_constant_properties_) {
-    std::cout << "  - " << key << ": { ";
+    *logger << "    - " << key << ": { ";
     bool is_first = true;
     for (auto [object, value] : map) {
-      if (!is_first) std::cout << ", ";
+      if (!is_first) *logger << ", ";
       is_first = false;
-      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
     }
-    std::cout << " }\n";
+    *logger << " }" << TraceNewline{};
   }
 
-  std::cout << "Non-constant properties:\n";
+  *logger << "  Non-constant properties:" << TraceNewline{};
   for (auto [key, map] : loaded_properties_) {
-    std::cout << "  - " << key << ": { ";
+    *logger << "    - " << key << ": { ";
     bool is_first = true;
     for (auto [object, value] : map) {
-      if (!is_first) std::cout << ", ";
+      if (!is_first) *logger << ", ";
       is_first = false;
-      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
     }
-    std::cout << " }\n";
+    *logger << " }" << TraceNewline{};
   }
-  std::cout << "Constant context slots:\n";
+  *logger << "  Constant context slots:" << TraceNewline{};
   for (auto [key, object] : loaded_context_constants_) {
-    std::cout << "  - ";
+    *logger << "    - ";
     PrintNodeLabel(std::get<ValueNode*>(key));
-    std::cout << "@" << std::get<int>(key) << ": ";
-    std::cout << PrintNodeLabel(object);
-    std::cout << "\n";
+    *logger << "@" << std::get<int>(key) << ": ";
+    *logger << PrintNodeLabel(object);
+    *logger << TraceNewline{};
   }
-  std::cout << "Non-constant context slots:\n";
+  *logger << "  Non-constant context slots:" << TraceNewline{};
   for (auto [key, object] : loaded_context_slots_) {
-    std::cout << "  - ";
+    *logger << "    - ";
     PrintNodeLabel(std::get<ValueNode*>(key));
-    std::cout << "@" << std::get<int>(key) << ": ";
-    std::cout << PrintNodeLabel(object);
-    std::cout << "\n";
+    *logger << "@" << std::get<int>(key) << ": ";
+    *logger << PrintNodeLabel(object);
+    *logger << TraceNewline{};
   }
 }
 

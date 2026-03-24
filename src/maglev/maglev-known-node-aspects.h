@@ -20,6 +20,7 @@ namespace maglev {
 class Graph;
 struct LoopEffects;
 class KnownNodeAspects;
+class TraceLogger;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
@@ -677,8 +678,7 @@ class KnownNodeAspects {
 
     if constexpr (Node::opcode_of<NodeT> == Opcode::kMaybeGrowFastElements) {
       if (ClearLoadedPropertiesForKey(broker->length_string())) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                        is_tracing_enabled)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
           std::cout << "  * Removing non-constant cached \"length\" property";
         }
       }
@@ -686,8 +686,7 @@ class KnownNodeAspects {
 
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       if (ClearLoadedPropertiesForKey(PropertyKey::Elements())) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                        is_tracing_enabled)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
           std::cout << "  * Removing non-constant cached [Elements]";
         }
       }
@@ -707,7 +706,7 @@ class KnownNodeAspects {
     }
   }
 
-  void PrintLoadedProperties() const;
+  void TraceLoadedProperties(TraceLogger* logger) const;
 
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),

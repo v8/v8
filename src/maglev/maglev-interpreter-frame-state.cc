@@ -24,6 +24,36 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+#define TRACE(...)                                        \
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && \
+                  info->is_tracing_enabled())) {          \
+    TraceLogger(Tracer(info)) << __VA_ARGS__;             \
+  }
+
+void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
+                                     MergePointInterpreterFrameState& state,
+                                     bool preserve_known_node_aspects,
+                                     Zone* zone) {
+  DCHECK_IMPLIES(preserve_known_node_aspects, zone);
+  const MaglevCompilationInfo* info = unit.info();
+  TRACE(TraceColor::kInfo << "Copying frame state from merge @" << &state);
+  if (known_node_aspects_) {
+    state.PrintVirtualObjects(info, virtual_objects());
+    known_node_aspects_->virtual_objects().Snapshot();
+  }
+  state.frame_state().ForEachValue(
+      unit, [&](ValueNode* value, interpreter::Register reg) {
+        frame_[reg] = value;
+      });
+  if (preserve_known_node_aspects) {
+    known_node_aspects_ = state.CloneKnownNodeAspects(zone);
+  } else {
+    // Move "what we know" across without copying -- we can safely mutate it
+    // now, as we won't be entering this merge point again.
+    known_node_aspects_ = state.TakeKnownNodeAspects();
+  }
+}
+
 // static
 MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
     const MaglevCompilationUnit& info, const InterpreterFrameState& state,
@@ -174,46 +204,46 @@ namespace {
 void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
                       ValueNode* unmerged_value, interpreter::Register reg,
                       KnownNodeAspects* kna) {
-  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
-  if (V8_LIKELY(!builder->is_tracing_enabled())) return;
-  std::cout << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
-            << "<";
+  if (V8_LIKELY(!builder->is_tracing())) return;
+  TraceLogger logger = TraceLogger(builder->tracer());
+  logger << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
+         << "<";
   if (kna && current_value) {
     if (auto cur_info = kna->TryGetInfoFor(current_value)) {
-      std::cout << cur_info->type();
+      logger << cur_info->type();
       if (cur_info->possible_maps_are_known()) {
-        std::cout << " " << cur_info->possible_maps().size();
+        logger << " " << cur_info->possible_maps().size();
       }
     }
   }
-  std::cout << "> <- " << PrintNodeLabel(unmerged_value) << "<";
+  logger << "> <- " << PrintNodeLabel(unmerged_value) << "<";
   if (kna && current_value) {
     if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
-      std::cout << in_info->type();
+      logger << in_info->type();
       if (in_info->possible_maps_are_known()) {
-        std::cout << " " << in_info->possible_maps().size();
+        logger << " " << in_info->possible_maps().size();
       }
     }
   }
-  std::cout << ">";
+  logger << ">";
 }
 void PrintAfterMerge(MaglevGraphBuilder* builder, ValueNode* merged_value,
                      KnownNodeAspects* kna) {
-  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
-  if (V8_LIKELY(!builder->is_tracing_enabled())) return;
-  std::cout << " => " << PrintNodeLabel(merged_value) << ": "
-            << PrintNode(merged_value) << "<";
+  if (V8_LIKELY(!builder->is_tracing())) return;
+  TraceLogger logger = TraceLogger(builder->tracer());
+  logger << " => " << PrintNodeLabel(merged_value) << ": "
+         << PrintNode(merged_value) << "<";
 
   if (kna) {
     if (auto out_info = kna->TryGetInfoFor(merged_value)) {
-      std::cout << out_info->type();
+      logger << out_info->type();
       if (out_info->possible_maps_are_known()) {
-        std::cout << " " << out_info->possible_maps().size();
+        logger << " " << out_info->possible_maps().size();
       }
     }
   }
 
-  std::cout << ">" << std::endl;
+  logger << ">";
 }
 }  // namespace
 
@@ -249,13 +279,10 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
     return;
   }
   DCHECK(unmerged->compatible_for_merge(merged));
-
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  builder->is_tracing_enabled())) {
-    std::cout << " - Merging VOS: " << PrintNodeLabel(merged) << "(merged) and "
-              << PrintNodeLabel(unmerged) << "(unmerged)" << std::endl;
-  }
-
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kInfo << "Merging VOS: " << PrintNodeLabel(merged)
+                          << "(merged) and " << PrintNodeLabel(unmerged)
+                          << "(unmerged)");
   auto maybe_result = merged->Merge(
       unmerged, builder->NewObjectId(), builder->zone(),
       [&](ValueNode* a, ValueNode* b) {
@@ -281,7 +308,9 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 
   known_node_aspects_->virtual_objects().Snapshot();
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs before merge:");
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE("VOs before merge:");
+  PrintVirtualObjects(info, unmerged_vos);
 
   SmallZoneMap<InlinedAllocation*, VirtualObject*, 10> unmerged_map(
       builder->zone());
@@ -333,7 +362,8 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
     }
   }
 
-  PrintVirtualObjects(compilation_unit, unmerged_vos, "VOs after merge:");
+  TRACE("VOs after merge:");
+  PrintVirtualObjects(info, unmerged_vos);
 }
 
 void MergePointInterpreterFrameState::InitializeLoop(
@@ -352,13 +382,10 @@ void MergePointInterpreterFrameState::InitializeLoop(
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
       optimistic_initial_state, loop_effects, builder->zone());
   unmerged.virtual_objects().Snapshot();
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  builder->is_tracing_enabled())) {
-    std::cout << "Initializing "
-              << (optimistic_initial_state ? "optimistic " : "")
-              << "loop state..." << std::endl;
-  }
-
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kInfo << "Initializing "
+                          << (optimistic_initial_state ? "optimistic " : "")
+                          << "loop state...");
   MergePhis(builder, compilation_unit, unmerged, predecessor,
             optimistic_initial_state);
 
@@ -384,10 +411,8 @@ void MergePointInterpreterFrameState::Merge(
   }
 
   known_node_aspects_->Merge(*unmerged.known_node_aspects(), builder->zone());
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  compilation_unit.is_tracing_enabled())) {
-    std::cout << "Merging..." << std::endl;
-  }
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kInfo << "Merging...");
 
   MergeVirtualObjects(builder, compilation_unit,
                       *unmerged.known_node_aspects());
@@ -414,10 +439,8 @@ void MergePointInterpreterFrameState::MergeLoop(
 
   backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  compilation_unit.is_tracing_enabled())) {
-    std::cout << "Merging loop backedge..." << std::endl;
-  }
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kInfo << "Merging loop backedge...");
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
         PrintBeforeMerge(builder, value, loop_end_state.get(reg), reg,
@@ -463,10 +486,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   // TODO(olivf): This could be done faster by consulting loop_effects_
   if (!loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
           *known_node_aspects_)) {
-    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                    compilation_unit.is_tracing_enabled())) {
-      std::cout << "Merging failed, peeling loop instead... " << std::endl;
-    }
+    const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+    TRACE(TraceColor::kRed << "Merging failed, peeling loop instead... ");
     ClearLoopInfo();
     return false;
   }
@@ -486,8 +507,9 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
       // TODO(428667907): Ideally we should bail out early for the kNone type.
       if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
         if (v8_flags.trace_maglev_loop_speeling) {
-          std::cout << "Cannot merge " << new_type << " into " << old_type
-                    << " for r" << reg.index() << "\n";
+          TraceLogger(builder->tracer())
+              << "Cannot merge " << new_type << " into " << old_type << " for r"
+              << reg.index();
         }
         phis_can_merge = false;
       }
@@ -503,11 +525,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   loop_end_block->set_predecessor_id(input);
   predecessors_[input] = loop_end_block;
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  compilation_unit.is_tracing_enabled())) {
-    std::cout << "Next peeling not needed due to compatible state" << std::endl;
-  }
-
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kRed << "Next peeling not needed due to compatible state.")
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
         PrintBeforeMerge(builder, value, loop_end_state.get(reg), reg,
@@ -548,11 +567,9 @@ void MergePointInterpreterFrameState::MergeThrow(
   const InterpreterFrameState& builder_frame =
       builder->current_interpreter_frame();
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  handler_unit->is_tracing_enabled())) {
-    std::cout << "- Merging into exception handler @" << this << std::endl;
-    PrintVirtualObjects(*handler_unit, known_node_aspects.virtual_objects());
-  }
+  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  TRACE(TraceColor::kInfo << "Merging into exception handler @" << this);
+  PrintVirtualObjects(info, known_node_aspects.virtual_objects());
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
@@ -865,7 +882,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   }
 
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this, owner);
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
     for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
@@ -960,7 +977,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
 
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this,
                           interpreter::Register::invalid_value());
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
     for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
@@ -1049,7 +1066,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
   // Create a new loop phi, which for now is empty.
   Phi* result = Node::New<Phi>(zone, predecessor_count_, this, reg);
 
-  if (v8_flags.trace_maglev_graph_building) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
     for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
@@ -1122,6 +1139,14 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
   }
   predecessor_count_--;
   predecessors_so_far_--;
+}
+
+void MergePointInterpreterFrameState::PrintVirtualObjects(
+    const MaglevCompilationInfo* info, VirtualObjectList from_ifs) {
+  TRACE(TraceColor::kInfo << "  - VOs (IFS): " << TraceVirtualObjects(from_ifs)
+                          << TraceNewline{} << "  - VOs (merge): "
+                          << TraceVirtualObjects(
+                                 known_node_aspects_->virtual_objects()));
 }
 
 }  // namespace maglev

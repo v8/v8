@@ -14,6 +14,11 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+#define TRACE(...)                                  \
+  if (V8_UNLIKELY(reducer_->is_tracing())) {        \
+    TraceLogger(reducer_->tracer()) << __VA_ARGS__; \
+  }
+
 // This class is a thin wrapper around fetching and using maps known for
 // `object`.
 template <typename ReducerT>
@@ -68,10 +73,8 @@ class MapInference {
     // We've recorded stale unstable maps. Insert map checks.
     const PossibleMaps& maps = node_info_->possible_maps();
     if (!maps.is_empty()) {
-      if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building)) {
-        std::cout << "  * MapInference emitting map checks for "
-                  << PrintNodeLabel(object_) << std::endl;
-      }
+      TRACE(TraceColor::kInfo << "  * MapInference emitting map checks for "
+                              << PrintNodeLabel(object_));
 
       // `maps` uses linear storage, but unfortunately we cannot exploit that
       // easily for BuildCheckMaps since it stores ObjectData underneath, which
@@ -108,6 +111,8 @@ class MapInference {
   NodeInfo* const node_info_;
   const Variant variant_;
 };
+
+#undef TRACE
 
 }  // namespace maglev
 }  // namespace internal

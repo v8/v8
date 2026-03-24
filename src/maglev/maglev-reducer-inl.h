@@ -22,6 +22,11 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 
+#define TRACE(...)                        \
+  if (V8_UNLIKELY(is_tracing())) {        \
+    TraceLogger(tracer()) << __VA_ARGS__; \
+  }
+
 namespace v8 {
 namespace internal {
 namespace maglev {
@@ -180,15 +185,7 @@ ReduceResult MaglevReducer<BaseT>::AddNewControlNode(
   current_block()->set_control_node(control_node);
   if (has_graph_labeller()) {
     RegisterNode(control_node);
-    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                    is_tracing_enabled())) {
-      bool kHasRegallocData = false;
-      bool kSkipTargets = true;
-      std::cout << "  " << control_node << "  " << PrintNodeLabel(control_node)
-                << ": "
-                << PrintNode(control_node, kHasRegallocData, kSkipTargets)
-                << std::endl;
-    }
+    TRACE(TraceNewControlNode(control_node));
   }
   return ReduceResult::Done();
 }
@@ -268,11 +265,7 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   }
   node->set_owner(current_block());
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  is_tracing_enabled())) {
-    std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
-              << PrintNode(node) << std::endl;
-  }
+  TRACE(TraceNewNode{node});
 #ifdef DEBUG
   new_nodes_current_period_.insert(node);
 #endif  // debug
@@ -2414,5 +2407,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE
 
 #endif  // V8_MAGLEV_MAGLEV_REDUCER_INL_H_

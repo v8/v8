@@ -11,6 +11,7 @@
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -391,8 +392,7 @@ class Graph final : public ZoneObject {
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled())) {
-      std::cout << "  " << node << "  " << PrintNodeLabel(node) << ": "
-                << PrintNode(node) << std::endl;
+      TraceLogger(Tracer(compilation_info())) << TraceNewNode{node};
     }
     return node;
   }

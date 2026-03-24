@@ -91,10 +91,9 @@
 #include "src/objects/intl-objects.h"
 #endif
 
-#define TRACE(...)                                        \
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && \
-                  is_tracing_enabled())) {                \
-    std::cout << __VA_ARGS__ << std::endl;                \
+#define TRACE(...)                        \
+  if (V8_UNLIKELY(is_tracing())) {        \
+    TraceLogger(tracer()) << __VA_ARGS__; \
   }
 
 #define FAIL(...)                                                         \
@@ -7348,22 +7347,16 @@ void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
     // change and therefore can't be clobbered.
     // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
     // whether there's an intersection of known maps.
-    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                    is_tracing_enabled())) {
-      std::cout << "  * Removing all non-constant cached properties with "
-                << key << std::endl;
-    }
+    TRACE("  * Removing all non-constant cached properties with " << key);
     props_for_key.clear();
   }
 
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  is_tracing_enabled())) {
-    std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
-              << " known property " << PrintNodeLabel(lookup_start_object)
-              << ": " << PrintNode(lookup_start_object) << " [" << key
-              << "] = " << PrintNodeLabel(value) << ": " << PrintNode(value)
-              << std::endl;
-  }
+  TRACE("  * Recording " << (is_const ? "constant" : "non-constant")
+                         << " known property "
+                         << PrintNodeLabel(lookup_start_object) << ": "
+                         << PrintNode(lookup_start_object) << " [" << key
+                         << "] = " << PrintNodeLabel(value) << ": "
+                         << PrintNode(value));
 
   if (IsAnyStore(access_mode) && !is_const && is_loop_effect_tracking()) {
     auto updated = props_for_key.emplace(lookup_start_object, value);
@@ -8436,7 +8429,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   // for the initialization of the generator object, but it would make sense to
   // only just inling the initialization part from the start.
 
-  if (is_tracing_enabled()) {
+  if (compilation_unit_->info()->is_tracing_enabled()) {
     if (v8_flags.maglev_print_inlined && v8_flags.maglev_print_bytecode) {
       std::cout << "\n----- Inlining " << Brief(*shared.object())
                 << " with bytecode -----" << std::endl;
@@ -8444,8 +8437,8 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
       if (v8_flags.maglev_print_feedback) {
         i::Print(*feedback.object(), std::cout);
       }
-    } else if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "== Inlining " << shared.object() << std::endl;
+    } else {
+      TRACE("== Inlining " << shared.object());
     }
   }
 
@@ -9499,10 +9492,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
   if (!CanSpeculateCall()) return {};
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.at - "
-                   "NoElementsProtector invalidated";
-    }
+    TRACE(TraceColor::kRed << "! Failed to reduce Array.prototype.at - "
+                              "NoElementsProtector invalidated");
     return {};
   }
 
@@ -17176,12 +17167,11 @@ bool MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks() {
 
 BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
     BasicBlockRef& jump_targets, BasicBlock* predecessor) {
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  is_tracing_enabled())) {
-    std::cout << "== New empty block ==" << std::endl;
-    PrintVirtualObjects();
-    known_node_aspects().PrintLoadedProperties();
-  }
+  TRACE(TraceColor::kDarkYellow
+        << "New empty block " << TraceColor::kInfo << TraceNewline{}
+        << "  VOs (IFS): "
+        << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
+        << TraceNewline{} << TraceKNA(known_node_aspects()));
   DCHECK_NULL(current_block());
   set_current_block(zone()->New<BasicBlock>(nullptr, zone()));
   BasicBlock* result = FinishBlockNoAbort<Jump>({}, &jump_targets);
@@ -17331,13 +17321,7 @@ void MaglevGraphBuilder::KillPeeledLoopTargets(int peelings) {
 
 void MaglevGraphBuilder::MarkBytecodeDead() {
   DCHECK_NULL(current_block());
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  is_tracing_enabled())) {
-    std::cout << "== Dead ==\n"
-              << std::setw(4) << iterator_.current_offset() << " : ";
-    iterator_.PrintCurrentBytecodeTo(std::cout);
-    std::cout << std::endl;
-  }
+  TRACE(TraceColor::kRed << "DEAD " << " : " << TraceBytecode(iterator_));
 
   // If the current bytecode is a jump to elsewhere, then this jump is
   // also dead and we should make sure to merge it as a dead predecessor.
@@ -17386,21 +17370,9 @@ void MaglevGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
   }
 }
 
-void MaglevGraphBuilder::PrintVirtualObjects() {
-  if (V8_LIKELY(!v8_flags.trace_maglev_graph_building)) return;
-  if (V8_LIKELY(!is_tracing_enabled())) return;
-  current_interpreter_frame_.virtual_objects().Print(
-      std::cout, "* VOs (Interpreter Frame State): ");
-}
-
 ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  is_tracing_enabled())) {
-    std::cout << std::setw(4) << iterator_.current_offset() << " : ";
-    iterator_.PrintCurrentBytecodeTo(std::cout);
-    std::cout << std::endl;
-  }
-
+  TRACE(TraceColor::kDarkCyan << std::setw(4) << iterator_.current_offset()
+                              << " : " << TraceBytecode{iterator_});
   int offset = iterator_.current_offset();
   UpdateSourceAndBytecodePosition(offset);
 
@@ -17427,17 +17399,16 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
       merge_state->Merge(this, *compilation_unit_, current_interpreter_frame_,
                          predecessor);
     }
-    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                    is_tracing_enabled())) {
-      auto detail = merge_state->is_exception_handler() ? "exception handler"
-                    : merge_state->is_loop()            ? "loop header"
-                                                        : "merge";
-      std::cout << "== New block (" << detail << " @" << merge_state << ") at "
-                << compilation_unit()->shared_function_info().object()
-                << "==" << std::endl;
-      PrintVirtualObjects();
-      known_node_aspects().PrintLoadedProperties();
-    }
+
+    auto block_type = merge_state->is_exception_handler() ? "exception handler"
+                      : merge_state->is_loop()            ? "loop header"
+                                                          : "merge";
+    TRACE(TraceColor::kDarkYellow
+          << "New block (" << block_type << " @" << merge_state << ") at "
+          << compilation_unit()->shared_function_info().object()
+          << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
+          << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
+          << TraceNewline{} << TraceKNA(known_node_aspects()));
 
     if (V8_UNLIKELY(merge_state->is_exception_handler())) {
       CHECK_EQ(predecessor_count(offset), 0);
@@ -18082,14 +18053,12 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
   DCHECK_NULL(current_block());
 
   if (predecessor_count(next_block_offset) == 1) {
-    if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                    is_tracing_enabled())) {
-      std::cout << "== New block (single fallthrough) at "
-                << *compilation_unit_->shared_function_info().object()
-                << "==" << std::endl;
-      PrintVirtualObjects();
-      known_node_aspects().PrintLoadedProperties();
-    }
+    TRACE(TraceColor::kDarkYellow
+          << "New block (single fallthrough) at "
+          << *compilation_unit_->shared_function_info().object()
+          << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
+          << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
+          << TraceNewline{} << TraceKNA(known_node_aspects()));
     StartNewBlock(next_block_offset, predecessor);
   } else {
     MergeIntoFrameState(predecessor, next_block_offset);

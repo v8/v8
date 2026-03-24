@@ -90,10 +90,10 @@ bool MaglevInliner::InlineCallSites() {
       // functions, but keep inlining large ones.
       graph_->compilation_info()->set_could_not_inline_all_candidates();
       TRACE_INLINING(TraceIdent{}
-                     << C_RED << "Small budget exhausted ("
+                     << TraceColor::kRed << "Small budget exhausted ("
                      << graph_->total_inlined_bytecode_size_small() << " > "
                      << flags_.max_inlined_bytecode_size_small_total << ")"
-                     << C_RESET);
+                     << TraceColor::kReset);
       TRACE_INLINING(TraceSkip(shared));
       break;
     }
@@ -101,10 +101,10 @@ bool MaglevInliner::InlineCallSites() {
     if (!is_small_with_heapnum_input_outputs && main_exhausted) {
       graph_->compilation_info()->set_could_not_inline_all_candidates();
       TRACE_INLINING(TraceIdent{}
-                     << C_RED << "Main budget exhausted ("
+                     << TraceColor::kRed << "Main budget exhausted ("
                      << graph_->total_inlined_bytecode_size() << " > "
                      << flags_.max_inlined_bytecode_size_cumulative << ")"
-                     << C_RESET);
+                     << TraceColor::kReset);
       TRACE_INLINING(TraceSkip(shared));
       continue;
     }

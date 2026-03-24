@@ -18,6 +18,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -219,6 +220,9 @@ template <typename NodeT, typename BaseT>
 concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
   b->template MarkPossibleSideEffect<NodeT>(std::declval<NodeT*>());
 };
+
+template <typename BaseT>
+concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
@@ -464,6 +468,20 @@ class MaglevReducer {
     return graph()->graph_labeller();
   }
 
+  maglev::Tracer tracer() const {
+    return maglev::Tracer(graph()->compilation_info());
+  }
+
+  // This indicates that the reducer base has tracing enabled.
+  bool is_tracing() const {
+    if constexpr (ReducerBaseHasTracing<BaseT>) {
+      return base_->is_tracing();
+    }
+    return false;
+  }
+
+  // This indicates it passes the function filter and this compilation _can_ be
+  // traced if some tracing flag is enabled.
   bool is_tracing_enabled() const { return graph()->is_tracing_enabled(); }
 
   // TODO(victorgomes): Delete these access (or move to private) when the

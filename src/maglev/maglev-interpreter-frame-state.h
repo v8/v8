@@ -12,6 +12,7 @@
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-known-node-aspects.h"
@@ -43,9 +44,9 @@ class InterpreterFrameState {
       : InterpreterFrameState(
             info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
 
-  inline void CopyFrom(const MaglevCompilationUnit& info,
-                       MergePointInterpreterFrameState& state,
-                       bool preserve_known_node_aspects, Zone* zone);
+  void CopyFrom(const MaglevCompilationUnit& info,
+                MergePointInterpreterFrameState& state,
+                bool preserve_known_node_aspects = false, Zone* zone = nullptr);
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
@@ -435,22 +436,8 @@ class MergePointInterpreterFrameState {
     predecessors_[i] = val;
   }
 
-  void PrintVirtualObjects(const MaglevCompilationUnit& unit,
-                           VirtualObjectList from_ifs,
-                           const char* prelude = nullptr) {
-    if (V8_LIKELY(!v8_flags.trace_maglev_graph_building ||
-                  !unit.is_tracing_enabled())) {
-      return;
-    }
-    if (prelude) {
-      std::cout << prelude << std::endl;
-    }
-    from_ifs.Print(std::cout, "* VOs (Interpreter Frame State): ");
-    if (known_node_aspects_) {
-      known_node_aspects_->virtual_objects().Print(
-          std::cout, "* VOs (Merge Frame State): ");
-    }
-  }
+  void PrintVirtualObjects(const MaglevCompilationInfo* info,
+                           VirtualObjectList from_ifs);
 
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;
@@ -671,34 +658,6 @@ struct LoopEffects {
     allocations.insert(other->allocations.begin(), other->allocations.end());
   }
 };
-
-void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& unit,
-                                     MergePointInterpreterFrameState& state,
-                                     bool preserve_known_node_aspects = false,
-                                     Zone* zone = nullptr) {
-  DCHECK_IMPLIES(preserve_known_node_aspects, zone);
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                  unit.is_tracing_enabled())) {
-    std::cout << "- Copying frame state from merge @" << &state << std::endl;
-    if (known_node_aspects_) {
-      state.PrintVirtualObjects(unit, virtual_objects());
-    }
-  }
-  if (known_node_aspects_) {
-    known_node_aspects_->virtual_objects().Snapshot();
-  }
-  state.frame_state().ForEachValue(
-      unit, [&](ValueNode* value, interpreter::Register reg) {
-        frame_[reg] = value;
-      });
-  if (preserve_known_node_aspects) {
-    known_node_aspects_ = state.CloneKnownNodeAspects(zone);
-  } else {
-    // Move "what we know" across without copying -- we can safely mutate it
-    // now, as we won't be entering this merge point again.
-    known_node_aspects_ = state.TakeKnownNodeAspects();
-  }
-}
 
 inline VirtualObjectList DeoptFrame::GetVirtualObjects() const {
   if (type() == DeoptFrame::FrameType::kInterpretedFrame) {
