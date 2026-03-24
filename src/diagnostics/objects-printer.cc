@@ -2734,6 +2734,12 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void Cell::CellPrint(std::ostream& os) {
+  PrintHeader(os, "Cell");
+  os << "\n - maybe_value: " << Brief(maybe_value());
+  os << "\n";
+}
+
 void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";

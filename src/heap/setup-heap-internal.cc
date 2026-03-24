@@ -664,11 +664,11 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_VARSIZE_MAP(INSTRUCTION_STREAM_TYPE, instruction_stream)
 
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
+    ALLOCATE_MAP(CELL_TYPE, sizeof(Cell), cell);
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
       AllocationResult alloc =
-          AllocateRaw(Cell::kSize, AllocationType::kReadOnly);
+          AllocateRaw(sizeof(Cell), AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(isolate(), roots.cell_map(),
                                     SKIP_WRITE_BARRIER);

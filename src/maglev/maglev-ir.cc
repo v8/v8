@@ -705,7 +705,7 @@ Tribool ValueNode::IsTheHole() const {
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
     // Modules variables can be the hole.
-    if (load->offset() == Cell::kValueOffset) {
+    if (load->offset() == offsetof(Cell, maybe_value_)) {
       return Tribool::kMaybe;
     }
     return Tribool::kFalse;

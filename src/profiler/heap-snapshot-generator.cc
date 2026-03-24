@@ -2056,11 +2056,12 @@ void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry,
   HeapObjectReferenceType reference_type;
   if (maybe_value.GetHeapObject(&heap_object, &reference_type)) {
     if (reference_type == HeapObjectReferenceType::WEAK) {
-      SetWeakReference(entry, "value", heap_object, Cell::kMaybeValueOffset);
+      SetWeakReference(entry, "value", heap_object,
+                       offsetof(Cell, maybe_value_));
     } else {
       DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
       SetInternalReference(entry, "value", heap_object,
-                           Cell::kMaybeValueOffset);
+                           offsetof(Cell, maybe_value_));
     }
   }
 }

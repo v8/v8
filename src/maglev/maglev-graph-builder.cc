@@ -5478,8 +5478,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                                         lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
-      return BuildLoadTaggedField(cell, Cell::kValueOffset, LoadType::kUnknown,
-                                  false, name);
+      return BuildLoadTaggedField(cell, offsetof(Cell, maybe_value_),
+                                  LoadType::kUnknown, false, name);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
@@ -7697,7 +7697,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
   ValueNode* cell;
   GET_VALUE(cell, BuildLoadFixedArrayElement(exports_or_imports, cell_index));
   ValueNode* value;
-  GET_VALUE(value, BuildLoadTaggedField(cell, Cell::kValueOffset));
+  GET_VALUE(value, BuildLoadTaggedField(cell, offsetof(Cell, maybe_value_)));
   SetAccumulator(value);
   return ReduceResult::Done();
 }
@@ -7756,7 +7756,8 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
   cell_index -= 1;
   ValueNode* cell;
   GET_VALUE(cell, BuildLoadFixedArrayElement(exports, cell_index));
-  return BuildStoreTaggedField(cell, GetAccumulator(), Cell::kValueOffset,
+  return BuildStoreTaggedField(cell, GetAccumulator(),
+                               offsetof(Cell, maybe_value_),
                                StoreTaggedMode::kDefault);
 }
 

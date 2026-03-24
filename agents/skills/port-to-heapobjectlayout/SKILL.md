@@ -253,7 +253,50 @@ HeapObject::Allocate(host, &host->field_, isolate, ...); // Add an overload for 
 + StoreObjectFieldNoWriteBarrier(result, offsetof(MyObject, flags_), zero);
 ```
 
-## Phase 7: Verification
+## Phase 7: BodyDescriptors and `offsetof`
+
+When defining a `BodyDescriptor` for a `HeapObjectLayout` subclass, you often need to use `offsetof` to specify the layout of the newly defined C++ fields. However, using `offsetof` on a class *inside* its own definition results in an "incomplete type" compilation error.
+
+To solve this, V8 offers the `ObjectTraits<T>` pattern. The rule is as follows:
+
+*   **If the `BodyDescriptor` is a legitimate class** (e.g., manually declared with `class BodyDescriptor;` and defined in `objects-body-descriptors-inl.h` because it needs custom iteration logic like `VisitIndirectPointer`):
+    You do NOT need `ObjectTraits`. Declare it as a forward declaration inside the class as usual:
+    ```cpp
+    V8_OBJECT class MyObject : public HeapObjectLayout {
+     public:
+      // ...
+      class BodyDescriptor; // Just a declaration, it's fine!
+    } V8_OBJECT_END;
+    ```
+    *Important note for custom BodyDescriptors:* Do NOT use methods like `RawExternalPointerField(offsetof(Foo, field_))` or offset-based `IterateTrustedPointer` inside `IterateBody`. Instead, use `Slot` constructors that take the address of the member directly, or member-based `Iterate` overloads:
+    ```cpp
+    // BAD
+    IterateTrustedPointer(obj, offsetof(MyObject, pointer_), v, IndirectPointerMode::kStrong, kTag);
+    v->VisitExternalPointer(obj, obj->RawExternalPointerField(offsetof(MyObject, ext_), kTag));
+
+    // GOOD
+    Tagged<MyObject> my_obj = UncheckedCast<MyObject>(obj);
+    IterateTrustedPointer(obj, &my_obj->pointer_, v, IndirectPointerMode::kStrong);
+    v->VisitExternalPointer(my_obj, ExternalPointerSlot(&my_obj->ext_, kTag));
+    ```
+    If the required slot constructor does not exist (e.g. `IndirectPointerSlot` taking a `TrustedPointerMember*`), add it to `slots.h`.
+
+*   **If the `BodyDescriptor` is a typedef** (e.g., aliased using `using BodyDescriptor = FixedBodyDescriptor<...>;` or `SubclassBodyDescriptor<...>;`):
+    Do not alias it inside the class body. Instead, define it using the `ObjectTraits` pattern *after* the `V8_OBJECT_END` macro, where the class type is fully complete:
+    ```cpp
+    V8_OBJECT class MyObject : public HeapObjectLayout {
+     public:
+      // ... fields ...
+    } V8_OBJECT_END;
+
+    template <>
+    struct ObjectTraits<MyObject> {
+      using BodyDescriptor = FixedBodyDescriptor<offsetof(MyObject, first_field_),
+                                                 sizeof(MyObject), sizeof(MyObject)>;
+    };
+    ```
+
+## Phase 8: Verification
 
 1. **Build:** Run `tools/dev/gm.py`.
 2. **Torque Asserts:** If compilation fails in `TorqueGeneratedMyObjectAsserts`, your C++ layout does not match the Torque definition. Fix the ordering or types in your C++ `V8_OBJECT`.

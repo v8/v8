@@ -1693,6 +1693,11 @@ void Hole::HoleVerify(Isolate* isolate) {
   UNREACHABLE();
 }
 
+void Cell::CellVerify(Isolate* isolate) {
+  CHECK(IsCell(this));
+  Object::VerifyMaybeObjectPointer(isolate, maybe_value());
+}
+
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
   CHECK(IsUniqueName(name()));
