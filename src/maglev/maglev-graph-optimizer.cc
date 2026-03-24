@@ -379,11 +379,11 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   if (!unreachable_block->has_state()) {
     unreachable_block->set_predecessor(nullptr);
   } else {
-    for (int i = unreachable_block->predecessor_count() - 1; i >= 0; i--) {
-      if (unreachable_block->predecessor_at(i) == current) {
-        unreachable_block->state()->RemovePredecessorAt(i);
-      }
-    }
+    // Split-edge form guarantees that {unreachable_block} has a single
+    // predecessor, which is {current}.
+    DCHECK_EQ(unreachable_block->predecessor_count(), 1);
+    DCHECK_EQ(unreachable_block->predecessor_at(0), current);
+    unreachable_block->state()->RemovePredecessorAt(0);
   }
 
   // Update control node.
@@ -391,17 +391,16 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   new_control_node->set_target(target);
 
   // Cache predecessor id from the target in the unconditional jump.
-  int predecessor_id;
-  if (!target->has_state()) {
-    predecessor_id = 0;
-  } else {
-    for (int i = target->predecessor_count() - 1; i >= 0; i--) {
-      if (target->predecessor_at(i) == current) {
-        predecessor_id = i;
-      }
-    }
+  constexpr int kPredecessorId = 0;
+#ifdef DEBUG
+  if (target->has_state()) {
+    // Split-edge form guarantees that {target} has a single
+    // predecessor, which is {current}.
+    DCHECK_EQ(target->predecessor_count(), 1);
+    DCHECK_EQ(target->predecessor_at(kPredecessorId), current);
   }
-  new_control_node->set_predecessor_id(predecessor_id);
+#endif
+  new_control_node->set_predecessor_id(kPredecessorId);
 
   reducer_.graph()->set_may_have_unreachable_blocks(true);
   return new_control_node;
