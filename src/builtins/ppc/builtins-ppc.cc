@@ -3704,6 +3704,64 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSwitchDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSwitchDescriptor::GetRegisterParameter(1);
+  Register target_stack_reg = WasmFXSwitchDescriptor::GetRegisterParameter(2);
+  Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
+  MemOperand sig_op(fp, 2 * kSystemPointerSize);
+  Label resume;
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[5], target_stack_reg));
+    DCHECK(!AreAliased(kCArgRegs[7], tag, cont, target_stack_reg));
+    __ PrepareCallCFunction(9, r0);
+    __ Move(kCArgRegs[7], arg_buffer_reg);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], target_stack_reg);
+    Register scratch = r4;
+    __ LoadU64(scratch, sig_op);
+    __ StoreU64(scratch,
+                MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_switch_wasmfx_stack(), 9);
+  }
+
+  Label ok;
+  __ CmpU64(kReturnRegister0, Operand(0), r0);
+  __ bne(&ok);
+
+  // No handler found.
+  __ Pop(kContextRegister);  // Retrieve saved context.
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+
+  __ bind(&ok);
+  __ Drop(1);  // Drop saved context.
+
+  Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  // Load the arg buffer to set up resume of target stack
+  __ Move(target_stack, kReturnRegister0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  __ Move(arg_buffer,
+          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+
+  DCHECK(!AreAliased(arg_buffer, target_stack, r4, sp, fp));
+  LoadJumpBuffer(masm, target_stack, true, r4);
+  __ Trap();
+  __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSwitchDescriptor::GetStackParameterCount());
+  __ Ret();
+}
+
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   Register arg_buffer = WasmFXReturnDescriptor::GetRegisterParameter(0);
   Register active_stack = r3;

@@ -875,9 +875,12 @@ constexpr auto WasmFXSwitchDescriptor::registers() {
 #if defined(V8_TARGET_ARCH_IA32)
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3], edi);
-#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390)
+#elif defined(V8_TARGET_ARCH_ARM)
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3], r4);
+#elif defined(V8_TARGET_ARCH_S390X)
+  return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
+                       wasm::kGpParamRegisters[3], r7);
 #else
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3], wasm::kGpParamRegisters[4]);
