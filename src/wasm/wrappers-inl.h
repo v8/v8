@@ -263,9 +263,13 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
       WasmBodyInliningResult inlining_result =
           static_cast<Assembler*>(&Asm())->TryInlineWasmBody(
-              inlined_function_data_->native_module,
-              inlined_function_data_->function_index, inlined_args,
+              inlined_function_data_.value(), inlined_args,
               lazy_deopt_on_throw);
+      // If the body inlining traps unconditionally (e.g., due to an
+      // unreachable) no need to produce/convert a result.
+      if (__ generating_unreachable_operations()) {
+        return OpIndex::Invalid();
+      }
       switch (inlining_result.type) {
         case WasmBodyInliningResult::Type::kSuccessWithValue:
           DCHECK_EQ(sig_->return_count(), 1);

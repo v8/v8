@@ -348,6 +348,14 @@ addTestcase('globalSetGet', kSig_i_i, [42], [
   kExprI32Add,
 ]);
 
+// CHECK: Inlining JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] unreachable of module {{.*}}
+// CHECK-NEXT: Considering wasm function [{{[0-9]+}}] unreachable of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('unreachable', kSig_v_v, [], [
+  kExprUnreachable,
+]);
+
+
 // =============================================================================
 // Testcases that we (currently) do not inline (the JS-to-Wasm wrapper or body):
 // =============================================================================
@@ -436,7 +444,7 @@ addTestcase('insideTryCatch', kSig_i_v, [], [
   try {
     return wasmExports.insideTryCatch(arg);
   } catch (e) {
-    return 1;
+    return e.toString() + e.stack;
   }
 }`);
 
@@ -451,7 +459,7 @@ addTestcase('trapNoInline', kSig_v_v, [], [
   try {
     wasmExports.trapNoInline();
   } catch (e) {
-    return e.toString();
+    return e.toString() + e.stack;
   }
 }`);
 
@@ -470,14 +478,30 @@ for (const [ name, { wasmArguments, jsFunctionSrc } ] of Object.entries(tests)) 
   eval(jsFunctionSrc);
   const jsFunction = eval('js_' + name);
 
-  %PrepareFunctionForOptimization(jsFunction);
-  let resultUnopt = jsFunction(...wasmArguments);
-  assertUnoptimized(jsFunction);
+  const result = {};
+  for (let i = 0; i < 2; i++) {
+    const optimized = i == 1;
+    if (optimized) {
+      %OptimizeFunctionOnNextCall(jsFunction);
+    } else {
+      %PrepareFunctionForOptimization(jsFunction);
+    }
+    try {
+      // Make sure we use the same call site for the optimized and unoptimized
+      // call, such that the stack traces have the same locations in them
+      // for the comparison below. Hence this for loop instead of simply two
+      // calls to `jsFunction`.
+      result[optimized] = jsFunction(...wasmArguments);
+    } catch (e) {
+      result[optimized] = e.toString() + e.stack;
+    }
+    if (optimized) {
+      assertOptimized(jsFunction);
+    } else {
+      assertUnoptimized(jsFunction);
+    }
+  }
 
-  %OptimizeFunctionOnNextCall(jsFunction);
-  let resultOpt = jsFunction(...wasmArguments);
-  assertOptimized(jsFunction);
-  print('Result:', prettyPrinted(resultOpt));
-
-  assertEquals(resultUnopt, resultOpt);
+  print('Result:', prettyPrinted(result[true]));
+  assertEquals(result[false], result[true]);
 }

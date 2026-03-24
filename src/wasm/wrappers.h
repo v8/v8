@@ -16,6 +16,14 @@
 #include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+struct WasmInlinedFunctionData {
+  wasm::NativeModule* native_module = nullptr;
+  uint32_t function_index = 0;
+  V<FrameState> js_caller_frame_state;
+  int inlining_id = 0;
+};
+
 struct WasmBodyInliningResult {
   enum class Type {
     kSuccessWithValue,  // Inlining succeeded and produced a value.
@@ -82,15 +90,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
  public:
   using WasmGraphBuilderBase<Assembler>::Asm;
 
-  struct InlinedFunctionData {
-    NativeModule* native_module = nullptr;
-    uint32_t function_index = 0;
-  };
-
   WasmWrapperTSGraphBuilder(
       Zone* zone, Assembler& assembler, const CanonicalSig* sig,
       bool is_inlining_into_js,
-      std::optional<InlinedFunctionData> inlined_function_data = {})
+      std::optional<compiler::turboshaft::WasmInlinedFunctionData>
+          inlined_function_data = {})
       : WasmGraphBuilderBase<Assembler>(zone, assembler),
         is_inlining_into_js_(is_inlining_into_js),
         sig_(sig),
@@ -707,7 +711,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   bool is_inlining_into_js_;
   const CanonicalSig* const sig_;
-  std::optional<InlinedFunctionData> inlined_function_data_;
+  std::optional<compiler::turboshaft::WasmInlinedFunctionData>
+      inlined_function_data_;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
