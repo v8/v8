@@ -3397,6 +3397,7 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   for (int i = 0; i < info.Length(); i++) {
+    if (isolate->IsExecutionTerminating()) return;
     HandleScope handle_scope(isolate);
     String::Utf8Value file_name(isolate, info[i]);
     if (*file_name == nullptr) {
