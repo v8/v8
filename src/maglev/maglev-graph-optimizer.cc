@@ -11,6 +11,7 @@
 #include "src/common/operation.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
@@ -18,6 +19,7 @@
 #include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -68,6 +70,11 @@ ValueNode* Value(ValueNode* node) { return node; }
     }                                       \
   } while (false)
 
+#define TRACE(...)                                 \
+  if (V8_UNLIKELY(is_tracing())) {                 \
+    TraceLogger(reducer_.tracer()) << __VA_ARGS__; \
+  }
+
 namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
@@ -97,6 +104,7 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
   reducer_.set_current_block(block);
+  TRACE(TraceColor::kYellow << "Entering block b" << block->id());
   return BlockProcessResult::kContinue;
 }
 
@@ -104,7 +112,10 @@ void MaglevGraphOptimizer::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
 }
 
-void MaglevGraphOptimizer::PreProcessNode(Node*, const ProcessingState& state) {
+void MaglevGraphOptimizer::PreProcessNode(Node* node,
+                                          const ProcessingState& state) {
+  TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
+                              << PrintNode(node));
 #ifdef DEBUG
   reducer_.StartNewPeriod();
 #endif  // DEBUG
@@ -122,12 +133,18 @@ void MaglevGraphOptimizer::PostProcessNode(Node*) {
 #endif  // DEBUG
 }
 
-void MaglevGraphOptimizer::PreProcessNode(Phi*, const ProcessingState&) {}
+void MaglevGraphOptimizer::PreProcessNode(Phi* phi,
+                                          const ProcessingState& state) {
+  TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(phi) << ": "
+                              << PrintNode(phi));
+}
 void MaglevGraphOptimizer::PostProcessNode(Phi*) {}
 
-void MaglevGraphOptimizer::PreProcessNode(ControlNode*,
-                                          const ProcessingState&) {
+void MaglevGraphOptimizer::PreProcessNode(ControlNode* node,
+                                          const ProcessingState& state) {
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
+  TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
+                              << PrintNode(node));
 }
 void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
 
@@ -150,6 +167,9 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   CHECK(current_node()->Cast<ValueNode>());
   DCHECK(!node->Is<Identity>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
+  TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)
+                               << " with " << PrintNodeLabel(node) << ": "
+                               << PrintNode(node));
   // Automatically convert node to the same representation of current_node.
   ReduceResult result = reducer_.ConvertInputTo(
       node, current_value->properties().value_representation());
@@ -166,6 +186,8 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
+  TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)
+                               << " with a new node");
   current_value->ClearInputs();
   // Unfortunately we cannot remove uses from deopt frames, since these could be
   // shared with other nodes. But we can remove uses from Identity and
@@ -374,6 +396,10 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
       if_true ? branch_node->if_true() : branch_node->if_false();
   BasicBlock* unreachable_block =
       if_true ? branch_node->if_false() : branch_node->if_true();
+
+  TRACE(TraceColor::kGreen << "Folding branch " << PrintNodeLabel(branch_node)
+                           << " to b" << target->id() << " (unreachable b"
+                           << unreachable_block->id() << ")");
 
   // Remove predecessor from unreachable block.
   if (!unreachable_block->has_state()) {

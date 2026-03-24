@@ -48,6 +48,11 @@ class MaglevGraphOptimizer {
   NODE_BASE_LIST(DECLARE_PROCESS)
 #undef DECLARE_PROCESS
 
+  bool is_tracing() const {
+    return v8_flags.trace_maglev_graph_optimizer &&
+           reducer_.graph()->compilation_info()->is_tracing_enabled();
+  }
+
   KnownNodeAspects& known_node_aspects() {
     return kna_processor_.known_node_aspects();
   }

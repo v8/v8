@@ -791,6 +791,7 @@ DEFINE_BOOL(trace_with_compilation_id, true,
             "prefix maglev/turbolev trace line with a compilation id")
 
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
+DEFINE_BOOL(trace_maglev_graph_optimizer, false, "trace maglev graph optimizer")
 DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
