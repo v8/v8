@@ -1172,7 +1172,14 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   HeapAllocator::SetAllocationGcInterval(interval);
   CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
-#endif
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning{false};
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetAllocationTimeout has no effect in this build. Set the "
+        "`v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
