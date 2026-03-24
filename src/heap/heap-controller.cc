@@ -152,10 +152,12 @@ size_t V8HeapTrait::MinimumAllocationLimitGrowingStep(
 
 size_t V8HeapTrait::BoundAllocationLimit(uint64_t current_size, uint64_t limit,
                                          size_t min_size, size_t max_size,
+                                         size_t new_space_capacity,
                                          Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
-  limit = std::max(
-      limit, current_size + MinimumAllocationLimitGrowingStep(growing_mode));
+  limit = std::max(limit, current_size +
+                              MinimumAllocationLimitGrowingStep(growing_mode)) +
+          new_space_capacity;
   const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
   return base::saturated_cast<size_t>(
       std::clamp<uint64_t>(limit, min_size, halfway_to_the_max));
@@ -163,7 +165,7 @@ size_t V8HeapTrait::BoundAllocationLimit(uint64_t current_size, uint64_t limit,
 
 size_t GlobalMemoryTrait::BoundAllocationLimit(
     uint64_t current_size, uint64_t limit, size_t min_size, size_t max_size,
-    Heap::HeapGrowingMode growing_mode) {
+    size_t new_space_capacity, Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
   const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
   const uint64_t result =
@@ -247,8 +249,8 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
   const size_t preliminary_old_generation_allocation_limit =
       V8HeapTrait::BoundAllocationLimit(
           old_gen_consumed_bytes_at_last_gc,
-          computed_old_generation_allocation_limit + new_space_capacity,
-          min_old_generation_size_, max_old_generation_size(), mode);
+          computed_old_generation_allocation_limit, min_old_generation_size_,
+          max_old_generation_size(), new_space_capacity, mode);
 
   const double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
@@ -267,9 +269,9 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
            : 0);
   const size_t preliminary_global_allocation_limit =
       GlobalMemoryTrait::BoundAllocationLimit(
-          global_consumed_bytes_at_last_gc,
-          computed_global_allocation_limit + new_space_capacity,
-          min_global_memory_size_, max_global_memory_size(), mode);
+          global_consumed_bytes_at_last_gc, computed_global_allocation_limit,
+          min_global_memory_size_, max_global_memory_size(), new_space_capacity,
+          mode);
 
   // Now enforce provided boundaries on computed/preliminary limits.
   const size_t next_old_generation_allocation_limit =
@@ -277,7 +279,8 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
           preliminary_old_generation_allocation_limit);
   const size_t next_global_allocation_limit =
       boundaries.bounded_global_allocation_limit(
-          preliminary_global_allocation_limit);
+          std::max(preliminary_global_allocation_limit,
+                   preliminary_old_generation_allocation_limit));
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 
