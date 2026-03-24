@@ -165,7 +165,7 @@ DirectHandle<JSObject> JSV8BreakIterator::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   DirectHandle<String> string =
-      as_string(break_iterator->icu_iterator_with_text()->raw()->iterator());
+      as_string(break_iterator->icu_iterator_with_text()->ptr()->iterator());
   JSObject::AddProperty(isolate, result, factory->type_string(), string, NONE);
   return result;
 }
@@ -173,36 +173,31 @@ DirectHandle<JSObject> JSV8BreakIterator::ResolvedOptions(
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator,
     DirectHandle<String> text) {
-  // Keep the wrapper alive throughout the operation that may allocate on the
-  // heap.
-  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
-      break_iterator->icu_iterator_with_text()->get();
-
-  iterator_with_text->SetText(isolate, text);
+  break_iterator->icu_iterator_with_text()->ptr()->SetText(isolate, text);
 }
 
 DirectHandle<Object> JSV8BreakIterator::Current(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator) {
   return isolate->factory()->NewNumberFromInt(
-      break_iterator->icu_iterator_with_text()->raw()->iterator()->current());
+      break_iterator->icu_iterator_with_text()->ptr()->iterator()->current());
 }
 
 DirectHandle<Object> JSV8BreakIterator::First(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator) {
   return isolate->factory()->NewNumberFromInt(
-      break_iterator->icu_iterator_with_text()->raw()->iterator()->first());
+      break_iterator->icu_iterator_with_text()->ptr()->iterator()->first());
 }
 
 DirectHandle<Object> JSV8BreakIterator::Next(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator) {
   return isolate->factory()->NewNumberFromInt(
-      break_iterator->icu_iterator_with_text()->raw()->iterator()->next());
+      break_iterator->icu_iterator_with_text()->ptr()->iterator()->next());
 }
 
 Tagged<String> JSV8BreakIterator::BreakType(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator) {
   int32_t status = break_iterator->icu_iterator_with_text()
-                       ->raw()
+                       ->ptr()
                        ->iterator()
                        ->getRuleStatus();
   // Keep return values in sync with JavaScript BreakType enum.

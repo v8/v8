@@ -553,7 +553,8 @@ DirectHandle<JSObject> JSDisplayNames::ResolvedOptions(
   DirectHandle<JSObject> options =
       factory->NewJSObject(isolate->object_function());
 
-  DisplayNamesInternal* internal = display_names->internal()->raw();
+  Managed<DisplayNamesInternal>::Ptr internal =
+      display_names->internal()->ptr();
 
   Maybe<std::string> maybe_locale = Intl::ToLanguageTag(internal->locale());
   DCHECK(maybe_locale.IsJust());
@@ -605,7 +606,8 @@ MaybeDirectHandle<Object> JSDisplayNames::Of(
   DirectHandle<String> code;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
                              Object::ToString(isolate, code_obj));
-  DisplayNamesInternal* internal = display_names->internal()->raw();
+  Managed<DisplayNamesInternal>::Ptr internal =
+      display_names->internal()->ptr();
   Maybe<icu::UnicodeString> maybe_result =
       internal->of(isolate, code->ToCString().get());
   MAYBE_RETURN(maybe_result, DirectHandle<Object>());

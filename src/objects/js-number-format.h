@@ -76,8 +76,7 @@ class JSNumberFormat
                             Handle<Object> x, Handle<Object> y);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       Handle<Object> numeric_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
@@ -134,8 +133,7 @@ class V8_NODISCARD IntlMathematicalValue {
       Isolate* isolate, Handle<Object> value);
 
   static Maybe<icu::number::FormattedNumber> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       const IntlMathematicalValue& x);
 
   static Maybe<icu::number::FormattedNumberRange> FormatRange(

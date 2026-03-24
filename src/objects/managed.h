@@ -137,6 +137,8 @@ class Managed : public Foreign {
       return ptr_.get();
     }
 
+    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() { return ptr_; }
+
     V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
     V8_INLINE bool operator!=(std::nullptr_t) const { return ptr_ != nullptr; }
 

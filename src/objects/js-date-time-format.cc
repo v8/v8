@@ -1904,15 +1904,14 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       JSDateTimeFormat::CreateDateTimeFormat(
           isolate, map, locales, options, required, defaults, {}, method_name));
 
-  if (can_cache) {
-    isolate->set_icu_object_in_cache(
-        cache_type, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            date_time_format->icu_simple_date_format()->get()));
-  }
-  // 5. Return FormatDateTime(dateFormat, x).
   Managed<icu::SimpleDateFormat>::Ptr format =
       date_time_format->icu_simple_date_format()->ptr();
+  if (can_cache) {
+    isolate->set_icu_object_in_cache(cache_type, locales,
+                                     format.as_shared_ptr());
+  }
+
+  // 5. Return FormatDateTime(dateFormat, x).
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -2314,7 +2313,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
   }
   UErrorCode status = U_ZERO_ERROR;
 
-  icu::Locale loc = *(date_time_format->icu_locale()->get());
+  icu::Locale loc = *(date_time_format->icu_locale()->ptr());
   // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
   // extension.
   std::string hcString = ToHourCycleString(date_time_format->hour_cycle());

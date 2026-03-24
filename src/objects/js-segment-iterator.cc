@@ -92,10 +92,8 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
   STACK_CHECK(isolate, MaybeDirectHandle<JSReceiver>());
 
   Factory* factory = isolate->factory();
-  // Make sure to keep the wrapper alive throughout the operations below in case
-  // they allocate on the heap.
-  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
-      segment_iterator->icu_iterator_with_text()->get();
+  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+      segment_iterator->icu_iterator_with_text()->ptr();
   icu::BreakIterator* const icu_break_iterator = iterator_with_text->iterator();
 
   // 5. Let startIndex be iterator.[[IteratedStringNextSegmentCodeUnitIndex]].

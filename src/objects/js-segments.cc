@@ -31,7 +31,7 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
     Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
     DirectHandle<String> string) {
   std::unique_ptr<icu::BreakIterator> cloned_iterator{
-      segmenter->icu_break_iterator()->raw()->clone()};
+      segmenter->icu_break_iterator()->ptr()->clone()};
   auto iterator_with_text = std::make_shared<IcuBreakIteratorWithText>(
       isolate, std::move(cloned_iterator), string);
   DirectHandle<Managed<IcuBreakIteratorWithText>> managed =
@@ -60,10 +60,8 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
 // https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
 MaybeDirectHandle<Object> JSSegments::Containing(
     Isolate* isolate, DirectHandle<JSSegments> segments, double n_double) {
-  // Make sure to keep the wrapper alive throughout the operations below in case
-  // they allocate on the heap.
-  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
-      segments->icu_iterator_with_text()->get();
+  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+      segments->icu_iterator_with_text()->ptr();
   // 5. Let len be the length of string.
   const icu::UnicodeString& unicode_string = *iterator_with_text->text();
   const int32_t len = unicode_string.length();

@@ -552,10 +552,10 @@ DirectHandle<JSObject> JSDurationFormat::ResolvedOptions(
       factory->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale = factory->NewStringFromAsciiChecked(
-      Intl::ToLanguageTag(*format->icu_locale()->raw()).FromJust().c_str());
+      Intl::ToLanguageTag(*format->icu_locale()->ptr()).FromJust().c_str());
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString skeleton =
-      format->icu_number_formatter()->raw()->toSkeleton(status);
+      format->icu_number_formatter()->ptr()->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
   DirectHandle<String> numbering_system;
@@ -1062,7 +1062,7 @@ MaybeDirectHandle<T> PartitionDurationFormatPattern(
   // 9. Let lf be ! Construct(%ListFormat%, « durationFormat.[[Locale]], lfOpts
   // »).
   UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale = *df->icu_locale()->raw();
+  icu::Locale icu_locale = *df->icu_locale()->ptr();
   std::unique_ptr<icu::ListFormatter> formatter(
       icu::ListFormatter::createInstance(icu_locale, type, list_style, status));
   DCHECK(U_SUCCESS(status));
@@ -1072,7 +1072,7 @@ MaybeDirectHandle<T> PartitionDurationFormatPattern(
   std::vector<icu::UnicodeString> string_list;
 
   DurationRecordToListOfFormattedNumber(
-      df, *(df->icu_number_formatter()->raw()), record, parts, &string_list);
+      df, *(df->icu_number_formatter()->ptr()), record, parts, &string_list);
 
   icu::FormattedList formatted = formatter->formatStringsToValue(
       string_list.data(), static_cast<int32_t>(string_list.size()), status);

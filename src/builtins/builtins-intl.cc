@@ -1236,7 +1236,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   CHECK_NOT_NULL(icu_collator);
   return Smi::FromInt(
       Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
@@ -1318,10 +1318,8 @@ BUILTIN(SegmentsPrototypeIterator) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
 
-  // Keep the managed pointee alive throughout the operation that will allocate
-  // on the heap.
-  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
-      segments->icu_iterator_with_text()->get();
+  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+      segments->icu_iterator_with_text()->ptr();
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSSegmentIterator::Create(
