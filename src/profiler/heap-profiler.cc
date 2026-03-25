@@ -19,7 +19,7 @@
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/profiler/sampling-heap-profiler.h"
 #include "src/utils/output-stream.h"
 

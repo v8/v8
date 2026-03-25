@@ -45,8 +45,8 @@
 #include "src/objects/visitors.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/output-stream-writer.h"
+#include "src/strings/string-hasher-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/canonical-types.h"
@@ -228,6 +228,14 @@ HeapGraphEdge::HeapGraphEdge(Type type, int index, HeapEntry* from,
   DCHECK(type == kElement || type == kHidden);
 }
 
+HeapEntry* HeapGraphEdge::from() const {
+  return &snapshot()->entries()[from_index()];
+}
+
+Isolate* HeapGraphEdge::isolate() const { return to_entry_->isolate(); }
+
+HeapSnapshot* HeapGraphEdge::snapshot() const { return to_entry_->snapshot(); }
+
 HeapEntry::HeapEntry(HeapSnapshot* snapshot, int index, Type type,
                      const char* name, SnapshotObjectId id, size_t self_size,
                      unsigned trace_node_id)
@@ -241,6 +249,39 @@ HeapEntry::HeapEntry(HeapSnapshot* snapshot, int index, Type type,
       trace_node_id_(trace_node_id) {
   DCHECK_GE(index, 0);
 }
+
+int HeapEntry::set_children_index(int index) {
+  // Note: children_count_ and children_end_index_ are parts of a union.
+  int next_index = index + children_count_;
+  children_end_index_ = index;
+  return next_index;
+}
+
+void HeapEntry::add_child(HeapGraphEdge* edge) {
+  snapshot_->children()[children_end_index_++] = edge;
+}
+
+HeapGraphEdge* HeapEntry::child(int i) { return children_begin()[i]; }
+
+const HeapGraphEdge* HeapEntry::child(int i) const {
+  return children_begin()[i];
+}
+
+std::vector<HeapGraphEdge*>::iterator HeapEntry::children_begin() const {
+  return index_ == 0 ? snapshot_->children().begin()
+                     : snapshot_->entries()[index_ - 1].children_end();
+}
+
+std::vector<HeapGraphEdge*>::iterator HeapEntry::children_end() const {
+  DCHECK_GE(children_end_index_, 0);
+  return snapshot_->children().begin() + children_end_index_;
+}
+
+int HeapEntry::children_count() const {
+  return static_cast<int>(children_end() - children_begin());
+}
+
+Isolate* HeapEntry::isolate() const { return snapshot_->profiler()->isolate(); }
 
 void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
                                 HeapSnapshotGenerator* generator,
@@ -3494,6 +3535,22 @@ void HeapSnapshotGenerator::InitProgressCounter() {
 bool HeapSnapshotGenerator::FillReferences() {
   return v8_heap_explorer_.IterateAndExtractReferences(this) &&
          dom_explorer_.IterateAndExtractReferences(this);
+}
+
+uint32_t HeapSnapshotJSONSerializer::StringHash(const void* string) {
+  const char* s = reinterpret_cast<const char*>(string);
+  int len = static_cast<int>(strlen(s));
+  return StringHasher::HashSequentialString(s, len, HashSeed::Default());
+}
+
+int HeapSnapshotJSONSerializer::to_node_index(const HeapEntry* e) {
+  return to_node_index(e->index());
+}
+
+int HeapSnapshotJSONSerializer::to_node_index(int entry_index) {
+  return entry_index * (trace_function_count_
+                            ? kNodeFieldsCountWithTraceNodeId
+                            : kNodeFieldsCountWithoutTraceNodeId);
 }
 
 // type, name, id, self_size, edge_count, trace_node_id, detachedness.

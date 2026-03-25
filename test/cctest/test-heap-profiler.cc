@@ -49,7 +49,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
 #include "test/cctest/heap/heap-utils.h"

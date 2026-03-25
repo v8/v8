@@ -128,7 +128,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/regexp/regexp-utils.h"

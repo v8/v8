@@ -27,7 +27,6 @@
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-snapshot-common.h"
 #include "src/profiler/strings-storage.h"
-#include "src/strings/string-hasher.h"
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 #include "src/heap/reference-summarizer.h"
@@ -84,13 +83,13 @@ class HeapGraphEdge {
            type() == kInternal || type() == kShortcut || type() == kWeak);
     return name_;
   }
-  V8_INLINE HeapEntry* from() const;
+  HeapEntry* from() const;
   HeapEntry* to() const { return to_entry_; }
 
-  V8_INLINE Isolate* isolate() const;
+  Isolate* isolate() const;
 
  private:
-  V8_INLINE HeapSnapshot* snapshot() const;
+  HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
   using TypeField = base::BitField<Type, 0, 3>;
@@ -140,12 +139,12 @@ class HeapEntry {
   void add_self_size(size_t size) { self_size_ += size; }
   unsigned trace_node_id() const { return trace_node_id_; }
   int index() const { return index_; }
-  V8_INLINE int children_count() const;
-  V8_INLINE int set_children_index(int index);
-  V8_INLINE void add_child(HeapGraphEdge* edge);
-  V8_INLINE HeapGraphEdge* child(int i);
-  V8_INLINE const HeapGraphEdge* child(int i) const;
-  V8_INLINE Isolate* isolate() const;
+  V8_EXPORT_PRIVATE int children_count() const;
+  int set_children_index(int index);
+  void add_child(HeapGraphEdge* edge);
+  V8_EXPORT_PRIVATE HeapGraphEdge* child(int i);
+  V8_EXPORT_PRIVATE const HeapGraphEdge* child(int i) const;
+  Isolate* isolate() const;
 
   void set_detachedness(v8::EmbedderGraph::Node::Detachedness value) {
     detachedness_ = static_cast<uint8_t>(value);
@@ -191,8 +190,8 @@ class HeapEntry {
                                int max_depth, int indent) const;
 
  private:
-  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_begin() const;
-  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
+  std::vector<HeapGraphEdge*>::iterator children_begin() const;
+  std::vector<HeapGraphEdge*>::iterator children_end() const;
   const char* TypeAsString() const;
 
   static_assert(kNumTypes <= 1 << 4);
@@ -780,11 +779,11 @@ class HeapSnapshotJSONSerializer {
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
-  V8_INLINE static uint32_t StringHash(const void* string);
+  static uint32_t StringHash(const void* string);
 
   int GetStringId(const char* s);
-  V8_INLINE int to_node_index(const HeapEntry* e);
-  V8_INLINE int to_node_index(int entry_index);
+  int to_node_index(const HeapEntry* e);
+  int to_node_index(int entry_index);
   void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
   void SerializeEdges();
   void SerializeImpl();
