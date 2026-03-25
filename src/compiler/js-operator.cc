@@ -152,15 +152,13 @@ const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op) {
   return OpParameter<CallRuntimeParameters>(op);
 }
 
-
 ContextAccess::ContextAccess(size_t depth, size_t index, bool immutable)
-    : immutable_(immutable),
-      depth_(static_cast<uint16_t>(depth)),
+    : immutable_and_depth_(ImmutableField::encode(immutable) |
+                           DepthField::encode(static_cast<uint32_t>(depth))),
       index_(static_cast<uint32_t>(index)) {
-  DCHECK(depth <= std::numeric_limits<uint16_t>::max());
+  CHECK_EQ(depth, DepthField::decode(immutable_and_depth_));
   DCHECK(index <= std::numeric_limits<uint32_t>::max());
 }
-
 
 bool operator==(ContextAccess const& lhs, ContextAccess const& rhs) {
   return lhs.depth() == rhs.depth() && lhs.index() == rhs.index() &&
