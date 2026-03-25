@@ -1221,10 +1221,23 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
     DirectHandle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
-    int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
-                                    : Context::OBJECT_FUNCTION_INDEX;
-    DirectHandle<JSFunction> realm_constructor(
-        Cast<JSFunction>(native_context->GetNoCell(index)), isolate);
+    NativeContext::Field index = static_cast<NativeContext::Field>(
+        IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
+                            : Context::OBJECT_FUNCTION_INDEX);
+    DirectHandle<Object> maybe_realm_constructor(
+        native_context->GetNoCell(index), isolate);
+    if (IsUndefined(*maybe_realm_constructor)) {
+      // The constructor might belong to a lazily initialized part of the
+      // context. Try to initialize it.
+      isolate->bootstrapper()->InitializeLazyPartOfContext(native_context,
+                                                           index);
+      maybe_realm_constructor =
+          direct_handle(native_context->GetNoCell(index), isolate);
+    }
+    DirectHandle<JSFunction> realm_constructor;
+    if (!TryCast<JSFunction>(maybe_realm_constructor, &realm_constructor)) {
+      FATAL("Context does not have a constructor at index %d", index);
+    }
     prototype = direct_handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),

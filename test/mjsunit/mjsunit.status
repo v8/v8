@@ -2668,6 +2668,7 @@
   'regress/regress-464961493': [SKIP],
   'regress/regress-temporal-zoneinfo': [SKIP],
   'regress/regress-493269623': [SKIP],
+  'regress/regress-495503781': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],

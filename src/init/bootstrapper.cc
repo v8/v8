@@ -2107,6 +2107,33 @@ void LazyInitializeGlobalThisTemporal(
 
 #endif  // V8_TEMPORAL_SUPPORT
 
+void Bootstrapper::InitializeLazyPartOfContext(
+    DirectHandle<NativeContext> native_context, NativeContext::Field index) {
+#define CASE(index_name, type, name) case Context::index_name:
+
+  switch (index) {
+#ifdef V8_TEMPORAL_SUPPORT
+    NATIVE_CONTEXT_FIELDS_TEMPORAL(CASE) {
+      if (!v8_flags.harmony_temporal) return;
+      // Switch context since bootstrapper functions install constructors
+      // into current context.
+      SaveAndSwitchContext save(isolate_, *native_context);
+      // Initialize Temporal-related part of the native context. The value
+      // of globalThis.Temporal remains unchanged (the user code might have
+      // already replaced it with something else).
+      InitializeTemporal(isolate_);
+      return;
+    }
+#endif  // V8_TEMPORAL_SUPPORT
+
+    default:
+      // The index does not belong to any of the lazily initialized parts
+      // of the context.
+      return;
+  }
+#undef CASE
+}
+
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
