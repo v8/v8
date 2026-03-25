@@ -1669,7 +1669,7 @@ class MaglevGraphBuilder {
   void BeginLoopEffects(int loop_header);
   void EndLoopEffects(int loop_header);
   void MergeIntoFrameState(BasicBlock* block, int target);
-  void MergeDeadIntoFrameState(int target);
+  void MergeDeadIntoFrameState(int target, bool is_fallthrough = false);
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameStateForReturn(BasicBlock* block);
   void MergeIntoInlinedReturnFrameStateForSuspendGenerator(BasicBlock* block);

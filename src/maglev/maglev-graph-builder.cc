@@ -15773,21 +15773,29 @@ void MaglevGraphBuilder::SetCurrentScopeInfo(
   register_scope_infos_[interpreter::Register::current_context()] = scope_info;
 }
 
-void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
+void MaglevGraphBuilder::MergeDeadIntoFrameState(int target,
+                                                 bool is_fallthrough) {
   // If there already is a frame state, merge.
-  if (merge_states_[target]) {
+  auto& merge_state = merge_states_[target];
+  if (merge_state) {
     DCHECK_EQ(merge_states_[target]->predecessor_count(),
               predecessor_count(target));
-    merge_states_[target]->MergeDead(*compilation_unit_);
+    merge_state->MergeDead(*compilation_unit_);
+    if (merge_state->is_resumable_loop() &&
+        !merge_state->has_context_scope_info()) {
+      merge_state->set_context_scope_info(GetCurrentScopeInfo());
+    }
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
-    if (merge_states_[target]->is_unmerged_unreachable_loop()) {
+    if (merge_state->is_unmerged_unreachable_loop()) {
       TRACE("! Killing loop merge state at @" << target);
-      merge_states_[target] = nullptr;
+      merge_state = nullptr;
     }
   }
-  if (is_resumable_function_) {
-    if (merge_states_[target] == nullptr) {
+  // Track scope infos for revived mergepoints. Skip the "fallthrough" patch
+  // since it's just unnecessarily expensive to stash away to scope infos.
+  if (!is_fallthrough && is_resumable_function_) {
+    if (merge_state == nullptr) {
       auto jump_it = dead_scope_infos_.find(target);
       if (jump_it == dead_scope_infos_.end()) {
         if (v8_flags.trace_maglev_scope_info) {
@@ -17477,7 +17485,7 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
              !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
     // Any other bytecode that doesn't return or throw will merge into the
     // fallthrough.
-    MergeDeadIntoFrameState(iterator_.next_offset());
+    MergeDeadIntoFrameState(iterator_.next_offset(), true);
   } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
     // Not an actual MergeDeadIntoFrameState since we'll only resume from
     // SwitchOnGeneratorState, but this is the only place where we'll know what
