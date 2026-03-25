@@ -1030,9 +1030,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     return AddEntry(object, HeapEntry::kCode, "system / Code");
 
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
-    Tagged<String> name = Cast<SharedFunctionInfo>(object)->Name();
-    return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
-
+    const char* name = "system / SharedFunctionInfo";
+    Tagged<String> shared_name = Cast<SharedFunctionInfo>(object)->Name();
+    if (shared_name->length() > 0) {
+      name =
+          names_->GetFormatted("%s / %s", name, names_->GetName(shared_name));
+    }
+    return AddEntry(object, HeapEntry::kCode, name);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     Tagged<Object> name_obj = Cast<Script>(object)->name();
     const char* name = "system / Script";
