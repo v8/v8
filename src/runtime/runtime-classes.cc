@@ -324,8 +324,10 @@ bool AddDescriptorsByTemplate(
         if (IsSmi(value)) {
           value = GetMethodWithSharedName(isolate, args, value);
         }
-        details = details.CopyWithRepresentation(
-            Object::OptimalRepresentation(value, isolate));
+        auto [representation, constness] =
+            Object::OptimalRepresentation(value, details.constness(), isolate);
+        details = details.CopyWithRepresentation(representation)
+                      .CopyWithConstness(constness);
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         if (IsAccessorPair(value)) {

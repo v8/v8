@@ -1050,18 +1050,14 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
       FieldIndex::ForDetails(holder->map(isolate_), property_details_);
   if (property_details_.representation().IsDouble()) {
     if (!IsNumber(value, isolate_)) return false;
-    uint64_t bits;
+    // Attempt to store HeapNumber with the hole NaN pattern should have
+    // already generalized field constness to kMutable.
+    DCHECK_IMPLIES(!IsSmi(value), !Cast<HeapNumber>(value)->is_the_hole());
     Tagged<Object> current_value =
         holder->RawFastPropertyAt(isolate_, field_index);
     DCHECK(IsHeapNumber(current_value, isolate_));
-    bits = Cast<HeapNumber>(current_value)->value_as_bits();
-    // Use bit representation of double to check for hole double, since
-    // manipulating the signaling NaN used for the hole in C++, e.g. with
-    // base::bit_cast or value(), will change its value on ia32 (the x87
-    // stack is used to return values and stores to the stack silently clear the
-    // signalling bit).
     // Only allow initializing stores to double to stay constant.
-    return bits == kHoleNanInt64;
+    return Cast<HeapNumber>(current_value)->is_the_hole();
   }
 
   Tagged<Object> current_value =

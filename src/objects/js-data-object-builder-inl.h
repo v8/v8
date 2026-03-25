@@ -479,13 +479,13 @@ bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
     return false;
   }
 
-  Representation representation =
-      Object::OptimalRepresentation(*value, isolate_);
+  auto [representation, constness] = Object::OptimalRepresentation(
+      *value, PropertyConstness::kConst, isolate_);
   DirectHandle<FieldType> type =
       Object::OptimalType(*value, isolate_, representation);
-  MaybeHandle<Map> maybe_map = Map::CopyWithField(
-      isolate_, map_, key, type, NONE, PropertyConstness::kConst,
-      representation, INSERT_TRANSITION);
+  MaybeHandle<Map> maybe_map =
+      Map::CopyWithField(isolate_, map_, key, type, NONE, constness,
+                         representation, INSERT_TRANSITION);
   DirectHandle<Map> next_map;
   if (!maybe_map.ToHandle(&next_map)) return false;
   if (next_map->is_dictionary_map()) return false;
@@ -525,8 +525,8 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
       return true;
     }
 
-    Representation representation =
-        Object::OptimalRepresentation(*value, isolate_);
+    auto [representation, constness] = Object::OptimalRepresentation(
+        *value, current_details.constness(), isolate_);
     representation = representation.generalize(expected_representation);
     if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
       // Reconfigure the map for the value, deprecating if necessary. This
@@ -547,9 +547,8 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
       }
       MapUpdater mu(isolate_, map_);
       Handle<Map> new_map = mu.ReconfigureToDataField(
-          descriptor_index, current_details.attributes(),
-          current_details.constness(), representation,
-          FieldType::Any(isolate_));
+          descriptor_index, current_details.attributes(), constness,
+          representation, FieldType::Any(isolate_));
 
       // We only want to stay on the fast path if we got a fast map.
       if (new_map->is_dictionary_map()) return false;
@@ -562,9 +561,8 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
       DCHECK(!representation.IsDouble() || expected_representation.IsDouble());
       DirectHandle<FieldType> value_type =
           Object::OptimalType(*value, isolate_, representation);
-      MapUpdater::GeneralizeField(isolate_, map_, descriptor_index,
-                                  current_details.constness(), representation,
-                                  value_type);
+      MapUpdater::GeneralizeField(isolate_, map_, descriptor_index, constness,
+                                  representation, value_type);
     }
   } else if (expected_representation.IsHeapObject() &&
              !FieldType::NowContains(

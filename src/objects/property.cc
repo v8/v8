@@ -105,10 +105,11 @@ Descriptor Descriptor::DataConstant(DirectHandle<Name> key,
                                     DirectHandle<Object> value,
                                     PropertyAttributes attributes) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*key);
+  auto [representation, constness] = Object::OptimalRepresentation(
+      *value, PropertyConstness::kConst, cage_base);
   return Descriptor(key, MaybeObjectDirectHandle(value), PropertyKind::kData,
-                    attributes, PropertyLocation::kDescriptor,
-                    PropertyConstness::kConst,
-                    Object::OptimalRepresentation(*value, cage_base), 0, false);
+                    attributes, PropertyLocation::kDescriptor, constness,
+                    representation, 0, false);
 }
 
 Descriptor Descriptor::AccessorConstant(DirectHandle<Name> key,

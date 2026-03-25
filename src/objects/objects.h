@@ -163,8 +163,13 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline Maybe<double> IntegerValue(
       Isolate* isolate, HandleType<T> input);
 
-  static inline Representation OptimalRepresentation(
-      Tagged<Object> obj, PtrComprCageBase cage_base);
+  // Selects optimal representation and constness for a given value.
+  // Usually, the constness stays unmodified unless the value is a HeapNumber
+  // with the hole NaN pattern. This is necessary to distinguish between
+  // initialized and non-initialized double fields.
+  static inline std::pair<Representation, PropertyConstness>
+  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness,
+                        PtrComprCageBase cage_base);
 
   static inline ElementsKind OptimalElementsKind(Tagged<Object> obj,
                                                  PtrComprCageBase cage_base);
