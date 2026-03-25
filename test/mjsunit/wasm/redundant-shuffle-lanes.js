@@ -1127,3 +1127,78 @@ d8.file.execute('test/mjsunit/value-helper.js');
 
   assertEquals(wasm.scalar(base0, base1), wasm.extract(base0, base1));
 })();
+
+(function StoreLaneDemandedBytes() {
+  print(arguments.callee.name);
+
+  const left = [
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+  ];
+  const right = [
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+  ];
+
+  const shuffle = [
+    20, 5, 21, 4, 22, 3, 23, 2,
+    0, 1, 2, 3, 4, 5, 6, 7,
+  ];
+
+  const expectedLane = function(bits) {
+    const source = new Uint8Array([...left, ...right]);
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; ++i) out[i] = source[shuffle[i]];
+    const view = new DataView(out.buffer);
+    switch (bits) {
+      case 8:
+        return out[0];
+      case 16:
+        return view.getUint16(0, true);
+      case 32:
+        return view.getUint32(0, true);
+      case 64:
+        return view.getBigUint64(0, true);
+      default:
+        throw new Error('Unsupported lane width');
+    }
+  }
+
+  const makeStoreLaneBody = function(storeOpcode, loadOpcode) {
+    return [
+      ...wasmI32Const(0),
+      ...wasmS128Const(left),
+      ...wasmS128Const(right),
+      kSimdPrefix, kExprI8x16Shuffle, ...shuffle,
+      kSimdPrefix, storeOpcode, 0, 0, 0,
+      ...wasmI32Const(0),
+      loadOpcode, 0, 0,
+    ];
+  }
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+
+  builder.addFunction('store8', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store8Lane, kExprI32LoadMem8U))
+      .exportFunc();
+
+  builder.addFunction('store16', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store16Lane, kExprI32LoadMem16U))
+      .exportFunc();
+
+  builder.addFunction('store32', kSig_i_v)
+      .addBody(makeStoreLaneBody(kExprS128Store32Lane, kExprI32LoadMem))
+      .exportFunc();
+
+  builder.addFunction('store64', kSig_l_v)
+      .addBody(makeStoreLaneBody(kExprS128Store64Lane, kExprI64LoadMem))
+      .exportFunc();
+
+  const wasm = builder.instantiate().exports;
+
+  assertEquals(expectedLane(8), wasm.store8());
+  assertEquals(expectedLane(16), wasm.store16());
+  assertEquals(expectedLane(32), wasm.store32());
+  assertEquals(expectedLane(64), wasm.store64());
+})();

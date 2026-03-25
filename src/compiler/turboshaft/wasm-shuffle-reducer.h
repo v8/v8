@@ -51,6 +51,8 @@ class DemandedBytes {
     return DemandedBytes(num_bytes);
   }
 
+  static DemandedBytes All() { return Low<kSimd128Size>(); }
+
   static DemandedBytes Low(uint8_t num_bytes) {
     DCHECK(base::bits::IsPowerOfTwo(num_bytes));
     DCHECK_GE(num_bytes, 1);
@@ -69,6 +71,11 @@ class DemandedBytes {
       case 16:
         return Low<16>();
     }
+  }
+
+  static DemandedBytes LowFromLane(uint8_t bytes_per_lane, uint8_t lane_index) {
+    uint8_t total_bytes = bytes_per_lane * (lane_index + 1);
+    return Low(std::bit_ceil(total_bytes));
   }
 
   // Halve the number of demanded low bytes, to a minimum of one.
@@ -91,6 +98,7 @@ class DemandedBytes {
   }
 
   bool IsLow(uint8_t num_bytes) const { return bytes() == num_bytes; }
+  bool IsAll() const { return IsLow(kSimd128Size); }
 
   Simd128ShuffleOp::Kind GetShuffleKind() const {
     if (IsLow(1)) return Simd128ShuffleOp::Kind::kI8x1;
@@ -148,10 +156,11 @@ class DemandedByteAnalysis {
   DemandedByteAnalysis(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
-  void AddOp(const Operation& op, DemandedBytes demanded);
+  void Add(OpIndex node, DemandedBytes demanded);
   void AddOp(const Simd128UnaryOp& unop, DemandedBytes demanded);
   void AddOp(const Simd128BinopOp& binop, DemandedBytes demanded);
   void AddOp(const Simd128ExtractLaneOp& extract_op, DemandedBytes demanded);
+  void AddOp(const Simd128LaneMemoryOp& lane_op, DemandedBytes demanded);
   void RecordOp(const Operation& op, DemandedBytes demanded);
   void Revisit();
 
@@ -162,29 +171,36 @@ class DemandedByteAnalysis {
   bool Visited(const Operation* op) const { return visited_.count(op); }
 
  private:
-  struct MultiUserBits {
-    const Operation* op_;
-    DemandedBytes used_bytes_;
-    uint32_t num_users_;
+  class MultiUserBits {
+   public:
+    MultiUserBits(const Operation* op, DemandedBytes demanded,
+                  uint32_t num_users)
+        : op_(op), demanded_(demanded), num_users_(num_users) {}
 
     const Operation* op() const { return op_; }
-    DemandedBytes used_bytes() const { return used_bytes_; }
+    DemandedBytes demanded() const { return demanded_; }
     uint32_t num_users() const { return num_users_; }
 
     void Add(const DemandedBytes& bytes) {
-      used_bytes_.Max(bytes);
+      demanded_.Max(bytes);
       ++num_users_;
     }
 
     bool FoundAllUsers() const {
-      return op()->saturated_use_count.Is(num_users());
+      return !op()->saturated_use_count.IsSaturated() &&
+             op()->saturated_use_count.Is(num_users());
     }
+
+   private:
+    const Operation* op_;
+    DemandedBytes demanded_;
+    uint32_t num_users_;
   };
 
   // For the given op, return whether we have now visited it from all of its
   // users and so we know all of the used bytes.
-  bool AddUserAndCheckFoundAll(const Operation& op,
-                               const DemandedBytes& demanded);
+  std::optional<DemandedBytes> AddUserAndCheckFoundAll(
+      const Operation& op, const DemandedBytes& demanded);
   void RecordPartialOp(const Operation& op, DemandedBytes demanded);
   void RecordPartialOp(const Simd128UnaryOp& unop, DemandedBytes demanded);
   void RecordPartialOp(const Simd128BinopOp& binop, DemandedBytes demanded);
@@ -238,6 +254,7 @@ class WasmShuffleAnalyzer {
   void ProcessBinary(const Simd128BinopOp& binop);
   void ProcessReplaceLane(const Simd128ReplaceLaneOp& replace_op);
   void ProcessExtractLane(const Simd128ExtractLaneOp& extract_op);
+  void ProcessLaneMemory(const Simd128LaneMemoryOp& lane_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
   void ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
