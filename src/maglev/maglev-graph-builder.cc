@@ -15558,9 +15558,9 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   // Reset position in exception handler table to before the loop.
   HandlerTable table(*bytecode().object());
   while (next_handler_table_index_ > 0) {
-    next_handler_table_index_--;
-    int start = table.GetRangeStart(next_handler_table_index_);
+    int start = table.GetRangeStart(next_handler_table_index_ - 1);
     if (start < loop_header) break;
+    next_handler_table_index_--;
   }
 
   // Re-create catch handler merge states.
