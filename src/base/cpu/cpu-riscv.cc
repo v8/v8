@@ -12,11 +12,9 @@
 #include <unistd.h>  // sysconf()
 #endif
 
-#include <asm/hwprobe.h>
 #include <asm/unistd.h>
 #include <ctype.h>
 #include <limits.h>
-#include <riscv_vector.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +25,9 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 
+#ifdef V8_HOST_ARCH_RISCV64
+#include <asm/hwprobe.h>
+#include <riscv_vector.h>
 // The __riscv_vlenb intrinsic is only available when compiling with the RVV
 // extension enabled. Use the 'target' attribute to tell the compiler to
 // compile this function with RVV enabled.
@@ -34,9 +35,11 @@
 __attribute__((target("arch=+v"))) static unsigned vlen_intrinsic() {
   return static_cast<unsigned>(__riscv_vlenb() * 8);
 }
+#endif
 
 namespace v8::base {
 void CPU::DetectFeatures() {
+#ifdef V8_HOST_ARCH_RISCV64
 #if V8_OS_LINUX
   CPUInfo cpu_info;
   riscv_hwprobe pairs[] = {{RISCV_HWPROBE_KEY_IMA_EXT_0, 0}};
@@ -73,5 +76,6 @@ void CPU::DetectFeatures() {
   if (has_rvv_) {
     vlen_ = vlen_intrinsic();
   }
+#endif
 }
 }  // namespace v8::base
