@@ -98,7 +98,7 @@ TEST_F(WasmCallDescriptorTest, Regress_1174500) {
   LinkageLocation return_location = desc->GetReturnLocation(kReturns - 1);
 #if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64) || \
     defined(V8_TARGET_ARCH_PPC64)
-  // On RISC-V, S128 values are passed/returned in registers.
+  // On these platforms, S128 values are passed/returned in registers.
   EXPECT_TRUE(return_location.IsRegister());
 #else
   // The stack return slot should be right above our last parameter, and any

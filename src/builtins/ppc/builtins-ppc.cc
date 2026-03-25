@@ -2960,29 +2960,30 @@ struct SaveWasmParamsScope {
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
+    for (Simd128Register simd128_param_reg : wasm::kSimd128ParamRegisters) {
+      simd128_regs.set(simd128_param_reg);
+    }
 
     CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(simd_regs.Count(), arraysize(wasm::kFpParamRegisters));
     CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs + 1,
              gp_regs.Count());
     CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs,
              fp_regs.Count());
-    CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs,
-             simd_regs.Count());
+    CHECK_EQ(WasmLiftoffSetupFrameConstants::kNumberOfSavedSimd128ParamRegs,
+             simd128_regs.Count());
 
     __ MultiPush(gp_regs);
-    __ MultiPushF64AndV128(fp_regs, simd_regs, ip, r0);
+    __ MultiPushF64AndV128(fp_regs, simd128_regs, ip, r0);
   }
   ~SaveWasmParamsScope() {
-    __ MultiPopF64AndV128(fp_regs, simd_regs, ip, r0);
+    __ MultiPopF64AndV128(fp_regs, simd128_regs, ip, r0);
     __ MultiPop(gp_regs);
   }
 
   RegList gp_regs;
   DoubleRegList fp_regs;
-  // List must match register numbers under kFpParamRegisters.
-  Simd128RegList simd_regs = {v1, v2, v3, v4, v5, v6, v7, v8};
+  Simd128RegList simd128_regs;
   MacroAssembler* masm;
 };
 

@@ -31,6 +31,7 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 6;
   static constexpr int kNumberOfSavedFpParamRegs = 8;
+  static constexpr int kNumberOfSavedSimd128ParamRegs = 8;
 
   // There's one spilled value (which doesn't need visiting) below the instance.
   static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);

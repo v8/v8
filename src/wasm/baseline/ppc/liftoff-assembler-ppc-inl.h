@@ -1314,12 +1314,8 @@ inline void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
 template <>
 inline void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
                                    ValueKind kind) {
-  if (kind == kF32 || kind == kF64) {
-    fmr(dst, src);
-  } else {
-    DCHECK_EQ(kS128, kind);
-    vor(dst.toSimd(), src.toSimd(), src.toSimd());
-  }
+  DCHECK(kind == kF32 || kind == kF64);
+  fmr(dst, src);
 }
 
 template <>
