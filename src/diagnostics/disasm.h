@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE NameConverter {
   virtual const char* RootRelativeName(int offset) const { return nullptr; }
 
  protected:
-  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
+  mutable v8::base::EmbeddedVector<char, 128> tmp_buffer_;
 };
 
 // A generic Disassembler interface

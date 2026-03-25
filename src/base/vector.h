@@ -21,7 +21,7 @@ namespace v8 {
 namespace base {
 
 template <typename T>
-class Vector {
+class Vector final {
  public:
   using value_type = T;
   using iterator = T*;
@@ -112,7 +112,7 @@ class Vector {
   }
 
   void Truncate(size_t length) {
-    DCHECK(length <= length_);
+    DCHECK_LE(length, length_);
     length_ = length;
   }
 
@@ -179,7 +179,7 @@ V8_INLINE size_t hash_value(base::Vector<T> v) {
 }
 
 template <typename T>
-class OwnedVector {
+class OwnedVector final {
  public:
   OwnedVector() = default;
 
@@ -377,18 +377,67 @@ inline auto OwnedCopyOf(const Container& c)
   return OwnedCopyOf(std::data(c), std::size(c));
 }
 
+// Container with a fixed storage for `kSize` elements.
 template <typename T, size_t kSize>
-class EmbeddedVector : public Vector<T> {
+class EmbeddedVector final {
  public:
-  EmbeddedVector() : Vector<T>(buffer_, kSize) {}
-  explicit EmbeddedVector(const T& initial_value) : Vector<T>(buffer_, kSize) {
+  constexpr EmbeddedVector() = default;
+  constexpr explicit EmbeddedVector(const T& initial_value) {
     std::fill_n(buffer_, kSize, initial_value);
   }
   EmbeddedVector(const EmbeddedVector&) = delete;
   EmbeddedVector& operator=(const EmbeddedVector&) = delete;
 
+  constexpr Vector<T> SubVector(size_t from, size_t to) {
+    DCHECK_LE(from, to);
+    DCHECK_LE(to, length_);
+    return Vector<T>(buffer_ + from, to - from);
+  }
+
+  constexpr Vector<T> SubVectorFrom(size_t from) {
+    return SubVector(from, length_);
+  }
+
+  constexpr size_t size() const { return length_; }
+
+  constexpr T& operator[](size_t index) {
+    DCHECK_LT(index, length_);
+    return buffer_[index];
+  }
+
+  constexpr const T& operator[](size_t index) const {
+    DCHECK_LT(index, length_);
+    return buffer_[index];
+  }
+
+  constexpr T* begin() { return buffer_; }
+  constexpr const T* begin() const { return buffer_; }
+
+  constexpr T* data() { return buffer_; }
+
+  constexpr T* end() { return buffer_ + length_; }
+  constexpr const T* end() const { return buffer_ + length_; }
+
+  constexpr void Truncate(size_t length) {
+    DCHECK_LE(length, length_);
+    length_ = length;
+  }
+
+  constexpr const Vector<T> operator+(size_t offset) {
+    return SubVectorFrom(offset);
+  }
+
+  constexpr operator Vector<T>() { return Vector<T>(buffer_, length_); }
+
+  template <typename U>
+    requires std::is_convertible_v<T*, const U*> && (sizeof(U) == sizeof(T))
+  constexpr operator Vector<const U>() const {
+    return Vector<const U>(buffer_, length_);
+  }
+
  private:
   T buffer_[kSize];
+  size_t length_ = kSize;
 };
 
 }  // namespace base

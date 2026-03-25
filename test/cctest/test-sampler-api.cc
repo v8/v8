@@ -19,15 +19,16 @@ namespace {
 class Sample {
  public:
   enum { kFramesLimit = 255 };
+  using DataVector = v8::base::EmbeddedVector<void*, kFramesLimit>;
 
   Sample() = default;
 
   const void* operator[](size_t index) const { return data_[index]; }
   size_t size() const { return data_.size(); }
-  v8::base::Vector<void*>& data() { return data_; }
+  DataVector& data() { return data_; }
 
  private:
-  v8::base::EmbeddedVector<void*, kFramesLimit> data_;
+  DataVector data_;
 };
 
 
