@@ -192,8 +192,73 @@ class MachineOptimizationReducer : public Next {
                 reducer_list_contains<ReducerList, GraphVisitor>::value);
 #endif
 
-  // TODO(mslekova): Implement ReduceSelect and ReducePhi,
-  // by reducing `(f > 0) ? f : -f` to `fabs(f)`.
+  V<Any> REDUCE(Phi)(base::Vector<const OpIndex> inputs,
+                     RegisterRepresentation rep) {
+    LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
+
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Reduces `(f > 0) ? f : -f` to `fabs(f)`.
+    //
+    // This optimization is unsafe for WebAssembly because it violates strict
+    // IEEE-754 NaN sign rules for comparisons and absolute values.
+    // So, for the conditional (x < 0) ? -x : x where x is -NaN:
+    //   - The condition -NaN < 0 evaluates to false.
+    //   - The expression returns the false branch, which is x (i.e. -NaN).
+    //   - Optimizing to `fabs` would flip the sign of -NaN, violating the WASM
+    //     spec. Since `fabs` always returns a positive value.
+    // In JS, this is allowed as the ECMAScript spec is lax about NaN signs for
+    // `Math.abs`. It treats any NaN representation as equivalent.
+    if (__ data()->is_wasm()) goto no_change;
+
+    if (rep != RegisterRepresentation::Float64() || inputs.size() != 2) {
+      goto no_change;
+    }
+
+    Block* current = __ current_block();
+    if (!current || current->PredecessorCount() != 2) goto no_change;
+
+    Block* pred1 = current->LastPredecessor();
+    Block* pred0 = pred1->NeighboringPredecessor();
+    if (pred0->PredecessorCount() != 1 || pred1->PredecessorCount() != 1) {
+      goto no_change;
+    }
+
+    Block* dom = pred0->LastPredecessor();
+    if (dom != pred1->LastPredecessor()) goto no_change;
+
+    const Operation& last = dom->LastOperation(__ output_graph());
+    const BranchOp* branch = last.TryCast<BranchOp>();
+    if (!branch) goto no_change;
+
+    const Operation& cond_op = __ Get(branch->condition());
+    const ComparisonOp* cond =
+        cond_op.TryCast<Opmask::kFloat64SignedLessThan>();
+    if (!cond) goto no_change;
+
+    V<Float64> f0 = cond->left<Float64>();
+    if (!matcher_.MatchFloat(cond->right<Float64>(), 0.0)) goto no_change;
+
+    auto IsNegateOf = [&](V<Float64> input, V<Float64> operand) {
+      const Operation& op = __ Get(input);
+      if (const FloatUnaryOp* u = op.TryCast<Opmask::kFloat64Negate>()) {
+        return u->input() == operand;
+      }
+      return false;
+    };
+
+    const bool pred0_is_true = (pred0 == branch->if_true);
+    V<Float64> vtrue = pred0_is_true ? inputs[0] : inputs[1];
+    V<Float64> vfalse = pred0_is_true ? inputs[1] : inputs[0];
+    if (IsNegateOf(vtrue, f0) && vfalse == f0) {
+      // TODO(dmercadier): in-place override the Branch of the dominator into a
+      // Goto to the current block so that the diamond gets dead-code eliminated
+      // sooner.
+      return __ Float64Abs(f0);
+    }
+
+    goto no_change;
+  }
 
   V<Untagged> REDUCE(Change)(V<Untagged> input, ChangeOp::Kind kind,
                              ChangeOp::Assumption assumption,
