@@ -1180,10 +1180,13 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
 
 void MergePointInterpreterFrameState::PrintVirtualObjects(
     const MaglevCompilationInfo* info, VirtualObjectList from_ifs) {
-  TRACE(TraceColor::kInfo << "  - VOs (IFS): " << TraceVirtualObjects(from_ifs)
-                          << TraceNewline{} << "  - VOs (merge): "
-                          << TraceVirtualObjects(
-                                 known_node_aspects_->virtual_objects()));
+  TRACE(TraceColor::kInfo << "  - VOs (IFS): "
+                          << TraceVirtualObjects(from_ifs));
+  if (known_node_aspects_) {
+    TRACE(TraceColor::kInfo
+          << "  - VOs (merge): "
+          << TraceVirtualObjects(known_node_aspects_->virtual_objects()));
+  }
 }
 
 }  // namespace maglev
