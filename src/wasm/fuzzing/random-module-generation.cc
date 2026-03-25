@@ -5304,7 +5304,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
 
   ZoneBuffer buffer{zone};
   builder.WriteTo(&buffer);
-  return base::VectorOf(buffer);
+  return base::VectorOf(buffer.data(), buffer.size());
 }
 
 // Used by the initializer expression fuzzer.
@@ -5465,7 +5465,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
 
   ZoneBuffer buffer{zone};
   builder.WriteTo(&buffer);
-  return base::VectorOf(buffer);
+  return base::VectorOf(buffer.data(), buffer.size());
 }
 
 namespace {
@@ -5816,7 +5816,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 
   ZoneBuffer buffer{zone};
   builder.WriteTo(&buffer);
-  return base::VectorOf(buffer);
+  return base::VectorOf(buffer.data(), buffer.size());
 }
 
 base::Vector<uint8_t> GenerateWasmModuleForRevec(
@@ -6037,7 +6037,7 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
 
   ZoneBuffer buffer{zone};
   builder.WriteTo(&buffer);
-  return base::VectorOf(buffer);
+  return base::VectorOf(buffer.data(), buffer.size());
 }
 
 }  // namespace v8::internal::wasm::fuzzing
