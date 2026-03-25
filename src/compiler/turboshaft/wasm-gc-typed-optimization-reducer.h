@@ -509,6 +509,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
+                            __ MapToNewGraph(array_length.frame_state()),
                             kWithoutNullCheck);
     }
     goto no_change;

@@ -5160,7 +5160,14 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(array, null_check);
+    return ReduceIfReachableArrayLength(
+        array, OptionalV<turboshaft::FrameState>{}, null_check);
+  }
+
+  V<Word32> ArrayLength(V<WasmArrayNullable> array,
+                        OptionalV<turboshaft::FrameState> frame_state,
+                        CheckForNull null_check) {
+    return ReduceIfReachableArrayLength(array, frame_state, null_check);
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,

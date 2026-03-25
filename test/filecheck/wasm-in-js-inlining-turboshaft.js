@@ -22,11 +22,11 @@ const globalEqRef = builder.addGlobal(kWasmEqRef, true, false);
 let tests = [];
 // A helper to avoid repetition (e.g., the Wasm function name) and keep all
 // pieces of one test case in one place (e.g., JS arguments, Wasm signature).
-function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionSrc) {
+function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionBuilder) {
   assertEquals(wasmSignature.params.length, wasmArguments.length);
   const wasmFunction = builder.addFunction(name, wasmSignature).addBody(wasmBody).exportFunc();
 
-  if (!jsFunctionSrc) {
+  if (!jsFunctionBuilder) {
     // Pass the arguments from the JS function to the Wasm function so that they
     // are not constant after inlining (otherwise constant folding often removes
     // the code from the inlinee).
@@ -36,12 +36,15 @@ function addTestcase(name, wasmSignature, wasmArguments, wasmBody, jsFunctionSrc
     // TODO(353475584): Is it worth lifting this restriction? Is this a
     // restriction also for regular JS inlining?
     const argumentList = Array.from(wasmArguments, (x, i) => 'arg' + i);
-    jsFunctionSrc = `
-      function js_${name}(${argumentList}) {
-          return wasmExports.${name}(${argumentList});
-      }`;
+    jsFunctionBuilder = eval(`
+      (wasmExports) => {
+        return function js_${name}(${argumentList}) {
+            return wasmExports.${name}(${argumentList});
+        };
+      }
+    `);
   }
-  tests[name] = { wasmArguments, jsFunctionSrc };
+  tests[name] = { wasmArguments, jsFunctionBuilder };
 
     // Return the wasmFunction, so that it can still be manually modified.
   return wasmFunction;
@@ -355,14 +358,43 @@ addTestcase('unreachable', kSig_v_v, [], [
   kExprUnreachable,
 ]);
 
+const globalArray = builder.addGlobal(wasmRefNullType(array), true, false);
+
+builder.addFunction('initGlobalArray', makeSig([], [])).addBody([
+  ...wasmI32Const(42),
+  kGCPrefix, kExprArrayNewDefault, array,
+  kExprGlobalSet, globalArray.index,
+]).exportFunc();
+
+// CHECK: Considering wasm function [{{[0-9]+}}] arrayLenGlobal of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('arrayLenGlobal', makeSig([], [kWasmI32]), [], [
+  kExprGlobalGet, globalArray.index,
+  kGCPrefix, kExprArrayLen,
+], (wasmExports) => {
+  wasmExports.initGlobalArray();
+  return function js_arrayLenGlobal() {
+    const len = wasmExports.arrayLenGlobal();
+    return len;
+  };
+});
+
+const globalNullArray = builder.addGlobal(wasmRefNullType(array), true, false);
+
+// This will throw and should have the right error message and stack trace.
+// CHECK: Considering wasm function [{{[0-9]+}}] arrayLenNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('arrayLenNull', kSig_i_v, [], [
+  kExprGlobalGet, globalNullArray.index,
+  kGCPrefix, kExprArrayLen,
+]);
+
 
 // =============================================================================
 // Testcases that we (currently) do not inline (the JS-to-Wasm wrapper or body):
 // =============================================================================
 
-// TODO(dlehmann,353475584): We want to support the following `arrayLen`
-// testcase soon to reach feature parity with the TurboFan Wasm-in-JS inlining,
-// but it's not there yet. `createArray` requires allocation, which might get
+// TODO(dlehmann,353475584): `createArray` requires allocation, which might get
 // complicated with allocation folding, so that's not in the MVP yet.
 // CHECK: Considering wasm function [{{[0-9]+}}] createArray of module {{.*}} for inlining
 // CHECK-NEXT: - not inlining: unsupported operation: array.new_default
@@ -371,18 +403,19 @@ addTestcase('createArray', makeSig([kWasmI32], [kWasmExternRef]), [42], [
   kGCPrefix, kExprArrayNewDefault, array,
   kGCPrefix, kExprExternConvertAny,
 ]);
-// CHECK: Considering wasm function [{{[0-9]+}}] arrayLen of module {{.*}} for inlining
+// CHECK: Considering wasm function [{{[0-9]+}}] arrayLenParam of module {{.*}} for inlining
 // CHECK-NEXT: - not inlining: unsupported operation: any.convert_extern
-addTestcase('arrayLen', makeSig([kWasmExternRef], [kWasmI32]), [null], [
+addTestcase('arrayLenParam', makeSig([kWasmExternRef], [kWasmI32]), [null], [
   kExprLocalGet, 0,
   kGCPrefix, kExprAnyConvertExtern,
   kGCPrefix, kExprRefCastNull, array,
   kGCPrefix, kExprArrayLen,
-], `
-const array = wasmExports.createArray(42);
-function js_arrayLen() {
-  wasmExports.arrayLen(array);
-}`);
+], (wasmExports) => {
+  const array = wasmExports.createArray(42);
+  return function js_arrayLenParam() {
+    wasmExports.arrayLenParam(array);
+  };
+});
 
 // TODO(dlehmann,353475584): Support i64 in Wasm signatures when inlining the
 // JS-to-Wasm wrapper on 32-bit architectures.
@@ -440,13 +473,15 @@ addTestcase('brNoInline', kSig_i_v, [], [
 // CHECK-NEXT: - not inlining: call marked with LazyDeoptOnThrow::kYes
 addTestcase('insideTryCatch', kSig_i_v, [], [
   ...wasmI32Const(0),
-], `function js_insideTryCatch(arg) {
-  try {
-    return wasmExports.insideTryCatch(arg);
-  } catch (e) {
-    return e.toString() + e.stack;
-  }
-}`);
+], (wasmExports) => {
+  return function js_insideTryCatch(arg) {
+    try {
+      return wasmExports.insideTryCatch(arg);
+    } catch (e) {
+      return e.toString() + e.stack;
+    }
+  };
+});
 
 // See above. In contrast, this test case covers the `LazyDeoptOnThrow::kNo`
 // case, since the Wasm body does trap (i.e., throws).
@@ -455,28 +490,24 @@ addTestcase('insideTryCatch', kSig_i_v, [], [
 // CHECK-NEXT: - not inlining: a current catch block is set
 addTestcase('trapNoInline', kSig_v_v, [], [
   kExprUnreachable,
-], `function js_trapNoInline() {
-  try {
-    wasmExports.trapNoInline();
-  } catch (e) {
-    return e.toString() + e.stack;
-  }
-}`);
+], (wasmExports) => {
+  return function js_trapNoInline() {
+    try {
+      wasmExports.trapNoInline();
+    } catch (e) {
+      return e.toString() + e.stack;
+    }
+  };
+});
 
 
 // Compile and instantiate the Wasm module, define the caller JS functions,
 // call with arguments defined above.
 const wasmExports = builder.instantiate({}).exports;
-for (const [ name, { wasmArguments, jsFunctionSrc } ] of Object.entries(tests)) {
+for (const [ name, { wasmArguments, jsFunctionBuilder } ] of Object.entries(tests)) {
   print(`\nTest: ${name}`);
 
-  // Use `eval` to define the JS functions, such that they have a more useful
-  // name during debugging and in the `--trace-turbo` output. (Otherwise they
-  // would be all called `jsFunction-0`, `-1`, etc.).
-  // We also cannot use the spread operator but need to generate slightly
-  // different code in the JS callers, see above.
-  eval(jsFunctionSrc);
-  const jsFunction = eval('js_' + name);
+  const jsFunction = jsFunctionBuilder(wasmExports);
 
   const result = {};
   for (let i = 0; i < 2; i++) {

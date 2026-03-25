@@ -972,7 +972,10 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    Bailout(decoder);
+    result->op = __ ArrayLength(
+        V<WasmArrayNullable>::Cast(array_obj.op), frame_state_,
+        array_obj.type.is_nullable() ? compiler::kWithNullCheck
+                                     : compiler::kWithoutNullCheck);
   }
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
