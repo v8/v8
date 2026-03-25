@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-staging
-// Flags: --trace-wasm-inlining --liftoff
+// Flags: --allow-natives-syntax --experimental-wasm-imported-strings-utf8
+// Flags: --experimental-wasm-stringref --trace-wasm-inlining --liftoff
 // Also explicitly enable inlining and disable debug code to avoid differences
 // between --future and --no-future or debug and release builds.
 // Flags: --wasm-inlining --no-debug-code

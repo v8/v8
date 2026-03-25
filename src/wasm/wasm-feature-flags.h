@@ -92,6 +92,16 @@
   /* --experimental-wasm-js-interop for now. */                                \
   /* V8 side owner: jkummerow */                                               \
   V(custom_descriptors, "custom descriptors", false)                           \
+                                                                               \
+  /* Reference-Typed Strings Proposal. */                                      \
+  /* https://github.com/WebAssembly/stringref */                               \
+  /* V8 side owner: jkummerow */                                               \
+  V(stringref, "reference-typed strings", false)                               \
+                                                                               \
+  /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
+  /* No upstream repo yet. */                                                  \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
   // add pre-staged features right before this line
 
 // #############################################################################
@@ -104,16 +114,7 @@
 // stabilization.
 // Consider adding a chromium-side use counter if you want to track usage in the
 // wild (also see {V8::UseCounterFeature}).
-#define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Reference-Typed Strings Proposal. */                                      \
-  /* https://github.com/WebAssembly/stringref */                               \
-  /* V8 side owner: jkummerow */                                               \
-  V(stringref, "reference-typed strings", false)                               \
-                                                                               \
-  /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
-  /* No upstream repo yet. */                                                  \
-  /* V8 side owner: jkummerow */                                               \
-  V(imported_strings_utf8, "imported strings (utf8 features)", false)
+#define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit

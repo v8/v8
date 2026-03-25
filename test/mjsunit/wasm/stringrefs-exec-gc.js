@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-externalize-string --wasm-staging
+// Flags: --expose-externalize-string --experimental-wasm-stringref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

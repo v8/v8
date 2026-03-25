@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-imported-strings-utf8
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -44,6 +44,6 @@ $main.addBody([
   kExprCallFunction, $charCodeAt,
   ]);
 
-let kBuiltins = { builtins: ['js-string', 'text-decoder', 'text-encoder'] };
+let kBuiltins = { builtins: ['js-string', 'text-decoder'] };
 const instance = builder.instantiate({}, kBuiltins);
 assertEquals(0xFFFD, instance.exports.main());

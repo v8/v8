@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation --experimental-wasm-shared --wasm-staging
+// Flags: --no-liftoff --no-wasm-lazy-compilation --experimental-wasm-shared
+// Flags: --experimental-wasm-imported-strings-utf8
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -32,5 +33,5 @@ $func18.addBody([
     kExprUnreachable,
   ]);
 
-let kBuiltins = { builtins: ['js-string', 'text-decoder', 'text-encoder'] };
+let kBuiltins = { builtins: ['text-encoder'] };
 const instance = builder.instantiate({}, kBuiltins);

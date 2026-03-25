@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 // Test debugger type name resolution for ref types with multiple modules.
 // Due to type canonicalization, for any given canonicalized type there is only
 // one RTT. In the absence of a name section, we generate type names based on

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
@@ -29,6 +28,6 @@ builder.addFunction('main', kSig_i_iii)
       kExprUnreachable,
     ]).exportFunc();
 
-let kBuiltins = {builtins: ['js-string', 'text-decoder', 'text-encoder']};
+let kBuiltins = {builtins: ['js-string']};
 const instance = builder.instantiate({}, kBuiltins);
 assertTraps(kTrapArrayOutOfBounds, () => instance.exports.main(1, 2, 3));
