@@ -518,16 +518,21 @@ void HeapSnapshot::FillChildren() {
   }
 }
 
-HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
+const HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) const {
   if (entries_by_id_cache_.empty()) {
     CHECK(is_complete());
     entries_by_id_cache_.reserve(entries_.size());
-    for (HeapEntry& entry : entries_) {
-      entries_by_id_cache_.emplace(entry.id(), &entry);
+    for (const HeapEntry& entry : entries_) {
+      entries_by_id_cache_.emplace(entry.id(), const_cast<HeapEntry*>(&entry));
     }
   }
   auto it = entries_by_id_cache_.find(id);
   return it != entries_by_id_cache_.end() ? it->second : nullptr;
+}
+
+HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
+  return const_cast<HeapEntry*>(
+      static_cast<const HeapSnapshot*>(this)->GetEntryById(id));
 }
 
 void HeapSnapshot::Print(int max_depth) { root()->Print("", "", max_depth, 0); }
@@ -2392,11 +2397,14 @@ void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
     Tagged<Object> o = js_obj->GetEmbedderField(i);
     SetInternalReference(entry, i, o, js_obj->GetEmbedderFieldOffset(i));
   }
+  if (IsJSApiWrapperObject(js_obj)) {
+    generator_->GetCppHeapWrappers().insert(js_obj);
+  }
 }
 
 void V8HeapExplorer::ExtractCppHeapExternalReferences(
     HeapEntry* entry, Tagged<CppHeapExternalObject> obj) {
-  generator_->GetCppHeapExternalObjects().insert(obj);
+  generator_->GetCppHeapWrappers().insert(obj);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3322,7 +3330,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     DisallowGarbageCollection no_gc;
     EmbedderGraphImpl graph;
     snapshot_->profiler()->BuildEmbedderGraph(
-        isolate_, &graph, generator_->TakeCppHeapExternalObjects());
+        isolate_, &graph, generator_->TakeCppHeapWrappers());
     for (const auto& node : graph.nodes()) {
       // Only add embedder nodes as V8 nodes have been added already by the
       // V8HeapExplorer.

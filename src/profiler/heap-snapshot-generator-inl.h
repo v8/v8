@@ -37,6 +37,10 @@ void HeapEntry::add_child(HeapGraphEdge* edge) {
 
 HeapGraphEdge* HeapEntry::child(int i) { return children_begin()[i]; }
 
+const HeapGraphEdge* HeapEntry::child(int i) const {
+  return children_begin()[i];
+}
+
 std::vector<HeapGraphEdge*>::iterator HeapEntry::children_begin() const {
   return index_ == 0 ? snapshot_->children().begin()
                      : snapshot_->entries()[index_ - 1].children_end();

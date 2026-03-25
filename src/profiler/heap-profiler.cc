@@ -94,14 +94,14 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     build_embedder_graph_callbacks_.erase(it);
 }
 
-void HeapProfiler::BuildEmbedderGraph(
-    Isolate* isolate, v8::EmbedderGraph* graph,
-    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects) {
+void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
+                                      v8::EmbedderGraph* graph,
+                                      CppHeapWrapperSet&& cpp_heap_wrappers) {
   if (internal_build_embedder_graph_callback_.first) {
     internal_build_embedder_graph_callback_.first(
         reinterpret_cast<v8::Isolate*>(isolate), graph,
         internal_build_embedder_graph_callback_.second,
-        std::move(cpp_heap_external_objects));
+        std::move(cpp_heap_wrappers));
   }
   for (const auto& cb : build_embedder_graph_callbacks_) {
     cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);

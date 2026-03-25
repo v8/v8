@@ -232,6 +232,31 @@ size_t GetCppSize(T* object) {
   return cppgc::internal::HeapObjectHeader::FromObject(object).AllocatedSize();
 }
 
+const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name) {
+  for (int i = 0; i < entry.children_count(); ++i) {
+    const HeapGraphEdge* edge = entry.child(i);
+    switch (edge->type()) {
+      case HeapGraphEdge::kContextVariable:
+      case HeapGraphEdge::kProperty:
+      case HeapGraphEdge::kInternal:
+      case HeapGraphEdge::kShortcut:
+      case HeapGraphEdge::kWeak:
+        if (edge->name() != nullptr && strcmp(edge->name(), name) == 0) {
+          return edge;
+        }
+        break;
+      case HeapGraphEdge::kElement:
+      case HeapGraphEdge::kHidden:
+        break;
+    }
+  }
+  return nullptr;
+}
+
+bool HasNamedEdge(const HeapEntry& entry, const char* name) {
+  return GetNamedEdge(entry, name);
+}
+
 }  // namespace
 
 TEST_F(UnifiedHeapSnapshotTest, EmptySnapshot) {
@@ -931,6 +956,19 @@ class ExternalData final : public cppgc::GarbageCollected<ExternalData> {
   void Trace(cppgc::Visitor* v) const {}
 };
 
+class ExternalDataWithJSRef final
+    : public cppgc::GarbageCollected<ExternalDataWithJSRef> {
+ public:
+  void Trace(cppgc::Visitor* v) const { v->Trace(wrapper_); }
+
+  void SetWrapper(v8::Isolate* isolate, v8::Local<v8::Object> wrapper) {
+    wrapper_.Reset(isolate, wrapper);
+  }
+
+ private:
+  TracedReference<v8::Object> wrapper_;
+};
+
 class GCedWithCppHeapExternalJSRef final
     : public cppgc::GarbageCollected<GCedWithCppHeapExternalJSRef> {
  public:
@@ -963,8 +1001,64 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternal) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot,
-      {kExpectedGCRootsName, "(Handle scope)", "system / CppHeapExternal",
+      {kExpectedGCRootsName, "(Global handles)", "system / CppHeapExternal",
        GetExpectedName<ExternalData>()}));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, JSApiWrapperObject) {
+  auto* cpp_object =
+      cppgc::MakeGarbageCollected<ExternalData>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(),
+      WrapperHelper::CreateWrapper(v8_context(), cpp_object, "MyJSApiWrapper"));
+  USE(wrapper);
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(
+      ContainsRetainingPath(*snapshot,
+                            {kExpectedGCRootsName, "(Global handles)",
+                             "MyJSApiWrapper", GetExpectedName<ExternalData>()},
+                            true));
+
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  v8::SnapshotObjectId id =
+      v8_isolate()->GetHeapProfiler()->GetObjectId(wrapper.Get(v8_isolate()));
+  const HeapEntry* wrapper_entry = heap_snapshot->GetEntryById(id);
+  ASSERT_NE(nullptr, wrapper_entry);
+  EXPECT_STREQ("MyJSApiWrapper", wrapper_entry->name());
+
+  const HeapGraphEdge* edge = GetNamedEdge(*wrapper_entry, "cppgc_object");
+  ASSERT_TRUE(edge);
+  EXPECT_STREQ(edge->to()->name(), GetExpectedName<ExternalData>());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergeNodeDoesNotHaveCppgcObject) {
+  cppgc::Persistent<ExternalDataWithJSRef> cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "MergedJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), wrapper.Get(v8_isolate()));
+  wrapper.Get(v8_isolate())
+      ->Set(v8_context(),
+            v8::String::NewFromUtf8(v8_isolate(), "link").ToLocalChecked(),
+            v8::Object::New(v8_isolate()))
+      .ToChecked();
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  v8::SnapshotObjectId wrapper_id =
+      v8_isolate()->GetHeapProfiler()->GetObjectId(wrapper.Get(v8_isolate()));
+  const HeapEntry* wrapper_entry = heap_snapshot->GetEntryById(wrapper_id);
+  ASSERT_NE(nullptr, wrapper_entry);
+  EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
+  EXPECT_TRUE(HasNamedEdge(*wrapper_entry, "link"));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {

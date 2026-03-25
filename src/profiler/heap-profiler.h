@@ -117,20 +117,20 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void RemoveBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
-  void BuildEmbedderGraph(
-      Isolate* isolate, v8::EmbedderGraph* graph,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
+  void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph,
+                          CppHeapWrapperSet&& cpp_heap_wrappers);
   bool HasBuildEmbedderGraphCallback() {
     return internal_build_embedder_graph_callback_.first != nullptr ||
            !build_embedder_graph_callbacks_.empty();
   }
 
   // Internal version of `v8::HeapProfiler::BuildEmbedderGraphCallback`, which
-  // additionally receives the set of `CppHeapExternalObject`s to link to
+  // additionally receives the set of `CppHeapPointerWrapperObject`s to link to
   // embedder nodes.
   typedef void (*InternalBuildEmbedderGraphCallback)(
       v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
+      CppHeapWrapperSet&& cpp_heap_wrappers);
+
   void SetInternalBuildEmbedderGraphCallback(
       InternalBuildEmbedderGraphCallback callback, void* data);
 

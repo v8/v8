@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -143,6 +144,7 @@ class HeapEntry {
   V8_INLINE int set_children_index(int index);
   V8_INLINE void add_child(HeapGraphEdge* edge);
   V8_INLINE HeapGraphEdge* child(int i);
+  V8_INLINE const HeapGraphEdge* child(int i) const;
   V8_INLINE Isolate* isolate() const;
 
   void set_detachedness(v8::EmbedderGraph::Node::Detachedness value) {
@@ -266,7 +268,8 @@ class HeapSnapshot {
                       size_t size,
                       unsigned trace_node_id);
   void AddSyntheticRootEntries();
-  HeapEntry* GetEntryById(SnapshotObjectId id);
+  V8_EXPORT_PRIVATE const HeapEntry* GetEntryById(SnapshotObjectId id) const;
+  V8_EXPORT_PRIVATE HeapEntry* GetEntryById(SnapshotObjectId id);
   void FillChildren();
 
   void AddScriptLineEnds(int script_id, String::LineEndsVector&& line_ends);
@@ -289,7 +292,9 @@ class HeapSnapshot {
   std::deque<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::vector<HeapGraphEdge*> children_;
-  std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
+  // Lookup cache that is lazily initialized on first use.
+  mutable absl::flat_hash_map<SnapshotObjectId, HeapEntry*>
+      entries_by_id_cache_;
   std::vector<EntrySourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
@@ -722,12 +727,10 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
   Heap* heap() const { return heap_; }
 
-  UnorderedCppHeapExternalObjectSet& GetCppHeapExternalObjects() {
-    return cpp_heap_external_objects_;
-  }
+  CppHeapWrapperSet& GetCppHeapWrappers() { return cpp_heap_wrappers_; }
 
-  UnorderedCppHeapExternalObjectSet TakeCppHeapExternalObjects() {
-    return std::move(cpp_heap_external_objects_);
+  CppHeapWrapperSet TakeCppHeapWrappers() {
+    return std::move(cpp_heap_wrappers_);
   }
 
  private:
@@ -748,7 +751,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   uint32_t progress_total_;
   Heap* heap_;
   cppgc::EmbedderStackState stack_state_;
-  UnorderedCppHeapExternalObjectSet cpp_heap_external_objects_;
+  CppHeapWrapperSet cpp_heap_wrappers_;
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   std::unordered_map<HeapEntry*, HeapThing> reverse_entries_map_;
