@@ -7816,11 +7816,16 @@ void Heap::NotifyLoadingEnded(LeaveHeapState context) {
 }
 
 void Heap::NotifyInputHandlingStarted() {
-  if (IsInputHandling()) return;
+  if (IsInputHandling()) {
+    return;
+  }
   input_handling_state_.NotifyStarted(this);
 }
 
 void Heap::NotifyInputHandlingEnded(LeaveHeapState context) {
+  if (!IsInputHandlingInitialized()) {
+    return;
+  }
   input_handling_state_.NotifyEnded(this);
   // TODO(crbug.com/444705203): Merge this function with |NotifyLoadingEnded|
   // once the feature flag is removed.
