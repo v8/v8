@@ -17202,6 +17202,8 @@ void MaglevGraphBuilder::OsrPrewalk() {
         saved_states.insert({target, GetCurrentScopeInfo()});
       }
     }
+
+    HandleTryBlock(offset);
   }
   auto it = saved_states.find(entrypoint_);
   if (it != saved_states.end()) {
@@ -17517,6 +17519,34 @@ void MaglevGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
   }
 }
 
+void MaglevGraphBuilder::HandleTryBlock(int offset) {
+  // Handle exceptions if we have a table.
+  if (bytecode().handler_table_size() == 0) return;
+  // Pop all entries where offset >= end.
+  while (IsInsideTryBlock()) {
+    HandlerTableEntry& entry = catch_block_stack_.top();
+    if (offset < entry.end) break;
+    catch_block_stack_.pop();
+  }
+  // Push new entries from interpreter handler table where offset >= start
+  // && offset < end.
+  HandlerTable table(*bytecode().object());
+  while (next_handler_table_index_ < table.NumberOfRangeEntries()) {
+    int start = table.GetRangeStart(next_handler_table_index_);
+    if (offset < start) break;
+    int end = table.GetRangeEnd(next_handler_table_index_);
+    if (offset >= end) {
+      next_handler_table_index_++;
+      continue;
+    }
+    int handler = table.GetRangeHandler(next_handler_table_index_);
+    catch_block_stack_.push({end, handler});
+    DCHECK_NOT_NULL(merge_states_[handler]);
+    merge_states_[handler]->set_context_scope_info(GetCurrentScopeInfo());
+    next_handler_table_index_++;
+  }
+}
+
 ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
   TRACE(TraceColor::kDarkCyan << std::setw(4) << iterator_.current_offset()
                               << " : " << TraceBytecode{iterator_});
@@ -17597,32 +17627,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
     return ReduceResult::DoneWithAbort();
   }
 
-  // Handle exceptions if we have a table.
-  if (bytecode().handler_table_size() > 0) {
-    // Pop all entries where offset >= end.
-    while (IsInsideTryBlock()) {
-      HandlerTableEntry& entry = catch_block_stack_.top();
-      if (offset < entry.end) break;
-      catch_block_stack_.pop();
-    }
-    // Push new entries from interpreter handler table where offset >= start
-    // && offset < end.
-    HandlerTable table(*bytecode().object());
-    while (next_handler_table_index_ < table.NumberOfRangeEntries()) {
-      int start = table.GetRangeStart(next_handler_table_index_);
-      if (offset < start) break;
-      int end = table.GetRangeEnd(next_handler_table_index_);
-      if (offset >= end) {
-        next_handler_table_index_++;
-        continue;
-      }
-      int handler = table.GetRangeHandler(next_handler_table_index_);
-      catch_block_stack_.push({end, handler});
-      DCHECK_NOT_NULL(merge_states_[handler]);
-      merge_states_[handler]->set_context_scope_info(GetCurrentScopeInfo());
-      next_handler_table_index_++;
-    }
-  }
+  HandleTryBlock(offset);
 
   DCHECK_NOT_NULL(current_block());
 

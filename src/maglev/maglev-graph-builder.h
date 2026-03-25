@@ -409,6 +409,8 @@ class MaglevGraphBuilder {
 
   ReduceResult VisitSingleBytecode();
 
+  void HandleTryBlock(int offset);
+
 #define BYTECODE_VISITOR(name, ...) ReduceResult Visit##name();
   BYTECODE_LIST(BYTECODE_VISITOR, BYTECODE_VISITOR)
 #undef BYTECODE_VISITOR
