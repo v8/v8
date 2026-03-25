@@ -183,7 +183,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
     switch (op.opcode) {
 #if V8_ENABLE_SANDBOX
       case Opcode::kLoadTrustedPointer:
-        ProcessTrustedLoad(op_idx, op.Cast<LoadTrustedPointerOp>());
+        if (v8_flags.turboshaft_trusted_load_elimination) {
+          ProcessTrustedLoad(op_idx, op.Cast<LoadTrustedPointerOp>());
+        }
         break;
 #endif
       case Opcode::kLoad:
