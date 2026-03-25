@@ -573,12 +573,15 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {
-      // Note: This will leak string views to JS. This should be fine for a
-      // debugging function.
-      if (Is<WasmContinuationObject>(value)) {
+      // When fuzzers use this function, don't leak anything that the JS side
+      // can't handle.
+      if (IsByteArray(*value) ||  // Probably a stringview_wtf8.
+          IsWasmContinuationObject(*value) || IsWasmExceptionPackage(*value) ||
+          IsWasmStringViewIter(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
       value = wasm::WasmToJSObject(isolate, value);
+      DCHECK(IsPrimitiveHeapObject(*value) || IsJSReceiver(*value));
     }
     externalized_values->set(i, *value);
   }
