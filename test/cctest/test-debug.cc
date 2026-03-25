@@ -3424,7 +3424,7 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
  public:
   EmptyExternalStringResource() { empty_[0] = 0; }
   ~EmptyExternalStringResource() override = default;
-  size_t length() const override { return empty_.length(); }
+  size_t length() const override { return empty_.size(); }
   const uint16_t* data() const override { return empty_.begin(); }
 
  private:

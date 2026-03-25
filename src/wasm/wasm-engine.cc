@@ -967,7 +967,7 @@ DirectHandle<Script> CreateWasmScript(
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".
       int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
-      DCHECK(url_len >= 0 && url_len < buffer.length());
+      DCHECK(url_len >= 0 && static_cast<size_t>(url_len) < buffer.size());
       url_str = isolate->factory()
                     ->NewStringFromUtf8(buffer.SubVector(0, url_len),
                                         AllocationType::kOld)
@@ -975,7 +975,7 @@ DirectHandle<Script> CreateWasmScript(
     } else {
       // Build the URL in the form "wasm://wasm/<module name>-<hash>".
       int hash_len = SNPrintF(buffer, "-%08x", hash);
-      DCHECK(hash_len >= 0 && hash_len < buffer.length());
+      DCHECK(hash_len >= 0 && static_cast<size_t>(hash_len) < buffer.size());
       DirectHandle<String> prefix =
           isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
       DirectHandle<String> module_name =

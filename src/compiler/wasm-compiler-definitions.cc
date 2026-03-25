@@ -65,7 +65,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
 
   base::EmbeddedVector<char, kBufferLength> name_vector;
   int name_len = SNPrintF(name_vector, "wasm-function#%d", index);
-  DCHECK(name_len > 0 && name_len < name_vector.length());
+  DCHECK(name_len > 0 && static_cast<size_t>(name_len) < name_vector.size());
 
   char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);

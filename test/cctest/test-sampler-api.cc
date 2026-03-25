@@ -22,11 +22,8 @@ class Sample {
 
   Sample() = default;
 
-  using const_iterator = const void* const*;
-  const_iterator begin() const { return data_.begin(); }
-  const_iterator end() const { return &data_[data_.length()]; }
-
-  int size() const { return data_.length(); }
+  const void* operator[](size_t index) const { return data_[index]; }
+  size_t size() const { return data_.size(); }
   v8::base::Vector<void*>& data() { return data_; }
 
  private:
@@ -96,10 +93,10 @@ class SamplingTestHelper {
     state.sp = &state;
 #endif
     v8::SampleInfo info;
-    isolate_->GetStackSample(state, sample_.data().begin(),
-                             static_cast<size_t>(sample_.size()), &info);
+    isolate_->GetStackSample(state, sample_.data().begin(), sample_.size(),
+                             &info);
     size_t frames_count = info.frames_count;
-    CHECK_LE(frames_count, static_cast<size_t>(sample_.size()));
+    CHECK_LE(frames_count, sample_.size());
     sample_.data().Truncate(static_cast<int>(frames_count));
     sample_is_taken_ = true;
   }
@@ -180,7 +177,7 @@ TEST(BuiltinsInSamples) {
   CHECK_EQ(26, sample.size());
   for (int i = 0; i < 20; i++) {
     const SamplingTestHelper::CodeEventEntry* entry;
-    entry = helper.FindEventEntry(sample.begin()[i]);
+    entry = helper.FindEventEntry(sample[i]);
     switch (i % 3) {
       case 0:
         CHECK(std::string::npos != entry->name.find("func"));
@@ -220,11 +217,11 @@ TEST(StackFramesConsistent) {
   CHECK_EQ(3, sample.size());
 
   const SamplingTestHelper::CodeEventEntry* entry;
-  entry = helper.FindEventEntry(sample.begin()[0]);
+  entry = helper.FindEventEntry(sample[0]);
   CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_inner"));
 
-  entry = helper.FindEventEntry(sample.begin()[1]);
+  entry = helper.FindEventEntry(sample[1]);
   CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_outer"));
 }
