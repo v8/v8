@@ -110,9 +110,10 @@ inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
           internal_function, LoadOp::Kind::TaggedBase().Immutable(),
           WasmInternalFunction::kProtectedImplicitArgOffset));
 
-  V<Word32> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
-                             MemoryRepresentation::Uint32(),
-                             WasmInternalFunction::kRawCallTargetOffset);
+  V<Word32> target =
+      __ Load(internal_function, LoadOp::Kind::TaggedBase().Immutable(),
+              MemoryRepresentation::Uint32(),
+              WasmInternalFunction::kRawCallTargetOffset);
 
   return {target, implicit_arg};
 }
