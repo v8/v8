@@ -4532,6 +4532,10 @@ class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
   auto options() const { return std::tuple{check_type()}; }
   NodeType type() const { return NodeType::kBoolean; }
 
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
+
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
@@ -4550,6 +4554,10 @@ class ToBooleanLogicalNot
 
   auto options() const { return std::tuple{check_type()}; }
   NodeType type() const { return NodeType::kBoolean; }
+
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;

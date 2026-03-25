@@ -1414,16 +1414,19 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // When a BranchIfToBooleanTrue has an untagged Int32/Float64 Phi as input, we
 // convert it to a BranchIfInt32ToBooleanTrue/BranchIfFloat6ToBooleanTrue to
 // avoid retagging the Phi.
+template <typename NodeT>
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
-    ValueNode* node, Phi* phi, int input_index, bool flip) {
+    NodeT* node, Phi* phi, int input_index, bool flip) {
+  static_assert(std::same_as<NodeT, ToBoolean> ||
+                std::same_as<NodeT, ToBooleanLogicalNot>);
   DCHECK_EQ(input_index, 0);
   switch (phi->value_representation()) {
     case ValueRepresentation::kInt32:
-      node->OverwriteWith<Int32ToBoolean>()->set_flip(flip);
+      node->template OverwriteWith<Int32ToBoolean>()->set_flip(flip);
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kFloat64:
-      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      node->template OverwriteWith<Float64ToBoolean>()->set_flip(flip);
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kHoleyFloat64: {
@@ -1433,12 +1436,17 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
       ValueNode* input =
           AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
               reducer_.current_block(), BasicBlockPosition::Start(), {phi});
-      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      node->template OverwriteWith<Float64ToBoolean>()->set_flip(flip);
       node->change_input(0, input);
       return ProcessResult::kContinue;
     }
 
     case ValueRepresentation::kTagged:
+      // The current phi isn't tagged, but it's possible for one of its input to
+      // have been untagged and retagged to Smi instead of HeapObject. We thus
+      // conservatively always set the CheckType of
+      // ToBoolean/ToBooleanLogicalNot to CheckHeapObject here.
+      node->set_check_type(CheckType::kCheckHeapObject);
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kUint32:

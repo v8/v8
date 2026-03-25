@@ -258,7 +258,8 @@ class MaglevPhiRepresentationSelector {
 
   void EnsurePhiInputsTagged(Phi* phi);
 
-  ProcessResult UpdateNodePhiInputForToBoolean(ValueNode* node, Phi* phi,
+  template <typename NodeT>
+  ProcessResult UpdateNodePhiInputForToBoolean(NodeT* node, Phi* phi,
                                                int input_index, bool flip);
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
