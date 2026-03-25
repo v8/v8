@@ -2062,10 +2062,11 @@ class DictionaryElementsAccessor
 
           // Otherwise, bailout or update elements
 
-          // If switched to initial elements, return true if searching for
-          // undefined, and false otherwise.
+          // If the array became empty, return true if searching for
+          // undefined (and if we'll continue searching beyond this index), and
+          // false otherwise.
           if (receiver->map()->GetInitialElements() == receiver->elements()) {
-            return Just(search_for_hole);
+            return Just(search_for_hole && k + 1 < length);
           }
 
           // If switched to fast elements, continue with the correct accessor.
