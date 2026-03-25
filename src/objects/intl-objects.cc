@@ -460,11 +460,13 @@ MaybeDirectHandle<String> Intl::ConvertToUpper(Isolate* isolate,
     {
       DisallowGarbageCollection no_gc;
       String::FlatContent flat = s->GetFlatContent(no_gc);
-      prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
-          reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
-          length);
-      if (prefix == length) {
-        return indirect_handle(s, isolate);
+      if (flat.IsOneByte()) {
+        prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
+            reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
+            length);
+        if (prefix == length) {
+          return indirect_handle(s, isolate);
+        }
       }
     }
     Handle<SeqOneByteString> result =
