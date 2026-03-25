@@ -5289,7 +5289,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
   if (auto slow_closure = closure->TryCast<CreateClosure>()) {
     return GetConstant(slow_closure->feedback_cell());
   }
-  return BuildLoadTaggedField(closure, JSFunction::kFeedbackCellOffset);
+  // The feedback cell is only set when the JSFunction is allocated, or via
+  // LiveEdit, but that doesn't concern optimized code, so treat it as const.
+  return BuildLoadTaggedField(closure, JSFunction::kFeedbackCellOffset,
+                              LoadType::kUnknown, true);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
