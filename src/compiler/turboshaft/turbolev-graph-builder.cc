@@ -3312,9 +3312,12 @@ class GraphBuildingNodeProcessor {
   template <typename NodeT>
   maglev::ProcessResult ProcessAbstractLoadTaggedField(
       NodeT* node, MemoryRepresentation mem_repr) {
+    LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+    if constexpr (requires { node->is_const(); }) {
+      if (node->is_const()) kind = kind.Immutable();
+    }
     V<Object> value =
-        __ Load(Map(node->ValueInput()), LoadOp::Kind::TaggedBase(), mem_repr,
-                node->offset());
+        __ Load(Map(node->ValueInput()), kind, mem_repr, node->offset());
     SetMap(node, value);
 
     if (generator_analyzer_.has_header_bypasses() &&
