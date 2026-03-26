@@ -3506,9 +3506,10 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  if (arity != 2) return NoChange();
+  if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
+  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
@@ -3531,20 +3532,35 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         frame_state, efalse, if_false);
   }
 
-  // Otherwise just use the existing GetPropertyStub.
+  // Otherwise just use the existing GetPropertyStub or GetPropertyWithReceiver.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
   Node* vtrue;
   {
-    Callable callable = Builtins::CallableFor(isolate(), Builtin::kGetProperty);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(),
-        CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
-    vtrue = etrue = if_true =
-        graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
-                         key, context, frame_state, etrue, if_true);
+    if (arity == 3) {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetPropertyWithReceiver);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      Node* on_non_existent = jsgraph()->SmiConstant(1);  // kReturnUndefined
+      vtrue = etrue = if_true = graph()->NewNode(
+          common()->Call(call_descriptor), stub_code, target, key, receiver,
+          on_non_existent, context, frame_state, etrue, if_true);
+    } else {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetProperty);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      vtrue = etrue = if_true =
+          graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
+                           key, context, frame_state, etrue, if_true);
+    }
   }
 
   // Rewire potential exception edges.
