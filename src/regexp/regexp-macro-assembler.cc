@@ -13,7 +13,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/regexp/regexp.h"
 #include "src/regexp/special-case.h"
 #include "src/strings/unicode-inl.h"
 
@@ -572,22 +571,8 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
       subject_ptr->AddressOfCharacterAt(start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const uint8_t* input_end = input_start + byte_length;
-
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  if (V8_UNLIKELY(v8_flags.trace_regexp_exec)) {
-    RegExp::TraceExecutionBegin(reinterpret_cast<Address>(isolate));
-  }
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
-  int res =
-      Execute(*subject, start_offset, input_start, input_end, offsets_vector,
-              offsets_vector_length, isolate, *regexp_data);
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  if (V8_UNLIKELY(v8_flags.trace_regexp_exec)) {
-    RegExp::TraceExecutionEnd(reinterpret_cast<Address>(isolate),
-                              regexp_data->ptr(), subject->ptr(), start_offset);
-  }
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
-  return res;
+  return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
+                 offsets_vector_length, isolate, *regexp_data);
 }
 
 // static

@@ -137,12 +137,12 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
 
-  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
-  inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
-
   class BodyDescriptor;
 
  private:
+  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
+
   friend class RegExpData;
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)

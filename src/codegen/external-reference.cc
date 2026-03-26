@@ -1155,14 +1155,6 @@ FUNCTION_REFERENCE(allocate_regexp_result_vector,
                    regexp::ResultVector::Allocate)
 FUNCTION_REFERENCE(free_regexp_result_vector, regexp::ResultVector::Free)
 
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-ExternalReference ExternalReference::address_of_trace_regexp_exec() {
-  return ExternalReference(&v8_flags.trace_regexp_exec);
-}
-FUNCTION_REFERENCE(address_of_regexp_trace_begin, RegExp::TraceExecutionBegin)
-FUNCTION_REFERENCE(address_of_regexp_trace_end, RegExp::TraceExecutionEnd)
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
-
 FUNCTION_REFERENCE(
     re_case_insensitive_compare_unicode,
     regexp::NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)

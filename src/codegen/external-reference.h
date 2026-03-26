@@ -92,15 +92,6 @@ enum class IsolateFieldId : uint8_t;
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-#define EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)             \
-  V(address_of_trace_regexp_exec, "v8_flags.trace_regexp_exec")   \
-  V(address_of_regexp_trace_begin, "RegExp::TraceExecutionBegin") \
-  V(address_of_regexp_trace_end, "RegExp::TraceExecutionEnd")
-#else
-#define EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
-
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
   V(abort_with_sandbox_violation, "abort_with_sandbox_violation")              \
@@ -502,7 +493,6 @@ enum class IsolateFieldId : uint8_t;
   V(re_atom_exec_raw, "RegExp::AtomExecRaw")                                   \
   V(allocate_regexp_result_vector, "regexp::ResultVector::Allocate")           \
   V(free_regexp_result_vector, "regexp::ResultVector::Free")                   \
-  EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)                                \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
     "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \

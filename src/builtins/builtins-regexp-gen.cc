@@ -635,26 +635,6 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
   Label out(this), atom(this), runtime(this, Label::kDeferred),
       retry_experimental(this, Label::kDeferred);
 
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  TNode<ExternalReference> trace_execution =
-      ExternalConstant(ExternalReference::address_of_trace_regexp_exec());
-  TNode<Uint8T> trace_enabled = Load<Uint8T>(trace_execution);
-  {
-    Label next(this);
-    GotoIf(Word32Equal(trace_enabled, Int32Constant(0)), &next,
-           GotoHint::kLabel);
-    {
-      auto isolate_ptr = ExternalConstant(ExternalReference::isolate_address());
-      CallCFunction(
-          ExternalConstant(ExternalReference::address_of_regexp_trace_begin()),
-          MachineType::Pointer() /* void */,
-          std::make_pair(MachineType::Pointer(), isolate_ptr));
-      Goto(&next);
-    }
-    BIND(&next);
-  }
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
-
   // At this point, last_index is definitely a canonicalized non-negative
   // number, which implies that any non-Smi last_index is greater than
   // the maximal string length. If lastIndex > string.length then the matcher
@@ -926,24 +906,6 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
   }
 
   BIND(&out);
-#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  {
-    Label next(this);
-    GotoIf(Word32Equal(trace_enabled, Int32Constant(0)), &next,
-           GotoHint::kLabel);
-    auto isolate_ptr = ExternalConstant(ExternalReference::isolate_address());
-    CallCFunction(
-        ExternalConstant(ExternalReference::address_of_regexp_trace_end()),
-        MachineType::Pointer() /* void */,
-        std::make_pair(MachineType::Pointer(), isolate_ptr),
-        std::make_pair(MachineType::AnyTagged(), data),
-        std::make_pair(MachineType::AnyTagged(), string),
-        std::make_pair(MachineType::Int32(),
-                       TruncateNumberToWord32(last_index)));
-    Goto(&next);
-    BIND(&next);
-  }
-#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
   return var_result.value();
 }
 
