@@ -698,7 +698,7 @@ VISIT_CHECK(SeqOneByteString)
 VISIT_CHECK(StringOrStringWrapper)
 VISIT_CHECK(StringOrOddball)
 VISIT_CHECK(Symbol)
-#undef PROCESS_CHECK
+#undef VISIT_CHECK
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValue(
     CheckValue* node, const ProcessingState& state) {
@@ -3011,6 +3011,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
   }
 UNIMPLEMENTED_NODE(AssertRangeInt32)
 UNIMPLEMENTED_NODE(AssertRangeFloat64)
+#undef UNIMPLEMENTED_NODE
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64SpeculateSafeAdd(
     Float64SpeculateSafeAdd* node, const ProcessingState& state) {
@@ -3081,6 +3082,12 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
   }
 
 UNREACHABLE_NODES(UNREACHEABLE_VISITOR)
+#undef UNREACHABLE_VISITOR
+#undef UNREACHABLE_NODES
+
+#undef REPLACE_AND_RETURN_IF_DONE
+#undef RETURN_IF_SUCCESS
+#undef TRACE
 
 }  // namespace maglev
 }  // namespace internal

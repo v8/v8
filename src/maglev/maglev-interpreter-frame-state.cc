@@ -1189,6 +1189,8 @@ void MergePointInterpreterFrameState::PrintVirtualObjects(
   }
 }
 
+#undef TRACE
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
