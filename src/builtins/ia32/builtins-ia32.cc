@@ -560,6 +560,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ mov(data,
          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
+  __ JumpIfSmi(data, is_unavailable);
   __ LoadMap(scratch1, data);
 
 #ifndef V8_JITLESS
@@ -1083,7 +1084,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ bind(&compile_lazy);
   // Restore actual argument count.
   __ movd(eax, xmm0);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
 
   __ bind(&is_baseline);
   {

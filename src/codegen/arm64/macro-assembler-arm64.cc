@@ -3894,14 +3894,23 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 
 void MacroAssembler::LoadTrustedUnknownPointerField(
     Register destination, MemOperand field_operand, Register scratch,
-    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+    Label* is_unavailable) {
   DCHECK(!AreAliased(destination, scratch));
-  Label done;
+  Label zero_and_fallthrough, done;
+
+  // The label is_unavailable will be used if the field is null (with enabled
+  // sandbox) or a Smi (with disabled sandbox). In these two cases, if the
+  // label is a nullptr, then we zero the destination register and fall through.
+  if (!is_unavailable) is_unavailable = &zero_and_fallthrough;
 
 #ifdef V8_ENABLE_SANDBOX
   {
     Register handle = scratch;
     Ldr(handle.W(), field_operand);
+
+    static_assert(kNullIndirectPointerHandle == 0);
+    Cbz(handle, is_unavailable);
 
     bool handles_code_case = false;
     constexpr int kCodePointerHandleMarkerBit = 0;
@@ -3922,13 +3931,14 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       }
     }
     if (!handles_code_case) {
-      Tbnz(handle, kCodePointerHandleMarkerBit, &done);
+      Tbnz(handle, kCodePointerHandleMarkerBit, &zero_and_fallthrough);
     }
 
     ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
+  JumpIfSmi(destination, is_unavailable);
 #endif  // V8_ENABLE_SANDBOX
 
 #if V8_STATIC_ROOTS_BOOL
@@ -3953,8 +3963,11 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  bind(&done);
+  B(&done);
+
+  bind(&zero_and_fallthrough);
   Mov(destination, xzr);
+  bind(&done);
 }
 
 void MacroAssembler::StoreTrustedPointerField(Register value,

@@ -727,8 +727,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
           {CODE_TYPE, &is_code, Label::kNear},
 #endif
       });
-  // Fallthrough means none of the types matched. The destination register is
-  // zeroed.
+  // Fallthrough means none of the types matched or the field was invalid.
+  // The destination register is zeroed.
   __ jmp(is_unavailable);
 
 #if !V8_JITLESS_BOOL
@@ -1266,7 +1266,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&compile_lazy);
-  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
+  __ TailCallBuiltin(Builtin::kCompileLazy);
   __ int3();  // Should not return.
 
 #ifndef V8_JITLESS
