@@ -4844,11 +4844,6 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
-void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
-  isolate_->global_handles()->IterateWeakRoots(v);
-  isolate_->traced_handles()->Iterate(v);
-}
-
 void Heap::IterateBuiltins(RootVisitor* v) {
   Builtins* builtins = isolate()->builtins();
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;

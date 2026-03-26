@@ -2705,7 +2705,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   // SetVisitingWeakRoots.
   heap_->IterateWeakRoots(&extractor, {});
   extractor.SetVisitingWeakRoots();
-  heap_->IterateWeakGlobalHandles(&extractor);
+  heap_->isolate()->global_handles()->IterateWeakRoots(&extractor);
 
   bool interrupted = false;
 

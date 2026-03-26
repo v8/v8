@@ -1034,7 +1034,6 @@ class Heap final {
   void IterateSmiRoots(RootVisitor* v);
   // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
-  void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
 
   void IterateStackRoots(RootVisitor* v);

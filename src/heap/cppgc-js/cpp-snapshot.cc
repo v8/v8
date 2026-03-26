@@ -18,11 +18,14 @@
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-worklist-inl.h"
+#include "src/heap/traced-handles-marking-visitor.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
@@ -457,6 +460,7 @@ class CppGraphBuilderImpl final {
   void VisitWeakContainerForVisibility(const HeapObjectHeader&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  cppgc::SourceLocation);
+  void VisitTracedReferenceOnStack(RootState&, Tagged<HeapObject>);
   void ProcessPendingObjects();
 
   void RecordEphemeronKey(const HeapObjectHeader&, const HeapObjectHeader&);
@@ -955,6 +959,14 @@ void CppGraphBuilderImpl::VisitRootForGraphBuilding(
   AddRootEdge(root, current, loc.ToString());
 }
 
+void CppGraphBuilderImpl::VisitTracedReferenceOnStack(
+    RootState& root, Tagged<HeapObject> object) {
+  v8::Local<v8::Data> v8_data =
+      Utils::ToLocal(handle(object, cpp_heap_.isolate()));
+  auto* v8_node = graph_.V8Node(v8_data);
+  graph_.AddEdge(root.get_node(), v8_node);
+}
+
 void CppGraphBuilderImpl::AddEdgeForCppHeapWrapper(
     Tagged<CppHeapPointerWrapperObjectT> object) {
   void* cpp_object = CppHeapObjectWrapper::From(object).GetCppHeapWrappable(
@@ -998,12 +1010,16 @@ class GraphBuildingStackVisitor
       public cppgc::Visitor {
  public:
   GraphBuildingStackVisitor(CppGraphBuilderImpl& graph_builder, CppHeap& heap,
-                            GraphBuildingRootVisitor& root_visitor)
+                            GraphBuildingRootVisitor& root_visitor,
+                            const ParentScope& traced_handles_parent_scope)
       : cppgc::internal::ConservativeTracingVisitor(heap, *heap.page_backend(),
                                                     *this),
         cppgc::Visitor(cppgc::internal::VisitorFactory::CreateKey()),
         graph_builder_(graph_builder),
-        root_visitor_(root_visitor) {}
+        root_visitor_(root_visitor),
+        traced_handles_parent_scope_(traced_handles_parent_scope),
+        isolate_(heap.isolate()),
+        traced_handles_scanner_(isolate_) {}
 
   void VisitPointer(const void* address) final {
     // Entry point for stack walk. The conservative visitor dispatches as
@@ -1011,6 +1027,15 @@ class GraphBuildingStackVisitor
     // - Fully constructed objects: VisitFullyConstructedConservatively()
     // - Objects in construction: VisitInConstructionConservatively()
     TraceConservativelyIfNeeded(address);
+
+    if (TracedNode* node = traced_handles_scanner_.TryFindNode(address)) {
+      Tagged<Object> object = node->object();
+      if (IsHeapObject(object)) {
+        graph_builder_.VisitTracedReferenceOnStack(
+            traced_handles_parent_scope_.ParentAsRootState(),
+            Cast<HeapObject>(object));
+      }
+    }
   }
 
   void VisitFullyConstructedConservatively(HeapObjectHeader& header) final {
@@ -1032,6 +1057,9 @@ class GraphBuildingStackVisitor
 
   CppGraphBuilderImpl& graph_builder_;
   GraphBuildingRootVisitor& root_visitor_;
+  const ParentScope& traced_handles_parent_scope_;
+  Isolate* isolate_;
+  ConservativeTracedHandlesNodeScanner traced_handles_scanner_;
 };
 
 constexpr std::string_view kEphemeronEdgeName =
@@ -1098,11 +1126,14 @@ void CppGraphBuilderImpl::Run() {
   // snapshot without stack. This avoids adding false-positive edges when
   // conservatively scanning the stack.
   if (cpp_heap_.isolate()->heap()->IsGCWithMainThreadStack()) {
-    ParentScope parent_scope(
+    ParentScope native_stack_parent_scope(
         states_.CreateRootState(AddRootNode("C++ native stack roots")));
-    GraphBuildingRootVisitor root_object_visitor(*this, parent_scope);
-    GraphBuildingStackVisitor stack_visitor(*this, cpp_heap_,
-                                            root_object_visitor);
+    ParentScope traced_handles_parent_scope(states_.CreateRootState(
+        AddRootNode("C++ native stack traced handles")));
+    GraphBuildingRootVisitor root_object_visitor(*this,
+                                                 native_stack_parent_scope);
+    GraphBuildingStackVisitor stack_visitor(
+        *this, cpp_heap_, root_object_visitor, traced_handles_parent_scope);
     cpp_heap_.stack()->IteratePointersUntilMarker(&stack_visitor);
   }
   // Connect each cppgc wrapper object to its corresponding cpp object.

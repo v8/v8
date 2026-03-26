@@ -192,6 +192,8 @@ static constexpr const char kExpectedCppCrossThreadRootsName[] =
     "C++ CrossThreadPersistent roots";
 static constexpr const char kExpectedCppStackRootsName[] =
     "C++ native stack roots";
+static constexpr const char kExpectedCppStackTracedHandlesName[] =
+    "C++ native stack traced handles";
 
 template <typename T>
 constexpr const char* GetExpectedName() {
@@ -402,6 +404,53 @@ TEST_F(UnifiedHeapSnapshotTest, RetainedByStackRoots) {
       *snapshot, {kExpectedGCRootsName, kExpectedCppStackRootsName,
                   GetExpectedName<GCed>()}));
   EXPECT_STREQ(gced->GetHumanReadableName(), GetExpectedName<GCed>());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, RetainedByCppStackRootTracedReference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  v8::TracedReference<v8::Object> traced(v8_isolate(),
+                                         v8::Object::New(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppStackTracedHandlesName, "Object"}));
+}
+
+namespace {
+
+class GCedWithTracedReference
+    : public cppgc::GarbageCollected<GCedWithTracedReference> {
+ public:
+  void Trace(cppgc::Visitor* v) const { v->Trace(v8_object_); }
+
+  v8::TracedReference<v8::Object> v8_object_;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, NoWeakTracedReference) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  auto* volatile gced =
+      cppgc::MakeGarbageCollected<GCedWithTracedReference>(allocation_handle());
+  gced->v8_object_.Reset(v8_isolate(), v8::Object::New(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_FALSE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedGCRootsName, kExpectedCppStackTracedHandlesName, "Object"}));
+  EXPECT_FALSE(ContainsRetainingPath(
+      *snapshot, {kExpectedGCRootsName, "(Traced handles)", "Object"}));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithInternalDetails) {
