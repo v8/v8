@@ -533,7 +533,6 @@ class SharedFunctionInfo
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool HasUncompiledDataWithoutPreparseData(
       IsolateForSandbox isolate) const;
-  inline void ClearUncompiledDataJobPointer(IsolateForSandbox isolate);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.

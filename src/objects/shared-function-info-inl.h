@@ -1104,18 +1104,6 @@ bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData(
   return IsUncompiledDataWithoutPreparseData(GetTrustedData(isolate));
 }
 
-void SharedFunctionInfo::ClearUncompiledDataJobPointer(
-    IsolateForSandbox isolate) {
-  Tagged<UncompiledData> uncompiled_data = this->uncompiled_data(isolate);
-  if (Tagged<UncompiledDataWithPreparseDataAndJob> data;
-      TryCast(uncompiled_data, &data)) {
-    data->set_job(kNullAddress);
-  } else if (Tagged<UncompiledDataWithoutPreparseDataWithJob> data_with_job;
-             TryCast(uncompiled_data, &data_with_job)) {
-    data_with_job->set_job(kNullAddress);
-  }
-}
-
 void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
   DCHECK(HasUncompiledDataWithPreparseData(isolate));
   Tagged<UncompiledDataWithPreparseData> data =
