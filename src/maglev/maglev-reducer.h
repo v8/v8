@@ -375,6 +375,43 @@ class MaglevReducer {
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
 
+  template <Builtin kBuiltin>
+  void SetCallBuiltinFeedback(CallBuiltin* call_builtin,
+                              compiler::FeedbackSource const& feedback,
+                              CallBuiltin::FeedbackSlotType slot_type);
+
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(ValueNode* context,
+                                std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs,
+                                compiler::FeedbackSource const& feedback,
+                                CallBuiltin::FeedbackSlotType slot_type);
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(ValueNode* context,
+                                std::initializer_list<ValueNode*> inputs,
+                                compiler::FeedbackSource const& feedback,
+                                CallBuiltin::FeedbackSlotType slot_type);
+
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      ValueNode* context, std::initializer_list<ValueNode*> inputs);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource const& feedback,
+      CallBuiltin::FeedbackSlotType slot_type);
+  template <Builtin kBuiltin>
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
+      ValueNode* context, std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource const& feedback,
+      CallBuiltin::FeedbackSlotType slot_type);
+
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);
 
   MaybeReduceResult TryFoldNumberToString(ValueNode* value);

@@ -17833,31 +17833,10 @@ ReduceResult MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
     std::initializer_list<ValueNode*> inputs) {
   using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
   if constexpr (Descriptor::HasContextParameter()) {
-    return AddNewNode<CallBuiltin>(
-        inputs.size() + 1,
-        [&](CallBuiltin* call_builtin) {
-          int arg_index = 0;
-          for (auto* input : inputs) {
-            ValueNode* tagged_arg;
-            GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(input));
-            call_builtin->set_arg(arg_index++, tagged_arg);
-          }
-          return ReduceResult::Done();
-        },
-        kBuiltin, GetContext());
+    return reducer_.BuildCallBuiltinWithTaggedInputs<kBuiltin>(GetContext(),
+                                                               inputs);
   } else {
-    return AddNewNode<CallBuiltin>(
-        inputs.size(),
-        [&](CallBuiltin* call_builtin) {
-          int arg_index = 0;
-          for (auto* input : inputs) {
-            ValueNode* tagged_arg;
-            GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(input));
-            call_builtin->set_arg(arg_index++, tagged_arg);
-          }
-          return ReduceResult::Done();
-        },
-        kBuiltin);
+    return reducer_.BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs);
   }
 }
 
@@ -17866,31 +17845,9 @@ CallBuiltin* MaglevGraphBuilder::BuildCallBuiltin(
     std::initializer_list<ValueNode*> inputs) {
   using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
   if constexpr (Descriptor::HasContextParameter()) {
-    ReduceResult result = AddNewNode<CallBuiltin>(
-        inputs.size() + 1,
-        [&](CallBuiltin* call_builtin) {
-          int arg_index = 0;
-          for (auto* input : inputs) {
-            call_builtin->set_arg(arg_index++, input);
-          }
-          return ReduceResult::Done();
-        },
-        kBuiltin, GetContext());
-    CHECK(result.IsDoneWithValue());
-    return result.value()->Cast<CallBuiltin>();
+    return reducer_.BuildCallBuiltin<kBuiltin>(GetContext(), inputs);
   } else {
-    ReduceResult result = AddNewNode<CallBuiltin>(
-        inputs.size(),
-        [&](CallBuiltin* call_builtin) {
-          int arg_index = 0;
-          for (auto* input : inputs) {
-            call_builtin->set_arg(arg_index++, input);
-          }
-          return ReduceResult::Done();
-        },
-        kBuiltin);
-    CHECK(result.IsDoneWithValue());
-    return result.value()->Cast<CallBuiltin>();
+    return reducer_.BuildCallBuiltin<kBuiltin>(inputs);
   }
 }
 
@@ -17899,19 +17856,13 @@ CallBuiltin* MaglevGraphBuilder::BuildCallBuiltin(
     std::initializer_list<ValueNode*> inputs,
     compiler::FeedbackSource const& feedback,
     CallBuiltin::FeedbackSlotType slot_type) {
-  CallBuiltin* call_builtin = BuildCallBuiltin<kBuiltin>(inputs);
-  call_builtin->set_feedback(feedback, slot_type);
-#ifdef DEBUG
-  // Check that the last parameters are kSlot and kVector.
   using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
-  int slot_index = call_builtin->InputCountWithoutContext();
-  int vector_index = slot_index + 1;
-  DCHECK_EQ(slot_index, Descriptor::kSlot);
-  // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
-  // to kVector.
-  DCHECK_EQ(vector_index, Descriptor::kVector);
-#endif  // DEBUG
-  return call_builtin;
+  if constexpr (Descriptor::HasContextParameter()) {
+    return reducer_.BuildCallBuiltin<kBuiltin>(GetContext(), inputs, feedback,
+                                               slot_type);
+  } else {
+    return reducer_.BuildCallBuiltin<kBuiltin>(inputs, feedback, slot_type);
+  }
 }
 
 template <Builtin kBuiltin>
@@ -17919,21 +17870,14 @@ ReduceResult MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
     std::initializer_list<ValueNode*> inputs,
     compiler::FeedbackSource const& feedback,
     CallBuiltin::FeedbackSlotType slot_type) {
-  CallBuiltin* call_builtin;
-  GET_VALUE_OR_ABORT(call_builtin,
-                     BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs));
-  call_builtin->set_feedback(feedback, slot_type);
-#ifdef DEBUG
-  // Check that the last parameters are kSlot and kVector.
   using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
-  int slot_index = call_builtin->InputCountWithoutContext();
-  int vector_index = slot_index + 1;
-  DCHECK_EQ(slot_index, Descriptor::kSlot);
-  // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
-  // to kVector.
-  DCHECK_EQ(vector_index, Descriptor::kVector);
-#endif  // DEBUG
-  return call_builtin;
+  if constexpr (Descriptor::HasContextParameter()) {
+    return reducer_.BuildCallBuiltinWithTaggedInputs<kBuiltin>(
+        GetContext(), inputs, feedback, slot_type);
+  } else {
+    return reducer_.BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs, feedback,
+                                                               slot_type);
+  }
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallRuntime(

@@ -1710,6 +1710,152 @@ ReduceResult MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
 }
 
 template <typename BaseT>
+template <Builtin kBuiltin>
+void MaglevReducer<BaseT>::SetCallBuiltinFeedback(
+    CallBuiltin* call_builtin, compiler::FeedbackSource const& feedback,
+    CallBuiltin::FeedbackSlotType slot_type) {
+  call_builtin->set_feedback(feedback, slot_type);
+#ifdef DEBUG
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+  int slot_index = call_builtin->InputCountWithoutContext();
+  int vector_index = slot_index + 1;
+  DCHECK_EQ(slot_index, Descriptor::kSlot);
+  // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
+  // to kVector.
+  DCHECK_EQ(vector_index, Descriptor::kVector);
+#endif  // DEBUG
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+ReduceResult MaglevReducer<BaseT>::BuildCallBuiltinWithTaggedInputs(
+    std::initializer_list<ValueNode*> inputs) {
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+  static_assert(!Descriptor::HasContextParameter());
+  return AddNewNode<CallBuiltin>(
+      inputs.size(),
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        for (auto* input : inputs) {
+          ValueNode* tagged_arg;
+          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(input));
+          call_builtin->set_arg(arg_index++, tagged_arg);
+        }
+        return ReduceResult::Done();
+      },
+      kBuiltin);
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+ReduceResult MaglevReducer<BaseT>::BuildCallBuiltinWithTaggedInputs(
+    ValueNode* context, std::initializer_list<ValueNode*> inputs) {
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+  static_assert(Descriptor::HasContextParameter());
+  return AddNewNode<CallBuiltin>(
+      inputs.size() + 1,
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        for (auto* input : inputs) {
+          ValueNode* tagged_arg;
+          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(input));
+          call_builtin->set_arg(arg_index++, tagged_arg);
+        }
+        return ReduceResult::Done();
+      },
+      kBuiltin, context);
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+ReduceResult MaglevReducer<BaseT>::BuildCallBuiltinWithTaggedInputs(
+    std::initializer_list<ValueNode*> inputs,
+    compiler::FeedbackSource const& feedback,
+    CallBuiltin::FeedbackSlotType slot_type) {
+  ReduceResult result = BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs);
+  RETURN_IF_ABORT(result);
+  SetCallBuiltinFeedback<kBuiltin>(result.value()->Cast<CallBuiltin>(),
+                                   feedback, slot_type);
+  return result;
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+ReduceResult MaglevReducer<BaseT>::BuildCallBuiltinWithTaggedInputs(
+    ValueNode* context, std::initializer_list<ValueNode*> inputs,
+    compiler::FeedbackSource const& feedback,
+    CallBuiltin::FeedbackSlotType slot_type) {
+  ReduceResult result =
+      BuildCallBuiltinWithTaggedInputs<kBuiltin>(context, inputs);
+  RETURN_IF_ABORT(result);
+  SetCallBuiltinFeedback<kBuiltin>(result.value()->Cast<CallBuiltin>(),
+                                   feedback, slot_type);
+  return result;
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
+    std::initializer_list<ValueNode*> inputs) {
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+  static_assert(!Descriptor::HasContextParameter());
+  ReduceResult result = AddNewNode<CallBuiltin>(
+      inputs.size(),
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        for (auto* input : inputs) {
+          call_builtin->set_arg(arg_index++, input);
+        }
+        return ReduceResult::Done();
+      },
+      kBuiltin);
+  CHECK(result.IsDoneWithValue());
+  return result.value()->template Cast<CallBuiltin>();
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
+    ValueNode* context, std::initializer_list<ValueNode*> inputs) {
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+  static_assert(Descriptor::HasContextParameter());
+  ReduceResult result = AddNewNode<CallBuiltin>(
+      inputs.size() + 1,
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        for (auto* input : inputs) {
+          call_builtin->set_arg(arg_index++, input);
+        }
+        return ReduceResult::Done();
+      },
+      kBuiltin, context);
+  CHECK(result.IsDoneWithValue());
+  return result.value()->template Cast<CallBuiltin>();
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
+    std::initializer_list<ValueNode*> inputs,
+    compiler::FeedbackSource const& feedback,
+    CallBuiltin::FeedbackSlotType slot_type) {
+  CallBuiltin* call_builtin = BuildCallBuiltin<kBuiltin>(inputs);
+  SetCallBuiltinFeedback<kBuiltin>(call_builtin, feedback, slot_type);
+  return call_builtin;
+}
+
+template <typename BaseT>
+template <Builtin kBuiltin>
+CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
+    ValueNode* context, std::initializer_list<ValueNode*> inputs,
+    compiler::FeedbackSource const& feedback,
+    CallBuiltin::FeedbackSlotType slot_type) {
+  CallBuiltin* call_builtin = BuildCallBuiltin<kBuiltin>(context, inputs);
+  SetCallBuiltinFeedback<kBuiltin>(call_builtin, feedback, slot_type);
+  return call_builtin;
+}
+
+template <typename BaseT>
 compiler::OptionalStringRef MaglevReducer<BaseT>::GetStringFromInt32(
     int32_t value) {
   switch (value) {
