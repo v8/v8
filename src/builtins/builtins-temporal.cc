@@ -113,13 +113,14 @@ namespace internal {
 // name of the getter on the rust side (ideally the same as `field`). cvt is
 // conversion code that converts `value` into the final returned JS Handle (use
 // one of the macros below)
-#define TEMPORAL_GET_RUST(T, rust_field, METHOD, js_field, rust_getter, cvt) \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
-    HandleScope scope(isolate);                                              \
-    CHECK_RECEIVER(JSTemporal##T, obj,                                       \
-                   "Temporal." #T ".prototype." #js_field);                  \
-    auto value = obj->rust_field()->raw()->rust_getter();                    \
-    cvt                                                                      \
+#define TEMPORAL_GET_RUST(T, METHOD, js_field, rust_getter, cvt) \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                      \
+    HandleScope scope(isolate);                                  \
+    CHECK_RECEIVER(JSTemporal##T, obj,                           \
+                   "Temporal." #T ".prototype." #js_field);      \
+    auto rust = obj->wrapped_rust();                             \
+    auto value = rust->rust_getter();                            \
+    cvt                                                          \
   }
 
 #define CONVERT_INTEGER64 return *isolate->factory()->NewNumberFromInt64(value);
@@ -219,48 +220,44 @@ TEMPORAL_METHOD2(PlainDate, From)
 TEMPORAL_METHOD2(PlainDate, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.calendarid
-TEMPORAL_GET_RUST(PlainDate, date, CalendarId, calendarId,
-                  calendar().identifier, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDate, CalendarId, calendarId, calendar().identifier,
+                  CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.era
-TEMPORAL_GET_RUST(PlainDate, date, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDate, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.erayear
-TEMPORAL_GET_RUST(PlainDate, date, EraYear, eraYear, era_year,
+TEMPORAL_GET_RUST(PlainDate, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.year
-TEMPORAL_GET_RUST(PlainDate, date, Year, year, year, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(PlainDate, Year, year, year, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.month
-TEMPORAL_GET_RUST(PlainDate, date, Month, month, month, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, Month, month, month, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.monthcode
-TEMPORAL_GET_RUST(PlainDate, date, MonthCode, monthCode, month_code,
+TEMPORAL_GET_RUST(PlainDate, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.day
-TEMPORAL_GET_RUST(PlainDate, date, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, Day, day, day, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.dayofweek
-TEMPORAL_GET_RUST(PlainDate, date, DayOfWeek, dayOfWeek, day_of_week,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, DayOfWeek, dayOfWeek, day_of_week, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.dayofyear
-TEMPORAL_GET_RUST(PlainDate, date, DayOfYear, dayOfYear, day_of_year,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, DayOfYear, dayOfYear, day_of_year, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.weekofyear
-TEMPORAL_GET_RUST(PlainDate, date, WeekOfYear, weekOfYear, week_of_year,
+TEMPORAL_GET_RUST(PlainDate, WeekOfYear, weekOfYear, week_of_year,
                   CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.yearofweek
-TEMPORAL_GET_RUST(PlainDate, date, YearOfWeek, YearOfWeek, year_of_week,
+TEMPORAL_GET_RUST(PlainDate, YearOfWeek, YearOfWeek, year_of_week,
                   CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.daysinweek
-TEMPORAL_GET_RUST(PlainDate, date, DaysInWeek, daysInWeek, days_in_week,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, DaysInWeek, daysInWeek, days_in_week, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.daysinmonth
-TEMPORAL_GET_RUST(PlainDate, date, DaysInMonth, daysInMonth, days_in_month,
+TEMPORAL_GET_RUST(PlainDate, DaysInMonth, daysInMonth, days_in_month,
                   CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.daysinyear
-TEMPORAL_GET_RUST(PlainDate, date, DaysInYear, daysInYear, days_in_year,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDate, DaysInYear, daysInYear, days_in_year, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.monthsinyear
-TEMPORAL_GET_RUST(PlainDate, date, MonthsInYear, monthsInYear, months_in_year,
+TEMPORAL_GET_RUST(PlainDate, MonthsInYear, monthsInYear, months_in_year,
                   CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.inleapyear
-TEMPORAL_GET_RUST(PlainDate, date, InLeapYear, inLeapYear, in_leap_year,
+TEMPORAL_GET_RUST(PlainDate, InLeapYear, inLeapYear, in_leap_year,
                   CONVERT_BOOLEAN)
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
@@ -318,20 +315,17 @@ TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_METHOD2(PlainTime, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.hour
-TEMPORAL_GET_RUST(PlainTime, time, Hour, hour, hour, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Hour, hour, hour, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.minute
-TEMPORAL_GET_RUST(PlainTime, time, Minute, minute, minute, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Minute, minute, minute, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.second
-TEMPORAL_GET_RUST(PlainTime, time, Second, second, second, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Second, second, second, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.millisecond
-TEMPORAL_GET_RUST(PlainTime, time, Millisecond, millisecond, millisecond,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Millisecond, millisecond, millisecond, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.microsecond
-TEMPORAL_GET_RUST(PlainTime, time, Microsecond, microsecond, microsecond,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Microsecond, microsecond, microsecond, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.nanosecond
-TEMPORAL_GET_RUST(PlainTime, time, Nanosecond, nanosecond, nanosecond,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainTime, Nanosecond, nanosecond, nanosecond, CONVERT_SMI)
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.add
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Add, add)
@@ -384,62 +378,59 @@ TEMPORAL_METHOD2(PlainDateTime, From)
 TEMPORAL_METHOD2(PlainDateTime, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.calendarid
-TEMPORAL_GET_RUST(PlainDateTime, date_time, CalendarId, calendarId,
-                  calendar().identifier, CONVERT_ASCII_STRING)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Year, year, year, CONVERT_INTEGER64)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Era, era, era,
-                  CONVERT_NULLABLE_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDateTime, CalendarId, calendarId, calendar().identifier,
+                  CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainDateTime, Year, year, year, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(PlainDateTime, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.erayear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, EraYear, eraYear, era_year,
+TEMPORAL_GET_RUST(PlainDateTime, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Month, month, month, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Month, month, month, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.monthcode
-TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthCode, monthCode, month_code,
+TEMPORAL_GET_RUST(PlainDateTime, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.day
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Day, day, day, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.hour
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Hour, hour, hour, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Hour, hour, hour, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.minute
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Minute, minute, minute, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Minute, minute, minute, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.second
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Second, second, second, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Second, second, second, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.millisecond
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Millisecond, millisecond,
-                  millisecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Millisecond, millisecond, millisecond,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.microsecond
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Microsecond, microsecond,
-                  microsecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, Microsecond, microsecond, microsecond,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.nanosecond
-TEMPORAL_GET_RUST(PlainDateTime, date_time, Nanosecond, nanosecond, nanosecond,
+TEMPORAL_GET_RUST(PlainDateTime, Nanosecond, nanosecond, nanosecond,
                   CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.dayofweek
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfWeek, dayOfWeek, day_of_week,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, DayOfWeek, dayOfWeek, day_of_week, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.dayofyear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DayOfYear, dayOfYear, day_of_year,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, DayOfYear, dayOfYear, day_of_year, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.weekofyear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, WeekOfYear, weekOfYear,
-                  week_of_year, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(PlainDateTime, WeekOfYear, weekOfYear, week_of_year,
+                  CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.yearofweek
-TEMPORAL_GET_RUST(PlainDateTime, date_time, YearOfWeek, YearOfWeek,
-                  year_of_week, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(PlainDateTime, YearOfWeek, YearOfWeek, year_of_week,
+                  CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.daysinweek
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInWeek, daysInWeek,
-                  days_in_week, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, DaysInWeek, daysInWeek, days_in_week,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.daysinmonth
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, DaysInMonth, daysInMonth, days_in_month,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.daysinyear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, DaysInYear, daysInYear, days_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.monthsinyear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainDateTime, MonthsInYear, monthsInYear, months_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.inleapyear
-TEMPORAL_GET_RUST(PlainDateTime, date_time, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
+TEMPORAL_GET_RUST(PlainDateTime, InLeapYear, inLeapYear, in_leap_year,
+                  CONVERT_BOOLEAN)
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, With, with)
@@ -496,34 +487,32 @@ TEMPORAL_METHOD2(PlainYearMonth, From)
 TEMPORAL_METHOD2(PlainYearMonth, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.calendarid
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, CalendarId, calendarId,
-                  calendar().identifier, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainYearMonth, CalendarId, calendarId, calendar().identifier,
+                  CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.year
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Year, year, year,
-                  CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(PlainYearMonth, Year, year, year, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.era
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Era, era, era,
-                  CONVERT_NULLABLE_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainYearMonth, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.erayear
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, EraYear, eraYear, era_year,
+TEMPORAL_GET_RUST(PlainYearMonth, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.month
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, Month, month, month, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainYearMonth, Month, month, month, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.monthcode
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, MonthCode, monthCode, month_code,
+TEMPORAL_GET_RUST(PlainYearMonth, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.daysinmonth
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainYearMonth, DaysInMonth, daysInMonth, days_in_month,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.daysinyear
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainYearMonth, DaysInYear, daysInYear, days_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.monthsinyear
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainYearMonth, MonthsInYear, monthsInYear, months_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.inleapyear
-TEMPORAL_GET_RUST(PlainYearMonth, year_month, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
+TEMPORAL_GET_RUST(PlainYearMonth, InLeapYear, inLeapYear, in_leap_year,
+                  CONVERT_BOOLEAN)
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, With, with)
@@ -568,12 +557,12 @@ BUILTIN(TemporalPlainMonthDayConstructor) {
 TEMPORAL_METHOD2(PlainMonthDay, From)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.calendarid
-TEMPORAL_GET_RUST(PlainMonthDay, month_day, CalendarId, calendarId,
-                  calendar().identifier, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(PlainMonthDay, CalendarId, calendarId, calendar().identifier,
+                  CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.day
-TEMPORAL_GET_RUST(PlainMonthDay, month_day, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(PlainMonthDay, Day, day, day, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.monthcode
-TEMPORAL_GET_RUST(PlainMonthDay, month_day, MonthCode, monthCode, month_code,
+TEMPORAL_GET_RUST(PlainMonthDay, MonthCode, monthCode, month_code,
                   CONVERT_ASCII_STRING)
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
@@ -612,77 +601,70 @@ TEMPORAL_METHOD2(ZonedDateTime, From)
 TEMPORAL_METHOD2(ZonedDateTime, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.calendarid
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, CalendarId, calendarId,
-                  calendar().identifier, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(ZonedDateTime, CalendarId, calendarId, calendar().identifier,
+                  CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.timezoneid
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, TimeZoneId, time_zone)
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Year, year, year,
-                  CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(ZonedDateTime, Year, year, year, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.era
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Era, era, era,
-                  CONVERT_NULLABLE_ASCII_STRING)
+TEMPORAL_GET_RUST(ZonedDateTime, Era, era, era, CONVERT_NULLABLE_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.erayear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EraYear, eraYear, era_year,
+TEMPORAL_GET_RUST(ZonedDateTime, EraYear, eraYear, era_year,
                   CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.month
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Month, month, month,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Month, month, month, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.monthcode
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthCode, monthCode,
-                  month_code, CONVERT_ASCII_STRING)
+TEMPORAL_GET_RUST(ZonedDateTime, MonthCode, monthCode, month_code,
+                  CONVERT_ASCII_STRING)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.day
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Day, day, day, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Day, day, day, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hour
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Hour, hour, hour, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Hour, hour, hour, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.minute
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Minute, minute, minute,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Minute, minute, minute, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.second
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Second, second, second,
-                  CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Second, second, second, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.millisecond
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Millisecond, millisecond,
-                  millisecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Millisecond, millisecond, millisecond,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.microsecond
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Microsecond, microsecond,
-                  microsecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Microsecond, microsecond, microsecond,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.nanosecond
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, Nanosecond, nanosecond,
-                  nanosecond, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, Nanosecond, nanosecond, nanosecond,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochmilliseconds
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, EpochMilliseconds,
-                  epochMilliseconds, epoch_milliseconds, CONVERT_DOUBLE)
+TEMPORAL_GET_RUST(ZonedDateTime, EpochMilliseconds, epochMilliseconds,
+                  epoch_milliseconds, CONVERT_DOUBLE)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.epochnanoseconds
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, EpochNanoseconds, nanoseconds)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.dayofweek
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfWeek, dayOfWeek,
-                  day_of_week, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, DayOfWeek, dayOfWeek, day_of_week, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.dayofyear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DayOfYear, dayOfYear,
-                  day_of_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, DayOfYear, dayOfYear, day_of_year, CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.weekofyear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, WeekOfYear, weekOfYear,
-                  week_of_year, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(ZonedDateTime, WeekOfYear, weekOfYear, week_of_year,
+                  CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.yearofweek
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, YearOfWeek, YearOfWeek,
-                  year_of_week, CONVERT_NULLABLE_INTEGER)
+TEMPORAL_GET_RUST(ZonedDateTime, YearOfWeek, YearOfWeek, year_of_week,
+                  CONVERT_NULLABLE_INTEGER)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, HoursInDay, hoursInDay)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.daysinweek
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInWeek, daysInWeek,
-                  days_in_week, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, DaysInWeek, daysInWeek, days_in_week,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.daysinmonth
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInMonth, daysInMonth,
-                  days_in_month, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, DaysInMonth, daysInMonth, days_in_month,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.daysinyear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, DaysInYear, daysInYear,
-                  days_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, DaysInYear, daysInYear, days_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.monthsinyear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, MonthsInYear, monthsInYear,
-                  months_in_year, CONVERT_SMI)
+TEMPORAL_GET_RUST(ZonedDateTime, MonthsInYear, monthsInYear, months_in_year,
+                  CONVERT_SMI)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.inleapyear
-TEMPORAL_GET_RUST(ZonedDateTime, zoned_date_time, InLeapYear, inLeapYear,
-                  in_leap_year, CONVERT_BOOLEAN)
+TEMPORAL_GET_RUST(ZonedDateTime, InLeapYear, inLeapYear, in_leap_year,
+                  CONVERT_BOOLEAN)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, OffsetNanoseconds, offsetNanoseconds)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offset
@@ -758,33 +740,31 @@ TEMPORAL_METHOD1(Duration, From)
 TEMPORAL_METHOD3(Duration, Compare)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.years
-TEMPORAL_GET_RUST(Duration, duration, Years, years, years, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Years, years, years, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.months
-TEMPORAL_GET_RUST(Duration, duration, Months, months, months, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Months, months, months, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.weeks
-TEMPORAL_GET_RUST(Duration, duration, Weeks, weeks, weeks, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Weeks, weeks, weeks, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.days
-TEMPORAL_GET_RUST(Duration, duration, Days, days, days, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Days, days, days, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.hours
-TEMPORAL_GET_RUST(Duration, duration, Hours, hours, hours, CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Hours, hours, hours, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.minutes
-TEMPORAL_GET_RUST(Duration, duration, Minutes, minutes, minutes,
-                  CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Minutes, minutes, minutes, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.seconds
-TEMPORAL_GET_RUST(Duration, duration, Seconds, seconds, seconds,
-                  CONVERT_INTEGER64)
+TEMPORAL_GET_RUST(Duration, Seconds, seconds, seconds, CONVERT_INTEGER64)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.milliseconds
-TEMPORAL_GET_RUST(Duration, duration, Milliseconds, milliseconds, milliseconds,
+TEMPORAL_GET_RUST(Duration, Milliseconds, milliseconds, milliseconds,
                   CONVERT_INTEGER64)
 // In theory the Duration may have millisecond values that are out of range for
 // a float (but in range for a BigInt). Spec asks these functions to be
 // converted to a Number so we can just produce Infinity when we are out of
 // range.
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.microseconds
-TEMPORAL_GET_RUST(Duration, duration, Microseconds, microseconds, microseconds,
+TEMPORAL_GET_RUST(Duration, Microseconds, microseconds, microseconds,
                   CONVERT_DOUBLE)
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.nanoseconds
-TEMPORAL_GET_RUST(Duration, duration, Nanoseconds, nanoseconds, nanoseconds,
+TEMPORAL_GET_RUST(Duration, Nanoseconds, nanoseconds, nanoseconds,
                   CONVERT_DOUBLE)
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.sign
