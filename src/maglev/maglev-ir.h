@@ -6451,7 +6451,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     DCHECK(!HasBeenAnalysed());
     non_escaping_use_count_ += n;
   }
-  bool IsEscaping() const {
+  bool HasEscapingUses() const {
     DCHECK(!HasBeenAnalysed());
     return use_count_ > non_escaping_use_count_;
   }
