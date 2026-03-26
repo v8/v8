@@ -12717,6 +12717,10 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
           {current_interpreter_frame_.get(args[0])}));
       SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
       return ReduceResult::Done();
+    case Runtime::kNewFunctionContext:
+      accumulator_scope_info_ =
+          compilation_unit_->shared_function_info().scope_info(broker());
+      break;
     default:
       break;
   }
@@ -17195,6 +17199,14 @@ void MaglevGraphBuilder::PrewalkBytecode() {
     case interpreter::Bytecode::kCreateCatchContext:
     case interpreter::Bytecode::kCreateWithContext: {
       accumulator_scope_info_ = GetRefOperand<ScopeInfo>(1);
+      break;
+    }
+    case interpreter::Bytecode::kCallRuntime: {
+      uint16_t function_id = iterator_.GetRuntimeIdOperand(0);
+      if (function_id == Runtime::kNewFunctionContext) {
+        accumulator_scope_info_ =
+            compilation_unit_->shared_function_info().scope_info(broker());
+      }
       break;
     }
     default:
