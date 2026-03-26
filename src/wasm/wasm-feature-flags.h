@@ -86,13 +86,6 @@
 // that this list is empty most of the time and that features spend extended
 // time right before or after this phase.
 #define FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(V) /*      (force 80 columns) */ \
-  /* Custom Descriptors proposal. */                                           \
-  /* https://github.com/WebAssembly/custom-descriptors */                      \
-  /* Note: the JS Interop part of the proposal is enabled by */                \
-  /* --experimental-wasm-js-interop for now. */                                \
-  /* V8 side owner: jkummerow */                                               \
-  V(custom_descriptors, "custom descriptors", false)                           \
-                                                                               \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
@@ -114,7 +107,14 @@
 // stabilization.
 // Consider adding a chromium-side use counter if you want to track usage in the
 // wild (also see {V8::UseCounterFeature}).
-#define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */
+#define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
+  /* Custom Descriptors proposal. */                                           \
+  /* https://github.com/WebAssembly/custom-descriptors */                      \
+  /* Note: the JS Interop part of the proposal is enabled by */                \
+  /* --experimental-wasm-js-interop for now. */                                \
+  /* V8 side owner: jkummerow */                                               \
+  /* Staged (without JS Interop) in v14.8 */                                   \
+  V(custom_descriptors, "custom descriptors", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
@@ -130,7 +130,8 @@
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
   /* V8 side owner: gdeepti */                                                 \
-  /* Staged in v14.4 */                                                        \
+  /* Staged in v14.3 */                                                        \
+  /* Shipped in v14.4 */                                                       \
   V(rab_integration, "resizable buffers integration", true)
 
 // Combination of all available wasm feature flags.
