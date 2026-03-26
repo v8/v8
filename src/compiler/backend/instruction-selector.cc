@@ -3565,7 +3565,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
     }
     case Opcode::kWord32PairBinop: {
       const Word32PairBinopOp& binop = op.Cast<Word32PairBinopOp>();
-      MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
       switch (binop.kind) {
         case Word32PairBinopOp::Kind::kAdd:
@@ -3586,7 +3585,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kAtomicWord32Pair: {
       const AtomicWord32PairOp& atomic_op = op.Cast<AtomicWord32PairOp>();
       if (atomic_op.kind != AtomicWord32PairOp::Kind::kStore) {
-        MarkAsWord32(node);
         MarkPairProjectionsAsWord32(node);
       }
       switch (atomic_op.kind) {
