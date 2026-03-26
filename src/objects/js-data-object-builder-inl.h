@@ -8,6 +8,7 @@
 #include "src/objects/js-data-object-builder.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "include/v8config.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -45,7 +46,7 @@ class FoldedMutableHeapNumberAllocator {
  public:
   FoldedMutableHeapNumberAllocator(
       Isolate* isolate, FoldedMutableHeapNumberAllocation* allocation,
-      DisallowGarbageCollection& no_gc)
+      DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
       : isolate_(isolate), roots_(isolate) {
     if (allocation->raw_bytes().is_null()) return;
 

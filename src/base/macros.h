@@ -627,4 +627,15 @@ bool is_inbounds(float_t v) {
 #define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
 #endif  // defined(__clang__)
 
+// Disable/enable -Wlifetime-safety warnings in code.
+#if defined(__clang__)
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS() \
+  _Pragma("clang diagnostic push")              \
+      _Pragma("clang diagnostic ignored \"-Wlifetime-safety\"")
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS() _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#endif  // defined(__clang__)
+
 #endif  // V8_BASE_MACROS_H_

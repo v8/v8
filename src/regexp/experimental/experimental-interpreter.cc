@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-interpreter.h"
 
+#include "include/v8config.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/sandbox/check.h"
@@ -52,7 +53,7 @@ bool SatisfiesAssertion(Assertion::Type type,
 
 base::Vector<Instruction> ToInstructionVector(
     Tagged<TrustedByteArray> raw_bytes,
-    const DisallowGarbageCollection& no_gc) {
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   Instruction* inst_begin = reinterpret_cast<Instruction*>(raw_bytes->begin());
   uint32_t raw_bytes_len = raw_bytes->ulength().value();
   uint32_t inst_num = raw_bytes_len / sizeof(Instruction);
@@ -62,11 +63,13 @@ base::Vector<Instruction> ToInstructionVector(
 
 template <class Character>
 base::Vector<const Character> ToCharacterVector(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc);
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
 template <>
 base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
@@ -75,7 +78,8 @@ base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
 
 template <>
 base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
-    Tagged<String> str, const DisallowGarbageCollection& no_gc) {
+    Tagged<String> str,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(str->IsFlat());
   String::FlatContent content = str->GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());

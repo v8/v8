@@ -7,6 +7,8 @@
 #include <optional>
 
 #include "hwy/highway.h"
+#include "include/v8config.h"
+#include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
@@ -384,7 +386,11 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
     DisallowGarbageCollection no_gc;
     isolate->main_thread_local_heap()->AddGCEpilogueCallback(
         UpdatePointersCallback, this);
+    // Keeping the `GetChars()` result is safe because we update the pointer in
+    // the GCEpilogueCallback.
+    START_IGNORE_LIFETIME_SAFETY_WARNINGS();
     chars_ = Cast<SeqString>(*source_)->GetChars(no_gc);
+    END_IGNORE_LIFETIME_SAFETY_WARNINGS();
     chars_may_relocate_ = true;
   }
   cursor_ = chars_ + start;
@@ -994,9 +1000,9 @@ bool JsonParser<Char>::ParseJsonPropertyValue(const JsonString& key) {
 
 namespace {
 
-const uint8_t* GetFastKeyChars(Isolate* isolate, Tagged<String> key,
-                               Tagged<Map> map,
-                               const DisallowGarbageCollection& no_gc) {
+const uint8_t* GetFastKeyChars(
+    Isolate* isolate, Tagged<String> key, Tagged<Map> map,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(InstanceTypeChecker::IsOneByteString(map));
 #if V8_STATIC_ROOTS_BOOL
   ReadOnlyRoots roots(isolate);

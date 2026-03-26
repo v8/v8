@@ -5,6 +5,7 @@
 #include "src/objects/string.h"
 
 #include "absl/functional/overload.h"
+#include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -684,7 +685,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
                                             IndirectHandle<String> subject);
 
 String::FlatContent String::SlowGetFlatContent(
-    const DisallowGarbageCollection& no_gc,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   Tagged<String> string = this;
@@ -2253,7 +2254,8 @@ Tagged<String> ConsStringIterator::NextLeaf(bool* blew_stack) {
 }
 
 const uint8_t* String::AddressOfCharacterAt(
-    uint32_t start_index, const DisallowGarbageCollection& no_gc) {
+    uint32_t start_index,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(IsFlat());
   Tagged<String> subject = this;
   StringShape shape(subject);

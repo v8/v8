@@ -10,6 +10,7 @@
 #include <cmath>
 #include <optional>
 
+#include "include/v8config.h"
 #include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
@@ -534,7 +535,7 @@ class StringToIntHelper {
   }
 
   base::Vector<const uint8_t> GetOneByteVector(
-      const DisallowGarbageCollection& no_gc) {
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
     if (raw_one_byte_subject_ != nullptr) {
       return base::Vector<const uint8_t>(raw_one_byte_subject_, length_);
     }
@@ -542,7 +543,7 @@ class StringToIntHelper {
   }
 
   base::Vector<const base::uc16> GetTwoByteVector(
-      const DisallowGarbageCollection& no_gc) {
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
     if (raw_two_byte_subject_ != nullptr) {
       return base::Vector<const base::uc16>(raw_two_byte_subject_, length_);
     }

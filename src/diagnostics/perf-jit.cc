@@ -39,6 +39,7 @@
 
 #include <memory>
 
+#include "include/v8config.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
@@ -305,9 +306,9 @@ constexpr size_t kUnknownScriptNameStringLen =
     arraysize(kUnknownScriptNameString) - 1;
 
 namespace {
-base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
-                                       std::unique_ptr<char[]>* storage,
-                                       const DisallowGarbageCollection& no_gc) {
+base::Vector<const char> GetScriptName(
+    Tagged<Object> maybeScript, std::unique_ptr<char[]>* storage,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   if (IsScript(maybeScript)) {
     Tagged<Object> name_or_url =
         Cast<Script>(maybeScript)->GetNameOrSourceURL();

@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 
+#include "include/v8config.h"
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -789,7 +790,8 @@ class FeedbackMetadataIterator {
         slot_kind_(FeedbackSlotKind::kInvalid) {}
 
   FeedbackMetadataIterator(Tagged<FeedbackMetadata> metadata,
-                           const DisallowGarbageCollection& no_gc)
+                           const DisallowGarbageCollection& no_gc
+                               V8_LIFETIME_BOUND)
       : metadata_(metadata),
         next_slot_(FeedbackSlot(0)),
         slot_kind_(FeedbackSlotKind::kInvalid) {}

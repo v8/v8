@@ -13,6 +13,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/regexp/regexp-macro-assembler.h"  // For StackCheckFlag
 
 namespace v8 {
@@ -263,7 +264,8 @@ class BytecodeOperandsBase {
 
   template <Operand op>
     requires(Type(op) == BytecodeOperandType::kBitTable)
-  static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
+  static auto Get(const uint8_t* pc,
+                  const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
     static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
     DCHECK_EQ(Bytecodes::FromPtr(pc), bc);
     constexpr int offset = Offset(op);

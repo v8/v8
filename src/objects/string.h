@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/export-template.h"
 #include "src/base/small-vector.h"
@@ -182,10 +183,13 @@ V8_OBJECT class String : public Name {
 
     // Constructors only used by String::GetFlatContent().
     inline FlatContent(const uint8_t* start, uint32_t length,
-                       const DisallowGarbageCollection& no_gc);
+                       const DisallowGarbageCollection& no_gc
+                           V8_LIFETIME_BOUND);
     inline FlatContent(const base::uc16* start, uint32_t length,
-                       const DisallowGarbageCollection& no_gc);
-    explicit FlatContent(const DisallowGarbageCollection& no_gc)
+                       const DisallowGarbageCollection& no_gc
+                           V8_LIFETIME_BOUND);
+    explicit FlatContent(
+        const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
         : onebyte_start(nullptr), length_(0), state_(NON_FLAT), no_gc_(no_gc) {}
 
     union {
@@ -214,25 +218,26 @@ V8_OBJECT class String : public Name {
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
-      const DisallowGarbageCollection& no_gc);
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get chars from sequential or external strings. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
   inline const Char* GetDirectStringChars(
-      const DisallowGarbageCollection& no_gc) const;
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) const;
 
   // Get chars from sequential or external strings.
   template <typename Char>
   inline const Char* GetDirectStringChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
   const uint8_t* AddressOfCharacterAt(uint32_t start_index,
-                                      const DisallowGarbageCollection& no_gc);
+                                      const DisallowGarbageCollection& no_gc
+                                          V8_LIFETIME_BOUND);
 
   inline uint32_t length() const;
   inline uint32_t length(AcquireLoadTag) const;
@@ -311,9 +316,9 @@ V8_OBJECT class String : public Name {
   // When using a SharedStringAccessGuard, the guard's must outlive the
   // returned FlatContent.
   V8_EXPORT_PRIVATE V8_INLINE FlatContent
-  GetFlatContent(const DisallowGarbageCollection& no_gc);
+  GetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
   V8_EXPORT_PRIVATE V8_INLINE FlatContent
-  GetFlatContent(const DisallowGarbageCollection& no_gc,
+  GetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
                  const SharedStringAccessGuardIfNeeded&);
 
   // Returns the parent of a sliced string or first part of a flat cons string.
@@ -744,12 +749,12 @@ V8_OBJECT class String : public Name {
       Isolate* isolate, HandleType<ConsString> cons, AllocationType allocation);
 
   V8_EXPORT_PRIVATE V8_INLINE static std::optional<FlatContent>
-  TryGetFlatContentFromDirectString(const DisallowGarbageCollection& no_gc,
-                                    Tagged<String> string, uint32_t offset,
-                                    uint32_t length,
-                                    const SharedStringAccessGuardIfNeeded&);
+  TryGetFlatContentFromDirectString(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
+      Tagged<String> string, uint32_t offset, uint32_t length,
+      const SharedStringAccessGuardIfNeeded&);
   V8_EXPORT_PRIVATE FlatContent
-  SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
+  SlowGetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
                      const SharedStringAccessGuardIfNeeded&);
 
   template <template <typename> typename HandleType>
@@ -831,8 +836,9 @@ extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class SubStringRange {
  public:
   inline SubStringRange(Tagged<String> string,
-                        const DisallowGarbageCollection& no_gc, int first = 0,
-                        int length = -1);
+                        const DisallowGarbageCollection& no_gc
+                            V8_LIFETIME_BOUND,
+                        int first = 0, int length = -1);
   class iterator;
   inline iterator begin();
   inline iterator end();
@@ -899,11 +905,12 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  V8_INLINE uint8_t* GetChars(const DisallowGarbageCollection& no_gc);
+  V8_INLINE uint8_t* GetChars(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get a pointer to the characters of the string.
   V8_INLINE uint8_t* GetChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
@@ -971,11 +978,12 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline base::uc16* GetChars(const DisallowGarbageCollection& no_gc);
+  inline base::uc16* GetChars(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get a pointer to the characters of the string.
   inline base::uc16* GetChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
