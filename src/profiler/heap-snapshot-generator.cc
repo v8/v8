@@ -2656,7 +2656,6 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitCompressedRootPointers(Root root, const char* description,
                                    OffHeapObjectSlot start,
                                    OffHeapObjectSlot end) override {
-    DCHECK_EQ(root, Root::kStringTable);
     PtrComprCageBase cage_base(explorer_->heap_->isolate());
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
