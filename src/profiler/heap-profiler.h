@@ -61,7 +61,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   HeapProfiler(const HeapProfiler&) = delete;
   HeapProfiler& operator=(const HeapProfiler&) = delete;
 
-  HeapSnapshot* TakeSnapshot(
+  V8_EXPORT_PRIVATE HeapSnapshot* TakeSnapshot(
       const v8::HeapProfiler::HeapSnapshotOptions options);
 
   // Implementation of --heap-snapshot-on-oom.

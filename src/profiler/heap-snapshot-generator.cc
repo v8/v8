@@ -2699,11 +2699,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   heap_->IterateRoots(
       &extractor,
       base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kTracedHandles});
-  // TODO(v8:11800): The heap snapshot generator incorrectly considers the weak
-  // string tables as strong retainers. Move IterateWeakRoots after
-  // SetVisitingWeakRoots.
-  heap_->IterateWeakRoots(&extractor, {});
   extractor.SetVisitingWeakRoots();
+  heap_->IterateWeakRoots(&extractor, {});
   heap_->isolate()->global_handles()->IterateWeakRoots(&extractor);
 
   bool interrupted = false;
