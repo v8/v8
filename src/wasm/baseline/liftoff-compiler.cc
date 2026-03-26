@@ -11091,4 +11091,16 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   return debug_sidetable_builder.GenerateDebugSideTable();
 }
 
+#undef __
+#undef CODE_COMMENT
+#undef FREEZE_STATE
+#undef FUZZER_HEAVY_INSTRUCTION
+#undef LOAD_INSTANCE_FIELD
+#undef LOAD_PROTECTED_PTR_INSTANCE_FIELD
+#undef LOAD_TAGGED_PTR_FROM_INSTANCE
+#undef LOAD_TAGGED_PTR_INSTANCE_FIELD
+#undef SCOPED_CODE_COMMENT
+#undef TRACE
+#undef WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET
+
 }  // namespace v8::internal::wasm
