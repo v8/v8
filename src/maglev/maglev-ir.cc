@@ -716,6 +716,9 @@ Tribool ValueNode::IsTheHole() const {
     }
     return Tribool::kMaybe;
   }
+  if (Is<Identity>()) {
+    return UnwrapIdentities()->IsTheHole();
+  }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
       bool can_be_the_hole = false;

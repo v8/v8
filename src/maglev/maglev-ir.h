@@ -739,6 +739,7 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
     case Opcode::kCallBuiltin:
     case Opcode::kCallRuntime:
     case Opcode::kGeneratorRestoreRegister:
+    case Opcode::kIdentity:
     case Opcode::kInitialValue:
     case Opcode::kLoadContextSlot:
     case Opcode::kLoadContextSlotNoCells:
