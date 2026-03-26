@@ -75,6 +75,11 @@ macro IsHeapNumber(o: HeapObject): bool {
 }
 
 @export
+macro IsJSModuleNamespace(o: Object): bool {
+  return Is<JSModuleNamespace>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
