@@ -4681,8 +4681,28 @@ void Isolate::UpdateLogObjectRelocation() {
       heap()->has_heap_object_allocation_tracker();
 }
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+void Isolate::PrintAndClearRegExpSubjectStrings() {
+  if (trace_regexp_exec_subject_indices_.empty()) return;
+  DCHECK(v8_flags.trace_regexp_exec_ool_subjects);
+  PrintF("--- RegExp Trace Subject Strings ---\n");
+  for (size_t i = 0; i < trace_regexp_exec_subject_indices_.size(); ++i) {
+    Handle<String> subject = Cast<String>(
+        eternal_handles()->Get(trace_regexp_exec_subject_indices_[i]));
+    std::unique_ptr<char[]> c_str = subject->ToCString();
+    PrintF("Subject #%zu: %s\n", i, c_str.get());
+  }
+  trace_regexp_exec_subject_indices_.clear();
+  trace_regexp_exec_subject_hash_to_index_.clear();
+}
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  PrintAndClearRegExpSubjectStrings();
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #if defined(V8_USE_PERFETTO)
   PerfettoLogger::UnregisterIsolate(this);
