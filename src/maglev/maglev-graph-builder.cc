@@ -4196,8 +4196,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(
 ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(
-          IntersectType(GetType(object), NodeType::kAnyHeapObject))) {
+  NodeType initial_type = GetType(object);
+  if (IsEmptyNodeType(IntersectType(initial_type, NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (Phi* phi = object->TryCast<Phi>()) {
@@ -4208,6 +4208,17 @@ ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
     phi->SetUseRequiresHeapObject();
   }
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
+  if (object->Is<Phi>() && NodeTypeCanBe(initial_type, NodeType::kSmi)) {
+    // If {initial_type} contains kSmi, then phi untagging could widen this to a
+    // HeapNumber. Since the `EnsureType(.. kAnyHeapObject)` above just removed
+    // `kSmi` from the type, we need to make sure that still don't forget that
+    // HeapNumber is actually still a possibility.
+    // TODO(dmercadier): this is only a small band-aid: actually, any
+    // GetType(phi) could return Smi when the actual type ends up being
+    // HeapNumber.
+    NodeInfo* info = GetOrCreateInfoFor(object);
+    info->UnionType(NodeType::kHeapNumber);
+  }
   return AddNewNode<CheckHeapObject>({object});
 }
 
