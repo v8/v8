@@ -3130,9 +3130,8 @@ void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
 
 void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
   Arm64OperandGenerator g(this);
-  // The top 32 bits in the 64-bit register will be undefined, and
-  // must not be used by a dependent node.
-  EmitIdentity(node);
+  OpIndex value = Cast<ChangeOp>(node).input();
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
 void InstructionSelector::VisitFloat64Mod(OpIndex node) {
