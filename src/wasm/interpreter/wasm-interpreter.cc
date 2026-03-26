@@ -6017,8 +6017,9 @@ class Handlers : public HandlersBase {
         wasm_runtime->StructNewUninitialized(index);
     DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
-    WriteBarrierMode mode =
-        struct_type->is_shared() ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
+    WriteBarrierMode mode = struct_type->is_shared() == SharedFlag::kYes
+                                ? UPDATE_WRITE_BARRIER
+                                : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -6089,8 +6090,9 @@ class Handlers : public HandlersBase {
         wasm_runtime->StructNewUninitialized(index);
     DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
-    WriteBarrierMode mode =
-        struct_type->is_shared() ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER;
+    WriteBarrierMode mode = struct_type->is_shared() == SharedFlag::kYes
+                                ? UPDATE_WRITE_BARRIER
+                                : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -7998,7 +8000,7 @@ uint32_t WasmBytecodeGenerator::ScanConstInstructions() {
   const FunctionSig* sig = wasm_code_->function->sig;
   WasmDecoder<Decoder::NoValidationTag> decoder(
       &zone, module_, WasmEnabledFeatures::All(), &detected, sig,
-      false,  // is_shared
+      SharedFlag::kNo,  // is_shared
       wasm_code_->start, wasm_code_->end);
 
   const uint8_t* pc = wasm_code_->start + wasm_code_->locals.encoded_size;

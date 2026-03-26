@@ -830,14 +830,16 @@ WasmInterpreterRuntime::HandleException(uint32_t* sp,
 }
 
 bool WasmInterpreterRuntime::AllowsAtomicsWait() const {
-  return !module_->memories.empty() && module_->memories[0].is_shared &&
+  return !module_->memories.empty() &&
+         module_->memories[0].is_shared == SharedFlag::kYes &&
          isolate_->allow_atomics_wait();
 }
 
 int32_t WasmInterpreterRuntime::AtomicNotify(uint64_t buffer_offset,
                                              uint32_t memory_index,
                                              int32_t val) {
-  if (module_->memories.empty() || !module_->memories[0].is_shared) {
+  if (module_->memories.empty() ||
+      module_->memories[0].is_shared == SharedFlag::kNo) {
     return 0;
   } else {
     HandleScope handle_scope(isolate_);
@@ -1743,8 +1745,8 @@ WasmInterpreterRuntime::CheckIndirectCallSignature(uint32_t table_index,
   const WasmTable& table = module_->tables[table_index];
   bool needs_type_check =
       !EquivalentTypes(table.type.AsNonNull(),
-                       ValueType::Ref(ModuleTypeIndex({sig_index}), false,
-                                      RefTypeKind::kFunction),
+                       ValueType::Ref(ModuleTypeIndex({sig_index}),
+                                      SharedFlag::kNo, RefTypeKind::kFunction),
                        module_, module_);
   bool needs_null_check = table.type.is_nullable();
 
@@ -2397,7 +2399,8 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
 }
 
 DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
-  bool type_is_shared = module_->types[type_index].is_shared;
+  bool type_is_shared =
+      module_->types[type_index].is_shared == SharedFlag::kYes;
   DirectHandle<WasmTrustedInstanceData> data =
       type_is_shared
           ? direct_handle(wasm_trusted_instance_data()->shared_part(), isolate_)
@@ -2412,18 +2415,19 @@ WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
   const TypeDefinition& type = module_->types[index];
   const StructType* struct_type = module_->struct_type({index});
   DirectHandle<Map> rtt = RttCanon(index);
-  return {
-      isolate_->factory()->NewWasmStructUninitialized(
-          struct_type, rtt,
-          type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung),
-      struct_type};
+  return {isolate_->factory()->NewWasmStructUninitialized(
+              struct_type, rtt,
+              type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
+                                                 : AllocationType::kYoung),
+          struct_type};
 }
 
 WasmInterpreterRuntime::ArrayNewResult
 WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
                                               uint32_t array_index) const {
   const ArrayType* array_type = GetArrayType(array_index);
-  const bool is_shared = module_->type(ModuleTypeIndex{array_index}).is_shared;
+  const bool is_shared =
+      module_->type(ModuleTypeIndex{array_index}).is_shared == SharedFlag::kYes;
   if (V8_UNLIKELY(static_cast<int>(length) < 0 ||
                   static_cast<int>(length) >
                       WasmArray::MaxLength(array_type))) {
