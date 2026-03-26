@@ -8,6 +8,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/operation.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -1083,7 +1084,36 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
 
 ProcessResult MaglevGraphOptimizer::VisitCallBuiltin(
     CallBuiltin* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  switch (node->builtin()) {
+    case Builtin::kInstanceOf: {
+      DCHECK_EQ(node->input_count(), 3);
+      ValueNode* object = node->input_node(0);
+      ValueNode* callable = node->input_node(1);
+      ValueNode* context = node->input_node(2);
+      if (Constant* callable_cst = callable->TryCast<Constant>()) {
+        if (callable_cst->object().IsJSObject()) {
+          REPLACE_AND_RETURN_IF_DONE(reducer_.TryBuildFastInstanceOf(
+              context, object, callable_cst->object().AsJSObject(), nullptr));
+        }
+      }
+      break;
+    }
+    case Builtin::kOrdinaryHasInstance: {
+      DCHECK_EQ(node->input_count(), 3);
+      ValueNode* callable = node->input_node(0);
+      ValueNode* object = node->input_node(1);
+      ValueNode* context = node->input_node(2);
+      if (Constant* callable_cst = callable->TryCast<Constant>()) {
+        if (callable_cst->object().IsJSObject()) {
+          REPLACE_AND_RETURN_IF_DONE(reducer_.TryBuildFastOrdinaryHasInstance(
+              context, object, callable_cst->object().AsJSObject(), nullptr));
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2069,7 +2099,9 @@ ProcessResult MaglevGraphOptimizer::VisitTaggedNotEqual(
 
 ProcessResult MaglevGraphOptimizer::VisitTestInstanceOf(
     TestInstanceOf* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryBuildFastInstanceOfWithFeedback(
+      node->ContextInput().node(), node->ObjectInput().node(),
+      node->CallableInput().node(), node->feedback()));
   return ProcessResult::kContinue;
 }
 

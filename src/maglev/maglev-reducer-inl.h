@@ -1866,6 +1866,36 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOfWithFeedback(
+    ValueNode* context, ValueNode* object, ValueNode* callable,
+    compiler::FeedbackSource feedback_source) {
+  compiler::ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForInstanceOf(feedback_source);
+
+  if (feedback.IsInsufficient()) {
+    return EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForInstanceOf);
+  }
+
+  // Check if the right hand side is a known receiver, or
+  // we have feedback from the InstanceOfIC.
+  if (compiler::OptionalJSObjectRef maybe_constant =
+          TryGetConstant<JSObject>(callable)) {
+    return TryBuildFastInstanceOf(context, object, maybe_constant.value(),
+                                  nullptr);
+  }
+  if (feedback_source.IsValid()) {
+    compiler::OptionalJSObjectRef callable_from_feedback =
+        feedback.AsInstanceOf().value();
+    if (callable_from_feedback) {
+      return TryBuildFastInstanceOf(context, object, *callable_from_feedback,
+                                    callable);
+    }
+  }
+  return {};
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(
     ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
   // This is called when converting inputs in AddNewNode. We might already have

@@ -13776,36 +13776,6 @@ ReduceResult MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
   return VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
-
-MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
-    ValueNode* object, ValueNode* callable,
-    compiler::FeedbackSource feedback_source) {
-  compiler::ProcessedFeedback const& feedback =
-      broker()->GetFeedbackForInstanceOf(feedback_source);
-
-  if (feedback.IsInsufficient()) {
-    return EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForInstanceOf);
-  }
-
-  // Check if the right hand side is a known receiver, or
-  // we have feedback from the InstanceOfIC.
-  if (compiler::OptionalJSObjectRef maybe_constant =
-          TryGetConstant<JSObject>(callable)) {
-    return reducer_.TryBuildFastInstanceOf(GetContext(), object,
-                                           maybe_constant.value(), nullptr);
-  }
-  if (feedback_source.IsValid()) {
-    compiler::OptionalJSObjectRef callable_from_feedback =
-        feedback.AsInstanceOf().value();
-    if (callable_from_feedback) {
-      return reducer_.TryBuildFastInstanceOf(GetContext(), object,
-                                             *callable_from_feedback, callable);
-    }
-  }
-  return {};
-}
-
 ReduceResult MaglevGraphBuilder::VisitTestInstanceOf() {
   // TestInstanceOf <src> <feedback_slot>
   ValueNode* object = LoadRegister(0);
@@ -13813,11 +13783,11 @@ ReduceResult MaglevGraphBuilder::VisitTestInstanceOf() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  MaybeReduceResult result =
-      TryBuildFastInstanceOfWithFeedback(object, callable, feedback_source);
+  ValueNode* context = GetContext();
+  MaybeReduceResult result = reducer_.TryBuildFastInstanceOfWithFeedback(
+      context, object, callable, feedback_source);
   PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
 
-  ValueNode* context = GetContext();
   return SetAccumulator(
       AddNewNode<TestInstanceOf>({context, object, callable}, feedback_source));
 }

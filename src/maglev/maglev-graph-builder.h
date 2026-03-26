@@ -1498,10 +1498,6 @@ class MaglevGraphBuilder {
   // array with elements kind |kind|.
   ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
 
-  MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
-      ValueNode* object, ValueNode* callable,
-      compiler::FeedbackSource feedback_source);
-
   bool IsEscaping(InlinedAllocation* allocation);
   VirtualObject* GetObjectFromAllocation(InlinedAllocation* allocation);
   VirtualObject* GetModifiableObjectFromAllocation(

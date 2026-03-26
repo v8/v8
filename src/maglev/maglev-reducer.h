@@ -387,6 +387,9 @@ class MaglevReducer {
                                            ValueNode* object,
                                            compiler::JSObjectRef callable_ref,
                                            ValueNode* callable_node);
+  MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
+      ValueNode* context, ValueNode* object, ValueNode* callable,
+      compiler::FeedbackSource feedback_source);
 
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
