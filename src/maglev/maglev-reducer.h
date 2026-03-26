@@ -222,6 +222,15 @@ concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
 };
 
 template <typename BaseT>
+concept ReducerBaseCanBuildCall = requires(BaseT* b) {
+  b->TryReduceCallForConstant(std::declval<compiler::JSFunctionRef>(),
+                              std::declval<typename BaseT::CallArguments&>());
+  b->BuildGenericCall(std::declval<ValueNode*>(),
+                      std::declval<Call::TargetType>(),
+                      std::declval<typename BaseT::CallArguments&>());
+};
+
+template <typename BaseT>
 concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
@@ -290,6 +299,10 @@ class MaglevReducer {
       std::optional<ValueNode*> map = std::nullopt,
       bool has_deprecated_map_without_migration_target = false,
       bool migration_done_outside = false);
+
+  ReduceResult BuildCheckValueByReference(ValueNode* context, ValueNode* node,
+                                          compiler::HeapObjectRef ref,
+                                          DeoptimizeReason reason);
 
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
@@ -367,6 +380,13 @@ class MaglevReducer {
       ValueNode* receiver, compiler::HeapObjectRef prototype);
   MaybeReduceResult TryBuildFastHasInPrototypeChain(
       ValueNode* object, compiler::HeapObjectRef prototype);
+  MaybeReduceResult TryBuildFastOrdinaryHasInstance(
+      ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+      ValueNode* callable_node_if_not_constant);
+  MaybeReduceResult TryBuildFastInstanceOf(ValueNode* context,
+                                           ValueNode* object,
+                                           compiler::JSObjectRef callable_ref,
+                                           ValueNode* callable_node);
 
   ReduceResult BuildSmiUntag(
       ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
@@ -374,6 +394,13 @@ class MaglevReducer {
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
+
+  ReduceResult BuildOrdinaryHasInstance(
+      ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+      ValueNode* callable_node_if_not_constant);
+
+  template <bool flip = false>
+  ReduceResult BuildToBoolean(ValueNode* value);
 
   template <Builtin kBuiltin>
   void SetCallBuiltinFeedback(CallBuiltin* call_builtin,
@@ -712,6 +739,9 @@ class MaglevReducer {
     NodeType lhs_type = GetType(lhs);
     return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
+
+  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
+                     NodeType new_node_type);
 
   Zone* zone() const { return zone_; }
   Graph* graph() const { return graph_; }

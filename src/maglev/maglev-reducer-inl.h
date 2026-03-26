@@ -1356,6 +1356,48 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckMaps(
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckValueByReference(
+    ValueNode* context, ValueNode* node, compiler::HeapObjectRef ref,
+    DeoptimizeReason reason) {
+  DCHECK(!ref.IsSmi());
+  DCHECK(!ref.IsHeapNumber());
+
+  if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
+    return EmitUnconditionalDeopt(reason);
+  }
+  if (compiler::OptionalHeapObjectRef maybe_constant =
+          TryGetConstant<HeapObject>(node)) {
+    if (maybe_constant.value().equals(ref)) {
+      return ReduceResult::Done();
+    }
+    return EmitUnconditionalDeopt(reason);
+  }
+  RETURN_IF_ABORT(AddNewNode<CheckValue>({node}, ref, reason));
+  SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
+
+  return ReduceResult::Done();
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::SetKnownValue(ValueNode* node,
+                                         compiler::ObjectRef ref,
+                                         NodeType new_node_type) {
+  DCHECK(!node->Is<Constant>());
+  DCHECK(!node->Is<RootConstant>());
+  NodeInfo* known_info = GetOrCreateInfoFor(node);
+  // ref type should be compatible with type.
+  DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
+  if (ref.IsHeapObject()) {
+    DCHECK(IsInstanceOfNodeType(ref.AsHeapObject().map(broker()),
+                                known_info->type(), broker()));
+  } else {
+    DCHECK(!NodeTypeIs(known_info->type(), NodeType::kAnyHeapObject));
+  }
+  known_info->IntersectType(new_node_type);
+  known_info->alternative().set_checked_value(GetConstant(ref));
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldTestUndetectable(
     ValueNode* value) {
   if (value->properties().value_representation() ==
@@ -1638,6 +1680,189 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastHasInPrototypeChain(
   if (in_prototype_chain == kMayBeInPrototypeChain) return {};
 
   return GetBooleanConstant(in_prototype_chain == kIsInPrototypeChain);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastOrdinaryHasInstance(
+    ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  const bool is_constant = callable_node_if_not_constant == nullptr;
+  if (!is_constant) return {};
+
+  if (callable.IsJSBoundFunction()) {
+    compiler::JSBoundFunctionRef function = callable.AsJSBoundFunction();
+    compiler::JSReceiverRef bound_target_function =
+        function.bound_target_function(broker());
+
+    if (bound_target_function.IsJSObject()) {
+      RETURN_IF_DONE(TryBuildFastInstanceOf(
+          context, object, bound_target_function.AsJSObject(), nullptr));
+    }
+
+    return BuildCallBuiltinWithTaggedInputs<Builtin::kInstanceOf>(
+        context, {object, GetConstant(bound_target_function)});
+  }
+
+  if (callable.IsJSFunction()) {
+    compiler::JSFunctionRef function = callable.AsJSFunction();
+
+    if (!function.map(broker()).has_prototype_slot() ||
+        !function.has_instance_prototype(broker()) ||
+        function.PrototypeRequiresRuntimeLookup(broker())) {
+      return {};
+    }
+
+    compiler::HeapObjectRef prototype =
+        broker()->dependencies()->DependOnPrototypeProperty(function);
+    RETURN_IF_DONE(TryBuildFastHasInPrototypeChain(object, prototype));
+    return AddNewNode<HasInPrototypeChain>({object}, prototype);
+  }
+
+  return {};
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildOrdinaryHasInstance(
+    ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  RETURN_IF_DONE(TryBuildFastOrdinaryHasInstance(
+      context, object, callable, callable_node_if_not_constant));
+
+  return BuildCallBuiltinWithTaggedInputs<Builtin::kOrdinaryHasInstance>(
+      context, {callable_node_if_not_constant ? callable_node_if_not_constant
+                                              : GetConstant(callable),
+                object});
+}
+
+template <typename BaseT>
+template <bool flip>
+ReduceResult MaglevReducer<BaseT>::BuildToBoolean(ValueNode* value) {
+  RETURN_IF_DONE(TryFoldToBoolean<flip>(value));
+
+  // Note that we don't pass {value} to GetCheckType since
+  // PhiRepresentationSelection has a special-case to optimize
+  // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
+  // don't need to preserve HeapObjectness here.
+  constexpr ValueNode* kTargetForCheckType = nullptr;
+  return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
+      {value}, GetCheckType(GetType(value), kTargetForCheckType));
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
+    ValueNode* context, ValueNode* object, compiler::JSObjectRef callable,
+    ValueNode* callable_node_if_not_constant) {
+  compiler::MapRef receiver_map = callable.map(broker());
+  compiler::NameRef name = broker()->has_instance_symbol();
+  compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      receiver_map, name, compiler::AccessMode::kLoad);
+
+  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
+    return {};
+  }
+  access_info.RecordDependencies(broker()->dependencies());
+
+  if (access_info.IsNotFound()) {
+    if (!receiver_map.is_callable()) return {};
+
+    broker()->dependencies()->DependOnStablePrototypeChains(
+        access_info.lookup_start_object_maps(), kStartAtPrototype);
+
+    if (callable_node_if_not_constant) {
+      RETURN_IF_ABORT(BuildCheckMaps(
+          callable_node_if_not_constant,
+          base::VectorOf(access_info.lookup_start_object_maps())));
+    } else {
+      if (receiver_map.is_stable()) {
+        broker()->dependencies()->DependOnStableMap(receiver_map);
+      } else {
+        RETURN_IF_ABORT(BuildCheckMaps(
+            GetConstant(callable),
+            base::VectorOf(access_info.lookup_start_object_maps())));
+      }
+    }
+
+    return BuildOrdinaryHasInstance(context, object, callable,
+                                    callable_node_if_not_constant);
+  }
+
+  if (access_info.IsFastDataConstant()) {
+    compiler::OptionalJSObjectRef holder = access_info.holder();
+    bool found_on_proto = holder.has_value();
+    compiler::JSObjectRef holder_ref =
+        found_on_proto ? holder.value() : callable;
+    if (access_info.field_representation().IsDouble()) return {};
+    compiler::OptionalObjectRef has_instance_field =
+        holder_ref.GetOwnFastConstantDataProperty(
+            broker(), access_info.field_representation(),
+            access_info.field_index(), broker()->dependencies());
+    if (!has_instance_field.has_value() ||
+        !has_instance_field->IsHeapObject() ||
+        !has_instance_field->AsHeapObject().map(broker()).is_callable()) {
+      return {};
+    }
+
+    // Abort before the checks if we cannot reduce the node.
+    if (!has_instance_field->IsJSFunction() &&
+        !ReducerBaseCanBuildCall<BaseT>) {
+      return {};
+    }
+
+    if (found_on_proto) {
+      broker()->dependencies()->DependOnStablePrototypeChains(
+          access_info.lookup_start_object_maps(), kStartAtPrototype,
+          holder.value());
+    }
+
+    ValueNode* callable_node;
+    if (callable_node_if_not_constant) {
+      RETURN_IF_ABORT(
+          BuildCheckValueByReference(context, callable_node_if_not_constant,
+                                     callable, DeoptimizeReason::kWrongValue));
+      callable_node = callable_node_if_not_constant;
+    } else {
+      callable_node = GetConstant(callable);
+    }
+
+    RETURN_IF_ABORT(BuildCheckMaps(
+        callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
+
+    if (has_instance_field->IsJSFunction()) {
+      compiler::SharedFunctionInfoRef shared =
+          has_instance_field->AsJSFunction().shared(broker());
+      if (shared.HasBuiltinId() &&
+          shared.builtin_id() == Builtin::kFunctionPrototypeHasInstance) {
+        return BuildOrdinaryHasInstance(context, object, callable,
+                                        callable_node_if_not_constant);
+      }
+    }
+
+    // TODO(victorgomes): Add support in MaglevReducer for generic calls.
+    if constexpr (ReducerBaseCanBuildCall<BaseT>) {
+      typename BaseT::CallArguments args(
+          ConvertReceiverMode::kNotNullOrUndefined, {callable_node, object});
+      ValueNode* call_result;
+      {
+        typename BaseT::LazyDeoptFrameScope continuation_scope(
+            base_, Builtin::kToBooleanLazyDeoptContinuation);
+
+        if (has_instance_field->IsJSFunction()) {
+          GET_VALUE_OR_ABORT(call_result,
+                             base_->TryReduceCallForConstant(
+                                 has_instance_field->AsJSFunction(), args));
+        } else {
+          GET_VALUE_OR_ABORT(call_result, base_->BuildGenericCall(
+                                              GetConstant(*has_instance_field),
+                                              Call::TargetType::kAny, args));
+        }
+      }
+      return BuildToBoolean(call_result);
+    }
+
+    UNREACHABLE();
+  }
+
+  return {};
 }
 
 template <typename BaseT>

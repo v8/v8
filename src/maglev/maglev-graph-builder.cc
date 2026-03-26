@@ -4132,23 +4132,6 @@ ReduceResult MaglevGraphBuilder::VisitStaLookupSlot() {
   return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
-                                       NodeType new_node_type) {
-  DCHECK(!node->Is<Constant>());
-  DCHECK(!node->Is<RootConstant>());
-  NodeInfo* known_info = GetOrCreateInfoFor(node);
-  // ref type should be compatible with type.
-  DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
-  if (ref.IsHeapObject()) {
-    DCHECK(IsInstanceOfNodeType(ref.AsHeapObject().map(broker()),
-                                known_info->type(), broker()));
-  } else {
-    DCHECK(!NodeTypeIs(known_info->type(), NodeType::kAnyHeapObject));
-  }
-  known_info->IntersectType(new_node_type);
-  known_info->alternative().set_checked_value(GetConstant(ref));
-}
-
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(
     ValueNode* object, bool elidable,
     AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
@@ -8245,7 +8228,8 @@ ReduceResult MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitToBooleanLogicalNot() {
-  return SetAccumulator(BuildToBoolean</* flip */ true>(GetAccumulator()));
+  return SetAccumulator(
+      reducer_.BuildToBoolean</* flip */ true>(GetAccumulator()));
 }
 
 ReduceResult MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
@@ -11072,8 +11056,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
   if (!maybe_receiver_constant->map(broker()).is_callable()) {
     return {};
   }
-  return BuildOrdinaryHasInstance(args[0], maybe_receiver_constant.value(),
-                                  nullptr);
+  return reducer_.BuildOrdinaryHasInstance(
+      GetContext(), args[0], maybe_receiver_constant.value(), nullptr);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
@@ -12047,23 +12031,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 
 ReduceResult MaglevGraphBuilder::BuildCheckValueByReference(
     ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason) {
-  DCHECK(!ref.IsSmi());
-  DCHECK(!ref.IsHeapNumber());
-
-  if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
-    return EmitUnconditionalDeopt(reason);
-  }
-  if (compiler::OptionalHeapObjectRef maybe_constant =
-          TryGetConstant<HeapObject>(node)) {
-    if (maybe_constant.value().equals(ref)) {
-      return ReduceResult::Done();
-    }
-    return EmitUnconditionalDeopt(reason);
-  }
-  RETURN_IF_ABORT(AddNewNode<CheckValue>({node}, ref, reason));
-  SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
-
-  return ReduceResult::Done();
+  return reducer_.BuildCheckValueByReference(GetContext(), node, ref, reason);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
@@ -12082,7 +12050,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
     }
     RETURN_IF_ABORT(AddNewNode<CheckValueEqualsString>(
         {node}, ref.AsInternalizedString(), reason));
-    SetKnownValue(node, ref, NodeType::kString);
+    reducer_.SetKnownValue(node, ref, NodeType::kString);
     return ReduceResult::Done();
   }
   return BuildCheckValueByReference(node, ref, reason);
@@ -12141,7 +12109,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
         AddNewNode<CheckFloat64SameValue>({node}, ref_value, reason));
   }
 
-  SetKnownValue(node, ref, NodeType::kNumber);
+  reducer_.SetKnownValue(node, ref, NodeType::kNumber);
   return ReduceResult::Done();
 }
 
@@ -13808,201 +13776,6 @@ ReduceResult MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
   return VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
-ReduceResult MaglevGraphBuilder::BuildHasInPrototypeChain(
-    ValueNode* object, compiler::HeapObjectRef prototype) {
-  RETURN_IF_DONE(reducer_.TryBuildFastHasInPrototypeChain(object, prototype));
-  return AddNewNode<HasInPrototypeChain>({object}, prototype);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryBuildFastOrdinaryHasInstance(
-    ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
-  const bool is_constant = callable_node_if_not_constant == nullptr;
-  if (!is_constant) return {};
-
-  if (callable.IsJSBoundFunction()) {
-    // OrdinaryHasInstance on bound functions turns into a recursive
-    // invocation of the instanceof operator again.
-    compiler::JSBoundFunctionRef function = callable.AsJSBoundFunction();
-    compiler::JSReceiverRef bound_target_function =
-        function.bound_target_function(broker());
-
-    if (bound_target_function.IsJSObject()) {
-      RETURN_IF_DONE(TryBuildFastInstanceOf(
-          object, bound_target_function.AsJSObject(), nullptr));
-    }
-
-    // If we can't build a fast instance-of, build a slow one with the
-    // partial optimisation of using the bound target function constant.
-    return BuildCallBuiltinWithTaggedInputs<Builtin::kInstanceOf>(
-        {object, GetConstant(bound_target_function)});
-  }
-
-  if (callable.IsJSFunction()) {
-    // Optimize if we currently know the "prototype" property.
-    compiler::JSFunctionRef function = callable.AsJSFunction();
-
-    // TODO(v8:7700): Remove the has_prototype_slot condition once the broker
-    // is always enabled.
-    if (!function.map(broker()).has_prototype_slot() ||
-        !function.has_instance_prototype(broker()) ||
-        function.PrototypeRequiresRuntimeLookup(broker())) {
-      return {};
-    }
-
-    compiler::HeapObjectRef prototype =
-        broker()->dependencies()->DependOnPrototypeProperty(function);
-    return BuildHasInPrototypeChain(object, prototype);
-  }
-
-  return {};
-}
-
-ReduceResult MaglevGraphBuilder::BuildOrdinaryHasInstance(
-    ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
-  RETURN_IF_DONE(TryBuildFastOrdinaryHasInstance(
-      object, callable, callable_node_if_not_constant));
-
-  return BuildCallBuiltinWithTaggedInputs<Builtin::kOrdinaryHasInstance>(
-      {callable_node_if_not_constant ? callable_node_if_not_constant
-                                     : GetConstant(callable),
-       object});
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
-    ValueNode* object, compiler::JSObjectRef callable,
-    ValueNode* callable_node_if_not_constant) {
-  compiler::MapRef receiver_map = callable.map(broker());
-  compiler::NameRef name = broker()->has_instance_symbol();
-  compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-      receiver_map, name, compiler::AccessMode::kLoad);
-
-  // TODO(v8:11457) Support dictionary mode holders here.
-  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
-    return {};
-  }
-  access_info.RecordDependencies(broker()->dependencies());
-
-  if (access_info.IsNotFound()) {
-    // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
-    // takes over, but that requires the constructor to be callable.
-    if (!receiver_map.is_callable()) return {};
-
-    broker()->dependencies()->DependOnStablePrototypeChains(
-        access_info.lookup_start_object_maps(), kStartAtPrototype);
-
-    // Monomorphic property access.
-    if (callable_node_if_not_constant) {
-      RETURN_IF_ABORT(BuildCheckMaps(
-          callable_node_if_not_constant,
-          base::VectorOf(access_info.lookup_start_object_maps())));
-    } else {
-      // Even if we have a constant receiver, we still have to make sure its
-      // map is correct, in case it migrates.
-      if (receiver_map.is_stable()) {
-        broker()->dependencies()->DependOnStableMap(receiver_map);
-      } else {
-        RETURN_IF_ABORT(BuildCheckMaps(
-            GetConstant(callable),
-            base::VectorOf(access_info.lookup_start_object_maps())));
-      }
-    }
-
-    return BuildOrdinaryHasInstance(object, callable,
-                                    callable_node_if_not_constant);
-  }
-
-  if (access_info.IsFastDataConstant()) {
-    compiler::OptionalJSObjectRef holder = access_info.holder();
-    bool found_on_proto = holder.has_value();
-    compiler::JSObjectRef holder_ref =
-        found_on_proto ? holder.value() : callable;
-    if (access_info.field_representation().IsDouble()) return {};
-    compiler::OptionalObjectRef has_instance_field =
-        holder_ref.GetOwnFastConstantDataProperty(
-            broker(), access_info.field_representation(),
-            access_info.field_index(), broker()->dependencies());
-    if (!has_instance_field.has_value() ||
-        !has_instance_field->IsHeapObject() ||
-        !has_instance_field->AsHeapObject().map(broker()).is_callable()) {
-      return {};
-    }
-
-    if (found_on_proto) {
-      broker()->dependencies()->DependOnStablePrototypeChains(
-          access_info.lookup_start_object_maps(), kStartAtPrototype,
-          holder.value());
-    }
-
-    ValueNode* callable_node;
-    if (callable_node_if_not_constant) {
-      // Check that {callable_node_if_not_constant} is actually {callable}.
-      RETURN_IF_ABORT(
-          BuildCheckValueByReference(callable_node_if_not_constant, callable,
-                                     DeoptimizeReason::kWrongValue));
-      callable_node = callable_node_if_not_constant;
-    } else {
-      callable_node = GetConstant(callable);
-    }
-    RETURN_IF_ABORT(BuildCheckMaps(
-        callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
-
-    // Special case the common case, where @@hasInstance is
-    // Function.p.hasInstance. In this case we don't need to call ToBoolean (or
-    // use the continuation), since OrdinaryHasInstance is guaranteed to return
-    // a boolean.
-    if (has_instance_field->IsJSFunction()) {
-      compiler::SharedFunctionInfoRef shared =
-          has_instance_field->AsJSFunction().shared(broker());
-      if (shared.HasBuiltinId() &&
-          shared.builtin_id() == Builtin::kFunctionPrototypeHasInstance) {
-        return BuildOrdinaryHasInstance(object, callable,
-                                        callable_node_if_not_constant);
-      }
-    }
-
-    // Call @@hasInstance
-    CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
-                       {callable_node, object});
-    ValueNode* call_result;
-    {
-      // Make sure that a lazy deopt after the @@hasInstance call also performs
-      // ToBoolean before returning to the interpreter.
-      LazyDeoptFrameScope continuation_scope(
-          this, Builtin::kToBooleanLazyDeoptContinuation);
-
-      if (has_instance_field->IsJSFunction()) {
-        SaveCallSpeculationScope saved(this);
-        GET_VALUE_OR_ABORT(
-            call_result,
-            TryReduceCallForConstant(has_instance_field->AsJSFunction(), args));
-      } else {
-        GET_VALUE_OR_ABORT(call_result,
-                           BuildGenericCall(GetConstant(*has_instance_field),
-                                            Call::TargetType::kAny, args));
-      }
-      // TODO(victorgomes): Propagate the case if we need to soft deopt.
-    }
-
-    return BuildToBoolean(call_result);
-  }
-
-  return {};
-}
-
-template <bool flip>
-ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
-  RETURN_IF_DONE(reducer_.TryFoldToBoolean<flip>(value));
-
-  // Note that we don't pass {value} to GetCheckType since
-  // PhiRepresentationSelection has a special-case to optimize
-  // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
-  // don't need to preserve HeapObjectness here.
-  constexpr ValueNode* kTargetForCheckType = nullptr;
-  return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-      {value}, GetCheckType(GetType(value), kTargetForCheckType));
-}
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
     ValueNode* object, ValueNode* callable,
@@ -14019,13 +13792,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
   // we have feedback from the InstanceOfIC.
   if (compiler::OptionalJSObjectRef maybe_constant =
           TryGetConstant<JSObject>(callable)) {
-    return TryBuildFastInstanceOf(object, maybe_constant.value(), nullptr);
+    return reducer_.TryBuildFastInstanceOf(GetContext(), object,
+                                           maybe_constant.value(), nullptr);
   }
   if (feedback_source.IsValid()) {
     compiler::OptionalJSObjectRef callable_from_feedback =
         feedback.AsInstanceOf().value();
     if (callable_from_feedback) {
-      return TryBuildFastInstanceOf(object, *callable_from_feedback, callable);
+      return reducer_.TryBuildFastInstanceOf(GetContext(), object,
+                                             *callable_from_feedback, callable);
     }
   }
   return {};
@@ -14180,7 +13955,7 @@ ReduceResult MaglevGraphBuilder::VisitToString() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitToBoolean() {
-  return SetAccumulator(BuildToBoolean(GetAccumulator()));
+  return SetAccumulator(reducer_.BuildToBoolean(GetAccumulator()));
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {

@@ -87,8 +87,10 @@ class MaglevGraphBuilder {
   friend class MapInference;
 
   using MapInference = maglev::MapInference<MaglevGraphBuilder>;
+  using CallArguments = ::v8::internal::maglev::CallArguments;
 
   class EagerDeoptFrameScope;
+
   class LazyDeoptFrameScope;
 
   class V8_NODISCARD LazyDeoptResultLocationScope {
@@ -370,8 +372,7 @@ class MaglevGraphBuilder {
     return reducer_.HasDisjointType(lhs, rhs_type);
   }
 
-  void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
-                     NodeType new_node_type);
+ public:
   bool ShouldEmitInterruptBudgetChecks();
   bool ShouldEmitOsrInterruptBudgetChecks();
 
@@ -1231,8 +1232,6 @@ class MaglevGraphBuilder {
   ReduceResult BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);
 
-  template <bool flip = false>
-  ReduceResult BuildToBoolean(ValueNode* node);
   ReduceResult BuildLogicalNot(ValueNode* value);
   ReduceResult BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
@@ -1499,17 +1498,6 @@ class MaglevGraphBuilder {
   // array with elements kind |kind|.
   ReduceResult ConvertForStoring(ValueNode* node, ElementsKind kind);
 
-  ReduceResult BuildHasInPrototypeChain(ValueNode* object,
-                                        compiler::HeapObjectRef prototype);
-  MaybeReduceResult TryBuildFastOrdinaryHasInstance(
-      ValueNode* object, compiler::JSObjectRef callable,
-      ValueNode* callable_node);
-  ReduceResult BuildOrdinaryHasInstance(ValueNode* object,
-                                        compiler::JSObjectRef callable,
-                                        ValueNode* callable_node);
-  MaybeReduceResult TryBuildFastInstanceOf(ValueNode* object,
-                                           compiler::JSObjectRef callable_ref,
-                                           ValueNode* callable_node);
   MaybeReduceResult TryBuildFastInstanceOfWithFeedback(
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
