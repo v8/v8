@@ -2375,6 +2375,12 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_lazy_compilation)
 // --single-threaded implies --no-wasm-tier-up.
 DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, single_threaded)
 DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints, single_threaded)
+// Wasm compilation hints generation is incompatible with features that are not
+// implemented in liftoff yet.
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
+                       experimental_wasm_wasmfx)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
+                       experimental_wasm_wasmfx)
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
