@@ -517,9 +517,9 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
-      access_mode == kMemoryAccessProtectedNullDereference) {
-    codegen->RecordProtectedInstruction(pc);
+  if (access_mode == kMemoryAccessTrappingMemOutOfBounds ||
+      access_mode == kMemoryAccessTrappingNullDereference) {
+    codegen->RecordTrappingInstruction(pc);
   }
 }
 #else
@@ -2773,7 +2773,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem, trapper);
       break;
     }
-    case kRiscvLoadDecompressProtected: {
+    case kRiscvLoadDecompressTrapping: {
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
     }

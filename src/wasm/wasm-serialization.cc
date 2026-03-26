@@ -245,7 +245,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // source positions size
                                    sizeof(int) +  // inlining positions size
                                    sizeof(int) +  // deopt data size
-                                   sizeof(int) +  // protected instructions size
+                                   sizeof(int) +  // trapping instructions size
                                    sizeof(int) +  // effect handler count
                                    sizeof(WasmCode::Kind) +  // code kind
                                    sizeof(ExecutionTier);    // tier
@@ -378,8 +378,8 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->inlining_positions().size() +
-         code->protected_instructions_data().size() +
-         code->deopt_data().size() + code->effect_handlers().size();
+         code->trapping_instructions_data().size() + code->deopt_data().size() +
+         code->effect_handlers().size();
 }
 
 size_t NativeModuleSerializer::Measure() const {
@@ -490,7 +490,7 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(static_cast<uint32_t>(code->inlining_positions().size()));
   writer->Write(static_cast<uint32_t>(code->deopt_data().size()));
   writer->Write(
-      static_cast<uint32_t>(code->protected_instructions_data().size()));
+      static_cast<uint32_t>(code->trapping_instructions_data().size()));
   writer->Write(static_cast<uint32_t>(code->effect_handlers().size()));
   writer->Write(code->kind());
   writer->Write(code->tier());
@@ -506,7 +506,7 @@ void NativeModuleSerializer::WriteCode(
   writer->WriteVector(code->source_positions());
   writer->WriteVector(code->inlining_positions());
   writer->WriteVector(code->deopt_data());
-  writer->WriteVector(code->protected_instructions_data());
+  writer->WriteVector(code->trapping_instructions_data());
   writer->WriteVector(code->effect_handlers());
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
@@ -946,9 +946,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   uint32_t source_position_size = reader->Read<uint32_t>();
   uint32_t inlining_position_size = reader->Read<uint32_t>();
   uint32_t deopt_data_size = reader->Read<uint32_t>();
-  // TODO(mliedtke): protected_instructions_data is the first part of the
+  // TODO(mliedtke): trapping_instructions_data is the first part of the
   // meta_data_ array. Ideally the sizes would be in the same order...
-  uint32_t protected_instructions_size = reader->Read<uint32_t>();
+  uint32_t trapping_instructions_size = reader->Read<uint32_t>();
   uint32_t effect_handlers_size = reader->Read<uint32_t>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
@@ -973,8 +973,8 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto source_pos = reader->ReadVector<uint8_t>(source_position_size);
   auto inlining_pos = reader->ReadVector<uint8_t>(inlining_position_size);
   auto deopt_data = reader->ReadVector<uint8_t>(deopt_data_size);
-  auto protected_instructions =
-      reader->ReadVector<uint8_t>(protected_instructions_size);
+  auto trapping_instructions =
+      reader->ReadVector<uint8_t>(trapping_instructions_size);
   auto effect_handlers = reader->ReadVector<uint8_t>(effect_handlers_size);
 
   base::Vector<uint8_t> instructions =
@@ -986,7 +986,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       fn_index, instructions, stack_slot_count, ool_spill_count,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
-      unpadded_binary_size, protected_instructions, reloc_info, source_pos,
+      unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
       inlining_pos, deopt_data, kind, tier, effect_handlers);
   unit.jump_tables = current_jump_tables_;
   if (v8_flags.wasm_lazy_validation) {

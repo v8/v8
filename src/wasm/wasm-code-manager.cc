@@ -74,7 +74,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-using trap_handler::ProtectedInstructionData;
+using trap_handler::TrappingInstructionData;
 
 // Check that {WasmCode} objects are sufficiently small. We create many of them,
 // often for rather small functions.
@@ -232,12 +232,12 @@ std::unique_ptr<const uint8_t[]> WasmCode::ConcatenateBytes(
 void WasmCode::RegisterTrapHandlerData() {
   DCHECK(!has_trap_handler_index());
   if (kind() != WasmCode::kWasmFunction) return;
-  if (protected_instructions_size_ == 0) return;
+  if (trapping_instructions_size_ == 0) return;
 
   Address base = instruction_start();
 
   size_t size = instructions().size();
-  auto protected_instruction_data = this->protected_instructions();
+  auto protected_instruction_data = this->trapping_instructions();
   const int index =
       RegisterHandlerData(base, size, protected_instruction_data.size(),
                           protected_instruction_data.begin());
@@ -335,19 +335,19 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
 }
 
 namespace {
-bool ProtectedInstructionDataCompare(const ProtectedInstructionData& left,
-                                     const ProtectedInstructionData& right) {
+bool TrappingInstructionDataCompare(const TrappingInstructionData& left,
+                                    const TrappingInstructionData& right) {
   return left.instr_offset < right.instr_offset;
 }
 }  // namespace
 
-bool WasmCode::IsProtectedInstruction(Address pc) {
-  base::Vector<const trap_handler::ProtectedInstructionData> instructions =
-      protected_instructions();
-  ProtectedInstructionData offset{
+bool WasmCode::IsTrappingInstruction(Address pc) {
+  base::Vector<const trap_handler::TrappingInstructionData> instructions =
+      trapping_instructions();
+  TrappingInstructionData offset{
       static_cast<uint32_t>(pc - instruction_start())};
   return std::binary_search(instructions.begin(), instructions.end(), offset,
-                            ProtectedInstructionDataCompare);
+                            TrappingInstructionDataCompare);
 }
 
 void WasmCode::Validate() const {
@@ -492,9 +492,9 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     os << "\n";
   }
 
-  if (protected_instructions_size_ > 0) {
-    os << "Protected instructions:\n pc offset\n";
-    for (auto& data : protected_instructions()) {
+  if (trapping_instructions_size_ > 0) {
+    os << "Trapping instructions:\n pc offset\n";
+    for (auto& data : trapping_instructions()) {
       os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
          << "\n";
     }
@@ -643,7 +643,7 @@ size_t WasmCode::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmCode, 112);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
-  result += protected_instructions_size_ + reloc_info_size_ +
+  result += trapping_instructions_size_ + reloc_info_size_ +
             source_positions_size_ + inlining_positions_size_ +
             deopt_data_size_;
   return result;
@@ -1197,7 +1197,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
                    code_comments_offset,     // code_comments_offset
                    jump_table_info_offset,   // jump_table_info_offset
                    instructions.length(),    // unpadded_binary_size
-                   {},                       // protected_instructions
+                   {},                       // trapping_instructions
                    reloc_info.as_vector(),   // reloc_info
                    source_pos.as_vector(),   // source positions
                    {},                       // inlining positions
@@ -1316,7 +1316,7 @@ void NativeModule::InitializeCodePointerTableHandles(
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
     uint32_t tagged_parameter_slots,
-    base::Vector<const uint8_t> protected_instructions_data,
+    base::Vector<const uint8_t> trapping_instructions_data,
     base::Vector<const uint8_t> source_position_table,
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
@@ -1403,7 +1403,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
                                               code_comments_offset,
                                               jump_table_info_offset,
                                               instr_size,
-                                              protected_instructions_data,
+                                              trapping_instructions_data,
                                               reloc_info,
                                               source_position_table,
                                               inlining_positions,
@@ -1626,7 +1626,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int jump_table_info_offset,
     int unpadded_binary_size,
-    base::Vector<const uint8_t> protected_instructions_data,
+    base::Vector<const uint8_t> trapping_instructions_data,
     base::Vector<const uint8_t> reloc_info,
     base::Vector<const uint8_t> source_position_table,
     base::Vector<const uint8_t> inlining_positions,
@@ -1647,7 +1647,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
                                                 code_comments_offset,
                                                 jump_table_info_offset,
                                                 unpadded_binary_size,
-                                                protected_instructions_data,
+                                                trapping_instructions_data,
                                                 reloc_info,
                                                 source_position_table,
                                                 inlining_positions,
@@ -1762,7 +1762,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    jump_table_size,       // code_comments_offset
                    jump_table_size,       // jump_table_info_offset
                    jump_table_size,       // unpadded_binary_size
-                   {},                    // protected_instructions
+                   {},                    // trapping_instructions
                    {},                    // reloc_info
                    {},                    // source_pos
                    {},                    // inlining pos
@@ -2757,7 +2757,7 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
         AddCodeWithCodeSpace(
             result.func_index, result.code_desc, result.frame_slot_count,
             result.ool_spill_count, result.tagged_parameter_slots,
-            result.protected_instructions_data.as_vector(),
+            result.trapping_instructions_data.as_vector(),
             result.source_positions.as_vector(),
             result.inlining_positions.as_vector(),
             result.deopt_data.as_vector(), GetCodeKind(result),
@@ -3040,7 +3040,7 @@ std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
   auto* entry = isolate->wasm_code_look_up_cache()->GetCacheEntry(pc);
   WasmCode* code = entry->code;
   DCHECK_NOT_NULL(code);
-  // For protected instructions we usually do not emit a safepoint because the
+  // For trapping instructions we usually do not emit a safepoint because the
   // frame will be unwound anyway. The exception is debugging code, where the
   // frame might be inspected if "pause on exception" is set.
   // For those instructions, we thus need to explicitly return an empty
@@ -3049,9 +3049,9 @@ std::pair<WasmCode*, SafepointEntry&> WasmCodeManager::LookupCodeAndSafepoint(
   // point.
   // Evaluate this condition only on demand (the fast path does not need it).
   auto expect_safepoint = [code, pc]() {
-    const bool is_protected_instruction = code->IsProtectedInstruction(
-        pc - WasmFrameConstants::kProtectedInstructionReturnAddressOffset);
-    return !is_protected_instruction || code->for_debugging();
+    const bool is_trapping_instruction = code->IsTrappingInstruction(
+        pc - WasmFrameConstants::kTrappingInstructionReturnAddressOffset);
+    return !is_trapping_instruction || code->for_debugging();
   };
   if (!entry->safepoint_entry.is_initialized() && expect_safepoint()) {
     SafepointTable table{code};

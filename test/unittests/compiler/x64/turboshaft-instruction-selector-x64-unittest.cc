@@ -2445,7 +2445,7 @@ TEST_F(TurboshaftInstructionSelectorTest,
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int64());
   V<Simd128> const load = m.Simd128LoadTransform(
       m.Parameter(0), m.Int64Constant(2),
-      Simd128LoadTransformOp::LoadKind::RawAligned().Protected(),
+      Simd128LoadTransformOp::LoadKind::RawAligned().Trapping(),
       Simd128LoadTransformOp::TransformKind::k64Zero, 0);
   V<Simd128> const promote = m.F64x2PromoteLowF32x4(load);
   m.Return(promote);

@@ -902,12 +902,12 @@ bool SLPTree::IsSideEffectFreeRange(OpIndex from, OpIndex to) {
   DCHECK_LE(from.offset(), to.offset());
   if (from == to) return true;
   const OpEffects effects = RefineEffects(graph().Get(to));
-  bool to_is_protected_load = graph().Get(to).IsProtectedLoad();
+  bool to_is_trapping_load = graph().Get(to).IsTrappingLoad();
   for (OpIndex prev_node = graph().PreviousIndex(to); prev_node != from;
        prev_node = graph().PreviousIndex(prev_node)) {
     const OpEffects prev_effects = RefineEffects(graph().Get(prev_node));
-    if ((to_is_protected_load && graph().Get(prev_node).IsProtectedLoad())
-            ? CannotSwapProtectedLoads(prev_effects, effects)
+    if ((to_is_trapping_load && graph().Get(prev_node).IsTrappingLoad())
+            ? CannotSwapTrappingLoads(prev_effects, effects)
             : CannotSwapOperations(prev_effects, effects)) {
       TRACE("break side effect %d, %d\n", prev_node.id(), to.id());
       return false;

@@ -60,8 +60,8 @@ class TrapHandlerGuard {
 struct CodeProtectionInfo {
   uintptr_t base;
   size_t size;
-  size_t num_protected_instructions;
-  ProtectedInstructionData instructions[1];
+  size_t num_trapping_instructions;
+  TrappingInstructionData instructions[1];
 };
 
 class MetadataLock {

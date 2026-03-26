@@ -442,15 +442,14 @@ bool WasmShuffleAnalyzer::CouldLoadPair(const LoadOp& load0,
     const Operation& second = input_graph().Get(second_idx);
     OpEffects second_effects = second.Effects();
     OpIndex prev_idx = input_graph().PreviousIndex(second_idx);
-    bool second_is_protected_load = second.IsProtectedLoad();
+    bool second_is_trapping_load = second.IsTrappingLoad();
 
     while (prev_idx != first_idx) {
       const Operation& prev_op = input_graph().Get(prev_idx);
       OpEffects prev_effects = prev_op.Effects();
-      bool both_protected =
-          second_is_protected_load && prev_op.IsProtectedLoad();
+      bool both_protected = second_is_trapping_load && prev_op.IsTrappingLoad();
       if (both_protected &&
-          CannotSwapProtectedLoads(prev_effects, second_effects)) {
+          CannotSwapTrappingLoads(prev_effects, second_effects)) {
         return false;
       } else if (CannotSwapOperations(prev_effects, second_effects)) {
         return false;

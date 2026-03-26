@@ -275,8 +275,8 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if ((access_mode == kMemoryAccessProtectedMemOutOfBounds) ||
-      (access_mode == kMemoryAccessProtectedNullDereference)) {
+  if ((access_mode == kMemoryAccessTrappingMemOutOfBounds) ||
+      (access_mode == kMemoryAccessTrappingNullDereference)) {
     ReferenceMap* reference_map =
         codegen->zone()->New<ReferenceMap>(codegen->zone());
     // The safepoint has to be recorded at the return address of a call. Address
@@ -284,7 +284,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     // fault address (here `pc`) + 1. Therefore the safepoint here has to be
     // recorded at pc + 1;
     codegen->RecordSafepoint(reference_map, pc + 1);
-    codegen->RecordProtectedInstruction(pc);
+    codegen->RecordTrappingInstruction(pc);
   }
 }
 #else

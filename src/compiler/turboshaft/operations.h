@@ -855,7 +855,7 @@ inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
   return first.produces.bits() & (second.consumes.bits());
 }
 
-inline bool CannotSwapProtectedLoads(OpEffects first, OpEffects second) {
+inline bool CannotSwapTrappingLoads(OpEffects first, OpEffects second) {
   EffectDimensions produces = first.produces;
   // The control flow effects produced by Loads are due to trap handler. We can
   // ignore this kind of effect when swapping two Loads that both have trap
@@ -1017,7 +1017,7 @@ struct alignas(OpIndex) Operation {
     DCHECK_IMPLIES(IsBlockTerminator(), Effects().is_required_when_unused());
     return Effects().is_required_when_unused();
   }
-  bool IsProtectedLoad() const;
+  bool IsTrappingLoad() const;
 
   std::string ToString() const;
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -3004,7 +3004,7 @@ struct LoadOp : OperationT<LoadOp> {
               .is_immutable = false,
               .is_atomic = false};
     }
-    static constexpr Kind Protected() {
+    static constexpr Kind Trapping() {
       return {.tagged_base = false,
               .maybe_unaligned = false,
               .with_trap_handler = true,
@@ -3209,7 +3209,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   OpEffects Effects() const {
     OpEffects effects =
         OpEffects().CanWriteMemory().CanDependOnChecks().CanReadMemory();
-    if (memory_access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
+    if (memory_access_kind == MemoryAccessKind::kTrapping) {
       effects = effects.CanLeaveCurrentFunction();
     }
     return effects;

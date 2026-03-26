@@ -101,10 +101,9 @@ InstructionSelector::InstructionSelector(
       phi_states_(zone)
 #endif
 {
-    turboshaft_use_map_.emplace(*schedule_, zone);
-    protected_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
-    additional_protected_instructions_.emplace(static_cast<int>(node_count),
-                                               zone);
+  turboshaft_use_map_.emplace(*schedule_, zone);
+  trapping_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
+  additional_trapping_instructions_.emplace(static_cast<int>(node_count), zone);
 
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
@@ -383,8 +382,8 @@ bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   return is_exclusive_user_of(schedule(), user, node);
 }
 
-bool InstructionSelector::CanCoverProtectedLoad(OpIndex user,
-                                                OpIndex node) const {
+bool InstructionSelector::CanCoverTrappingLoad(OpIndex user,
+                                               OpIndex node) const {
   DCHECK(CanCover(user, node));
   const Graph* graph = this->turboshaft_graph();
   for (OpIndex next = graph->NextIndex(node); next.valid();
@@ -1052,7 +1051,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
-bool InstructionSelector::IsProtectedLoad(turboshaft::OpIndex node) const {
+bool InstructionSelector::IsTrappingLoad(turboshaft::OpIndex node) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
     return true;
@@ -1067,7 +1066,7 @@ bool InstructionSelector::IsProtectedLoad(turboshaft::OpIndex node) const {
   if (!IsLoadOrLoadImmutable(node)) return false;
 
   bool traps_on_null;
-  return LoadView(schedule_, node).is_protected(&traps_on_null);
+  return LoadView(schedule_, node).is_trapping(&traps_on_null);
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(
@@ -1386,8 +1385,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
     if (operation.Is<TrapIfOp>()) return true;
     if (operation.Is<WasmTrapOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
-      return rmw->memory_access_kind ==
-             MemoryAccessKind::kProtectedByTrapHandler;
+      return rmw->memory_access_kind == MemoryAccessKind::kTrapping;
     }
     if (const Simd128LoadTransformOp* lt =
             operation.TryCast<Simd128LoadTransformOp>()) {
@@ -1408,7 +1406,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
       return dl->load_kind.with_trap_handler;
     }
 #endif
-    if (additional_protected_instructions_->Contains(node.id())) {
+    if (additional_trapping_instructions_->Contains(node.id())) {
       return true;
     }
     return false;
@@ -1518,8 +1516,7 @@ void InstructionSelector::VisitBlock(const Block* block) {
   for (OpIndex node : base::Reversed(this->nodes(block))) {
     int current_node_end = current_num_instructions();
 
-    if (protected_loads_to_remove_->Contains(node.id()) &&
-        !IsReallyUsed(node)) {
+    if (trapping_loads_to_remove_->Contains(node.id()) && !IsReallyUsed(node)) {
       MarkAsDefined(node);
     }
 
@@ -3445,7 +3442,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else if (load.kind.with_trap_handler) {
         DCHECK(!load.kind.maybe_unaligned);
-        return VisitProtectedLoad(node);
+        return VisitTrappingLoad(node);
       } else {
         return VisitLoad(node);
       }
@@ -3474,7 +3471,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else if (store.kind.with_trap_handler) {
         DCHECK(!store.kind.maybe_unaligned);
-        return VisitProtectedStore(node);
+        return VisitTrappingStore(node);
       } else {
         return VisitStore(node);
       }

@@ -646,7 +646,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
-  if (kind.with_trap_handler) os << ", protected";
+  if (kind.with_trap_handler) os << ", trapping";
   if (kind.is_immutable) os << ", immutable";
   os << ", " << loaded_rep;
   os << ", " << result_rep;
@@ -734,7 +734,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
-  if (kind.with_trap_handler) os << ", protected";
+  if (kind.with_trap_handler) os << ", trapping";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
   if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
@@ -1926,7 +1926,7 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
 void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
   os << '[' << (mode == Mode::kLoad ? "Load" : "Store") << ", ";
   if (kind.maybe_unaligned) os << "unaligned, ";
-  if (kind.with_trap_handler) os << "protected, ";
+  if (kind.with_trap_handler) os << "trapping, ";
   switch (lane_kind) {
     case LaneKind::k8:
       os << '8';
@@ -1949,7 +1949,7 @@ void Simd128LaneMemoryOp::PrintOptions(std::ostream& os) const {
 void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (transform_kind) {
 #define PRINT_KIND(kind)       \
@@ -1989,7 +1989,7 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
 void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (kind) {
     case Kind::k8x32:
@@ -2020,7 +2020,7 @@ void Simd256Extract128LaneOp::PrintOptions(std::ostream& os) const {
 void Simd256LoadTransformOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
-  if (load_kind.with_trap_handler) os << "protected, ";
+  if (load_kind.with_trap_handler) os << "trapping, ";
 
   switch (transform_kind) {
 #define PRINT_KIND(kind)       \
@@ -2377,7 +2377,7 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool Operation::IsProtectedLoad() const {
+bool Operation::IsTrappingLoad() const {
   if (const auto* load = TryCast<LoadOp>()) {
     return load->kind.with_trap_handler;
   } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {

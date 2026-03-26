@@ -284,8 +284,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 enum MemoryAccessMode {
   kMemoryAccessDirect = 0,
-  kMemoryAccessProtectedMemOutOfBounds = 1,
-  kMemoryAccessProtectedNullDereference = 2,
+  kMemoryAccessTrappingMemOutOfBounds = 1,
+  kMemoryAccessTrappingNullDereference = 2,
 };
 
 enum class AtomicWidth { kWord32, kWord64 };

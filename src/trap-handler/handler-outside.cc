@@ -46,9 +46,9 @@ namespace v8::internal::trap_handler {
 constexpr size_t kInitialCodeObjectSize = 1024;
 constexpr size_t kCodeObjectGrowthFactor = 2;
 
-constexpr size_t HandlerDataSize(size_t num_protected_instructions) {
+constexpr size_t HandlerDataSize(size_t num_trapping_instructions) {
   return offsetof(CodeProtectionInfo, instructions) +
-         num_protected_instructions * sizeof(ProtectedInstructionData);
+         num_trapping_instructions * sizeof(TrappingInstructionData);
 }
 
 namespace {
@@ -76,8 +76,8 @@ void ValidateCodeObjects() {
 
     if (data == nullptr) continue;
 
-    // Do some sanity checks on the protected instruction data
-    for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
+    // Do some sanity checks on the trapping instruction data
+    for (unsigned j = 0; j < data->num_trapping_instructions; ++j) {
       TH_DCHECK(data->instructions[j].instr_offset >= 0);
       TH_DCHECK(data->instructions[j].instr_offset < data->size);
     }
@@ -107,9 +107,9 @@ void ValidateCodeObjects() {
 }  // namespace
 
 CodeProtectionInfo* CreateHandlerData(
-    uintptr_t base, size_t size, size_t num_protected_instructions,
-    const ProtectedInstructionData* protected_instructions) {
-  const size_t alloc_size = HandlerDataSize(num_protected_instructions);
+    uintptr_t base, size_t size, size_t num_trapping_instructions,
+    const TrappingInstructionData* trapping_instructions) {
+  const size_t alloc_size = HandlerDataSize(num_trapping_instructions);
   CodeProtectionInfo* data =
       reinterpret_cast<CodeProtectionInfo*>(malloc(alloc_size));
 
@@ -119,21 +119,21 @@ CodeProtectionInfo* CreateHandlerData(
 
   data->base = base;
   data->size = size;
-  data->num_protected_instructions = num_protected_instructions;
+  data->num_trapping_instructions = num_trapping_instructions;
 
-  if (num_protected_instructions > 0) {
-    memcpy(data->instructions, protected_instructions,
-           num_protected_instructions * sizeof(ProtectedInstructionData));
+  if (num_trapping_instructions > 0) {
+    memcpy(data->instructions, trapping_instructions,
+           num_trapping_instructions * sizeof(TrappingInstructionData));
   }
 
   return data;
 }
 
-int RegisterHandlerData(
-    uintptr_t base, size_t size, size_t num_protected_instructions,
-    const ProtectedInstructionData* protected_instructions) {
+int RegisterHandlerData(uintptr_t base, size_t size,
+                        size_t num_trapping_instructions,
+                        const TrappingInstructionData* trapping_instructions) {
   CodeProtectionInfo* data = CreateHandlerData(
-      base, size, num_protected_instructions, protected_instructions);
+      base, size, num_trapping_instructions, trapping_instructions);
 
   if (data == nullptr) {
     abort();

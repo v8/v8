@@ -332,9 +332,8 @@ class WasmLoweringReducer : public Next {
 
     V<WordPtr> offset =
         __ WordPtrConstant(field_offset(type, field_index) - kHeapObjectTag);
-    MemoryAccessKind kind = implicit_null_check
-                                ? MemoryAccessKind::kProtectedByTrapHandler
-                                : MemoryAccessKind::kNormal;
+    MemoryAccessKind kind = implicit_null_check ? MemoryAccessKind::kTrapping
+                                                : MemoryAccessKind::kNormal;
     if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
       return __ AtomicCompareExchange(object, offset, expected.value(), value,
                                       repr.ToRegisterRepresentation(), repr,

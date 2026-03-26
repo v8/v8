@@ -698,7 +698,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   EmitLoad(this, opcode, &output, base, index);
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -888,7 +888,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }

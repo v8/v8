@@ -3794,7 +3794,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
 void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ addq(
       kWasmTrapHandlerFaultAddressRegister,
-      Immediate(WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
+      Immediate(WasmFrameConstants::kTrappingInstructionReturnAddressOffset));
   __ pushq(kWasmTrapHandlerFaultAddressRegister);
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   // This landing pad pushes kWasmTrapHandlerFaultAddressRegister to the stack

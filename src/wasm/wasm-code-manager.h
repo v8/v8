@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
   size_t instructions_size() const { return instructions_size_; }
   base::Vector<const uint8_t> reloc_info() const {
-    return {protected_instructions_data().end(), reloc_info_size_};
+    return {trapping_instructions_data().end(), reloc_info_size_};
   }
   base::Vector<const uint8_t> source_positions() const {
     return {reloc_info().end(), source_positions_size_};
@@ -264,21 +264,21 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // (otherwise debug side table positions would not match up).
   bool is_inspectable() const { return is_liftoff() && for_debugging(); }
 
-  base::Vector<const uint8_t> protected_instructions_data() const {
-    return {meta_data_.get(), protected_instructions_size_};
+  base::Vector<const uint8_t> trapping_instructions_data() const {
+    return {meta_data_.get(), trapping_instructions_size_};
   }
 
-  base::Vector<const trap_handler::ProtectedInstructionData>
-  protected_instructions() const {
-    return base::Vector<const trap_handler::ProtectedInstructionData>::cast(
-        protected_instructions_data());
+  base::Vector<const trap_handler::TrappingInstructionData>
+  trapping_instructions() const {
+    return base::Vector<const trap_handler::TrappingInstructionData>::cast(
+        trapping_instructions_data());
   }
 
   base::Vector<const uint8_t> effect_handlers() const {
     return {deopt_data().end(), effect_handlers_size_};
   }
 
-  bool IsProtectedInstruction(Address pc);
+  bool IsTrappingInstruction(Address pc);
 
   void Validate() const;
   void Print(const char* name = nullptr) const;
@@ -422,7 +422,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            int handler_table_offset, int constant_pool_offset,
            int code_comments_offset, int jump_table_info_offset,
            int unpadded_binary_size,
-           base::Vector<const uint8_t> protected_instructions_data,
+           base::Vector<const uint8_t> trapping_instructions_data,
            base::Vector<const uint8_t> reloc_info,
            base::Vector<const uint8_t> source_position_table,
            base::Vector<const uint8_t> inlining_positions,
@@ -433,7 +433,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
       : native_module_(native_module),
         instructions_(instructions.begin()),
         signature_hash_(signature_hash),
-        meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
+        meta_data_(ConcatenateBytes({trapping_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data, effect_handlers})),
         instructions_size_(static_cast<uint32_t>(instructions.size())),
@@ -443,8 +443,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
         inlining_positions_size_(
             static_cast<uint32_t>(inlining_positions.size())),
         deopt_data_size_(static_cast<uint32_t>(deopt_data.size())),
-        protected_instructions_size_(
-            static_cast<uint32_t>(protected_instructions_data.size())),
+        trapping_instructions_size_(
+            static_cast<uint32_t>(trapping_instructions_data.size())),
         index_(index),
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
@@ -482,7 +482,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
   bool has_trap_handler_index() const { return trap_handler_index_ >= 0; }
 
-  // Register protected instruction information with the trap handler. Sets
+  // Register trapping instruction information with the trap handler. Sets
   // trap_handler_index.
   void RegisterTrapHandlerData();
 
@@ -494,18 +494,18 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint8_t* const instructions_;
   const uint64_t signature_hash_;
   // {meta_data_} contains several byte vectors concatenated into one:
-  //  - protected instructions data of size {protected_instructions_size_}
+  //  - trapping instructions data of size {trapping_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
   //  - source positions of size {source_positions_size_}
   //  - deopt data of size {deopt_data_size_}
-  // Note that the protected instructions come first to ensure alignment.
+  // Note that the trapping instructions come first to ensure alignment.
   std::unique_ptr<const uint8_t[]> meta_data_;
   const uint32_t instructions_size_;
   const uint32_t reloc_info_size_;
   const uint32_t source_positions_size_;
   const uint32_t inlining_positions_size_;
   const uint32_t deopt_data_size_;
-  const uint32_t protected_instructions_size_;
+  const uint32_t trapping_instructions_size_;
   const int index_;  // The wasm function-index within the module.
   const int constant_pool_offset_;
   const int stack_slots_;
@@ -693,7 +693,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int safepoint_table_offset, int handler_table_offset,
       int constant_pool_offset, int code_comments_offset,
       int jump_table_info_offset, int unpadded_binary_size,
-      base::Vector<const uint8_t> protected_instructions_data,
+      base::Vector<const uint8_t> trapping_instructions_data,
       base::Vector<const uint8_t> reloc_info,
       base::Vector<const uint8_t> source_position_table,
       base::Vector<const uint8_t> inlining_positions,
@@ -968,7 +968,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
       int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
       uint32_t tagged_parameter_slots,
-      base::Vector<const uint8_t> protected_instructions_data,
+      base::Vector<const uint8_t> trapping_instructions_data,
       base::Vector<const uint8_t> source_position_table,
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,

@@ -2823,8 +2823,8 @@ wasm::WasmCompilationResult WrapperCompilationResult(
       static_cast<int>(code_generator->handler_table_offset()));
   result.instr_buffer = code_generator->masm()->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
-  result.protected_instructions_data =
-      code_generator->GetProtectedInstructionsData();
+  result.trapping_instructions_data =
+      code_generator->GetTrappingInstructionsData();
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
@@ -3280,8 +3280,8 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.source_positions = code_generator->GetSourcePositionTable();
   result.inlining_positions = SerializeInliningPositions(inlining_positions);
-  result.protected_instructions_data =
-      code_generator->GetProtectedInstructionsData();
+  result.trapping_instructions_data =
+      code_generator->GetTrappingInstructionsData();
   result.deopt_data = code_generator->GenerateWasmDeoptimizationData();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
   result.effect_handlers = code_generator->GenerateWasmEffectHandlers();

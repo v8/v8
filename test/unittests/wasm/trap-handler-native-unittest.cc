@@ -328,7 +328,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -378,7 +378,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   int handler_id = trap_handler::RegisterHandlerData(
       reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
       &protected_instruction);
@@ -430,7 +430,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{no_crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{no_crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -465,7 +465,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 

@@ -57,13 +57,13 @@ bool IsFaultAddressCovered(uintptr_t fault_addr) {
       // Hurray, we found the code object. Check for protected addresses.
       const uint32_t offset = static_cast<uint32_t>(fault_addr - base);
       // The offset must fit in 32 bit, see comment on
-      // ProtectedInstructionData::instr_offset.
+      // TrappingInstructionData::instr_offset.
       TH_DCHECK(base + offset == fault_addr);
 
 #ifdef V8_ENABLE_DRUMBRAKE
-      // Ignore the protected instruction offsets if we are running in the Wasm
+      // Ignore the trapping instruction offsets if we are running in the Wasm
       // interpreter.
-      if (data->num_protected_instructions == 0) {
+      if (data->num_trapping_instructions == 0) {
         gRecoveredTrapCount.store(
             gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,
             std::memory_order_relaxed);
@@ -71,7 +71,7 @@ bool IsFaultAddressCovered(uintptr_t fault_addr) {
       }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-      for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
+      for (unsigned j = 0; j < data->num_trapping_instructions; ++j) {
         if (data->instructions[j].instr_offset == offset) {
           // Hurray again, we found the actual instruction.
           gRecoveredTrapCount.store(

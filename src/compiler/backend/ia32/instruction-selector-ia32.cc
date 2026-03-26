@@ -925,7 +925,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // Trap handler is not supported on IA32.
   UNREACHABLE();
 }
@@ -1120,7 +1120,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, this->store_view(node));
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // Trap handler is not supported on IA32.
   UNREACHABLE();
 }
@@ -3768,8 +3768,7 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(OpIndex node) {
 
   if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
     // Trap handler is not supported on IA32.
-    DCHECK_NE(m.ResolvedValue().kind,
-              MemoryAccessKind::kProtectedByTrapHandler);
+    DCHECK_NE(m.ResolvedValue().kind, MemoryAccessKind::kTrapping);
     // LoadTransforms cannot be eliminated, so they are visited even if
     // unused. Mark it as defined so that we don't visit it.
     MarkAsDefined(input);

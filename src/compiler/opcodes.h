@@ -880,8 +880,8 @@
   V(Word32PairShl)                       \
   V(Word32PairShr)                       \
   V(Word32PairSar)                       \
-  V(ProtectedLoad)                       \
-  V(ProtectedStore)                      \
+  V(TrappingLoad)                        \
+  V(TrappingStore)                       \
   V(LoadTrapOnNull)                      \
   V(StoreTrapOnNull)                     \
   V(MemoryBarrier)                       \

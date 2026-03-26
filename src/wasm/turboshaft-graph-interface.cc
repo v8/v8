@@ -4364,7 +4364,7 @@ class TurboshaftGraphBuildingInterface
     // check.
     MemoryAccessKind access_kind =
         bounds_check_result == compiler::BoundsCheckResult::kTrapHandler
-            ? MemoryAccessKind::kProtectedByTrapHandler
+            ? MemoryAccessKind::kTrapping
             : MemoryAccessKind::kNormal;
 
     if (info.op_type == kBinop) {
@@ -4398,8 +4398,8 @@ class TurboshaftGraphBuildingInterface
           value, info.memory_rep.ToMachineType().representation(), wasm_type);
 #endif
       __ Store(MemBuffer(imm.mem_index, imm.offset), index, value,
-               access_kind == MemoryAccessKind::kProtectedByTrapHandler
-                   ? LoadOp::Kind::Protected().Atomic()
+               access_kind == MemoryAccessKind::kTrapping
+                   ? LoadOp::Kind::Trapping().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
                info.memory_rep, compiler::kNoWriteBarrier, imm.memory_order);
       return;
@@ -4418,12 +4418,11 @@ class TurboshaftGraphBuildingInterface
       loaded_value_rep = RegisterRepresentation::Word32();
     }
 #endif
-    result->op =
-        __ Load(MemBuffer(imm.mem_index, imm.offset), index,
-                access_kind == MemoryAccessKind::kProtectedByTrapHandler
-                    ? LoadOp::Kind::Protected().Atomic()
-                    : LoadOp::Kind::RawAligned().Atomic(),
-                info.memory_rep, loaded_value_rep);
+    result->op = __ Load(MemBuffer(imm.mem_index, imm.offset), index,
+                         access_kind == MemoryAccessKind::kTrapping
+                             ? LoadOp::Kind::Trapping().Atomic()
+                             : LoadOp::Kind::RawAligned().Atomic(),
+                         info.memory_rep, loaded_value_rep);
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.
@@ -8116,7 +8115,7 @@ class TurboshaftGraphBuildingInterface
       DCHECK(repr == MemoryRepresentation::Int8() ||
              repr == MemoryRepresentation::Uint8() ||
              SupportedOperations::IsUnalignedLoadSupported(repr));
-      result = LoadOp::Kind::Protected();
+      result = LoadOp::Kind::Trapping();
     } else if (repr != MemoryRepresentation::Int8() &&
                repr != MemoryRepresentation::Uint8() &&
                !SupportedOperations::IsUnalignedLoadSupported(repr)) {

@@ -1148,7 +1148,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   // x64 supports unaligned loads.
   DCHECK(!load.kind.maybe_unaligned);
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
 }
@@ -1200,7 +1200,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
   InstructionCode code = opcode;
   if (op.load_kind.with_trap_handler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   VisitLoad(node, node, code);
 }
@@ -1282,7 +1282,7 @@ void InstructionSelector::VisitSimd256LoadTransform(OpIndex node) {
   DCHECK(!op.load_kind.maybe_unaligned);
   InstructionCode code = opcode;
   if (op.load_kind.with_trap_handler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   VisitLoad(node, node, code);
 }
@@ -1393,11 +1393,11 @@ void InstructionSelector::VisitLoad(OpIndex node, OpIndex value,
   if (this->is_load(node)) {
     auto load = load_view(node);
     bool traps_on_null;
-    if (load.is_protected(&traps_on_null)) {
+    if (load.is_trapping(&traps_on_null)) {
       if (traps_on_null) {
-        code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+        code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
       } else {
-        code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+        code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
     }
   }
@@ -1410,7 +1410,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
             GetLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) { VisitLoad(node); }
+void InstructionSelector::VisitTrappingLoad(OpIndex node) { VisitLoad(node); }
 
 namespace {
 
@@ -1434,8 +1434,8 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  temps.size(), temps.data());
@@ -1465,10 +1465,10 @@ void VisitStoreCommon(InstructionSelector* selector,
   }
 
   const auto access_mode =
-      acs_kind == MemoryAccessKind::kProtectedByTrapHandler
+      acs_kind == MemoryAccessKind::kTrapping
           ? (store.is_store_trap_on_null()
-                 ? kMemoryAccessProtectedNullDereference
-                 : MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds)
+                 ? kMemoryAccessTrappingNullDereference
+                 : MemoryAccessMode::kMemoryAccessTrappingMemOutOfBounds)
           : MemoryAccessMode::kMemoryAccessDirect;
 
   DCHECK_IMPLIES(write_barrier_kind == kSkippedWriteBarrier,
@@ -1603,7 +1603,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   return VisitStoreCommon(this, store_view(node));
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   return VisitStoreCommon(this, store_view(node));
 }
 
@@ -1640,7 +1640,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   opcode |= AddressingModeField::encode(addressing_mode);
 
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
 
   InstructionOperand value_operand = g.UseRegister(store.value());
@@ -2792,20 +2792,20 @@ void VisitFloatBinop(InstructionSelector* selector, OpIndex node,
           g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
       avx_opcode |= AddressingModeField::encode(addressing_mode);
       sse_opcode |= AddressingModeField::encode(addressing_mode);
-      if (selector->IsProtectedLoad(right) &&
-          selector->CanCoverProtectedLoad(node, right)) {
+      if (selector->IsTrappingLoad(right) &&
+          selector->CanCoverTrappingLoad(node, right)) {
         // In {CanBeMemoryOperand} we have already checked that
         // CanCover(node, right) succeeds, which means that there is no
         // instruction with Effects required_when_unused or
         // produces.control_flow between right and node, and that the node has
         // no other uses. Therefore, we can record the fact that 'right' was
         // embedded in 'node' and we can later delete the Load instruction.
-        selector->MarkAsProtected(node);
+        selector->MarkAsTrappingInstruction(node);
         avx_opcode |=
-            AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+            AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
         sse_opcode |=
-            AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-        selector->SetProtectedLoadToRemove(right);
+            AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
+        selector->SetTrappingLoadToRemove(right);
         trapping_load = right;
       }
     } else {
@@ -3696,8 +3696,8 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
@@ -3724,8 +3724,8 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  temps.size(), temps.data());
@@ -5955,7 +5955,7 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(OpIndex node) {
     const Simd128LoadTransformOp& load_transform =
         Cast<Simd128LoadTransformOp>(input);
     if (load_transform.load_kind.with_trap_handler) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
     }
     // LoadTransforms cannot be eliminated, so they are visited even if
     // unused. Mark it as defined so that we don't visit it.

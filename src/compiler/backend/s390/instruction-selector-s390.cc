@@ -896,7 +896,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
             SelectLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1048,7 +1048,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitGeneralStore(this, node, rep, write_barrier_kind);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }

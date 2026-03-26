@@ -93,7 +93,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       source_position_table_builder_(
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
 #if V8_ENABLE_WEBASSEMBLY
-      protected_instructions_(codegen_zone),
+      trapping_instructions_(codegen_zone),
 #endif  // V8_ENABLE_WEBASSEMBLY
       result_(kSuccess),
       block_starts_(codegen_zone),
@@ -115,9 +115,9 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
   masm_.set_builtin(builtin);
 }
 
-void CodeGenerator::RecordProtectedInstruction(uint32_t instr_offset) {
+void CodeGenerator::RecordTrappingInstruction(uint32_t instr_offset) {
 #if V8_ENABLE_WEBASSEMBLY
-  protected_instructions_.push_back({instr_offset});
+  trapping_instructions_.push_back({instr_offset});
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -501,10 +501,10 @@ base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-base::OwnedVector<uint8_t> CodeGenerator::GetProtectedInstructionsData() {
+base::OwnedVector<uint8_t> CodeGenerator::GetTrappingInstructionsData() {
 #if V8_ENABLE_WEBASSEMBLY
   return base::OwnedCopyOf(
-      base::Vector<uint8_t>::cast(base::VectorOf(protected_instructions_)));
+      base::Vector<uint8_t>::cast(base::VectorOf(trapping_instructions_)));
 #else
   return {};
 #endif  // V8_ENABLE_WEBASSEMBLY

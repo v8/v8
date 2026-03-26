@@ -64,7 +64,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailInaccessible) {
 
 TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
   // Test that we still crash if the trap handler is set up, but the PC is not
-  // registered as a protected instruction.
+  // registered as a trapping instruction.
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
@@ -81,7 +81,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  ProtectedInstructionData fake_protected_instruction{kFakePc};
+  TrappingInstructionData fake_protected_instruction{kFakePc};
   int handler_data_index =
       RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
 
@@ -102,7 +102,7 @@ class SimulatorTrapHandlerTestWithCodegen : public SimulatorTrapHandlerTest {
     constexpr bool kUseDefaultHandler = true;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-    ProtectedInstructionData protected_instruction{crash_offset_};
+    TrappingInstructionData protected_instruction{crash_offset_};
     int handler_data_index =
         RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                             desc.instr_size, 1, &protected_instruction);

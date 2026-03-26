@@ -704,12 +704,12 @@ class LiftoffAssembler : public MacroAssembler {
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
-                                uint32_t* protected_load_pc = nullptr,
+                                uint32_t* trapping_load_pc = nullptr,
                                 bool offset_reg_needs_shift = false);
   inline void AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                       Register offset_reg, int32_t offset_imm,
                                       AtomicMemoryOrder memory_order,
-                                      uint32_t* protected_load_pc = nullptr,
+                                      uint32_t* trapping_load_pc = nullptr,
                                       bool offset_reg_needs_shift = false);
   inline void LoadProtectedPointer(Register dst, Register src_addr,
                                    int32_t offset);
@@ -722,86 +722,88 @@ class LiftoffAssembler : public MacroAssembler {
                                Register stored_value, LiftoffRegList pinned);
   inline void StoreTaggedPointer(
       Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
-      LiftoffRegList pinned, uint32_t* protected_store_pc = nullptr,
+      LiftoffRegList pinned, uint32_t* trapping_store_pc = nullptr,
       compiler::WriteBarrierKind = compiler::kFullWriteBarrier);
   inline void AtomicStoreTaggedPointer(Register dst_addr, Register offset_reg,
                                        int32_t offset_imm, Register src,
                                        LiftoffRegList pinned,
                                        AtomicMemoryOrder memory_order,
-                                       uint32_t* protected_store_pc = nullptr);
+                                       uint32_t* trapping_store_pc = nullptr);
   // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type,
-                   uint32_t* protected_load_pc = nullptr,
+                   uint32_t* trapping_load_pc = nullptr,
                    bool is_load_mem = false, bool i64_offset = false,
                    bool needs_shift = false);
   inline void Store(Register dst_addr, Register offset_reg,
                     uintptr_t offset_imm, LiftoffRegister src, StoreType type,
                     LiftoffRegList pinned,
-                    uint32_t* protected_store_pc = nullptr,
+                    uint32_t* trapping_store_pc = nullptr,
                     bool is_store_mem = false, bool i64_offset = false);
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
-                         LoadType type, uint32_t* protected_load_pc,
+                         LoadType type, uint32_t* trapping_load_pc,
                          AtomicMemoryOrder memory_order, LiftoffRegList pinned,
                          bool i64_offset, Endianness endianness = kLittle);
   inline void AtomicStore(Register dst_addr, Register offset_reg,
                           uintptr_t offset_imm, LiftoffRegister src,
-                          StoreType type, uint32_t* protected_store_pc,
+                          StoreType type, uint32_t* trapping_store_pc,
                           AtomicMemoryOrder memory_order, LiftoffRegList pinned,
                           bool i64_offset, Endianness endianness = kLittle);
 
   inline void AtomicAdd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicSub(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicAnd(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicOr(Register dst_addr, Register offset_reg,
                        uintptr_t offset_imm, LiftoffRegister value,
                        LiftoffRegister result, StoreType type,
-                       uint32_t* protected_load_pc, bool i64_offset,
+                       uint32_t* trapping_load_pc, bool i64_offset,
                        Endianness endianness = kLittle);
 
   inline void AtomicXor(Register dst_addr, Register offset_reg,
                         uintptr_t offset_imm, LiftoffRegister value,
                         LiftoffRegister result, StoreType type,
-                        uint32_t* protected_load_pc, bool i64_offset,
+                        uint32_t* trapping_load_pc, bool i64_offset,
                         Endianness endianness = kLittle);
 
   inline void AtomicExchange(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister value,
                              LiftoffRegister result, StoreType type,
-                             uint32_t* protected_load_pc, bool i64_offset,
+                             uint32_t* trapping_load_pc, bool i64_offset,
                              Endianness endianness = kLittle);
   inline void AtomicExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-      LiftoffRegister value, LiftoffRegister result,
-      uint32_t* protected_load_pc, LiftoffRegList pinned);
+      LiftoffRegister value, LiftoffRegister result, uint32_t* trapping_load_pc,
+      LiftoffRegList pinned);
 
-  inline void AtomicCompareExchange(
-      Register dst_addr, Register offset_reg, uintptr_t offset_imm,
-      LiftoffRegister expected, LiftoffRegister new_value,
-      LiftoffRegister result, StoreType type, uint32_t* protected_load_pc,
-      bool i64_offset, Endianness endianness = kLittle);
+  inline void AtomicCompareExchange(Register dst_addr, Register offset_reg,
+                                    uintptr_t offset_imm,
+                                    LiftoffRegister expected,
+                                    LiftoffRegister new_value,
+                                    LiftoffRegister result, StoreType type,
+                                    uint32_t* trapping_load_pc, bool i64_offset,
+                                    Endianness endianness = kLittle);
 
   inline void AtomicCompareExchangeTaggedPointer(
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,
       LiftoffRegister expected, LiftoffRegister new_value,
-      LiftoffRegister result, uint32_t* protected_load_pc,
+      LiftoffRegister result, uint32_t* trapping_load_pc,
       LiftoffRegList pinned);
 
   inline void AtomicFence();
@@ -1034,14 +1036,14 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LoadTransformationKind transform,
-                            uint32_t* protected_load_pc, bool i64_offset);
+                            uint32_t* trapping_load_pc, bool i64_offset);
   inline void LoadLane(LiftoffRegister dst, LiftoffRegister src, Register addr,
                        Register offset_reg, uintptr_t offset_imm, LoadType type,
-                       uint8_t lane, uint32_t* protected_load_pc,
+                       uint8_t lane, uint32_t* trapping_load_pc,
                        bool i64_offset);
   inline void StoreLane(Register dst, Register offset, uintptr_t offset_imm,
                         LiftoffRegister src, StoreType type, uint8_t lane,
-                        uint32_t* protected_store_pc, bool i64_offset);
+                        uint32_t* trapping_store_pc, bool i64_offset);
   inline void emit_i8x16_shuffle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs, const uint8_t shuffle[16],
                                  bool is_swizzle);

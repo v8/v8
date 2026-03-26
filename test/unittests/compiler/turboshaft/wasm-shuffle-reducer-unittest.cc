@@ -590,10 +590,10 @@ TEST_F(ReducerTest, LoadInterleaveTwo) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
-    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
-    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -613,10 +613,10 @@ TEST_F(ReducerTest, LoadInterleaveTwoNegativeDiffOffset) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
-    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
-    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -678,10 +678,10 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongIndex) {
 TEST_F(ReducerTest, LoadInterleaveNoIndexNegativeDiffOffset) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
-    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
-    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -701,10 +701,10 @@ TEST_F(ReducerTest, LoadInterleaveNoIndexNegativeDiffOffset) {
 TEST_F(ReducerTest, LoadInterleaveTwoNoIndexWrongOffset) {
   auto test = CreateFromGraph(1, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
-    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
-    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 2 * kSimd128Size);
     auto even_shuffle =
@@ -725,7 +725,7 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotSameKind) {
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
-    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -743,10 +743,10 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotSameKind) {
 TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotLeftAndRight) {
   auto test = CreateFromGraph(1, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
-    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
-    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -764,14 +764,14 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotLeftAndRight) {
 TEST_F(ReducerTest, LoadInterleaveTwoNoIndexCantReschedule) {
   auto test = CreateFromGraph(1, [](auto& Asm) {
     auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
-    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
     auto data = __ HeapConstant(Asm.factory().undefined_value());
     __ Store(Asm.GetParameter(0), data, StoreOp::Kind::TaggedBase(),
              MemoryRepresentation::TaggedPointer(),
              WriteBarrierKind::kNoWriteBarrier, 0, true);
-    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
@@ -797,12 +797,12 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongBlocks) {
     auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     __ Goto(block_b);
     __ Bind(block_b);
-    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), 0);
     __ Goto(block_c);
     __ Bind(block_c);
-    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Trapping(),
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     __ Goto(block_d);
@@ -848,13 +848,13 @@ TEST_F(ReducerTest, TaggedLoadReplace) {
   ASSERT_EQ(test.CountOp(Opcode::kSimd128LaneMemory), 0u);
 }
 
-TEST_F(ReducerTest, ProtectedLoadReplace) {
+TEST_F(ReducerTest, TrappingLoadReplace) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     V<WordPtr> base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     V<Simd128> into =
         __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
-    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::Protected(),
+    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::Trapping(),
                                  MemoryRepresentation::Int32(),
                                  RegisterRepresentation::Word32(), 4);
     V<Simd128> replace = __ Simd128ReplaceLane(
@@ -879,18 +879,18 @@ TEST_F(ReducerTest, ProtectedLoadReplace) {
   const Simd128LaneMemoryOp* lane_op =
       test.graph().Get(extract_op->input()).TryCast<Simd128LaneMemoryOp>();
   ASSERT_TRUE(lane_op);
-  ASSERT_EQ(lane_op->kind, Simd128LaneMemoryOp::Kind::Protected());
+  ASSERT_EQ(lane_op->kind, Simd128LaneMemoryOp::Kind::Trapping());
 }
 
-TEST_F(ReducerTest, AtomicProtectedLoadReplace) {
+TEST_F(ReducerTest, AtomicTrappingLoadReplace) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     V<WordPtr> base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     V<Simd128> into =
         __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
-    V<Word32> new_lane = __ Load(
-        base, index, LoadOp::Kind::Protected().Atomic(),
-        MemoryRepresentation::Int16(), RegisterRepresentation::Word32(), 8);
+    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::Trapping().Atomic(),
+                                 MemoryRepresentation::Int16(),
+                                 RegisterRepresentation::Word32(), 8);
     V<Simd128> replace = __ Simd128ReplaceLane(
         into, new_lane, Simd128ReplaceLaneOp::Kind::kI16x8, 1);
     V<Any> extract =

@@ -789,7 +789,7 @@ class LiftoffCompiler {
         out_of_line_code_(zone),
         out_of_line_code_without_safepoints_(zone),
         source_position_table_builder_(zone),
-        protected_instructions_(zone),
+        trapping_instructions_(zone),
         zone_(zone),
         safepoint_table_builder_(zone_),
         next_breakpoint_ptr_(options.breakpoints.begin()),
@@ -841,9 +841,9 @@ class LiftoffCompiler {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
 
-  base::OwnedVector<uint8_t> GetProtectedInstructionsData() const {
+  base::OwnedVector<uint8_t> GetTrappingInstructionsData() const {
     return base::OwnedCopyOf(base::Vector<const uint8_t>::cast(
-        base::VectorOf(protected_instructions_)));
+        base::VectorOf(trapping_instructions_)));
   }
 
   uint32_t GetTotalFrameSlotCountForGC() const {
@@ -3065,10 +3065,10 @@ class LiftoffCompiler {
       static_assert(WasmArray::kHeaderSize > kTaggedSize);
       static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
       LiftoffRegister dst = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      uint32_t protected_load_pc = 0;
+      uint32_t trapping_load_pc = 0;
       __ Load(dst, obj.gp(), no_reg, wasm::ObjectAccess::ToTagged(kTaggedSize),
-              LoadType::kI32Load, &protected_load_pc);
-      RegisterProtectedInstruction(decoder, protected_load_pc);
+              LoadType::kI32Load, &trapping_load_pc);
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
     }
     __ PushRegister(kRef, obj);
   }
@@ -4069,11 +4069,11 @@ class LiftoffCompiler {
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
-      uint32_t protected_load_pc = 0;
-      __ Load(value, mem, index, offset, type, &protected_load_pc, true,
+      uint32_t trapping_load_pc = 0;
+      __ Load(value, mem, index, offset, type, &trapping_load_pc, true,
               i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        RegisterProtectedInstruction(decoder, protected_load_pc);
+        RegisterTrappingInstruction(decoder, trapping_load_pc);
       }
       if (needs_f16_to_f32_conv) {
         LiftoffRegister dst = __ GetUnusedRegister(kFpReg, {});
@@ -4114,18 +4114,18 @@ class LiftoffCompiler {
     CODE_COMMENT("load with transformation");
     Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     bool i64_offset = imm.memory->is_memory64();
     __ LoadTransform(value, addr, index, offset, type, transform,
-                     &protected_load_pc, i64_offset);
+                     &trapping_load_pc, i64_offset);
 
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_load_pc});
+      trapping_instructions_.emplace_back(
+          trap_handler::TrappingInstructionData{trapping_load_pc});
       source_position_table_builder_.AddPosition(
-          protected_load_pc, SourcePosition(decoder->position()), true);
+          trapping_load_pc, SourcePosition(decoder->position()), true);
       if (for_debugging_) {
-        DefineSafepoint(protected_load_pc);
+        DefineSafepoint(trapping_load_pc);
       }
     }
     __ PushRegister(kS128, value);
@@ -4163,16 +4163,16 @@ class LiftoffCompiler {
     CODE_COMMENT("load lane");
     Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister result = __ GetUnusedRegister(reg_class_for(kS128), {});
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
-                &protected_load_pc, i64_offset);
+                &trapping_load_pc, i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_load_pc});
+      trapping_instructions_.emplace_back(
+          trap_handler::TrappingInstructionData{trapping_load_pc});
       source_position_table_builder_.AddPosition(
-          protected_load_pc, SourcePosition(decoder->position()), true);
+          trapping_load_pc, SourcePosition(decoder->position()), true);
       if (for_debugging_) {
-        DefineSafepoint(protected_load_pc);
+        DefineSafepoint(trapping_load_pc);
       }
     }
 
@@ -4231,16 +4231,16 @@ class LiftoffCompiler {
 
       pinned.set(index);
       SCOPED_CODE_COMMENT("store to memory");
-      uint32_t protected_store_pc = 0;
+      uint32_t trapping_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
       Register mem = pinned.set(GetMemoryStart(imm.mem_index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
-               &protected_store_pc, true, i64_offset);
+               &trapping_store_pc, true, i64_offset);
       if (imm.memory->bounds_checks == kTrapHandler) {
-        RegisterProtectedInstruction(decoder, protected_store_pc);
+        RegisterTrappingInstruction(decoder, trapping_store_pc);
       }
     }
 
@@ -4271,16 +4271,16 @@ class LiftoffCompiler {
     pinned.set(index);
     CODE_COMMENT("store lane to memory");
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
-    uint32_t protected_store_pc = 0;
-    __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc,
+    uint32_t trapping_store_pc = 0;
+    __ StoreLane(addr, index, offset, value, type, lane, &trapping_store_pc,
                  i64_offset);
     if (imm.memory->bounds_checks == kTrapHandler) {
-      protected_instructions_.emplace_back(
-          trap_handler::ProtectedInstructionData{protected_store_pc});
+      trapping_instructions_.emplace_back(
+          trap_handler::TrappingInstructionData{trapping_store_pc});
       source_position_table_builder_.AddPosition(
-          protected_store_pc, SourcePosition(decoder->position()), true);
+          trapping_store_pc, SourcePosition(decoder->position()), true);
       if (for_debugging_) {
-        DefineSafepoint(protected_store_pc);
+        DefineSafepoint(trapping_store_pc);
       }
     }
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -6503,49 +6503,48 @@ class LiftoffCompiler {
     LiftoffRegister result_reg =
         pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
 #endif
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     switch (opcode) {
       case kExprStructAtomicAdd:
         __ AtomicAdd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     StoreType::ForValueKind(field_kind), &trapping_load_pc,
                      false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicSub:
         __ AtomicSub(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     StoreType::ForValueKind(field_kind), &trapping_load_pc,
                      false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicAnd:
         __ AtomicAnd(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     StoreType::ForValueKind(field_kind), &trapping_load_pc,
                      false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicOr:
         __ AtomicOr(obj.gp(), no_reg, offset, value, result_reg,
-                    StoreType::ForValueKind(field_kind), &protected_load_pc,
+                    StoreType::ForValueKind(field_kind), &trapping_load_pc,
                     false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicXor:
         __ AtomicXor(obj.gp(), no_reg, offset, value, result_reg,
-                     StoreType::ForValueKind(field_kind), &protected_load_pc,
+                     StoreType::ForValueKind(field_kind), &trapping_load_pc,
                      false, LiftoffAssembler::kNative);
         break;
       case kExprStructAtomicExchange:
         if (is_reference(field_kind)) {
           __ AtomicExchangeTaggedPointer(obj.gp(), no_reg, offset, value,
-                                         result_reg, &protected_load_pc,
-                                         pinned);
+                                         result_reg, &trapping_load_pc, pinned);
           break;
         }
         __ AtomicExchange(obj.gp(), no_reg, offset, value, result_reg,
                           StoreType::ForValueKind(field_kind),
-                          &protected_load_pc, false, LiftoffAssembler::kNative);
+                          &trapping_load_pc, false, LiftoffAssembler::kNative);
         break;
       default:
         UNREACHABLE();
     }
     if (implicit_check) {
-      RegisterProtectedInstruction(decoder, protected_load_pc);
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
     }
     __ PushRegister(unpacked(field_kind), result_reg);
   }
@@ -6628,19 +6627,19 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
 #endif  // V8_TARGET_ARCH_IA32
 
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     if (is_reference(field_kind)) {
       __ AtomicCompareExchangeTaggedPointer(
           obj.gp(), no_reg, offset, expected_value, new_value, result_reg,
-          &protected_load_pc, pinned);
+          &trapping_load_pc, pinned);
     } else {
       __ AtomicCompareExchange(
           obj.gp(), no_reg, offset, expected_value, new_value, result_reg,
-          StoreType::ForValueKind(field_kind), &protected_load_pc, false,
+          StoreType::ForValueKind(field_kind), &trapping_load_pc, false,
           LiftoffAssembler::kNative);
     }
     if (implicit_check) {
-      RegisterProtectedInstruction(decoder, protected_load_pc);
+      RegisterTrappingInstruction(decoder, trapping_load_pc);
     }
     __ PushRegister(unpacked(field_kind), result_reg);
   }
@@ -10511,11 +10510,11 @@ class LiftoffCompiler {
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
-    uint32_t protected_instruction_pc = 0;
+    uint32_t trapping_instruction_pc = 0;
     __ Load(length, array.gp(), no_reg, kLengthOffset, LoadType::kI32Load,
-            implicit_null_check ? &protected_instruction_pc : nullptr);
+            implicit_null_check ? &trapping_instruction_pc : nullptr);
     if (implicit_null_check) {
-      RegisterProtectedInstruction(decoder, protected_instruction_pc);
+      RegisterTrappingInstruction(decoder, trapping_instruction_pc);
     }
     OolTrapLabel trap =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
@@ -10543,17 +10542,17 @@ class LiftoffCompiler {
   void LoadObjectField(FullDecoder* decoder, LiftoffRegister dst, Register src,
                        Register offset_reg, int offset, ValueKind kind,
                        bool is_signed, bool trapping, LiftoffRegList pinned) {
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     if (is_reference(kind)) {
       __ LoadTaggedPointer(dst.gp(), src, offset_reg, offset,
-                           trapping ? &protected_load_pc : nullptr);
+                           trapping ? &trapping_load_pc : nullptr);
     } else {
       // Primitive kind.
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);
       __ Load(dst, src, offset_reg, offset, load_type,
-              trapping ? &protected_load_pc : nullptr);
+              trapping ? &trapping_load_pc : nullptr);
     }
-    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+    if (trapping) RegisterTrappingInstruction(decoder, trapping_load_pc);
   }
 
   void LoadAtomicObjectField(FullDecoder* decoder, LiftoffRegister dst,
@@ -10561,20 +10560,20 @@ class LiftoffCompiler {
                              ValueKind kind, bool is_signed, bool trapping,
                              AtomicMemoryOrder memory_order,
                              LiftoffRegList pinned) {
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     if (is_reference(kind)) {
       __ AtomicLoadTaggedPointer(dst.gp(), src, offset_reg, offset,
                                  memory_order,
-                                 trapping ? &protected_load_pc : nullptr);
+                                 trapping ? &trapping_load_pc : nullptr);
     } else {
       // Primitive kind.
       LoadType load_type = LoadType::ForValueKind(kind, is_signed);
       // TODO(mliedtke): Can we emit something better if the memory order is
       // acqrel?
-      __ AtomicLoad(dst, src, offset_reg, offset, load_type, &protected_load_pc,
+      __ AtomicLoad(dst, src, offset_reg, offset, load_type, &trapping_load_pc,
                     memory_order, pinned, false, LiftoffAssembler::kNative);
     }
-    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+    if (trapping) RegisterTrappingInstruction(decoder, trapping_load_pc);
   }
 
   void StoreObjectField(
@@ -10582,18 +10581,18 @@ class LiftoffCompiler {
       LiftoffRegister value, bool trapping, LiftoffRegList pinned,
       ValueKind kind,
       compiler::WriteBarrierKind write_barrier = compiler::kFullWriteBarrier) {
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     if (is_reference(kind)) {
       __ StoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
-                            trapping ? &protected_load_pc : nullptr,
+                            trapping ? &trapping_load_pc : nullptr,
                             write_barrier);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
       __ Store(obj, offset_reg, offset, value, store_type, pinned,
-               trapping ? &protected_load_pc : nullptr);
+               trapping ? &trapping_load_pc : nullptr);
     }
-    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+    if (trapping) RegisterTrappingInstruction(decoder, trapping_load_pc);
   }
 
   void StoreAtomicObjectField(FullDecoder* decoder, Register obj,
@@ -10601,18 +10600,18 @@ class LiftoffCompiler {
                               LiftoffRegister value, bool trapping,
                               LiftoffRegList pinned, ValueKind kind,
                               AtomicMemoryOrder memory_order) {
-    uint32_t protected_load_pc = 0;
+    uint32_t trapping_load_pc = 0;
     if (is_reference(kind)) {
       __ AtomicStoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
-                                  memory_order, &protected_load_pc);
+                                  memory_order, &trapping_load_pc);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
       __ AtomicStore(obj, offset_reg, offset, value, store_type,
-                     &protected_load_pc, memory_order, pinned, false,
+                     &trapping_load_pc, memory_order, pinned, false,
                      LiftoffAssembler::kNative);
     }
-    if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
+    if (trapping) RegisterTrappingInstruction(decoder, trapping_load_pc);
   }
 
   void SetDefaultValue(LiftoffRegister reg, ValueType type) {
@@ -10716,14 +10715,14 @@ class LiftoffCompiler {
     __ bind(&done);
   }
 
-  void RegisterProtectedInstruction(FullDecoder* decoder,
-                                    uint32_t protected_instruction_pc) {
-    protected_instructions_.emplace_back(
-        trap_handler::ProtectedInstructionData{protected_instruction_pc});
+  void RegisterTrappingInstruction(FullDecoder* decoder,
+                                   uint32_t trapping_instruction_pc) {
+    trapping_instructions_.emplace_back(
+        trap_handler::TrappingInstructionData{trapping_instruction_pc});
     source_position_table_builder_.AddPosition(
-        protected_instruction_pc, SourcePosition(decoder->position()), true);
+        trapping_instruction_pc, SourcePosition(decoder->position()), true);
     if (for_debugging_) {
-      DefineSafepoint(protected_instruction_pc);
+      DefineSafepoint(trapping_instruction_pc);
     }
   }
 
@@ -10852,7 +10851,7 @@ class LiftoffCompiler {
   ZoneVector<OutOfLineCode*> out_of_line_code_;
   ZoneVector<OutOfLineCode*> out_of_line_code_without_safepoints_;
   SourcePositionTableBuilder source_position_table_builder_;
-  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+  ZoneVector<trap_handler::TrappingInstructionData> trapping_instructions_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -11023,7 +11022,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   compiler->GetCode(&result.code_desc);
   result.instr_buffer = compiler->ReleaseBuffer();
   result.source_positions = compiler->GetSourcePositionTable();
-  result.protected_instructions_data = compiler->GetProtectedInstructionsData();
+  result.trapping_instructions_data = compiler->GetTrappingInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();
   result.ool_spill_count = compiler->OolSpillCount();
   auto* lowered_call_desc = GetLoweredCallDescriptor(&zone, call_descriptor);

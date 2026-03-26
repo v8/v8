@@ -3713,7 +3713,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
   __ Add(lr, kWasmTrapHandlerFaultAddressRegister,
-         WasmFrameConstants::kProtectedInstructionReturnAddressOffset);
+         WasmFrameConstants::kTrappingInstructionReturnAddressOffset);
   __ TailCallBuiltin(Builtin::kWasmTrapHandlerThrowTrap);
 }
 

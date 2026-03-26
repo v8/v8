@@ -129,7 +129,7 @@ enum ModuleOrigin : uint8_t {
 };
 
 enum BoundsCheckStrategy : int8_t {
-  // Emit protected instructions, use the trap handler for OOB detection.
+  // Emit trapping instructions, use the trap handler for OOB detection.
   kTrapHandler,
   // Emit explicit bounds checks.
   kExplicitBoundsChecks,
