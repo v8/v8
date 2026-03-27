@@ -628,7 +628,8 @@ bool is_inbounds(float_t v) {
 #endif  // defined(__clang__)
 
 // Disable/enable -Wlifetime-safety warnings in code.
-#if defined(__clang__)
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wlifetime-safety")
 #define START_IGNORE_LIFETIME_SAFETY_WARNINGS() \
   _Pragma("clang diagnostic push")              \
       _Pragma("clang diagnostic ignored \"-Wlifetime-safety\"")
