@@ -17046,6 +17046,9 @@ void MaglevGraphBuilder::OsrPrewalk() {
     auto it = saved_states.find(offset);
     if (it != saved_states.end()) {
       SetCurrentScopeInfo(it->second);
+    } else if (merge_states_[offset] != nullptr &&
+               merge_states_[offset]->has_context_scope_info()) {
+      SetCurrentScopeInfo(merge_states_[offset]->context_scope_info());
     }
 
     PrewalkBytecode();
