@@ -310,9 +310,9 @@ struct common_type_handle_nullopt {
 }  // namespace detail
 
 #if V8_STATIC_ROOTS_BOOL
-namespace {
-V8_NOINLINE V8_PRESERVE_MOST bool TryReportUnreachable(Tagged<String> string,
-                                                       Tagged<Map> map) {
+// V8_NOINLINE to disable inlining, inline to allow multiple definitions.
+V8_NOINLINE V8_PRESERVE_MOST inline bool TryReportUnreachable(
+    Tagged<String> string, Tagged<Map> map) {
   thread_local int recursion = 0;
   if (recursion > 0) {
     // On a recursive failure, dispatch onto the empty string. This will
@@ -327,7 +327,6 @@ V8_NOINLINE V8_PRESERVE_MOST bool TryReportUnreachable(Tagged<String> string,
   recursion--;
   UNREACHABLE();
 }
-}  // namespace
 #endif
 
 template <typename TDispatcher>
