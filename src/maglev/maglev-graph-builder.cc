@@ -11212,6 +11212,39 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceReflectGetPrototypeOf(
   return TryReduceObjectGetPrototypeOf(target, args);
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceReflectGet(
+    compiler::JSFunctionRef target_function, CallArguments& args) {
+  if (args.count() != 2 && args.count() != 3) return {};
+
+  ValueNode* target = args[0];
+  ValueNode* key = args[1];
+
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfJSReceiver(builder, target);
+      },
+      [&]() -> ReduceResult {
+        if (args.count() == 3) {
+          ValueNode* receiver = args[2];
+          ValueNode* on_non_existent =
+              GetSmiConstant(static_cast<int>(OnNonExistent::kReturnUndefined));
+          return BuildCallBuiltinWithTaggedInputs<
+              Builtin::kGetPropertyWithReceiver>(
+              {target, key, receiver, on_non_existent});
+        } else {
+          return BuildCallBuiltinWithTaggedInputs<Builtin::kGetProperty>(
+              {target, key});
+        }
+      },
+      [&]() -> ReduceResult {
+        ValueNode* message_id = GetSmiConstant(
+            static_cast<int>(MessageTemplate::kCalledOnNonObject));
+        ValueNode* method_name = GetRootConstant(RootIndex::kReflectGet_string);
+        return BuildCallRuntime(Runtime::kThrowTypeError,
+                                {message_id, method_name});
+      });
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
   return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
