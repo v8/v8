@@ -1169,11 +1169,14 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
       GetTypeCanonicalizer()->LookupFunctionSignature(
           CanonicalTypeIndex{sig_index});
 
+  target_stack->set_current_continuation({});
+
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
   from->set_param_types(return_sig->parameters());
   isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
       from, parent, sp, fp, pc);
+
   isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
       parent, target_stack, parent->jmpbuf()->sp, parent->jmpbuf()->fp,
       parent->jmpbuf()->pc);
