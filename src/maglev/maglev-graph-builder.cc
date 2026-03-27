@@ -11245,6 +11245,30 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceReflectGet(
       });
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceReflectHas(
+    compiler::JSFunctionRef target_function, CallArguments& args) {
+  if (args.count() != 2) return {};
+
+  ValueNode* target = args[0];
+  ValueNode* key = args[1];
+
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfJSReceiver(builder, target);
+      },
+      [&]() -> ReduceResult {
+        return BuildCallBuiltinWithTaggedInputs<Builtin::kHasProperty>(
+            {target, key});
+      },
+      [&]() -> ReduceResult {
+        ValueNode* message_id = GetSmiConstant(
+            static_cast<int>(MessageTemplate::kCalledOnNonObject));
+        ValueNode* method_name = GetRootConstant(RootIndex::kReflectHas_string);
+        return BuildCallRuntime(Runtime::kThrowTypeError,
+                                {message_id, method_name});
+      });
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
   return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
