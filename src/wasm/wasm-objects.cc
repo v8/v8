@@ -1130,8 +1130,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     DCHECK(result_inplace.has_value());
     backing_store->BroadcastSharedWasmMemoryGrow(isolate);
     if (has_old_buffer && !maybe_old_buffer->is_resizable_by_js() &&
-        maybe_old_buffer->byte_length() < backing_store->byte_length()) {
-      // Broadcasting the update should update this memory object too.
+        pages > 0) {
+      // Independent of potential concurrent grows in other threads: After we
+      // grew the shared memory, broadcasting should have reset the ArrayBuffer
+      // so we reallocate it on the next access to the `buffer` property of the
+      // Wasm memory.
       CHECK(IsUndefined(memory_object->array_buffer(), isolate));
     }
     // As {old_pages} was read racefully, we return here the synchronized
