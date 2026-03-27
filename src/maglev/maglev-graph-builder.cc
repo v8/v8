@@ -11269,6 +11269,22 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceReflectHas(
       });
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceReflectApply(
+    compiler::JSFunctionRef builtin, CallArguments& args) {
+  ValueNode* target =
+      args.count() > 0 ? args[0] : GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* this_argument =
+      args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* arguments_list =
+      args.count() > 2 ? args[2] : GetRootConstant(RootIndex::kUndefinedValue);
+
+  CallArguments new_args(ConvertReceiverMode::kAny,
+                         {this_argument, arguments_list},
+                         CallArguments::kWithArrayLike);
+  return ReduceCallWithArrayLike(target, new_args,
+                                 current_speculation_feedback());
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
   return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
