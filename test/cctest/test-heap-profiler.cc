@@ -4798,7 +4798,7 @@ TEST(HeapSnapshotWithWasmInstance) {
   CHECK_NOT_NULL(managed_node);
   v8::String::Utf8Value managed_name{isolate, managed_node->GetName()};
 #if V8_ENABLE_SANDBOX
-  CHECK_EQ(std::string_view{"system / Managed<wasm::NativeModule>"},
+  CHECK_EQ(std::string_view{"system / Managed (WasmNativeModuleTag)"},
            std::string_view{*managed_name});
   // The size of the Managed is computed from the size of the NativeModule. This
   // is multiple kB, just conservatively assume >= 500b here.

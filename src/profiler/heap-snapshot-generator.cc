@@ -1082,78 +1082,26 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     ExternalPointerTag tag = foreign->GetTag();
 
     size_t size = SizeForSnapshot(object, cage_base);
-    const char* name = nullptr;
-    // TODO(saelo): consider creating a global mapping of ExternalPointerTags
-    // for Managed objects to their name if we need this anywhere else.
-    switch (tag) {
-      case kGenericManagedTag:
-        name = "system / Managed<Unknown>";
-        break;
+    const char* name = "system / Foreign";
+
+    if (kAnyManagedExternalPointerTagRange.Contains(tag)) {
+      const char* tag_name = ToString(tag);
+      name = names_->GetFormatted("system / Managed (%s)", tag_name);
 #if V8_ENABLE_WEBASSEMBLY
-      case kWasmWasmStreamingTag:
-        name = "system / Managed<WasmStreaming>";
-        break;
-      case kWasmFuncDataTag:
-        name = "system / Managed<wasm::FuncData>";
-        break;
-      case kWasmManagedDataTag:
-        name = "system / Managed<wasm::ManagedData>";
-        break;
-      case kWasmNativeModuleTag:
+      if (tag == kWasmNativeModuleTag) {
         size = Cast<Managed<wasm::NativeModule>>(foreign)
                    ->raw()
                    ->EstimateCurrentMemoryConsumption();
-        name = "system / Managed<wasm::NativeModule>";
-        break;
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
-      case kIcuBreakIteratorTag:
-        name = "system / Managed<icu::BreakIterator>";
-        break;
-      case kIcuListFormatterTag:
-        name = "system / Managed<icu::ListFormatter>";
-        break;
-      case kIcuLocaleTag:
-        name = "system / Managed<icu::Locale>";
-        break;
-      case kIcuSimpleDateFormatTag:
-        name = "system / Managed<icu::SimpleDateFormat>";
-        break;
-      case kIcuDateIntervalFormatTag:
-        name = "system / Managed<icu::DateIntervalFormat>";
-        break;
-      case kIcuRelativeDateTimeFormatterTag:
-        name = "system / Managed<icu::RelativeDateTimeFormatter>";
-        break;
-      case kIcuLocalizedNumberFormatterTag:
-        name = "system / Managed<icu::LocalizedNumberFormatter>";
-        break;
-      case kIcuPluralRulesTag:
-        name = "system / Managed<icu::PluralRules>";
-        break;
-      case kIcuCollatorTag:
-        name = "system / Managed<icu::Collator>";
-        break;
-      case kIcuBreakIteratorWithTextTag:
-        name = "system / Managed<IcuBreakIteratorWithText>";
-        break;
-      case kDisplayNamesInternalTag:
-        name = "system / Managed<DisplayNamesInternal>";
-        break;
-      case kTemporalInstantTag:
-        name = "system / Managed<temporal_rs::Instant>";
-        break;
-      case kD8WorkerTag:
-        name = "system / Managed<d8::Worker>";
-        break;
-      case kD8ModuleEmbedderDataTag:
-        name = "system / Managed<d8::ModuleEmbedderData>";
-        break;
-      default:
-        DCHECK(!kAnyManagedExternalPointerTagRange.Contains(tag));
+    } else if (kAnyForeignExternalPointerTagRange.Contains(tag)) {
+      // Only sandbox configurations set tags properly, so we cannot CHECK here
+      // but merely improve the tag if present.
+      const char* tag_name = ToString(tag);
+      name = names_->GetFormatted("system / Foreign (%s)", tag_name);
     }
-    if (name != nullptr) {
-      return AddEntry(object.address(), HeapEntry::kHidden, name, size);
-    }
+
+    return AddEntry(object.address(), HeapEntry::kHidden, name, size);
   }
 
   return AddEntry(object, GetSystemEntryType(object),

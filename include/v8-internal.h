@@ -544,6 +544,51 @@ struct TagRange {
   Tag last;
 };
 
+#define SHARED_MANAGED_TAG_LIST(V) V(WasmFutexManagedObjectWaitListTag)
+
+#define MANAGED_TAG_LIST(V)          \
+  SHARED_MANAGED_TAG_LIST(V)         \
+  V(GenericManagedTag)               \
+  V(WasmWasmStreamingTag)            \
+  V(WasmFuncDataTag)                 \
+  V(WasmManagedDataTag)              \
+  V(WasmNativeModuleTag)             \
+  V(BackingStoreTag)                 \
+  V(CFunctionWithSignatureTag)       \
+  V(IcuBreakIteratorTag)             \
+  V(IcuListFormatterTag)             \
+  V(IcuLocaleTag)                    \
+  V(IcuSimpleDateFormatTag)          \
+  V(IcuDateIntervalFormatTag)        \
+  V(IcuRelativeDateTimeFormatterTag) \
+  V(IcuLocalizedNumberFormatterTag)  \
+  V(IcuPluralRulesTag)               \
+  V(IcuCollatorTag)                  \
+  V(IcuBreakIteratorWithTextTag)     \
+  V(TemporalDurationTag)             \
+  V(TemporalInstantTag)              \
+  V(TemporalPlainDateTag)            \
+  V(TemporalPlainTimeTag)            \
+  V(TemporalPlainDateTimeTag)        \
+  V(TemporalPlainYearMonthTag)       \
+  V(TemporalPlainMonthDayTag)        \
+  V(TemporalZonedDateTimeTag)        \
+  V(DisplayNamesInternalTag)         \
+  V(D8WorkerTag)                     \
+  V(D8ModuleEmbedderDataTag)
+
+#define FOREIGN_TAG_LIST(V)                               \
+  V(GenericForeignTag)                                    \
+  V(ApiAccessCheckCallbackTag)                            \
+  V(ApiAbortScriptExecutionCallbackTag)                   \
+  V(SyntheticModuleTag)                                   \
+  V(MicrotaskCallbackTag)                                 \
+  V(MicrotaskCallbackDataTag)                             \
+  V(MessageListenerTag)                                   \
+  V(WaiterQueueForeignTag)                                \
+  /* Needs to stay last to form a range for resources. */ \
+  MANAGED_TAG_LIST(V)
+
 //
 // External Pointers.
 //
@@ -651,56 +696,13 @@ enum ExternalPointerTag : uint16_t {
 
   kWasmStackMemoryTag,
 
-  // Foreigns
-  kFirstForeignExternalPointerTag,
-  kGenericForeignTag = kFirstForeignExternalPointerTag,
+#define AS_ENUM(name) k##name,
+  FOREIGN_TAG_LIST(AS_ENUM)
 
-  kApiAccessCheckCallbackTag,
-  kApiAbortScriptExecutionCallbackTag,
-  kSyntheticModuleTag,
-  kMicrotaskCallbackTag,
-  kMicrotaskCallbackDataTag,
-  kMessageListenerTag,
-  kWaiterQueueForeignTag,
+#undef AS_ENUM
 
-  // Managed
-  kFirstManagedResourceTag,
-  kFirstManagedExternalPointerTag = kFirstManagedResourceTag,
-  kGenericManagedTag = kFirstManagedExternalPointerTag,
-  kWasmWasmStreamingTag,
-  kWasmFuncDataTag,
-  kWasmManagedDataTag,
-  kWasmNativeModuleTag,
-  kFirstSharedManagedExternalPointerTag,
-  kWasmFutexManagedObjectWaitListTag = kFirstSharedManagedExternalPointerTag,
-  kLastSharedManagedExternalPointerTag = kWasmFutexManagedObjectWaitListTag,
-  kBackingStoreTag,
-  kCFunctionWithSignatureTag,
-  kIcuBreakIteratorTag,
-  kIcuListFormatterTag,
-  kIcuLocaleTag,
-  kIcuSimpleDateFormatTag,
-  kIcuDateIntervalFormatTag,
-  kIcuRelativeDateTimeFormatterTag,
-  kIcuLocalizedNumberFormatterTag,
-  kIcuPluralRulesTag,
-  kIcuCollatorTag,
-  kIcuBreakIteratorWithTextTag,
-  kTemporalDurationTag,
-  kTemporalInstantTag,
-  kTemporalPlainDateTag,
-  kTemporalPlainTimeTag,
-  kTemporalPlainDateTimeTag,
-  kTemporalPlainYearMonthTag,
-  kTemporalPlainMonthDayTag,
-  kTemporalZonedDateTimeTag,
-  kDisplayNamesInternalTag,
-  kD8WorkerTag,
-  kD8ModuleEmbedderDataTag,
-  kLastForeignExternalPointerTag = kD8ModuleEmbedderDataTag,
-  kLastManagedExternalPointerTag = kLastForeignExternalPointerTag,
-  // External resources whose lifetime is tied to their entry in the external
-  // pointer table but which are not referenced via a Managed
+  // External resources whose lifetime is tied to their entry in the
+  // external pointer table but which are not referenced via a Managed
   kArrayBufferExtensionTag,
   kLastManagedResourceTag = kArrayBufferExtensionTag,
 
@@ -711,25 +713,77 @@ enum ExternalPointerTag : uint16_t {
   kLastExternalPointerTag = 0x7f,
 };
 
+constexpr const char* ToString(ExternalPointerTag tag) {
+  switch (tag) {
+#define ENUM_CASE(name)             \
+  case ExternalPointerTag::k##name: \
+    return #name;
+
+    FOREIGN_TAG_LIST(ENUM_CASE)
+
+#undef ENUM_CASE
+    default:
+      return "Unknown tag";
+  }
+}
+
 using ExternalPointerTagRange = TagRange<ExternalPointerTag>;
+
+#define AS_LIST(name) ExternalPointerTag::k##name,
+
+#define GET_FIRST(LIST)                           \
+  []() {                                          \
+    ExternalPointerTag items[] = {LIST(AS_LIST)}; \
+    return items[0];                              \
+  }()
+
+#define GET_LAST(LIST)                                    \
+  []() {                                                  \
+    ExternalPointerTag items[] = {LIST(AS_LIST)};         \
+    return items[(sizeof(items) / sizeof(items[0])) - 1]; \
+  }()
 
 constexpr ExternalPointerTagRange kAnyExternalPointerTagRange(
     kFirstExternalPointerTag, kLastExternalPointerTag);
+
+constexpr ExternalPointerTag kFirstForeignExternalPointerTag =
+    GET_FIRST(FOREIGN_TAG_LIST);
+constexpr ExternalPointerTag kLastForeignExternalPointerTag =
+    GET_LAST(FOREIGN_TAG_LIST);
 constexpr ExternalPointerTagRange kAnyForeignExternalPointerTagRange(
     kFirstForeignExternalPointerTag, kLastForeignExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyInterceptorInfoExternalPointerTagRange(
     kFirstInterceptorInfoExternalPointerTag,
     kLastInterceptorInfoExternalPointerTag);
+
+constexpr ExternalPointerTag kFirstManagedExternalPointerTag =
+    GET_FIRST(MANAGED_TAG_LIST);
+constexpr ExternalPointerTag kLastManagedExternalPointerTag =
+    GET_LAST(MANAGED_TAG_LIST);
 constexpr ExternalPointerTagRange kAnyManagedExternalPointerTagRange(
     kFirstManagedExternalPointerTag, kLastManagedExternalPointerTag);
+
 constexpr ExternalPointerTagRange kAnyMaybeReadOnlyExternalPointerTagRange(
     kFirstMaybeReadOnlyExternalPointerTag,
     kLastMaybeReadOnlyExternalPointerTag);
+
+constexpr ExternalPointerTag kFirstManagedResourceTag =
+    GET_FIRST(MANAGED_TAG_LIST);
+// kLastManagedResourceTag defined in the enum.
 constexpr ExternalPointerTagRange kAnyManagedResourceExternalPointerTag(
     kFirstManagedResourceTag, kLastManagedResourceTag);
+
+constexpr ExternalPointerTag kFirstSharedManagedExternalPointerTag =
+    GET_FIRST(SHARED_MANAGED_TAG_LIST);
+constexpr ExternalPointerTag kLastSharedManagedExternalPointerTag =
+    GET_LAST(SHARED_MANAGED_TAG_LIST);
 constexpr ExternalPointerTagRange kAnySharedManagedExternalPointerTagRange(
     kFirstSharedManagedExternalPointerTag,
     kLastSharedManagedExternalPointerTag);
+
+#undef AS_LIST
+#undef GET_FIRST
+#undef GET_LAST
 
 // True if the external pointer must be accessed from the shared isolate's
 // external pointer table.
