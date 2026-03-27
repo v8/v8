@@ -3000,10 +3000,11 @@ void Shell::WasmSerializeModule(
   i::DirectHandle<i::WasmModuleObject> module_obj =
       i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
 
-  i::wasm::NativeModule* native_module = module_obj->native_module();
+  i::Managed<i::wasm::NativeModule>::Ptr native_module =
+      module_obj->native_module();
   DCHECK(!native_module->compilation_state()->failed());
 
-  i::wasm::WasmSerializer wasm_serializer(native_module);
+  i::wasm::WasmSerializer wasm_serializer(native_module.raw());
 
   // The content of the serialized byte buffer is nondeterministic (depends
   // e.g. on timing, but also on the platform and on enabled features).
@@ -4875,7 +4876,8 @@ void WriteWasmLcovData(v8::Isolate* isolate, const char* file) {
     debug::Coverage::ScriptData script_data = coverage.GetScriptData(i_script);
     Local<debug::Script> script = script_data.GetScript();
     auto wasm_script = Utils::OpenDirectHandle(*script);
-    i::wasm::NativeModule* native_module = wasm_script->wasm_native_module();
+    i::Managed<i::wasm::NativeModule>::Ptr native_module =
+        wasm_script->wasm_native_module();
     const i::wasm::WasmModule* wasm_module = native_module->module();
 
     constexpr int kMaxDisasmFileNameSize = 33;

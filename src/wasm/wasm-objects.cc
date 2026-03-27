@@ -157,7 +157,8 @@ DirectHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
 
 MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
-  wasm::NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   if (!module->name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, native_module->wire_bytes(),
@@ -167,7 +168,8 @@ MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
 MaybeDirectHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
     uint32_t func_index) {
-  wasm::NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   DCHECK_LT(func_index, module->functions.size());
   wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
@@ -182,7 +184,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   if (func_index == wasm::kAnonymousFuncIndex) {
     return base::Vector<const uint8_t>({nullptr, 0});
   }
-  wasm::NativeModule* native_mod = native_module();
+  Managed<wasm::NativeModule>::Ptr native_mod = native_module();
   const WasmModule* module = native_mod->module();
   DCHECK_GT(module->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_mod->wire_bytes());
@@ -1614,7 +1616,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     std::shared_ptr<wasm::NativeModule> native_module, SharedFlag shared) {
   // We don't read the NativeModule from the WasmModuleObject here to guard
   // against swapping attacks.
-  DCHECK_EQ(native_module.get(), module_object->native_module());
+  DCHECK_EQ(native_module.get(), module_object->native_module().raw());
 
   // Do first allocate all objects that will be stored in instance fields,
   // because otherwise we would have to allocate when the instance is not fully

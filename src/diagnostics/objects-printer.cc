@@ -3326,7 +3326,7 @@ void WasmExceptionPackage::WasmExceptionPackagePrint(std::ostream& os) {
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << native_module()->module();
-  os << "\n - native module: " << native_module();
+  os << "\n - native module: " << native_module().raw();
   os << "\n - script: " << Brief(script());
   os << "\n";
 }

@@ -436,7 +436,8 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
   DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int num_imports = static_cast<int>(module->import_table.size());
@@ -566,7 +567,8 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
   DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   int num_exports = static_cast<int>(module->export_table.size());
   DirectHandle<JSArray> array_object =

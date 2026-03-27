@@ -21,6 +21,7 @@
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/managed.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -144,7 +145,7 @@ enum InternalizeString : bool { kInternalize = true, kNoInternalize = false };
 class WasmModuleObject
     : public TorqueGeneratedWasmModuleObject<WasmModuleObject, JSObject> {
  public:
-  inline wasm::NativeModule* native_module() const;
+  inline Managed<wasm::NativeModule>::Ptr native_module() const;
   inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
       const;
 
@@ -1381,7 +1382,7 @@ class WasmScript : public AllStatic {
 
   // Get a list of all possible breakpoints within a given range of this module.
   V8_EXPORT_PRIVATE static bool GetPossibleBreakpoints(
-      wasm::NativeModule* native_module, const debug::Location& start,
+      const wasm::NativeModule* native_module, const debug::Location& start,
       const debug::Location& end, std::vector<debug::BreakLocation>* locations);
 
   // Return an empty handle if no breakpoint is hit at that location, or a

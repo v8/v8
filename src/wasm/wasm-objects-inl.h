@@ -61,8 +61,8 @@ namespace v8::internal {
   }
 
 // WasmModuleObject
-wasm::NativeModule* WasmModuleObject::native_module() const {
-  return managed_native_module()->raw();
+Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() const {
+  return managed_native_module()->ptr();
 }
 const std::shared_ptr<wasm::NativeModule>&
 WasmModuleObject::shared_native_module() const {
@@ -270,7 +270,7 @@ size_t WasmTrustedInstanceData::memory_size(uint32_t memory_index) const {
 }
 
 wasm::NativeModule* WasmTrustedInstanceData::native_module() const {
-  return managed_native_module()->get().get();
+  return managed_native_module()->raw();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {

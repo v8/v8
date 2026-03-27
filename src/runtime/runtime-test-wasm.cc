@@ -610,17 +610,19 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSObject> argument = args.at<JSObject>(0);
-  wasm::NativeModule* native_module;
+  size_t num_spaces;
   if (IsWasmInstanceObject(*argument)) {
-    native_module = Cast<WasmInstanceObject>(*argument)
-                        ->trusted_data(isolate)
-                        ->native_module();
+    num_spaces = Cast<WasmInstanceObject>(*argument)
+                     ->trusted_data(isolate)
+                     ->native_module()
+                     ->GetNumberOfCodeSpacesForTesting();
   } else if (IsWasmModuleObject(*argument)) {
-    native_module = Cast<WasmModuleObject>(*argument)->native_module();
+    num_spaces = Cast<WasmModuleObject>(*argument)
+                     ->native_module()
+                     ->GetNumberOfCodeSpacesForTesting();
   } else {
     return CrashUnlessFuzzing(isolate);
   }
-  size_t num_spaces = native_module->GetNumberOfCodeSpacesForTesting();
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 

@@ -933,7 +933,8 @@ int ExecuteAgainstReference(Isolate* isolate,
 ) {
   HandleScope handle_scope(isolate);
 
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   const base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int exported_main = FindExportedMainFunction(module, wire_bytes);
@@ -1102,16 +1103,16 @@ int ExecuteAgainstReference(Isolate* isolate,
   if (should_trace_memory) {
     std::ostringstream ss;
     ss << "\nMemory trace.\n";
-    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace, native_module,
-                                ss);
+    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
   if (should_trace_globals) {
     std::ostringstream ss;
     ss << "\nGlobal trace.\n";
-    CompareAndPrintGlobalTraces(global_trace, ref_global_trace, native_module,
-                                ss);
+    CompareAndPrintGlobalTraces(global_trace, ref_global_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 

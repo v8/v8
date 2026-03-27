@@ -8,17 +8,18 @@
 #include <memory>
 #include <utility>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-external-memory-accounter.h"
+#include "include/v8-object.h"
 #include "include/v8config.h"
-#include "src/api/api.h"
 #include "src/base/compiler-specific.h"
-#include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 #include "src/sandbox/external-pointer-table.h"
 
 namespace v8::internal {
+
+class Isolate;
 
 // Mechanism for associating an ExternalPointerTag with a C++ type that is
 // referenced via a Managed. Every such C++ type must have a unique
@@ -140,7 +141,6 @@ class Managed : public Foreign {
     V8_INLINE std::shared_ptr<CppType> as_shared_ptr() { return ptr_; }
 
     V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
-    V8_INLINE bool operator!=(std::nullptr_t) const { return ptr_ != nullptr; }
 
    private:
     friend class Managed;

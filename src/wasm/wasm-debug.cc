@@ -949,13 +949,14 @@ bool WasmScript::SetBreakPoint(DirectHandle<Script> script, int* position,
   DCHECK_NE(kOnEntryBreakpointPosition, *position);
 
   // Find the function for this breakpoint.
-  const wasm::WasmModule* module = script->wasm_native_module()->module();
+  Managed<wasm::NativeModule>::Ptr native_module = script->wasm_native_module();
+  const wasm::WasmModule* module = native_module->module();
   int func_index = GetContainingWasmFunction(module, *position);
   if (func_index < 0) return false;
   const wasm::WasmFunction& func = module->functions[func_index];
   int offset_in_func = *position - func.code.offset();
 
-  int breakable_offset = FindNextBreakablePosition(script->wasm_native_module(),
+  int breakable_offset = FindNextBreakablePosition(native_module.raw(),
                                                    func_index, offset_in_func);
   if (breakable_offset == 0) return false;
   *position = func.code.offset() + breakable_offset;
@@ -981,7 +982,8 @@ bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
   if (func_index < 0) return false;
   int offset_in_func = 0;
 
-  int breakable_offset = FindNextBreakablePosition(script->wasm_native_module(),
+  Managed<wasm::NativeModule>::Ptr native_module = script->wasm_native_module();
+  int breakable_offset = FindNextBreakablePosition(native_module.raw(),
                                                    func_index, offset_in_func);
   if (breakable_offset == 0) return false;
   return WasmScript::SetBreakPointForFunction(script, func_index,
@@ -998,7 +1000,7 @@ bool WasmScript::SetBreakPointForFunction(
   DCHECK_NE(0, offset);
 
   // Find the function for this breakpoint.
-  wasm::NativeModule* native_module = script->wasm_native_module();
+  Managed<wasm::NativeModule>::Ptr native_module = script->wasm_native_module();
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_index];
 
@@ -1086,7 +1088,8 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
     SetBreakOnEntryFlag(*script, false);
   } else {
     // Remove the breakpoint from DebugInfo and recompile.
-    wasm::NativeModule* native_module = script->wasm_native_module();
+    Managed<wasm::NativeModule>::Ptr native_module =
+        script->wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     int func_index = GetContainingWasmFunction(module, position);
     native_module->GetDebugInfo()->RemoveBreakpoint(func_index, position,
@@ -1194,7 +1197,7 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
 
 // static
 bool WasmScript::GetPossibleBreakpoints(
-    wasm::NativeModule* native_module, const v8::debug::Location& start,
+    const wasm::NativeModule* native_module, const v8::debug::Location& start,
     const v8::debug::Location& end,
     std::vector<v8::debug::BreakLocation>* locations) {
   DisallowGarbageCollection no_gc;

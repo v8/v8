@@ -1503,7 +1503,8 @@ void Debug::PrepareStep(StepAction step_action) {
 #endif  // V8_ENABLE_DRUMBRAKE
     // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
-    auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+    wasm::NativeModule* native_module = wasm_frame->native_module();
+    wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
     if (debug_info->PrepareStep(wasm_frame)) {
       UpdateHookOnFunctionCall();
       return;
@@ -1582,7 +1583,8 @@ void Debug::PrepareStep(StepAction step_action) {
           }
           // Handle stepping out into Wasm.
           WasmFrame* wasm_frame = WasmFrame::cast(frames_it.frame());
-          auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+          wasm::NativeModule* native_module = wasm_frame->native_module();
+          wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
           if (debug_info->IsFrameBlackboxed(wasm_frame)) continue;
           debug_info->PrepareStepOutTo(wasm_frame);
           return;

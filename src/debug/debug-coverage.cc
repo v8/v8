@@ -646,7 +646,8 @@ std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
       // Create and add new script data.
       result->emplace_back(handle(script, isolate));
       std::vector<CoverageFunction>* functions = &result->back().functions;
-      const wasm::NativeModule* native_module = script->wasm_native_module();
+      Managed<wasm::NativeModule>::Ptr native_module =
+          script->wasm_native_module();
       const wasm::WasmModule* wasm_module = native_module->module();
       const wasm::WasmModuleCoverageData* coverage_data =
           native_module->coverage_data().get();
