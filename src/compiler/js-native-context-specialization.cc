@@ -2863,16 +2863,24 @@ CallDescriptor* PushRegularApiCallInputs(
                               ? Builtin::kCallApiCallbackOptimizedNoProfiling
                               : Builtin::kCallApiCallbackOptimized);
 
+  const ZoneVector<CFunctionInfoWithDetails> overloads =
+      function_template_info.c_functions_with_signatures(broker);
+  const uint32_t overloads_count = static_cast<uint32_t>(overloads.size());
+  ZoneVector<Address> c_functions(overloads_count, jsgraph->zone());
+  ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                jsgraph->zone());
+  for (uint32_t i = 0; i < overloads_count; ++i) {
+    c_functions[i] = overloads[i].address;
+    c_signatures[i] = overloads[i].signature;
+  }
+
   Node* func_templ =
       jsgraph->HeapConstantNoHole(function_template_info.object());
   ApiFunction function(function_template_info.callback(broker));
   Node* function_reference = jsgraph->graph()->NewNode(
       jsgraph->common()->ExternalConstant(ExternalReference::Create(
           jsgraph->isolate(), &function, ExternalReference::DIRECT_API_CALL,
-          function_template_info.c_functions(broker).data(),
-          function_template_info.c_signatures(broker).data(),
-          static_cast<uint32_t>(
-              function_template_info.c_functions(broker).size()))));
+          c_functions.data(), c_signatures.data(), overloads_count)));
   Node* code = jsgraph->HeapConstantNoHole(call_api_callback.code());
 
   // Add CallApiCallbackStub's register argument as well.

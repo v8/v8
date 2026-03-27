@@ -712,13 +712,22 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
+    const ZoneVector<CFunctionInfoWithDetails> overloads =
+        function_template_info_.c_functions_with_signatures(broker());
+    const size_t overloads_count = overloads.size();
+    ZoneVector<Address> c_functions(overloads_count, graph()->zone());
+    ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                  graph()->zone());
+    for (size_t i = 0; i < overloads_count; ++i) {
+      c_functions[i] = overloads[i].address;
+      c_signatures[i] = overloads[i].signature;
+    }
+
     ApiFunction api_function(function_template_info_.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
-        function_template_info_.c_functions(broker()).data(),
-        function_template_info_.c_signatures(broker()).data(),
-        static_cast<unsigned>(
-            function_template_info_.c_functions(broker()).size()));
+        c_functions.data(), c_signatures.data(),
+        static_cast<unsigned>(overloads_count));
 
     // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.

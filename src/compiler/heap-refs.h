@@ -1013,6 +1013,11 @@ struct HolderLookupResult {
   OptionalJSObjectRef holder;
 };
 
+struct CFunctionInfoWithDetails {
+  Address address;
+  const CFunctionInfo* signature;
+};
+
 class FunctionTemplateInfoRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(FunctionTemplateInfo, HeapObjectRef)
@@ -1029,8 +1034,8 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   Address callback(JSHeapBroker* broker) const;
   OptionalObjectRef callback_data(JSHeapBroker* broker) const;
 
-  ZoneVector<Address> c_functions(JSHeapBroker* broker) const;
-  ZoneVector<const CFunctionInfo*> c_signatures(JSHeapBroker* broker) const;
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(
+      JSHeapBroker* broker) const;
   HolderLookupResult LookupHolderOfExpectedType(JSHeapBroker* broker,
                                                 MapRef receiver_map);
 };
