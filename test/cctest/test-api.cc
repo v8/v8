@@ -4745,18 +4745,6 @@ TEST(VectorOfGlobals) {
   CHECK_EQ(handle_count, global_handles->handles_count());
 }
 
-THREADED_TEST(GlobalHandleUpcast) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<String> local = v8::Local<String>::New(isolate, v8_str("str"));
-  v8::Persistent<String> global_string(isolate, local);
-  v8::Persistent<Value>& global_value =
-      v8::Persistent<Value>::Cast(global_string);
-  CHECK(v8::Local<v8::Value>::New(isolate, global_value)->IsString());
-  CHECK(global_string == v8::Persistent<String>::Cast(global_value));
-  global_string.Reset();
-}
-
 
 THREADED_TEST(HandleEquality) {
   v8::Isolate* isolate = CcTest::isolate();

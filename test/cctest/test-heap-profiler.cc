@@ -1877,8 +1877,7 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
-    v8::Local<v8::Value> wrapper = v8::Local<v8::Value>::New(
-        isolate_, v8::Persistent<v8::Value>::Cast(*value));
+    v8::Local<v8::Value> wrapper = v8::Local<v8::Value>::New(isolate_, *value);
     if (class_id == 1) {
       if (wrapper->IsString()) {
         v8::String::Utf8Value utf8(CcTest::isolate(), wrapper);
