@@ -5564,6 +5564,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // If we open with a kTemplateSpan, we must scan the subsequent expression,
   // and repeat if the following token is a kTemplateSpan as well (in this
   // case, representing a TemplateMiddle).
+  int arguments_count = 1;  // For `template_object`
 
   do {
     next = peek();
@@ -5571,6 +5572,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     int expr_pos = peek_position();
     AcceptINScope scope(this, true);
     ExpressionT expression = ParseExpressionCoverGrammar();
+
+    arguments_count++;
+    if (tagged && arguments_count + 1 /* receiver */ > Code::kMaxArguments) {
+      impl()->ReportMessageAt(Scanner::Location(expr_pos, peek_position()),
+                              MessageTemplate::kTooManyArguments);
+      return impl()->FailureExpression();
+    }
+
     impl()->AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::kRightBrace) {
