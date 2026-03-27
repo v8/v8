@@ -4,7 +4,7 @@
 
 // This is a fuzzer-generated test case that exposed a bug in Liftoff that only
 // affects ARM, where the fp register aliasing is different from other archs.
-// We were inncorrectly clearing the the high fp register in a LiftoffRegList
+// We were incorrectly clearing the high fp register in a LiftoffRegList
 // indicating registers to load, hitting a DCHECK.
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
