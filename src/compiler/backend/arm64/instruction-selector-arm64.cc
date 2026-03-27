@@ -581,13 +581,10 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
                             OpIndex index, InstructionOperand* index_op,
                             InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
-  if (const ChangeOp* change =
-          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
-      change && selector->CanCover(index, change->input())) {
-    index = change->input();
-  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
-  if (shift == nullptr) return false;
+  if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
+    return false;
+  }
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
@@ -3126,8 +3123,9 @@ void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
 
 void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
   Arm64OperandGenerator g(this);
-  OpIndex value = Cast<ChangeOp>(node).input();
-  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitFloat64Mod(OpIndex node) {
