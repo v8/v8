@@ -2118,7 +2118,7 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
     HeapEntry* entry, Tagged<JSArrayBuffer> buffer) {
   // Setup a reference to a native memory backing_store object.
   if (!buffer->backing_store()) return;
-  size_t data_size = buffer->byte_length();
+  const size_t data_size = buffer->GetByteLength();
   ExternalDataEntryAllocator allocator(data_size, this,
                                        "system / JSArrayBufferData");
   HeapEntry* data_entry =
