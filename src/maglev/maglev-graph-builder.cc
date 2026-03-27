@@ -3195,10 +3195,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   switch (state) {
     case ContextCell::kConst: {
       auto constant = slot_ref.tagged_value(broker());
-      if (!constant.has_value()) {
-        RETURN_VALUE(AddNewNode<LoadContextSlotNoCells>({context_node}, offset,
-                                                        assigned));
-      }
+      if (!constant.has_value()) return {};
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return GetConstant(*constant);
     }
