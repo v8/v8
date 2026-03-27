@@ -32,9 +32,11 @@ void ModuleRequest::set_import_attributes(Tagged<FixedArray> value,
   import_attributes_.store(this, value, mode);
 }
 
-int ModuleRequest::flags() const { return flags_.load().value(); }
-void ModuleRequest::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+uint32_t ModuleRequest::flags() const {
+  return static_cast<uint32_t>(flags_.load().value());
+}
+void ModuleRequest::set_flags(uint32_t value) {
+  flags_.store(this, Smi::From31BitPattern(value));
 }
 
 Tagged<UnionOf<String, Undefined>> SourceTextModuleInfoEntry::export_name()

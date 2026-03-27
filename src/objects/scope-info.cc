@@ -1324,13 +1324,16 @@ Handle<ModuleRequest> ModuleRequest::New(
   return result;
 }
 
-template Handle<ModuleRequest> ModuleRequest::New(
-    Isolate* isolate, DirectHandle<String> specifier, ModuleImportPhase phase,
-    DirectHandle<FixedArray> import_attributes, int position);
-template Handle<ModuleRequest> ModuleRequest::New(
-    LocalIsolate* isolate, DirectHandle<String> specifier,
-    ModuleImportPhase phase, DirectHandle<FixedArray> import_attributes,
-    int position);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ModuleRequest> ModuleRequest::New(
+        Isolate* isolate, DirectHandle<String> specifier,
+        ModuleImportPhase phase, DirectHandle<FixedArray> import_attributes,
+        int position);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ModuleRequest> ModuleRequest::New(
+        LocalIsolate* isolate, DirectHandle<String> specifier,
+        ModuleImportPhase phase, DirectHandle<FixedArray> import_attributes,
+        int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
@@ -1352,16 +1355,19 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
   return result;
 }
 
-template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
-    DirectHandle<UnionOf<String, Undefined>> local_name,
-    DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
-    int cell_index, int beg_pos, int end_pos);
-template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    LocalIsolate* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
-    DirectHandle<UnionOf<String, Undefined>> local_name,
-    DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
-    int cell_index, int beg_pos, int end_pos);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+        Isolate* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
+        DirectHandle<UnionOf<String, Undefined>> local_name,
+        DirectHandle<UnionOf<String, Undefined>> import_name,
+        int module_request, int cell_index, int beg_pos, int end_pos);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+        LocalIsolate* isolate,
+        DirectHandle<UnionOf<String, Undefined>> export_name,
+        DirectHandle<UnionOf<String, Undefined>> local_name,
+        DirectHandle<UnionOf<String, Undefined>> import_name,
+        int module_request, int cell_index, int beg_pos, int end_pos);
 
 template <typename IsolateT>
 DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
@@ -1428,10 +1434,12 @@ DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   return result;
 }
 
-template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
-template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+        Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+        LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 uint32_t SourceTextModuleInfo::RegularExportCount() const {
   uint32_t len = regular_exports()->ulength().value();

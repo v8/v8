@@ -49,14 +49,16 @@ BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
 
 inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
   DCHECK(PhaseBits::is_valid(phase));
-  int hints = flags();
+  uint32_t hints = flags();
   hints = PhaseBits::update(hints, phase);
   set_flags(hints);
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
-  int value = flags() & PhaseBits::kMask;
-  DCHECK(value == 0 || value == 1 || value == 2);
+  ModuleImportPhase value = PhaseBits::decode(flags());
+  DCHECK(value == ModuleImportPhase::kDefer ||
+         value == ModuleImportPhase::kEvaluation ||
+         value == ModuleImportPhase::kSource);
   return static_cast<ModuleImportPhase>(value);
 }
 

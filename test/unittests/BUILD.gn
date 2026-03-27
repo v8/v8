@@ -474,6 +474,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "objects/hashcode-unittest.cc",
     "objects/intl-unittest.cc",
     "objects/managed-unittest.cc",
+    "objects/module-request-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
     "objects/property-details-unittest.cc",

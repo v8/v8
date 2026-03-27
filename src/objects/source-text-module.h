@@ -246,7 +246,7 @@ class SourceTextModule
 class SourceTextModuleInfo : public FixedArray {
  public:
   template <typename IsolateT>
-  static DirectHandle<SourceTextModuleInfo> New(
+  V8_EXPORT_PRIVATE static DirectHandle<SourceTextModuleInfo> New(
       IsolateT* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
   inline Tagged<FixedArray> module_requests() const;
@@ -293,18 +293,17 @@ V8_OBJECT class ModuleRequest : public StructLayout {
   inline void set_import_attributes(
       Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
 
   DECL_VERIFIER(ModuleRequest)
   DECL_PRINTER(ModuleRequest)
 
   template <typename IsolateT>
-  static Handle<ModuleRequest> New(IsolateT* isolate,
-                                   DirectHandle<String> specifier,
-                                   ModuleImportPhase phase,
-                                   DirectHandle<FixedArray> import_attributes,
-                                   int position);
+  V8_EXPORT_PRIVATE static Handle<ModuleRequest> New(
+      IsolateT* isolate, DirectHandle<String> specifier,
+      ModuleImportPhase phase, DirectHandle<FixedArray> import_attributes,
+      int position);
 
   // The number of entries in the import_attributes FixedArray that are used for
   // a single attribute.
@@ -356,7 +355,7 @@ V8_OBJECT class SourceTextModuleInfoEntry : public StructLayout {
   DECL_PRINTER(SourceTextModuleInfoEntry)
 
   template <typename IsolateT>
-  static Handle<SourceTextModuleInfoEntry> New(
+  V8_EXPORT_PRIVATE static Handle<SourceTextModuleInfoEntry> New(
       IsolateT* isolate, DirectHandle<UnionOf<String, Undefined>> export_name,
       DirectHandle<UnionOf<String, Undefined>> local_name,
       DirectHandle<UnionOf<String, Undefined>> import_name, int module_request,
