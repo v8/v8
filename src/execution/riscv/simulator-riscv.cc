@@ -1299,7 +1299,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
@@ -1326,7 +1326,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
