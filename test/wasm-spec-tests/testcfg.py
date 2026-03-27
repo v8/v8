@@ -29,13 +29,13 @@ proposal_flags = [{
     'flags': []
 }, {
     'name': 'multi-memory',
-    'flags': ['--experimental-wasm-multi-memory']
+    'flags': []
 }, {
     'name': 'exception-handling',
     'flags': []
 }, {
     'name': 'js-promise-integration',
-    'flags': ['--experimental-wasm-jspi',]
+    'flags': []
 }, {
     'name': 'stack-switching',
     'flags': ['--experimental-wasm-wasmfx']

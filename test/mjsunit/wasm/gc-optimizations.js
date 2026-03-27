@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-wasm-lazy-compilation --no-wasm-loop-peeling
 // Flags: --no-wasm-inlining --no-wasm-loop-unrolling
-// Flags: --no-wasm-loop-peeling
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.

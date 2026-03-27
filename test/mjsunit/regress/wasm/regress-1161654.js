@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
-
 // This is a fuzzer-generated test case that exposed a bug in Liftoff that only
 // affects ARM, where the fp register aliasing is different from other archs.
 // We were inncorrectly clearing the the high fp register in a LiftoffRegList

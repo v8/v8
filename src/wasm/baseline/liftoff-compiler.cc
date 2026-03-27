@@ -10433,7 +10433,7 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(
               WasmInternalFunction::kProtectedImplicitArgOffset));
 
-      __ LoadFullPointer(target_reg, internal_function,
+      __ LoadCodePointer(target_reg, internal_function,
                          wasm::ObjectAccess::ToTagged(
                              WasmInternalFunction::kRawCallTargetOffset));
 

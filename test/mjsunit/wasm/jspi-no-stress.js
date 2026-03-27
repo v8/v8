@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-staging
-// Flags: --no-stress-wasm-stack-switching
+// Flags: --allow-natives-syntax --no-stress-wasm-stack-switching
 
 // --stress-wasm-stack-switching affects the behavior of the JSPI tests below,
 // so we skip them under this stress variant to only check the intended behavior
