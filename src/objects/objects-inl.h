@@ -626,8 +626,8 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  Tagged<ProtectedFixedArray> array;
-  if (!TryCast(obj, &array)) return false;
+  if (!Is<ProtectedFixedArray>(obj)) return false;
+  Tagged<ProtectedFixedArray> array = TrustedCast<ProtectedFixedArray>(obj);
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
@@ -1272,7 +1272,7 @@ inline auto HeapObject::ReadTrustedPointerField(
 }
 
 template <IndirectPointerTagRange tag_range>
-Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
+auto HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
   return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag_range>(

@@ -99,9 +99,9 @@ class TrustedPointerField {
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTagRange tag_range>
-  static inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
-      AcquireLoadTag);
+  static inline Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
+  ReadMaybeEmptyTrustedPointerField(Tagged<HeapObject> host, size_t offset,
+                                    IsolateForSandbox isolate, AcquireLoadTag);
 
   template <IndirectPointerTagRange tag_range>
   static inline void WriteTrustedPointerField(

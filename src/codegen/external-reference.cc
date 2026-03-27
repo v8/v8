@@ -1045,9 +1045,10 @@ namespace {
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
                                                    int bytecode_offset,
                                                    Address raw_bytecode_array) {
-  Tagged<Code> code_obj = SbxCast<Code>(Tagged<Object>(raw_code_obj));
-  Tagged<BytecodeArray> bytecode_array =
-      SbxCast<BytecodeArray>(Tagged<Object>(raw_bytecode_array));
+  Tagged<Code> code_obj =
+      SbxCast<Code>(TrustedCast<TrustedObject>(Tagged<Object>(raw_code_obj)));
+  Tagged<BytecodeArray> bytecode_array = SbxCast<BytecodeArray>(
+      TrustedCast<TrustedObject>(Tagged<Object>(raw_bytecode_array)));
   return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
                                                         bytecode_array);
 }

@@ -236,8 +236,8 @@ void PerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  Tagged<Code> code;
-  if (!TryCast(abstract_code, &code)) return;
+  if (!IsCode(abstract_code)) return;
+  Tagged<Code> code = abstract_code->GetCode();
 
   // Debug info has to be emitted first.
   DirectHandle<SharedFunctionInfo> sfi;

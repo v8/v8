@@ -42,6 +42,8 @@ namespace v8::internal {
 template <typename To>
 struct CastTraits;
 
+class Oddball;
+
 template <typename T>
 concept NotGCedType = !std::is_base_of_v<HeapObject, T> &&
                       !std::is_base_of_v<HeapObjectLayout, T>;
@@ -124,6 +126,9 @@ concept HasCppPointerTryCastImplementation =
 template <typename To, typename From, template <typename> class Holder>
   requires HasTryCastImplementation<Holder, To, From>
 inline bool TryCast(Holder<From> value, Holder<To>* out) {
+  static_assert(!is_subtype_v<To, TrustedObject> ||
+                    is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
+                "Type of untrusted objects cannot be checked reliably");
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
   return true;
@@ -246,7 +251,8 @@ inline Holder<To> SbxCast(
   // Under the attacker model of the sandbox we cannot trust the type of
   // in-sandbox objects for sandbox checks as these objects can be arbitrarily
   // tampered with.
-  static_assert(is_subtype_v<To, TrustedObject>,
+  static_assert(is_subtype_v<To, TrustedObject>);
+  static_assert(is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
                 "Type of untrusted objects cannot be checked reliably");
   DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);

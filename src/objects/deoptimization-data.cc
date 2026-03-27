@@ -156,25 +156,25 @@ size_t DeoptimizationLiteral::Read(base::Vector<const uint8_t> buffer,
 // TODO(375937549): Convert deopt_entry_count to uint32_t.
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(
           static_cast<uint32_t>(LengthFor(deopt_entry_count))));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
                                                    int deopt_entry_count) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(
           static_cast<uint32_t>(LengthFor(deopt_entry_count))));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return TrustedCast<DeoptimizationData>(
+  return UncheckedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 

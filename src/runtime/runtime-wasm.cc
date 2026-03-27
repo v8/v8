@@ -497,7 +497,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 
   // Avoid allocating a HandleScope and handles on the fast path.
   Tagged<WasmExportedFunctionData> function_data =
-      SbxCast<WasmExportedFunctionData>(args[0]);
+      SbxCast<WasmExportedFunctionData>(TrustedCast<TrustedObject>(args[0]));
   Tagged<WasmTrustedInstanceData> trusted_data = function_data->instance_data();
 
   const wasm::WasmModule* module = trusted_data->module();
@@ -569,8 +569,8 @@ RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmImportData> import_data(SbxCast<WasmImportData>(args[0]),
-                                           isolate);
+  DirectHandle<WasmImportData> import_data(
+      SbxCast<WasmImportData>(TrustedCast<TrustedObject>(args[0])), isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(import_data->native_context());

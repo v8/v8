@@ -1535,8 +1535,8 @@ class ProfilingMigrationObserver final : public MigrationObserver {
               CodeMoveEvent(TrustedCast<InstructionStream>(src),
                             TrustedCast<InstructionStream>(dst)));
     } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE)) {
-      Tagged<BytecodeArray> bytecode_array;
-      if (TryCast(dst, &bytecode_array)) {
+      if (Is<BytecodeArray>(dst)) {
+        Tagged<BytecodeArray> bytecode_array = TrustedCast<BytecodeArray>(dst);
         // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
         // allocated in trusted space.
         PROFILE(

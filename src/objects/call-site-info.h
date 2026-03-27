@@ -51,8 +51,9 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   bool IsNative() const;
 
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(Tagged<HeapObject> code,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_code_object(
+      Tagged<Union<Code, BytecodeArray, Undefined>> code,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<JSAny> receiver_or_instance() const;
   inline void set_receiver_or_instance(

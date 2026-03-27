@@ -672,7 +672,8 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
-  } else if (Tagged<Code> code; TryCast(handler, &code)) {
+  } else if (Is<Code>(handler)) {
+    Tagged<Code> code = TrustedCast<Code>(handler);
     os << "LoadHandler(Code)(" << Builtins::name(code->builtin_id()) << ")";
   } else if (IsSymbol(handler)) {
     os << "LoadHandler(Symbol)(" << Brief(Cast<Symbol>(handler)) << ")";
@@ -743,7 +744,8 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsMap(handler)) {
     os << "StoreHandler(field transition to " << Brief(handler) << ")"
        << std::endl;
-  } else if (Tagged<Code> code; TryCast(handler, &code)) {
+  } else if (Is<Code>(handler)) {
+    Tagged<Code> code = TrustedCast<Code>(handler);
     os << "StoreHandler(builtin = ";
     ShortPrint(code, os);
     os << ")" << std::endl;

@@ -163,7 +163,8 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());
-  } else if (Tagged<Code> code; TryCast(*obj, &code)) {
+  } else if (Is<Code>(*obj)) {
+    Tagged<Code> code = TrustedCast<Code>(*obj);
     // The only expected Code objects here are baseline code and builtins.
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
@@ -271,8 +272,8 @@ bool Serializer::SerializePendingObject(Tagged<HeapObject> obj) {
 }
 
 bool Serializer::ObjectIsBytecodeHandler(Tagged<HeapObject> obj) const {
-  Tagged<Code> code;
-  if (!TryCast(obj, &code)) return false;
+  if (!Is<Code>(obj)) return false;
+  Tagged<Code> code = TrustedCast<Code>(obj);
   return (code->kind() == CodeKind::BYTECODE_HANDLER);
 }
 

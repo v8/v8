@@ -1822,12 +1822,11 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
   auto isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
-  i::Tagged<i::Object> raw_function_data =
-      func->v8_object()->shared()->GetTrustedData(isolate);
+  auto raw_function_data = func->v8_object()->shared()->GetTrustedData(isolate);
 
   // WasmCapiFunctions can be called directly.
   if (i::Tagged<i::WasmCapiFunctionData> data;
-      TryCast(raw_function_data, &data)) {
+      i::TryCast(raw_function_data, &data)) {
     return CallWasmCapiFunction(data, args, results);
   }
 
@@ -1856,13 +1855,14 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
         instance_data->dispatch_table_for_imports()->implicit_arg(
             function_index),
         isolate);
-    if (i::Tagged<i::WasmImportData> import_data;
-        TryCast(*object_ref, &import_data)) {
+    if (i::Is<i::WasmImportData>(*object_ref)) {
+      i::Tagged<i::WasmImportData> import_data =
+          i::TrustedCast<i::WasmImportData>(*object_ref);
       i::Tagged<i::JSFunction> jsfunc =
           i::Cast<i::JSFunction>(import_data->callable());
-      i::Tagged<i::Object> data = jsfunc->shared()->GetTrustedData(isolate);
+      auto data = jsfunc->shared()->GetTrustedData(isolate);
       if (i::Tagged<i::WasmCapiFunctionData> trusted_data;
-          TryCast(data, &trusted_data)) {
+          i::TryCast(data, &trusted_data)) {
         return CallWasmCapiFunction(trusted_data, args, results);
       }
       // TODO(jkummerow): Imported and then re-exported JavaScript functions

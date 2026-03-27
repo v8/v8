@@ -218,8 +218,8 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
 
-  Tagged<IrRegExpData> regexp_data_obj =
-      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
+  Tagged<IrRegExpData> regexp_data_obj = SbxCast<IrRegExpData>(
+      TrustedCast<TrustedObject>(Tagged<Object>(regexp_data)));
 
   return ExecRaw(isolate, RegExp::kFromJs, regexp_data_obj, subject_string,
                  output_registers, output_register_count, start_position);

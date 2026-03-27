@@ -3991,7 +3991,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   }
 
   // Read the trusted object only once to ensure a consistent view on it.
-  Tagged<Object> trusted_data = shared.object()->GetTrustedData(isolate());
+  auto trusted_data = shared.object()->GetTrustedData(isolate());
   Tagged<WasmExportedFunctionData> function_data;
   if (!TryCast(trusted_data, &function_data)) return NoChange();
 

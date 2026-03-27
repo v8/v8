@@ -1795,7 +1795,8 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                     &eval_from_shared_or_wrapped_arguments)) {
           visited_.insert(eval_from_shared_or_wrapped_arguments);
         }
-      } else if (Tagged<BytecodeArray> bytes; TryCast(current, &bytes)) {
+      } else if (Is<BytecodeArray>(current)) {
+        auto bytes = TrustedCast<BytecodeArray>(current);
         Tagged<HeapObject> constants = bytes->constant_pool();
         QueueVisit(constants, kConstantPool);
       }

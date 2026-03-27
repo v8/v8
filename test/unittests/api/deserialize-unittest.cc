@@ -410,14 +410,14 @@ class MergeDeserializedCodeTest : public DeserializeTest {
 
   static i::Tagged<i::Object> ExtractSharedFunctionInfoData(
       i::Tagged<i::SharedFunctionInfo> sfi, i::Isolate* i_isolate) {
-    i::Tagged<i::Object> data = sfi->GetTrustedData(i_isolate);
+    auto data = sfi->GetTrustedData(i_isolate);
     // BytecodeArrays live in trusted space and so cannot be referenced through
     // tagged/compressed pointers from e.g. a FixedArray. Instead, we need to
     // use their in-sandbox wrapper object for that purpose.
     if (i::Tagged<i::BytecodeArray> bytes; TryCast(data, &bytes)) {
-      data = bytes->wrapper();
+      return bytes->wrapper();
     }
-    return data;
+    return i::Cast<i::Object>(data);
   }
 
   void ValidateStandaloneGraphAndPopulateArray(

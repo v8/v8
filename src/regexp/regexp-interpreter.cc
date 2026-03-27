@@ -1373,8 +1373,8 @@ int IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleDereference no_deref;
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
-  Tagged<IrRegExpData> regexp_data_obj =
-      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
+  Tagged<IrRegExpData> regexp_data_obj = SbxCast<IrRegExpData>(
+      TrustedCast<TrustedObject>(Tagged<Object>(regexp_data)));
 
   if (regexp_data_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation

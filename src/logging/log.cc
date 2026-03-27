@@ -1512,12 +1512,12 @@ void V8FileLogger::LogCodeDisassemble(DirectHandle<AbstractCode> code) {
       << V8FileLogger::kNext;
   {
     std::ostringstream stream;
-    if (Tagged<Code> code_as_code; TryCast(*code, &code_as_code)) {
+    if (IsCode(*code)) {
 #ifdef ENABLE_DISASSEMBLER
-      code_as_code->Disassemble(nullptr, stream, isolate_);
+      code->GetCode()->Disassemble(nullptr, stream, isolate_);
 #endif
     } else {
-      CheckedCast<BytecodeArray>(*code)->Disassemble(stream);
+      code->GetBytecodeArray()->Disassemble(stream);
     }
     std::string string = stream.str();
     msg.AppendString(string.c_str(), string.length());

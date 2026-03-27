@@ -1506,9 +1506,8 @@ void InstanceBuilder::Build_Phase1_Infallible() {
     const WasmTable& table = module_->tables[i];
     DirectHandle<WasmTrustedInstanceData> data_part =
         trusted_data(table.shared);
-    Tagged<Object> maybe_dispatch_table = data_part->dispatch_tables()->get(i);
     Tagged<WasmDispatchTable> dispatch_table;
-    if (!TryCast(maybe_dispatch_table, &dispatch_table)) {
+    if (!TryCast(data_part->dispatch_table(i), &dispatch_table)) {
       continue;  // Not a function table.
     }
     DirectHandle<WasmDispatchTable> dispatch_table_handle{dispatch_table,

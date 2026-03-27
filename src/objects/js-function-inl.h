@@ -135,14 +135,14 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
   return Isolate::Current()->js_dispatch_table().GetCode(dispatch_handle(tag));
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate) const {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
-Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
-                                    AcquireLoadTag tag) const {
+Tagged<Union<Smi, Code>> JSFunction::raw_code(IsolateForSandbox isolate,
+                                              AcquireLoadTag tag) const {
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
   return Isolate::Current()->js_dispatch_table().GetCode(handle);

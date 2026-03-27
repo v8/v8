@@ -1529,8 +1529,8 @@ void ImportedFunctionEntry::SetWasmToWasm(
 // otherwise.
 Tagged<Object> ImportedFunctionEntry::maybe_callable() {
   Tagged<Object> data = implicit_arg();
-  Tagged<WasmImportData> import_data;
-  if (!TryCast(data, &import_data)) return Tagged<Object>();
+  if (!Is<WasmImportData>(data)) return Tagged<Object>();
+  Tagged<WasmImportData> import_data = TrustedCast<WasmImportData>(data);
   return import_data->callable();
 }
 
@@ -2683,8 +2683,9 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     // Update any stored call origins, so that future compiled wrappers
     // get installed into the new dispatch table.
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
-    if (Tagged<WasmImportData> import_data;
-        TryCast(implicit_arg, &import_data)) {
+    if (Is<WasmImportData>(implicit_arg)) {
+      Tagged<WasmImportData> import_data =
+          TrustedCast<WasmImportData>(implicit_arg);
       // After installing a compiled wrapper, we don't set or update
       // call origins any more.
       if (import_data->has_call_origin()) {

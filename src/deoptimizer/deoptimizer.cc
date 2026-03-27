@@ -103,7 +103,8 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           return Code();
       }
     }
-    Tagged<InstructionStream> istream = SbxCast<InstructionStream>(object);
+    Tagged<InstructionStream> istream =
+        SbxCast<InstructionStream>(TrustedCast<TrustedObject>(object));
     Tagged<Code> code;
     if (!istream->TryGetCode(&code, kAcquireLoad)) continue;
     if (!CodeKindCanDeoptimize(code->kind())) continue;

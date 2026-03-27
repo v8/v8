@@ -24,6 +24,12 @@ namespace v8::internal {
 V8_EXPORT_PRIVATE constexpr Tagged<Smi>
     SharedFunctionInfo::kNoSharedNameSentinel;
 
+Tagged<Union<Smi, TrustedObject>> SharedFunctionInfo::GetTrustedData(
+    IsolateForSandbox isolate) const {
+  return ReadMaybeEmptyTrustedPointerField<kTrustedDataIndirectPointerRange>(
+      kTrustedFunctionDataOffset, isolate, kAcquireLoad);
+}
+
 uint32_t SharedFunctionInfo::Hash() {
   // Hash SharedFunctionInfo based on its start position and script id. Note: we
   // don't use the function's literal id since getting that is slow for compiled
@@ -73,68 +79,69 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
 // LINT.IfChange(GetSharedFunctionInfoCode)
 Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
-  Tagged<Object> data = GetTrustedData(isolate);
-  if (data != Smi::zero()) {
-    DCHECK(HasTrustedData());
+  if (HasTrustedData()) {
+    Tagged<Union<Smi, TrustedObject>> trusted_data = GetTrustedData(isolate);
+    DCHECK(trusted_data != Smi::zero());
 
-    if (IsBytecodeArray(data)) {
+    if (IsBytecodeArray(trusted_data)) {
       // Having a bytecode array means we are a compiled, interpreted function.
       DCHECK(HasBytecodeArray());
       return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
     }
-    if (Tagged<Code> code; TryCast(data, &code)) {
+    if (Tagged<Code> code; TryCast(trusted_data, &code)) {
       // Having baseline Code means we are a compiled, baseline function.
       DCHECK(HasBaselineCode());
       SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
       return code;
     }
-    if (IsInterpreterData(data)) {
+    if (IsInterpreterData(trusted_data)) {
       Tagged<Code> code = InterpreterTrampoline(isolate);
       DCHECK(IsCode(code));
       DCHECK(code->is_interpreter_trampoline_builtin());
       return code;
     }
-    if (IsUncompiledData(data)) {
+    if (IsUncompiledData(trusted_data)) {
       // Having uncompiled data (with or without scope) means we need to
       // compile.
       DCHECK(HasUncompiledData(isolate));
       return isolate->builtins()->code(Builtin::kCompileLazy);
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmExportedFunctionData(data)) {
+    if (IsWasmExportedFunctionData(trusted_data)) {
       // Having a WasmExportedFunctionData means the code is in there.
       DCHECK(HasWasmExportedFunctionData(isolate));
       return wasm_exported_function_data()->wrapper_code(isolate);
     }
-    if (IsWasmJSFunctionData(data)) {
+    if (IsWasmJSFunctionData(trusted_data)) {
       return wasm_js_function_data()->wrapper_code(isolate);
     }
-    if (IsWasmCapiFunctionData(data)) {
+    if (IsWasmCapiFunctionData(trusted_data)) {
       return wasm_capi_function_data()->wrapper_code(isolate);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     DCHECK(HasUntrustedData());
-    data = GetUntrustedData();
+    Tagged<Object> untrusted_data = GetUntrustedData();
 
-    if (IsSmi(data)) {
+    if (IsSmi(untrusted_data)) {
       // Holding a Smi means we are a builtin.
       DCHECK(HasBuiltinId());
       return isolate->builtins()->code(builtin_id());
     }
-    if (IsFunctionTemplateInfo(data)) {
+    if (IsFunctionTemplateInfo(untrusted_data)) {
       // Having a function template info means we are an API function.
       DCHECK(IsApiFunction());
       return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
     }
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsAsmWasmData(data)) {
+    if (IsAsmWasmData(untrusted_data)) {
       // Having AsmWasmData means we are an asm.js/wasm function.
       DCHECK(HasAsmWasmData());
       return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
     }
-    if (IsWasmResumeData(data)) {
-      if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
+    if (IsWasmResumeData(untrusted_data)) {
+      if (static_cast<wasm::OnResume>(
+              Cast<WasmResumeData>(untrusted_data)->on_resume()) ==
           wasm::OnResume::kContinue) {
         return isolate->builtins()->code(Builtin::kWasmResume);
       } else {

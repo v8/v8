@@ -418,8 +418,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTagRange tag_range>
-  inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+  inline auto ReadMaybeEmptyTrustedPointerField(size_t offset,
+                                                IsolateForSandbox isolate,
+                                                AcquireLoadTag) const;
 
   template <IndirectPointerTagRange tag_range>
   inline void WriteTrustedPointerField(size_t offset,

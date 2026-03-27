@@ -557,7 +557,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         if (!trap_value.AsHeapObject().IsJSFunction()) return {};
 
         SharedFunctionInfoRef sfi = trap_value.AsJSFunction().shared(broker());
-        Tagged<Object> trusted_data =
+        Tagged<Union<Smi, TrustedObject>> trusted_data =
             sfi.object()->GetTrustedData(broker()->local_isolate_or_isolate());
         Tagged<WasmExportedFunctionData> wasm_data;
         if (!TryCast(trusted_data, &wasm_data)) return {};

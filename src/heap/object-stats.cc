@@ -884,12 +884,10 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
       } else if (InstanceTypeChecker::IsMap(instance_type)) {
         RecordVirtualMapDetails(Cast<Map>(obj));
-      } else if (Tagged<BytecodeArray> bytecode_array;
-                 TryCast(obj, &bytecode_array)) {
-        RecordVirtualBytecodeArrayDetails(bytecode_array);
-      } else if (Tagged<InstructionStream> instruction_stream;
-                 TryCast(obj, &instruction_stream)) {
-        RecordVirtualCodeDetails(instruction_stream);
+      } else if (Is<BytecodeArray>(obj)) {
+        RecordVirtualBytecodeArrayDetails(TrustedCast<BytecodeArray>(obj));
+      } else if (Is<InstructionStream>(obj)) {
+        RecordVirtualCodeDetails(TrustedCast<InstructionStream>(obj));
       } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
         RecordVirtualFunctionTemplateInfoDetails(
             Cast<FunctionTemplateInfo>(obj));

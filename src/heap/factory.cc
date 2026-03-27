@@ -4328,8 +4328,8 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id,
 Handle<CallSiteInfo> Factory::NewCallSiteInfo(
     DirectHandle<JSAny> receiver_or_instance,
     DirectHandle<UnionOf<Smi, JSFunction>> function,
-    DirectHandle<HeapObject> code_object, int code_offset_or_source_position,
-    int flags) {
+    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_object,
+    int code_offset_or_source_position, int flags) {
   auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
                                               AllocationType::kYoung);
   DisallowGarbageCollection no_gc;

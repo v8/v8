@@ -2375,7 +2375,7 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
   DirectHandle<String> subject_handle =
       String::Flatten(isolate, args.at<String>(1));
   DirectHandle<AtomRegExpData> data_handle =
-      SbxCast<AtomRegExpData>(args.at<Object>(2));
+      SbxCast<AtomRegExpData>(TrustedCast<TrustedObject>(args.at<Object>(2)));
 
   DCHECK(regexp::Utils::IsUnmodifiedRegExp(isolate, regexp_handle));
   DCHECK(regexp_handle->flags() & JSRegExp::kGlobal);

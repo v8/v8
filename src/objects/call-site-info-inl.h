@@ -45,10 +45,9 @@ Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   return CheckedCast<Union<Code, BytecodeArray>>(object);
 }
 
-void CallSiteInfo::set_code_object(Tagged<HeapObject> maybe_code,
-                                   WriteBarrierMode mode) {
-  DCHECK(IsCode(maybe_code) || IsBytecodeArray(maybe_code) ||
-         IsUndefined(maybe_code));
+void CallSiteInfo::set_code_object(
+    Tagged<Union<Code, BytecodeArray, Undefined>> maybe_code,
+    WriteBarrierMode mode) {
   if (Tagged<Union<Code, BytecodeArray>> code; TryCast(maybe_code, &code)) {
     code_object_.store(this, code, mode);
   } else {

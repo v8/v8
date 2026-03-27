@@ -1757,7 +1757,8 @@ int CountBuiltins() {
   int counter = 0;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (Tagged<Code> code; TryCast(obj, &code)) {
+    if (Is<Code>(obj)) {
+      Tagged<Code> code = TrustedCast<Code>(obj);
       if (code->kind() == CodeKind::BUILTIN) counter++;
     }
   }

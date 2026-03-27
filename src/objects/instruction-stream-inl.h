@@ -178,12 +178,12 @@ Address InstructionStream::body_end() const {
   return instruction_start() + body_size();
 }
 
-Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
+Tagged<Union<Smi, Code>> InstructionStream::raw_code(AcquireLoadTag tag) const {
   Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
   DCHECK(!HeapLayout::InYoungGeneration(value));
   DCHECK(IsSmi(value) ||
          TrustedHeapLayout::InTrustedSpace(Cast<HeapObject>(value)));
-  return value;
+  return UncheckedCast<Union<Smi, Code>>(value);
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
@@ -192,7 +192,7 @@ Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
                                    AcquireLoadTag tag) const {
-  Tagged<Object> maybe_code = raw_code(tag);
+  auto maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
   return TryCast(maybe_code, code_out);
 }

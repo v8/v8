@@ -92,8 +92,8 @@ class BytecodeArray : public ExposedTrustedObject {
   DECL_GETTER(SourcePositionTable, Tagged<TrustedByteArray>)
 
   // Raw accessors to access these fields during code cache deserialization.
-  DECL_GETTER(raw_constant_pool, Tagged<Object>)
-  DECL_GETTER(raw_handler_table, Tagged<Object>)
+  DECL_GETTER(raw_constant_pool, Tagged<Union<Smi, TrustedFixedArray>>)
+  DECL_GETTER(raw_handler_table, Tagged<Union<Smi, TrustedByteArray>>)
   // This accessor can also be used when it's not guaranteed that a source
   // position table exists, for example because it hasn't been collected. In
   // that case, Smi::zero() will be returned.

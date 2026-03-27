@@ -39,18 +39,21 @@ Tagged<TrustedTypeFor<tag_range>> TrustedPointerField::ReadTrustedPointerField(
 }
 
 template <IndirectPointerTagRange tag_range>
-Tagged<Object> TrustedPointerField::ReadMaybeEmptyTrustedPointerField(
+Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
+TrustedPointerField::ReadMaybeEmptyTrustedPointerField(
     Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag) {
 #ifdef V8_ENABLE_SANDBOX
   // Reading a TrustedPointer field is just a ReadIndirectPointerField with the
   // proper tag.
   Address field_address = host->ptr() + offset - kHeapObjectTag;
-  return ReadIndirectPointerField<tag_range>(field_address, isolate,
-                                             kAcquireLoad);
+  Tagged<Object> object =
+      ReadIndirectPointerField<tag_range>(field_address, isolate, kAcquireLoad);
 #else
-  return TaggedField<Object>::Acquire_Load(host, static_cast<int>(offset));
+  Tagged<Object> object =
+      TaggedField<Object>::Acquire_Load(host, static_cast<int>(offset));
 #endif
+  return TrustedCast<Union<Smi, TrustedTypeFor<tag_range>>>(object);
 }
 
 template <IndirectPointerTagRange tag_range>

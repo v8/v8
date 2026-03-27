@@ -977,7 +977,8 @@ class CallSiteBuilder {
     if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
     AppendFrame(Cast<UnionOf<JSAny, Hole>>(summary.receiver()), function,
-                summary.abstract_code(), summary.code_offset(), flags);
+                handle(summary.abstract_code()->ToUnionType(), isolate_),
+                summary.code_offset(), flags);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -992,7 +993,7 @@ class CallSiteBuilder {
       }
     }
 
-    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<Undefined> code = isolate_->factory()->undefined_value();
     AppendFrame(instance,
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
                 code, summary.code_offset(), flags);
@@ -1014,7 +1015,7 @@ class CallSiteBuilder {
 
   void AppendWasmInlinedFrame(
       FrameSummary::WasmInlinedFrameSummary const& summary) {
-    DirectHandle<HeapObject> code = isolate_->factory()->undefined_value();
+    DirectHandle<Undefined> code = isolate_->factory()->undefined_value();
     int flags = CallSiteInfo::kIsWasm;
     AppendFrame(summary.wasm_instance(),
                 direct_handle(Smi::FromInt(summary.function_index()), isolate_),
@@ -1100,7 +1101,8 @@ class CallSiteBuilder {
 
   void AppendFrame(DirectHandle<UnionOf<JSAny, Hole>> receiver_or_instance,
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
-                   DirectHandle<HeapObject> code, int offset, int flags) {
+                   DirectHandle<Union<Code, BytecodeArray, Undefined>> code,
+                   int offset, int flags) {
     if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
@@ -3832,9 +3834,10 @@ bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
   }
   if (iterator.frame_summary().IsJavaScript()) {
     auto& js_summary = iterator.frame_summary().AsJavaScript();
-    if (Handle<BytecodeArray> bytecode_array;
-        TryCast(js_summary.abstract_code(), &bytecode_array)) {
-      if (CallsCatchMethod(iterator.isolate(), bytecode_array,
+    if (Tagged<BytecodeArray> bytecode_array;
+        TryCast(js_summary.abstract_code()->ToUnionType(), &bytecode_array)) {
+      if (CallsCatchMethod(iterator.isolate(),
+                           handle(bytecode_array, iterator.isolate()),
                            js_summary.code_offset())) {
         return true;
       }
