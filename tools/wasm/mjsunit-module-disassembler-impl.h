@@ -24,9 +24,10 @@ namespace v8::internal::wasm {
 //
 // The one relevant public method is MjsunitModuleDis::PrintModule().
 
-static constexpr char kHexChars[] = "0123456789abcdef";
+inline constexpr char kHexChars[] = "0123456789abcdef";
 
-StringBuilder& operator<<(StringBuilder& sb, base::Vector<const char> chars) {
+inline StringBuilder& operator<<(StringBuilder& sb,
+                                 base::Vector<const char> chars) {
   sb.write(chars.cbegin(), chars.size());
   return sb;
 }
@@ -512,8 +513,7 @@ class MjsunitNamesProvider {
   std::vector<WireBytesRef> function_variable_names_;
 };
 
-namespace {
-const char* RawOpcodeName(WasmOpcode opcode) {
+inline const char* RawOpcodeName(WasmOpcode opcode) {
   switch (opcode) {
 #define DECLARE_NAME_CASE(name, ...) \
   case kExpr##name:                  \
@@ -525,7 +525,8 @@ const char* RawOpcodeName(WasmOpcode opcode) {
   }
   return "Unknown";
 }
-const char* PrefixName(WasmOpcode prefix_opcode) {
+
+inline const char* PrefixName(WasmOpcode prefix_opcode) {
   switch (prefix_opcode) {
 #define DECLARE_PREFIX_CASE(name, opcode) \
   case k##name##Prefix:                   \
@@ -536,7 +537,6 @@ const char* PrefixName(WasmOpcode prefix_opcode) {
       return "Unknown prefix";
   }
 }
-}  // namespace
 
 template <typename ValidationTag>
 class MjsunitImmediatesPrinter;
@@ -610,7 +610,7 @@ class MjsunitFunctionDis : public WasmDecoder<Decoder::FullValidationTag> {
   WasmOpcode current_opcode_;
 };
 
-void MjsunitFunctionDis::WriteMjsunit(MultiLineStringBuilder& out) {
+inline void MjsunitFunctionDis::WriteMjsunit(MultiLineStringBuilder& out) {
   if (!more()) {
     out << ".addBodyWithEnd([]);  // Invalid: missing kExprEnd.";
     return;
@@ -717,7 +717,7 @@ void MjsunitFunctionDis::WriteMjsunit(MultiLineStringBuilder& out) {
   out.NextLine(0);
 }
 
-void PrintF32Const(StringBuilder& out, ImmF32Immediate& imm) {
+inline void PrintF32Const(StringBuilder& out, ImmF32Immediate& imm) {
   uint32_t bits = base::bit_cast<uint32_t>(imm.value);
   if (bits == 0x80000000) {
     out << "wasmF32Const(-0)";
@@ -739,7 +739,7 @@ void PrintF32Const(StringBuilder& out, ImmF32Immediate& imm) {
   out << "wasmF32Const(" << str << ")";
 }
 
-void PrintF64Const(StringBuilder& out, ImmF64Immediate& imm) {
+inline void PrintF64Const(StringBuilder& out, ImmF64Immediate& imm) {
   uint64_t bits = base::bit_cast<uint64_t>(imm.value);
   if (bits == base::bit_cast<uint64_t>(-0.0)) {
     out << "wasmF64Const(-0)";
@@ -761,7 +761,7 @@ void PrintF64Const(StringBuilder& out, ImmF64Immediate& imm) {
   out << "wasmF64Const(" << str << ")";
 }
 
-void PrintI64Const(StringBuilder& out, ImmI64Immediate& imm) {
+inline void PrintI64Const(StringBuilder& out, ImmI64Immediate& imm) {
   out << "wasmI64Const(";
   if (imm.value >= 0) {
     out << static_cast<uint64_t>(imm.value);
@@ -771,7 +771,7 @@ void PrintI64Const(StringBuilder& out, ImmI64Immediate& imm) {
   out << "n)";  // `n` to make it a BigInt literal.
 }
 
-void MjsunitFunctionDis::DecodeGlobalInitializer(StringBuilder& out) {
+inline void MjsunitFunctionDis::DecodeGlobalInitializer(StringBuilder& out) {
   // Special: Pretty-print simple constants (that aren't handled by the
   // i32 special case at the caller).
   uint32_t length = static_cast<uint32_t>(end_ - pc_);
@@ -1179,7 +1179,7 @@ class MjsunitImmediatesPrinter {
 // For opcodes that produce constants (such as `kExprI32Const`), this prints
 // more than just the immediate: it also decides whether to use
 // "kExprI32Const, 0," or "...wasmI32Const(1234567)".
-uint32_t MjsunitFunctionDis::PrintMjsunitImmediatesAndGetLength(
+inline uint32_t MjsunitFunctionDis::PrintMjsunitImmediatesAndGetLength(
     StringBuilder& out) {
   using Printer = MjsunitImmediatesPrinter<ValidationTag>;
   Printer imm_printer(out, this);

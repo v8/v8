@@ -59,15 +59,15 @@ static_assert(kHasIndependentSimd128Regs == (kSimd128Reg != kNoReg),
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
-static inline constexpr bool needs_gp_reg_pair(ValueKind kind) {
+inline constexpr bool needs_gp_reg_pair(ValueKind kind) {
   return kNeedI64RegPair && kind == kI64;
 }
 
-static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
+inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
   return kNeedS128RegPair && kind == kS128;
 }
 
-static inline constexpr RegClass reg_class_for(ValueKind kind) {
+inline constexpr RegClass reg_class_for(ValueKind kind) {
   // Statically generate an array that we use for lookup at runtime.
   constexpr size_t kNumValueKinds = static_cast<size_t>(kTop);
   constexpr auto kRegClasses =
@@ -400,7 +400,6 @@ inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
   }
 }
 
-namespace {  // Anonymous.
 struct Bits128 {
   uint64_t low = 0;
   uint64_t high = 0;
@@ -466,18 +465,17 @@ struct Bits128 {
     return lhs.low != static_cast<uint64_t>(rhs) || lhs.high != 0;
   }
 };
-}  // namespace
 
-static constexpr unsigned CountPopulation(Bits128 bits) {
+inline constexpr unsigned CountPopulation(Bits128 bits) {
   return static_cast<unsigned>(base::bits::CountPopulation(bits.low) +
                                base::bits::CountPopulation(bits.high));
 }
 template <typename T>
-static constexpr unsigned CountPopulation(T bits) {
+constexpr unsigned CountPopulation(T bits) {
   return base::bits::CountPopulation(bits);
 }
 
-static constexpr unsigned CountTrailingZeros(Bits128 bits) {
+inline constexpr unsigned CountTrailingZeros(Bits128 bits) {
   if (bits.low != 0) {
     return base::bits::CountTrailingZeros(bits.low);
   } else {
@@ -485,11 +483,11 @@ static constexpr unsigned CountTrailingZeros(Bits128 bits) {
   }
 }
 template <typename T>
-static constexpr unsigned CountTrailingZeros(T bits) {
+constexpr unsigned CountTrailingZeros(T bits) {
   return base::bits::CountTrailingZeros(bits);
 }
 
-static constexpr unsigned CountLeadingZeros(Bits128 bits) {
+inline constexpr unsigned CountLeadingZeros(Bits128 bits) {
   if (bits.high != 0) {
     return base::bits::CountLeadingZeros(bits.high);
   } else {
@@ -497,7 +495,7 @@ static constexpr unsigned CountLeadingZeros(Bits128 bits) {
   }
 }
 template <typename T>
-static constexpr unsigned CountLeadingZeros(T bits) {
+constexpr unsigned CountLeadingZeros(T bits) {
   return base::bits::CountLeadingZeros(bits);
 }
 
