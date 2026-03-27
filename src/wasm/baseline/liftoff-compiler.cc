@@ -9114,16 +9114,15 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(variant_reg, static_cast<int32_t>(variant));
     VarState variant_var(kSmiKind, variant_reg, 0);
+    VarState shared_var(kSmiKind, 0, 0);
 
-    CallBuiltin(Builtin::kWasmStringNewWtf8Array,
-                MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind),
-                {
-                    __ cache_state()->stack_state.end()[-2],  // start
-                    __ cache_state()->stack_state.end()[-1],  // end
-                    array_var,
-                    variant_var,
-                },
-                decoder->position());
+    CallBuiltin(
+        Builtin::kWasmStringNewWtf8Array,
+        MakeSig::Returns(kRefNull).Params(kI32, kI32, kRef, kSmiKind, kSmiKind),
+        {__ cache_state()->stack_state.end()[-2],  // start
+         __ cache_state()->stack_state.end()[-1],  // end
+         array_var, variant_var, shared_var},
+        decoder->position());
     __ cache_state()->stack_state.pop_back(3);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -9836,10 +9835,11 @@ class LiftoffCompiler {
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
     VarState& codepoint_var = __ cache_state()->stack_state.end()[-1];
+    VarState shared_var(kSmiKind, 0, 0);
 
     CallBuiltin(Builtin::kWasmStringFromCodePoint,
-                MakeSig::Returns(kRef).Params(kI32), {codepoint_var},
-                decoder->position());
+                MakeSig::Returns(kRef).Params(kI32, kSmiKind),
+                {codepoint_var, shared_var}, decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result_reg(kReturnRegister0);

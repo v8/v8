@@ -1768,28 +1768,54 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
 // Returns the name, Builtin ID, and "length" (in the JSFunction sense, i.e.
 // number of parameters) for the function representing the given import.
 std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
-#define CASE(CamelName, name, length) \
-  case WellKnownImport::k##CamelName: \
-    return std::make_tuple(name, Builtin::kWebAssembly##CamelName, length)
+#define CASE(WKICamelName, BuiltinCamelName, name, length)                \
+  case WellKnownImport::k##WKICamelName:                                  \
+    return std::make_tuple(name, Builtin::kWebAssembly##BuiltinCamelName, \
+                           length)
   switch (wki) {
-    CASE(ConfigureAllPrototypes, "configureAll", 4);
-    CASE(StringCast, "cast", 1);
-    CASE(StringCharCodeAt, "charCodeAt", 2);
-    CASE(StringCodePointAt, "codePointAt", 2);
-    CASE(StringCompare, "compare", 2);
-    CASE(StringConcat, "concat", 2);
-    CASE(StringEquals, "equals", 2);
-    CASE(StringFromCharCode, "fromCharCode", 1);
-    CASE(StringFromCodePoint, "fromCodePoint", 1);
-    CASE(StringFromUtf8Array, "decodeStringFromUTF8Array", 3);
-    CASE(StringFromWtf16Array, "fromCharCodeArray", 3);
-    CASE(StringIntoUtf8Array, "encodeStringIntoUTF8Array", 3);
-    CASE(StringLength, "length", 1);
-    CASE(StringMeasureUtf8, "measureStringAsUTF8", 1);
-    CASE(StringSubstring, "substring", 3);
-    CASE(StringTest, "test", 1);
-    CASE(StringToUtf8Array, "encodeStringToUTF8Array", 1);
-    CASE(StringToWtf16Array, "intoCharCodeArray", 3);
+    CASE(ConfigureAllPrototypes, ConfigureAllPrototypes, "configureAll", 4);
+    CASE(StringCast, StringCast, "cast", 1);
+    CASE(StringCastShared, StringCast, "cast", 1);
+    CASE(StringCharCodeAt, StringCharCodeAt, "charCodeAt", 2);
+    CASE(StringCharCodeAtShared, StringCharCodeAt, "charCodeAt", 2);
+    CASE(StringCodePointAt, StringCodePointAt, "codePointAt", 2);
+    CASE(StringCodePointAtShared, StringCodePointAt, "codePointAt", 2);
+    CASE(StringCompare, StringCompare, "compare", 2);
+    CASE(StringCompareShared, StringCompare, "compare", 2);
+    CASE(StringConcat, StringConcat, "concat", 2);
+    CASE(StringConcatShared, StringConcatShared, "concat", 2);
+    CASE(StringEquals, StringEquals, "equals", 2);
+    CASE(StringEqualsShared, StringEquals, "equals", 2);
+    CASE(StringFromCharCode, StringFromCharCode, "fromCharCode", 1);
+    CASE(StringFromCharCodeShared, StringFromCharCodeShared, "fromCharCode", 1);
+    CASE(StringFromCodePoint, StringFromCodePoint, "fromCodePoint", 1);
+    CASE(StringFromCodePointShared, StringFromCodePointShared, "fromCodePoint",
+         1);
+    CASE(StringFromUtf8Array, StringFromUtf8Array, "decodeStringFromUTF8Array",
+         3);
+    CASE(StringFromUtf8ArrayShared, StringFromUtf8ArrayShared,
+         "decodeStringFromUTF8Array", 3);
+    CASE(StringFromWtf16Array, StringFromWtf16Array, "fromCharCodeArray", 3);
+    CASE(StringFromWtf16ArrayShared, StringFromWtf16ArrayShared,
+         "fromCharCodeArray", 3);
+    CASE(StringIntoUtf8Array, StringIntoUtf8Array, "encodeStringIntoUTF8Array",
+         3);
+    CASE(StringIntoUtf8ArrayShared, StringIntoUtf8ArrayShared,
+         "encodeStringIntoUTF8Array", 3);
+    CASE(StringLength, StringLength, "length", 1);
+    CASE(StringLengthShared, StringLength, "length", 1);
+    CASE(StringMeasureUtf8, StringMeasureUtf8, "measureStringAsUTF8", 1);
+    CASE(StringMeasureUtf8Shared, StringMeasureUtf8, "measureStringAsUTF8", 1);
+    CASE(StringSubstring, StringSubstring, "substring", 3);
+    CASE(StringSubstringShared, StringSubstringShared, "substring", 3);
+    CASE(StringTest, StringTest, "test", 1);
+    CASE(StringTestShared, StringTest, "test", 1);
+    CASE(StringToUtf8Array, StringToUtf8Array, "encodeStringToUTF8Array", 1);
+    CASE(StringToUtf8ArrayShared, StringToUtf8ArrayShared,
+         "encodeStringToUTF8Array", 1);
+    CASE(StringToWtf16Array, StringToWtf16Array, "intoCharCodeArray", 3);
+    CASE(StringToWtf16ArrayShared, StringToWtf16ArrayShared,
+         "intoCharCodeArray", 3);
     default:
       UNREACHABLE();  // Only call this for compile-time imports.
   }

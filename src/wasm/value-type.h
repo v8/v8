@@ -1185,6 +1185,11 @@ constexpr IndependentHeapType kWasmRefNullExternString{
     GenericKind::kExternString};
 constexpr IndependentHeapType kWasmRefExternString{GenericKind::kExternString,
                                                    kNonNullable};
+constexpr IndependentHeapType kWasmRefNullSharedExternString{
+    GenericKind::kExternString, kNullable, SharedFlag::kYes};
+constexpr IndependentHeapType kWasmRefSharedExternString{
+    GenericKind::kExternString, kNonNullable, SharedFlag::kYes};
+
 constexpr IndependentHeapType kWasmStringViewWtf8{GenericKind::kStringViewWtf8,
                                                   kNonNullable};
 constexpr IndependentHeapType kWasmStringViewWtf16{

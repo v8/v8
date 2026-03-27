@@ -1537,14 +1537,22 @@ class TurboshaftGraphBuildingInterface
   }
 
   V<Word32> IsExternRefString(const Value value) {
-    compiler::WasmTypeCheckConfig config{value.type, kWasmRefExternString};
+    compiler::WasmTypeCheckConfig config{
+        value.type, value.type.is_shared() == SharedFlag::kYes
+                        ? kWasmRefSharedExternString
+                        : kWasmRefExternString};
     V<Map> rtt = OpIndex::Invalid();
     return __ WasmTypeCheck(value.op, rtt, config);
   }
 
   V<String> ExternRefToString(const Value value, bool null_succeeds = false) {
     wasm::ValueType target_type =
-        null_succeeds ? kWasmRefNullExternString : kWasmRefExternString;
+        null_succeeds ? (value.type.is_shared() == SharedFlag::kYes
+                             ? kWasmRefNullSharedExternString
+                             : kWasmRefNullExternString)
+                      : (value.type.is_shared() == SharedFlag::kYes
+                             ? kWasmRefSharedExternString
+                             : kWasmRefExternString);
     compiler::WasmTypeCheckConfig config{value.type, target_type};
     V<Map> rtt = OpIndex::Invalid();
     return V<String>::Cast(__ WasmTypeCast(value.op, rtt, config));
@@ -1554,7 +1562,8 @@ class TurboshaftGraphBuildingInterface
     if (__ generating_unreachable_operations()) return false;
     const WasmTypeCastOp* cast =
         __ output_graph().Get(value.op).TryCast<WasmTypeCastOp>();
-    return cast && cast->config.to == kWasmRefExternString;
+    return cast && (cast->config.to == kWasmRefExternString ||
+                    cast->config.to == kWasmRefSharedExternString);
   }
 
   V<Word32> GetStringIndexOf(FullDecoder* decoder, V<String> string,
@@ -2081,17 +2090,18 @@ class TurboshaftGraphBuildingInterface
         return false;
 
       // JS String Builtins proposal.
-      case WKI::kStringCast: {
+      case WKI::kStringCast:
+      case WKI::kStringCastShared:
         result = ExternRefToString(args[0]);
         decoder->detected_->add_imported_strings();
         break;
-      }
-      case WKI::kStringTest: {
+      case WKI::kStringTest:
+      case WKI::kStringTestShared:
         result = IsExternRefString(args[0]);
         decoder->detected_->add_imported_strings();
         break;
-      }
-      case WKI::kStringCharCodeAt: {
+      case WKI::kStringCharCodeAt:
+      case WKI::kStringCharCodeAtShared: {
         V<String> string = ExternRefToString(args[0]);
         V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
@@ -2099,7 +2109,8 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringCodePointAt: {
+      case WKI::kStringCodePointAt:
+      case WKI::kStringCodePointAtShared: {
         V<String> string = ExternRefToString(args[0]);
         V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
@@ -2107,7 +2118,8 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringCompare: {
+      case WKI::kStringCompare:
+      case WKI::kStringCompareShared: {
         V<String> a_string = ExternRefToString(args[0]);
         V<String> b_string = ExternRefToString(args[1]);
         result = __ UntagSmi(CallBuiltinThroughJumptable<
@@ -2128,7 +2140,11 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringEquals: {
+      case WKI::kStringConcatShared: {
+        UNIMPLEMENTED();
+      }
+      case WKI::kStringEquals:
+      case WKI::kStringEqualsShared: {
         // Using nullable type guards here because this instruction needs to
         // handle {null} without trapping.
         static constexpr bool kNullSucceeds = true;
@@ -2142,16 +2158,36 @@ class TurboshaftGraphBuildingInterface
       case WKI::kStringFromCharCode: {
         V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder, {capped});
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(
+            decoder, {capped, __ SmiConstant(Smi::FromInt(0)) /* shared */});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringFromCharCodeShared: {
+        V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(
+            decoder, {capped, __ SmiConstant(Smi::FromInt(1)) /* shared */});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
         decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromCodePoint: {
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
-                                                            {args[0].op});
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(
+            decoder,
+            {args[0].op, __ SmiConstant(Smi::FromInt(0)) /* shared */});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringFromCodePointShared: {
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(
+            decoder,
+            {args[0].op, __ SmiConstant(Smi::FromInt(1)) /* shared */});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
         decoder->detected_->add_imported_strings();
         break;
       }
@@ -2164,13 +2200,38 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
+      case WKI::kStringFromWtf16ArrayShared: {
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringNewWtf16ArrayShared>(
+            decoder,
+            {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op, args[2].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
       case WKI::kStringFromUtf8Array:
         result = StringNewWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
             args[2], kWasmRefExternString);
         decoder->detected_->add_imported_strings();
         break;
-      case WKI::kStringIntoUtf8Array: {
+      case WKI::kStringFromUtf8ArrayShared: {
+        // TODO(448741522): If needed, special-case the array being an
+        // array.new_data, like StringNewWtf8ArrayImpl
+        V<Object> builtin_result = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringNewWtf8Array>(
+            decoder,
+            {args[1].op, args[2].op, V<WasmArray>::Cast(NullCheck(args[0])),
+             __ SmiConstant(Smi::FromInt(
+                 static_cast<int32_t>(unibrow::Utf8Variant::kLossyUtf8))),
+             __ SmiConstant(Smi::FromInt(1)) /* shared */});
+        result =
+            __ AnnotateWasmType(builtin_result, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringIntoUtf8Array:
+      case WKI::kStringIntoUtf8ArrayShared: {
         V<String> string = ExternRefToString(args[0]);
         result = StringEncodeWtf8ArrayImpl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, string,
@@ -2178,22 +2239,28 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringToUtf8Array: {
+      case WKI::kStringToUtf8Array:
+      case WKI::kStringToUtf8ArrayShared: {
         V<String> string = ExternRefToString(args[0]);
+        V<Word32> shared_value = __ Word32Constant(
+            imported_op == WKI::kStringToUtf8ArrayShared ? 1 : 0);
         V<WasmArray> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringToUtf8Array>(decoder, {string});
+            BuiltinCallDescriptor::WasmStringToUtf8Array>(
+            decoder, {string, shared_value});
         result = __ AnnotateWasmType(result_value, returns[0].type);
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringLength: {
+      case WKI::kStringLength:
+      case WKI::kStringLengthShared: {
         V<Object> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(
             string, compiler::AccessBuilder::ForStringLength());
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringMeasureUtf8: {
+      case WKI::kStringMeasureUtf8:
+      case WKI::kStringMeasureUtf8Shared: {
         V<String> string = ExternRefToString(args[0]);
         result = StringMeasureWtf8Impl(
             decoder, unibrow::Utf8Variant::kLossyUtf8, string);
@@ -2212,7 +2279,11 @@ class TurboshaftGraphBuildingInterface
         decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringToWtf16Array: {
+      case WKI::kStringSubstringShared: {
+        UNIMPLEMENTED();
+      }
+      case WKI::kStringToWtf16Array:
+      case WKI::kStringToWtf16ArrayShared: {
         V<String> string = ExternRefToString(args[0]);
         result = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
@@ -5828,9 +5899,9 @@ class TurboshaftGraphBuildingInterface
       // Regular path if the shortcut wasn't taken.
       call = CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmStringNewWtf8Array>(
-          decoder,
-          {start.op, end.op, V<WasmArray>::Cast(NullCheck(array)),
-           __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
+          decoder, {start.op, end.op, V<WasmArray>::Cast(NullCheck(array)),
+                    __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant))),
+                    __ SmiConstant(Smi::FromInt(0)) /* shared */});
     }
     DCHECK_IMPLIES(variant == unibrow::Utf8Variant::kUtf8NoTrap,
                    result_type.is_nullable());
@@ -6272,8 +6343,8 @@ class TurboshaftGraphBuildingInterface
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
     V<String> result_value = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
-                                                        {code_point.op});
+        BuiltinCallDescriptor::WasmStringFromCodePoint>(
+        decoder, {code_point.op, __ SmiConstant(Smi::FromInt(0)) /* shared */});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 

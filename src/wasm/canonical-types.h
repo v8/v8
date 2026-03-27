@@ -47,28 +47,44 @@ static_assert(kMaxCanonicalTypes <= (1 << CanonicalValueType::kNumIndexBits));
 class TypeCanonicalizer {
  public:
   static constexpr CanonicalTypeIndex kPredefinedArrayI8Index{0};
-  static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
-  static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{2};
-  static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{3};
+  static constexpr CanonicalTypeIndex kPredefinedArrayI8SharedIndex{1};
+  static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{2};
+  static constexpr CanonicalTypeIndex kPredefinedArrayI16SharedIndex{3};
+  static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{4};
+  static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{5};
   // Function signatures for compile-time builtins.
-  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern".
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_i{4};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_r{5};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rr{6};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rii{7};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_r{8};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ri{9};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_rr{10};
+  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern",
+  // "s" = "(ref shared null extern)", "t" = "(ref shared extern)".
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_i{6};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_i{7};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_r{8};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_s{9};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rr{10};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_ss{11};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rii{12};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_sii{13};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_r{14};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_s{15};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ri{16};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_si{17};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_rr{18};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ss{19};
   // Shorthands: "a16" = nullable array of i16, "a8" analogous,
-  // "n8" = non-nullable array of i8.
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a16ii{11};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra16i{12};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra8i{13};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_n8_r{14};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a8ii{15};
-  static constexpr CanonicalTypeIndex kPredefinedSigIndex_configureAll{16};
+  // "as16" = shared nullable array of i16, "as8" analogous,
+  // "n8" = non-nullable array of i8, "ns8" = non-nullable shared array of i8.
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a16ii{20};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_as16ii{21};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra16i{22};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_sas16i{23};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra8i{24};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_sas8i{25};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_n8_r{26};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_ns8_s{27};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a8ii{28};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_t_as8ii{29};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_configureAll{30};
 
-  static constexpr uint32_t kNumberOfPredefinedTypes = 17;
+  static constexpr uint32_t kNumberOfPredefinedTypes = 31;
 
   TypeCanonicalizer();
 

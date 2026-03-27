@@ -314,6 +314,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf8(
+      DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,
+      unibrow::Utf8Variant utf8_variant);
+
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
       unibrow::Utf8Variant utf8_variant,
@@ -322,6 +326,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf16(
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
       AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf16(
+      DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(

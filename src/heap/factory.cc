@@ -860,6 +860,35 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf8(
                                   StringBuilder{}, allocation);
 }
 
+MaybeDirectHandle<String> Factory::NewSharedStringFromUtf8(
+    DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
+    unibrow::Utf8Variant utf8_variant) {
+  DCHECK_EQ(sizeof(uint8_t), WasmArray::DecodeElementSizeFromMap(array->map()));
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint8_t)) <= kMaxInt);
+
+  // We need a private copy of the array's contents. We have a pass that
+  // validates utf8/computes the string's length and one that copies the bytes,
+  // and we cannot afford to have concurrent modifications to the array between
+  // those.
+
+  uint32_t length = end - start;
+  const base::Atomic8* contents =
+      reinterpret_cast<base::Atomic8*>(array->ElementAddress(start));
+  auto private_copy = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(private_copy.data()),
+                       contents, length);
+
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
+    return private_copy.as_vector();
+  };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  SharedStringBuilder{},
+                                  AllocationType::kSharedOld);
+}
+
 MaybeHandle<String> Factory::NewStringFromUtf8(
     DirectHandle<ByteArray> array, uint32_t start, uint32_t end,
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
@@ -909,6 +938,39 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
   return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
                             NonSharedStringPolicy>(
       isolate(), peek_bytes, allocation, MessageTemplate::kNone);
+}
+
+MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
+    DirectHandle<WasmArray> array, uint32_t start, uint32_t end) {
+  DCHECK_EQ(sizeof(uint16_t),
+            WasmArray::DecodeElementSizeFromMap(array->map()));
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  // {end - start} can never be more than what the Utf8Decoder can handle.
+  static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
+
+  // We need a private copy of the array's contents. We have a pass that
+  // checks whether the string is one-byte and one that copies the bytes,
+  // and we cannot afford to have concurrent modifications to the array between
+  // those.
+
+  uint32_t length = end - start;
+  const base::Atomic16* contents =
+      reinterpret_cast<base::Atomic16*>(array->ElementAddress(start));
+  auto private_copy = base::OwnedVector<uint16_t>::NewForOverwrite(length);
+
+  for (uint32_t i = 0; i < length; i++) {
+    auto dest = reinterpret_cast<base::Atomic16*>(private_copy.data() + i);
+    base::Relaxed_Store(dest, base::Relaxed_Load(contents + i));
+  }
+
+  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
+    return private_copy.as_vector();
+  };
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            SharedStringPolicy>(isolate(), peek_bytes,
+                                                AllocationType::kSharedOld,
+                                                MessageTemplate::kNone);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

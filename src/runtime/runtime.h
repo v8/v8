@@ -757,9 +757,9 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
   F(WasmStringNewWtf8, 5, 1)                                     \
-  F(WasmStringNewWtf8Array, 4, 1)                                \
+  F(WasmStringNewWtf8Array, 5, 1)                                \
   F(WasmStringNewWtf16, 4, 1)                                    \
-  F(WasmStringNewWtf16Array, 3, 1)                               \
+  F(WasmStringNewWtf16Array, 4, 1)                               \
   F(WasmStringConst, 2, 1)                                       \
   F(WasmStringMeasureUtf8, 1, 1)                                 \
   F(WasmStringMeasureWtf8, 1, 1)                                 \
@@ -770,7 +770,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringAsWtf8, 1, 1)                                      \
   F(WasmStringViewWtf8Encode, 7, 1)                              \
   F(WasmStringViewWtf8Slice, 3, 1)                               \
-  F(WasmStringFromCodePoint, 1, 1)                               \
+  F(WasmStringFromCodePoint, 2, 1)                               \
   F(WasmStringHash, 1, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(WasmSubstring, 3, 1)                                         \
   F(WasmConfigureAllPrototypes, 4, 1)                            \

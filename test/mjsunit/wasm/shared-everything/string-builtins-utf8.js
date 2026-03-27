@@ -1,20 +1,29 @@
-// Copyright 2024 the V8 project authors. All rights reserved.
+// Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-imported-strings-utf8
+// Flags: --experimental-wasm-shared --experimental-wasm-imported-strings-utf8
+
+// Adapted from 'test/mjsunit/wasm/imported-strings-utf8.js'.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-let kRefExtern = wasmRefType(kWasmExternRef);
+let kRefSharedExtern = wasmRefType(kWasmExternRef).shared();
+let kRefNullSharedExtern = wasmRefNullType(kWasmExternRef).shared();
 
-// We use "r" for nullable "externref", and "e" for non-nullable "ref extern".
+// We use "s" for nullable "shared externref", and "t" for non-nullable
+// "ref shared extern".
 
-let kSig_e_ii = makeSig([kWasmI32, kWasmI32], [kRefExtern]);
-let kSig_e_v = makeSig([], [kRefExtern]);
-let kSig_e_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32],
-                         [kRefExtern]);
-let kSig_e_r = makeSig([kWasmExternRef], [kRefExtern]);
+let kSig_i_t = makeSig([kRefSharedExtern], [kWasmI32]);
+let kSig_t_ii = makeSig([kWasmI32, kWasmI32], [kRefSharedExtern]);
+let kSig_t_v = makeSig([], [kRefSharedExtern]);
+let kSig_t_sii = makeSig([kRefNullSharedExtern, kWasmI32, kWasmI32],
+                         [kRefSharedExtern]);
+let kSig_t_s = makeSig([kRefNullSharedExtern], [kRefSharedExtern]);
+// Here we cannot use i_s because it is used for Simd.
+let kSig_i_shared = makeSig([kRefNullSharedExtern], [kWasmI32]);
+let kSig_s_ii = makeSig([kWasmI32, kWasmI32], [kRefNullSharedExtern]);
+let kSig_shared_v = makeSig([], [kRefNullSharedExtern]);
 
 let interestingStrings = [
   '',
@@ -51,30 +60,31 @@ function ReplaceIsolatedSurrogates(str, replacement='\ufffd') {
   return replaced;
 }
 
-let kArrayI8;
-let kStringFromUtf8Array;
-let kStringIntoUtf8Array;
-let kStringToUtf8Array;
-let kStringMeasureUtf8;
+let kArrayI8Shared;
+let kStringFromUtf8ArrayShared;
+let kStringIntoUtf8ArrayShared;
+let kStringToUtf8ArrayShared;
+let kStringMeasureUtf8Shared;
 
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  kArrayI8 = builder.addArray(kWasmI8, {final: true});
+  kArrayI8Shared = builder.addArray(kWasmI8, {final: true, shared: true});
   builder.endRecGroup();
-  let array8ref = wasmRefNullType(kArrayI8);
+  let array8ref = wasmRefNullType(kArrayI8Shared);
 
-  kStringFromUtf8Array = builder.addImport(
+  kStringFromUtf8ArrayShared = builder.addImport(
       'wasm:text-decoder', 'decodeStringFromUTF8Array',
-      makeSig([array8ref, kWasmI32, kWasmI32], [kRefExtern]));
-  kStringMeasureUtf8 =
-      builder.addImport('wasm:text-encoder', 'measureStringAsUTF8', kSig_i_r);
-  kStringIntoUtf8Array = builder.addImport(
+      makeSig([array8ref, kWasmI32, kWasmI32], [kRefSharedExtern]));
+  kStringMeasureUtf8Shared =
+      builder.addImport('wasm:text-encoder', 'measureStringAsUTF8',
+                        kSig_i_shared);
+  kStringIntoUtf8ArrayShared = builder.addImport(
       'wasm:text-encoder', 'encodeStringIntoUTF8Array',
-      makeSig([kWasmExternRef, array8ref, kWasmI32], [kWasmI32]));
-  kStringToUtf8Array = builder.addImport(
+      makeSig([kRefNullSharedExtern, array8ref, kWasmI32], [kWasmI32]));
+  kStringToUtf8ArrayShared = builder.addImport(
       'wasm:text-encoder', 'encodeStringToUTF8Array',
-      makeSig([kWasmExternRef], [wasmRefType(kArrayI8)]));
+      makeSig([kRefNullSharedExtern], [wasmRefType(kArrayI8Shared)]));
 
   return builder;
 }
@@ -158,36 +168,36 @@ function makeWtf8TestDataSegment() {
       builder.addPassiveDataSegment(Uint8Array.from(encodeWtf8("ascii")));
 
   let make_i8_array = builder.addFunction(
-      "make_i8_array", makeSig([], [wasmRefType(kArrayI8)]))
+      "make_i8_array", makeSig([], [wasmRefType(kArrayI8Shared)]))
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const(data.data.length),
-      kGCPrefix, kExprArrayNewData, kArrayI8, data_index
+      kGCPrefix, kExprArrayNewData, kArrayI8Shared, data_index
     ]).index;
 
-  builder.addFunction("new_utf8", kSig_e_ii)
+  builder.addFunction("new_utf8", kSig_s_ii)
     .exportFunc()
     .addBody([
       kExprCallFunction, make_i8_array,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kExprCallFunction, kStringFromUtf8Array,
+      kExprCallFunction, kStringFromUtf8ArrayShared,
     ]);
 
-  builder.addFunction("bounds_check", kSig_e_ii)
+  builder.addFunction("bounds_check", kSig_s_ii)
     .exportFunc()
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const("ascii".length),
-      kGCPrefix, kExprArrayNewData, kArrayI8, ascii_data_index,
+      kGCPrefix, kExprArrayNewData, kArrayI8Shared, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kExprCallFunction, kStringFromUtf8Array,
+      kExprCallFunction, kStringFromUtf8ArrayShared,
     ]);
 
-  builder.addFunction("null_array", kSig_e_v).exportFunc()
+  builder.addFunction("null_array", kSig_shared_v).exportFunc()
     .addBody([
-      kExprRefNull, kArrayI8,
+      kExprRefNull, kArrayI8Shared,
       kExprI32Const, 0, kExprI32Const, 0,
-      kExprCallFunction, kStringFromUtf8Array,
+      kExprCallFunction, kStringFromUtf8ArrayShared,
     ]);
 
   let instance = builder.instantiate(kImports, kBuiltins);
@@ -236,18 +246,18 @@ function makeWtf8TestDataSegment() {
   print(arguments.callee.name);
   let builder = MakeBuilder();
 
-  builder.addFunction("string_measure_utf8", kSig_i_r)
+  builder.addFunction("string_measure_utf8", kSig_i_t)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
-      kExprCallFunction, kStringMeasureUtf8,
+      kExprCallFunction, kStringMeasureUtf8Shared,
     ]);
 
   builder.addFunction("string_measure_utf8_null", kSig_i_v)
     .exportFunc()
     .addBody([
-      kExprRefNull, kExternRefCode,
-      kExprCallFunction, kStringMeasureUtf8,
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprCallFunction, kStringMeasureUtf8Shared,
     ]);
 
   let instance = builder.instantiate(kImports, kBuiltins);
@@ -267,48 +277,48 @@ function makeWtf8TestDataSegment() {
   // Allocate an array that's exactly the expected size, and encode
   // into it.  Then decode it.
   // (str, length, offset=0) -> str
-  builder.addFunction("encode_utf8", kSig_e_rii)
+  builder.addFunction("encode_utf8", kSig_t_sii)
     .exportFunc()
-    .addLocals(wasmRefNullType(kArrayI8), 1)
+    .addLocals(wasmRefNullType(kArrayI8Shared), 1)
     .addLocals(kWasmI32, 1)
     .addBody([
       // Allocate buffer.
       kExprLocalGet, 1,
-      kGCPrefix, kExprArrayNewDefault, kArrayI8,
+      kGCPrefix, kExprArrayNewDefault, kArrayI8Shared,
       kExprLocalSet, 3,
 
       // Write buffer, store number of bytes written.
       kExprLocalGet, 0,
       kExprLocalGet, 3,
       kExprLocalGet, 2,
-      kExprCallFunction, kStringIntoUtf8Array,
+      kExprCallFunction, kStringIntoUtf8ArrayShared,
       kExprLocalSet, 4,
 
       // Read buffer.
       kExprLocalGet, 3,
       kExprLocalGet, 2,
       kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
-      kExprCallFunction, kStringFromUtf8Array,
+      kExprCallFunction, kStringFromUtf8ArrayShared,
     ]);
 
 
   builder.addFunction("encode_null_string", kSig_i_v)
     .exportFunc()
     .addBody([
-        kExprRefNull, kExternRefCode,
-        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8,
+        kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8Shared,
         kExprI32Const, 0,
-        kExprCallFunction, kStringIntoUtf8Array,
+        kExprCallFunction, kStringIntoUtf8ArrayShared,
       ]);
   builder.addFunction("encode_null_array", kSig_i_v)
     .exportFunc()
     .addBody([
-        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8,
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, kArrayI8Shared,
         kExprI32Const, 0, kExprI32Const, 0,
-        kExprCallFunction, kStringFromUtf8Array,
-        kExprRefNull, kArrayI8,
+        kExprCallFunction, kStringFromUtf8ArrayShared,
+        kExprRefNull, kArrayI8Shared,
         kExprI32Const, 0,
-        kExprCallFunction, kStringIntoUtf8Array,
+        kExprCallFunction, kStringIntoUtf8ArrayShared,
       ]);
 
   let instance = builder.instantiate(kImports, kBuiltins);
@@ -341,25 +351,25 @@ function makeWtf8TestDataSegment() {
   let builder = MakeBuilder();
 
   // Convert the string to an array, then decode it back.
-  builder.addFunction("encode_utf8", kSig_e_r)
+  builder.addFunction("encode_utf8", kSig_t_s)
     .exportFunc()
-    .addLocals(wasmRefNullType(kArrayI8), 1)
+    .addLocals(wasmRefNullType(kArrayI8Shared), 1)
     .addBody([
       kExprLocalGet, 0,
-      kExprCallFunction, kStringToUtf8Array,
+      kExprCallFunction, kStringToUtf8ArrayShared,
       kExprLocalTee, 1,
 
       kExprI32Const, 0,  // start
       kExprLocalGet, 1, kGCPrefix, kExprArrayLen,  // end
-      kExprCallFunction, kStringFromUtf8Array,
+      kExprCallFunction, kStringFromUtf8ArrayShared,
     ]);
 
-  let sig_a8_v = makeSig([], [wasmRefType(kArrayI8)]);
-  builder.addFunction("encode_null_string", sig_a8_v)
+  let sig_as8_v = makeSig([], [wasmRefType(kArrayI8Shared)]);
+  builder.addFunction("encode_null_string", sig_as8_v)
     .exportFunc()
     .addBody([
-        kExprRefNull, kExternRefCode,
-        kExprCallFunction, kStringToUtf8Array,
+        kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+        kExprCallFunction, kStringToUtf8ArrayShared,
       ]);
 
   let instance = builder.instantiate(kImports, kBuiltins);

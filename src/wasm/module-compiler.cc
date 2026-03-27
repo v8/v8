@@ -1813,40 +1813,77 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
     break;                                                                    \
   }
 
+#define CHECK_MAYBE_SHARED_SIG(import_name, expected_sig, shared_expected_sig, \
+                               kEnumName, feature)                             \
+  if (name == base::StaticOneByteVector(#import_name)) {                       \
+    if (V8_LIKELY(sig ==                                                       \
+                  TypeCanonicalizer::kPredefinedSigIndex_##expected_sig)) {    \
+      status = WellKnownImport::kEnumName;                                     \
+      detected->add_##feature();                                               \
+      break;                                                                   \
+    } else if (V8_LIKELY(v8_flags.experimental_wasm_shared &&                  \
+                         sig ==                                                \
+                             TypeCanonicalizer::                               \
+                                 kPredefinedSigIndex_##shared_expected_sig)) { \
+      status = WellKnownImport::kEnumName##Shared;                             \
+      detected->add_##feature();                                               \
+      detected->add_shared();                                                  \
+      break;                                                                   \
+    } else {                                                                   \
+      uint32_t error_offset =                                                  \
+          ImportStartOffset(wire_bytes, import.module_name.offset());          \
+      return WasmError(                                                        \
+          error_offset,                                                        \
+          "Imported builtin function \"wasm:%s\" \"%s\" has incorrect "        \
+          "signature",                                                         \
+          std::string(collection.begin(), collection.end()).c_str(),           \
+          std::string(name.begin(), name.end()).c_str());                      \
+    }                                                                          \
+  }
+
     // Not a loop; we just want to use `break` instead of very long else-if
     // cascades.
     do {
       if (collection == base::StaticOneByteVector("js-string") &&
           imports.contains(CompileTimeImport::kJsString)) {
-        CHECK_SIG(cast, e_r, kStringCast, imported_strings)
-        CHECK_SIG(test, i_r, kStringTest, imported_strings)
-        CHECK_SIG(fromCharCode, e_i, kStringFromCharCode, imported_strings)
-        CHECK_SIG(fromCodePoint, e_i, kStringFromCodePoint, imported_strings)
-        CHECK_SIG(charCodeAt, i_ri, kStringCharCodeAt, imported_strings)
-        CHECK_SIG(codePointAt, i_ri, kStringCodePointAt, imported_strings)
-        CHECK_SIG(length, i_r, kStringLength, imported_strings)
-        CHECK_SIG(concat, e_rr, kStringConcat, imported_strings)
-        CHECK_SIG(substring, e_rii, kStringSubstring, imported_strings)
-        CHECK_SIG(equals, i_rr, kStringEquals, imported_strings)
-        CHECK_SIG(compare, i_rr, kStringCompare, imported_strings)
-        CHECK_SIG(fromCharCodeArray, e_a16ii, kStringFromWtf16Array,
-                  imported_strings)
-        CHECK_SIG(intoCharCodeArray, i_ra16i, kStringToWtf16Array,
-                  imported_strings)
+        CHECK_MAYBE_SHARED_SIG(cast, e_r, t_s, kStringCast, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(test, i_r, i_s, kStringTest, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCharCode, e_i, t_i, kStringFromCharCode,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCodePoint, e_i, t_i, kStringFromCodePoint,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(charCodeAt, i_ri, i_si, kStringCharCodeAt,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(codePointAt, i_ri, i_si, kStringCodePointAt,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(length, i_r, i_s, kStringLength,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(concat, e_rr, t_ss, kStringConcat,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(substring, e_rii, t_sii, kStringSubstring,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(equals, i_rr, i_ss, kStringEquals,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(compare, i_rr, i_ss, kStringCompare,
+                               imported_strings)
+        CHECK_MAYBE_SHARED_SIG(fromCharCodeArray, e_a16ii, t_as16ii,
+                               kStringFromWtf16Array, imported_strings)
+        CHECK_MAYBE_SHARED_SIG(intoCharCodeArray, i_ra16i, i_sas16i,
+                               kStringToWtf16Array, imported_strings)
 
       } else if (collection == base::StaticOneByteVector("text-encoder") &&
                  imports.contains(CompileTimeImport::kTextEncoder)) {
-        CHECK_SIG(measureStringAsUTF8, i_r, kStringMeasureUtf8,
-                  imported_strings_utf8)
-        CHECK_SIG(encodeStringIntoUTF8Array, i_ra8i, kStringIntoUtf8Array,
-                  imported_strings_utf8)
-        CHECK_SIG(encodeStringToUTF8Array, n8_r, kStringToUtf8Array,
-                  imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(measureStringAsUTF8, i_r, i_s,
+                               kStringMeasureUtf8, imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(encodeStringIntoUTF8Array, i_ra8i, i_sas8i,
+                               kStringIntoUtf8Array, imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(encodeStringToUTF8Array, n8_r, ns8_s,
+                               kStringToUtf8Array, imported_strings_utf8)
 
       } else if (collection == base::StaticOneByteVector("text-decoder") &&
                  imports.contains(CompileTimeImport::kTextDecoder)) {
-        CHECK_SIG(decodeStringFromUTF8Array, e_a8ii, kStringFromUtf8Array,
-                  imported_strings_utf8)
+        CHECK_MAYBE_SHARED_SIG(decodeStringFromUTF8Array, e_a8ii, t_as8ii,
+                               kStringFromUtf8Array, imported_strings_utf8)
 
       } else if (collection == base::StaticOneByteVector("js-prototypes") &&
                  imports.contains(CompileTimeImport::kJsPrototypes)) {
