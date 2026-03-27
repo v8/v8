@@ -1447,7 +1447,16 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
         // anything, so we can't conflict with anything either. The one
         // exception is the binding variable in catch scopes, which is handled
         // by the if above.
-        if (!IsLexicalVariableMode(other_var->mode())) break;
+        if (!IsLexicalVariableMode(other_var->mode())) {
+          if (current->sloppy_eval_can_extend_vars()) {
+            // See the comment for RemoveDynamic. In addition to removing
+            // dynamic variables we also need to remove function_ since
+            // otherwise we won't recreate a masking dynamic variable during
+            // scope resolution, causing divergent compilation.
+            current->AsDeclarationScope()->function_ = nullptr;
+          }
+          break;
+        }
         return decl;
       }
       current = current->outer_scope();
