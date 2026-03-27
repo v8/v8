@@ -78,8 +78,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // The --wasm-tier-mask-for-testing flag can force functions to be
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
+      // Tiering is not supported when we are generating compilation hints.
       bool try_liftoff = true;
-      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0)) {
+      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0 &&
+                      !v8_flags.wasm_generate_compilation_hints &&
+                      !v8_flags.trace_wasm_generate_compilation_hints)) {
         bool must_use_liftoff =
             v8_flags.liftoff_only ||
             for_debugging_ != ForDebugging::kNotForDebugging;
