@@ -893,6 +893,7 @@ class MaglevGraphBuilder {
   V(ArrayPrototypeValues)                      \
   V(ArrayPrototypePush)                        \
   V(ArrayPrototypePop)                         \
+  V(BooleanConstructor)                        \
   V(DataViewPrototypeGetByteLength)            \
   V(DataViewPrototypeGetInt8)                  \
   V(DataViewPrototypeSetInt8)                  \

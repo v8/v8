@@ -11524,6 +11524,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
   return TryReduceConstructArrayConstructor(target, GetConstant(target), args);
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceBooleanConstructor(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetRootConstant(RootIndex::kFalseValue);
+  }
+
+  return reducer_.BuildToBoolean(args[0]);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
