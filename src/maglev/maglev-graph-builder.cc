@@ -15602,12 +15602,12 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
 void MaglevGraphBuilder::SetCurrentScopeInfo(
     compiler::OptionalScopeInfoRef scope_info) {
   if (v8_flags.trace_maglev_scope_info) {
+    int offset = iterator_.done() ? -1 : iterator_.current_offset();
     if (scope_info.has_value()) {
       TRACE("  [ScopeInfo] Activated " << scope_info.value() << " at offset "
-                                       << iterator_.current_offset());
+                                       << offset);
     } else {
-      TRACE("  [ScopeInfo] Activated <empty> at offset "
-            << iterator_.current_offset());
+      TRACE("  [ScopeInfo] Activated <empty> at offset " << offset);
     }
   }
   register_scope_infos_[interpreter::Register::current_context()] = scope_info;
@@ -17055,6 +17055,15 @@ void MaglevGraphBuilder::OsrPrewalk() {
       auto jump_it = saved_states.find(target);
       if (jump_it == saved_states.end()) {
         saved_states.insert({target, GetCurrentScopeInfo()});
+      }
+    } else if (iterator_.current_bytecode() ==
+               interpreter::Bytecode::kSwitchOnSmiNoFeedback) {
+      for (auto table_offset : iterator_.GetJumpTableTargetOffsets()) {
+        int target = table_offset.target_offset;
+        auto jump_it = saved_states.find(target);
+        if (jump_it == saved_states.end()) {
+          saved_states.insert({target, GetCurrentScopeInfo()});
+        }
       }
     }
 
