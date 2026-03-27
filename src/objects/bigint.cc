@@ -1672,6 +1672,8 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
       // divisor now. Only cache divisors that we see a lot.
       static constexpr int kCachingThreshold = 100;
       if (processor->inc_divisor_count() == kCachingThreshold) {
+        SBXCHECK(Y.len() >= 2 &&
+                 Y.len() <= bigint::Processor::kMaxCachedModDivisorSize);
         heap->SetCachedBigIntDivisor(y);
         processor->CachedMod_MakeInverse(Y);
       }
