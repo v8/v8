@@ -2041,6 +2041,12 @@ ProcessResult MaglevGraphOptimizer::VisitStringLength(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStringIndexOf(
+    StringIndexOf* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitStringConcat(
     StringConcat* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

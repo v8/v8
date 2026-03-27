@@ -5715,6 +5715,20 @@ void StringSlice::GenerateCode(MaglevAssembler* masm,
   __ bind(&done_all);
 }
 
+void StringIndexOf::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kStringIndexOf>::type;
+  UseFixed(StringInput(), D::GetRegisterParameter(0));
+  UseFixed(SearchStringInput(), D::GetRegisterParameter(1));
+  UseFixed(PositionInput(), D::GetRegisterParameter(2));
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void StringIndexOf::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kStringIndexOf>(StringInput(), SearchStringInput(),
+                                          PositionInput());
+}
+
 void StringConcat::SetValueLocationConstraints() {
   using D = StringAdd_CheckNoneDescriptor;
   UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));

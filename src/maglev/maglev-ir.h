@@ -356,6 +356,7 @@ class ExceptionHandlerInfo;
   V(StringEqual)                                                      \
   V(StringLength)                                                     \
   V(StringConcat)                                                     \
+  V(StringIndexOf)                                                    \
   V(SeqOneByteStringAt)                                               \
   V(ConsStringMap)                                                    \
   V(UnwrapStringWrapper)                                              \
@@ -9300,6 +9301,23 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   Range range() const { return Range(0, String::kMaxLength); }
 
   int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class StringIndexOf : public FixedInputValueNodeT<3, StringIndexOf> {
+ public:
+  explicit StringIndexOf(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::CanRead();
+
+  int MaxCallStackArgs() const { return 0; }
+
+  DECLARE_INPUTS(String, SearchString, Position)
+  DECLARE_INPUT_TYPES(Tagged, Tagged, Tagged)
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };

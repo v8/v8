@@ -939,6 +939,8 @@ class MaglevGraphBuilder {
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
   V(StringPrototypeStartsWith)                 \
+  V(StringPrototypeIndexOf)                    \
+  V(StringPrototypeIncludes)                   \
   V(StringPrototypeIterator)                   \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
@@ -980,6 +982,9 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceConstantStringAt(ValueNode* object,
                                               ValueNode* index,
                                               StringAtOOBMode oob_mode);
+
+  MaybeReduceResult TryReduceStringPrototypeIndexOfIncludes(CallArguments& args,
+                                                            bool is_includes);
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 

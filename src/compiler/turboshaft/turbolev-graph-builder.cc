@@ -3173,6 +3173,13 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ StringLength(Map(node->StringInput())));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::StringIndexOf* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ StringIndexOf(Map(node->StringInput()),
+                                  Map(node->SearchStringInput()),
+                                  Map(node->PositionInput())));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::StringAt* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> char_code =
