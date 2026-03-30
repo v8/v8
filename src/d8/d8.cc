@@ -7395,6 +7395,12 @@ int Shell::Main(int argc, char* argv[]) {
             "configuration will be considered invalid.\n");
   }
 
+  if (i::v8_flags.developer_only_features) {
+    fprintf(stderr,
+            "V8 is running with developer-only features enabled. Stability and "
+            "security will suffer.\n");
+  }
+
   Isolate* isolate = Isolate::New(create_params);
 
 #ifdef V8_FUZZILLI
