@@ -3483,7 +3483,6 @@ DEFINE_BOOL(
     fuzzing, false,
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
     "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
-DEFINE_BOOL(fuzzilli_bundle, false, "Accept fuzzilli bundle files as input.")
 
 // When fuzzing, always compile functions twice and ensure that the generated
 // bytecode is the same. This can help find bugs such as crbug.com/1394403 as it
