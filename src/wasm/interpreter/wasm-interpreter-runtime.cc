@@ -1818,8 +1818,9 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     const FunctionSig* signature = module_->signature({sig_index});
 
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
-    if (Tagged<WasmTrustedInstanceData> trusted_instance_object;
-        TryCast(*object_implicit_arg, &trusted_instance_object)) {
+    if (Is<WasmTrustedInstanceData>(*object_implicit_arg)) {
+      Tagged<WasmTrustedInstanceData> trusted_instance_object =
+          TrustedCast<WasmTrustedInstanceData>(*object_implicit_arg);
       DirectHandle<WasmInstanceObject> instance_object(
           TrustedCast<WasmInstanceObject>(
               trusted_instance_object->instance_object()),
@@ -2104,7 +2105,9 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
     const FunctionSig* sig) {
   DCHECK(!WasmBytecode::ContainsSimd(sig));
   DirectHandle<Object> callable;
-  if (Tagged<WasmImportData> import_data; TryCast(*object_ref, &import_data)) {
+  if (Is<WasmImportData>(*object_ref)) {
+    Tagged<WasmImportData> import_data =
+        TrustedCast<WasmImportData>(*object_ref);
     callable = direct_handle(import_data->callable(), isolate);
   } else {
     callable = object_ref;
@@ -2578,11 +2581,13 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
 }
 
 WasmRef WasmInterpreterRuntime::WasmToJSObject(WasmRef value) const {
-  if (Tagged<WasmFuncRef> wasm_func_ref; TryCast(*value, &wasm_func_ref)) {
+  if (Is<WasmFuncRef>(*value)) {
+    Tagged<WasmFuncRef> wasm_func_ref = Cast<WasmFuncRef>(*value);
     value = direct_handle(wasm_func_ref->internal(isolate_), isolate_);
   }
-  if (Tagged<WasmInternalFunction> wasm_internal_function;
-      TryCast(*value, &wasm_internal_function)) {
+  if (Is<WasmInternalFunction>(*value)) {
+    Tagged<WasmInternalFunction> wasm_internal_function =
+        TrustedCast<WasmInternalFunction>(*value);
     DirectHandle<WasmInternalFunction> internal =
         direct_handle(wasm_internal_function, isolate_);
     return WasmInternalFunction::GetOrCreateExternal(internal);
