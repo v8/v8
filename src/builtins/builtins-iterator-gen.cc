@@ -576,7 +576,7 @@ TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
   BIND(&end);
   StoreValueAndDoneInRegisterPair(context, var_value.value(), var_done.value(),
                                   value_done_reg);
-  Return(var_value.value(), var_done.value());
+  Return(var_value.value());
 
   BIND(&if_notjsreceiver);
   CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
@@ -609,7 +609,7 @@ TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
   BIND(&end);
   StoreValueAndDoneInRegisterPair(context, var_value.value(), done,
                                   value_done_reg);
-  Return(var_value.value(), done);
+  Return(var_value.value());
 }
 
 TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
@@ -623,7 +623,7 @@ TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
 
   StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
                                   value_done_reg);
-  Return(value, FalseConstant());
+  Return(value);
 }
 
 TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
@@ -632,7 +632,7 @@ TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
   auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
   StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
                                   value_done_reg);
-  Return(value, FalseConstant());
+  Return(value);
 }
 
 // This builtin creates a FixedArray based on an Iterable and doesn't have a

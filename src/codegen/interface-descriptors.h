@@ -1850,9 +1850,8 @@ class ForOfNextResultDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kResultObject)
+  DEFINE_RESULT_AND_PARAMETERS(1, kValueDoneReg, kResultObject)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
                                     MachineType::AnyTagged(),  // kValueDoneReg
                                     MachineType::AnyTagged())  // kResultObject
   DECLARE_DESCRIPTOR(ForOfNextResultDeoptContinuationDescriptor)
@@ -1866,9 +1865,8 @@ class ForOfNextLoadDoneLazyDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg, kDone)
+  DEFINE_RESULT_AND_PARAMETERS(1, kResultObject, kValueDoneReg, kDone)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
                                     MachineType::AnyTagged(),  // kResultObject
                                     MachineType::AnyTagged(),  // kValueDoneReg
                                     MachineType::AnyTagged())  // kDone
@@ -1883,9 +1881,8 @@ class ForOfNextLoadValueEagerDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg)
+  DEFINE_RESULT_AND_PARAMETERS(1, kResultObject, kValueDoneReg)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
                                     MachineType::AnyTagged(),  // kResultObject
                                     MachineType::AnyTagged())  // kValueDoneReg
   DECLARE_DESCRIPTOR(ForOfNextLoadValueEagerDeoptContinuationDescriptor)
@@ -1899,9 +1896,8 @@ class ForOfNextLoadValueLazyDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kValue)
+  DEFINE_RESULT_AND_PARAMETERS(1, kValueDoneReg, kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
-                                    MachineType::AnyTagged(),  // result done
                                     MachineType::AnyTagged(),  // kValueDoneReg
                                     MachineType::AnyTagged())  // kValue
   DECLARE_DESCRIPTOR(ForOfNextLoadValueLazyDeoptContinuationDescriptor)
