@@ -143,6 +143,7 @@ thread_local Worker* current_worker_ = nullptr;
 
 constexpr v8::EmbedderDataTypeTag kInspectorClientTag = 1;
 
+std::unordered_map<std::string, std::string> virtual_fuzzilli_files;
 #ifdef V8_FUZZILLI
 bool fuzzilli_reprl = true;
 #else
@@ -1301,31 +1302,43 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
-  if (module_specifier.starts_with(kDataURLPrefix)) {
-    source_text = String::NewFromUtf8(
-        isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
-  } else if (IsAbsolutePath(module_specifier)) {
-    source_text = ReadFile(isolate, module_specifier.c_str(), false);
-    if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
-      std::string fallback_file_name = module_specifier + ".js";
-      source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
-      if (source_text.IsEmpty()) {
-        fallback_file_name = module_specifier + ".mjs";
-        source_text = ReadFile(isolate, fallback_file_name.c_str());
+
+  bool handled_by_fuzzilli = false;
+  if (i::v8_flags.fuzzilli_bundle) {
+    auto fuzzilli_it = virtual_fuzzilli_files.find(module_specifier);
+    if (fuzzilli_it != virtual_fuzzilli_files.end()) {
+      source_text = String::NewFromUtf8(isolate, fuzzilli_it->second.c_str());
+      handled_by_fuzzilli = true;
+    }
+  }
+
+  if (!handled_by_fuzzilli) {
+    if (module_specifier.starts_with(kDataURLPrefix)) {
+      source_text = String::NewFromUtf8(
+          isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
+    } else if (IsAbsolutePath(module_specifier)) {
+      source_text = ReadFile(isolate, module_specifier.c_str(), false);
+      if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
+        std::string fallback_file_name = module_specifier + ".js";
+        source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
+        if (source_text.IsEmpty()) {
+          fallback_file_name = module_specifier + ".mjs";
+          source_text = ReadFile(isolate, fallback_file_name.c_str());
+        }
       }
+    } else {
+      // Loading modules is only allowed for local absolute paths.
+      std::ostringstream msg;
+      msg << "d8: Reading module from " << module_specifier
+          << " is not supported.";
+      if (!referrer.IsEmpty()) {
+        std::string referrer_specifier =
+            module_data->GetModuleSpecifier(referrer);
+        msg << "\n    imported by " << referrer_specifier;
+      }
+      ThrowError(isolate, msg.view());
+      return MaybeLocal<Module>();
     }
-  } else {
-    // Loading modules is only allowed for local absolute paths.
-    std::ostringstream msg;
-    msg << "d8: Reading module from " << module_specifier
-        << " is not supported.";
-    if (!referrer.IsEmpty()) {
-      std::string referrer_specifier =
-          module_data->GetModuleSpecifier(referrer);
-      msg << "\n    imported by " << referrer_specifier;
-    }
-    ThrowError(isolate, msg.view());
-    return MaybeLocal<Module>();
   }
 
   if (source_text.IsEmpty()) {
@@ -5589,6 +5602,65 @@ bool ends_with(const char* input, const char* suffix) {
   return false;
 }
 
+bool TryExecuteFuzzilliBundle(Isolate* isolate, const std::string& content,
+                              Local<String> file_name, bool* out_success) {
+  std::string magic_prefix = "/// FUZZILLI_BUNDLE\n";
+
+  size_t pos = 0;
+  // Skip normal comments and empty lines.
+  while (content.compare(pos, 1, "\n") == 0 ||
+         content.compare(pos, 3, "// ") == 0) {
+    pos = content.find('\n', pos) + 1;
+  }
+  if (content.compare(pos, magic_prefix.length(), magic_prefix) != 0) {
+    return false;
+  }
+  pos += magic_prefix.length();
+
+  virtual_fuzzilli_files.clear();
+
+  std::string error = "Warning: Malformed fuzzilli bundle\n";
+  std::string current_file_name;
+  std::string main_file;
+  std::string boundary = "/// FUZZILLI_MODULE:";
+  if (content.compare(pos, boundary.length(), boundary) != 0) {
+    std::cout << error;
+    return false;
+  }
+
+  while (pos < content.length()) {
+    pos += boundary.length();
+    size_t nl_pos = content.find('\n', pos);
+    if (nl_pos == std::string::npos) {
+      virtual_fuzzilli_files.clear();
+      std::cout << error;
+      return false;
+    }
+    current_file_name = content.substr(pos, nl_pos - pos);
+    main_file = current_file_name;
+    current_file_name =
+        NormalizeModuleSpecifier(current_file_name, GetWorkingDirectory());
+    pos = nl_pos + 1;
+    size_t next_boundary_pos = content.find(boundary, pos);
+    size_t part_end = (next_boundary_pos == std::string::npos)
+                          ? content.length()
+                          : next_boundary_pos;
+    // If the same module name appears multiple times the last one wins.
+    virtual_fuzzilli_files[current_file_name] =
+        content.substr(pos, part_end - pos);
+    pos = part_end;
+  }
+
+  Shell::set_script_executed();
+  if (!main_file.empty()) {
+    if (!Shell::ExecuteModule(isolate, main_file.c_str())) {
+      *out_success = false;
+    }
+  }
+  virtual_fuzzilli_files.clear();
+  return true;  // Bundle handled successfully (even if script failed)
+}
+
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
 #ifdef V8_FUZZILLI
@@ -5611,14 +5683,26 @@ bool SourceGroup::Execute(Isolate* isolate) {
     }
     buffer[script_size] = 0;
 
-    Local<String> source =
-        String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
-            .ToLocalChecked();
+    std::string content(buffer, script_size);
     delete[] buffer;
-    Shell::set_script_executed();
-    if (!Shell::ExecuteString(isolate, source, file_name,
-                              Shell::kReportExceptions)) {
-      return false;
+
+    bool handled_as_bundle = false;
+    if (i::v8_flags.fuzzilli_bundle) {
+      handled_as_bundle =
+          TryExecuteFuzzilliBundle(isolate, content, file_name, &success);
+    }
+
+    if (!handled_as_bundle) {
+      Local<String> source =
+          String::NewFromUtf8(isolate, content.c_str(), NewStringType::kNormal)
+              .ToLocalChecked();
+      Shell::set_script_executed();
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kReportExceptions)) {
+        return false;
+      }
+    } else if (!success) {
+      return false;  // Module execution failed
     }
   }
 #endif  // V8_FUZZILLI
@@ -5679,8 +5763,19 @@ bool SourceGroup::Execute(Isolate* isolate) {
     }
     Shell::set_script_executed();
     Shell::update_script_size(source->Length());
-    if (!Shell::ExecuteString(isolate, source, file_name,
-                              Shell::kReportExceptions)) {
+
+    bool handled = false;
+    if (i::v8_flags.fuzzilli_bundle) {
+      String::Utf8Value utf8(isolate, source);
+      std::string content(*utf8, utf8.length());
+      if (TryExecuteFuzzilliBundle(isolate, content, file_name, &success)) {
+        handled = true;
+        if (!success) break;
+      }
+    }
+
+    if (!handled && !Shell::ExecuteString(isolate, source, file_name,
+                                          Shell::kReportExceptions)) {
       success = false;
       break;
     }
