@@ -264,9 +264,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
   const uint64_t computed_global_allocation_limit =
       (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
           global_growing_factor +
-      (v8_flags.external_memory_accounted_in_global_limit
-           ? external_memory_low_since_last_gc() * external_growing_factor
-           : 0);
+      external_memory_low_since_last_gc() * external_growing_factor;
   const size_t preliminary_global_allocation_limit =
       GlobalMemoryTrait::BoundAllocationLimit(
           global_consumed_bytes_at_last_gc, computed_global_allocation_limit,
@@ -302,8 +300,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
                  preliminary_old_generation_allocation_limit);
         dict.Add("old_gen_consumed_bytes_at_last_gc",
                  old_gen_consumed_bytes_at_last_gc);
-        dict.Add("old_gen_allocation_limit_consumed_bytes",
-                 heap_->OldGenerationAllocationLimitConsumedBytes());
+        dict.Add("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes());
         dict.Add("global_gc_speed", embedder_gc_speed.value_or(0));
         dict.Add("global_mutator_speed", embedder_speed);
         dict.Add("global_growing_factor", global_growing_factor);
@@ -446,9 +443,7 @@ size_t HeapLimits::OldGenerationConsumedBytesAtLastGC() const {
 
 uint64_t HeapLimits::GlobalConsumedBytesAtLastGC() const {
   return OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_ +
-         (v8_flags.external_memory_accounted_in_global_limit
-              ? external_memory_low_since_last_gc()
-              : 0);
+         external_memory_low_since_last_gc();
 }
 
 size_t HeapLimits::PromotedSinceLastGC(size_t old_generation_size) const {

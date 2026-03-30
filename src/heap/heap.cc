@@ -1477,64 +1477,6 @@ void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
   CollectAllGarbage(gc_flags, gc_reason, gc_callback_flags);
 }
 
-void Heap::HandleExternalMemoryInterrupt() {
-  const GCCallbackFlags kGCCallbackFlagsForExternalMemory =
-      static_cast<GCCallbackFlags>(
-          kGCCallbackFlagSynchronousPhantomCallbackProcessing |
-          kGCCallbackFlagCollectAllExternalMemory);
-  uint64_t current = external_memory();
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    // Under `external_memory_accounted_in_global_limit`, external interrupt
-    // only triggers a check to allocation limits.
-    limits()->UpdateExternalMemoryLimitForInterrupt(current);
-    StartIncrementalMarkingIfAllocationLimitIsReached(
-        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
-        kGCCallbackFlagsForExternalMemory);
-    if (incremental_marking()->IsMajorMarking() &&
-        AllocationLimitOvershotByLargeMargin()) {
-      CollectGarbageWithRetry(OLD_SPACE,
-                              GarbageCollectionReason::kExternalMemoryPressure);
-    }
-    return;
-  }
-  if (current > external_memory_hard_limit()) {
-    TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
-                 "external_memory_mb", static_cast<int>((current) / MB),
-                 "external_memory_hard_limit_mb",
-                 static_cast<int>((external_memory_hard_limit()) / MB));
-    CollectAllGarbage(
-        GCFlag::kReduceMemoryFootprint,
-        GarbageCollectionReason::kExternalMemoryPressure,
-        static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
-                                     kGCCallbackFlagsForExternalMemory));
-    return;
-  }
-  uint64_t soft_limit = external_memory_soft_limit();
-  if (current <= soft_limit) {
-    return;
-  }
-  TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
-               "external_memory_mb", static_cast<int>((current) / MB),
-               "external_memory_soft_limit_mb",
-               static_cast<int>((soft_limit) / MB));
-  if (incremental_marking()->IsStopped()) {
-    if (incremental_marking()->CanAndShouldBeStarted()) {
-      StartIncrementalMarking(GCFlagsForIncrementalMarking(),
-                              GarbageCollectionReason::kExternalMemoryPressure,
-                              kGCCallbackFlagsForExternalMemory);
-    } else {
-      CollectAllGarbage(i::GCFlag::kNoFlags,
-                        GarbageCollectionReason::kExternalMemoryPressure,
-                        kGCCallbackFlagsForExternalMemory);
-    }
-  } else {
-    // Incremental marking is turned on and has already been started.
-    current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
-        current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
-    incremental_marking()->AdvanceAndFinalizeIfNecessary();
-  }
-}
-
 uint64_t Heap::external_memory_hard_limit() {
   return limits()->external_memory_low_since_last_gc() +
          limits()->max_old_generation_size() / 2;
@@ -1999,8 +1941,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
         dict.Add("old_gen_allocation_limit",
                  limits()->old_generation_allocation_limit());
         dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
-        dict.Add("old_gen_allocation_limit_consumed_bytes",
-                 OldGenerationAllocationLimitConsumedBytes());
         dict.Add("old_gen_space_available", OldGenerationSpaceAvailable());
         dict.Add("global_allocation_limit",
                  limits()->global_allocation_limit());
@@ -3056,30 +2996,19 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
 
   // At least with ArrayBufferExtensions, external memory could overflow size_t
   // on 32-bit. Use a saturated cast here to defend against this.
-  size_t new_old_generation_allocation_limit = std::max(
-      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes() +
-                                   at_least_remaining),
-      limits()->old_generation_allocation_limit());
+  size_t new_old_generation_allocation_limit =
+      std::max(base::saturated_cast<size_t>(OldGenerationConsumedBytes() +
+                                            at_least_remaining),
+               limits()->old_generation_allocation_limit());
   // We need to clamp the new limit between the allowed minimum and maximum
-  // value. We do not currently cap allocated external memory, so either the old
-  // or global bytes counter (depending on
-  // v8_flags.external_memory_accounted_in_global_limit) could legitimately be
-  // larger than the maximum allowed limit.
+  // value. We do not currently cap allocated external memory, so the global
+  // bytes counter could legitimately be larger than the maximum allowed limit.
   new_old_generation_allocation_limit = std::clamp(
       new_old_generation_allocation_limit, limits()->min_old_generation_size(),
       limits()->max_old_generation_size());
 
-  size_t current_global_bytes = GlobalConsumedBytes();
-  if (!v8_flags.external_memory_accounted_in_global_limit) {
-    // TODO(chromium:42203776): Without that flag external memory is added in
-    // OldGenerationAllocationLimitConsumedBytes() but not in
-    // GlobalConsumedBytes(). This can lead to cases where the allocation limit
-    // for the old generation is higher than for global memory. We fix this here
-    // by manually adding it.
-    current_global_bytes += AllocatedExternalMemorySinceMarkCompact();
-  }
   size_t new_global_allocation_limit =
-      std::max(current_global_bytes +
+      std::max(GlobalConsumedBytes() +
                    HeapLimits::GlobalMemorySizeFromV8Size(at_least_remaining),
                limits()->global_allocation_limit());
   new_global_allocation_limit = std::clamp(new_global_allocation_limit,
@@ -3098,8 +3027,7 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
         dict.Add("global_allocation_limit",
                  limits()->global_allocation_limit());
         dict.Add("next_global_allocation_limit", new_global_allocation_limit);
-        dict.Add("old_gen_allocation_limit_consumed_bytes",
-                 OldGenerationAllocationLimitConsumedBytes());
+        dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
         dict.Add("global_consumed_bytes", GlobalConsumedBytes());
         dict.Add("external_memory_since_mark_compact",
                  AllocatedExternalMemorySinceMarkCompact());
@@ -3683,7 +3611,7 @@ bool Heap::HasLowAllocationRate() {
 }
 
 size_t Heap::OldGenerationSpaceAvailable() {
-  uint64_t bytes = OldGenerationAllocationLimitConsumedBytes();
+  uint64_t bytes = OldGenerationConsumedBytes();
   if (limits()->old_generation_allocation_limit() <= bytes) return 0;
   return limits()->old_generation_allocation_limit() -
          static_cast<size_t>(bytes);
@@ -5478,8 +5406,7 @@ size_t Heap::EmbedderSizeOfObjects() const {
 
 uint64_t Heap::GlobalSizeOfObjects() const {
   return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects() +
-         (v8_flags.external_memory_accounted_in_global_limit ? external_memory()
-                                                             : 0);
+         external_memory();
 }
 
 size_t Heap::GlobalWastedBytes() const { return OldGenerationWastedBytes(); }
@@ -5509,8 +5436,7 @@ uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
 }
 
 bool Heap::AllocationLimitOvershotByLargeMargin() const {
-  uint64_t old_generation_consumed =
-      OldGenerationAllocationLimitConsumedBytes();
+  uint64_t old_generation_consumed = OldGenerationConsumedBytes();
   if (incremental_marking()->IsMajorMarking()) {
     // No interleaved GCs, so we count young gen as part of old gen.
     old_generation_consumed += YoungGenerationConsumedBytes();
@@ -5552,7 +5478,7 @@ uint64_t GetFixedMarginForInputHandlingBytes() {
 
 bool Heap::AllocationLimitOvershotByFixedMargin(
     const uint64_t overshoot_margin) const {
-  uint64_t old_generation_size = OldGenerationAllocationLimitConsumedBytes();
+  uint64_t old_generation_size = OldGenerationConsumedBytes();
   if (incremental_marking()->IsMajorMarking()) {
     // No interleaved GCs, so we count young gen as part of old gen.
     old_generation_size += YoungGenerationConsumedBytes();
@@ -5623,11 +5549,7 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   if (always_allocate()) {
     return true;
   }
-  // Under external_memory_accounted_in_global_limit, we also consider the
-  // global limit.
-  if (OldGenerationSpaceAvailable() > 0 &&
-      (!v8_flags.external_memory_accounted_in_global_limit ||
-       GlobalSpaceAvailable() > 0)) {
+  if (OldGenerationSpaceAvailable() > 0 && GlobalSpaceAvailable() > 0) {
     return true;
   }
   // We reached the old generation or global allocation limit.
@@ -7175,7 +7097,19 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     CollectGarbageWithRetry(OLD_SPACE,
                             GarbageCollectionReason::kExternalMemoryPressure);
   } else if (total_after > external_memory_limit_for_interrupt()) {
-    HandleExternalMemoryInterrupt();
+    limits()->UpdateExternalMemoryLimitForInterrupt(external_memory());
+    const GCCallbackFlags kGCCallbackFlagsForExternalMemory =
+        static_cast<GCCallbackFlags>(
+            kGCCallbackFlagSynchronousPhantomCallbackProcessing |
+            kGCCallbackFlagCollectAllExternalMemory);
+    StartIncrementalMarkingIfAllocationLimitIsReached(
+        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+        kGCCallbackFlagsForExternalMemory);
+    if (incremental_marking()->IsMajorMarking() &&
+        AllocationLimitOvershotByLargeMargin()) {
+      CollectGarbageWithRetry(OLD_SPACE,
+                              GarbageCollectionReason::kExternalMemoryPressure);
+    }
   }
   return total_after;
 }
@@ -7679,8 +7613,7 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
     DCHECK_IMPLIES(!delay_sweeper_tasks_for_testing_,
                    !sweeper()->HasUnsweptPagesForMajorSweeping());
     EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
-    if (v8_flags.external_memory_accounted_in_global_limit &&
-        !limits()->using_initial_limit()) {
+    if (!limits()->using_initial_limit()) {
       // Ensure that we don't update limits when starting incremental marking.
       // Shrinking limits there could lead to finalizing incremental marking
       // prematurely.
@@ -7690,9 +7623,8 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
       HeapLimitBounds bounds = limits()->AtMostCurrentLimits();
       // But don't go below the soft limits for starting incremental marking.
       const size_t new_space_capacity = NewSpaceCapacity();
-      bounds.AtLeast(
-          OldGenerationAllocationLimitConsumedBytes() + new_space_capacity,
-          GlobalConsumedBytes() + new_space_capacity);
+      bounds.AtLeast(OldGenerationConsumedBytes() + new_space_capacity,
+                     GlobalConsumedBytes() + new_space_capacity);
       limits()->UpdateAllocationLimits(CurrentHeapGrowingMode(), bounds);
     }
   }
