@@ -689,9 +689,6 @@ void Map::MapVerify(Isolate* isolate) {
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
-  // Only JSFunction maps have has_prototype_slot() bit set and constructible
-  // JSFunction objects must have prototype slot.
-  CHECK_IMPLIES(has_prototype_slot(), IsJSFunctionMap(*this));
 
   if (InstanceTypeChecker::IsNativeContextSpecific(instance_type())) {
     // Native context-specific objects must have their own contextful meta map
@@ -1475,7 +1472,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   DirectHandle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (has_prototype_slot()) {
+  if (IsJSFunctionWithPrototype(*this)) {
     VerifyObjectField(isolate,
                       JSFunctionWithPrototype::kPrototypeOrInitialMapOffset);
   }

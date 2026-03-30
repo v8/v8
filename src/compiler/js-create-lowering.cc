@@ -1014,7 +1014,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier(),
           dispatch_handle);
   static_assert(JSFunctionWithoutPrototype::kHeaderSize == 7 * kTaggedSize);
-  if (function_map.has_prototype_slot()) {
+  if (InstanceTypeChecker::IsJSFunctionWithPrototype(
+          function_map.instance_type())) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
             jsgraph()->TheHoleConstant());
     static_assert(JSFunctionWithPrototype::kHeaderSize == 8 * kTaggedSize);

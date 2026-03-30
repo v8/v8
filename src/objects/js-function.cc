@@ -931,7 +931,7 @@ void JSFunction::EnsureHasInitialMap(Isolate* isolate,
 
   int instance_size;
   int inobject_properties;
-  CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
+  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
   DirectHandle<NativeContext> creation_context(function->native_context(),
@@ -1137,8 +1137,7 @@ bool FastInitializeDerivedMap(Isolate* isolate,
       static_cast<int>(constructor->shared()->expected_nof_properties()),
       JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
-      instance_type, constructor_initial_map->has_prototype_slot(),
-      embedder_fields, expected_nof_properties, &instance_size,
+      instance_type, embedder_fields, expected_nof_properties, &instance_size,
       &in_object_properties);
 
   int pre_allocated = constructor_initial_map->GetInObjectProperties() -
@@ -1531,14 +1530,13 @@ int JSFunction::CalculateExpectedNofProperties(
 
 // static
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
-                                             bool has_prototype_slot,
                                              int requested_embedder_fields,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
-  int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
+  int header_size = JSObject::GetHeaderSize(instance_type);
   requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
 
   int max_nof_fields =

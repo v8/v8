@@ -1703,11 +1703,10 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastOrdinaryHasInstance(
         context, {object, GetConstant(bound_target_function)});
   }
 
-  if (callable.IsJSFunction()) {
+  if (callable.IsJSFunctionWithPrototype()) {
     compiler::JSFunctionRef function = callable.AsJSFunction();
 
-    if (!function.map(broker()).has_prototype_slot() ||
-        !function.has_instance_prototype(broker()) ||
+    if (!function.has_instance_prototype(broker()) ||
         function.PrototypeRequiresRuntimeLookup(broker())) {
       return {};
     }

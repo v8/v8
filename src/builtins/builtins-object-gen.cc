@@ -1405,7 +1405,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   // have one.
   Label done(this), runtime(this);
   GotoIfForceSlowPath(&runtime);
-  GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
+  GotoIfNot(IsJSFunctionWithPrototypeMap(LoadMap(closure)), &runtime);
   TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
       LoadJSFunctionPrototypeOrInitialMap(closure);
   GotoIfNot(IsMap(maybe_map), &runtime);

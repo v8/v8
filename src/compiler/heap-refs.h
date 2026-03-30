@@ -115,6 +115,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(JSBoundFunction)                                      \
   BACKGROUND_SERIALIZED(JSDataView)                                           \
   BACKGROUND_SERIALIZED(JSFunction)                                           \
+  BACKGROUND_SERIALIZED(JSFunctionWithoutPrototype)                           \
+  BACKGROUND_SERIALIZED(JSFunctionWithPrototype)                              \
   BACKGROUND_SERIALIZED(JSGlobalObject)                                       \
   BACKGROUND_SERIALIZED(JSGlobalProxy)                                        \
   BACKGROUND_SERIALIZED(JSTypedArray)                                         \
@@ -717,6 +719,20 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   JSDispatchHandle dispatch_handle() const;
 };
 
+class V8_EXPORT_PRIVATE JSFunctionWithoutPrototypeRef : public JSFunctionRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSFunctionWithoutPrototype, JSFunctionRef)
+
+  IndirectHandle<JSFunctionWithoutPrototype> object() const;
+};
+
+class V8_EXPORT_PRIVATE JSFunctionWithPrototypeRef : public JSFunctionRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSFunctionWithPrototype, JSFunctionRef)
+
+  IndirectHandle<JSFunctionWithPrototype> object() const;
+};
+
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
@@ -939,7 +955,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   ElementsKind elements_kind() const;
   bool is_stable() const;
   bool is_constructor() const;
-  bool has_prototype_slot() const;
   bool is_access_check_needed() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;

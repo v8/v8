@@ -220,16 +220,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
-  TNode<JSFunction> HeapObjectToJSFunctionWithPrototypeSlot(
-      TNode<HeapObject> heap_object, Label* fail) {
-    // TODO(http://crbug.com/492211940): remove IsJSFunctionWithPrototypeSlot
-    // machinery in favor of instance type check.
-    CSA_DCHECK(this, Word32Equal(IsJSFunctionWithPrototype(heap_object),
-                                 IsJSFunctionWithPrototypeSlot(heap_object)));
-    GotoIfNot(IsJSFunctionWithPrototypeSlot(heap_object), fail);
-    return CAST(heap_object);
-  }
-
   template <typename T>
   TNode<T> RunLazy(LazyNode<T> lazy) {
     return lazy();
@@ -1748,12 +1738,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Map> LoadJSArrayElementsMap(TNode<Int32T> kind,
                                     TNode<NativeContext> native_context);
 
-  TNode<BoolT> IsJSFunctionWithPrototypeSlot(TNode<HeapObject> object);
   TNode<Uint32T> LoadFunctionKind(TNode<JSFunction> function);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
-  void BranchIfHasPrototypeProperty(TNode<JSFunction> function,
-                                    TNode<Int32T> function_map_bit_field,
-                                    Label* if_true, Label* if_false);
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
                                             TNode<Map> map, Label* runtime);
 
@@ -2888,7 +2874,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     ElementsKind kind);
   TNode<BoolT> IsFixedArrayWithKindOrEmpty(TNode<FixedArrayBase> object,
                                            ElementsKind kind);
-  TNode<BoolT> IsFunctionWithPrototypeSlotMap(TNode<Map> map);
   TNode<BoolT> IsHashTable(TNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(TNode<HeapObject> object);
   TNode<BoolT> IsHeapNumberInstanceType(TNode<Int32T> instance_type);

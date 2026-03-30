@@ -2528,8 +2528,7 @@ static const char* NonAPIInstanceTypeToString(InstanceType instance_type) {
 }
 
 // LINT.IfChange(get_header_size)
-int JSObject::GetHeaderSize(InstanceType type,
-                            bool function_has_prototype_slot) {
+int JSObject::GetHeaderSize(InstanceType type) {
   switch (type) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE:
@@ -2564,7 +2563,6 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_BOUND_FUNCTION_TYPE:
       return JSBoundFunction::kHeaderSize;
     case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
-      DCHECK(!function_has_prototype_slot);
       return JSFunctionWithoutPrototype::kHeaderSize;
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
@@ -2575,7 +2573,6 @@ int JSObject::GetHeaderSize(InstanceType type,
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-      DCHECK(function_has_prototype_slot);
       return JSFunctionWithPrototype::kHeaderSize;
     case JS_PRIMITIVE_WRAPPER_TYPE:
       return JSPrimitiveWrapper::kHeaderSize;

@@ -3828,33 +3828,17 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
       static_cast<uint32_t>(FunctionKind::kConciseGeneratorMethod));
 }
 
-// TODO(http://crbug.com/492211940): remove this machinery.
-TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(
-    TNode<HeapObject> object) {
-  // Only JSFunction maps may have HasPrototypeSlotBit set.
-  return IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(
-      LoadMapBitField(LoadMap(object)));
-}
-
-void CodeStubAssembler::BranchIfHasPrototypeProperty(
-    TNode<JSFunction> function, TNode<Int32T> function_map_bit_field,
-    Label* if_true, Label* if_false) {
-  // (has_prototype_slot() && IsConstructor()) ||
-  // IsGeneratorFunction(shared()->kind())
-  uint32_t mask = Map::Bits1::HasPrototypeSlotBit::kMask |
-                  Map::Bits1::IsConstructorBit::kMask;
-
-  GotoIf(IsAllSetWord32(function_map_bit_field, mask), if_true);
-  Branch(IsGeneratorFunction(function), if_true, if_false);
-}
-
 void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
     TNode<JSFunction> function, TNode<Map> map, Label* runtime) {
   // !has_prototype_property() || has_non_instance_prototype()
+  // For JSFunctions without prototype we need to perform a property lookup.
+  GotoIfNot(IsJSFunctionWithPrototypeMap(map), runtime);
+  // JSFunctions with prototype are guaranteed to have non-configurable
+  // "prototype" property, so the runtime lookup is necessary only for the
+  // non-instance case (i.e. when the prototype value is stored in the
+  // JSFunction's root map instead of the prototype_or_initial_map field,
+  // see JSFunction::GetNonInstancePrototype()).
   TNode<Int32T> map_bit_field = LoadMapBitField(map);
-  Label next_check(this);
-  BranchIfHasPrototypeProperty(function, map_bit_field, &next_check, runtime);
-  BIND(&next_check);
   GotoIf(IsSetWord32<Map::Bits1::HasNonInstancePrototypeBit>(map_bit_field),
          runtime);
 }
@@ -3862,7 +3846,7 @@ void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
 TNode<Union<JSReceiver, Map, TheHole>>
 CodeStubAssembler::LoadJSFunctionPrototypeOrInitialMap(
     TNode<JSFunction> function) {
-  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
+  CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
   TNode<UnionOf<JSReceiver, Map, TheHole>> proto_or_map_or_hole =
       CAST(LoadObjectField(
           function, JSFunctionWithPrototype::kPrototypeOrInitialMapOffset));
@@ -3871,14 +3855,14 @@ CodeStubAssembler::LoadJSFunctionPrototypeOrInitialMap(
 
 void CodeStubAssembler::StoreJSFunctionPrototypeOrInitialMap(
     TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value) {
-  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
+  CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
   StoreObjectField(
       function, JSFunctionWithPrototype::kPrototypeOrInitialMapOffset, value);
 }
 
 TNode<JSPrototype> CodeStubAssembler::LoadJSFunctionPrototype(
     TNode<JSFunction> function, Label* if_bailout) {
-  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
+  CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
   CSA_DCHECK(this, IsClearWord32<Map::Bits1::HasNonInstancePrototypeBit>(
                        LoadMapBitField(LoadMap(function))));
   TNode<UnionOf<JSPrototype, Map, TheHole>> proto_or_map_or_hole =
@@ -8204,10 +8188,6 @@ TNode<BoolT> CodeStubAssembler::IsConstructorMap(TNode<Map> map) {
 
 TNode<BoolT> CodeStubAssembler::IsConstructor(TNode<HeapObject> object) {
   return IsConstructorMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsFunctionWithPrototypeSlotMap(TNode<Map> map) {
-  return IsSetWord32<Map::Bits1::HasPrototypeSlotBit>(LoadMapBitField(map));
 }
 
 TNode<BoolT> CodeStubAssembler::IsSpecialReceiverInstanceType(

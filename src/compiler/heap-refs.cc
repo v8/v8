@@ -558,6 +558,24 @@ class JSFunctionData : public JSObjectData {
                                                   // prototype_or_initial_map_.
 };
 
+class JSFunctionWithoutPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithoutPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                                 InstanceType instance_type,
+                                 IndirectHandle<JSFunction> object,
+                                 ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
+};
+
+class JSFunctionWithPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                              InstanceType instance_type,
+                              IndirectHandle<JSFunction> object,
+                              ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
+};
+
 class BigIntData : public HeapObjectData {
  public:
   BigIntData(JSHeapBroker* broker, ObjectData** storage,
@@ -1712,8 +1730,6 @@ HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
-HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
-                Map::Bits1::HasPrototypeSlotBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                 Map::Bits1::IsAccessCheckNeededBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)

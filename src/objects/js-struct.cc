@@ -194,8 +194,8 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
   // Calculate the size for instances.
   int instance_size;
   int in_object_properties;
-  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
-                                          num_fields, &instance_size,
+  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, 0, num_fields,
+                                          &instance_size,
                                           &in_object_properties);
 
   // Create the DescriptorArray if there are fields or elements.

@@ -2536,7 +2536,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   Isolate* isolate = Isolate::Current();
   JSObjectPrintHeader(os, *this, "Function");
   os << "\n - function prototype: ";
-  if (has_prototype_slot()) {
+  if (IsJSFunctionWithPrototype(*this)) {
     if (has_prototype()) {
       os << Brief(prototype());
       if (map()->has_non_instance_prototype()) {
@@ -4463,10 +4463,7 @@ void Map::MapPrint(std::ostream& os) {
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
-  if (has_prototype_slot()) {
-    os << "\n - has_prototype_slot";
-    if (has_non_instance_prototype()) os << " (non-instance prototype)";
-  }
+  if (has_non_instance_prototype()) os << "\n - has_non_instance_prototype";
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (IsContextMap(*this)) {

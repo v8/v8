@@ -400,7 +400,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
       Isolate* isolate, DirectHandle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
                                           int requested_embedder_fields,
                                           int requested_in_object_properties,
                                           int* instance_size,

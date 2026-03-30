@@ -572,7 +572,6 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     // Iterate JSFunction header fields up to dispatch handle field.
-    DCHECK_EQ(IsJSFunctionWithoutPrototypeMap(map), !map->has_prototype_slot());
     IteratePointers(obj, kStartOffset, kDispatchHandleOffset, v);
 
     IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);

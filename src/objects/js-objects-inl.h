@@ -304,9 +304,8 @@ int JSObject::GetHeaderSize(Tagged<Map> map) {
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
   InstanceType instance_type = map->instance_type();
-  return instance_type == JS_OBJECT_TYPE
-             ? JSObject::kHeaderSize
-             : GetHeaderSize(instance_type, map->has_prototype_slot());
+  return instance_type == JS_OBJECT_TYPE ? JSObject::kHeaderSize
+                                         : GetHeaderSize(instance_type);
 }
 
 // static

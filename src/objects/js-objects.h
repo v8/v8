@@ -699,10 +699,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.
-  // The |function_has_prototype_slot| parameter is needed only for
-  // JSFunction objects.
-  static V8_EXPORT_PRIVATE int GetHeaderSize(
-      InstanceType instance_type, bool function_has_prototype_slot = false);
+  static V8_EXPORT_PRIVATE int GetHeaderSize(InstanceType instance_type);
   static inline int GetHeaderSize(Tagged<Map> map);
 
   static inline bool MayHaveEmbedderFields(Tagged<Map> map);

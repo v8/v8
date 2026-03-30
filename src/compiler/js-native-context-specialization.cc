@@ -853,15 +853,12 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     return Changed(node).FollowedBy(ReduceJSInstanceOf(node));
   }
 
-  if (m.Ref(broker()).IsJSFunction()) {
+  if (m.Ref(broker()).IsJSFunctionWithPrototype()) {
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
 
-    // TODO(neis): Remove the has_prototype_slot condition once the broker is
-    // always enabled.
-    if (!function.map(broker()).has_prototype_slot() ||
-        !function.has_instance_prototype(broker()) ||
+    if (!function.has_instance_prototype(broker()) ||
         function.PrototypeRequiresRuntimeLookup(broker())) {
       return NoChange();
     }
@@ -1815,13 +1812,11 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
-    if (object.IsJSFunction() && name.equals(broker()->prototype_string())) {
+    if (object.IsJSFunctionWithPrototype() &&
+        name.equals(broker()->prototype_string())) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      // TODO(neis): Remove the has_prototype_slot condition once the broker is
-      // always enabled.
-      if (!function.map(broker()).has_prototype_slot() ||
-          !function.has_instance_prototype(broker()) ||
+      if (!function.has_instance_prototype(broker()) ||
           function.PrototypeRequiresRuntimeLookup(broker())) {
         return NoChange();
       }

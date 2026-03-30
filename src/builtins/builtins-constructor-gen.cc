@@ -276,8 +276,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   {
     // Set function prototype if necessary.
     Label done(this), init_prototype(this);
-    Branch(IsFunctionWithPrototypeSlotMap(function_map), &init_prototype,
-           &done);
+    Branch(IsJSFunctionWithPrototypeMap(function_map), &init_prototype, &done);
 
     BIND(&init_prototype);
     StoreObjectFieldRoot(result,
@@ -340,8 +339,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
     TNode<JSReceiver> new_target, Label* call_runtime) {
   // Verify that the new target is a JSFunction.
   Label end(this);
-  TNode<JSFunction> new_target_func =
-      HeapObjectToJSFunctionWithPrototypeSlot(new_target, call_runtime);
+  GotoIfNot(IsJSFunctionWithPrototype(new_target), call_runtime);
+  TNode<JSFunctionWithPrototype> new_target_func = CAST(new_target);
   // Fast path.
 
   // Load the initial map and verify that it's in fact a map.

@@ -4646,7 +4646,6 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(has_prototype);
     raw_map->set_is_constructor(has_prototype);
     raw_map->set_is_callable(true);
   }
@@ -4755,7 +4754,6 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(has_prototype);
     raw_map->set_is_constructor(has_prototype);
     raw_map->set_is_callable(true);
     // Temporarily set constructor to empty function to calm down map verifier.
@@ -4822,7 +4820,6 @@ DirectHandle<Map> Factory::CreateClassFunctionMap(
   {
     DisallowGarbageCollection no_gc;
     Tagged<Map> raw_map = *map;
-    raw_map->set_has_prototype_slot(true);
     raw_map->set_is_constructor(true);
     raw_map->set_is_prototype_map(true);
     raw_map->set_is_callable(true);

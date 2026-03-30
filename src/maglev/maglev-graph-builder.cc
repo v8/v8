@@ -5582,12 +5582,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   if (compiler::OptionalHeapObjectRef c =
           TryGetConstant<HeapObject>(lookup_start_object)) {
     if (c.value().IsTheHole()) return {};
-    compiler::MapRef constant_map = c.value().map(broker());
-    if (c.value().IsJSFunction() &&
+    if (c.value().IsJSFunctionWithPrototype() &&
         feedback.name().equals(broker()->prototype_string())) {
       compiler::JSFunctionRef function = c.value().AsJSFunction();
-      if (!constant_map.has_prototype_slot() ||
-          !function.has_instance_prototype(broker()) ||
+      if (!function.has_instance_prototype(broker()) ||
           function.PrototypeRequiresRuntimeLookup(broker()) ||
           access_mode != compiler::AccessMode::kLoad) {
         return {};
@@ -5596,6 +5594,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
           broker()->dependencies()->DependOnPrototypeProperty(function);
       return GetConstant(prototype);
     }
+    compiler::MapRef constant_map = c.value().map(broker());
     inferred_maps = compiler::ZoneRefSet<Map>(constant_map);
   } else if (feedback.maps().empty()) {
     // The IC is megamorphic.
@@ -8317,7 +8316,7 @@ ReduceResult MaglevGraphBuilder::VisitGetSuperConstructor() {
 
 bool MaglevGraphBuilder::HasValidInitialMap(
     compiler::JSFunctionRef new_target, compiler::JSFunctionRef constructor) {
-  if (!new_target.map(broker()).has_prototype_slot()) return false;
+  if (!new_target.IsJSFunctionWithPrototype()) return false;
   if (!new_target.has_initial_map(broker())) return false;
   compiler::MapRef initial_map = new_target.initial_map(broker());
   compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker());
@@ -13272,7 +13271,7 @@ enum class InlineArrayCtorVariant {
 compiler::OptionalMapRef TryGetDerivedMap(compiler::JSHeapBroker* broker,
                                           compiler::JSFunctionRef target,
                                           compiler::JSFunctionRef new_target) {
-  if (!new_target.map(broker).has_prototype_slot() ||
+  if (!new_target.IsJSFunctionWithPrototype() ||
       !new_target.has_initial_map(broker)) {
     return {};
   }

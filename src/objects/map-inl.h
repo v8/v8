@@ -106,14 +106,12 @@ void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
 }
 
 // |bit_field| fields.
-// Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
+// Concurrent access to |TBD| and |has_non_instance_prototype|
 // is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
                     Map::Bits1::HasNonInstancePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
-                    Map::Bits1::HasPrototypeSlotBit)
 
 // These are fine to be written as non-atomic since we don't have data races.
 // However, they have to be read atomically from the background since the

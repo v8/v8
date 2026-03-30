@@ -64,5 +64,3 @@ extern class JSFunctionWithPrototype extends JSFunction {
 @highestInstanceTypeWithinParentClassRange
 extern class JSClassConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
-
-type JSFunctionWithPrototypeSlot extends JSFunction;

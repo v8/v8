@@ -193,7 +193,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 //      |          |   - is_undetectable (bit 4)                     |
 //      |          |   - is_access_check_needed (bit 5)              |
 //      |          |   - is_constructor (bit 6)                      |
-//      |          |   - has_prototype_slot (bit 7)                  |
+//      |          |   - TBD (bit 7)                                 |
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field2]                                    |
 //      |          |   - new_target_is_base (bit 0)                  |
@@ -433,8 +433,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // An "interesting symbol" is one for which Name::IsInteresting()
   // returns true, i.e. a well-known symbol like @@toStringTag.
   DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
-
-  DECL_BOOLEAN_ACCESSORS(has_prototype_slot)
 
   // Records and queries whether the instance has a named interceptor.
   DECL_BOOLEAN_ACCESSORS(has_named_interceptor)
