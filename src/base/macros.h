@@ -639,4 +639,17 @@ bool is_inbounds(float_t v) {
 #define END_IGNORE_LIFETIME_SAFETY_WARNINGS()
 #endif  // defined(__clang__)
 
+// Disable/enable -Wreturn-stack-address warnings in code.
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wreturn-stack-address")
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic push")                   \
+      _Pragma("clang diagnostic ignored \"-Wreturn-stack-address\"")
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
+#endif  // defined(__clang__)
+
 #endif  // V8_BASE_MACROS_H_

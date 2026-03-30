@@ -15,6 +15,8 @@
 
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "include/v8config.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "third_party/wasm-api/wasm.hh"
@@ -44,7 +46,9 @@ class StoreImpl {
 
   void SetHostInfo(i::DirectHandle<i::Object> object, void* info,
                    void (*finalizer)(void*));
-  void* GetHostInfo(i::DirectHandle<i::Object> key);
+  void* GetHostInfo(i::DirectHandle<i::Object> key,
+                    const i::DisallowGarbageCollection& no_gc
+                        V8_LIFETIME_BOUND);
 
  private:
   friend own<Store> Store::make(Engine*);

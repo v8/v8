@@ -27,8 +27,11 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
+#include "include/v8config.h"
 #include "src/api/api-inl.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags/flags.h"
 #include "src/objects/call-site-info-inl.h"
@@ -513,12 +516,14 @@ void StoreImpl::SetHostInfo(i::DirectHandle<i::Object> object, void* info,
   i::JSWeakCollection::Set(host_info_map_, object, wrapper, hash);
 }
 
-void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key) {
+void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
+                             const i::DisallowGarbageCollection& no_gc
+                                 V8_LIFETIME_BOUND) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate());
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
   if (IsTheHole(raw, i_isolate())) return nullptr;
-  return i::Cast<i::Managed<ManagedData>>(raw)->raw()->info;
+  return i::Cast<i::Managed<ManagedData>>(raw)->raw(no_gc)->info;
 }
 
 template <>
@@ -984,7 +989,13 @@ class RefImpl {
 
   void* get_host_info() const {
     v8::Isolate::Scope isolate_scope(store()->isolate());
-    return store()->GetHostInfo(v8_object());
+    i::DisallowGarbageCollection no_gc;
+    // Embedder should take care of not preserving the result across GCs.
+    START_IGNORE_LIFETIME_SAFETY_WARNINGS();
+    START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS();
+    return store()->GetHostInfo(v8_object(), no_gc);
+    END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS();
+    END_IGNORE_LIFETIME_SAFETY_WARNINGS();
   }
 
   void set_host_info(void* info, void (*finalizer)(void*)) {
@@ -1780,8 +1791,8 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
 
 own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
                                const vec<Val>& args, vec<Val>& results) {
-  FuncData* func_data =
-      i::Cast<i::Managed<FuncData>>(data->embedder_data())->raw();
+  i::Managed<FuncData>::Ptr func_data =
+      i::Cast<i::Managed<FuncData>>(data->embedder_data())->ptr();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1895,9 +1906,9 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
 
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
-  FuncData* self =
+  i::Managed<FuncData>::Ptr self =
       i::Cast<i::Managed<FuncData>>(i::Tagged<i::Object>(host_data_foreign))
-          ->raw();
+          ->ptr();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
