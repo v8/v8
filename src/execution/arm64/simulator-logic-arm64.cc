@@ -4431,6 +4431,37 @@ LogicVRegister Simulator::sdot(VectorFormat vform, LogicVRegister dst,
   return dot(vform, dst, src1, src2, true, true);
 }
 
+LogicVRegister Simulator::bgrp(VectorFormat vform, LogicVRegister dst,
+                               const LogicVRegister& src1,
+                               const LogicVRegister& src2, bool do_bext) {
+  for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+    uint64_t value = src1.Uint(vform, i);
+    uint64_t mask = src2.Uint(vform, i);
+    int high_pos = 0;
+    int low_pos = 0;
+    uint64_t result_high = 0;
+    uint64_t result_low = 0;
+    for (unsigned j = 0; j < LaneSizeInBitsFromFormat(vform); j++) {
+      if ((mask & 1) == 0) {
+        result_high |= (value & 1) << high_pos;
+        high_pos++;
+      } else {
+        result_low |= (value & 1) << low_pos;
+        low_pos++;
+      }
+      mask >>= 1;
+      value >>= 1;
+    }
+
+    if (!do_bext) {
+      result_low |= result_high << low_pos;
+    }
+
+    dst.SetUint(vform, i, result_low);
+  }
+  return dst;
+}
+
 }  // namespace internal
 }  // namespace v8
 

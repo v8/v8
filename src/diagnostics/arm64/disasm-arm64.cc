@@ -3815,6 +3815,24 @@ void DisassemblingDecoder::VisitNEONTable(Instruction* instr) {
   Format(instr, mnemonic, nfd.Substitute(re_form));
 }
 
+void DisassemblingDecoder::VisitSVEBitPerm(Instruction* instr) {
+  const char* form = "'Zd.%s, 'Zn.%s, 'Zm.%s";
+  const char* mnemonic = "unimplemented";
+  SVESizeDecoder ssd(instr);
+
+  DCHECK_EQ(instr->Mask(SVEBitPermFMask), SVEBitPermFixed);
+
+  switch (instr->Mask(SVEBitPermMask)) {
+    case BEXT:
+      mnemonic = "bext";
+      break;
+    default:
+      break;
+  }
+
+  Format(instr, mnemonic, ssd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitUnimplemented(Instruction* instr) {
   Format(instr, "unimplemented", "(Unimplemented)");
 }
@@ -3905,10 +3923,11 @@ void DisassemblingDecoder::Substitute(Instruction* instr, const char* string) {
 int DisassemblingDecoder::SubstituteField(Instruction* instr,
                                           const char* format) {
   switch (format[0]) {
-    // NB. The remaining substitution prefix characters are: GJKUZ.
+    // NB. The remaining substitution prefix characters are: GJKU.
     case 'R':  // Register. X or W, selected by sf bit.
     case 'F':  // FP register. S or D, selected by type field.
     case 'V':  // Vector register, V, vector format.
+    case 'Z':  // SVE register, Z, scalable vector format.
     case 'W':
     case 'X':
     case 'B':
@@ -4076,6 +4095,9 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       break;
     case 'V':
       AppendToOutput("v%d", reg_num);
+      return field_len;
+    case 'Z':
+      AppendToOutput("z%d", reg_num);
       return field_len;
     default:
       UNREACHABLE();

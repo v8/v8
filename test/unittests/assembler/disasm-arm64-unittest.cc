@@ -5204,6 +5204,20 @@ TEST_F(DisasmArm64Test, cssc) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, sve_bit_permute) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SVEBITPERM,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Bext(z6.VnB(), z2.VnB(), z5.VnB()), "bext z6.b, z2.b, z5.b");
+  COMPARE(Bext(z6.VnD(), z2.VnD(), z5.VnD()), "bext z6.d, z2.d, z5.d");
+  COMPARE(Bext(z6.VnH(), z2.VnH(), z5.VnH()), "bext z6.h, z2.h, z5.h");
+  COMPARE(Bext(z6.VnS(), z2.VnS(), z5.VnS()), "bext z6.s, z2.s, z5.s");
+
+  CLEANUP();
+}
+
 #undef TEST_
 #undef EXP_SIZE
 #undef INSTR_SIZE

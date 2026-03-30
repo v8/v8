@@ -115,6 +115,7 @@ namespace v8::base {
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
  */
+#define HWCAP2_SVEBITPERM (1 << 4)
 #define HWCAP2_MTE (1 << 18)
 #define HWCAP2_CSSC (1UL << 34)
 #define HWCAP2_MOPS (1UL << 43)
@@ -343,6 +344,15 @@ void CPU::DetectFeatures() {
 #if !defined(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE = 30;
 #endif
+#if !defined(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE = 64;
+#endif
+#if !defined(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE = 51;
+#endif
+#if !defined(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE = 67;
+#endif
 
   has_jscvt_ =
       IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
@@ -352,6 +362,10 @@ void CPU::DetectFeatures() {
       IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE);
   has_pmull1q_ =
       IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+  has_fp16_ = IsProcessorFeaturePresent(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE);
+  has_sha3_ = IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
+  has_svebitperm_ =
+      IsProcessorFeaturePresent(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE);
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
@@ -361,6 +375,7 @@ void CPU::DetectFeatures() {
   has_mte_ = (hwcaps2 & HWCAP2_MTE) != 0;
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   has_mops_ = (hwcaps2 & HWCAP2_MOPS) != 0;
+  has_svebitperm_ = (hwcaps2 & HWCAP2_SVEBITPERM) != 0;
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;
@@ -431,7 +446,7 @@ void CPU::DetectFeatures() {
     has_sha3_ = feat_sha3;
   }
 #else
-  // ARM64 Macs always have JSCVT, ASIMDDP, FP16 and LSE.
+  // ARM64 Macs always have the following features.
   has_jscvt_ = true;
   has_dot_prod_ = true;
   has_lse_ = true;
@@ -439,6 +454,14 @@ void CPU::DetectFeatures() {
   has_fp16_ = true;
   has_sha3_ = true;
 #endif  // V8_OS_IOS
+  int64_t feat_cssc = 0;
+  size_t feat_cssc_size = sizeof(feat_cssc);
+  if (sysctlbyname("hw.optional.arm.FEAT_CSSC", &feat_cssc, &feat_cssc_size,
+                   nullptr, 0) == -1) {
+    has_cssc_ = false;
+  } else {
+    has_cssc_ = feat_cssc;
+  }
 #endif  // V8_OS_WIN
 #endif  // V8_HOST_ARCH_ARM64
 }

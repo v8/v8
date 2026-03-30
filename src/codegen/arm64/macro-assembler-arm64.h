@@ -573,6 +573,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     bic(vd, imm8, left_shift);
   }
 
+  void Bext(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm) {
+    DCHECK(allow_macro_instructions());
+    bext(zd, zn, zm);
+  }
+
   // This is required for compatibility in architecture independent code.
   inline void jmp(Label* L);
 

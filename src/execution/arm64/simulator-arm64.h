@@ -2275,6 +2275,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   LogicVRegister fmaxnmv(VectorFormat vform, LogicVRegister dst,
                          const LogicVRegister& src);
 
+  LogicVRegister bgrp(VectorFormat vform, LogicVRegister dst,
+                      const LogicVRegister& src1, const LogicVRegister& src2,
+                      bool do_bext = false);
+
   template <typename T>
   T FPRecipSqrtEstimate(T op);
   template <typename T>

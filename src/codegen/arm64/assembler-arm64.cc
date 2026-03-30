@@ -88,6 +88,15 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_MOPS)
   features.Add(MOPS);
 #endif
+#if defined(__ARM_FEATURE_CSSC)
+  features.Add(CSSC);
+#endif
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+  features.Add(FP16);
+#endif
+#if defined(__ARM_FEATURE_SVE2_BITPERM)
+  features.Add(SVEBITPERM);
+#endif
   return features;
 }
 
@@ -156,6 +165,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_mops()) {
     runtime.Add(MOPS);
+  }
+  if (cpu.has_svebitperm()) {
+    runtime.Add(SVEBITPERM);
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -4391,6 +4403,13 @@ void Assembler::pmull2(const VRegister& vd, const VRegister& vn,
   DCHECK((vn.Is16B() && vd.Is8H()) || (vn.Is2D() && vd.Is1Q()));
   DCHECK(IsEnabled(PMULL1Q) || vd.Is8H());
   Emit(VFormat(vn) | NEON_PMULL2 | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::bext(const ZRegister& zd, const ZRegister& zn,
+                     const ZRegister& zm) {
+  DCHECK(IsEnabled(SVEBITPERM));
+  DCHECK(AreSameLaneSize(zd, zn, zm));
+  Emit(BEXT | SVESize(zd) | Rm(zm) | Rn(zn) | Rd(zd));
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {

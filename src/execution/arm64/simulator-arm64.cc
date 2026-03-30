@@ -6948,6 +6948,22 @@ void Simulator::VisitSet(Instruction* instr) {
   }
 }
 
+void Simulator::VisitSVEBitPerm(Instruction* instr) {
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& rn = vreg(instr->Rn());
+  SVESizeDecoder ssd(instr);
+  VectorFormat vf = ssd.GetVectorFormat();
+
+  DCHECK_EQ(instr->Mask(SVEBitPermFMask), SVEBitPermFixed);
+
+  if (instr->Mask(SVEBitPermMask) == BEXT) {
+    bgrp(vf, rd, rn, rm, true);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
 void Simulator::DoSwitchStackLimit(Instruction* instr) {
   const int64_t stack_limit = xreg(16);
   // stack_limit represents js limit and adjusted by extra runaway gap.

@@ -4839,32 +4839,47 @@ void MacroAssembler::PopcntHelper(Register dst, Register src) {
 void MacroAssembler::I8x16BitMask(Register dst, VRegister src, VRegister temp) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
-  VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
+  VRegister msb_vector = temps.AcquireQ();
 
-  if (CpuFeatures::IsSupported(PMULL1Q) && temp.is_valid()) {
+  if (CpuFeatures::IsSupported(SVEBITPERM)) {
+    CpuFeatureScope scope(this, SVEBITPERM);
+
+    // Mask that selects the most significant bits from each 8-bit vector
+    // element.
+    Movi(mask.V16B(), 0b1000'0000);
+    // Collect the input bits into a byte of the output - once for each half of
+    // the input. Note that the actual SVE register size does not matter because
+    // the BEXT instruction does not perform cross-lane operations, while the
+    // rest of the implementation ignores all register bits except for the least
+    // significant 128.
+    Bext(mask.Z().VnD(), src.Z().VnD(), mask.Z().VnD());
+    // Combine the bits from both input halves.
+    Ins(mask.V16B(), 1, mask.V16B(), 8);
+    Fmov(dst.W(), mask.S());
+  } else if (CpuFeatures::IsSupported(PMULL1Q) && temp.is_valid()) {
     CpuFeatureScope scope(this, PMULL1Q);
 
     Movi(mask.V2D(), 0x0102'0408'1020'4080);
     // Normalize the input - at most 1 bit per vector element should be set.
-    Ushr(tmp.V16B(), src.V16B(), 7);
+    Ushr(msb_vector.V16B(), src.V16B(), 7);
     // Collect the input bits into a byte of the output - once for each
     // half of the input.
-    Pmull2(temp.V1Q(), mask.V2D(), tmp.V2D());
-    Pmull(tmp.V1Q(), mask.V1D(), tmp.V1D());
+    Pmull2(temp.V1Q(), mask.V2D(), msb_vector.V2D());
+    Pmull(msb_vector.V1Q(), mask.V1D(), msb_vector.V1D());
     // Combine the bits from both input halves.
-    Trn2(tmp.V8B(), tmp.V8B(), temp.V8B());
-    Mov(dst.W(), tmp.V8H(), 3);
+    Trn2(msb_vector.V8B(), msb_vector.V8B(), temp.V8B());
+    Mov(dst.W(), msb_vector.V8H(), 3);
   } else {
-    // Set i-th bit of each lane i. When AND with tmp, the lanes that
+    // Set i-th bit of each lane i. When AND with msb_vector, the lanes that
     // are signed will have i-th bit set, unsigned will be 0.
-    Sshr(tmp.V16B(), src.V16B(), 7);
+    Sshr(msb_vector.V16B(), src.V16B(), 7);
     Movi(mask.V2D(), 0x8040'2010'0804'0201);
-    And(tmp.V16B(), mask.V16B(), tmp.V16B());
-    Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
-    Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
-    Addv(tmp.H(), tmp.V8H());
-    Mov(dst.W(), tmp.V8H(), 0);
+    And(msb_vector.V16B(), mask.V16B(), msb_vector.V16B());
+    Ext(mask.V16B(), msb_vector.V16B(), msb_vector.V16B(), 8);
+    Zip1(msb_vector.V16B(), msb_vector.V16B(), mask.V16B());
+    Addv(msb_vector.H(), msb_vector.V8H());
+    Mov(dst.W(), msb_vector.V8H(), 0);
   }
 }
 
@@ -4874,7 +4889,24 @@ void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
   VRegister tmp = temps.AcquireQ();
   VRegister mask = temps.AcquireQ();
 
-  if (CpuFeatures::IsSupported(PMULL1Q)) {
+  if (CpuFeatures::IsSupported(SVEBITPERM)) {
+    CpuFeatureScope scope(this, SVEBITPERM);
+    Register tmp_gpr = temps.AcquireX();
+
+    // Mask that selects the most significant bits from each 16-bit vector
+    // element.
+    Movi(mask.V8H(), 0b1000'0000'0000'0000);
+    // Collect the input bits into 4 bits of the output - once for each half of
+    // the input. Note that the actual SVE register size does not matter because
+    // the BEXT instruction does not perform cross-lane operations, while the
+    // rest of the implementation ignores all register bits except for the least
+    // significant 128.
+    Bext(mask.Z().VnD(), src.Z().VnD(), mask.Z().VnD());
+    Mov(tmp_gpr, mask.D(), 1);
+    Fmov(dst.W(), mask.S());
+    // Combine the bits from both input halves.
+    Orr(dst.W(), dst.W(), Operand(tmp_gpr.W(), LSL, 4));
+  } else if (CpuFeatures::IsSupported(PMULL1Q)) {
     CpuFeatureScope scope(this, PMULL1Q);
 
     // Normalize the input - at most 1 bit per vector element should be set.
@@ -4901,14 +4933,34 @@ void MacroAssembler::I32x4BitMask(Register dst, VRegister src) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
-  Mov(dst.X(), src.D(), 1);
-  Fmov(tmp.X(), src.D());
-  And(dst.X(), dst.X(), 0x80000000'80000000);
-  And(tmp.X(), tmp.X(), 0x80000000'80000000);
-  Orr(dst.X(), dst.X(), Operand(dst.X(), LSL, 31));
-  Orr(tmp.X(), tmp.X(), Operand(tmp.X(), LSL, 31));
-  Lsr(dst.X(), dst.X(), 60);
-  Bfxil(dst.X(), tmp.X(), 62, 2);
+
+  if (CpuFeatures::IsSupported(SVEBITPERM)) {
+    CpuFeatureScope scope(this, SVEBITPERM);
+    VRegister mask = temps.AcquireQ();
+
+    // Mask that selects the most significant bits from each 32-bit vector
+    // element.
+    Movi(mask.V4S(), 0x8000'0000);
+    // Collect the input bits into 2 bits of the output - once for each half of
+    // the input. Note that the actual SVE register size does not matter because
+    // the BEXT instruction does not perform cross-lane operations, while the
+    // rest of the implementation ignores all register bits except for the least
+    // significant 128.
+    Bext(mask.Z().VnD(), src.Z().VnD(), mask.Z().VnD());
+    Mov(tmp, mask.D(), 1);
+    Fmov(dst.W(), mask.S());
+    // Combine the bits from both input halves.
+    Orr(dst.W(), dst.W(), Operand(tmp.W(), LSL, 2));
+  } else {
+    Mov(dst.X(), src.D(), 1);
+    Fmov(tmp, src.D());
+    And(dst.X(), dst.X(), 0x80000000'80000000);
+    And(tmp, tmp, 0x80000000'80000000);
+    Orr(dst.X(), dst.X(), Operand(dst.X(), LSL, 31));
+    Orr(tmp, tmp, Operand(tmp, LSL, 31));
+    Lsr(dst.X(), dst.X(), 60);
+    Bfxil(dst.X(), tmp, 62, 2);
+  }
 }
 
 void MacroAssembler::I64x2BitMask(Register dst, VRegister src) {
