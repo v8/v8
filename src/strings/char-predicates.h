@@ -86,7 +86,8 @@ inline bool IsWhiteSpaceOrLineTerminatorSlow(base::uc32 c) {
   return IsWhiteSpaceSlow(c) || unibrow::IsLineTerminator(c);
 }
 
-inline bool IsLineTerminatorSequence(base::uc32 c, base::uc32 next);
+template <typename Char>
+inline bool IsLineTerminatorSequence(Char c, Char next);
 
 }  // namespace internal
 }  // namespace v8

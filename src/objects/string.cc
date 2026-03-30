@@ -5,6 +5,7 @@
 #include "src/objects/string.h"
 
 #include "absl/functional/overload.h"
+#include "hwy/highway.h"
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"
@@ -1154,15 +1155,71 @@ static void CalculateLineEndsImpl(String::LineEndsVector* line_ends,
                                   base::Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
-  for (int i = 0; i < src_len - 1; i++) {
-    SourceChar current = src[i];
-    SourceChar next = src[i + 1];
-    if (IsLineTerminatorSequence(current, next)) line_ends->push_back(i);
+
+  if constexpr (sizeof(SourceChar) == 1) {
+    // SIMD fast path for one-byte (Latin-1/ASCII) strings: scan for \n and \r
+    // in 16-byte chunks using Highway.  U+2028/U+2029 cannot occur in
+    // one-byte encoding so only \n and \r need to be checked.
+    namespace hw = hwy::HWY_NAMESPACE;
+    if (src_len == 0) {
+      if (include_ending_line) line_ends->push_back(0);
+      return;
+    }
+
+    const uint8_t* data = src.begin();
+    hw::FixedTag<uint8_t, 16> tag;
+    const size_t stride = hw::Lanes(tag);
+    const auto v_lf = hw::Set(tag, 0x0A);
+    const auto v_cr = hw::Set(tag, 0x0D);
+
+    int i = 0;
+    // Ensure every SIMD load is in-bounds AND that the scalar fallback can
+    // always peek one character ahead for \r\n detection.
+    const int simd_end = src_len - 1 - static_cast<int>(stride);
+
+    while (i <= simd_end) {
+      const auto chunk = hw::LoadU(tag, data + i);
+      const auto is_line_end = hw::Or(hw::Eq(chunk, v_lf), hw::Eq(chunk, v_cr));
+
+      if (V8_LIKELY(hw::AllFalse(tag, is_line_end))) {
+        i += stride;
+        continue;
+      }
+
+      // At least one line terminator in this chunk — process scalar.
+      for (size_t j = 0; j < stride; j++, i++) {
+        DCHECK_LT(i, src_len - 1);
+        if (IsLineTerminatorSequence(data[i], data[i + 1])) {
+          line_ends->push_back(i);
+        }
+      }
+    }
+
+    // Scalar tail for remaining characters before the last one.
+    for (; i < src_len - 1; i++) {
+      if (IsLineTerminatorSequence(data[i], data[i + 1])) {
+        line_ends->push_back(i);
+      }
+    }
+
+    // Handle the very last character (the loops above stop one short).
+    if (IsLineTerminatorSequence(data[src_len - 1], SourceChar{0})) {
+      line_ends->push_back(src_len - 1);
+    }
+  } else {
+    // UC16 scalar path — must also handle U+2028 and U+2029.
+    for (int i = 0; i < src_len - 1; i++) {
+      if (IsLineTerminatorSequence(src[i], src[i + 1])) {
+        line_ends->push_back(i);
+      }
+    }
+
+    if (src_len > 0 &&
+        IsLineTerminatorSequence(src[src_len - 1], SourceChar{0})) {
+      line_ends->push_back(src_len - 1);
+    }
   }
 
-  if (src_len > 0 && IsLineTerminatorSequence(src[src_len - 1], 0)) {
-    line_ends->push_back(src_len - 1);
-  }
   if (include_ending_line) {
     // Include one character beyond the end of script. The rewriter uses that
     // position for the implicit return statement.
