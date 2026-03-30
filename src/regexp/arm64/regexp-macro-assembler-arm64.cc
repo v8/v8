@@ -1774,13 +1774,15 @@ void RegExpMacroAssemblerARM64::ClearRegisters(int reg_from, int reg_to) {
   if (num_registers > 0) {
     // If there are some remaining registers, they are stored on the stack.
     DCHECK_LE(kNumCachedRegisters, reg_from);
+    DCHECK_EQ(num_registers % 2, 0);
 
     // Move down the indexes of the registers on stack to get the correct offset
     // in memory.
     reg_from -= kNumCachedRegisters;
     reg_to -= kNumCachedRegisters;
-    // We should not unroll the loop for less than 2 registers.
-    static_assert(kNumRegistersToUnroll > 2);
+    // The loop below handles 8 registers per iteration; ensure the unroll
+    // threshold is high enough that after aligning to 8 there is still work.
+    static_assert(kNumRegistersToUnroll >= 8);
     // We position the base pointer to (reg_from + 1).
     int base_offset =
         kFirstRegisterOnStackOffset - kWRegSize - (kWRegSize * reg_from);
@@ -1788,18 +1790,37 @@ void RegExpMacroAssemblerARM64::ClearRegisters(int reg_from, int reg_to) {
       Register base = x10;
       __ Add(base, frame_pointer(), base_offset);
 
+      // Align to a multiple of 8 with individual stores.
+      while (num_registers % 8 != 0) {
+        __ Str(twice_non_position_value(),
+               MemOperand(base, -kSystemPointerSize, PostIndex));
+        num_registers -= 2;
+      }
+      DCHECK_EQ(num_registers % 8, 0);
+      DCHECK_GT(num_registers, 0);
+
       Label loop;
       __ Mov(x11, num_registers);
       __ Bind(&loop);
-      __ Str(twice_non_position_value(),
-             MemOperand(base, -kSystemPointerSize, PostIndex));
-      __ Sub(x11, x11, 2);
+      __ Stp(twice_non_position_value(), twice_non_position_value(),
+             MemOperand(base, -kSystemPointerSize));
+      __ Stp(twice_non_position_value(), twice_non_position_value(),
+             MemOperand(base, -3 * kSystemPointerSize));
+      __ Sub(base, base, 4 * kSystemPointerSize);
+      __ Sub(x11, x11, 8);
       __ Cbnz(x11, &loop);
     } else {
-      for (int i = reg_from; i <= reg_to; i += 2) {
+      // Unroll with Stp where possible, Str for the tail.
+      while (num_registers >= 4) {
+        __ Stp(twice_non_position_value(), twice_non_position_value(),
+               MemOperand(frame_pointer(), base_offset - kSystemPointerSize));
+        base_offset -= 2 * kSystemPointerSize;
+        num_registers -= 4;
+      }
+      if (num_registers > 0) {
+        DCHECK_EQ(num_registers, 2);
         __ Str(twice_non_position_value(),
                MemOperand(frame_pointer(), base_offset));
-        base_offset -= kWRegSize * 2;
       }
     }
   }

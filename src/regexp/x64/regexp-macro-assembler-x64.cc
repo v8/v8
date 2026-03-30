@@ -1444,17 +1444,29 @@ DirectHandle<HeapObject> RegExpMacroAssemblerX64::GetCode(
 
   // Initialize on-stack registers.
   if (num_saved_registers_ > 0) {
-    // Fill saved registers with initial value = start offset - 1
-    // Fill in stack push order, to avoid accessing across an unwritten
-    // page (a problem on Windows).
+    // Fill saved registers with initial value = start offset - 1.
+    // Fill in stack push order (high to low) to avoid touching an unwritten
+    // guard page before the previous one, which is a problem on Windows.
     if (num_saved_registers_ > 8) {
-      __ Move(r9, kRegisterZeroOffset);
+      int start_offset = kRegisterZeroOffset;
+      int remaining = num_saved_registers_;
+      // Emit individual stores for the remainder to align to 4.
+      for (int i = remaining % 4; i > 0; i--) {
+        __ movq(Operand(rbp, start_offset), rax);
+        start_offset -= kSystemPointerSize;
+        remaining--;
+      }
+      DCHECK_EQ(remaining % 4, 0);
+      DCHECK_GT(remaining, 0);
+      __ Move(r9, start_offset);
       Label init_loop;
       __ bind(&init_loop);
       __ movq(Operand(rbp, r9, times_1, 0), rax);
-      __ subq(r9, Immediate(kSystemPointerSize));
-      __ cmpq(r9, Immediate(kRegisterZeroOffset -
-                            num_saved_registers_ * kSystemPointerSize));
+      __ movq(Operand(rbp, r9, times_1, -kSystemPointerSize), rax);
+      __ movq(Operand(rbp, r9, times_1, -2 * kSystemPointerSize), rax);
+      __ movq(Operand(rbp, r9, times_1, -3 * kSystemPointerSize), rax);
+      __ subq(r9, Immediate(4 * kSystemPointerSize));
+      __ cmpq(r9, Immediate(start_offset - remaining * kSystemPointerSize));
       __ j(greater, &init_loop, Label::kNear);
     } else {  // Unroll the loop.
       for (int i = 0; i < num_saved_registers_; i++) {
