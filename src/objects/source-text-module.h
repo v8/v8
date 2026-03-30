@@ -25,8 +25,7 @@ class StructBodyDescriptor;
 
 // The runtime representation of an ECMAScript Source Text Module Record.
 // https://tc39.es/ecma262/#sec-source-text-module-records
-class SourceTextModule
-    : public TorqueGeneratedSourceTextModule<SourceTextModule, Module> {
+V8_OBJECT class SourceTextModule : public Module {
  public:
   DECL_VERIFIER(SourceTextModule)
   DECL_PRINTER(SourceTextModule)
@@ -74,10 +73,6 @@ class SourceTextModule
   V8_EXPORT_PRIVATE static MaybeHandle<JSObject> GetImportMeta(
       Isolate* isolate, DirectHandle<SourceTextModule> module);
 
-  using BodyDescriptor =
-      SubclassBodyDescriptor<Module::BodyDescriptor,
-                             FixedBodyDescriptor<kCodeOffset, kSize, kSize>>;
-
   static constexpr unsigned kFirstAsyncEvaluationOrdinal = 2;
 
   enum ExecuteAsyncModuleContextSlots {
@@ -98,6 +93,49 @@ class SourceTextModule
 
   static bool ReadyForSyncExecution(Isolate* isolate, Handle<Module> module,
                                     UnorderedModuleSet* seen);
+
+  inline Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
+  code() const;
+  inline void set_code(
+      Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> regular_exports() const;
+  inline void set_regular_exports(Tagged<FixedArray> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> regular_imports() const;
+  inline void set_regular_imports(Tagged<FixedArray> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> requested_modules() const;
+  inline void set_requested_modules(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<TheHole, JSObject>> import_meta(AcquireLoadTag) const;
+  inline void set_import_meta(Tagged<UnionOf<TheHole, JSObject>> value,
+                              ReleaseStoreTag,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<SourceTextModule, TheHole>> cycle_root() const;
+  inline void set_cycle_root(Tagged<UnionOf<SourceTextModule, TheHole>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<ArrayList> async_parent_modules() const;
+  inline void set_async_parent_modules(
+      Tagged<ArrayList> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int dfs_index() const;
+  inline void set_dfs_index(int value);
+
+  inline int dfs_ancestor_index() const;
+  inline void set_dfs_ancestor_index(int value);
+
+  inline int pending_async_dependencies() const;
+  inline void set_pending_async_dependencies(int value);
+
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
 
  private:
   friend class Factory;
@@ -151,10 +189,6 @@ class SourceTextModule
   static_assert(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
   static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluationOrdinal);
   DECL_PRIMITIVE_ACCESSORS(async_evaluation_ordinal, unsigned)
-
-  // The parent modules of a given async dependency, use async_parent_modules()
-  // to retrieve the ArrayList representation.
-  DECL_ACCESSORS(async_parent_modules, Tagged<ArrayList>)
 
   // Helpers for Instantiate and Evaluate.
   static void CreateExport(Isolate* isolate,
@@ -238,7 +272,27 @@ class SourceTextModule
       Isolate* isolate, UnorderedModuleSet* visited,
       DirectHandleVector<SourceTextModule>* result);
 
-  TQ_OBJECT_CONSTRUCTORS(SourceTextModule)
+ public:
+  TaggedMember<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
+      code_;
+  TaggedMember<FixedArray> regular_exports_;
+  TaggedMember<FixedArray> regular_imports_;
+  TaggedMember<FixedArray> requested_modules_;
+  TaggedMember<UnionOf<TheHole, JSObject>> import_meta_;
+  TaggedMember<UnionOf<SourceTextModule, TheHole>> cycle_root_;
+  TaggedMember<ArrayList> async_parent_modules_;
+  TaggedMember<Smi> dfs_index_;
+  TaggedMember<Smi> dfs_ancestor_index_;
+  TaggedMember<Smi> pending_async_dependencies_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<SourceTextModule> {
+  using BodyDescriptor = SubclassBodyDescriptor<
+      ObjectTraits<Module>::BodyDescriptor,
+      FixedBodyDescriptor<offsetof(SourceTextModule, code_),
+                          sizeof(SourceTextModule), sizeof(SourceTextModule)>>;
 };
 
 // SourceTextModuleInfo is to SourceTextModuleDescriptor what ScopeInfo is to

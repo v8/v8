@@ -867,7 +867,7 @@ FieldAccess AccessBuilder::ForMapNativeContext() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularExports() {
   FieldAccess access = {
-      kTaggedBase,           SourceTextModule::kRegularExportsOffset,
+      kTaggedBase,           offsetof(SourceTextModule, regular_exports_),
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "ModuleRegularExports"};
@@ -877,7 +877,7 @@ FieldAccess AccessBuilder::ForModuleRegularExports() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularImports() {
   FieldAccess access = {
-      kTaggedBase,           SourceTextModule::kRegularImportsOffset,
+      kTaggedBase,           offsetof(SourceTextModule, regular_imports_),
       Handle<Name>(),        OptionalMapRef(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier,  "ModuleRegularImports"};

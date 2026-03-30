@@ -1202,7 +1202,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     TNode<Module> module =
         LoadObjectField<Module>(CAST(holder), JSModuleNamespace::kModuleOffset);
     TNode<ObjectHashTable> exports =
-        LoadObjectField<ObjectHashTable>(module, Module::kExportsOffset);
+        LoadObjectField<ObjectHashTable>(module, offsetof(Module, exports_));
     TNode<Cell> cell = CAST(LoadFixedArrayElement(exports, index));
     // The handler is only installed for exports that exist.
     TNode<Object> value = LoadCellValue(cell);

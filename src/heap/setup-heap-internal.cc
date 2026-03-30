@@ -765,9 +765,9 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
                  atom_regexp_data);
     ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, IrRegExpData::kSize, ir_regexp_data);
 
-    ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
+    ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, sizeof(SourceTextModule),
                  source_text_module)
-    ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
+    ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, sizeof(SyntheticModule),
                  synthetic_module)
 
     ALLOCATE_MAP(CONTEXT_CELL_TYPE, sizeof(ContextCell), context_cell)

@@ -2862,18 +2862,34 @@ static void PrintModuleFields(Tagged<Module> module, std::ostream& os) {
 }
 
 void Module::ModulePrint(std::ostream& os) {
-  if (IsSourceTextModule(*this)) {
-    Cast<SourceTextModule>(*this)->SourceTextModulePrint(os);
-  } else if (IsSyntheticModule(*this)) {
-    Cast<SyntheticModule>(*this)->SyntheticModulePrint(os);
+  if (IsSourceTextModule(this)) {
+    Cast<SourceTextModule>(this)->SourceTextModulePrint(os);
+  } else if (IsSyntheticModule(this)) {
+    Cast<SyntheticModule>(this)->SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
   }
 }
 
+void SyntheticModule::SyntheticModulePrint(std::ostream& os) {
+  PrintHeader(os, "SyntheticModule");
+  os << "\n - exports: " << Brief(exports());
+  os << "\n - hash: " << hash();
+  os << "\n - status: " << status();
+  os << "\n - module_namespace: " << Brief(module_namespace());
+  os << "\n - deferred_module_namespace: "
+     << Brief(deferred_module_namespace());
+  os << "\n - exception: " << Brief(exception());
+  os << "\n - top_level_capability: " << Brief(top_level_capability());
+  os << "\n - name: " << Brief(name());
+  os << "\n - export_names: " << Brief(export_names());
+  os << "\n - evaluation_steps: " << Brief(evaluation_steps());
+  os << "\n";
+}
+
 void SourceTextModule::SourceTextModulePrint(std::ostream& os) {
   PrintHeader(os, "SourceTextModule");
-  PrintModuleFields(*this, os);
+  PrintModuleFields(this, os);
   os << "\n - sfi/code/info: " << Brief(code());
   Tagged<Script> script = GetScript();
   os << "\n - script: " << Brief(script);

@@ -3749,7 +3749,7 @@ TNode<Object> CodeStubAssembler::GetImportMetaObject(TNode<Context> context) {
   const TNode<HeapObject> module =
       CAST(LoadContextElementNoCell(module_context, Context::EXTENSION_INDEX));
   const TNode<Object> import_meta =
-      LoadObjectField(module, SourceTextModule::kImportMetaOffset);
+      LoadObjectField(module, offsetof(SourceTextModule, import_meta_));
 
   TVARIABLE(Object, return_value, import_meta);
 

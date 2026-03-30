@@ -1589,7 +1589,7 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
   // it's what we are looking for. Add it to the results.
   if (!HasPendingAsyncDependencies() && HasAsyncEvaluationOrdinal()) {
     DCHECK(HasAsyncEvaluationOrdinal());
-    result->push_back(direct_handle(*this, isolate));
+    result->push_back(direct_handle(Tagged<SourceTextModule>(this), isolate));
     return;
   }
   // The module isn't what we are looking for, continue looking in the graph.

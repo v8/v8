@@ -7673,15 +7673,15 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
                                     ContextMode::kNoContextCells, scope_info));
   ValueNode* exports_or_imports;
   if (cell_index > 0) {
-    GET_VALUE(
-        exports_or_imports,
-        BuildLoadTaggedField(module, SourceTextModule::kRegularExportsOffset));
+    GET_VALUE(exports_or_imports,
+              BuildLoadTaggedField(
+                  module, offsetof(SourceTextModule, regular_exports_)));
     // The actual array index is (cell_index - 1).
     cell_index -= 1;
   } else {
-    GET_VALUE(
-        exports_or_imports,
-        BuildLoadTaggedField(module, SourceTextModule::kRegularImportsOffset));
+    GET_VALUE(exports_or_imports,
+              BuildLoadTaggedField(
+                  module, offsetof(SourceTextModule, regular_imports_)));
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
@@ -7742,7 +7742,7 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
                                     ContextMode::kNoContextCells, scope_info));
   ValueNode* exports;
   GET_VALUE(exports, BuildLoadTaggedField(
-                         module, SourceTextModule::kRegularExportsOffset));
+                         module, offsetof(SourceTextModule, regular_exports_)));
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   ValueNode* cell;

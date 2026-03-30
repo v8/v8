@@ -99,7 +99,7 @@ void Module::SetStatus(Status new_status) {
   DisallowGarbageCollection no_gc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
-  SetStatusInternal(*this, new_status);
+  SetStatusInternal(this, new_status);
 }
 
 void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
@@ -108,13 +108,13 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
                  IsTheHole(exception(), isolate));
   DCHECK(!IsTheHole(error, isolate));
-  if (IsSourceTextModule(*this)) {
+  if (IsSourceTextModule(this)) {
     // Revert to minimal SFI in case we have already been instantiating or
     // evaluating.
-    auto self = Cast<SourceTextModule>(*this);
+    auto self = Cast<SourceTextModule>(this);
     self->set_code(self->GetSharedFunctionInfo());
   }
-  SetStatusInternal(*this, Module::kErrored);
+  SetStatusInternal(this, Module::kErrored);
   if (isolate->is_catchable_by_javascript(error)) {
     set_exception(error);
   } else {
@@ -580,8 +580,8 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.
-  if (!IsSourceTextModule(*this)) return false;
-  Tagged<SourceTextModule> root = Cast<SourceTextModule>(*this);
+  if (!IsSourceTextModule(this)) return false;
+  Tagged<SourceTextModule> root = Cast<SourceTextModule>(this);
   DCHECK_GE(root->status(), kLinked);
 
   Zone zone(isolate->allocator(), ZONE_NAME);

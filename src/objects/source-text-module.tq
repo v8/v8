@@ -9,6 +9,7 @@ bitfield struct SourceTextModuleFlags extends uint31 {
   async_evaluation_ordinal: uint32: 30 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class SourceTextModule extends Module {
   // The code representing this module, or an abstraction thereof.
   code: SharedFunctionInfo|JSFunction|JSGeneratorObject;

@@ -2605,8 +2605,6 @@ void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
 }
 
 void Module::ModuleVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleVerify(*this, isolate);
-
   CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception(), isolate));
 
   CHECK(IsUndefined(module_namespace(), isolate) || IsCell(module_namespace()));
@@ -2617,7 +2615,7 @@ void Module::ModuleVerify(Isolate* isolate) {
     auto cell = Cast<Cell>(module_namespace());
     CHECK(IsJSModuleNamespace(cell->value()) || IsUndefined(cell->value()));
     if (IsJSModuleNamespace(cell->value())) {
-      CHECK_EQ(Cast<JSModuleNamespace>(cell->value())->module(), *this);
+      CHECK_EQ(Cast<JSModuleNamespace>(cell->value())->module(), this);
     }
   }
 
@@ -2646,8 +2644,6 @@ void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
 }
 
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SourceTextModuleVerify(*this, isolate);
-
   if (status() == kErrored) {
     CHECK(IsSharedFunctionInfo(code()));
   } else if (status() == kEvaluating || status() == kEvaluatingAsync ||
@@ -2672,8 +2668,6 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
 }
 
 void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::SyntheticModuleVerify(*this, isolate);
-
   uint32_t export_names_len = export_names()->ulength().value();
   for (uint32_t i = 0; i < export_names_len; i++) {
     CHECK(IsString(export_names()->get(i)));

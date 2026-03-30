@@ -94,6 +94,90 @@ void SourceTextModuleInfoEntry::set_end_pos(int value) {
   end_pos_.store(this, Smi::FromInt(value));
 }
 
+Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>>
+SourceTextModule::code() const {
+  return code_.load();
+}
+void SourceTextModule::set_code(
+    Tagged<UnionOf<SharedFunctionInfo, JSFunction, JSGeneratorObject>> value,
+    WriteBarrierMode mode) {
+  code_.store(this, value, mode);
+}
+
+Tagged<FixedArray> SourceTextModule::regular_exports() const {
+  return regular_exports_.load();
+}
+void SourceTextModule::set_regular_exports(Tagged<FixedArray> value,
+                                           WriteBarrierMode mode) {
+  regular_exports_.store(this, value, mode);
+}
+
+Tagged<FixedArray> SourceTextModule::regular_imports() const {
+  return regular_imports_.load();
+}
+void SourceTextModule::set_regular_imports(Tagged<FixedArray> value,
+                                           WriteBarrierMode mode) {
+  regular_imports_.store(this, value, mode);
+}
+
+Tagged<FixedArray> SourceTextModule::requested_modules() const {
+  return requested_modules_.load();
+}
+void SourceTextModule::set_requested_modules(Tagged<FixedArray> value,
+                                             WriteBarrierMode mode) {
+  requested_modules_.store(this, value, mode);
+}
+
+Tagged<UnionOf<TheHole, JSObject>> SourceTextModule::import_meta(
+    AcquireLoadTag tag) const {
+  return import_meta_.Acquire_Load();
+}
+void SourceTextModule::set_import_meta(Tagged<UnionOf<TheHole, JSObject>> value,
+                                       ReleaseStoreTag tag,
+                                       WriteBarrierMode mode) {
+  import_meta_.Release_Store(this, value, mode);
+}
+
+Tagged<UnionOf<SourceTextModule, TheHole>> SourceTextModule::cycle_root()
+    const {
+  return cycle_root_.load();
+}
+void SourceTextModule::set_cycle_root(
+    Tagged<UnionOf<SourceTextModule, TheHole>> value, WriteBarrierMode mode) {
+  cycle_root_.store(this, value, mode);
+}
+
+Tagged<ArrayList> SourceTextModule::async_parent_modules() const {
+  return async_parent_modules_.load();
+}
+void SourceTextModule::set_async_parent_modules(Tagged<ArrayList> value,
+                                                WriteBarrierMode mode) {
+  async_parent_modules_.store(this, value, mode);
+}
+
+int SourceTextModule::dfs_index() const { return dfs_index_.load().value(); }
+void SourceTextModule::set_dfs_index(int value) {
+  dfs_index_.store(this, Smi::FromInt(value));
+}
+
+int SourceTextModule::dfs_ancestor_index() const {
+  return dfs_ancestor_index_.load().value();
+}
+void SourceTextModule::set_dfs_ancestor_index(int value) {
+  dfs_ancestor_index_.store(this, Smi::FromInt(value));
+}
+
+int SourceTextModule::pending_async_dependencies() const {
+  return pending_async_dependencies_.load().value();
+}
+void SourceTextModule::set_pending_async_dependencies(int value) {
+  pending_async_dependencies_.store(this, Smi::FromInt(value));
+}
+
+uint32_t SourceTextModule::flags() const { return flags_.load().value(); }
+void SourceTextModule::set_flags(uint32_t value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 }  // namespace internal
 }  // namespace v8
 
