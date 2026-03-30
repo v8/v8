@@ -718,7 +718,20 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(
              reinterpret_cast<void*>(addr), entry_info.size, size);
     }
     entry_info.size = size;
-    DCHECK_EQ(is_native_object_bool, entry_info.id % 2 == 0);
+#if defined(V8_COMPRESS_POINTERS)
+#ifdef DEBUG
+    // Native object ids are always even.
+    const bool is_native_id = entry_info.id % kObjectIdStep == 0;
+    DCHECK_EQ(is_native_object_bool, is_native_id);
+#endif
+#else   // !defined(V8_COMPRESS_POINTERS)
+    if (is_native_object_bool != (entry_info.id % 2 == 0)) {
+      // If the parity doesn't match, the address was reused by the other heap.
+      // Treat it as a completely new object.
+      entry_info.id =
+          is_native_object_bool ? get_next_native_id() : get_next_id();
+    }
+#endif  // !defined(V8_COMPRESS_POINTERS)
     return entry_info.id;
   }
   entry->value = reinterpret_cast<void*>(entries_.size());
