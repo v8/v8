@@ -109,7 +109,7 @@ const uint32_t kShortcutTypeMask =
     kIsNotStringMask | kIsNotInternalizedMask | kStringRepresentationMask;
 const uint32_t kShortcutTypeTag = kConsStringTag | kNotInternalizedTag;
 
-static inline bool IsShortcutCandidate(int type) {
+inline bool IsShortcutCandidate(int type) {
   return ((type & kShortcutTypeMask) == kShortcutTypeTag);
 }
 

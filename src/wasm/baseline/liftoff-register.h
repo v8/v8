@@ -753,7 +753,7 @@ LiftoffRegList::Iterator LiftoffRegList::end() const {
   return Iterator{LiftoffRegList{}};
 }
 
-static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
+inline constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
   V8_ASSUME(rc == kFpReg || rc == kGpReg || rc == kSimd128Reg);
   if (kHasIndependentSimd128Regs && rc == kSimd128Reg) {
     return kSimd128CacheRegList;

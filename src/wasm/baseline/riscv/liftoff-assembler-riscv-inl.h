@@ -388,7 +388,7 @@ FP_UNOP(f64_sqrt, fsqrt_d)
 #undef FP_UNOP
 #undef FP_UNOP_RETURN_TRUE
 
-static FPUCondition ConditionToConditionCmpFPU(Condition condition) {
+inline FPUCondition ConditionToConditionCmpFPU(Condition condition) {
   switch (condition) {
     case kEqual:
       return EQ;

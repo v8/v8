@@ -16,7 +16,7 @@ namespace detail {
 // Called by either isolate shutdown or the {ManagedObjectFinalizer} in order
 // to actually delete the shared pointer and decrement the shared refcount.
 template <typename CppType>
-static void Destructor(void* ptr) {
+void Destructor(void* ptr) {
   auto shared_ptr_ptr = reinterpret_cast<std::shared_ptr<CppType>*>(ptr);
   delete shared_ptr_ptr;
 }

@@ -33,43 +33,42 @@ namespace maglev {
 
 // Some helpers for CSE
 namespace cse {
-static inline size_t fast_hash_combine(size_t seed, size_t h) {
+inline size_t fast_hash_combine(size_t seed, size_t h) {
   // Implementation from boost. Good enough for GVN.
   return h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 template <typename T>
-static inline size_t gvn_hash_value(const T& in) {
+size_t gvn_hash_value(const T& in) {
   return base::hash_value(in);
 }
 
-static inline size_t gvn_hash_value(const compiler::MapRef& map) {
+inline size_t gvn_hash_value(const compiler::MapRef& map) {
   return map.hash_value();
 }
 
-static inline size_t gvn_hash_value(const interpreter::Register& reg) {
+inline size_t gvn_hash_value(const interpreter::Register& reg) {
   return base::hash_value(reg.index());
 }
 
-static inline size_t gvn_hash_value(const Representation& rep) {
+inline size_t gvn_hash_value(const Representation& rep) {
   return base::hash_value(rep.kind());
 }
 
-static inline size_t gvn_hash_value(const ExternalReference& ref) {
+inline size_t gvn_hash_value(const ExternalReference& ref) {
   return base::hash_value(ref.address());
 }
 
-static inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
+inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
   return access_info.hash_value();
 }
 
-static inline size_t gvn_hash_value(const PropertyKey& key) {
+inline size_t gvn_hash_value(const PropertyKey& key) {
   return base::hash_value(key.data());
 }
 
 template <typename T>
-static inline size_t gvn_hash_value(
-    const v8::internal::ZoneCompactSet<T>& vector) {
+size_t gvn_hash_value(const v8::internal::ZoneCompactSet<T>& vector) {
   size_t hash = base::hash_value(vector.size());
   for (auto e : vector) {
     hash = fast_hash_combine(hash, gvn_hash_value(e));
@@ -78,7 +77,7 @@ static inline size_t gvn_hash_value(
 }
 
 template <typename T>
-static inline size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
+size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
   size_t hash = base::hash_value(vector.size());
   for (auto e : vector) {
     hash = fast_hash_combine(hash, gvn_hash_value(e));
@@ -87,7 +86,7 @@ static inline size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
 }
 
 template <typename... Args>
-static inline size_t fast_hash_combine(size_t seed, Args&&... args) {
+size_t fast_hash_combine(size_t seed, Args&&... args) {
   size_t hash = seed;
   ([&] { hash = cse::fast_hash_combine(hash, cse::gvn_hash_value(args)); }(),
    ...);
@@ -95,8 +94,8 @@ static inline size_t fast_hash_combine(size_t seed, Args&&... args) {
 }
 
 template <size_t kInputCount, typename... Args>
-static inline size_t fast_hash_combine(
-    size_t seed, std::array<ValueNode*, kInputCount>& inputs) {
+size_t fast_hash_combine(size_t seed,
+                         std::array<ValueNode*, kInputCount>& inputs) {
   size_t hash = seed;
   for (const auto& inp : inputs) {
     hash = cse::fast_hash_combine(hash, base::hash_value(inp));

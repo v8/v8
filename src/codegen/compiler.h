@@ -54,9 +54,9 @@ struct ScriptStreamingData;
 namespace maglev {
 class MaglevCompilationJob;
 
-static inline bool IsMaglevEnabled() { return v8_flags.maglev; }
+inline bool IsMaglevEnabled() { return v8_flags.maglev; }
 
-static inline bool IsMaglevOsrEnabled() {
+inline bool IsMaglevOsrEnabled() {
   return IsMaglevEnabled() && v8_flags.maglev_osr;
 }
 
