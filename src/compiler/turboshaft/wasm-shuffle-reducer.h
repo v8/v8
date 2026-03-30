@@ -78,6 +78,10 @@ class DemandedBytes {
     return Low(std::bit_ceil(total_bytes));
   }
 
+  static DemandedBytes LowFromMaxShuffleIndex(uint8_t index) {
+    return Low(std::bit_ceil(static_cast<uint8_t>(1 + (index % kSimd128Size))));
+  }
+
   // Halve the number of demanded low bytes, to a minimum of one.
   void Halve() {
     if (bytes() == 1) return;
@@ -256,7 +260,10 @@ class WasmShuffleAnalyzer {
   void ProcessExtractLane(const Simd128ExtractLaneOp& extract_op);
   void ProcessLaneMemory(const Simd128LaneMemoryOp& lane_op);
   void ProcessShuffle(const Simd128ShuffleOp& shuffle_op);
-  void ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
+  void TryReduceFromMSB(OpIndex input, const Simd128ShuffleOp& shuffle,
+                        uint8_t lower_limit, uint8_t upper_limit);
+  // Return true if shuffle_op will be reduced.
+  bool ProcessShuffleOfShuffle(const Simd128ShuffleOp& shuffle_op,
                                const Simd128ShuffleOp& shuffle,
                                uint8_t lower_limit, uint8_t upper_limit);
 
@@ -270,13 +277,13 @@ class WasmShuffleAnalyzer {
     return demanded_byte_analysis_.demanded_bytes();
   }
 
-  std::optional<DemandedBytes> DemandedByteLanes(const Operation* op) const {
+  DemandedBytes GetDemandedBytes(const Operation* op) const {
     for (const auto& [narrow_op, bytes] : ops_to_reduce()) {
       if (op == narrow_op) {
         return bytes;
       }
     }
-    return {};
+    return DemandedBytes::Low(kSimd128Size);
   }
 
   // Is only the top half (bytes 8...15) of the result of shuffle required?
@@ -637,9 +644,10 @@ class WasmShuffleReducer : public Next {
     }
 
     // Shuffles to narrow.
-    if (auto maybe_bytes = analyzer_->DemandedByteLanes(&shuffle)) {
+    DemandedBytes demanded = analyzer_->GetDemandedBytes(&shuffle);
+    if (!demanded.IsAll()) {
       if (analyzer_->ShouldRewriteShuffleToLow(&shuffle)) {
-        DCHECK(maybe_bytes->IsLow(kSimd128HalfSize));
+        DCHECK(demanded.IsLow(kSimd128HalfSize));
         // Take the top half of the shuffle bytes and these will now write
         // those values into the low half of the result instead.
         std::copy(shuffle.shuffle + half_bytes, shuffle.shuffle + kSimd128Size,
@@ -650,7 +658,7 @@ class WasmShuffleReducer : public Next {
                   shuffle_bytes.begin());
       }
 
-      return __ Simd128Shuffle(og_left, og_right, maybe_bytes->GetShuffleKind(),
+      return __ Simd128Shuffle(og_left, og_right, demanded.GetShuffleKind(),
                                shuffle_bytes.data());
     }
     goto no_change;

@@ -1202,3 +1202,188 @@ d8.file.execute('test/mjsunit/value-helper.js');
   assertEquals(expectedLane(32), wasm.store32());
   assertEquals(expectedLane(64), wasm.store64());
 })();
+
+function RunOneShuffleMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('one_input_shuffle', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32], [])).addLocals(kWasmS128, 1)
+      .addBody([
+        kExprLocalGet, 2,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalTee, 3,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAddr = 0;
+  const rightAddr = 16;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAddr, rightAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.one_input_shuffle(leftAddr, rightAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const input = memory.slice(leftAddr, leftAddr + 32);
+  const innerResult = applyShuffle(input, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = innerResult[idx % 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunTwoShufflesMaxIndexTest(name, outerShuffle) {
+  print(name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs('memory');
+
+  const innerShuffle = [
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15,
+  ];
+
+  builder.addFunction('two_input_shuffles', makeSig(
+    [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 4,
+        kExprLocalGet, 0,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 1,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kExprLocalGet, 2,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kExprLocalGet, 3,
+        kSimdPrefix, kExprS128LoadMem, 0, 0,
+        kSimdPrefix, kExprI8x16Shuffle, ...innerShuffle,
+        kSimdPrefix, kExprI8x16Shuffle, ...outerShuffle,
+        kSimdPrefix, kExprS128StoreMem, 0, 0,
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  const memory = new Uint8Array(instance.exports.memory.buffer);
+  const leftAAddr = 0;
+  const rightAAddr = 16;
+  const leftBAddr = 32;
+  const rightBAddr = 48;
+  const dstAddr = 64;
+
+  const srcAddrs = [leftAAddr, rightAAddr, leftBAddr, rightBAddr];
+  for (let i = 0; i < dstAddr; ++i) {
+    memory[i] = int8_array[i % int8_array.length];
+  }
+  memory.fill(0, dstAddr, dstAddr + 16);
+
+  instance.exports.two_input_shuffles(
+      leftAAddr, rightAAddr, leftBAddr, rightBAddr, dstAddr);
+
+  const applyShuffle = (input, shuf) => Uint8Array.from(shuf.map(i => input[i]));
+  const inputA = memory.slice(leftAAddr, leftAAddr + 32);
+  const inputB = memory.slice(leftBAddr, leftBAddr + 32);
+  const innerResultA = applyShuffle(inputA, innerShuffle);
+  const innerResultB = applyShuffle(inputB, innerShuffle);
+
+  const expected = new Uint8Array(16);
+  for (let i = 0; i < 16; ++i) {
+    const idx = outerShuffle[i];
+    expected[i] = idx < 16 ? innerResultA[idx] : innerResultB[idx - 16];
+  }
+
+  for (let i = 0; i < 16; ++i) {
+    assertEquals(expected[i], memory[dstAddr + i]);
+  }
+}
+
+function RunMaxIndexTests(name, outerShuffle) {
+  RunOneShuffleMaxIndexTest(name, outerShuffle);
+  RunTwoShufflesMaxIndexTest(name, outerShuffle);
+}
+
+// Both inner shuffles should be reduced to I8x2 (max index 1/17).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x2_Positive',
+    [
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+      0, 16, 1, 17,
+    ]);
+
+// Both inner shuffles should be reduced to I8x4 (max index 3/19).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x4_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+    ]);
+
+// Both inner shuffles should be reduced to I8x8 (max index 7/23).
+RunMaxIndexTests(
+    'ShuffleMaxIndex_ReduceToI8x8_Positive',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 7, 23,
+    ]);
+
+// Includes index 2/18, so can be reduced to I8x4.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x2_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 0, 16,
+      1, 17, 2, 18,
+      0, 16, 1, 17,
+    ]);
+
+// Includes index 4/20, so can be reduced to I8x8.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x4_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 2, 18,
+      3, 19, 0, 16,
+    ]);
+
+// Includes index 8/24, so it won't be reduced.
+RunMaxIndexTests(
+    'ShuffleMaxIndex_NoReduceToI8x8_Negative',
+    [
+      0, 16, 1, 17,
+      2, 18, 3, 19,
+      4, 20, 5, 21,
+      6, 22, 8, 24,
+    ]);

@@ -94,7 +94,7 @@ void DemandedByteAnalysis::RecordOp(const Operation& op,
   } else if (auto* lane_op = op.TryCast<Simd128LaneMemoryOp>()) {
     AddOp(*lane_op, demanded);
   } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
-    if (!demanded.IsLow(kSimd128Size)) {
+    if (!demanded.IsAll()) {
       if (demanded_bytes_.size() < kMaxNumOperations) {
         demanded_bytes_.emplace_back(shuffle, demanded);
       } else if (!demanded_limit_reached_) {
@@ -293,7 +293,7 @@ void WasmShuffleAnalyzer::ProcessLaneMemory(
   demanded_byte_analysis_.AddOp(lane_op, DemandedBytes::All());
 }
 
-void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
+bool WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
     const Simd128ShuffleOp& shuffle_in, const Simd128ShuffleOp& shuffle_out,
     uint8_t lower_limit, uint8_t upper_limit) {
   // Suppose we have two 16-byte shuffles:
@@ -385,11 +385,13 @@ void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
                                        DemandedBytes::Low<kSimd128HalfSize>());
       shift_shuffles_.push_back(&shuffle_in);
       low_half_shuffles_.push_back(&shuffle_out);
+      return true;
     } else if (view.all_low_half(lower_limit, upper_limit - kSimd128HalfSize)) {
       // The low half of the result shuffle is sourced only from the low half
       // of the input shuffle.
       demanded_byte_analysis_.RecordOp(shuffle_in,
                                        DemandedBytes::Low<kSimd128HalfSize>());
+      return true;
     }
   } else if (view.shuffle_into_high_half(lower_limit, upper_limit)) {
     if (view.all_high_half(lower_limit + kSimd128HalfSize, upper_limit)) {
@@ -399,14 +401,17 @@ void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
                                        DemandedBytes::Low<kSimd128HalfSize>());
       shift_shuffles_.push_back(&shuffle_in);
       high_half_shuffles_.push_back(&shuffle_out);
+      return true;
     } else if (view.all_high_half(lower_limit,
                                   upper_limit - kSimd128HalfSize)) {
       // The high half of the result shuffle is sourced only from the low half
       // of input shuffle.
       demanded_byte_analysis_.RecordOp(shuffle_in,
                                        DemandedBytes::Low<kSimd128HalfSize>());
+      return true;
     }
   }
+  return false;
 }
 
 bool WasmShuffleAnalyzer::CouldLoadPair(const LoadOp& load0,
@@ -511,7 +516,7 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
     }
   };
 
-  if (!DemandedByteLanes(&shuffle)) {
+  if (GetDemandedBytes(&shuffle).IsAll()) {
     // Full width shuffles.
     wasm::SimdShuffle::ShuffleArray shuffle_bytes;
     std::copy_n(shuffle.shuffle, kSimd128Size, shuffle_bytes.begin());
@@ -555,14 +560,46 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
   }
 }
 
+// If 'input' is only used by 'shuffle' we may be able to reduce input
+// based upon the most-significant byte used by shuffle.
+void WasmShuffleAnalyzer::TryReduceFromMSB(OpIndex input,
+                                           const Simd128ShuffleOp& shuffle,
+                                           uint8_t lower_limit,
+                                           uint8_t upper_limit) {
+  DemandedBytes demanded = GetDemandedBytes(&shuffle);
+  std::optional<uint8_t> max = {};
+
+  for (unsigned i = 0; i < demanded.bytes(); ++i) {
+    uint8_t index = shuffle.shuffle[i];
+    if (index >= lower_limit && index <= upper_limit) {
+      max = std::max(static_cast<uint8_t>(index % kSimd128Size),
+                     max.value_or({}));
+    }
+  }
+  if (max) {
+    // input can be reduced.
+    TRACE("Can reduce Op %d based upon max used index: %d\n", input.id(),
+          max.value());
+    demanded_byte_analysis_.Add(
+        input, DemandedBytes::LowFromMaxShuffleIndex(max.value()));
+  }
+}
+
 void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
+  constexpr uint8_t left_lower = 0;
+  constexpr uint8_t left_upper = 15;
+  constexpr uint8_t right_lower = 16;
+  constexpr uint8_t right_upper = 31;
+  bool reduced_left = false;
+  bool reduced_right = false;
+  const Operation& left = input_graph().Get(shuffle.left());
+  const Operation& right = input_graph().Get(shuffle.right());
+
 #if V8_TARGET_ARCH_ARM64
 
   if (shuffle.kind != Simd128ShuffleOp::Kind::kI8x16) {
     return;
   }
-  const Operation& left = input_graph().Get(shuffle.left());
-  const Operation& right = input_graph().Get(shuffle.right());
 
   // Experimental flags controls the generation of deinterleaving loads.
   if (v8_flags.experimental_wasm_deinterleave_loads) {
@@ -582,25 +619,28 @@ void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
   if (v8_flags.experimental_wasm_simd_opt) {
     auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
     auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();
-    if (!shuffle_left && !shuffle_right) {
-      return;
-    }
-    constexpr uint8_t left_lower = 0;
-    constexpr uint8_t left_upper = 15;
-    constexpr uint8_t right_lower = 16;
-    constexpr uint8_t right_upper = 31;
     if (shuffle_left && shuffle_left->kind == Simd128ShuffleOp::Kind::kI8x16 &&
         shuffle_left->saturated_use_count.Is(1)) {
-      ProcessShuffleOfShuffle(*shuffle_left, shuffle, left_lower, left_upper);
+      reduced_left = ProcessShuffleOfShuffle(*shuffle_left, shuffle, left_lower,
+                                             left_upper);
     }
     if (shuffle_right &&
         shuffle_right->kind == Simd128ShuffleOp::Kind::kI8x16 &&
         shuffle_right->saturated_use_count.Is(1)) {
-      ProcessShuffleOfShuffle(*shuffle_right, shuffle, right_lower,
-                              right_upper);
+      reduced_right = ProcessShuffleOfShuffle(*shuffle_right, shuffle,
+                                              right_lower, right_upper);
     }
   }
+
 #endif  // V8_TARGET_ARCH_ARM64
+
+  uint8_t max_uses = shuffle.left() == shuffle.right() ? 2 : 1;
+  if (!reduced_left && left.saturated_use_count.Is(max_uses)) {
+    TryReduceFromMSB(shuffle.left(), shuffle, left_lower, left_upper);
+  }
+  if (!reduced_right && right.saturated_use_count.Is(max_uses)) {
+    TryReduceFromMSB(shuffle.right(), shuffle, right_lower, right_upper);
+  }
 }
 
 #undef TRACE
