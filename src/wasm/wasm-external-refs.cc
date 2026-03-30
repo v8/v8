@@ -999,6 +999,7 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   auto suspender = isolate->isolate_data()->active_suspender();
   suspender->set_stack(isolate, from);
+  suspender->clear_parent();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
