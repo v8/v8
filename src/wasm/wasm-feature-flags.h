@@ -125,14 +125,7 @@
   /* V8 side owner: thibaudm */                                                \
   /* Staged in v8.9 */                                                         \
   /* Shipped in v9.5 */                                                        \
-  V(legacy_eh, "legacy exception handling opcodes", true)                      \
-                                                                               \
-  /* Resizable buffer integration */                                           \
-  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
-  /* V8 side owner: gdeepti */                                                 \
-  /* Staged in v14.3 */                                                        \
-  /* Shipped in v14.4 */                                                       \
-  V(rab_integration, "resizable buffers integration", true)
+  V(legacy_eh, "legacy exception handling opcodes", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

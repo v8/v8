@@ -2905,7 +2905,6 @@ void WebAssemblyMemoryToResizableBufferImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toResizableBuffer()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
-  i_isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmResizableBuffers);
 
   if (!receiver->has_maximum_pages()) {
     thrower.TypeError("Memory must have a maximum");
@@ -3525,6 +3524,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     InstallFunc(isolate, memory_proto, "grow", wasm::WebAssemblyMemoryGrow, 1);
     InstallGetter(isolate, memory_proto, "buffer",
                   wasm::WebAssemblyMemoryGetBuffer);
+    InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
+                wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
+    InstallFunc(isolate, memory_proto, "toResizableBuffer",
+                wasm::WebAssemblyMemoryToResizableBuffer, 0);
   }
 
   // Create the Global object.
@@ -3756,10 +3759,6 @@ void WasmJs::Install(Isolate* isolate) {
     InstallJSPromiseIntegration(isolate, native_context, webassembly);
     native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
   }
-
-  if (enabled_features.has_rab_integration()) {
-    InstallResizableBufferIntegration(isolate, native_context, webassembly);
-  }
 }
 
 // static
@@ -3935,23 +3934,6 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   // Make all exported functions an instance of {WebAssembly.Function}.
   context->set_wasm_exported_function_map(*function_map);
   return true;
-}
-
-// static
-void WasmJs::InstallResizableBufferIntegration(
-    Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<JSObject> webassembly) {
-  // Extensibility of the `WebAssembly` object should already have been checked
-  // by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-
-  DirectHandle<JSObject> memory_proto = direct_handle(
-      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
-      isolate);
-  InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
-              wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
-  InstallFunc(isolate, memory_proto, "toResizableBuffer",
-              wasm::WebAssemblyMemoryToResizableBuffer, 0);
 }
 
 // static

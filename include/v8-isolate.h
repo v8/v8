@@ -659,7 +659,7 @@ class V8_EXPORT Isolate {
     kWithStatement = 180,
     kHtmlWrapperMethods = 181,
     kWasmCustomDescriptors = 182,
-    kWasmResizableBuffers = 183,
+    kOBSOLETE_WasmResizableBuffers = 183,
     kInvalidatedArrayBufferMutableProtector = 184,
     kHoleyArrayReadthrough = 185,
 

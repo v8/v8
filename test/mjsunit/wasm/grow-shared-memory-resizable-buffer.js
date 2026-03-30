@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-rab-integration
-
 // This test is a copy of grow-shared-memory, except the growing is done after
 // the buffer is exposed as a resizable buffer.
 

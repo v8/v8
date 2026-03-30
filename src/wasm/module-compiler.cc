@@ -1664,7 +1664,6 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::sign_extension_ops, Feature::kWasmSignExtensionOps},
       {WasmDetectedFeature::custom_descriptors,
        Feature::kWasmCustomDescriptors},
-      {WasmDetectedFeature::rab_integration, Feature::kWasmResizableBuffers},
   };
 
   // Check that every staging or shipping feature has a use counter as that is
