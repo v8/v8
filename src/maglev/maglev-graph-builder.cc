@@ -4773,9 +4773,10 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
         }
       }
     }
+    bool value_can_be_smi =
+        GetCheckType(GetType(value), value) == CheckType::kCheckHeapObject;
     return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-        {object, value}, offset, store_mode,
-        NodeTypeCanBe(GetType(value), NodeType::kSmi), property_key,
+        {object, value}, offset, store_mode, value_can_be_smi, property_key,
         maybe_assigned);
   }
 }
