@@ -99,6 +99,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSSetPrototypeProperties:
       return true;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:

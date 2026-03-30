@@ -230,6 +230,7 @@
 #define JS_OTHER_OP_LIST(V)            \
   JS_CALL_OP_LIST(V)                   \
   JS_CONSTRUCT_OP_LIST(V)              \
+  V(JSAsyncFunctionAwait)              \
   V(JSAsyncFunctionEnter)              \
   V(JSAsyncFunctionReject)             \
   V(JSAsyncFunctionResolve)            \

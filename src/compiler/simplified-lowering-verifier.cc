@@ -719,6 +719,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       JS_CONTEXT_OP_LIST(CASE)
       JS_CALL_OP_LIST(CASE)
       JS_CONSTRUCT_OP_LIST(CASE)
+      CASE(JSAsyncFunctionAwait)
       CASE(JSAsyncFunctionEnter)
       CASE(JSAsyncFunctionReject)
       CASE(JSAsyncFunctionResolve)

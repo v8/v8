@@ -949,6 +949,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kJSAsyncFunctionAwait:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSAsyncFunctionEnter:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());

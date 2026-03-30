@@ -106,6 +106,8 @@ V8_OBJECT class AsyncResumeTask : public Microtask {
   enum Kind {
     // Async generator yield: resolve iterator result with done=false.
     kYield = 0,
+    // Async function await: resume the generator with kNext.
+    kAsyncFunctionAwait = 1,
   };
 
   inline Tagged<JSGeneratorObject> generator() const;

@@ -86,6 +86,11 @@ REPLACE_STUB_CALL(RejectPromise)
 REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
+void JSGenericLowering::LowerJSAsyncFunctionAwait(Node* node) {
+  RelaxControls(node);
+  ReplaceWithBuiltinCall(node, Builtin::kAsyncFunctionAwait);
+}
+
 void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, Builtin builtin) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(isolate(), builtin);

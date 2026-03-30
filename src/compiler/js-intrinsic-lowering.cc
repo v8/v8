@@ -167,8 +167,12 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwait(Node* node) {
-  return Change(
-      node, Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwait), 0);
+  node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
+  NodeProperties::ChangeOp(node, javascript()->AsyncFunctionAwait());
+  // The new operator is kNoThrow with an explicit control output.  Replace
+  // IfSuccess projections with the node itself and kill IfException.
+  ReplaceWithValue(node, node, node, node);
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionEnter(Node* node) {

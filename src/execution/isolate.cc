@@ -1357,6 +1357,32 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
     DirectHandle<JSPromise> promise(
         promise_resolve_thenable_job_task->promise_to_resolve(), isolate);
     return promise;
+  } else if (IsAsyncResumeTask(*current_microtask)) {
+    auto async_resume_task = Cast<AsyncResumeTask>(current_microtask);
+    Handle<JSGeneratorObject> generator_object(async_resume_task->generator(),
+                                               isolate);
+    if (generator_object->is_executing()) {
+      int kind = async_resume_task->kind();
+      if (kind == AsyncResumeTask::kAsyncFunctionAwait) {
+        DCHECK(IsJSAsyncFunctionObject(*generator_object));
+        auto async_function_object =
+            Cast<JSAsyncFunctionObject>(generator_object);
+        DirectHandle<JSPromise> promise(async_function_object->promise(),
+                                        isolate);
+        return promise;
+      } else {
+        DCHECK_EQ(kind, AsyncResumeTask::kYield);
+        DCHECK(IsJSAsyncGeneratorObject(*generator_object));
+        auto async_generator_object =
+            Cast<JSAsyncGeneratorObject>(generator_object);
+        DirectHandle<Object> queue(async_generator_object->queue(), isolate);
+        DCHECK(!IsUndefined(*queue, isolate));
+        auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
+        DirectHandle<JSPromise> promise(
+            Cast<JSPromise>(async_generator_request->promise()), isolate);
+        return promise;
+      }
+    }
   }
   return MaybeDirectHandle<JSPromise>();
 }

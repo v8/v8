@@ -2142,7 +2142,7 @@ void AsyncResumeTask::AsyncResumeTaskVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, generator());
   Object::VerifyPointer(isolate, value());
   CHECK_LE(0, kind());
-  CHECK_LE(kind(), Kind::kYield);
+  CHECK_LE(kind(), Kind::kAsyncFunctionAwait);
 }
 
 void Microtask::MicrotaskVerify(Isolate* isolate) {

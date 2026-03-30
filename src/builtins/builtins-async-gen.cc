@@ -8,6 +8,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/microtask.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -102,6 +103,23 @@ void AsyncBuiltinsAssembler::BranchIfNonThenable(TNode<Context> context,
   GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), object_prototype),
             if_slow);
   Branch(IsPromiseThenProtectorCellInvalid(), if_slow, if_non_thenable);
+}
+
+void AsyncBuiltinsAssembler::EnqueueAsyncResumeTask(
+    TNode<NativeContext> native_context, TNode<JSGeneratorObject> generator,
+    TNode<Object> value, int kind) {
+  TNode<HeapObject> task = Allocate(sizeof(AsyncResumeTask));
+  StoreMapNoWriteBarrier(task, RootIndex::kAsyncResumeTaskMap);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  StoreObjectField(
+      task, ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,
+      GetContinuationPreservedEmbedderData());
+#endif
+  using Traits = ObjectTraits<AsyncResumeTask>;
+  StoreObjectFieldNoWriteBarrier(task, Traits::kGeneratorOffset, generator);
+  StoreObjectFieldNoWriteBarrier(task, Traits::kValueOffset, value);
+  StoreObjectFieldNoWriteBarrier(task, Traits::kKindOffset, SmiConstant(kind));
+  CallBuiltin(Builtin::kEnqueueMicrotask, native_context, task);
 }
 
 TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,

@@ -1181,6 +1181,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();
 
+  const Operator* AsyncFunctionAwait();
   const Operator* AsyncFunctionEnter();
   const Operator* AsyncFunctionReject();
   const Operator* AsyncFunctionResolve();

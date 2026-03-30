@@ -420,13 +420,15 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     TVARIABLE(Object, var_exception);
     Label if_exception(this, Label::kDeferred);
-    // Currently only kYield exists; future kinds will add a Switch here.
-    CSA_DCHECK(this,
-               SmiEqual(LoadObjectField<Smi>(microtask, Traits::kKindOffset),
-                        SmiConstant(AsyncResumeTask::kYield)));
+    Label clear_cped_and_done(this);
+    Label kind_async_function_await(this);
+    TNode<Smi> kind = LoadObjectField<Smi>(microtask, Traits::kKindOffset);
+    GotoIf(SmiEqual(kind, SmiConstant(AsyncResumeTask::kAsyncFunctionAwait)),
+           &kind_async_function_await);
+    // kYield: AsyncGeneratorYieldWithAwaitResolveClosure logic.
+    CSA_DCHECK(this, SmiEqual(kind, SmiConstant(AsyncResumeTask::kYield)));
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      // AsyncGeneratorYieldWithAwaitResolveClosure logic:
       // 1. SetGeneratorNotAwaiting
       StoreObjectFieldNoWriteBarrier(
           generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
@@ -437,11 +439,24 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       CallBuiltin(Builtin::kAsyncGeneratorResumeNext, microtask_context,
                   generator);
     }
+    Goto(&clear_cped_and_done);
 
+    // kAsyncFunctionAwait: resume the async function with kNext.
+    BIND(&kind_async_function_await);
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      StoreObjectFieldNoWriteBarrier(generator,
+                                     JSGeneratorObject::kResumeModeOffset,
+                                     SmiConstant(JSGeneratorObject::kNext));
+      CallBuiltin(Builtin::kResumeGeneratorTrampoline, microtask_context, value,
+                  generator);
+    }
+    Goto(&clear_cped_and_done);
+
+    BIND(&clear_cped_and_done);
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
     Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);

@@ -949,6 +949,18 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
 CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
 
+// AsyncFunctionAwait never throws, but the typed lowering reduction wires a
+// Branch/Merge diamond into the control chain, which requires a control output.
+// Define it manually with control_out=1 to bypass ZeroIfNoThrow.
+const Operator* JSOperatorBuilder::AsyncFunctionAwait() {
+  static constexpr auto kProperties = Operator::kNoDeopt | Operator::kNoThrow;
+  return zone()->New<Operator>(                      // --
+      IrOpcode::kJSAsyncFunctionAwait, kProperties,  // opcode
+      "JSAsyncFunctionAwait",                        // name
+      2, 1, 1,                                       // inputs
+      1, 1, 1);                                      // outputs
+}
+
 #define UNARY_OP(JSName, Name)                                                \
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
     FeedbackParameter parameters(feedback);                                   \
