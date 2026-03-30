@@ -2381,6 +2381,12 @@ DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
                        experimental_wasm_wasmfx)
 DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
                        experimental_wasm_wasmfx)
+// Wasm compilation hints generation is incompatible with the testing opcode
+// that bails out liftoff.
+DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
+                       enable_testing_opcode_in_wasm)
+DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints,
+                       enable_testing_opcode_in_wasm)
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -4158,10 +4164,13 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
-// Experimental PGO flags.
+// Experimental PGO/compilation-hints-generation flags.
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_to_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_from_file)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_generate_compilation_hints)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       trace_wasm_generate_compilation_hints)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
