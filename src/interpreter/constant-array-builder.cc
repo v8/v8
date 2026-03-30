@@ -191,12 +191,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 template <typename IsolateT>
 Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
     IsolateT* isolate) {
+  const uint32_t array_len = static_cast<uint32_t>(size());
   Handle<TrustedFixedArray> fixed_array =
-      isolate->factory()->NewTrustedFixedArray(static_cast<int>(size()));
+      isolate->factory()->NewTrustedFixedArray(array_len);
   MemsetTagged(fixed_array->RawFieldOfFirstElement(),
-               *isolate->factory()->the_hole_value(), size());
+               *isolate->factory()->the_hole_value(), array_len);
   uint32_t array_index = 0;
-  uint32_t array_len = fixed_array->ulength().value();
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
     DCHECK(array_index == 0 || base::bits::IsPowerOfTwo(array_index));
@@ -213,7 +213,7 @@ Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
     }
     // Leave holes where reservations led to unused slots.
     size_t padding = slice->capacity() - slice->size();
-    if (static_cast<size_t>(array_len - array_index) <= padding) {
+    if (array_len - array_index <= padding) {
       break;
     }
     array_index += padding;

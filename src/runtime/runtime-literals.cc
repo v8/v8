@@ -697,7 +697,7 @@ Handle<JSObject> CreateArrayLiteral(
   }
   return isolate->factory()->NewJSArrayWithElements(
       copied_elements_values, constant_elements_kind,
-      static_cast<int>(copied_elements_values->ulength().value()), allocation);
+      copied_elements_values->ulength().value(), allocation);
 }
 
 template <typename LiteralHelper>

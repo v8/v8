@@ -118,7 +118,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       kind_(kind) {}
 
 DirectHandle<TrustedByteArray> Factory::CodeBuilder::NewTrustedByteArray(
-    int length) {
+    uint32_t length) {
   return local_isolate_->factory()->NewTrustedByteArray(length);
 }
 
@@ -128,8 +128,9 @@ Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
+  DCHECK_GE(code_desc_.reloc_size, 0);
   DirectHandle<TrustedByteArray> reloc_info =
-      NewTrustedByteArray(code_desc_.reloc_size);
+      NewTrustedByteArray(static_cast<uint32_t>(code_desc_.reloc_size));
 
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
@@ -437,17 +438,15 @@ DirectHandle<Hole> Factory::NewHole() {
   UNREACHABLE();
 }
 
-// TODO(375937549): Convert length to uint32_t.
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return empty_property_array();
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(isolate(), *property_array_map(),
                                    SKIP_WRITE_BARRIER);
   Tagged<PropertyArray> array = Cast<PropertyArray>(result);
-  array->initialize_length(static_cast<uint32_t>(length));
+  array->initialize_length(length);
   MemsetTagged(array->data_start(), read_only_roots().undefined_value(),
                length);
   return direct_handle(array, isolate());
@@ -521,8 +520,8 @@ DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   return direct_handle(array, isolate());
 }
 
-DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
-  DCHECK_LE(0, length);
+DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
+    uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);
   if (length > 0) {
     Cast<FixedDoubleArray>(array)->FillWithHoles(0, length);
@@ -2494,9 +2493,8 @@ DirectHandle<PropertyCell> Factory::NewProtector() {
       direct_handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
-// TODO(375937549): Convert number_of_transitions and slack to uint32_t.
 DirectHandle<TransitionArray> Factory::NewTransitionArray(
-    int number_of_transitions, int slack) {
+    uint32_t number_of_transitions, uint32_t slack) {
   const uint32_t capacity = static_cast<uint32_t>(
       TransitionArray::LengthFor(number_of_transitions + slack));
   DirectHandle<TransitionArray> array = Cast<TransitionArray>(
@@ -2514,7 +2512,7 @@ DirectHandle<TransitionArray> Factory::NewTransitionArray(
   array->WeakFixedArray::set(TransitionArray::kSideStepTransitionsIndex,
                              Smi::zero());
   array->WeakFixedArray::set(TransitionArray::kTransitionLengthIndex,
-                             Smi::FromInt(number_of_transitions));
+                             Smi::FromUInt(number_of_transitions));
   return array;
 }
 
@@ -3505,7 +3503,7 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, uint32_t length,
 
 Handle<JSArray> Factory::NewJSArrayWithElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   Handle<JSArray> array = NewJSArrayWithUnverifiedElements(
       elements, elements_kind, length, allocation);
 #ifdef ENABLE_SLOW_DCHECKS
@@ -3514,12 +3512,10 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
   return array;
 }
 
-// TODO(375937549): Convert length to uint32_t.
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
     DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
-    int length, AllocationType allocation) {
-  DCHECK_GE(length, 0);
-  DCHECK_LE(static_cast<uint32_t>(length), elements->ulength().value());
+    uint32_t length, AllocationType allocation) {
+  DCHECK_LE(length, elements->ulength().value());
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
   Tagged<Map> map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map.is_null()) {
@@ -3531,13 +3527,13 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
 }
 
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
-    DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements, int length,
-    AllocationType allocation) {
+    DirectHandle<Map> map, DirectHandle<FixedArrayBase> elements,
+    uint32_t length, AllocationType allocation) {
   auto array = Cast<JSArray>(NewJSObjectFromMap(map, allocation));
   DisallowGarbageCollection no_gc;
   Tagged<JSArray> raw = *array;
   raw->set_elements(*elements);
-  raw->set_length(Smi::FromInt(length));
+  raw->set_length(Smi::FromUInt(length));
   return array;
 }
 
@@ -3568,9 +3564,10 @@ DirectHandle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   return template_object;
 }
 
-void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, int length,
-                                int capacity, ArrayStorageAllocationMode mode) {
-  DCHECK(capacity >= length);
+void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, uint32_t length,
+                                uint32_t capacity,
+                                ArrayStorageAllocationMode mode) {
+  DCHECK_GE(capacity, length);
 
   if (capacity == 0) {
     Tagged<JSArray> raw = *array;
@@ -3586,11 +3583,12 @@ void Factory::NewJSArrayStorage(DirectHandle<JSArray> array, int length,
   DisallowGarbageCollection no_gc;
   Tagged<JSArray> raw = *array;
   raw->set_elements(*elms);
-  raw->set_length(Smi::FromInt(length));
+  raw->set_length(Smi::FromUInt(length));
 }
 
 DirectHandle<FixedArrayBase> Factory::NewJSArrayStorage(
-    ElementsKind elements_kind, int capacity, ArrayStorageAllocationMode mode) {
+    ElementsKind elements_kind, uint32_t capacity,
+    ArrayStorageAllocationMode mode) {
   DCHECK_GT(capacity, 0);
   DirectHandle<FixedArrayBase> elms;
   if (IsDoubleElementsKind(elements_kind)) {
@@ -4969,8 +4967,8 @@ DirectHandle<JSSharedStruct> Factory::NewJSSharedStruct(
       instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
       instance_map->GetInObjectProperties();
   if (num_oob_fields > 0) {
-    property_array =
-        NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
+    property_array = NewPropertyArray(static_cast<uint32_t>(num_oob_fields),
+                                      AllocationType::kSharedOld);
   }
 
   DirectHandle<NumberDictionary> elements_dictionary;

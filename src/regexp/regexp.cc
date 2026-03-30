@@ -1787,7 +1787,7 @@ void ResultsCache::Clear(Tagged<FixedArray> cache) {
 void ResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
                                              Tagged<String> subject,
                                              Tagged<String> pattern,
-                                             int number_of_matches,
+                                             uint32_t number_of_matches,
                                              int last_match_index) {
   DisallowGarbageCollection no_gc;
   DCHECK(Smi::IsValid(number_of_matches));
@@ -1797,7 +1797,7 @@ void ResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
   DCHECK_EQ(cache->ulength().value(), kSize);
   cache->set(kSubjectIndex, subject);
   cache->set(kPatternIndex, pattern);
-  cache->set(kNumberOfMatchesIndex, Smi::FromInt(number_of_matches));
+  cache->set(kNumberOfMatchesIndex, Smi::FromUInt(number_of_matches));
   cache->set(kLastMatchIndexIndex, Smi::FromInt(last_match_index));
 }
 
@@ -1805,7 +1805,7 @@ void ResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
 bool ResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
                                           Tagged<String> subject,
                                           Tagged<String> pattern,
-                                          int* number_of_matches_out,
+                                          uint32_t* number_of_matches_out,
                                           int* last_match_index_out) {
   DisallowGarbageCollection no_gc;
   Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
@@ -1829,7 +1829,7 @@ bool ResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
   if (cached_subject->offset() != sliced_subject->offset()) return false;
   if (cached_subject->length() > sliced_subject->length()) return false;
 
-  *number_of_matches_out = Smi::ToInt(cache->get(kNumberOfMatchesIndex));
+  *number_of_matches_out = Smi::ToUInt(cache->get(kNumberOfMatchesIndex));
   *last_match_index_out = Smi::ToInt(cache->get(kLastMatchIndexIndex));
   return true;
 }

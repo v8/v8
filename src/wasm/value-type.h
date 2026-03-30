@@ -485,7 +485,7 @@ class ValueTypeBase {
     return IsNullKind(generic_kind());
   }
 
-  constexpr int value_kind_size_log2() const {
+  constexpr uint8_t value_kind_size_log2() const {
     DCHECK(!is_sentinel());  // Caller's responsibility.
     if (is_ref()) return kTaggedSizeLog2;
     constexpr uint8_t kValueKindSizeLog2[] = {
@@ -497,7 +497,7 @@ class ValueTypeBase {
     return kValueKindSizeLog2[index];
   }
 
-  constexpr int value_kind_size() const {
+  constexpr uint8_t value_kind_size() const {
     DCHECK(!is_sentinel());  // Caller's responsibility.
     if (is_ref()) return kTaggedSize;
     constexpr uint8_t kValueKindSize[] = {

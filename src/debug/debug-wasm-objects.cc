@@ -1167,9 +1167,11 @@ DirectHandle<ArrayList> AddWasmModuleObjectInternalProperties(
 DirectHandle<ArrayList> AddWasmTableObjectInternalProperties(
     Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<WasmTableObject> table) {
-  int length = table->current_length();
+  int int_length = table->current_length();
+  DCHECK_GE(int_length, 0);
+  uint32_t length = static_cast<uint32_t>(int_length);
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
-  for (int i = 0; i < length; ++i) {
+  for (uint32_t i = 0; i < length; ++i) {
     DirectHandle<Object> entry = WasmTableObject::Get(isolate, table, i);
     const wasm::WasmModule* mod = nullptr;
     if (table->has_trusted_data()) {

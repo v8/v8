@@ -3199,7 +3199,7 @@ DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 DEFINE_EXPERIMENTAL_FEATURE(
     homomorphic_ic,
     "use Homomorphic IC state for same-handler highly polymorphic ICs")
-DEFINE_INT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
+DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
 
 // objects.cc
 DEFINE_BOOL(trace_prototype_users, false,

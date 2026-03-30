@@ -267,7 +267,7 @@ class SourceTextModuleInfo : public FixedArray {
   template <typename Impl>
   friend class FactoryBase;
   friend class SourceTextModuleDescriptor;
-  enum {
+  enum : uint32_t {
     kModuleRequestsIndex,
     kSpecialExportsIndex,
     kRegularExportsIndex,
@@ -275,7 +275,7 @@ class SourceTextModuleInfo : public FixedArray {
     kRegularImportsIndex,
     kLength
   };
-  enum {
+  enum : uint32_t {
     kRegularExportLocalNameOffset,
     kRegularExportCellIndexOffset,
     kRegularExportExportNamesOffset,

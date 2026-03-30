@@ -151,7 +151,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
   Handle<TrustedFixedArray> NewTrustedFixedArray(
-      int length, AllocationType allocation = AllocationType::kTrusted);
+      uint32_t length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
   Handle<ProtectedFixedArray> NewProtectedFixedArray(
@@ -160,7 +160,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   Handle<FixedArray> NewFixedArrayWithMap(
-      DirectHandle<Map> map, int length,
+      DirectHandle<Map> map, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with non-existing entries (the hole).
@@ -199,17 +199,18 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
-      int length, AllocationType allocation = AllocationType::kYoung,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates a trusted byte array in trusted space, initialized with zeros.
   Handle<TrustedByteArray> NewTrustedByteArray(
-      int length, AllocationType allocation_type = AllocationType::kTrusted);
+      uint32_t length,
+      AllocationType allocation_type = AllocationType::kTrusted);
 
   DirectHandle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(
       uint32_t length);
   DirectHandle<DeoptimizationFrameTranslation>
-  NewDeoptimizationFrameTranslation(int length);
+  NewDeoptimizationFrameTranslation(uint32_t length);
 
   // Allocates a BytecodeArray object.
   // The returned object will not yet be "published" (accessible from within
@@ -256,7 +257,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   DirectHandle<ArrayList> NewArrayList(
-      int size, AllocationType allocation = AllocationType::kYoung);
+      uint32_t size, AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel);
@@ -431,7 +432,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int size, AllocationType allocation,
       AllocationHint hint = AllocationHint(),
       AllocationAlignment alignment = kTaggedAligned);
-  Tagged<HeapObject> AllocateRawFixedArray(int length,
+  Tagged<HeapObject> AllocateRawFixedArray(uint32_t length,
                                            AllocationType allocation);
   Tagged<HeapObject> AllocateRawWeakArrayList(uint32_t length,
                                               AllocationType allocation);

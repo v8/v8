@@ -62,7 +62,8 @@ DirectHandle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
                                                  base::Vector<T> data) {
   static_assert(std::is_trivial_v<T>);
 
-  int byte_length = sizeof(T) * data.length();
+  const uint32_t byte_length =
+      base::checked_cast<uint32_t>(sizeof(T) * data.size());
   DirectHandle<TrustedByteArray> byte_array =
       isolate->factory()->NewTrustedByteArray(byte_length);
   DisallowGarbageCollection no_gc;

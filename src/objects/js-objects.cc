@@ -3265,12 +3265,14 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
 
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
+  DCHECK_GE(external, 0);
   DirectHandle<PropertyArray> array =
-      isolate->factory()->NewPropertyArray(external);
+      isolate->factory()->NewPropertyArray(static_cast<uint32_t>(external));
 
   // We use this array to temporarily store the inobject properties.
+  DCHECK_GE(inobject, 0);
   DirectHandle<FixedArray> inobject_props =
-      isolate->factory()->NewFixedArray(inobject);
+      isolate->factory()->NewFixedArray(static_cast<uint32_t>(inobject));
 
   DirectHandle<DescriptorArray> old_descriptors(
       old_map->instance_descriptors(isolate), isolate);
@@ -3612,11 +3614,13 @@ void JSObject::AllocateStorageForMap(Isolate* isolate,
 
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                             isolate);
+  DCHECK_GE(inobject, 0);
   DirectHandle<FixedArray> storage =
-      isolate->factory()->NewFixedArray(inobject);
+      isolate->factory()->NewFixedArray(static_cast<uint32_t>(inobject));
 
+  DCHECK_GE(external, 0);
   DirectHandle<PropertyArray> array =
-      isolate->factory()->NewPropertyArray(external);
+      isolate->factory()->NewPropertyArray(static_cast<uint32_t>(external));
 
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
@@ -4043,8 +4047,8 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
   }
 
   // Allocate the property array for the fields.
-  DirectHandle<PropertyArray> fields =
-      factory->NewPropertyArray(number_of_allocated_fields);
+  DirectHandle<PropertyArray> fields = factory->NewPropertyArray(
+      static_cast<uint32_t>(number_of_allocated_fields));
 
   bool is_transitionable_elements_kind =
       IsTransitionableFastElementsKind(old_map->elements_kind());

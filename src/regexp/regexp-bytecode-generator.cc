@@ -573,7 +573,8 @@ DirectHandle<HeapObject> BytecodeGenerator::GetCode(
     array = BytecodePeepholeOptimization::OptimizeBytecode(isolate_, zone(),
                                                            re_data, this);
   } else {
-    array = isolate_->factory()->NewTrustedByteArray(pc_);
+    array =
+        isolate_->factory()->NewTrustedByteArray(static_cast<uint32_t>(pc_));
     CopyBufferTo(array->begin());
   }
 

@@ -1513,7 +1513,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args,
   if (fast_case && kind == PACKED_DOUBLE_ELEMENTS) {
     DirectHandle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
-    int j = 0;
+    uint32_t j = 0;
     bool failure = false;
     if (estimate_result_length > 0) {
       auto double_storage = Cast<FixedDoubleArray>(storage);

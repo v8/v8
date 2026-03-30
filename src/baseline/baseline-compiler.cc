@@ -74,9 +74,10 @@ template <typename IsolateT>
 Handle<TrustedByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
     IsolateT* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_trusted_byte_array();
+  const uint32_t bytes_size = static_cast<uint32_t>(bytes_.size());
   Handle<TrustedByteArray> table =
-      isolate->factory()->NewTrustedByteArray(static_cast<int>(bytes_.size()));
-  MemCopy(table->begin(), bytes_.data(), bytes_.size());
+      isolate->factory()->NewTrustedByteArray(bytes_size);
+  MemCopy(table->begin(), bytes_.data(), bytes_size);
   return table;
 }
 

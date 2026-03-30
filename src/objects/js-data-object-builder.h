@@ -176,7 +176,7 @@ class JSDataObjectBuilder {
 
   DirectHandle<Map> map_;
   int current_property_index_ = 0;
-  int extra_heap_numbers_needed_ = 0;
+  uint32_t extra_heap_numbers_needed_ = 0;
 
   Handle<JSObject> object_;
 

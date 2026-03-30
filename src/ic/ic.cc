@@ -599,7 +599,7 @@ bool IC::UpdateHomomorphicIC(const MaybeObjectDirectHandle& new_handler,
   }
 #endif
 
-  int capacity = v8_flags.homomorphic_ic_count;
+  uint32_t capacity = v8_flags.homomorphic_ic_count;
   DCHECK(base::bits::IsPowerOfTwo(capacity));
   DirectHandle<WeakHomomorphicFixedArray> array =
       WeakHomomorphicFixedArray::New(isolate(), capacity, AllocationType::kOld);

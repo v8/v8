@@ -6764,7 +6764,7 @@ HEAP_TEST(Regress779503) {
   // processed slot.
   if (v8_flags.single_generation) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  const int kArraySize = 2048;
+  const uint32_t kArraySize = 2048;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -6777,7 +6777,7 @@ HEAP_TEST(Regress779503) {
     DirectHandle<ByteArray> byte_array =
         isolate->factory()->NewByteArray(kArraySize);
     CHECK(HeapLayout::InYoungGeneration(*byte_array));
-    for (int i = 0; i < kArraySize; i++) {
+    for (uint32_t i = 0; i < kArraySize; i++) {
       byte_array->set(i, kHeapObjectTag);
     }
 
@@ -6787,7 +6787,7 @@ HEAP_TEST(Regress779503) {
       DirectHandle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, AllocationType::kOld);
       CHECK(!HeapLayout::InYoungGeneration(*fixed_array));
-      for (int i = 0; i < kArraySize; i++) {
+      for (uint32_t i = 0; i < kArraySize; i++) {
         fixed_array->set(i, *byte_array);
       }
     }

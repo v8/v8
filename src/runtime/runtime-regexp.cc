@@ -2171,7 +2171,7 @@ namespace {
 template <typename SChar, typename PChar>
 inline void RegExpMatchGlobalAtom_OneCharPattern(
     Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
-    int start_index, int* number_of_matches, int* last_match_index,
+    int start_index, uint32_t* number_of_matches, int* last_match_index,
     const DisallowGarbageCollection& no_gc) {
   static_assert(std::is_unsigned_v<SChar>);
   static_assert(std::is_unsigned_v<PChar>);
@@ -2271,7 +2271,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
 template <>
 inline void RegExpMatchGlobalAtom_OneCharPattern(
     Isolate* isolate, base::Vector<const uint8_t> subject,
-    const base::uc16 pattern, int start_index, int* number_of_matches,
+    const base::uc16 pattern, int start_index, uint32_t* number_of_matches,
     int* last_match_index, const DisallowGarbageCollection& no_gc) = delete;
 
 template <typename Char>
@@ -2298,7 +2298,7 @@ template <typename SChar, typename PChar>
 inline void RegExpMatchGlobalAtom_Generic(
     Isolate* isolate, base::Vector<const SChar> subject,
     base::Vector<const PChar> pattern, bool is_unicode, int start_index,
-    int* number_of_matches, int* last_match_index,
+    uint32_t* number_of_matches, int* last_match_index,
     const DisallowGarbageCollection& no_gc) {
   const int pattern_length = pattern.length();
   StringSearch<PChar, SChar> search(isolate, pattern);
@@ -2319,7 +2319,7 @@ inline void RegExpMatchGlobalAtom_Generic(
 inline void RegExpMatchGlobalAtom_Dispatch(
     Isolate* isolate, const String::FlatContent& subject,
     const String::FlatContent& pattern, bool is_unicode, int start_index,
-    int* number_of_matches, int* last_match_index,
+    uint32_t* number_of_matches, int* last_match_index,
     const DisallowGarbageCollection& no_gc) {
 #define CALL_Generic()                                                    \
   RegExpMatchGlobalAtom_Generic(isolate, sv, pv, is_unicode, start_index, \
@@ -2385,7 +2385,7 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
   DirectHandle<String> pattern_handle;
   int pattern_length;
 
-  int number_of_matches = 0;
+  uint32_t number_of_matches = 0;
   int last_match_index = -1;
 
   {

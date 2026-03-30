@@ -5096,8 +5096,10 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
     IsolateT* isolate, uint32_t capacity, AllocationType allocation) {
   auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
-  Handle<FixedArray> array = factory->NewFixedArrayWithMap(
-      Derived::GetMap(isolate->roots_table()), length, allocation);
+  DCHECK_GE(length, 0);
+  Handle<FixedArray> array =
+      factory->NewFixedArrayWithMap(Derived::GetMap(isolate->roots_table()),
+                                    static_cast<uint32_t>(length), allocation);
   Handle<Derived> table = Cast<Derived>(array);
   DisallowGarbageCollection no_gc;
   Tagged<Derived> raw_table = *table;

@@ -275,10 +275,10 @@ class ResultsCache final : public AllStatic {
 class ResultsCache_MatchGlobalAtom final : public AllStatic {
  public:
   static void TryInsert(Isolate* isolate, Tagged<String> subject,
-                        Tagged<String> pattern, int number_of_matches,
+                        Tagged<String> pattern, uint32_t number_of_matches,
                         int last_match_index);
   static bool TryGet(Isolate* isolate, Tagged<String> subject,
-                     Tagged<String> pattern, int* number_of_matches_out,
+                     Tagged<String> pattern, uint32_t* number_of_matches_out,
                      int* last_match_index_out);
   static void Clear(Heap* heap);
 

@@ -580,7 +580,7 @@ V8_OBJECT class WeakHomomorphicFixedArray
  public:
   template <class IsolateT>
   static inline Handle<WeakHomomorphicFixedArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       MaybeDirectHandle<Object> initial_value = {});
 
@@ -861,7 +861,7 @@ V8_OBJECT class ByteArray
 
   template <class IsolateT>
   static inline Handle<ByteArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung,
       AllocationAlignment alignment = kTaggedAligned);
 
@@ -870,7 +870,7 @@ V8_OBJECT class ByteArray
 
   // Given the full object size in bytes, return the length that should be
   // passed to New s.t. an object of the same size is created.
-  static constexpr int LengthFor(int size_in_bytes) {
+  static constexpr uint32_t LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));
     DCHECK_GE(size_in_bytes, sizeof(Header));
     return size_in_bytes - sizeof(Header);
@@ -903,7 +903,7 @@ class TrustedByteArray
 
   template <class IsolateT>
   static inline Handle<TrustedByteArray> New(
-      IsolateT* isolate, int capacity,
+      IsolateT* isolate, uint32_t capacity,
       AllocationType allocation_type = AllocationType::kTrusted);
 
   inline uint32_t get_int(int offset) const;

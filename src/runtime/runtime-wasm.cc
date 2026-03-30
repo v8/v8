@@ -2400,9 +2400,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
 namespace {
 // TODO(12868): Consider unifying with api.cc:String::Utf8Length.
 template <typename T>
-int MeasureWtf8(base::Vector<const T> wtf16) {
+uint32_t MeasureWtf8(base::Vector<const T> wtf16) {
   int previous = unibrow::Utf16::kNoPreviousCharacter;
-  int length = 0;
+  uint32_t length = 0;
   DCHECK(wtf16.size() <= String::kMaxLength);
   static_assert(String::kMaxLength <=
                 (kMaxInt / unibrow::Utf8::kMaxEncodedSize));
@@ -2413,7 +2413,7 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
   }
   return length;
 }
-int MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
+uint32_t MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2502,7 +2502,7 @@ Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
 // Defined here to be able to make use of the helper functions above.
 void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
                  std::string& out) {
-  int utf8_length = MeasureWtf8(isolate, string);
+  uint32_t utf8_length = MeasureWtf8(isolate, string);
   DisallowGarbageCollection no_gc;
   out.resize(utf8_length);
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2526,7 +2526,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   string = String::Flatten(isolate, string);
-  int length;
+  uint32_t length;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = string->GetFlatContent(no_gc);
@@ -2537,13 +2537,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
       base::Vector<const base::uc16> code_units = content.ToUC16Vector();
       if (unibrow::Utf16::HasUnpairedSurrogate(code_units.begin(),
                                                code_units.size())) {
-        length = -1;
+        return Smi::FromInt(-1);
       } else {
         length = MeasureWtf8(code_units);
       }
     }
   }
-  return *isolate->factory()->NewNumberFromInt(length);
+  return *isolate->factory()->NewNumberFromUint(length);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
@@ -2551,8 +2551,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
-  int length = MeasureWtf8(isolate, string);
-  return *isolate->factory()->NewNumberFromInt(length);
+  uint32_t length = MeasureWtf8(isolate, string);
+  return *isolate->factory()->NewNumberFromUint(length);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
@@ -2678,14 +2678,13 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
-  int wtf8_length = MeasureWtf8(isolate, string);
+  uint32_t wtf8_length = MeasureWtf8(isolate, string);
   DirectHandle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
 
   auto utf8_variant = unibrow::Utf8Variant::kWtf8;
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {reinterpret_cast<char*>(array->begin()),
-            static_cast<size_t>(wtf8_length)};
+    return {reinterpret_cast<char*>(array->begin()), wtf8_length};
   };
   EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, 0,
              MessageTemplate::kWasmTrapArrayOutOfBounds);

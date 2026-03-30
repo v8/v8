@@ -531,8 +531,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  int length = args.smi_value_at(0);
-  DCHECK_LT(0, length);
+  uint32_t length = args.positive_smi_value_at(0);
+  DCHECK_LT(0u, length);
   return *isolate->factory()->NewByteArray(length);
 }
 

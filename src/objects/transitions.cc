@@ -185,9 +185,13 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
   }
 
   // We're gonna need a bigger TransitionArray.
+  int slack =
+      Map::SlackForArraySize(number_of_transitions, kMaxNumberOfTransitions);
+  // TODO(375937549): Convert these to uint32_t.
+  DCHECK_GE(new_nof, 0);
+  DCHECK_GE(slack, 0);
   DirectHandle<TransitionArray> result = isolate->factory()->NewTransitionArray(
-      new_nof,
-      Map::SlackForArraySize(number_of_transitions, kMaxNumberOfTransitions));
+      static_cast<uint32_t>(new_nof), static_cast<uint32_t>(slack));
 
   // The map's transition array may have shrunk during the allocation above as
   // it was weakly traversed, though it is guaranteed not to disappear. Trim the
@@ -602,7 +606,7 @@ void TransitionsAccessor::EnsureHasFullTransitionArray(Isolate* isolate,
   Encoding encoding =
       GetEncoding(isolate, map->raw_transitions(isolate, kAcquireLoad));
   if (encoding == kFullTransitionArray) return;
-  int nof =
+  uint32_t nof =
       (encoding == kUninitialized || encoding == kMigrationTarget) ? 0 : 1;
   DirectHandle<TransitionArray> result =
       isolate->factory()->NewTransitionArray(nof);

@@ -19,7 +19,8 @@ HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 template <typename IsolateT>
 DirectHandle<TrustedByteArray> HandlerTableBuilder::ToHandlerTable(
     IsolateT* isolate) {
-  uint32_t handler_table_size = base::checked_cast<uint32_t>(entries_.size());
+  const uint32_t handler_table_size =
+      base::checked_cast<uint32_t>(entries_.size());
   DirectHandle<TrustedByteArray> table_byte_array =
       isolate->factory()->NewTrustedByteArray(
           HandlerTable::LengthForRange(handler_table_size));

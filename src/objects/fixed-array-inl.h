@@ -732,9 +732,9 @@ Handle<WeakFixedArray> WeakFixedArray::New(
 
 template <class IsolateT>
 Handle<WeakHomomorphicFixedArray> WeakHomomorphicFixedArray::New(
-    IsolateT* isolate, int capacity, AllocationType allocation,
+    IsolateT* isolate, uint32_t capacity, AllocationType allocation,
     MaybeDirectHandle<Object> initial_value) {
-  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
+  CHECK_LE(capacity, kMaxCapacity);
   DCHECK_NE(capacity, 0);
 
   std::optional<DisallowGarbageCollection> no_gc;
@@ -845,20 +845,19 @@ DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, uint32_t capacity,
 
 // static
 template <class IsolateT>
-Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
+Handle<ByteArray> ByteArray::New(IsolateT* isolate, uint32_t length,
                                  AllocationType allocation,
                                  AllocationAlignment alignment) {
-  if (V8_UNLIKELY(static_cast<uint32_t>(length) > kMaxLength)) {
-    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+  if (V8_UNLIKELY(length > kMaxLength)) {
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %u",
                                 length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_byte_array();
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
-  // TODO(375937549): Convert to uint32_t.
-  Handle<ByteArray> result = Cast<ByteArray>(Allocate(
-      isolate, static_cast<uint32_t>(length), &no_gc, allocation, alignment));
+  Handle<ByteArray> result =
+      Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation, alignment));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(&result->values()[length], 0, padding_size);
@@ -884,19 +883,19 @@ void ByteArray::set_int(int offset, uint32_t value) {
 
 // static
 template <class IsolateT>
-Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
+Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate,
+                                               uint32_t length,
                                                AllocationType allocation_type) {
   DCHECK(allocation_type == AllocationType::kTrusted ||
          allocation_type == AllocationType::kSharedTrusted);
-  if (V8_UNLIKELY(static_cast<uint32_t>(length) > kMaxLength)) {
-    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+  if (V8_UNLIKELY(length > kMaxLength)) {
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %u",
                                 length);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
-  // TODO(375937549): Convert to uint32_t
-  Handle<TrustedByteArray> result = TrustedCast<TrustedByteArray>(Allocate(
-      isolate, static_cast<uint32_t>(length), &no_gc, allocation_type));
+  Handle<TrustedByteArray> result = TrustedCast<TrustedByteArray>(
+      Allocate(isolate, length, &no_gc, allocation_type));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(&result->values()[length], 0, padding_size);

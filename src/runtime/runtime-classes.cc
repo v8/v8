@@ -288,7 +288,7 @@ bool AddDescriptorsByTemplate(
 
   // Count the number of properties that must be in the instance and
   // create the property array to hold the constants.
-  int count = 0;
+  uint32_t count = 0;
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor &&

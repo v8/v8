@@ -8120,10 +8120,11 @@ Local<v8::Array> v8::Array::New(Isolate* v8_isolate, Local<Value>* elements,
   i::Factory* factory = i_isolate->factory();
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Array_New);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  int len = static_cast<int>(length);
+  DCHECK_LE(length, i::kMaxUInt32);
+  const uint32_t len = static_cast<uint32_t>(length);
 
   i::DirectHandle<i::FixedArray> result = factory->NewFixedArray(len);
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     auto element = Utils::OpenDirectHandle(*elements[i]);
     result->set(i, *element);
   }
@@ -8139,10 +8140,11 @@ MaybeLocal<v8::Array> v8::Array::New(
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Array_New};
   i::Isolate* i_isolate = api_scope.i_isolate();
   i::Factory* factory = i_isolate->factory();
-  const int len = static_cast<int>(length);
+  DCHECK_LE(length, i::kMaxUInt32);
+  const uint32_t len = static_cast<uint32_t>(length);
   i::DirectHandle<i::FixedArray> backing = factory->NewFixedArray(len);
   v8::Local<v8::Value> value;
-  for (int i = 0; i < len; i++) {
+  for (uint32_t i = 0; i < len; i++) {
     MaybeLocal<v8::Value> maybe_value = next_value_callback();
     // The embedder may signal to abort creation on exception via an empty
     // local.

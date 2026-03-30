@@ -2459,7 +2459,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
 }
 
 Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
-  int allocate_size =
+  uint32_t allocate_size =
       ByteArray::LengthFor(slot->GetChildrenCount() * kTaggedSize);
   // It is important to allocate all the objects tenured so that the marker
   // does not visit them.

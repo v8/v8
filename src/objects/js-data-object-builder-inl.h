@@ -30,9 +30,9 @@ class FoldedMutableHeapNumberAllocation {
   // padding fillers between heap numbers.
   static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL);
 
-  FoldedMutableHeapNumberAllocation(Isolate* isolate, int count) {
+  FoldedMutableHeapNumberAllocation(Isolate* isolate, uint32_t count) {
     if (count == 0) return;
-    int size = count * sizeof(HeapNumber);
+    uint32_t size = count * sizeof(HeapNumber);
     raw_bytes_ = isolate->factory()->NewByteArray(size);
   }
 
