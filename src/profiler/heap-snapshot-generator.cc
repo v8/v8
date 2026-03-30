@@ -1102,8 +1102,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       name = names_->GetFormatted("system / Managed (%s)", tag_name);
 #if V8_ENABLE_WEBASSEMBLY
       if (tag == kWasmNativeModuleTag) {
+        DisallowGarbageCollection no_gc;
         size = Cast<Managed<wasm::NativeModule>>(foreign)
-                   ->raw()
+                   ->raw(no_gc)
                    ->EstimateCurrentMemoryConsumption();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
