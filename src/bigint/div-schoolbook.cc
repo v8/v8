@@ -134,10 +134,10 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
   const uint32_t m = A.len() - n;
 
   // Try to avoid allocations by caching some scratch memory on the processor.
-  int qhatv_len = n + 1;
-  int b_normalized_storage_len = n;
-  int U_len = A.len() + 1;
-  int needed_scratch_space = qhatv_len + b_normalized_storage_len + U_len;
+  uint32_t qhatv_len = n + 1;
+  uint32_t b_normalized_storage_len = n;
+  uint32_t U_len = A.len() + 1;
+  uint32_t needed_scratch_space = qhatv_len + b_normalized_storage_len + U_len;
   std::optional<ScratchDigits> allocated_scratch;
   RWDigits scratch(nullptr, 0);
   if (needed_scratch_space <= kSmallScratchSize) {

@@ -2136,9 +2136,9 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
+RUNTIME_FUNCTION(Runtime_BigIntMaxBits) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
+  return *isolate->factory()->NewNumber(BigInt::kMaxBits);
 }
 
 RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {

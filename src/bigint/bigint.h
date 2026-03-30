@@ -347,7 +347,7 @@ class Processor {
   // Arbitrarily chosen; should be large enough to hold a few scratch areas
   // for commonly-occurring BigInt sizes. In particular, make it large enough
   // for the needs of {CachedMod}.
-  static constexpr int kSmallScratchSize = 100;
+  static constexpr uint32_t kSmallScratchSize = 100;
   static_assert(kSmallScratchSize >= kMaxCachedModDivisorSize * 3 + 1);
 
   RWDigits GetSmallScratch() {

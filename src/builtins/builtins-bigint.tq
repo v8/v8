@@ -663,11 +663,11 @@ macro MutableBigIntLeftShiftByAbsolute(
   }
 
   if (ylength > 1) {
-    // Depends on kBigIntMaxLengthBits <= (1 << kBigIntDigitSize).
+    // Depends on kBigIntMaxBits <= (1 << kBigIntDigitSize).
     goto BigIntTooBig;
   }
   const shiftAbs = LoadBigIntDigit(y, 0);
-  if (shiftAbs > kBigIntMaxLengthBits) {
+  if (shiftAbs > kBigIntMaxBits) {
     goto BigIntTooBig;
   }
 
@@ -713,11 +713,11 @@ macro MutableBigIntRightShiftByAbsolute(
 
   const sign = ReadBigIntSign(x);
   if (ylength > 1) {
-    // Depends on kBigIntMaxLengthBits <= (1 << kBigIntDigitSize).
+    // Depends on kBigIntMaxBits <= (1 << kBigIntDigitSize).
     return RightShiftByMaximum(sign);
   }
   const shiftAbs = LoadBigIntDigit(y, 0);
-  if (shiftAbs > kBigIntMaxLengthBits) {
+  if (shiftAbs > kBigIntMaxBits) {
     return RightShiftByMaximum(sign);
   }
 

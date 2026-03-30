@@ -946,7 +946,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     // Check that the literal is within our limits for BigInt length.
     // For simplicity, use 4 bits per character to calculate the maximum
     // allowed literal length.
-    static const int kMaxBigIntCharacters = BigInt::kMaxLengthBits / 4;
+    static const int kMaxBigIntCharacters = BigInt::kMaxBits / 4;
     int length = source_pos() - start_pos - (kind != DECIMAL ? 2 : 0);
     if (length > kMaxBigIntCharacters) {
       ReportScannerError(Location(start_pos, source_pos()),

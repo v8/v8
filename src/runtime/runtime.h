@@ -84,7 +84,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntEqualToNumber, 2, 1)                                        \
   F(BigIntEqualToString, 2, 1)                                        \
   F(BigIntExponentiate, 2, 1)                                         \
-  F(BigIntMaxLengthBits, 0, 1)                                        \
+  F(BigIntMaxBits, 0, 1)                                              \
   F(BigIntToNumber, 1, 1)                                             \
   F(BigIntUnaryOp, 2, 1)                                              \
   F(ToBigInt, 1, 1)                                                   \

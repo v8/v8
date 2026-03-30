@@ -423,8 +423,7 @@ extern enum ExtractFixedArrayFlag
   ...
 }
 
-const kBigIntMaxLengthBits:
-    constexpr uintptr generates 'BigInt::kMaxLengthBits';
+const kBigIntMaxBits: constexpr uintptr generates 'BigInt::kMaxBits';
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 const kBigIntDigitSize: constexpr intptr generates 'kSystemPointerSize';
 const kBitsPerByte: constexpr intptr generates 'kBitsPerByte';

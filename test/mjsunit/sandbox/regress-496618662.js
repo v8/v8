@@ -19,7 +19,7 @@ let y = makeBigInt(50);
 let y_addr = Sandbox.getAddressOf(y);
 const original_sign = mem.getUint32(y_addr + BITFIELD_OFFSET, true) & 1;
 
-mem.setUint32(y_addr + BITFIELD_OFFSET, (30 << 1) | original_sign, true);
+mem.setUint32(y_addr + BITFIELD_OFFSET, (30 << 8) | original_sign, true);
 
 let x = makeBigInt(50);
 
@@ -28,6 +28,6 @@ for (let i = 0; i < 99; i++) {
 }
 
 y_addr = Sandbox.getAddressOf(y);
-mem.setUint32(y_addr + BITFIELD_OFFSET, (50 << 1) | original_sign, true);
+mem.setUint32(y_addr + BITFIELD_OFFSET, (50 << 5) | original_sign, true);
 x % y;
 x % y;

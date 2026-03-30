@@ -100,23 +100,30 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
 
   bigint::Digits digits() const;
 
-  // The maximum kMaxLengthBits that the current implementation supports
-  // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
-  // Since we want a platform independent limit, choose a nice round number
-  // somewhere below that maximum.
-  static const uint32_t kMaxLengthBits = 1 << 30;  // ~1 billion.
+  // Maximum BigInt length, somewhat arbitrarily chosen.
+  static const uint32_t kMaxBitsBits = 30;
   static const uint32_t kMaxLength =
-      kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
+      ((1 << kMaxBitsBits) - 1) / (kSystemPointerSize * kBitsPerByte);
+  static const uint32_t kMaxBits =
+      kMaxLength * kSystemPointerSize * kBitsPerByte;  // ~1 billion.
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
   // We intentionally use all available bits, so that decoding the length
   // field is just a "shr" instruction (and needs no bit mask).
-  static const uint32_t kLengthFieldBits = 31;
+  // As a safeguard against malicious heap corruption, we limit the length
+  // field to the minimum size needed (24 on 64-bit, 25 on 32-bit). This
+  // prevents overflow bugs when adding two BigInt lengths, for example.
+  static const uint32_t kLengthFieldBits =
+      kMaxBitsBits - kSystemPointerSizeLog2 - kBitsPerByteLog2;
   static_assert(kMaxLength <= ((1u << kLengthFieldBits) - 1));
+  static const uint32_t kPaddingBits = 32 - 1 /* sign */ - kLengthFieldBits;
   using SignBits = base::BitField<bool, 0, 1>;
-  using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
-  static_assert(LengthBits::kLastUsedBit < 32);
+  using PaddingBits = SignBits::Next<uint32_t, kPaddingBits>;
+  using LengthBits = PaddingBits::Next<uint32_t, kLengthFieldBits>;
+  static_assert(LengthBits::kLastUsedBit == 31);
+  // For historical reasons, the serialized format uses a different encoding.
+  using LengthBitsForSerialization = SignBits::Next<uint32_t, 31>;
 
   void BigIntBaseShortPrint(std::ostream& os);
 
