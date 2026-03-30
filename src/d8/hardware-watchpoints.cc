@@ -380,7 +380,13 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   switch (signal) {
     case SIGCHLD:
       TRACE("[debugger] A child process of d8 exited; continuing d8.\n");
-      return {.signal = SIGCHLD};
+      return {.signal = signal};
+
+    case SIGCONT:
+      TRACE(
+          "[debugger] d8 received a SIGCONT (probably from external job "
+          "control); continuing d8.\n");
+      return {.signal = signal};
 
     case SIGSTOP:
       // D8 requested an update on watchpoints -> execute them.
