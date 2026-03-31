@@ -410,7 +410,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     __ LoadCodePointerField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
+        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
 
     __ JumpIfCodeIsMarkedForDeoptimization(scratch_and_result,
                                            temps.AcquireScratch(), &clear_slot);

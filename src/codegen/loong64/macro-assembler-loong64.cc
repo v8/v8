@@ -4907,7 +4907,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     LoadCodePointerField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
+        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
 
     Register scratch = temps.Acquire();
     TestCodeIsMarkedForDeoptimizationAndJump(scratch_and_result, scratch, ne,

@@ -7,7 +7,6 @@
 
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
-#include "src/objects/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -168,19 +167,25 @@ class BytecodeArray : public ExposedTrustedObject {
 // A BytecodeWrapper wraps a BytecodeArray but lives inside the sandbox. This
 // can be useful for example when a reference to a BytecodeArray needs to be
 // stored along other tagged pointers inside an array or similar datastructure.
-V8_OBJECT class BytecodeWrapper : public StructLayout {
+class BytecodeWrapper : public Struct {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 
   DECL_PRINTER(BytecodeWrapper)
   DECL_VERIFIER(BytecodeWrapper)
 
+#define FIELD_LIST(V)                     \
+  V(kBytecodeOffset, kTrustedPointerSize) \
+  V(kHeaderSize, 0)                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
   class BodyDescriptor;
 
- public:
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
-      bytecode_;
-} V8_OBJECT_END;
+  OBJECT_CONSTRUCTORS(BytecodeWrapper, Struct);
+};
 
 }  // namespace internal
 }  // namespace v8

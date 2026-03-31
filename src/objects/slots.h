@@ -460,11 +460,10 @@ class IndirectPointerSlot
 
   template <typename T, IndirectPointerTagRange kTagRange>
   explicit IndirectPointerSlot(TrustedPointerMember<T, kTagRange>* member)
+      : SlotBase(member->storage_address())
 #ifdef V8_ENABLE_SANDBOX
-      : SlotBase(member->storage_address()),
+        ,
         tag_range_(kTagRange)
-#else
-      : SlotBase(member->ptr_location())
 #endif
   {
   }

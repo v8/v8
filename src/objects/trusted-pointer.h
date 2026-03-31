@@ -137,43 +137,23 @@ class TrustedPointerField {
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
 template <typename T, IndirectPointerTagRange kTagRange>
-class TrustedPointerMember
-#ifndef V8_ENABLE_SANDBOX
-    // On non-sandbox builds, TrustedPointerMember is just a TaggedMember with
-    // custom accessors, which allows it to be passed to Slots same as a
-    // TaggedMember.
-    : public TaggedMember<T>
-#endif
-{
+class TrustedPointerMember {
  public:
   constexpr TrustedPointerMember() = default;
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
-  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
+  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate,
+                                         AcquireLoadTag) const;
   inline void store(HeapObjectLayout* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void store_no_write_barrier(HeapObjectLayout* host, Tagged<T> value);
-
-  inline Tagged<T> Acquire_Load(IsolateForSandbox isolate) const;
-  inline Tagged<Object> Acquire_Load_maybe_empty(
-      IsolateForSandbox isolate) const;
-  inline void Release_Store(HeapObjectLayout* host, Tagged<T> value,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Release_Store_no_write_barrier(HeapObjectLayout* host,
-                                             Tagged<T> value);
-
-  inline bool is_empty() const;
   inline void clear(HeapObjectLayout* host);
 
  private:
 #ifdef V8_ENABLE_SANDBOX
-  friend class IndirectPointerSlot;
-
-  inline Address storage_address() const;
-
   std::atomic<IndirectPointerHandle> handle_;
 #else
-  using Base = TaggedMember<T>;
+  TaggedMember<T> member_;
 #endif
 };
 

@@ -190,24 +190,8 @@ void BytecodeArray::MarkVerified(IsolateForSandbox isolate) {
   wrapper()->set_bytecode(*this);
 }
 
-Tagged<BytecodeArray> BytecodeWrapper::bytecode(
-    IsolateForSandbox isolate) const {
-  return bytecode_.load(isolate);
-}
-Tagged<BytecodeArray> BytecodeWrapper::bytecode(IsolateForSandbox isolate,
-                                                AcquireLoadTag tag) const {
-  return bytecode_.Acquire_Load(isolate);
-}
-void BytecodeWrapper::set_bytecode(Tagged<BytecodeArray> value,
-                                   WriteBarrierMode mode) {
-  bytecode_.store(this, value, mode);
-}
-void BytecodeWrapper::set_bytecode(Tagged<BytecodeArray> value, ReleaseStoreTag,
-                                   WriteBarrierMode mode) {
-  bytecode_.Release_Store(this, value, mode);
-}
-bool BytecodeWrapper::has_bytecode() const { return !bytecode_.is_empty(); }
-void BytecodeWrapper::clear_bytecode() { bytecode_.clear(this); }
+TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
+                          kBytecodeOffset, kBytecodeArrayIndirectPointerTag)
 
 }  // namespace internal
 }  // namespace v8

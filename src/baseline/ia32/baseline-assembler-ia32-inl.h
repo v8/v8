@@ -372,7 +372,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
 
     // The entry references a CodeWrapper object. Unwrap it now.
     __ mov(scratch_and_result,
-           FieldOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
+           FieldOperand(scratch_and_result, CodeWrapper::kCodeOffset));
 
     __ TestCodeIsMarkedForDeoptimization(scratch_and_result);
     __ j(equal, on_result, distance);

@@ -278,34 +278,11 @@ void BodyDescriptorBase::IterateTrustedPointer(
 #endif
 }
 
-template <typename ObjectVisitor, typename T, IndirectPointerTagRange kTagRange>
-void BodyDescriptorBase::IterateTrustedPointer(
-    Tagged<HeapObject> obj, TrustedPointerMember<T, kTagRange>* member,
-    ObjectVisitor* v, IndirectPointerMode mode) {
-#ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointer(obj, IndirectPointerSlot(member), mode);
-#else
-  if (mode == IndirectPointerMode::kStrong) {
-    v->VisitPointer(obj, ObjectSlot(member));
-  } else {
-    v->VisitCustomWeakPointer(obj, ObjectSlot(member));
-  }
-#endif
-}
-
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
                                             ObjectVisitor* v,
                                             IndirectPointerMode mode) {
   IterateTrustedPointer(obj, offset, v, mode, kCodeIndirectPointerTag);
-}
-
-template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateCodePointer(
-    Tagged<HeapObject> obj,
-    TrustedPointerMember<Code, kCodeIndirectPointerTag>* member,
-    ObjectVisitor* v, IndirectPointerMode mode) {
-  IterateTrustedPointer(obj, member, v, mode);
 }
 
 template <typename ObjectVisitor>
@@ -825,13 +802,12 @@ class BytecodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    Tagged<BytecodeWrapper> wrapper = UncheckedCast<BytecodeWrapper>(obj);
-    IterateTrustedPointer(obj, &wrapper->bytecode_, v,
-                          IndirectPointerMode::kStrong);
+    IterateTrustedPointer(obj, kBytecodeOffset, v, IndirectPointerMode::kStrong,
+                          kBytecodeArrayIndirectPointerTag);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return sizeof(BytecodeWrapper);
+    return kSize;
   }
 };
 
@@ -1463,12 +1439,11 @@ class CodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    Tagged<CodeWrapper> wrapper = UncheckedCast<CodeWrapper>(obj);
-    IterateCodePointer(obj, &wrapper->code_, v, IndirectPointerMode::kStrong);
+    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return sizeof(CodeWrapper);
+    return kSize;
   }
 };
 
