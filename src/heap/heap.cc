@@ -2206,16 +2206,29 @@ void Heap::RestoreHeapLimit(size_t heap_limit) {
                             physical_memory());
 }
 
-void Heap::CollectGarbageWithRetry(AllocationSpace space,
+void Heap::CollectGarbageWithRetry(LocalHeap* local_heap, AllocationSpace space,
                                    GarbageCollectionReason gc_reason) {
-  std::ignore = allocator()->RetryCustomAllocate(
+  AllocationType allocation_type;
+
+  switch (space) {
+    case SHARED_SPACE:
+      allocation_type = AllocationType::kSharedOld;
+      break;
+    case NEW_SPACE:
+      allocation_type = AllocationType::kYoung;
+      break;
+    default:
+      allocation_type = AllocationType::kOld;
+      break;
+  }
+
+  std::ignore = local_heap->allocator()->RetryCustomAllocate(
       [&]() {
         // RetryCustomAllocate() already checks heap limits before calling
         // the allocate function.
         return true;
       },
-      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld,
-      gc_reason);
+      allocation_type, gc_reason);
 }
 
 void Heap::PerformRequestedGC(LocalHeap* local_heap) {
@@ -7078,6 +7091,10 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 }
 
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
+  // UpdateExternalMemory() can only be called from the same isolate except for
+  // the shared space isolate.
+  DCHECK(LocalHeap::Current()->heap() == this ||
+         isolate()->is_shared_space_isolate());
   const uint64_t total_before =
       external_memory_total_.fetch_add(delta, std::memory_order_relaxed);
   CHECK_GE(static_cast<int64_t>(total_before), -delta);
@@ -7093,13 +7110,18 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     return total_after;
   }
 
+  LocalHeap* local_heap = LocalHeap::Current();
+
 #if V8_VERIFY_WRITE_BARRIERS
   // Incrementing the number of allocated bytes may trigger GC.
-  main_thread_local_heap()->allocator()->ResetMostRecentYoungAllocation();
+  local_heap->allocator()->ResetMostRecentYoungAllocation();
 #endif
 
+  const AllocationSpace space =
+      this == local_heap->heap() ? OLD_SPACE : SHARED_SPACE;
+
   if (ReachedHeapLimit()) {
-    CollectGarbageWithRetry(OLD_SPACE,
+    CollectGarbageWithRetry(local_heap, space,
                             GarbageCollectionReason::kExternalMemoryPressure);
   } else if (total_after > external_memory_limit_for_interrupt()) {
     limits()->UpdateExternalMemoryLimitForInterrupt(external_memory());
@@ -7108,11 +7130,11 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
             kGCCallbackFlagSynchronousPhantomCallbackProcessing |
             kGCCallbackFlagCollectAllExternalMemory);
     StartIncrementalMarkingIfAllocationLimitIsReached(
-        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+        local_heap, GCFlagsForIncrementalMarking(),
         kGCCallbackFlagsForExternalMemory);
     if (incremental_marking()->IsMajorMarking() &&
         AllocationLimitOvershotByLargeMargin()) {
-      CollectGarbageWithRetry(OLD_SPACE,
+      CollectGarbageWithRetry(local_heap, space,
                               GarbageCollectionReason::kExternalMemoryPressure);
     }
   }

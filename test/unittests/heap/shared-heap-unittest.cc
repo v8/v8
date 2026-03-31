@@ -899,6 +899,48 @@ TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
 }
 #endif  // false
 
+namespace {
+class UpdateExternalMemoryWorkerThread : public ParkingThread {
+ public:
+  explicit UpdateExternalMemoryWorkerThread(ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("UpdateExternalMemoryWorkerThread")),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate* client = isolate_wrapper.isolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    {
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
+      Heap* shared_heap = i_client->shared_space_isolate()->heap();
+      static constexpr int64_t kAllocatedSize = GB;
+      shared_heap->UpdateExternalMemory(kAllocatedSize);
+      EXPECT_GE(shared_heap->external_memory(),
+                static_cast<uint64_t>(kAllocatedSize));
+      shared_heap->UpdateExternalMemory(-kAllocatedSize);
+    }
+
+    sema_done_->Signal();
+  }
+
+ private:
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, UpdateExternalMemoryWorkerIsolate) {
+  ParkingSemaphore sema_done(0);
+  auto thread = std::make_unique<UpdateExternalMemoryWorkerThread>(&sema_done);
+  CHECK(thread->Start());
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  sema_done.ParkedWait(local_isolate);
+
+  thread->ParkedJoin(local_isolate);
+}
+
 }  // namespace internal
 }  // namespace v8
 

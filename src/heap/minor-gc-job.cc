@@ -179,7 +179,7 @@ void MinorGCJob::Task::RunInternal() {
     return;
   }
 
-  heap->CollectGarbageWithRetry(NEW_SPACE,
+  heap->CollectGarbageWithRetry(heap->main_thread_local_heap(), NEW_SPACE,
                                 GarbageCollectionReason::kAllocationFailure);
 }
 

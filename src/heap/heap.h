@@ -654,7 +654,7 @@ class Heap final {
   V8_INLINE uint64_t external_memory() const;
   V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
-  uint64_t UpdateExternalMemory(int64_t delta);
+  V8_EXPORT_PRIVATE uint64_t UpdateExternalMemory(int64_t delta);
 
   uint64_t backing_store_bytes() const;
 
@@ -992,7 +992,8 @@ class Heap final {
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
   V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GarbageCollectionReason gc_reason);
+      LocalHeap* local_heap, AllocationSpace space,
+      GarbageCollectionReason gc_reason);
 
   using GetExternallyAllocatedMemoryInBytesCallback =
       v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback;
