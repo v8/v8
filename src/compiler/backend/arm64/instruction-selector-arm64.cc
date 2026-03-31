@@ -492,13 +492,10 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
                             OpIndex index, InstructionOperand* index_op,
                             InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
-  if (const ChangeOp* change =
-          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
-      change && selector->CanCover(index, change->input())) {
-    index = change->input();
-  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
-  if (shift == nullptr) return false;
+  if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
+    return false;
+  }
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
