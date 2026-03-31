@@ -217,18 +217,30 @@ using wasm::TagIndexImmediate;
 using wasm::ValueType;
 using wasm::WasmOpcode;
 
+namespace detail {
+
+struct Value : public wasm::ValueBase<wasm::Decoder::NoValidationTag> {
+  V<Any> op = V<Any>::Invalid();
+
+  template <typename T>
+  V<T> get() const {
+    return V<T>::Cast(op);
+  }
+
+  template <typename... Args>
+  explicit Value(Args&&... args) V8_NOEXCEPT
+      : ValueBase(std::forward<Args>(args)...) {}
+};
+
+}  // namespace detail
+
 template <class Assembler>
 class WasmInJsInliningInterface {
  public:
   using ValidationTag = wasm::Decoder::NoValidationTag;
   using FullDecoder =
       wasm::WasmFullDecoder<ValidationTag, WasmInJsInliningInterface>;
-  struct Value : public wasm::ValueBase<ValidationTag> {
-    V<Any> op = V<Any>::Invalid();
-    template <typename... Args>
-    explicit Value(Args&&... args) V8_NOEXCEPT
-        : ValueBase(std::forward<Args>(args)...) {}
-  };
+  using Value = detail::Value;
   // TODO(dlehmann,353475584): Introduce a proper `Control` struct/class, once
   // we want to support control-flow in the inlinee.
   using Control = wasm::ControlBase<Value, ValidationTag>;
@@ -1021,7 +1033,7 @@ class WasmInJsInliningInterface {
   }
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
-        V<WasmArrayNullable>::Cast(array_obj.op), frame_state_,
+        array_obj.get<WasmArrayNullable>(), frame_state_,
         array_obj.type.is_nullable() ? compiler::kWithNullCheck
                                      : compiler::kWithoutNullCheck);
   }
