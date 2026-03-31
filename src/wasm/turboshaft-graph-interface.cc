@@ -4200,6 +4200,7 @@ class TurboshaftGraphBuildingInterface
          __ RelocatableWasmCanonicalSignatureId(return_csig_index.index)},
         CheckForException::kCatchInThisFrame);
 
+    instance_cache_.ReloadCachedMemory();
     UnpackResumeReturns(return_sig->parameters(), returns, result_buffer);
   }
 
