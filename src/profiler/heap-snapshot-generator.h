@@ -49,11 +49,17 @@ class JSPromise;
 class JSWeakCollection;
 
 struct EntrySourceLocation {
-  EntrySourceLocation(int entry_index, int scriptId, int line, int col)
-      : entry_index(entry_index), scriptId(scriptId), line(line), col(col) {}
+  EntrySourceLocation(int entry_index, int script_entry_index, int script_id,
+                      int line, int col)
+      : entry_index(entry_index),
+        script_entry_index(script_entry_index),
+        script_id(script_id),
+        line(line),
+        col(col) {}
 
   const int entry_index;
-  const int scriptId;
+  const int script_entry_index;
+  const int script_id;
   const int line;
   const int col;
 };
@@ -260,7 +266,8 @@ class HeapSnapshot {
   size_t extra_native_bytes() const { return extra_native_bytes_; }
   void set_extra_native_bytes(size_t bytes) { extra_native_bytes_ = bytes; }
 
-  void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
+  void AddLocation(HeapEntry* entry, HeapEntry* script_entry, int script_id,
+                   int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,

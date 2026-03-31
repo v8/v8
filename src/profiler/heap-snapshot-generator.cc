@@ -521,9 +521,10 @@ void HeapSnapshot::AddGcSubrootEntry(Root root, SnapshotObjectId id) {
       AddEntry(HeapEntry::kSynthetic, RootVisitor::RootName(root), id, 0, 0);
 }
 
-void HeapSnapshot::AddLocation(HeapEntry* entry, int scriptId, int line,
-                               int col) {
-  locations_.emplace_back(entry->index(), scriptId, line, col);
+void HeapSnapshot::AddLocation(HeapEntry* entry, HeapEntry* script_entry,
+                               int script_id, int line, int col) {
+  locations_.emplace_back(entry->index(), script_entry->index(), script_id,
+                          line, col);
 }
 
 HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type, const char* name,
@@ -946,7 +947,7 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
                                                   Tagged<JSFunction> func) {
   if (!IsScript(func->shared()->script())) return;
   Tagged<Script> script = Cast<Script>(func->shared()->script());
-  int scriptId = script->id();
+  int script_id = script->id();
   int start = func->shared()->StartPosition();
   Script::PositionInfo info;
   if (script->has_line_ends()) {
@@ -955,7 +956,9 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
     script->GetPositionInfoWithLineEnds(
         start, &info, snapshot_->GetScriptLineEnds(script->id()));
   }
-  snapshot_->AddLocation(entry, scriptId, info.line, info.column);
+  HeapEntry* script_entry = GetEntry(script);
+  snapshot_->AddLocation(entry, script_entry, script_id, info.line,
+                         info.column);
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
@@ -3729,6 +3732,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
     JSON_S("location_fields") ":" JSON_A(
         JSON_S("object_index") ","
         JSON_S("script_id") ","
+        JSON_S("script_object_index") ","
         JSON_S("line") ","
         JSON_S("column"))
   "}");
@@ -3891,7 +3895,9 @@ void HeapSnapshotJSONSerializer::SerializeLocation(
     const EntrySourceLocation& location) {
   writer_->AddNumber(to_node_index(location.entry_index));
   writer_->AddCharacter(',');
-  writer_->AddNumber(location.scriptId);
+  writer_->AddNumber(location.script_id);
+  writer_->AddCharacter(',');
+  writer_->AddNumber(to_node_index(location.script_entry_index));
   writer_->AddCharacter(',');
   writer_->AddNumber(location.line);
   writer_->AddCharacter(',');
