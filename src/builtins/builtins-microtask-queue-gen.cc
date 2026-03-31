@@ -649,8 +649,35 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
 TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   auto microtask = Parameter<Microtask>(Descriptor::kMicrotask);
   auto context = Parameter<Context>(Descriptor::kContext);
+
+  // Fast path: if the NativeContext matches the one cached on IsolateData,
+  // reuse the cached MicrotaskQueue pointer to avoid the expensive
+  // NativeContext → ExternalPointerTable → MicrotaskQueue chain.
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
+  TVARIABLE(RawPtrT, var_microtask_queue);
+  Label load_from_context(this), have_queue(this);
+  TNode<Object> cached_context = LoadFullTagged(
+      IsolateField(IsolateFieldId::kCurrentMicrotaskNativeContext));
+  GotoIfNot(TaggedEqual(cached_context, native_context), &load_from_context);
+  var_microtask_queue =
+      Load<RawPtrT>(IsolateField(IsolateFieldId::kCurrentMicrotaskQueue));
+  Goto(&have_queue);
+
+  BIND(&load_from_context);
+  {
+    var_microtask_queue = GetMicrotaskQueue(native_context);
+    // Update the cache so subsequent calls with the same context are fast.
+    StoreFullTaggedNoWriteBarrier(
+        IsolateField(IsolateFieldId::kCurrentMicrotaskNativeContext),
+        native_context);
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(),
+                        IsolateField(IsolateFieldId::kCurrentMicrotaskQueue),
+                        var_microtask_queue.value());
+    Goto(&have_queue);
+  }
+
+  BIND(&have_queue);
+  TNode<RawPtrT> microtask_queue = var_microtask_queue.value();
 
   // Do not store the microtask if MicrotaskQueue is not available, that may
   // happen when the context shutdown.

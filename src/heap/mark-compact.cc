@@ -3108,6 +3108,17 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
+  {
+    // Clear the EnqueueMicrotask cache if the NativeContext is not alive.
+    Tagged<Object> cached_context = isolate->current_microtask_native_context();
+    if (cached_context.IsHeapObject() &&
+        MarkingHelper::IsUnmarkedAndNotAlwaysLive(
+            heap_, marking_state_, Cast<HeapObject>(cached_context))) {
+      isolate->set_current_microtask_native_context(Smi::zero());
+      isolate->isolate_data()->set_current_microtask_queue(nullptr);
+    }
+  }
+
   if (isolate->OwnsStringTables()) {
     StringTable* string_table = isolate->string_table();
     string_table->DropOldData();

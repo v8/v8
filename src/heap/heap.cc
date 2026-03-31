@@ -4480,6 +4480,11 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     v->VisitRootPointer(
         Root::kWeakRoots, nullptr,
         FullObjectSlot(isolate()->topmost_script_having_context_address()));
+    // EnqueueMicrotask cache: weak so the GC can clear it if the
+    // NativeContext becomes unreachable.
+    v->VisitRootPointer(
+        Root::kWeakRoots, nullptr,
+        FullObjectSlot(isolate()->current_microtask_native_context_address()));
   }
 
   if (!options.contains(SkipRoot::kOldGeneration) &&

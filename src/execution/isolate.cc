@@ -7655,6 +7655,10 @@ void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);
   DCHECK(global_proxy->IsDetached());
   env->set_microtask_queue(this, nullptr);
+  // Invalidate the EnqueueMicrotask cache if it references this context.
+  if (current_microtask_native_context() == *env) {
+    set_current_microtask_native_context(Smi::zero());
+  }
   // Set security token back to default (unique) state making sure that only
   // accesses from the same native context are allowed.
   env->set_security_token(env->global_object());

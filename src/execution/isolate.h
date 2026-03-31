@@ -2315,6 +2315,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.continuation_preserved_embedder_data_);
   }
 
+  Tagged<Object> current_microtask_native_context() const {
+    return isolate_data_.current_microtask_native_context_;
+  }
+  void set_current_microtask_native_context(Tagged<Object> context) {
+    isolate_data_.current_microtask_native_context_ = context;
+  }
+  Address current_microtask_native_context_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.current_microtask_native_context_);
+  }
+
   struct PromiseHookFields {
     using HasContextPromiseHook = base::BitField<bool, 0, 1>;
     using HasIsolatePromiseHook = HasContextPromiseHook::Next<bool, 1>;
