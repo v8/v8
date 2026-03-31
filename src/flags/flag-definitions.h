@@ -4246,6 +4246,29 @@ DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
                                           !sandbox_testing && !sandbox_fuzzing,
                                       expose_memory_corruption_api)
 
+// Runs a program as security POC. This mode is used to determine whether a bug
+// in a program is a security problem. V8 supports many different configurations
+// and modes that are sometimes incomplete or incompatible. The flag aims at
+// providing guidance on what is actually considered a security issue.
+//
+// Note: The mode may be insufficient and/or incomplete. Passing this flag does
+// not guarantee a bug will be classified as a valid vulnerability. The V8 team
+// reserves the right to make the final determination on security impact during
+// triage. See docs/security_triaging.md.
+DEFINE_BOOL(run_as_security_poc, false,
+            "Run programs as security proof of concept (POC).")
+// Unsafe flags generally lead to unsupported configurations.
+DEFINE_IMPLICATION(run_as_security_poc, disallow_unsafe_flags)
+// Developer-only flags are not used in production. These flags should be robust
+// but breakage is not generally a security issue.
+DEFINE_IMPLICATION(run_as_security_poc, disallow_developer_only_features)
+// TODO(495388612): Possibly split fuzzing flag to avoid auto-enabling some
+// stress modes.
+DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
+// Experimental features are not ready for broad usage yet. Bugs in these areas
+// are not considered security issues.
+DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE
