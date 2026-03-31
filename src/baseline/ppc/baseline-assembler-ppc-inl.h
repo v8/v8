@@ -458,7 +458,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     __ LoadTaggedField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset), r0);
+        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)), r0);
 
     Register scratch = temps.AcquireScratch();
     __ TestCodeIsMarkedForDeoptimization(scratch_and_result, scratch, r0);

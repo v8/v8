@@ -470,7 +470,7 @@ void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
   if (!this->has_bytecode()) return;
   auto bytecode = this->bytecode(isolate);
   Object::VerifyPointer(isolate, bytecode);
-  CHECK_EQ(bytecode->wrapper(), *this);
+  CHECK_EQ(bytecode->wrapper(), this);
 }
 
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
@@ -1798,7 +1798,7 @@ void CodeWrapper::CodeWrapperVerify(Isolate* isolate) {
   if (!this->has_code()) return;
   auto code = this->code(isolate);
   Object::VerifyPointer(isolate, code);
-  CHECK_EQ(code->wrapper(), *this);
+  CHECK_EQ(code->wrapper(), this);
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
@@ -3094,7 +3094,7 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, receiver_or_instance_.load());
   Object::VerifyPointer(isolate, function_.load());
 
-  Tagged<Object> code = code_object_.load_maybe_empty(isolate, kAcquireLoad);
+  Tagged<Object> code = code_object_.load_maybe_empty(isolate);
   CHECK(IsCode(code) || IsBytecodeArray(code) || code == Smi::zero());
 
 #if V8_ENABLE_WEBASSEMBLY

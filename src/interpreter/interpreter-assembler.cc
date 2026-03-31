@@ -1524,7 +1524,7 @@ void InterpreterAssembler::OnStackReplacement(
     // Is it marked_for_deoptimization? If yes, clear the slot.
     TNode<CodeWrapper> code_wrapper = CAST(maybe_target_code.value());
     maybe_target_code =
-        LoadCodePointerFromObject(code_wrapper, CodeWrapper::kCodeOffset);
+        LoadCodePointerFromObject(code_wrapper, offsetof(CodeWrapper, code_));
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
               &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
