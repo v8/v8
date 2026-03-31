@@ -182,6 +182,10 @@ BackingStore::~BackingStore() {
     TRACE_BS(
         "BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
         this, buffer_start_, byte_length(), byte_capacity_, reservation_size);
+    if (has_guard_regions()) {
+      trap_handler::UnregisterCoveredMemory(
+          reinterpret_cast<uintptr_t>(buffer_start_), reservation_size);
+    }
     if (is_shared()) {
       // Deallocate the list of attached memory objects.
       SharedWasmMemoryData* shared_data = get_shared_wasm_memory_data();
@@ -473,6 +477,19 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
       if (backing_store) break;
     }
   }
+
+  if (backing_store && has_guard_regions) {
+    size_t reservation_size = GetWasmReservationSize(
+        backing_store->has_guard_regions(), backing_store->byte_capacity(),
+        backing_store->is_wasm_memory64());
+    if (!trap_handler::RegisterCoveredMemory(
+            reinterpret_cast<uintptr_t>(backing_store->buffer_start()),
+            reservation_size)) {
+      V8::FatalProcessOutOfMemory(
+          isolate, "Failed to register memory with the trap handler");
+    }
+  }
+
   return backing_store;
 }
 

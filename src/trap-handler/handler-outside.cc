@@ -282,6 +282,70 @@ void UnregisterV8Sandbox(uintptr_t base, size_t size) {
   free(current);
 }
 
+bool RegisterCoveredMemory(uintptr_t base, size_t reserved_size) {
+  TrapHandlerGuard active_guard;
+
+  TH_CHECK(base + reserved_size > base);
+
+  // First validity check: the memory must be within the sandbox (if enabled).
+  {
+    SandboxRecordsLock sandbox_lock;
+    if (gSandboxRecordsHead != nullptr) {
+      bool within_sandbox = false;
+      for (const SandboxRecord* s = gSandboxRecordsHead;
+           s != nullptr && !within_sandbox; s = s->next) {
+        within_sandbox =
+            base >= s->base && base + reserved_size <= s->base + s->size;
+      }
+      TH_CHECK(within_sandbox);
+    }
+  }
+
+  CoveredMemoryRecordsLock lock;
+
+  // Second validity check: the memory must not overlap with any existing
+  // memory.
+  for (CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
+       current != nullptr; current = current->next) {
+    bool disjoint = (base >= current->base + current->size) ||
+                    (base + reserved_size <= current->base);
+    TH_CHECK(disjoint);
+  }
+
+  // Now allocate and register the new record.
+  CoveredMemoryRecord* new_record = reinterpret_cast<CoveredMemoryRecord*>(
+      malloc(sizeof(CoveredMemoryRecord)));
+  if (new_record == nullptr) return false;
+
+  new_record->base = base;
+  new_record->size = reserved_size;
+  new_record->next = gCoveredMemoryRecordsHead;
+  gCoveredMemoryRecordsHead = new_record;
+  return true;
+}
+
+void UnregisterCoveredMemory(uintptr_t base, size_t reserved_size) {
+  TrapHandlerGuard active_guard;
+  CoveredMemoryRecordsLock lock;
+
+  CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
+  CoveredMemoryRecord* previous = nullptr;
+  while (current != nullptr && current->base != base) {
+    previous = current;
+    current = current->next;
+  }
+
+  // The unregistered memory must match an existing record exactly.
+  TH_CHECK(current != nullptr);
+  TH_CHECK(current->size == reserved_size);
+  if (previous) {
+    previous->next = current->next;
+  } else {
+    gCoveredMemoryRecordsHead = current->next;
+  }
+  free(current);
+}
+
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
 }

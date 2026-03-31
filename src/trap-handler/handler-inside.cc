@@ -87,16 +87,12 @@ bool IsFaultAddressCovered(uintptr_t fault_addr) {
 }
 
 bool IsAccessedMemoryCovered(uintptr_t addr) {
-  SandboxRecordsLock lock_holder;
+  CoveredMemoryRecordsLock lock_holder;
 
-  // Check if the access is inside a V8 sandbox (if it is enabled) as all Wasm
-  // Memory objects must be located inside some sandbox.
-  if (gSandboxRecordsHead == nullptr) {
-    return true;
-  }
-
-  for (SandboxRecord* current = gSandboxRecordsHead; current != nullptr;
-       current = current->next) {
+  // Check if the access is inside any registered memory (including its
+  // guard regions).
+  for (CoveredMemoryRecord* current = gCoveredMemoryRecordsHead;
+       current != nullptr; current = current->next) {
     if (addr >= current->base && addr < (current->base + current->size)) {
       return true;
     }

@@ -138,6 +138,16 @@ bool TH_EXPORT_PRIVATE RegisterV8Sandbox(uintptr_t base, size_t size);
 /// size.
 void TH_EXPORT_PRIVATE UnregisterV8Sandbox(uintptr_t base, size_t size);
 
+/// Registers a memory region that should be covered by the trap handler.
+/// This currently includes Wasm memories (including guard regions) and the
+/// inaccessible WasmNull payload.
+bool TH_EXPORT_PRIVATE RegisterCoveredMemory(uintptr_t base,
+                                             size_t reserved_size);
+
+/// Unregisters a memory region.
+void TH_EXPORT_PRIVATE UnregisterCoveredMemory(uintptr_t base,
+                                               size_t reserved_size);
+
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.
 TH_EXPORT_PRIVATE extern bool g_is_trap_handler_enabled;
