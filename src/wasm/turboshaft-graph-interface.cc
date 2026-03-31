@@ -88,6 +88,7 @@ using compiler::turboshaft::WasmTypeAnnotationOp;
 using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word;
 using compiler::turboshaft::Word32;
+using compiler::turboshaft::Word64MulWideOp;
 using compiler::turboshaft::WordPtr;
 using compiler::turboshaft::WordRepresentation;
 using compiler::turboshaft::deprecated::BuiltinCallDescriptor;
@@ -893,6 +894,17 @@ class TurboshaftGraphBuildingInterface
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
     result->op = BinOpImpl(opcode, lhs.op, rhs.op);
+  }
+
+  void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
+               const Value& rhs_val, Value* result_low, Value* result_high) {
+    DCHECK(opcode == kExprI64MulWideS || opcode == kExprI64MulWideU);
+    V<Tuple<Word64, Word64>> tuple = __ Word64MulWide(
+        lhs_val.op, rhs_val.op,
+        opcode == kExprI64MulWideS ? Word64MulWideOp::Kind::kSigned
+                                   : Word64MulWideOp::Kind::kUnsigned);
+    result_low->op = __ template Projection<0>(tuple);
+    result_high->op = __ template Projection<1>(tuple);
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {

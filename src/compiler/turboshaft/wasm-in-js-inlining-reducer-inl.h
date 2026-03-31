@@ -325,6 +325,11 @@ class WasmInJsInliningInterface {
     result->op = BinOpImpl(decoder, opcode, lhs.op, rhs.op);
   }
 
+  void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
+               const Value& rhs_val, Value* result_low, Value* result_high) {
+    Bailout(decoder);
+  }
+
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
                    ValueType input_type /* for ref.is_null only*/) {
     switch (opcode) {
