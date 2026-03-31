@@ -4543,7 +4543,7 @@ class TurboshaftGraphBuildingInterface
         result->op, info.memory_rep.ToMachineType(), wasm_type);
 
     if (needs_zero_extension_64) {
-      result->op = __ ChangeUint32ToUint64(result->op);
+      result->op = __ ChangeUint32ToUint64(result->get<Word32>());
     }
 #endif
   }
