@@ -111,6 +111,12 @@ class RegExp final : public AllStatic {
     kFromJs = 1,
   };
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  static void TraceExecutionBegin(Address isolate_ptr);
+  static void TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
+                                Address subject_ptr, int32_t last_index);
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static std::optional<int> Exec(

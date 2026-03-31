@@ -3393,6 +3393,9 @@ DEFINE_BOOL_READONLY(
     "trace regexp bytecode execution (requires v8_enable_disassembler = true)")
 #endif
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+DEFINE_BOOL(trace_regexp_exec, false, "trace regexp execution")
+DEFINE_BOOL(trace_regexp_exec_ool_subjects, false,
+            "trace regexp execution out-of-line subject strings")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_compiler, false, "trace regexp compilation")
@@ -3403,6 +3406,12 @@ DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
 DEFINE_BOOL(print_regexp_graph, false, "print the regexp graph")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 #else
+DEFINE_BOOL_READONLY(trace_regexp_exec, false,
+                     "trace regexp execution (requires "
+                     "v8_enable_regexp_diagnostics = true).")
+DEFINE_BOOL_READONLY(trace_regexp_exec_ool_subjects, false,
+                     "trace regexp execution out-of-line subject strings "
+                     "(requires v8_enable_regexp_diagnostics = true).")
 DEFINE_BOOL_READONLY(trace_regexp_assembler, false,
                      "trace regexp macro assembler calls (requires "
                      "v8_enable_regexp_diagnostics = true).")

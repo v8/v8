@@ -8,6 +8,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/experimental/experimental.h"
@@ -26,6 +27,12 @@
 #include "src/regexp/regexp-utils.h"
 #include "src/strings/string-search.h"
 #include "src/utils/ostreams.h"
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+#if V8_OS_POSIX
+#include <time.h>
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 namespace v8 {
 namespace internal {
@@ -677,7 +684,7 @@ DirectHandle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
 void RegExp::DotPrintForTesting(const char* label, regexp::Node* node) {
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   regexp::DotPrinter::DotPrint(label, node);
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 }
 
 // static
@@ -841,7 +848,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
     PrintF("JSRegExp object (data: %p) needs tier-up compilation\n",
            reinterpret_cast<void*>(re_data->ptr()));
   }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   if (!needs_initial_compilation && !needs_tier_up_compilation) {
     DCHECK(re_data->has_code(is_one_byte));
@@ -992,7 +999,7 @@ bool RegExpImpl::CompileIrregexpFromSource(
                ? re_data->bytecode(is_one_byte)->AllocatedSize()
                : re_data->code(isolate, is_one_byte)->Size());
   }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   return true;
 }
@@ -1046,7 +1053,7 @@ std::unique_ptr<regexp::RegExpMacroAssembler> CreateNativeMacroAssembler(
     return std::make_unique<regexp::RegExpMacroAssemblerTracer>(
         std::move(macro_assembler));
   }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   return macro_assembler;
 }
@@ -1149,7 +1156,7 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
            reinterpret_cast<void*>(re_data->ptr()),
            re_data->code(isolate, is_one_byte)->Size());
   }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   return true;
 }
@@ -1286,7 +1293,7 @@ std::optional<int> RegExpImpl::IrregexpExec(
             "Forcing tier-up for very long strings in "
             "RegExpImpl::IrregexpExec\n");
       }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
     } else if (static_cast<uint32_t>(original_register_count) <
                result_offsets_vector_length) {
       // Tier up because the interpreter doesn't do global execution.
@@ -1298,7 +1305,7 @@ std::optional<int> RegExpImpl::IrregexpExec(
             "mode\n",
             reinterpret_cast<void*>(regexp_data->ptr()));
       }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
     }
   }
 
@@ -1396,7 +1403,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
   if (V8_UNLIKELY(needs_ast_printer || needs_graph_printer)) {
     compiler.set_diagnostics(std::move(diagnostics));
   }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   if (compiler.optimize()) {
     compiler.set_optimize(!TooMuchRegExpCode(isolate, re_data));
@@ -1431,7 +1438,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
   if (V8_UNLIKELY(v8_flags.print_regexp_graph))
     compiler.diagnostics()->graph_printer()->PrintGraph(data->node);
   if (v8_flags.trace_regexp_graph) DotPrinter::DotPrint("Start", data->node);
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   std::unique_ptr<RegExpMacroAssembler> macro_assembler;
   if (data->compilation_target == CompilationTarget::kNative) {
@@ -1456,7 +1463,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
               std::move(macro_assembler));
       macro_assembler = std::move(tracer_macro_assembler);
     }
-#endif
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, re_data));
@@ -1849,5 +1856,123 @@ std::ostream& operator<<(std::ostream& os, Flags flags) {
 }
 
 }  // namespace regexp
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+
+namespace {
+
+int64_t GetHighResNanoseconds() {
+#if V8_OS_POSIX && defined(CLOCK_MONOTONIC)
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+    return static_cast<int64_t>(ts.tv_sec) * 1000000000 + ts.tv_nsec;
+  }
+#endif  // V8_OS_POSIX && defined(CLOCK_MONOTONIC)
+  // Fallback to coarse microsecond precision. Using the internal value isn't
+  // great, but fine as a fallback for tracing-only code.
+  return base::TimeTicks::Now().ToInternalValue() * 1000;
+}
+
+}  // namespace
+
+// Called directly from generated code.
+void RegExp::TraceExecutionBegin(Address isolate_ptr) {
+  DisallowGarbageCollection no_gc;
+  Isolate* isolate = reinterpret_cast<Isolate*>(isolate_ptr);
+
+  const int prev_level = isolate->trace_regexp_exec_nesting_level()++;
+  // Nested executions are not traced.
+  if (prev_level > 0) return;
+  DCHECK(prev_level == 0 || prev_level == -1);
+
+  if (prev_level == -1) {
+    // First use, print the csv header.
+    if (v8_flags.trace_regexp_exec_ool_subjects) {
+      PrintF("time_in_ns,kind,pattern,last_index,subject_string_id\n");
+    } else {
+      PrintF("time_in_ns,kind,pattern,last_index,subject_string\n");
+    }
+    isolate->trace_regexp_exec_nesting_level()++;
+  }
+
+  isolate->trace_regexp_exec_start_ticks() = GetHighResNanoseconds();
+}
+
+// Called directly from generated code.
+// * Subjects are wrapped in eternal_handles s.t. they survive until isolate
+//   shutdown.
+void RegExp::TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
+                               Address subject_ptr, int32_t last_index) {
+  DisallowGarbageCollection no_gc;
+  Isolate* isolate = reinterpret_cast<Isolate*>(isolate_ptr);
+  DCHECK_GT(isolate->trace_regexp_exec_nesting_level(), 0);
+  if (--isolate->trace_regexp_exec_nesting_level() > 0) return;
+
+  int64_t elapsed_ns =
+      GetHighResNanoseconds() - isolate->trace_regexp_exec_start_ticks();
+
+  Tagged<RegExpData> data =
+      SbxCast<RegExpData>(TrustedCast<TrustedObject>(Tagged<Object>(data_ptr)));
+  Tagged<String> subject = Cast<String>(Tagged<Object>(subject_ptr));
+
+  Tagged<String> pattern = data->original_source();
+  JSRegExp::Flags flags = data->flags();
+  const char* engine_type;
+
+  switch (data->type_tag()) {
+    case RegExpData::Type::ATOM:
+      engine_type = "ATOM";
+      break;
+    case RegExpData::Type::EXPERIMENTAL:
+      engine_type = "EXPERIMENTAL";
+      break;
+    case RegExpData::Type::IRREGEXP: {
+      bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject);
+      engine_type = SbxCast<IrRegExpData>(data)->has_bytecode(is_one_byte)
+                        ? "BYTECODE"
+                        : "IRREGEXP";
+      break;
+    }
+  }
+
+  std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
+  JSRegExp::FlagsBuffer flags_buffer;
+  const char* flags_string = JSRegExp::FlagsToString(flags, &flags_buffer);
+
+  if (v8_flags.trace_regexp_exec_ool_subjects) {
+    // For tracing purposes, we simply accept possible hash collisions.
+    uint32_t hash = subject->EnsureHash();
+    int backref_id;
+    auto& hash_to_index = isolate->trace_regexp_exec_subject_hash_to_index();
+    auto it = hash_to_index.find(hash);
+    if (it == hash_to_index.end()) {
+      auto& subject_indices = isolate->trace_regexp_exec_subject_indices();
+      backref_id = static_cast<int>(subject_indices.size());
+      hash_to_index[hash] = backref_id;
+      int eternal_index = -1;
+      isolate->eternal_handles()->Create(isolate, subject, &eternal_index);
+      DCHECK_NE(-1, eternal_index);
+      subject_indices.push_back(eternal_index);
+    } else {
+      backref_id = it->second;
+    }
+
+    PrintF("%" PRId64 ",%s,/%s/%s,%d,%d\n", elapsed_ns, engine_type,
+           pattern_cstring.get(), flags_string, last_index, backref_id);
+  } else {
+    static constexpr int kMaxInlineSubjectLength = 512;
+    std::string subject_string = subject->ToStdString();
+    if (subject_string.length() > kMaxInlineSubjectLength) {
+      subject_string =
+          subject_string.substr(0, kMaxInlineSubjectLength) + "...";
+    }
+
+    PrintF("%" PRId64 ",%s,/%s/%s,%d,\"%s\"\n", elapsed_ns, engine_type,
+           pattern_cstring.get(), flags_string, last_index,
+           subject_string.c_str());
+  }
+}
+#endif
+
 }  // namespace internal
 }  // namespace v8

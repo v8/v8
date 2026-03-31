@@ -1464,6 +1464,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   void IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code);
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  void PrintAndClearRegExpSubjectStrings();
+  int64_t& trace_regexp_exec_start_ticks() {
+    return trace_regexp_exec_start_ticks_;
+  }
+  int& trace_regexp_exec_nesting_level() {
+    return trace_regexp_exec_nesting_level_;
+  }
+  std::vector<int>& trace_regexp_exec_subject_indices() {
+    return trace_regexp_exec_subject_indices_;
+  }
+  std::unordered_map<uint32_t, int>& trace_regexp_exec_subject_hash_to_index() {
+    return trace_regexp_exec_subject_hash_to_index_;
+  }
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
   Debug* debug() const { return debug_; }
 
   bool is_profiling() const {
@@ -2875,6 +2891,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_ = 0;
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  int64_t trace_regexp_exec_start_ticks_ = 0;
+  // -1 is used to print the csv header on first use.
+  int trace_regexp_exec_nesting_level_ = -1;
+  // Indices into EternalHandles for OOL subject strings.
+  std::vector<int> trace_regexp_exec_subject_indices_;
+  std::unordered_map<uint32_t, int> trace_regexp_exec_subject_hash_to_index_;
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   size_t elements_deletion_counter_ = 0;
 

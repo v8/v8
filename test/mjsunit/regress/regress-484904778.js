@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 var p = "A";
-for (var i = 0; i < 15000; i++) p = "(" + p + ")";
+for (var i = 0; i < 30000; i++) p = "(" + p + ")";
 
 try {
   // Should not crash with a stack overflow.
