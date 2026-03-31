@@ -3454,7 +3454,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   // Same as above, but no allocations, no GC run, and no progress report.
   SafepointScope scope(heap_->isolate(), kGlobalSafepointForSharedSpaceIsolate);
-  heap_->CompleteSweepingFull(CompleteSweepingReason::kHeapSnapshot);
+  // There is short gap between leaving the GC's safepoint and entering the
+  // snapshot's safepoint above. It is necessary to not only complete sweeping,
+  // but also ensure that linear allocation areas are iterable.
+  heap_->MakeHeapIterable(CompleteSweepingReason::kHeapSnapshot);
   auto temporary_native_context_tags =
       v8_heap_explorer_.CollectTemporaryNativeContextTags();
   NullContextForSnapshotScope null_context_scope(heap_->isolate());
