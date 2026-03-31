@@ -1939,6 +1939,11 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
       entry, "raw_outer_scope_info_or_feedback_metadata",
       shared->raw_outer_scope_info_or_feedback_metadata(),
       SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset);
+
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
+             shared->StartPosition());
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
+             shared->EndPosition());
 }
 
 void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
@@ -2794,6 +2799,21 @@ void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
   if (child_entry == nullptr) return;
   parent_entry->SetIndexedReference(HeapGraphEdge::kElement, index, child_entry,
                                     generator_);
+}
+
+void V8HeapExplorer::AddIntEdge(HeapEntry* parent_entry,
+                                HeapGraphEdge::Type type,
+                                const char* reference_name, int value) {
+  SnapshotObjectId id = heap_object_map_->get_next_id();
+  HeapEntry* entry =
+      snapshot_->AddEntry(HeapEntry::kHeapNumber, "int", id, 0, 0);
+  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
+
+  HeapEntry* value_entry =
+      snapshot_->AddEntry(HeapEntry::kString, names_->GetFormatted("%d", value),
+                          heap_object_map_->get_next_id(), 0, 0);
+  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
+                           generator_);
 }
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,

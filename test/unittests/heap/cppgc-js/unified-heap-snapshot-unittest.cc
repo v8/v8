@@ -23,6 +23,7 @@
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/profiler/heap-snapshot-utils.h"
 
 namespace cppgc {
 
@@ -231,31 +232,6 @@ void CheckSize(const v8::HeapSnapshot* snapshot, const char* name,
 template <typename T>
 size_t GetCppSize(T* object) {
   return cppgc::internal::HeapObjectHeader::FromObject(object).AllocatedSize();
-}
-
-const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name) {
-  for (int i = 0; i < entry.children_count(); ++i) {
-    const HeapGraphEdge* edge = entry.child(i);
-    switch (edge->type()) {
-      case HeapGraphEdge::kContextVariable:
-      case HeapGraphEdge::kProperty:
-      case HeapGraphEdge::kInternal:
-      case HeapGraphEdge::kShortcut:
-      case HeapGraphEdge::kWeak:
-        if (edge->name() != nullptr && strcmp(edge->name(), name) == 0) {
-          return edge;
-        }
-        break;
-      case HeapGraphEdge::kElement:
-      case HeapGraphEdge::kHidden:
-        break;
-    }
-  }
-  return nullptr;
-}
-
-bool HasNamedEdge(const HeapEntry& entry, const char* name) {
-  return GetNamedEdge(entry, name);
 }
 
 }  // namespace

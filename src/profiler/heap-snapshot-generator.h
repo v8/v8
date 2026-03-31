@@ -573,6 +573,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                             Tagged<Object> child);
   void SetElementReference(HeapEntry* parent_entry, int index,
                            Tagged<Object> child);
+  void AddIntEdge(HeapEntry* parent_entry, HeapGraphEdge::Type type,
+                  const char* reference_name, int value);
   void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
                             Tagged<Object> child, int field_offset = -1);
   void SetInternalReference(HeapEntry* parent_entry, int index,
