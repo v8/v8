@@ -27,9 +27,14 @@ LoadHandler::Kind LoadHandler::GetHandlerKind(Tagged<Smi> smi_handler) {
   return KindBits::decode(smi_handler.value());
 }
 
-Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate) {
-  int config = KindBits::encode(Kind::kNormal);
-  return handle(Smi::FromInt(config), isolate);
+Handle<Smi> LoadHandler::LoadNormal(Isolate* isolate, InternalIndex entry) {
+  auto encoding = KindBits::encode(Kind::kNormal);
+  encoding =
+      entry.is_found() && entry.as_uint32() < DictionaryIndexBits::kMax
+          ? DictionaryIndexBits::update(encoding, entry.as_uint32())
+          : DictionaryIndexBits::update(encoding, DictionaryIndexBits::kMax);
+
+  return handle(Smi::FromInt(encoding), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadGlobal(Isolate* isolate) {

@@ -97,6 +97,15 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   static_assert(DescriptorBits::kLastUsedBit < kSmiValueSize);
 
   //
+  // Encoding when KindBits contains kNormal.
+  //
+
+  // Index of a value entry in the dictionary.
+  using DictionaryIndexBits = LookupOnLookupStartObjectBits::Next<unsigned, 24>;
+  // Make sure we don't overflow the smi.
+  static_assert(DictionaryIndexBits::kLastUsedBit < kSmiValueSize);
+
+  //
   // Encoding when KindBits contains kField.
   //
   using IsWasmStructBits = LookupOnLookupStartObjectBits::Next<bool, 1>;
@@ -169,7 +178,7 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   static inline Kind GetHandlerKind(Tagged<Smi> smi_handler);
 
   // Creates a Smi-handler for loading a property from a slow object.
-  static inline Handle<Smi> LoadNormal(Isolate* isolate);
+  static inline Handle<Smi> LoadNormal(Isolate* isolate, InternalIndex entry);
 
   // Creates a Smi-handler for loading a property from a global object.
   static inline Handle<Smi> LoadGlobal(Isolate* isolate);

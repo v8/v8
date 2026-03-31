@@ -1000,18 +1000,99 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&normal);
   {
     Comment("load_normal");
-    TNode<PropertyDictionary> properties =
-        CAST(LoadSlowProperties(CAST(holder)));
+    TNode<HeapObject> properties = LoadSlowProperties(CAST(holder));
+
     TVARIABLE(IntPtrT, var_name_index);
-    Label found(this, &var_name_index);
-    NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+    Label found(this);
+    Label lookup(this);
+    uint32_t encoding =
+        LoadHandler::KindBits::encode(LoadHandler::Kind::kNormal);
+    encoding = LoadHandler::DictionaryIndexBits::update(
+        encoding, LoadHandler::DictionaryIndexBits::kMax);
+    TNode<Uint32T> max_normal_handler = Uint32Constant(encoding);
+
+    GotoIf(Word32Equal(handler_word, max_normal_handler), &lookup);
+
+    TNode<Uint32T> index =
+        DecodeWord32<LoadHandler::DictionaryIndexBits>(handler_word);
+
+    {
+      TNode<IntPtrT> index_ptr = Signed(ChangeUint32ToWord(index));
+      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        TNode<Uint32T> capacity =
+            Unsigned(LoadSwissNameDictionaryCapacity(CAST(properties)));
+        GotoIf(Uint32GreaterThanOrEqual(index, capacity), &lookup);
+        TNode<Object> key =
+            LoadSwissNameDictionaryKey(CAST(properties), index_ptr);
+        GotoIf(TaggedNotEqual(key, p->name()), &lookup);
+        var_name_index = index_ptr;
+      } else {
+        TNode<IntPtrT> element_index = EntryToIndex<NameDictionary>(index_ptr);
+        TNode<IntPtrT> properties_length =
+            LoadAndUntagFixedArrayBaseLength(CAST(properties));
+        GotoIf(UintPtrGreaterThanOrEqual(element_index, properties_length),
+               &lookup);
+        static_assert(NameDictionary::kEntryKeyIndex == 0);
+        TNode<Object> key =
+            LoadFixedArrayElement(CAST(properties), element_index);
+        GotoIf(TaggedNotEqual(key, p->name()), &lookup);
+        var_name_index = element_index;
+      }
+      Goto(&found);
+    }
+
+    BIND(&lookup);
+    NameDictionaryLookup<PropertyDictionary>(CAST(properties), CAST(p->name()),
                                              &found, &var_name_index, miss);
+
     BIND(&found);
     {
+      {
+        Comment("Update LRU dictionary index");
+        Label done_update(this);
+        // We might arrive here without a vector (e.g. via the megamorphic
+        // stub cache or generic ICs).
+        TNode<HeapObject> vector = p->vector();
+        GotoIf(IsUndefined(vector), &done_update);
+        TNode<MaybeObject> current_handler =
+            LoadFeedbackVectorSlot(CAST(vector), p->slot(), kTaggedSize);
+
+        // Atm we only update the handler in the monomorphic case, as doing it
+        // for other cases is too expensive.
+        GotoIfNot(TaggedEqual(current_handler, handler), &done_update);
+
+        TNode<Uint32T> new_index;
+        if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          new_index = Unsigned(TruncateIntPtrToInt32(var_name_index.value()));
+        } else {
+          TNode<IntPtrT> entry_index = IntPtrDiv(
+              IntPtrSub(var_name_index.value(),
+                        IntPtrConstant(NameDictionary::kElementsStartIndex)),
+              IntPtrConstant(NameDictionary::kEntrySize));
+          new_index = Unsigned(TruncateIntPtrToInt32(entry_index));
+        }
+
+        GotoIf(Word32Equal(new_index, index), &done_update);
+        GotoIf(Uint32GreaterThanOrEqual(
+                   new_index,
+                   Uint32Constant(LoadHandler::DictionaryIndexBits::kMax)),
+               &done_update);
+
+        TNode<Word32T> new_handler_word =
+            UpdateWord32<LoadHandler::DictionaryIndexBits>(handler_word,
+                                                           new_index);
+        StoreFeedbackVectorSlot(CAST(vector),
+                                Unsigned(TaggedIndexToIntPtr(p->slot())),
+                                SmiFromInt32(Signed(new_handler_word)),
+                                SKIP_WRITE_BARRIER, kTaggedSize);
+        Goto(&done_update);
+        BIND(&done_update);
+      }
+
       TVARIABLE(Uint32T, var_details);
       TVARIABLE(Object, var_value);
       LoadPropertyFromDictionary<PropertyDictionary>(
-          properties, var_name_index.value(), &var_details, &var_value);
+          CAST(properties), var_name_index.value(), &var_details, &var_value);
 
       ExpectedReceiverMode expected_receiver_mode =
           p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;

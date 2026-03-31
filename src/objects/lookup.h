@@ -148,6 +148,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         DirectHandle<JSAny> receiver,
                         DirectHandle<Symbol> name);
 
+  inline InternalIndex descriptor_number() const;
+  inline InternalIndex dictionary_entry() const;
+
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);
@@ -367,8 +370,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
-  inline InternalIndex descriptor_number() const;
-  inline InternalIndex dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(Isolate* isolate,
                                                    Configuration configuration,
