@@ -41,7 +41,7 @@ Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // the kUnknownIndirectPointerTag. Since we can then no longer rely on the
   // type-checking mechanism of trusted pointers we need to perform manual type
   // checks afterwards.
-  Tagged<Object> object = code_object_.load_maybe_empty(isolate, kAcquireLoad);
+  Tagged<Object> object = code_object_.Acquire_Load_maybe_empty(isolate);
   return CheckedCast<Union<Code, BytecodeArray>>(object);
 }
 
