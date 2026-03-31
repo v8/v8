@@ -1657,10 +1657,6 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   VisitRRR(this, kArmMul, node);
 }
 
-void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   ArmOperandGenerator g(this);

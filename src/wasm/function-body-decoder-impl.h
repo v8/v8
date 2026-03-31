@@ -1502,8 +1502,6 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(BrOnNonNull, const Value& ref_object, Value* result, uint32_t depth,       \
     bool drop_null_on_fallthrough)                                             \
   F(SimdOp, WasmOpcode opcode, const Value args[], Value* result)              \
-  F(WideOp2, WasmOpcode opcode, const Value& lhs, const Value& rhs,            \
-    Value* result_low, Value* result_high)                                     \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate& imm,               \
     base::Vector<const Value> inputs, Value* result)                           \
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
@@ -7795,27 +7793,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return DecodeStoreMem(StoreType::kF32StoreF16, 2);
       }
       case kExprI64Add128:
-      case kExprI64Sub128: {
+      case kExprI64Sub128:
+      case kExprI64MulWideS:
+      case kExprI64MulWideU: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
         // TODO(491766259): Implement wide arithmetic opcodes.
         this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
         return 0;
-      }
-      case kExprI64MulWideS:
-      case kExprI64MulWideU: {
-        CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64
-
-        auto [a, b] = Pop(kWasmI64, kWasmI64);
-        Value* result_l = Push(kWasmI64);
-        Value* result_h = Push(kWasmI64);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp2, opcode, a, b, result_l,
-                                           result_h);
-        return opcode_length;
-#else
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
-#endif
       }
       default:
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);

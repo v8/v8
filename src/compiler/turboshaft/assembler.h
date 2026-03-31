@@ -4731,11 +4731,6 @@ class AssemblerOpInterface : public Next {
                                             right_high, kind);
   }
 
-  V<Tuple<Word64, Word64>> Word64MulWide(V<Word64> left, V<Word64> right,
-                                         Word64MulWideOp::Kind kind) {
-    return ReduceIfReachableWord64MulWide(left, right, kind);
-  }
-
   V<Word32> StringAt(V<String> string, V<WordPtr> position,
                      StringAtOp::Kind kind) {
     return ReduceIfReachableStringAt(string, position, kind);

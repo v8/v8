@@ -569,8 +569,6 @@ class X64OperandGenerator final : public OperandGenerator {
       case kX64Push:
       case kX64Cmp:
       case kX64Test:
-      case kX64ImulWide:
-      case kX64UmulWide:
         // When pointer compression is enabled 64-bit memory operands can't be
         // used for tagged values.
         return rep == MachineRepresentation::kWord64 ||
@@ -2409,48 +2407,7 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt64MulHigh(OpIndex node) {
-  // We only need half of the result, but the machine instruction is the same
-  // as the wide (128 bit result) version.
-  VisitMulHigh(this, node, kX64ImulWide);
-}
-
-void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  X64OperandGenerator g(this);
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  InstructionCode opcode = is_signed ? kX64ImulWide : kX64UmulWide;
-
-  const auto& op = this->Get(node).Cast<Word64MulWideOp>();
-  V<Word64> lhs = op.left();
-  V<Word64> rhs = op.right();
-  inputs[input_count++] = g.UseFixed(lhs, rax);
-  int effect_level = this->GetEffectLevel(node);
-  if (g.CanBeMemoryOperand(opcode, node, rhs, effect_level)) {
-    AddressingMode addressing_mode =
-        g.GetEffectiveAddressMemoryOperand(rhs, inputs, &input_count);
-    opcode |= AddressingModeField::encode(addressing_mode);
-  } else {
-    // TODO(thibaudm): Make sure that live ranges are never split at
-    // instructions (only at gaps), then switch to {g.Use(rhs)} here.
-    // inputs[input_count++] = g.Use(rhs);
-    inputs[input_count++] = g.UseUnique(rhs);
-  }
-  DCHECK_GE(arraysize(inputs), input_count);
-
-  InstructionOperand temps[1];
-  size_t temp_count = 0;
-
-  outputs[output_count++] = g.DefineAsFixed(node, rax);
-  OptionalOpIndex out_high = FindProjection(node, 1);
-  if (out_high.valid()) {
-    outputs[output_count++] = g.DefineAsFixed(out_high.value(), rdx);
-  } else {
-    temps[temp_count++] = g.TempRegister(rdx);
-  }
-  DCHECK_GE(arraysize(outputs), output_count);
-  Emit(opcode, output_count, outputs, input_count, inputs, temp_count, temps);
+  VisitMulHigh(this, node, kX64ImulHigh64);
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
@@ -2490,9 +2447,7 @@ void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
 }
 
 void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
-  // We only need half of the result, but the machine instruction is the same
-  // as the wide (128 bit result) version.
-  VisitMulHigh(this, node, kX64UmulWide);
+  VisitMulHigh(this, node, kX64UmulHigh64);
 }
 
 // TryTruncateFloat32ToInt64 and TryTruncateFloat64ToInt64 operations attempt

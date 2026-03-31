@@ -1588,17 +1588,6 @@ void InstructionSelector::MarkPairProjectionsAsWord32(OpIndex node) {
   }
 }
 
-void InstructionSelector::MarkPairProjectionsAsWord64(OpIndex node) {
-  OptionalOpIndex projection0 = FindProjection(node, 0);
-  if (projection0.valid()) {
-    MarkAsWord64(projection0.value());
-  }
-  OptionalOpIndex projection1 = FindProjection(node, 1);
-  if (projection1.valid()) {
-    MarkAsWord64(projection1.value());
-  }
-}
-
 void InstructionSelector::ConsumeEqualZero(OpIndex* user, OpIndex* value,
                                            FlagsContinuation* cont) {
   // Try to combine with comparisons against 0 by simply inverting the branch.
@@ -2079,7 +2068,7 @@ void InstructionSelector::VisitProjection(OpIndex node) {
   const Operation& value_op = this->Get(projection.input());
   if (value_op.Is<OverflowCheckedBinopOp>() ||
       value_op.Is<OverflowCheckedUnaryOp>() || value_op.Is<TryChangeOp>() ||
-      value_op.Is<Word32PairBinopOp>() || value_op.Is<Word64MulWideOp>()) {
+      value_op.Is<Word32PairBinopOp>()) {
     if (projection.index == 0u) {
       EmitIdentity(node);
     } else {
@@ -3263,17 +3252,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
           case FloatBinopOp::Kind::kAtan2:
             return VisitFloat64Atan2(node);
         }
-      }
-      UNREACHABLE();
-    }
-    case Opcode::kWord64MulWide: {
-      const Word64MulWideOp& wideop = op.Cast<Word64MulWideOp>();
-      MarkPairProjectionsAsWord64(node);
-      switch (wideop.kind) {
-        case Word64MulWideOp::Kind::kSigned:
-          return VisitWord64MulWide(node, true);
-        case Word64MulWideOp::Kind::kUnsigned:
-          return VisitWord64MulWide(node, false);
       }
       UNREACHABLE();
     }

@@ -2763,10 +2763,6 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitRRR(this, kArm64Mul, node);
 }
 
-void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
-}
-
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 void VisitExtMul(InstructionSelector* selector, ArchOpcode opcode, OpIndex node,

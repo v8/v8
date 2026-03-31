@@ -2994,11 +2994,6 @@ class LiftoffCompiler {
     }
   }
 
-  void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
-               const Value& rhs_val, Value* result_low, Value* result_high) {
-    unsupported(decoder, kUnsupportedArchitecture, "wide multiplication");
-  }
-
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
 #if V8_TARGET_ARCH_X64
     __ emit_trace_instruction(markid);

@@ -1394,7 +1394,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);
   void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
-  void VisitWord64MulWide(turboshaft::OpIndex node, bool is_signed);
 
   void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 
@@ -1518,7 +1517,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       const turboshaft::ComparisonOp& op) const;
 
   void MarkPairProjectionsAsWord32(turboshaft::OpIndex node);
-  void MarkPairProjectionsAsWord64(turboshaft::OpIndex node);
   bool IsSourcePositionUsed(turboshaft::OpIndex node);
   void VisitWord32AtomicBinaryOperation(turboshaft::OpIndex node,
                                         ArchOpcode int8_op, ArchOpcode uint8_op,
