@@ -25,6 +25,7 @@
 
 namespace v8::base {
 void CPU::DetectFeatures() {
+#if V8_HOST_ARCH_MIPS64
   // Simple detection of FPU at runtime for Linux.
   // It is based on /proc/cpuinfo, which reveals hardware configuration
   // to user-space applications.  According to MIPS (early 2010), no similar
@@ -37,5 +38,6 @@ void CPU::DetectFeatures() {
   has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
   delete[] ASEs;
+#endif  // V8_HOST_ARCH_MIPS64
 }
 }  // namespace v8::base

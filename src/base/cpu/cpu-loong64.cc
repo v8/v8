@@ -20,11 +20,13 @@
 
 #include <algorithm>
 
+#include "src/base/cpu/cpu-helper.h"
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 
 namespace v8::base {
 #if V8_OS_LINUX
+#if V8_HOST_ARCH_LOONG64
 
 #define LOONGARCH_CFG2 0x2
 #define LOONGARCH_CFG2_LSX (1 << 6)
@@ -37,8 +39,11 @@ static int cpu_flags_cpucfg(int cfg) {
 
   return flags;
 }
+#endif  // V8_HOST_ARCH_LOONG64
 #endif  // V8_OS_LINUX
+
 void CPU::DetectFeatures() {
+#if V8_HOST_ARCH_LOONG64
   CPUInfo cpu_info;
   int flags = cpu_flags_cpucfg(LOONGARCH_CFG2);
   if (flags != 0) {
@@ -50,5 +55,6 @@ void CPU::DetectFeatures() {
     has_lasx_ = HasListItem(features, "lasx");
     delete[] features;
   }
+#endif  // V8_HOST_ARCH_LOONG64
 }
 }  // namespace v8::base

@@ -7181,8 +7181,8 @@ v8_component("v8_libbase") {
     sources += [ "src/base/cpu/cpu-riscv.cc" ]
   } else if (target_cpu == "loong64") {
     sources += [ "src/base/cpu/cpu-loong64.cc" ]
-  } else if (target_cpu == "mips64") {
-    sources += [ "src/base/cpu/cpu-mips.cc" ]
+  } else if (target_cpu == "mips64" || target_cpu == "mips64el") {
+    sources += [ "src/base/cpu/cpu-mips64.cc" ]
   } else if (target_cpu == "ppc64") {
     sources += [ "src/base/cpu/cpu-ppc.cc" ]
   } else if (target_cpu == "s390x") {
