@@ -722,11 +722,12 @@ class LoopLabel : public LabelBase<true, Ts...> {
       SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     if (loop_header_data_.block->IsBound()) {
-      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
-               "TSA: Trying to BIND a Label that is already bound. The Label "
-               "is defined here: %s, line %d",
-               loop_header_data_.def_location.FileName(),
-               static_cast<int>(loop_header_data_.def_location.Line()));
+      FATAL_WITH_LOC(
+          bind_location,
+          "TSA: Trying to BIND a Label that is already bound. The Label "
+          "is defined here: %s, line %d",
+          loop_header_data_.def_location.FileName(),
+          static_cast<int>(loop_header_data_.def_location.Line()));
     }
 #endif
     if (!assembler.Bind(loop_header_data_.block, bind_location)) {
@@ -5590,28 +5591,29 @@ class AssemblerOpInterface : public Next {
 
  private:
 #ifdef DEBUG
-#define REDUCE_OP(Op)                                                        \
-  template <class... Args>                                                   \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
-      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {                   \
-        const auto location = SourceLocation::Current();                     \
-        V8_Fatal(location.FileName(), static_cast<int>(location.Line()),     \
-                 "TSA: Trying to emit an operation while no Block/Label is " \
-                 "bound. Most likely you are missing to Bind/BIND a new "    \
-                 "Block/Label after an unconditional jump.");                \
-      }                                                                      \
-      return OpIndex::Invalid();                                             \
-    }                                                                        \
-    OpIndex result = Asm().Reduce##Op(args...);                              \
-    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                       \
-      if (Asm().current_block() == nullptr) {                                \
-        /* The input operation was not a block terminator, but a reducer     \
-         * lowered it into a block terminator. */                            \
-        Asm().set_conceptually_in_a_block(true);                             \
-      }                                                                      \
-    }                                                                        \
-    return result;                                                           \
+#define REDUCE_OP(Op)                                                    \
+  template <class... Args>                                               \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {        \
+      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {               \
+        const auto location = SourceLocation::Current();                 \
+        FATAL_WITH_LOC(                                                  \
+            location,                                                    \
+            "TSA: Trying to emit an operation while no Block/Label is "  \
+            "bound. Most likely you are missing to Bind/BIND a new "     \
+            "Block/Label after an unconditional jump.");                 \
+      }                                                                  \
+      return OpIndex::Invalid();                                         \
+    }                                                                    \
+    OpIndex result = Asm().Reduce##Op(args...);                          \
+    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                   \
+      if (Asm().current_block() == nullptr) {                            \
+        /* The input operation was not a block terminator, but a reducer \
+         * lowered it into a block terminator. */                        \
+        Asm().set_conceptually_in_a_block(true);                         \
+      }                                                                  \
+    }                                                                    \
+    return result;                                                       \
   }
 #else
 #define REDUCE_OP(Op)                                                        \
@@ -5790,8 +5792,8 @@ class Assembler : public AssemblerData,
 #ifdef DEBUG
     // Did you forget to terminate the previous block?
     if (V8_UNLIKELY(current_block_ != nullptr)) {
-      V8_Fatal(
-          bind_location.FileName(), static_cast<int>(bind_location.Line()),
+      FATAL_WITH_LOC(
+          bind_location,
           "TSA: Cannot bind a new Block/Label without terminating the previous "
           "block. Most likely you are missing an unconditional Goto/GOTO.");
     }

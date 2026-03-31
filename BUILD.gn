@@ -514,9 +514,25 @@ declare_args() {
 
   # Enable compilation of riscv32.
   v8_riscv_enable_deprecated_riscv32 = false
+
+  # Sets the level of logging detail in V8_Fatal.
+  # 0: No file and line and message only if args are provided (for official
+  #    release builds).
+  # 1: Message but no file or line.
+  # 2: Everything (file, line, message).
+  v8_logging_level = ""
 }
 
 # Derived defaults.
+if (v8_logging_level == "") {
+  if (v8_enable_verification_features || v8_dcheck_always_on) {
+    v8_logging_level = 2
+  } else if (is_official_build) {
+    v8_logging_level = 0
+  } else {
+    v8_logging_level = 1
+  }
+}
 if (cppgc_enable_verify_heap == "") {
   cppgc_enable_verify_heap =
       v8_enable_verification_features || v8_dcheck_always_on
@@ -1218,8 +1234,10 @@ config("features") {
   # Only targets in this file and its subdirs can depend on this.
   visibility = [ "./*" ]
 
-  defines =
-      [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
+  defines = [
+    "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}",
+    "V8_LOGGING_LEVEL=${v8_logging_level}",
+  ]
 
   configs = [
     ":v8_header_features",

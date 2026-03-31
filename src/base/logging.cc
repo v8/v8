@@ -55,10 +55,9 @@ std::string PrettyPrintChar(int ch) {
 }
 
 void DefaultDcheckHandler(const char* file, int line, const char* message) {
-#ifdef DEBUG
+#if V8_LOGGING_LEVEL == 2
   V8_Fatal(file, line, "Debug check failed: %s.", message);
 #else
-  // This case happens only for unit tests.
   V8_Fatal("Debug check failed: %s.", message);
 #endif
 }
@@ -185,7 +184,7 @@ class FailureMessage {
 
 }  // namespace
 
-#ifdef DEBUG
+#if V8_LOGGING_LEVEL == 2
 void V8_Fatal(const char* file, int line, const char* format, ...) {
 #else
 void V8_Fatal(const char* format, ...) {
@@ -210,16 +209,24 @@ void V8_Fatal(const char* format, ...) {
   if (v8::base::ControlledCrashesAreHarmless()) {
     // In this case, instead of crashing the process will be terminated
     // normally by OS::Abort. Make this clear in the output printed to stderr.
+#if V8_LOGGING_LEVEL == 2
     v8::base::OS::PrintError(
         "\n\n#\n# Safely terminating process due to error in %s, line %d\n# ",
         file, line);
+#else
+    v8::base::OS::PrintError("\n\n#\n# Safely terminating process\n# ");
+#endif
     // Also prefix the error message (printed below). This has two purposes:
     // (1) it makes it clear that this error is deemed "safe" (2) it causes
     // fuzzers that pattern-match on stderr output to ignore these failures.
     v8::base::OS::PrintError("The following harmless error was encountered: ");
   } else {
+#if V8_LOGGING_LEVEL == 2
     v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                              line);
+#else
+    v8::base::OS::PrintError("\n\n#\n# Fatal error\n# ");
+#endif
   }
 
   // Print the error message.
@@ -236,12 +243,22 @@ void V8_Fatal(const char* format, ...) {
   v8::base::OS::Abort();
 }
 
+#if V8_LOGGING_LEVEL == 2
 void V8_Dcheck(const char* file, int line, const char* message) {
+#else
+void V8_Dcheck(const char* message) {
+  const char* file = "";
+  int line = 0;
+#endif
   if (v8::base::DcheckFailuresAreIgnored()) {
     // In this mode, DCHECK failures don't lead to process termination.
+#if V8_LOGGING_LEVEL == 2
     v8::base::OS::PrintError(
         "# Ignoring debug check failure in %s, line %d: %s\n", file, line,
         message);
+#else
+    v8::base::OS::PrintError("# Ignoring debug check failure: %s\n", message);
+#endif
     return;
   }
 
