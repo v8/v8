@@ -1718,6 +1718,10 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   }
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitMulHigh(this, node, kIA32ImulHigh);
 }

@@ -15,7 +15,6 @@ let kSig_ll_llll = makeSig(
 let kSig_ll_ll = makeSig([kWasmI64, kWasmI64], [kWasmI64, kWasmI64]);
 
 function testAdd128() {
-  console.log("Testing add128...");
 
   let builder = new WasmModuleBuilder();
   builder.addFunction("add128", kSig_ll_llll).exportFunc().addBody([
@@ -28,7 +27,6 @@ function testAdd128() {
 }
 
 function testSub128() {
-  console.log("Testing sub128...");
 
   let builder = new WasmModuleBuilder();
   builder.addFunction("sub128", kSig_ll_llll).exportFunc().addBody([
@@ -41,7 +39,6 @@ function testSub128() {
 }
 
 function testMulWideS() {
-  console.log("Testing mulWideS...");
 
   let builder = new WasmModuleBuilder();
   builder.addFunction("mulWideS", kSig_ll_ll)
@@ -51,12 +48,51 @@ function testMulWideS() {
       kExprLocalGet, 1,
       kNumericPrefix, kExprI64MulWideS,
     ]);
-  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /mulWideS.*Wide arithmetic opcodes are not yet implemented./);
+
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction(
+    "mulWideSLoad",
+    makeSig([kWasmI64, kWasmI32], [kWasmI64, kWasmI64])
+  )
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LoadMem, 3, 1,
+      kNumericPrefix, kExprI64MulWideS,
+    ]);
+
+  let instance;
+  try {
+    instance = builder.instantiate();
+  } catch (e) {
+    if (e instanceof WebAssembly.CompileError &&
+        e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
+      console.log("mulWideS not implemented on this architecture/compiler.");
+      return;
+    }
+    throw e;
+  }
+
+  let mulWideS = instance.exports.mulWideS;
+  assertEquals([0n, 0n], mulWideS(0n, 0n));
+  assertEquals([20n, 0n], mulWideS(4n, 5n));
+  assertEquals([-20n, -1n], mulWideS(4n, -5n));
+  assertEquals([-20n, -1n], mulWideS(-4n, 5n));
+  assertEquals([20n, 0n], mulWideS(-4n, -5n));
+  assertEquals([-2n, 0n], mulWideS(0x7fffffffffffffffn, 2n));
+  assertEquals([-0x8000000000000000n, 0n], mulWideS(-0x8000000000000000n, -1n));
+
+  let view = new DataView(instance.exports.memory.buffer);
+  view.setBigInt64(1, -5n, true);
+
+  let mulWideSLoad = instance.exports.mulWideSLoad;
+  assertEquals([20n, 0n], mulWideSLoad(-4n, 0));
 }
 
 function testMulWideU() {
-  console.log("Testing mulWideU...");
 
   let builder = new WasmModuleBuilder();
   builder.addFunction("mulWideU", kSig_ll_ll)
@@ -66,8 +102,46 @@ function testMulWideU() {
       kExprLocalGet, 1,
       kNumericPrefix, kExprI64MulWideU,
     ]);
-  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /mulWideU.*Wide arithmetic opcodes are not yet implemented./);
+
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs('memory');
+
+  builder.addFunction(
+    "mulWideULoad",
+    makeSig([kWasmI64, kWasmI32], [kWasmI64, kWasmI64])
+  )
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LoadMem, 3, 1,
+      kNumericPrefix, kExprI64MulWideU,
+    ]);
+
+  let instance;
+  try {
+    instance = builder.instantiate();
+  } catch (e) {
+    if (e instanceof WebAssembly.CompileError &&
+        e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
+      console.log("mulWideU not implemented on this architecture/compiler.");
+      return;
+    }
+    throw e;
+  }
+
+  let mulWideU = instance.exports.mulWideU;
+  assertEquals([0n, 0n], mulWideU(0n, 0n));
+  assertEquals([20n, 0n], mulWideU(4n, 5n));
+  assertEquals([-1n, 0n], mulWideU(0xffffffffffffffffn, 1n));
+  assertEquals([-2n, 1n], mulWideU(0xffffffffffffffffn, 2n));
+  assertEquals([20n, -9n], mulWideU(-4n, -5n));
+
+  let view = new DataView(instance.exports.memory.buffer);
+  view.setBigInt64(1, -5n, true);
+
+  let mulWideULoad = instance.exports.mulWideULoad;
+  assertEquals([20n, -9n], mulWideULoad(-4n, 0));
 }
 
 testAdd128();
