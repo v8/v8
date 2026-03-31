@@ -15,5 +15,7 @@ builder.addFunction("main", makeSig([kWasmStringRef], [kWasmI32])).exportFunc()
     kGCPrefix, kExprRefTestNull, kAnyRefCode,
     kExprEnd,
   ]);
-const instance = builder.instantiate();
-assertEquals(0, instance.exports.main("foo"));
+
+assertThrows(
+    () => builder.instantiate(), WebAssembly.CompileError,
+    /type stringview_iter has to be in the same reference type hierarchy/);

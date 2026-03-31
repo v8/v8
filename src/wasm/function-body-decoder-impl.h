@@ -6589,6 +6589,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType target_type = ValueType::RefMaybeNull(
         target_imm.type, null_succeeds ? kNullable : kNonNullable);
 
+    if (V8_UNLIKELY(this->enabled_.has_stringref())) {
+      if (!VALIDATE(
+              (!src_type.is_string_view() || !src_type.is_nullable()) &&
+              (!target_type.is_string_view() || !target_type.is_nullable()))) {
+        this->DecodeError("nullable string views don't exist");
+        return 0;
+      }
+    }
+
     if (V8_UNLIKELY(this->enabled_.has_custom_descriptors())) {
       // Custom descriptors relaxes the requirement that the target type be a
       // subtype of the source type for all br_on_cast variants.

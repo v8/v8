@@ -357,7 +357,7 @@ HeapType NullSentinelImpl(HeapType type) {
   if (type.is_string_view()) {
     // TODO(12868): This special case reflects unresolved discussion. If string
     // views aren't nullable, they shouldn't really show up here at all.
-    return HeapType::Generic(GenericKind::kNone, type.is_shared());
+    return type;
   }
   UNREACHABLE();
 }
