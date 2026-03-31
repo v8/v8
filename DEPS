@@ -30,6 +30,8 @@ vars = {
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
+  # Checkout extra benchmarks.
+  'checkout_benchmarks': False,
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,6 +80,9 @@ vars = {
   # This variable is overrided in Chromium's DEPS file.
   'build_with_chromium': False,
 
+  # Repository URL
+  'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
+
   # GN CIPD package version.
   'gn_version': 'git_revision:b2ac0e7a9089039e62b84d246eca83f84c540f76',
 
@@ -118,6 +123,10 @@ vars = {
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
   'android_sdk_cmdline-tools_version': 'gekOVsZjseS1w9BXAT3FsoW__ByGDJYS9DgqesiwKYoC',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling jetstream_3.0-custom_revision
+  # and whatever else without interference from each other.
+  'jetstream_3.0-custom_revision': '3900fef9ac8e3f789b973682646fe99dad8861f5',
 }
 
 deps = {
@@ -165,8 +174,13 @@ deps = {
     'dep_type': 'cipd',
     'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64" and (host_cpu != "arm64" or host_os == "mac")',
   },
+  # TODO(498118202): Use checkout_benchmarks here too.
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
+  'test/benchmarks/JetStream3': {
+    'url': Var('chromium_jetstream_git') + '@' + Var('jetstream_3.0-custom_revision'),
+    'condition': 'checkout_benchmarks',
+  },
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
