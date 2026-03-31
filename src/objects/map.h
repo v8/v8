@@ -142,6 +142,8 @@ enum VisitorId {
 #undef VISITOR_ID_ENUM_DECL
 };
 
+V8_EXPORT_PRIVATE const char* ToString(VisitorId visitor_id);
+
 enum class ObjectFields {
   kDataOnly,
   kMaybePointers,

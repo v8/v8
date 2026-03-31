@@ -301,6 +301,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
       InitLineEndsInternal(IsolateT* isolate, DirectHandle<Script> script);
 };
 
+V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
+
 }  // namespace internal
 }  // namespace v8
 

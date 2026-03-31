@@ -2700,4 +2700,23 @@ void NormalizedMapCache::Set(Isolate* isolate, DirectHandle<Map> fast_map,
                       MakeWeak(*normalized_map));
 }
 
+const char* ToString(VisitorId visitor_id) {
+  switch (visitor_id) {
+#define VISITOR_ID_CASE_DECL(id) \
+  case kVisit##id:               \
+    return #id;
+    DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TRUSTED_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+#undef VISITOR_ID_CASE_DECL
+    case kDataOnlyVisitorIdCount:
+      return "DataOnlyVisitorIdCount";
+    case kVisitorIdCount:
+      return "VisitorIdCount";
+  }
+  UNREACHABLE();
+}
+
 }  // namespace v8::internal

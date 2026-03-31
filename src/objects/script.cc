@@ -13,6 +13,24 @@
 
 namespace v8::internal {
 
+const char* ToString(Script::Type type) {
+  switch (type) {
+    case Script::Type::kNative:
+      return "native";
+    case Script::Type::kExtension:
+      return "extension";
+    case Script::Type::kNormal:
+      return "normal";
+#if V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kWasm:
+      return "wasm";
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kInspector:
+      return "inspector";
+  }
+  UNREACHABLE();
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, IsolateT* isolate,
