@@ -2762,6 +2762,13 @@ ProcessResult MaglevGraphOptimizer::VisitObjectIsArray(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitProcessWasmArgument(
+    ProcessWasmArgument*, const ProcessingState&) {
+  // Identity node used to carry an eager deopt frame state for JS-to-Wasm
+  // wrapper inlining (crbug.com/493307329). No optimization needed.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

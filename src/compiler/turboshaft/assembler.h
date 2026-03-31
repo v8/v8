@@ -5106,6 +5106,13 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 
+  // Identity operation that carries a pre-call FrameState for JS-to-Wasm
+  // wrapper inlining.
+  V<Object> ProcessWasmArgument(V<Object> value,
+                                V<turboshaft::FrameState> frame_state) {
+    return ReduceIfReachableProcessWasmArgument(value, frame_state);
+  }
+
   V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
                    wasm::ModuleTypeIndex type_index, int field_index,
                    bool is_signed, CheckForNull null_check,

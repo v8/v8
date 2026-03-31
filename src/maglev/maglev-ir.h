@@ -197,7 +197,8 @@ class ExceptionHandlerInfo;
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)                \
-  V(ObjectIsArray)
+  V(ObjectIsArray)                  \
+  V(ProcessWasmArgument)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
@@ -7689,6 +7690,32 @@ class ObjectIsArray : public FixedInputValueNodeT<1, ObjectIsArray> {
   DECLARE_INPUT_TYPES(Tagged)
 
   NodeType type() const { return NodeType::kBoolean; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+// Identity node that carries an EagerDeoptInfo for JS-to-Wasm wrapper inlining.
+// When a JS call targets a Wasm function with numeric parameters, the
+// conversion builtins cannot lazy-deopt because the frame state would be a
+// JSToWasmBuiltinContinuation that the deoptimizer cannot handle
+// (crbug.com/493307329). To avoid this, we eagerly deopt if a numeric
+// argument is a JSReceiver (since only JSReceivers can trigger user JS via
+// valueOf/Symbol.toPrimitive during conversion). This node is emitted before
+// the call so that Maglev's generic frame state traversal handles the eager
+// deopt frame correctly. The turbolev-graph-builder translates it into a
+// Turboshaft ProcessWasmArgumentOp, from which the wasm-in-js-inlining
+// reducer extracts the frame state and uses it for the eager deopt guard.
+class ProcessWasmArgument
+    : public FixedInputValueNodeT<1, ProcessWasmArgument> {
+ public:
+  explicit ProcessWasmArgument(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::TaggedValue();
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

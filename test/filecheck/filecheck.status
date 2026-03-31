@@ -21,6 +21,7 @@
 
 ['variant in (jitless, nooptimization)', {
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
+  'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
 }],  # variant in (jitless, nooptimization)
 
 ['variant == jitless', {
@@ -53,5 +54,6 @@
 # which is not supported on 32 bit platforms.
 ['arch in (ia32, arm, riscv32)', {
   'wasm-in-js-inlining-turboshaft': [SKIP],
+  'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
 }],
 ]

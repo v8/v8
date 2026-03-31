@@ -143,7 +143,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmAllocateStruct)                   \
   V(WasmRefFunc)                          \
   V(StringAsWtf16)                        \
-  V(StringPrepareForGetCodeUnit)
+  V(StringPrepareForGetCodeUnit)          \
+  V(ProcessWasmArgument)
 
 #define TURBOSHAFT_DEINTERLEAVED_OPERATION_LIST(V) \
   V(Simd128LoadPairDeinterleave)
@@ -7498,6 +7499,39 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
   }
 
   auto options() const { return std::tuple(type); }
+};
+
+// Identity operation that carries a pre-call FrameState for JS-to-Wasm wrapper
+// inlining. Emitted before the Call for each numeric wasm argument so the
+// wasm-in-js-inlining reducer can extract the FrameState and pass it to
+// parameter conversion builtins, allowing correct lazy deoptimization when a
+// JSReceiver triggers valueOf (crbug.com/493307329).
+struct ProcessWasmArgumentOp : FixedArityOperationT<2, ProcessWasmArgumentOp> {
+  // Pure identity operation: carries a frame state for the reducer to extract,
+  // but has no runtime effects. Gets dead-code eliminated after the reducer
+  // unwraps it.
+  static constexpr OpEffects effects = OpEffects();
+
+  ProcessWasmArgumentOp(V<Object> value, V<FrameState> frame_state)
+      : Base(value, frame_state) {}
+
+  V<Object> value() const { return input<Object>(0); }
+  V<FrameState> frame_state() const { return input<FrameState>(1); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+  }
+
+  auto options() const { return std::tuple<>(); }
 };
 
 struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
