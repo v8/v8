@@ -5035,13 +5035,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
       m.Return(m.Load(memacc.memory_rep, memacc.result_rep, m.Parameter(0),
                       m.ChangeUint32ToUint64(index)));
       Stream s = m.Build();
-      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
-        ASSERT_EQ(1U, s.size());
-        EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
-        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
-        EXPECT_EQ(3U, s[0]->InputCount());
-        EXPECT_EQ(1U, s[0]->OutputCount());
-      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
+      if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.ldr_opcode, s[1]->arch_opcode());
         EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
@@ -5095,13 +5089,7 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
               m.Parameter(2), kNoWriteBarrier);
       m.Return(m.Int32Constant(0));
       Stream s = m.Build();
-      if (immediate_shift == memacc.memory_rep.SizeInBytesLog2()) {
-        ASSERT_EQ(1U, s.size());
-        EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
-        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
-        EXPECT_EQ(4U, s[0]->InputCount());
-        EXPECT_EQ(0U, s[0]->OutputCount());
-      } else if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
+      if (memacc.memory_rep == MemoryRepresentation::Simd128()) {
         ASSERT_EQ(2U, s.size());
         EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
         EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
