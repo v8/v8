@@ -881,6 +881,10 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
                                    kPropertiesOrHashOffset,
                                    !HasFastProperties(cage_base), true)
 
+DEF_GETTER(JSGlobalObject, raw_global_proxy, Tagged<HeapObject>) {
+  return TaggedField<HeapObject, kGlobalProxyOffset>::load(cage_base, *this);
+}
+
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
   DCHECK(HasDictionaryElements(cage_base) ||
          HasSlowStringWrapperElements(cage_base));

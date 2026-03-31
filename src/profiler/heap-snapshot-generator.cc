@@ -1615,7 +1615,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                          JSFunction::kDispatchHandleOffset);
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = Cast<JSGlobalObject>(obj);
-    SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
+    SetInternalReference(entry, "global_proxy", global_obj->raw_global_proxy(),
                          JSGlobalObject::kGlobalProxyOffset);
   } else if (IsJSArrayBufferView(obj)) {
     Tagged<JSArrayBufferView> view = Cast<JSArrayBufferView>(obj);
