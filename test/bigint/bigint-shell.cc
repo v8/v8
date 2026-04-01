@@ -586,10 +586,14 @@ class Runner {
     }
   }
 
+  // Running Toom3 with less than 3 digits makes no sense.
+  static constexpr uint32_t kMinToomDigits = 3;
+
   void TestToom(int* count) {
 #if V8_ADVANCED_BIGINT_ALGORITHMS
     // {MultiplyToomCook} works fine even below the threshold, so we can
     // save some time by starting small.
+    static_assert(config::kToomThreshold > 60 + kMinToomDigits);
     constexpr uint32_t kMin = config::kToomThreshold - 60;
     constexpr uint32_t kMax = config::kToomThreshold + 10;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
@@ -618,8 +622,9 @@ class Runner {
     // we test a few random samples. With build bots running 24/7, we'll
     // get decent coverage over time.
     uint64_t random_bits = rng_.NextUint64();
+    static_assert(config::kFftThreshold > 511 + kMinToomDigits);
     uint32_t min =
-        config::kFftThreshold - static_cast<uint32_t>(random_bits & 1023);
+        config::kFftThreshold - static_cast<uint32_t>(random_bits & 511);
     random_bits >>= 10;
     uint32_t max =
         config::kFftThreshold + static_cast<uint32_t>(random_bits & 1023);
