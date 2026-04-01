@@ -3446,14 +3446,8 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+  for (int i = 0; i < data_count; ++i) {
+    os << "\n - data" << (i + 1) << ": " << Brief(data()[i].load());
   }
   os << "\n";
 }
@@ -3464,14 +3458,8 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+  for (int i = 0; i < data_count; ++i) {
+    os << "\n - data" << (i + 1) << ": " << Brief(data()[i].load());
   }
   os << "\n";
 }

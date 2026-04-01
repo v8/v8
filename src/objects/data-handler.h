@@ -9,7 +9,6 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
-#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -57,12 +56,13 @@ V8_OBJECT class DataHandler : public StructLayout {
 
   class BodyDescriptor;
 
- private:
-  friend class AccessorAssembler;
-
+ public:
   TaggedMember<UnionOf<Smi, Code>> smi_handler_;
   TaggedMember<UnionOf<Smi, Cell>> validity_cell_;
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, data);
+
+ private:
+  friend class AccessorAssembler;
 } V8_OBJECT_END;
 
 }  // namespace internal
