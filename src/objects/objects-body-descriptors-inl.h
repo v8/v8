@@ -433,13 +433,13 @@ class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
     // class (once inheritance hierarchies are supported for indirect pointer
     // tags).
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
-    IteratePointer(obj, kOriginalSourceOffset, v);
-    IteratePointer(obj, kEscapedSourceOffset, v);
-    IteratePointer(obj, kWrapperOffset, v);
+    IteratePointer(obj, offsetof(RegExpData, original_source_), v);
+    IteratePointer(obj, offsetof(RegExpData, escaped_source_), v);
+    IteratePointer(obj, offsetof(RegExpData, wrapper_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(RegExpData);
   }
 };
 
@@ -450,15 +450,15 @@ class AtomRegExpData::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
-    IteratePointer(obj, kOriginalSourceOffset, v);
-    IteratePointer(obj, kEscapedSourceOffset, v);
-    IteratePointer(obj, kWrapperOffset, v);
+    IteratePointer(obj, offsetof(AtomRegExpData, original_source_), v);
+    IteratePointer(obj, offsetof(AtomRegExpData, escaped_source_), v);
+    IteratePointer(obj, offsetof(AtomRegExpData, wrapper_), v);
 
-    IteratePointer(obj, kPatternOffset, v);
+    IteratePointer(obj, offsetof(AtomRegExpData, pattern_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(AtomRegExpData);
   }
 };
 
@@ -469,19 +469,22 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
 
-    IteratePointer(obj, kOriginalSourceOffset, v);
-    IteratePointer(obj, kEscapedSourceOffset, v);
-    IteratePointer(obj, kWrapperOffset, v);
+    IteratePointer(obj, offsetof(IrRegExpData, original_source_), v);
+    IteratePointer(obj, offsetof(IrRegExpData, escaped_source_), v);
+    IteratePointer(obj, offsetof(IrRegExpData, wrapper_), v);
 
-    IterateProtectedPointer(obj, kLatin1BytecodeOffset, v);
-    IterateProtectedPointer(obj, kUc16BytecodeOffset, v);
-    IterateCodePointer(obj, kLatin1CodeOffset, v, IndirectPointerMode::kStrong);
-    IterateCodePointer(obj, kUc16CodeOffset, v, IndirectPointerMode::kStrong);
-    IteratePointer(obj, kCaptureNameMapOffset, v);
+    IterateProtectedPointer(obj, offsetof(IrRegExpData, latin1_bytecode_), v);
+    IterateProtectedPointer(obj, offsetof(IrRegExpData, uc16_bytecode_), v);
+    IterateCodePointer(obj, &TrustedCast<IrRegExpData>(obj)->latin1_code_, v,
+                       IndirectPointerMode::kStrong);
+    IterateCodePointer(obj, &TrustedCast<IrRegExpData>(obj)->uc16_code_, v,
+                       IndirectPointerMode::kStrong);
+
+    IteratePointer(obj, offsetof(IrRegExpData, capture_name_map_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(IrRegExpData);
   }
 };
 
@@ -490,12 +493,12 @@ class RegExpDataWrapper::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateTrustedPointer(obj, kDataOffset, v, IndirectPointerMode::kStrong,
-                          kRegExpDataIndirectPointerTag);
+    IterateTrustedPointer(obj, &Cast<RegExpDataWrapper>(obj)->data_, v,
+                          IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return kSize;
+    return sizeof(RegExpDataWrapper);
   }
 };
 

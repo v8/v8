@@ -2392,25 +2392,24 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 }
 
 void RegExpData::RegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kTypeTagOffset)));
-  CHECK(IsString(original_source()));
-  CHECK(IsString(escaped_source()));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+  CHECK(IsRegExpData(this));
+  Object::VerifyPointer(isolate, original_source());
+  Object::VerifyPointer(isolate, escaped_source());
+  Object::VerifyPointer(isolate, wrapper());
 }
 
 void AtomRegExpData::AtomRegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsAtomRegExpData(this));
   RegExpDataVerify(isolate);
-  CHECK(IsString(pattern()));
+  Object::VerifyPointer(isolate, pattern());
 }
 
 void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
+  CHECK(IsIrRegExpData(this));
   RegExpDataVerify(isolate);
 
-  VerifyProtectedPointerField(isolate, kLatin1BytecodeOffset);
-  VerifyProtectedPointerField(isolate, kUc16BytecodeOffset);
+  Object::VerifyPointer(isolate, latin1_bytecode());
+  Object::VerifyPointer(isolate, uc16_bytecode());
 
   CHECK_IMPLIES(!has_latin1_code(), !has_latin1_bytecode());
   CHECK_IMPLIES(!has_uc16_code(), !has_uc16_bytecode());
@@ -2420,15 +2419,11 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
   CHECK_IMPLIES(has_latin1_bytecode(), Is<TrustedByteArray>(latin1_bytecode()));
   CHECK_IMPLIES(has_uc16_bytecode(), Is<TrustedByteArray>(uc16_bytecode()));
 
-  CHECK_IMPLIES(
-      IsSmi(capture_name_map()),
-      Smi::ToInt(capture_name_map()) == JSRegExp::kUninitializedValue ||
-          capture_name_map() == Smi::zero());
+  CHECK_IMPLIES(IsSmi(capture_name_map()),
+                Smi::ToInt(Cast<Smi>(capture_name_map())) ==
+                        JSRegExp::kUninitializedValue ||
+                    capture_name_map() == Smi::zero());
   CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kMaxRegisterCountOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kCaptureCountOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kTicksUntilTierUpOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kBacktrackLimitOffset)));
 
   switch (type_tag()) {
     case RegExpData::Type::EXPERIMENTAL: {
@@ -2478,10 +2473,11 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
 }
 
 void RegExpDataWrapper::RegExpDataWrapperVerify(Isolate* isolate) {
+  CHECK(IsRegExpDataWrapper(this));
   if (!this->has_data()) return;
   auto data = this->data(isolate);
   Object::VerifyPointer(isolate, data);
-  CHECK_EQ(data->wrapper(), *this);
+  CHECK_EQ(data->wrapper(), this);
 }
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {

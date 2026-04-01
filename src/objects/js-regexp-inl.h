@@ -9,8 +9,9 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
-#include "src/objects/smi.h"
-#include "src/objects/string.h"
+#include "src/objects/smi-inl.h"
+#include "src/objects/string-inl.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 
@@ -49,30 +50,46 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
 }
 
 RegExpData::Type RegExpData::type_tag() const {
-  Tagged<Smi> value = TaggedField<Smi, kTypeTagOffset>::load(*this);
-  return Type(value.value());
+  return Type(type_tag_.load().value());
 }
 
 void RegExpData::set_type_tag(Type type) {
-  TaggedField<Smi, kTypeTagOffset>::store(
-      *this, Smi::FromInt(static_cast<uint8_t>(type)));
+  type_tag_.store(this, Smi::FromEnum(type));
 }
 
-ACCESSORS_CHECKED(RegExpData, original_source, Tagged<String>,
-                  kOriginalSourceOffset, value->IsFlat())
-ACCESSORS_CHECKED(RegExpData, escaped_source, Tagged<String>,
-                  kEscapedSourceOffset, value->IsFlat())
+Tagged<String> RegExpData::original_source() const {
+  return original_source_.load();
+}
+void RegExpData::set_original_source(Tagged<String> value,
+                                     WriteBarrierMode mode) {
+  DCHECK(value->IsFlat());
+  original_source_.store(this, value, mode);
+}
+
+Tagged<String> RegExpData::escaped_source() const {
+  return escaped_source_.load();
+}
+void RegExpData::set_escaped_source(Tagged<String> value,
+                                    WriteBarrierMode mode) {
+  DCHECK(value->IsFlat());
+  escaped_source_.store(this, value, mode);
+}
 
 JSRegExp::Flags RegExpData::flags() const {
-  Tagged<Smi> value = TaggedField<Smi, kFlagsOffset>::load(*this);
-  return JSRegExp::Flags(value.value());
+  return JSRegExp::Flags(flags_.load().value());
 }
 
 void RegExpData::set_flags(JSRegExp::Flags flags) {
-  TaggedField<Smi, kFlagsOffset>::store(*this, Smi::FromInt(flags));
+  flags_.store(this, Smi::FromInt(flags));
 }
 
-ACCESSORS(RegExpData, wrapper, Tagged<RegExpDataWrapper>, kWrapperOffset)
+Tagged<RegExpDataWrapper> RegExpData::wrapper() const {
+  return wrapper_.load();
+}
+void RegExpData::set_wrapper(Tagged<RegExpDataWrapper> value,
+                             WriteBarrierMode mode) {
+  wrapper_.store(this, value, mode);
+}
 
 int RegExpData::capture_count() const {
   switch (type_tag()) {
@@ -80,17 +97,43 @@ int RegExpData::capture_count() const {
       return 0;
     case Type::EXPERIMENTAL:
     case Type::IRREGEXP:
-      return TrustedCast<IrRegExpData>(*this)->capture_count();
+      return UncheckedCast<IrRegExpData>(this)->capture_count();
   }
 }
 
-TRUSTED_POINTER_ACCESSORS(RegExpDataWrapper, data, RegExpData, kDataOffset,
-                          kRegExpDataIndirectPointerTag)
+Tagged<RegExpData> RegExpDataWrapper::data(IsolateForSandbox isolate) const {
+  return data_.load(isolate);
+}
+void RegExpDataWrapper::set_data(Tagged<RegExpData> value,
+                                 WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+bool RegExpDataWrapper::has_data() const { return !data_.is_empty(); }
+void RegExpDataWrapper::clear_data() { data_.clear(this); }
 
-ACCESSORS(AtomRegExpData, pattern, Tagged<String>, kPatternOffset)
+Tagged<String> AtomRegExpData::pattern() const { return pattern_.load(); }
+void AtomRegExpData::set_pattern(Tagged<String> value, WriteBarrierMode mode) {
+  pattern_.store(this, value, mode);
+}
 
-CODE_POINTER_ACCESSORS(IrRegExpData, latin1_code, kLatin1CodeOffset)
-CODE_POINTER_ACCESSORS(IrRegExpData, uc16_code, kUc16CodeOffset)
+Tagged<Code> IrRegExpData::latin1_code(IsolateForSandbox isolate) const {
+  return latin1_code_.load(isolate);
+}
+void IrRegExpData::set_latin1_code(Tagged<Code> value, WriteBarrierMode mode) {
+  latin1_code_.store(this, value, mode);
+}
+bool IrRegExpData::has_latin1_code() const { return !latin1_code_.is_empty(); }
+void IrRegExpData::clear_latin1_code() { latin1_code_.clear(this); }
+
+Tagged<Code> IrRegExpData::uc16_code(IsolateForSandbox isolate) const {
+  return uc16_code_.load(isolate);
+}
+void IrRegExpData::set_uc16_code(Tagged<Code> value, WriteBarrierMode mode) {
+  uc16_code_.store(this, value, mode);
+}
+bool IrRegExpData::has_uc16_code() const { return !uc16_code_.is_empty(); }
+void IrRegExpData::clear_uc16_code() { uc16_code_.clear(this); }
+
 bool IrRegExpData::has_code(bool is_one_byte) const {
   return is_one_byte ? has_latin1_code() : has_uc16_code();
 }
@@ -105,10 +148,35 @@ Tagged<Code> IrRegExpData::code(IsolateForSandbox isolate,
                                 bool is_one_byte) const {
   return is_one_byte ? latin1_code(isolate) : uc16_code(isolate);
 }
-PROTECTED_POINTER_ACCESSORS(IrRegExpData, latin1_bytecode, TrustedByteArray,
-                            kLatin1BytecodeOffset)
-PROTECTED_POINTER_ACCESSORS(IrRegExpData, uc16_bytecode, TrustedByteArray,
-                            kUc16BytecodeOffset)
+
+Tagged<TrustedByteArray> IrRegExpData::latin1_bytecode() const {
+  return latin1_bytecode_.load();
+}
+void IrRegExpData::set_latin1_bytecode(Tagged<TrustedByteArray> value,
+                                       WriteBarrierMode mode) {
+  latin1_bytecode_.store(this, value, mode);
+}
+bool IrRegExpData::has_latin1_bytecode() const {
+  return !latin1_bytecode_.load().is_null();
+}
+void IrRegExpData::clear_latin1_bytecode() {
+  latin1_bytecode_.store(this, {}, SKIP_WRITE_BARRIER);
+}
+
+Tagged<TrustedByteArray> IrRegExpData::uc16_bytecode() const {
+  return uc16_bytecode_.load();
+}
+void IrRegExpData::set_uc16_bytecode(Tagged<TrustedByteArray> value,
+                                     WriteBarrierMode mode) {
+  uc16_bytecode_.store(this, value, mode);
+}
+bool IrRegExpData::has_uc16_bytecode() const {
+  return !uc16_bytecode_.load().is_null();
+}
+void IrRegExpData::clear_uc16_bytecode() {
+  uc16_bytecode_.store(this, {}, SKIP_WRITE_BARRIER);
+}
+
 bool IrRegExpData::has_bytecode(bool is_one_byte) const {
   return is_one_byte ? has_latin1_bytecode() : has_uc16_bytecode();
 }
@@ -130,7 +198,14 @@ void IrRegExpData::set_bytecode(bool is_one_byte,
 Tagged<TrustedByteArray> IrRegExpData::bytecode(bool is_one_byte) const {
   return is_one_byte ? latin1_bytecode() : uc16_bytecode();
 }
-ACCESSORS(IrRegExpData, capture_name_map, Tagged<Object>, kCaptureNameMapOffset)
+
+Tagged<UnionOf<FixedArray, Smi>> IrRegExpData::capture_name_map() const {
+  return capture_name_map_.load();
+}
+void IrRegExpData::set_capture_name_map(Tagged<UnionOf<FixedArray, Smi>> value,
+                                        WriteBarrierMode mode) {
+  capture_name_map_.store(this, value, mode);
+}
 void IrRegExpData::set_capture_name_map(
     DirectHandle<FixedArray> capture_name_map) {
   if (capture_name_map.is_null()) {
@@ -140,15 +215,40 @@ void IrRegExpData::set_capture_name_map(
   }
 }
 
-SMI_ACCESSORS(IrRegExpData, max_register_count, kMaxRegisterCountOffset)
-SMI_ACCESSORS(IrRegExpData, capture_count, kCaptureCountOffset)
-SMI_ACCESSORS(IrRegExpData, ticks_until_tier_up, kTicksUntilTierUpOffset)
-SMI_ACCESSORS(IrRegExpData, backtrack_limit, kBacktrackLimitOffset)
-DEF_PRIMITIVE_ACCESSORS(IrRegExpData, bit_field, kBitFieldOffset, uint32_t)
-BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
-                    IrRegExpData::Bits::CanBeZeroLengthBit)
-BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
-                    IrRegExpData::Bits::IsLinearExecutableBit)
+int IrRegExpData::max_register_count() const {
+  return max_register_count_.load().value();
+}
+void IrRegExpData::set_max_register_count(int value) {
+  max_register_count_.store(this, Smi::FromInt(value));
+}
+int IrRegExpData::capture_count() const {
+  return capture_count_.load().value();
+}
+void IrRegExpData::set_capture_count(int value) {
+  capture_count_.store(this, Smi::FromInt(value));
+}
+int IrRegExpData::ticks_until_tier_up() const {
+  return ticks_until_tier_up_.load().value();
+}
+void IrRegExpData::set_ticks_until_tier_up(int value) {
+  ticks_until_tier_up_.store(this, Smi::FromInt(value));
+}
+int IrRegExpData::backtrack_limit() const {
+  return backtrack_limit_.load().value();
+}
+void IrRegExpData::set_backtrack_limit(int value) {
+  backtrack_limit_.store(this, Smi::FromInt(value));
+}
+
+uint32_t IrRegExpData::bit_field() const { return bit_field_.load().value(); }
+void IrRegExpData::set_bit_field(uint32_t value) {
+  bit_field_.store(this, Smi::FromInt(value));
+}
+
+BOOL_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
+               Bits::CanBeZeroLengthBit::kShift)
+BOOL_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
+               Bits::IsLinearExecutableBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

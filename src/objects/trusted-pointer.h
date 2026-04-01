@@ -177,6 +177,8 @@ class TrustedPointerMember
 #endif
 };
 
+using CodePointerMember = TrustedPointerMember<Code, kCodeIndirectPointerTag>;
+
 }  // namespace internal
 }  // namespace v8
 

@@ -718,8 +718,17 @@ class Tagged<HeapObject> : public StrongTaggedBase {
            static_cast<Tagged_t>(kNullAddress);
   }
 
-  constexpr V8_INLINE bool IsHeapObject() const { return true; }
-  constexpr V8_INLINE bool IsSmi() const { return false; }
+  constexpr V8_INLINE bool IsHeapObject() const {
+    DCHECK_IMPLIES(!is_null(), TaggedImpl::IsHeapObject());
+    return !is_null();
+  }
+  constexpr V8_INLINE bool IsSmi() const {
+    // Null values overlap with Smi zero, so return "true" here for now.
+    // TODO(leszeks): Consider either making callers check for nullness instead
+    // of Sminess, or even introducing a "nullable" concept.
+    DCHECK_IMPLIES(!is_null(), !TaggedImpl::IsSmi());
+    return is_null();
+  }
 
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.

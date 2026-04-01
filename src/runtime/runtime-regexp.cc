@@ -360,7 +360,8 @@ bool CompiledReplacement::Compile(Isolate* isolate,
       // trusted space, this is not a SBXCHECK.
       Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*regexp_data);
 
-      Tagged<Object> maybe_capture_name_map = re_data->capture_name_map();
+      Tagged<UnionOf<FixedArray, Smi>> maybe_capture_name_map =
+          re_data->capture_name_map();
       if (IsFixedArray(maybe_capture_name_map)) {
         capture_name_map = Cast<FixedArray>(maybe_capture_name_map);
       }
@@ -1047,7 +1048,7 @@ class MatchInfoBackedMatch : public String::Match {
 
     if (RegExpData::TypeSupportsCaptures(regexp_data->type_tag())) {
       DCHECK(Is<IrRegExpData>(*regexp_data));
-      Tagged<Object> o =
+      Tagged<UnionOf<FixedArray, Smi>> o =
           TrustedCast<IrRegExpData>(regexp_data)->capture_name_map();
       has_named_captures_ = IsFixedArray(o);
       if (has_named_captures_) {
@@ -1353,8 +1354,8 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
 
         // has_capture can only be true for IrRegExp.
         Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*regexp_data);
-        DirectHandle<Object> maybe_capture_map(re_data->capture_name_map(),
-                                               isolate);
+        DirectHandle<UnionOf<FixedArray, Smi>> maybe_capture_map(
+            re_data->capture_name_map(), isolate);
         const bool has_named_captures = IsFixedArray(*maybe_capture_map);
 
         const int argc =
@@ -1653,7 +1654,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   bool has_named_captures = false;
   DirectHandle<FixedArray> capture_map;
   if (m > 1) {
-    Tagged<Object> maybe_capture_map =
+    Tagged<UnionOf<FixedArray, Smi>> maybe_capture_map =
         SbxCast<IrRegExpData>(data)->capture_name_map();
     if (IsFixedArray(maybe_capture_map)) {
       has_named_captures = true;

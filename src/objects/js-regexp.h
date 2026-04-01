@@ -10,6 +10,7 @@
 #include "include/v8-regexp.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
+#include "src/objects/trusted-object.h"
 #include "src/regexp/regexp-flags.h"
 #include "torque-generated/bit-fields.h"
 
@@ -152,7 +153,7 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 
 class RegExpDataWrapper;
 
-class RegExpData : public ExposedTrustedObject {
+V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
  public:
   enum class Type : uint8_t {
     ATOM,          // A simple string match.
@@ -163,13 +164,20 @@ class RegExpData : public ExposedTrustedObject {
   inline Type type_tag() const;
   inline void set_type_tag(Type);
 
-  DECL_ACCESSORS(original_source, Tagged<String>)
-  DECL_ACCESSORS(escaped_source, Tagged<String>)
+  inline Tagged<String> original_source() const;
+  inline void set_original_source(Tagged<String> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> escaped_source() const;
+  inline void set_escaped_source(Tagged<String> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline JSRegExp::Flags flags() const;
   inline void set_flags(JSRegExp::Flags flags);
 
-  DECL_ACCESSORS(wrapper, Tagged<RegExpDataWrapper>)
+  inline Tagged<RegExpDataWrapper> wrapper() const;
+  inline void set_wrapper(Tagged<RegExpDataWrapper> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int capture_count() const;
 
@@ -182,66 +190,42 @@ class RegExpData : public ExposedTrustedObject {
   DECL_PRINTER(RegExpData)
   DECL_VERIFIER(RegExpData)
 
-#define FIELD_LIST(V)                   \
-  V(kTypeTagOffset, kTaggedSize)        \
-  V(kOriginalSourceOffset, kTaggedSize) \
-  V(kEscapedSourceOffset, kTaggedSize)  \
-  V(kFlagsOffset, kTaggedSize)          \
-  V(kWrapperOffset, kTaggedSize)        \
-  V(kHeaderSize, 0)                     \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
-
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(RegExpData, ExposedTrustedObject);
-};
+  TaggedMember<Smi> type_tag_;
+  TaggedMember<String> original_source_;
+  TaggedMember<String> escaped_source_;
+  TaggedMember<Smi> flags_;
+  TaggedMember<RegExpDataWrapper> wrapper_;
+} V8_OBJECT_END;
 
-class RegExpDataWrapper : public Struct {
+V8_OBJECT class RegExpDataWrapper : public StructLayout {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
   DECL_PRINTER(RegExpDataWrapper)
   DECL_VERIFIER(RegExpDataWrapper)
 
-#define FIELD_LIST(V)                 \
-  V(kDataOffset, kTrustedPointerSize) \
-  V(kHeaderSize, 0)                   \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(RegExpDataWrapper, Struct);
-};
+  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+} V8_OBJECT_END;
 
-class AtomRegExpData : public RegExpData {
+V8_OBJECT class AtomRegExpData : public RegExpData {
  public:
-  DECL_ACCESSORS(pattern, Tagged<String>)
+  inline Tagged<String> pattern() const;
+  inline void set_pattern(Tagged<String> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(AtomRegExpData)
   DECL_VERIFIER(AtomRegExpData)
 
-#define FIELD_LIST(V)            \
-  V(kPatternOffset, kTaggedSize) \
-  V(kHeaderSize, 0)              \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(RegExpData::kHeaderSize, FIELD_LIST)
-
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(AtomRegExpData, RegExpData);
-};
+  TaggedMember<String> pattern_;
+} V8_OBJECT_END;
 
-class IrRegExpData : public RegExpData {
+V8_OBJECT class IrRegExpData : public RegExpData {
  public:
   DECL_CODE_POINTER_ACCESSORS(latin1_code)
   DECL_CODE_POINTER_ACCESSORS(uc16_code)
@@ -254,15 +238,23 @@ class IrRegExpData : public RegExpData {
   inline void clear_bytecode(bool is_one_byte);
   inline void set_bytecode(bool is_one_byte, Tagged<TrustedByteArray> bytecode);
   inline Tagged<TrustedByteArray> bytecode(bool is_one_byte) const;
-  DECL_ACCESSORS(capture_name_map, Tagged<Object>)
+  inline Tagged<UnionOf<FixedArray, Smi>> capture_name_map() const;
+  inline void set_capture_name_map(
+      Tagged<UnionOf<FixedArray, Smi>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_capture_name_map(DirectHandle<FixedArray> capture_name_map);
-  DECL_INT_ACCESSORS(max_register_count)
+  inline int max_register_count() const;
+  inline void set_max_register_count(int value);
   // Number of captures (without the match itself).
-  DECL_INT_ACCESSORS(capture_count)
-  DECL_INT_ACCESSORS(ticks_until_tier_up)
-  DECL_INT_ACCESSORS(backtrack_limit)
+  inline int capture_count() const;
+  inline void set_capture_count(int value);
+  inline int ticks_until_tier_up() const;
+  inline void set_ticks_until_tier_up(int value);
+  inline int backtrack_limit() const;
+  inline void set_backtrack_limit(int value);
 
-  DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
+  inline uint32_t bit_field() const;
+  inline void set_bit_field(uint32_t value);
   DECL_BOOLEAN_ACCESSORS(can_be_zero_length)
   DECL_BOOLEAN_ACCESSORS(is_linear_executable)
 
@@ -287,28 +279,19 @@ class IrRegExpData : public RegExpData {
   DECL_PRINTER(IrRegExpData)
   DECL_VERIFIER(IrRegExpData)
 
-#define FIELD_LIST(V)                             \
-  V(kLatin1BytecodeOffset, kProtectedPointerSize) \
-  V(kUc16BytecodeOffset, kProtectedPointerSize)   \
-  V(kLatin1CodeOffset, kCodePointerSize)          \
-  V(kUc16CodeOffset, kCodePointerSize)            \
-  V(kCaptureNameMapOffset, kTaggedSize)           \
-  V(kMaxRegisterCountOffset, kTaggedSize)         \
-  V(kCaptureCountOffset, kTaggedSize)             \
-  V(kTicksUntilTierUpOffset, kTaggedSize)         \
-  V(kBacktrackLimitOffset, kTaggedSize)           \
-  V(kBitFieldOffset, kTaggedSize)                 \
-  V(kHeaderSize, 0)                               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(RegExpData::kHeaderSize, FIELD_LIST)
-
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(IrRegExpData, RegExpData);
-};
+  ProtectedTaggedMember<TrustedByteArray> latin1_bytecode_;
+  ProtectedTaggedMember<TrustedByteArray> uc16_bytecode_;
+  CodePointerMember latin1_code_;
+  CodePointerMember uc16_code_;
+  TaggedMember<UnionOf<FixedArray, Smi>> capture_name_map_;
+  TaggedMember<Smi> max_register_count_;
+  TaggedMember<Smi> capture_count_;
+  TaggedMember<Smi> ticks_until_tier_up_;
+  TaggedMember<Smi> backtrack_limit_;
+  TaggedMember<Smi> bit_field_;
+} V8_OBJECT_END;
 
 // JSRegExpResult is just a JSArray with a specific initial map.
 // This initial map adds in-object properties for "index" and "input"

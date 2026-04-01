@@ -4452,7 +4452,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
     JSRegExp::Flags flags, DirectHandle<String> pattern) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = AtomRegExpData::kSize;
+  int size = sizeof(AtomRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
   DisallowGarbageCollection no_gc;
@@ -4474,7 +4474,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
     JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
     uint32_t bit_field) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = IrRegExpData::kSize;
+  int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
@@ -4507,7 +4507,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
     DirectHandle<String> original_source, DirectHandle<String> escaped_source,
     JSRegExp::Flags flags, int capture_count) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
-  int size = IrRegExpData::kSize;
+  int size = sizeof(IrRegExpData);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;

@@ -693,11 +693,13 @@ V8_INLINE constexpr bool IsWeak(
 // TODO(leszeks): These exist both as free functions and members of Tagged. They
 // probably want to be cleaned up at some point.
 V8_INLINE bool IsSmi(Tagged<Object> obj) { return obj.IsSmi(); }
-V8_INLINE bool IsSmi(Tagged<HeapObject> obj) { return false; }
+V8_INLINE bool IsSmi(Tagged<HeapObject> obj) { return obj.IsSmi(); }
 V8_INLINE bool IsSmi(Tagged<Smi> obj) { return true; }
 
 V8_INLINE bool IsHeapObject(Tagged<Object> obj) { return obj.IsHeapObject(); }
-V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj) { return true; }
+V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj) {
+  return obj.IsHeapObject();
+}
 V8_INLINE bool IsHeapObject(Tagged<Smi> obj) { return false; }
 
 V8_INLINE bool IsTaggedIndex(Tagged<Object> obj);

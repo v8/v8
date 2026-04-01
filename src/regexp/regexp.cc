@@ -595,7 +595,7 @@ intptr_t RegExp::AtomExecRaw(Isolate* isolate,
       TrustedCast<TrustedObject>(Tagged<Object>(data_address)));
   auto subject = Cast<String>(Tagged<Object>(subject_address));
 
-  Tagged<String> pattern = data->pattern(isolate);
+  Tagged<String> pattern = data->pattern();
   regexp::Flags flags = JSRegExp::AsRegExpFlags(data->flags());
   String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
   String::FlatContent subject_content = subject->GetFlatContent(no_gc);
@@ -767,7 +767,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate,
   subject = String::Flatten(isolate, subject);
 
   DisallowGarbageCollection no_gc;
-  Tagged<String> needle = regexp_data->pattern(isolate);
+  Tagged<String> needle = regexp_data->pattern();
   Flags flags = JSRegExp::AsRegExpFlags(regexp_data->flags());
   String::FlatContent needle_content = needle->GetFlatContent(no_gc);
   String::FlatContent subject_content = subject->GetFlatContent(no_gc);

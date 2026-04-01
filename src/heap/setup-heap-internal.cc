@@ -760,10 +760,10 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
     ALLOCATE_VARSIZE_MAP(REG_EXP_MATCH_INFO_TYPE, regexp_match_info);
 
-    ALLOCATE_MAP(REG_EXP_DATA_TYPE, RegExpData::kSize, regexp_data);
-    ALLOCATE_MAP(ATOM_REG_EXP_DATA_TYPE, AtomRegExpData::kSize,
+    ALLOCATE_MAP(REG_EXP_DATA_TYPE, sizeof(RegExpData), regexp_data);
+    ALLOCATE_MAP(ATOM_REG_EXP_DATA_TYPE, sizeof(AtomRegExpData),
                  atom_regexp_data);
-    ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, IrRegExpData::kSize, ir_regexp_data);
+    ALLOCATE_MAP(IR_REG_EXP_DATA_TYPE, sizeof(IrRegExpData), ir_regexp_data);
 
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, sizeof(SourceTextModule),
                  source_text_module)

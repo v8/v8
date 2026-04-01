@@ -14,7 +14,7 @@ bitfield struct JSRegExpFlags extends uint31 {
   unicode_sets: bool: 1 bit;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpData extends ExposedTrustedObject {
   type_tag: Smi;
   original_source: String;
@@ -23,9 +23,9 @@ extern class RegExpData extends ExposedTrustedObject {
   wrapper: RegExpDataWrapper;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class AtomRegExpData extends RegExpData {
-  const pattern: String;
+  pattern: String;
 }
 
 bitfield struct IrRegExpDataBitField extends uint31 {
@@ -33,7 +33,7 @@ bitfield struct IrRegExpDataBitField extends uint31 {
   is_linear_executable: bool: 1 bit;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class IrRegExpData extends RegExpData {
   // TODO(pthier): Change code pointers to ProtectedPointer<Code> once builtins
   // reside in trusted space.
@@ -41,7 +41,7 @@ extern class IrRegExpData extends RegExpData {
   uc16_bytecode: ProtectedPointer<TrustedByteArray>;
   latin1_code: TrustedPointer<Code>;
   uc16_code: TrustedPointer<Code>;
-  capture_name_map: FixedArray;
+  capture_name_map: FixedArray|Smi;
   max_register_count: Smi;
   capture_count: Smi;
   ticks_until_tier_up: Smi;
@@ -49,7 +49,7 @@ extern class IrRegExpData extends RegExpData {
   bit_field: SmiTagged<IrRegExpDataBitField>;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpDataWrapper extends Struct {
   data: TrustedPointer<RegExpData>;
 }
