@@ -167,7 +167,6 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncFunctionAwait(Node* node) {
-  node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
   NodeProperties::ChangeOp(node, javascript()->AsyncFunctionAwait());
   // The new operator is kNoThrow with an explicit control output.  Replace
   // IfSuccess projections with the node itself and kill IfException.

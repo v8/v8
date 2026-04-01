@@ -2751,6 +2751,7 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
   Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -2861,8 +2862,9 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
   }
 
   // === Slow path: call the AsyncFunctionAwait builtin ===
-  // No frame state needed — protector dependencies guarantee the builtin
-  // won't trigger lazy deoptimization.
+  // The builtin can call user-defined .then getters, which may throw or trigger
+  // lazy deoptimization. A frame state is required so the deoptimizer can
+  // reconstruct the frame at this call site.
   Node* slow_control =
       graph()->NewNode(common()->Merge(2), if_not_promise, if_not_fulfilled);
   Node* slow_effect =
@@ -2873,11 +2875,11 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
   auto await_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), await_callable.descriptor(),
       await_callable.descriptor().GetStackParameterCount(),
-      CallDescriptor::kNoFlags);
+      CallDescriptor::kNeedsFrameState);
   Node* await_code = jsgraph()->HeapConstantNoHole(await_callable.code());
   slow_effect = graph()->NewNode(common()->Call(await_descriptor), await_code,
                                  async_function_object, value, context,
-                                 slow_effect, slow_control);
+                                 frame_state, slow_effect, slow_control);
 
   // === Merge ===
   Node* merge =
