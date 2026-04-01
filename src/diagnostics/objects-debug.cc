@@ -3025,7 +3025,25 @@ void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
 }
 
 void Script::ScriptVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
+  CHECK(IsScript(this));
+  Object::VerifyPointer(isolate, source());
+  Object::VerifyPointer(isolate, name());
+  Object::VerifyPointer(isolate, context_data());
+  Object::VerifyPointer(isolate, line_ends());
+  Object::VerifyPointer(isolate, eval_from_shared_or_wrapped_arguments());
+  Object::VerifyPointer(isolate, eval_from_position_.load());
+  Object::VerifyPointer(isolate, eval_from_scope_info());
+  Object::VerifyPointer(isolate, infos_.load());
+  Object::VerifyPointer(isolate, compiled_lazy_function_positions());
+  Object::VerifyPointer(isolate, source_url());
+  Object::VerifyPointer(isolate, source_mapping_url());
+  Object::VerifyPointer(isolate, debug_id());
+  Object::VerifyPointer(isolate, host_defined_options());
+#if V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  Object::VerifyPointer(isolate, script_or_modules());
+#endif
+  Object::VerifyPointer(isolate, source_hash());
+
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Script::Type::kWasm) {
     CHECK_EQ(line_ends(), ReadOnlyRoots(isolate).empty_fixed_array());

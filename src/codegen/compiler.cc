@@ -1828,14 +1828,15 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                 (IsScript(host) &&
                  current.address() ==
                      host.address() +
-                         Script::kEvalFromSharedOrWrappedArgumentsOffset));
+                         offsetof(Script,
+                                  eval_from_shared_or_wrapped_arguments_)));
         } else if (IsScopeInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kNormalObject && !is_weak) ||
                 (current_object_kind_ == kScriptInfosList && is_weak) ||
                 (IsScript(host) &&
                  current.address() ==
-                     host.address() + Script::kEvalFromScopeInfoOffset));
+                     host.address() + offsetof(Script, eval_from_scope_info_)));
         } else if (IsScript(obj)) {
           CHECK(IsSharedFunctionInfo(host) &&
                 current == MaybeObjectSlot(host.address() +

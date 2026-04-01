@@ -1265,7 +1265,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
         SharedFunctionInfo::kScriptOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
-        Script::kEvalFromPositionOffset;
+        offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
         JSPromise::kReactionsOrResultOffset;
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =

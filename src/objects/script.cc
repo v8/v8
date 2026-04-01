@@ -76,7 +76,7 @@ Tagged<Script> Script::Iterator::Next() {
   if (o != Tagged<Object>()) {
     return Cast<Script>(o);
   }
-  return Script();
+  return Tagged<Script>();
 }
 
 // static
@@ -191,7 +191,7 @@ bool Script::IsUserJavaScript() const {
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::ContainsAsmModule() {
   DisallowGarbageCollection no_gc;
-  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), *this);
+  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), this);
   for (Tagged<SharedFunctionInfo> sfi = iter.Next(); !sfi.is_null();
        sfi = iter.Next()) {
     if (sfi->HasAsmWasmData()) return true;
@@ -451,7 +451,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (!has_line_ends()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
+    if (!GetPositionInfoSlow(this, position, no_gc, info)) {
       return false;
     }
   } else {
@@ -534,7 +534,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
 
   PtrComprCageBase cage_base(isolate);
   {
-    Tagged<Object> maybe_source_hash = script->source_hash(cage_base);
+    Tagged<Object> maybe_source_hash = script->source_hash();
     if (IsString(maybe_source_hash, cage_base)) {
       DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
                                        isolate);
@@ -546,7 +546,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
 
   DirectHandle<String> src_text;
   {
-    Tagged<Object> maybe_script_source = script->source(cage_base);
+    Tagged<Object> maybe_script_source = script->source();
 
     if (!IsString(maybe_script_source, cage_base)) {
       return isolate->factory()->empty_string();

@@ -16,6 +16,7 @@ bitfield struct ScriptFlags extends uint31 {
   deserialized: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class Script extends Struct {
   // [source]: the script source.
   source: String|Undefined;
