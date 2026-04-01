@@ -1187,6 +1187,10 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
        g.UseRegister(op.input(1)));
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& op = Cast<WordBinopOp>(node);
