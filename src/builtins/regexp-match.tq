@@ -54,9 +54,7 @@ transitioning macro RegExpPrototypeMatchBody(
   if constexpr (isFastPath) {
     const jsregexp = UnsafeCast<JSRegExp>(regexp);
     const data: RegExpData =
-        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-            jsregexp, kJSRegExpRegExpDataOffset,
-            kRegExpDataIndirectPointerTag));
+        LoadRegExpDataFromObject(jsregexp, kJSRegExpRegExpDataOffset);
     if (data.type_tag == kATOM) {
       // TODO(jgruber): We could merge this path with
       // RegExpMatchGlobal; but then we'd lose the caching.

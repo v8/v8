@@ -1976,17 +1976,6 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
-    TNode<HeapObject> object, int field_offset,
-    IndirectPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
-  CHECK_NE(tag_range, kAllIndirectPointerTags);
-  return LoadIndirectPointerFromObject(object, field_offset, tag_range);
-#else
-  return LoadObjectField<TrustedObject>(object, field_offset);
-#endif  // V8_ENABLE_SANDBOX
-}
-
 void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
     TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
     Label* if_empty, Label* if_default,
@@ -2035,8 +2024,8 @@ void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
 
 TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-  return UncheckedCast<Code>(LoadTrustedPointerFromObject(
-      object, field_offset, kCodeIndirectPointerTag));
+  return LoadTrustedPointerFromObject<kCodeIndirectPointerTag>(object,
+                                                               field_offset);
 }
 
 
@@ -2075,7 +2064,7 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
 
   value = UncheckedCast<UintPtrT>(
       WordOr(shifted_value, UintPtrConstant(kHeapObjectTag)));
-  return CAST(BitcastWordToTagged(value));
+  return TrustedCast<Code>(BitcastWordToTagged(value), "from trusted table");
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
@@ -2159,7 +2148,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
   // to set it using a bitwise OR as it may or may not be set.
   value =
       UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return CAST(BitcastWordToTagged(value));
+  return TrustedCast<Code>(BitcastWordToTagged(value), "from trusted table");
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
@@ -2195,7 +2184,8 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
 
     value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
   }
-  return CAST(BitcastWordToTagged(value));
+  return TrustedCast<TrustedObject>(BitcastWordToTagged(value),
+                                    "from trusted table");
 }
 
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
@@ -3898,7 +3888,10 @@ void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
       SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&if_code);
-  CSA_SBXCHECK(this, IsBaselineCode(CAST(var_result.value())));
+  CSA_SBXCHECK(this,
+               IsBaselineCode(TrustedCast<Code>(
+                   var_result.value(),
+                   "type checked by LoadTrustedUnknownPointerFromObject")));
   Goto(if_baseline);
 
   BIND(&if_default);
@@ -3930,17 +3923,21 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 
   BIND(&is_interpreter_data);
   {
-    var_result = LoadInterpreterDataBytecodeArray(CAST(var_result.value()));
+    var_result = LoadInterpreterDataBytecodeArray(TrustedCast<InterpreterData>(
+        var_result.value(),
+        "type checked by LoadTrustedUnknownPointerFromObject"));
     Goto(&done);
   }
 
 #if !V8_JITLESS_BOOL
   BIND(&is_code);
   {
-    TNode<Code> code = CAST(var_result.value());
+    TNode<Code> code = TrustedCast<Code>(
+        var_result.value(),
+        "type checked by LoadTrustedUnknownPointerFromObject");
     CSA_SBXCHECK(this, IsBaselineCode(code));
-    TNode<HeapObject> baseline_data = CAST(LoadProtectedPointerField(
-        code, Code::kDeoptimizationDataOrInterpreterDataOffset));
+    TNode<HeapObject> baseline_data = LoadProtectedPointerField<HeapObject>(
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
 
     Label is_interp_data(this), not_interp_data(this);
     Branch(HasInstanceType(baseline_data, INTERPRETER_DATA_TYPE),
@@ -3948,7 +3945,10 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 
     BIND(&is_interp_data);
     {
-      var_result = LoadInterpreterDataBytecodeArray(CAST(baseline_data));
+      var_result =
+          LoadInterpreterDataBytecodeArray(TrustedCast<InterpreterData>(
+              baseline_data,
+              "type checked by LoadTrustedUnknownPointerFromObject"));
       Goto(&done);
     }
 
@@ -3962,37 +3962,36 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 #endif
 
   BIND(&done);
-  return CAST(var_result.value());
+  return TrustedCast<BytecodeArray>(var_result.value(), "type checked above");
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 TNode<WasmExportedFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmExportedFunctionData(
     TNode<SharedFunctionInfo> sfi) {
-  return CAST(LoadTrustedPointerFromObject(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
-      kWasmExportedFunctionDataIndirectPointerTag));
+  return LoadTrustedPointerFromObject<
+      kWasmExportedFunctionDataIndirectPointerTag>(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
 }
 
 TNode<WasmJSFunctionData>
 CodeStubAssembler::LoadSharedFunctionInfoWasmJSFunctionData(
     TNode<SharedFunctionInfo> sfi) {
-  return CAST(LoadTrustedPointerFromObject(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
-      kWasmJSFunctionDataIndirectPointerTag));
+  return LoadTrustedPointerFromObject<kWasmJSFunctionDataIndirectPointerTag>(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TNode<BytecodeArray> CodeStubAssembler::LoadInterpreterDataBytecodeArray(
     TNode<InterpreterData> data) {
-  return CAST(LoadProtectedPointerField(
-      data, offsetof(InterpreterData, bytecode_array_)));
+  return LoadProtectedPointerField<BytecodeArray>(
+      data, offsetof(InterpreterData, bytecode_array_));
 }
 
 TNode<Code> CodeStubAssembler::LoadInterpreterDataInterpreterTrampoline(
     TNode<InterpreterData> data) {
-  return CAST(LoadProtectedPointerField(
-      data, offsetof(InterpreterData, interpreter_trampoline_)));
+  return LoadProtectedPointerField<Code>(
+      data, offsetof(InterpreterData, interpreter_trampoline_));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadCodeParameterCount(TNode<Code> code) {
@@ -13430,8 +13429,9 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
 }
 
 TNode<BytecodeArray> CodeStubAssembler::LoadBytecodeArrayFromBaseline() {
-  return CAST(
-      LoadFromParentFrame(BaselineFrameConstants::kBytecodeArrayFromFp));
+  return TrustedCast<BytecodeArray>(
+      LoadFromParentFrame(BaselineFrameConstants::kBytecodeArrayFromFp),
+      "from trusted stack slot");
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorFromBaseline() {
@@ -19018,7 +19018,8 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 
   TNode<ExternalReference> table = IsolateField(IsolateFieldId::kBuiltinTable);
 
-  return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
+  return TrustedCast<Code>(BitcastWordToTagged(Load<RawPtrT>(table, offset)),
+                           "loaded from trusted object");
 }
 
 
@@ -19125,7 +19126,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsBaselineData: Execute baseline code
   BIND(&check_is_baseline_data);
   {
-    TNode<Code> baseline_code = CAST(sfi_data_out.value());
+    TNode<Code> baseline_code = TrustedCast<Code>(
+        sfi_data_out.value(),
+        "type checked by LoadSharedFunctionInfoTrustedDataAndDispatch");
     CSA_SBXCHECK(this, IsBaselineCode(baseline_code));
     sfi_code = baseline_code;
     Goto(&done);
@@ -19135,7 +19138,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_interpreter_data);
   {
     TNode<Code> trampoline =
-        LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data_out.value()));
+        LoadInterpreterDataInterpreterTrampoline(TrustedCast<InterpreterData>(
+            sfi_data_out.value(),
+            "type checked by LoadSharedFunctionInfoTrustedDataAndDispatch"));
     sfi_code = trampoline;
   }
   Goto(&done);
@@ -19149,9 +19154,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 #if V8_ENABLE_WEBASSEMBLY
   // IsWasmFunctionData: Use the wrapper code
   BIND(&check_is_wasm_function_data);
-  sfi_code = CAST(LoadTrustedPointerFromObject(
-      CAST(sfi_data_out.value()), WasmExportedFunctionData::kWrapperCodeOffset,
-      kCodeIndirectPointerTag));
+  sfi_code = LoadTrustedPointerFromObject<kCodeIndirectPointerTag>(
+      CAST(sfi_data_out.value()), WasmExportedFunctionData::kWrapperCodeOffset);
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
 

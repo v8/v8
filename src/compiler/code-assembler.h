@@ -495,7 +495,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Base Assembler
   // ===========================================================================
 
-  template <class PreviousType, bool FromTyped>
+  template <class PreviousType, bool FromTyped,
+            bool AllowDowncastToTrusted = false>
   class CheckedNode {
    public:
 #ifdef DEBUG
@@ -508,6 +509,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
     template <class A>
     operator TNode<A>() {
+      // TODO(olivf): Provide a safe SbxCast like in C++.
+      // Trusted objects can only be cast with TrustedCast. But proceed with
+      // caution, there is no safety net!
+      static_assert(AllowDowncastToTrusted || (!is_subtype_v<A, TrustedObject>),
+                    "Down-casting to trusted objects is verboten.");
       static_assert(!std::is_same_v<A, Tagged<MaybeObject>>,
                     "Can't cast to Tagged<MaybeObject>, use explicit "
                     "conversion functions. ");
@@ -548,14 +554,23 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
   };
 
+  CheckedNode<Object, false, true> TrustedCastImpl(Node* value,
+                                                   const char* location = "") {
+    return {value, this, location};
+  }
+  template <class T>
+  CheckedNode<T, true, true> TrustedCastImpl(TNode<T> value,
+                                             const char* location = "") {
+    return {value, this, location};
+  }
+
   template <class T>
   TNode<T> UncheckedCast(Node* value) {
     return TNode<T>::UncheckedCast(value);
   }
+
   template <class T, class U>
   TNode<T> UncheckedCast(TNode<U> value) {
-    static_assert(types_have_common_values<T, U>::value,
-                  "Incompatible types: this cast can never succeed.");
     return TNode<T>::UncheckedCast(value);
   }
 
@@ -566,26 +581,44 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TNode<T>::UncheckedCast(value);
   }
 
-  CheckedNode<Object, false> Cast(Node* value, const char* location = "") {
+  CheckedNode<Object, false, false> Cast(Node* value,
+                                         const char* location = "") {
     return {value, this, location};
   }
 
   template <class T>
-  CheckedNode<T, true> Cast(TNode<T> value, const char* location = "") {
+  CheckedNode<T, true, false> Cast(TNode<T> value, const char* location = "") {
     return {value, this, location};
   }
 
+  // Since TrustedCasts are inherently unsafe the "legitimation" shall document
+  // the reasoning behind its safe use.
+  template <class T, class U>
+  TNode<T> TrustedCast(TNode<U> value, const char* legitimation,
+                       const char* location = "") {
+    static_assert(is_subtype_v<T, Union<Smi, TrustedObject>>);
+    return TrustedCastImpl(value, location);
+  }
+  template <class T>
+  TNode<T> TrustedCast(Node* value, const char* legitimation,
+                       const char* location = "") {
+    static_assert(is_subtype_v<T, Union<Smi, TrustedObject>>);
+    return TrustedCastImpl(value, location);
+  }
+
+  // Currently casts from torque are unconditionally trusted.
 #ifdef DEBUG
 #define STRINGIFY(x) #x
 #define TO_STRING_LITERAL(x) STRINGIFY(x)
 #define CAST(x) \
   Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
-#define TORQUE_CAST(...)                                      \
-  ca_.Cast(__VA_ARGS__, "CAST(" #__VA_ARGS__ ") at " __FILE__ \
-                        ":" TO_STRING_LITERAL(__LINE__))
+#define TORQUE_CAST(...)                                                 \
+  /* TODO: Should we trust all torque types? */                          \
+  ca_.TrustedCastImpl(__VA_ARGS__, "CAST(" #__VA_ARGS__ ") at " __FILE__ \
+                                   ":" TO_STRING_LITERAL(__LINE__))
 #else
 #define CAST(x) Cast(x)
-#define TORQUE_CAST(...) ca_.Cast(__VA_ARGS__)
+#define TORQUE_CAST(...) ca_.TrustedCastImpl(__VA_ARGS__)
 #endif
 
   // Constants.
@@ -726,7 +759,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     char* message_dup = zone()->AllocateArray<char>(buf_size);
     snprintf(message_dup, buf_size, "%s", message.str().c_str());
 
-    return Cast(UntypedParameter(value), message_dup);
+    if constexpr (is_subtype_v<T, Union<Smi, TrustedObject>>) {
+      return TrustedCast<T>(UntypedParameter(value),
+                            "TODO: Should we check parameters?", message_dup);
+    } else {
+      return Cast(UntypedParameter(value), message_dup);
+    }
   }
 
   template <class T>

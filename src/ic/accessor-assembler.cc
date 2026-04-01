@@ -540,7 +540,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_code_handler);
   {
-    TNode<Code> code_handler = CAST(handler);
+    TNode<Code> code_handler = TrustedCast<Code>(
+        handler, "used in a call which will be checkd via dispatch table");
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
                                p->name(), p->slot(), p->vector());
@@ -1434,7 +1435,9 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
-      TNode<Code> code = CAST(smi_or_code_handler);
+      TNode<Code> code = TrustedCast<Code>(
+          smi_or_code_handler,
+          "used in a call which will be checkd via dispatch table");
       on_code_handler(code);
 
       BIND(&if_smi_handler);
@@ -1839,7 +1842,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      TNode<Code> code_handler = CAST(strong_handler);
+      TNode<Code> code_handler = TrustedCast<Code>(
+          strong_handler,
+          "used in a call which will be checkd via dispatch table");
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
                    p->vector());
@@ -4727,8 +4732,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
 
       {
-        // Call the handler.
-        TNode<Code> code_handler = CAST(handler);
+        TNode<Code> code_handler = TrustedCast<Code>(
+            handler, "used in a call which will be checkd via dispatch table");
         TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                      p->receiver(), p->name(), p->value(), p->slot(),
                      p->vector());
@@ -4741,8 +4746,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        TNode<Code> code = CAST(
-            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)));
+        TNode<Code> code = TrustedCast<Code>(
+            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)),
+            "used in a call which will be checkd via dispatch table");
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());

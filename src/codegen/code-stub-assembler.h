@@ -43,6 +43,7 @@
 #include "src/objects/tagged-index.h"
 #include "src/objects/tagged.h"
 #include "src/objects/templates.h"
+#include "src/objects/trusted-pointer.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
 
@@ -1005,8 +1006,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  TNode<TrustedObject> LoadTrustedPointerFromObject(
-      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
+  template <IndirectPointerTagRange tag_range>
+  inline TNode<TrustedTypeFor<tag_range>> LoadTrustedPointerFromObject(
+      TNode<HeapObject> object, int field_offset);
 
   void LoadTrustedUnknownPointerFromObject(
       TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
@@ -1079,15 +1081,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
 
-  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
-                                          TNode<IntPtrT> offset) {
-    return CAST(LoadProtectedPointerFromObject(
-        object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
+  template <typename T>
+  TNode<T> LoadProtectedPointerField(TNode<TrustedObject> object,
+                                     TNode<IntPtrT> offset) {
+    if constexpr (is_subtype_v<T, Union<Smi, TrustedObject>>) {
+      return TrustedCast<T>(
+          LoadProtectedPointerFromObject(
+              object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))),
+          "loaded from trusted object");
+    } else {
+      return Cast(LoadProtectedPointerFromObject(
+          object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
+    }
   }
-  TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
-                                          int offset) {
-    return CAST(LoadProtectedPointerFromObject(
-        object, IntPtrConstant(offset - kHeapObjectTag)));
+  template <typename T>
+  TNode<T> LoadProtectedPointerField(TNode<TrustedObject> object, int offset) {
+    if constexpr (is_subtype_v<T, Union<Smi, TrustedObject>>) {
+      return TrustedCast<T>(
+          LoadProtectedPointerFromObject(
+              object, IntPtrConstant(offset - kHeapObjectTag)),
+          "loaded from trusted object");
+    } else {
+      return Cast(LoadProtectedPointerFromObject(
+          object, IntPtrConstant(offset - kHeapObjectTag)));
+    }
   }
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object,
@@ -1129,44 +1146,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #if V8_ENABLE_WEBASSEMBLY
   // Returns WasmTrustedInstanceData|Smi.
-  TNode<Object> LoadInstanceDataFromWasmImportData(
+  TNode<Union<Smi, WasmTrustedInstanceData>> LoadInstanceDataFromWasmImportData(
       TNode<WasmImportData> import_data) {
-    return LoadProtectedPointerField(
+    return LoadProtectedPointerField<Union<Smi, WasmTrustedInstanceData>>(
         import_data, WasmImportData::kProtectedInstanceDataOffset);
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
   TNode<Union<WasmImportData, WasmTrustedInstanceData>>
   LoadImplicitArgFromWasmInternalFunction(TNode<WasmInternalFunction> object) {
-    TNode<Object> obj = LoadProtectedPointerField(
+    return LoadProtectedPointerField<
+        Union<WasmImportData, WasmTrustedInstanceData>>(
         object, WasmInternalFunction::kProtectedImplicitArgOffset);
-    CSA_DCHECK(this, TaggedIsNotSmi(obj));
-    TNode<HeapObject> implicit_arg = CAST(obj);
-    CSA_DCHECK(
-        this,
-        Word32Or(HasInstanceType(implicit_arg, WASM_TRUSTED_INSTANCE_DATA_TYPE),
-                 HasInstanceType(implicit_arg, WASM_IMPORT_DATA_TYPE)));
-    return CAST(implicit_arg);
   }
 
-  TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
-      TNode<WasmFuncRef> func_ref) {
-    return CAST(LoadTrustedPointerFromObject(
-        func_ref, WasmFuncRef::kTrustedInternalOffset,
-        kWasmInternalFunctionIndirectPointerTag));
-  }
+  inline TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
+      TNode<WasmFuncRef> func_ref);
 
   TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFunctionData(
       TNode<WasmFunctionData> data) {
-    return CAST(LoadProtectedPointerField(
-        data, WasmFunctionData::kProtectedInternalOffset));
+    return LoadProtectedPointerField<WasmInternalFunction>(
+        data, WasmFunctionData::kProtectedInternalOffset);
   }
 
   TNode<WasmTrustedInstanceData>
   LoadWasmTrustedInstanceDataFromWasmExportedFunctionData(
       TNode<WasmExportedFunctionData> data) {
-    return CAST(LoadProtectedPointerField(
-        data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
+    return LoadProtectedPointerField<WasmTrustedInstanceData>(
+        data, WasmExportedFunctionData::kProtectedInstanceDataOffset);
   }
 
   // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.

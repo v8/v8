@@ -81,9 +81,12 @@ const kJSRegExpRegExpDataOffset:
 const kRegExpDataIndirectPointerTag:
     constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
+extern macro RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
+    HeapObject, constexpr int31): RegExpData;
+
 operator '.source' macro RegExpSource(regexp: JSRegExp): String {
-  const data: RegExpData = UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-      regexp, kJSRegExpRegExpDataOffset, kRegExpDataIndirectPointerTag));
+  const data: RegExpData =
+      LoadRegExpDataFromObject(regexp, kJSRegExpRegExpDataOffset);
   return data.escaped_source;
 }
 

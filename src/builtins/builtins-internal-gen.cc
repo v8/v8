@@ -105,18 +105,17 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
                          std::make_pair(MachineType::Pointer(), isolate_ptr),
                          std::make_pair(MachineType::TaggedPointer(), shared)));
 
-  auto code = Select<Code>(
+  auto code = Select<Object>(
       TaggedIsSmi(result),
       [=, this] {
-        return CallRuntime<Code>(Runtime::kDebugBreakAtEntry, context,
-                                 function);
+        return CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
       },
-      [=, this] { return CAST(result); });
+      [=] { return result; });
 
-  // TailCallJSCode will take care of parameter count validation between the
-  // code and dispatch handle.
-  TailCallJSCode(code, context, function, new_target, arg_count,
-                 dispatch_handle);
+  TailCallJSCode(
+      TrustedCast<Code>(
+          code, "used in a call which will be checked via dispatch table"),
+      context, function, new_target, arg_count, dispatch_handle);
 }
 
 class WriteBarrierCodeStubAssembler : public CodeStubAssembler {

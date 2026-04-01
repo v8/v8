@@ -138,7 +138,8 @@ TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
   // Force a re-load of the bytecode array after every call in case the debugger
   // has been activated.
   if (!bytecode_array_valid_) {
-    bytecode_array_ = CAST(LoadRegister(Register::bytecode_array()));
+    bytecode_array_ = TrustedCast<BytecodeArray>(
+        LoadRegister(Register::bytecode_array()), "from trusted register");
     bytecode_array_valid_ = true;
   }
   return bytecode_array_.value();
@@ -768,8 +769,9 @@ TNode<IntPtrT> InterpreterAssembler::BytecodeOperandOffset(int operand_index) {
 }
 
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
-  TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerField(
-      BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
+  TNode<TrustedFixedArray> constant_pool =
+      LoadProtectedPointerField<TrustedFixedArray>(
+          BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset);
   return CAST(LoadArrayElement(constant_pool,
                                OFFSET_OF_DATA_START(TrustedFixedArray),
                                UncheckedCast<IntPtrT>(index), 0));
@@ -1525,7 +1527,8 @@ void InterpreterAssembler::OnStackReplacement(
     TNode<CodeWrapper> code_wrapper = CAST(maybe_target_code.value());
     maybe_target_code =
         LoadCodePointerFromObject(code_wrapper, offsetof(CodeWrapper, code_));
-    GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
+    GotoIfNot(IsMarkedForDeoptimization(TrustedCast<Code>(
+                  maybe_target_code.value(), "read access only")),
               &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
                             ClearedValue(), UNSAFE_SKIP_WRITE_BARRIER);

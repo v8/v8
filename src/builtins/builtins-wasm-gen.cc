@@ -17,15 +17,17 @@ namespace v8::internal {
 
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
-  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
+  return TrustedCast<WasmTrustedInstanceData>(
+      LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset),
+      "from trusted stack slot");
 }
 
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     TNode<WasmInstanceObject> instance_object) {
-  return CAST(LoadTrustedPointerFromObject(
-      instance_object, WasmInstanceObject::kTrustedDataOffset,
-      kWasmTrustedInstanceDataIndirectPointerTag));
+  return LoadTrustedPointerFromObject<
+      kWasmTrustedInstanceDataIndirectPointerTag>(
+      instance_object, WasmInstanceObject::kTrustedDataOffset);
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
@@ -42,7 +44,9 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   GotoIf(IsJSFunctionInstanceType(instance_type), &is_js_function);
   GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
          &is_import_data);
-  context_result = LoadContextFromInstanceData(CAST(function_or_instance));
+  context_result =
+      LoadContextFromInstanceData(TrustedCast<WasmTrustedInstanceData>(
+          function_or_instance, "from trusted stack slot"));
   Goto(&done);
 
   BIND(&is_js_function);
@@ -53,7 +57,8 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   Goto(&done);
 
   BIND(&is_import_data);
-  TNode<WasmImportData> import_data = CAST(function_or_instance);
+  TNode<WasmImportData> import_data = TrustedCast<WasmImportData>(
+      function_or_instance, "from trusted stack slot");
   context_result = LoadObjectField<NativeContext>(
       import_data, WasmImportData::kNativeContextOffset);
   Goto(&done);
@@ -73,10 +78,8 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstanceData(
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
     TNode<WasmTrustedInstanceData> trusted_data) {
-  return CAST(LoadProtectedPointerFromObject(
-      trusted_data,
-      IntPtrConstant(WasmTrustedInstanceData::kProtectedSharedPartOffset -
-                     kHeapObjectTag)));
+  return LoadProtectedPointerField<WasmTrustedInstanceData>(
+      trusted_data, WasmTrustedInstanceData::kProtectedSharedPartOffset);
 }
 
 TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(

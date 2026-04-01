@@ -504,9 +504,8 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     // Initialize JSRegExp fields.
     StoreTrustedPointerField(
         new_object, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag,
-        CAST(LoadTrustedPointerFromObject(
-            boilerplate, offsetof(RegExpBoilerplateDescription, data_),
-            kRegExpDataIndirectPointerTag)));
+        LoadTrustedPointerFromObject<kRegExpDataIndirectPointerTag>(
+            boilerplate, offsetof(RegExpBoilerplateDescription, data_)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kFlagsOffset,
         LoadObjectField(boilerplate,

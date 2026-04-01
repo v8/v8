@@ -176,6 +176,12 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
   SetPropertyStrict(context, regexp, name, value);
 }
 
+TNode<RegExpData> RegExpBuiltinsAssembler::LoadRegExpDataFromObject(
+    TNode<HeapObject> object, int offset) {
+  return LoadTrustedPointerFromObject<kRegExpDataIndirectPointerTag>(object,
+                                                                     offset);
+}
+
 TNode<Smi> RegExpBuiltinsAssembler::LoadCaptureCount(TNode<RegExpData> data) {
   return Select<Smi>(
       SmiEqual(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset),
@@ -266,8 +272,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Preparations for named capture properties. Exit early if the result does
     // not have any named captures to minimize performance impact.
 
-    TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-        regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+    TNode<RegExpData> data =
+        LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
 
     // We reach this point only if captures exist, implying that the assigned
     // regexp engine must be able to handle captures.
@@ -568,8 +574,8 @@ TNode<RegExpMatchInfo> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     TNode<Number> last_index, Label* if_not_matched) {
   Label out(this), not_matched(this);
   TVARIABLE(RegExpMatchInfo, var_result);
-  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  TNode<RegExpData> data =
+      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
   TNode<Smi> register_count_per_match =
       RegistersForCaptureCount(LoadCaptureCount(data));
   // Allocate space for one match.
@@ -625,9 +631,8 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<String> string, TNode<Number> last_index,
     TNode<RawPtrT> result_offsets_vector,
     TNode<Int32T> result_offsets_vector_length) {
-  CSA_DCHECK(this, TaggedEqual(data, LoadTrustedPointerFromObject(
-                                         regexp, JSRegExp::kDataOffset,
-                                         kRegExpDataIndirectPointerTag)));
+  CSA_DCHECK(this, TaggedEqual(data, LoadRegExpDataFromObject(
+                                         regexp, JSRegExp::kDataOffset)));
 
   ToDirectStringAssembler to_direct(state(), string);
 
@@ -798,13 +803,14 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Argument 8: Regular expression data object. This argument is ignored in
     // native irregexp code.
     MachineType arg8_type = type_tagged;
-    TNode<IrRegExpData> arg8 = CAST(data);
+    TNode<IrRegExpData> arg8 =
+        TrustedCast<IrRegExpData>(data, "type checked above");
 
 #ifdef V8_ENABLE_SANDBOX
     TNode<RawPtrT> code_entry = LoadCodeEntryFromIndirectPointerHandle(
         var_code.value(), kRegExpEntrypointTag);
 #else
-    TNode<Code> code = CAST(var_code.value());
+    TNode<Code> code = TrustedCast<Code>(var_code.value(), "no sandbox");
     TNode<RawPtrT> code_entry =
         LoadCodeInstructionStart(code, kRegExpEntrypointTag);
 #endif
@@ -899,9 +905,10 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   BIND(&atom);
   {
-    var_result =
-        RegExpExecAtom(context, CAST(data), string, CAST(last_index),
-                       result_offsets_vector, result_offsets_vector_length);
+    var_result = RegExpExecAtom(
+        context, TrustedCast<AtomRegExpData>(data, "type checked above"),
+        string, CAST(last_index), result_offsets_vector,
+        result_offsets_vector_length);
     Goto(&out);
   }
 
@@ -1092,8 +1099,8 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 
   CSA_DCHECK(this, TaggedIsPositiveSmi(last_index));
 
-  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  TNode<RegExpData> data =
+      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
   CSA_SBXCHECK(this, HasInstanceType(data, ATOM_REG_EXP_DATA_TYPE));
 
   // Callers ensure that last_index is in-bounds.
@@ -1355,8 +1362,8 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&if_patternisfastregexp);
     {
-      TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-          CAST(pattern), JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+      TNode<RegExpData> data =
+          LoadRegExpDataFromObject(CAST(pattern), JSRegExp::kDataOffset);
       TNode<JSAny> source =
           LoadObjectField<String>(data, RegExpData::kOriginalSourceOffset);
       var_pattern = source;
@@ -1474,8 +1481,8 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 
     const TNode<JSRegExp> pattern = CAST(maybe_pattern);
     const TNode<String> new_flags = FlagsGetter(context, pattern, true);
-    const TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-        pattern, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+    const TNode<RegExpData> data =
+        LoadRegExpDataFromObject(pattern, JSRegExp::kDataOffset);
     const TNode<Object> new_pattern =
         LoadObjectField<String>(data, RegExpData::kOriginalSourceOffset);
 
@@ -1636,8 +1643,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   // Allocate the results vector. Allocate space for exactly one result,
   // forcing the engine to return after each match. This is necessary due to
   // the specialized AdvanceStringIndex logic below.
-  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  TNode<RegExpData> data =
+      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
   TNode<Smi> capture_count = LoadCaptureCount(data);
   TNode<Smi> register_count_per_match = RegistersForCaptureCount(capture_count);
   TNode<RawPtrT> result_offsets_vector;
