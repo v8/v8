@@ -2570,8 +2570,6 @@ filegroup(
         "src/sandbox/trusted-pointer-table.cc",
         "src/sandbox/trusted-pointer-table.h",
         "src/sandbox/trusted-pointer-table-inl.h",
-        "src/sandbox/code-pointer.h",
-        "src/sandbox/code-pointer-inl.h",
         "src/sandbox/code-sandboxing-mode.h",
         "src/sandbox/compactible-external-entity-table-inl.h",
         "src/sandbox/compactible-external-entity-table.h",

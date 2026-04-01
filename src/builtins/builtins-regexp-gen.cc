@@ -807,13 +807,12 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
         TrustedCast<IrRegExpData>(data, "type checked above");
 
 #ifdef V8_ENABLE_SANDBOX
-    TNode<RawPtrT> code_entry = LoadCodeEntryFromIndirectPointerHandle(
-        var_code.value(), kRegExpEntrypointTag);
+    TNode<Code> code = ResolveCodePointerHandle(var_code.value());
 #else
     TNode<Code> code = TrustedCast<Code>(var_code.value(), "no sandbox");
+#endif
     TNode<RawPtrT> code_entry =
         LoadCodeInstructionStart(code, kRegExpEntrypointTag);
-#endif
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not

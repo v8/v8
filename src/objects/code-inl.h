@@ -781,8 +781,8 @@ Tagged<Object> Code::raw_instruction_stream(PtrComprCageBase cage_base,
 
 DEF_GETTER(Code, instruction_start, Address) {
 #ifdef V8_ENABLE_SANDBOX
-  return ReadCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset,
-                                               entrypoint_tag());
+  const auto tag = entrypoint_tag();
+  return ReadField<Address>(kInstructionStartOffset) ^ tag;
 #else
   return ReadField<Address>(kInstructionStartOffset);
 #endif
@@ -790,8 +790,9 @@ DEF_GETTER(Code, instruction_start, Address) {
 
 void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
-  WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value,
-                                         entrypoint_tag());
+  DCHECK_EQ(value >> kCodeEntrypointTagShift, 0);
+  const auto tag = entrypoint_tag();
+  WriteField<Address>(kInstructionStartOffset, value ^ tag);
 #else
   WriteField<Address>(kInstructionStartOffset, value);
 #endif

@@ -640,25 +640,6 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   Or(destination, destination, Operand(kHeapObjectTag));
 }
 
-void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
-                                                      MemOperand field_operand,
-                                                      CodeEntrypointTag tag) {
-  DCHECK_NE(tag, kInvalidEntrypointTag);
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  LoadCodePointerTableBase(scratch);
-  Ld_wu(destination, field_operand);
-  srli_d(destination, destination, kCodePointerHandleShift);
-  slli_d(destination, destination, kCodePointerTableEntrySizeLog2);
-  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
-  Ld_d(destination, MemOperand(scratch, destination));
-  if (tag != 0) {
-    li(scratch, Operand(tag));
-    xor_(destination, destination, scratch);
-  }
-}
-
 void MacroAssembler::LoadCodePointerTableBase(Register destination) {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   if (!options().isolate_independent_code && isolate()) {
@@ -5747,13 +5728,15 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  LoadCodeEntrypointViaCodePointer(
-      destination,
-      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset), tag);
-#else
   Ld_d(destination,
        FieldMemOperand(code_object, Code::kInstructionStartOffset));
+#ifdef V8_ENABLE_SANDBOX
+  if (tag != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, Operand(tag));
+    xor_(destination, destination, scratch);
+  }
 #endif
 }
 
