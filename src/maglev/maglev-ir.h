@@ -2552,8 +2552,12 @@ class ValueNode : public Node {
   bool is_used() const { return use_count_ > 0; }
   bool unused_inputs_were_visited() const { return use_count_ == -1; }
   void add_use() {
-    // Make sure a saturated use count won't overflow.
-    DCHECK_LT(use_count_, kMaxInt);
+    // Make sure a saturated use count won't overflow. Note that this is a CHECK
+    // rather than a DCHECK: hitting this requires building a huge maglev graph
+    // with a huge amount of deopt, and hitting this in a legitimate graph seems
+    // highly unlikely. If we see this CHECK failing, then we should instead use
+    // a proper saturated counter (like turboshaft::SaturatedUint8).
+    CHECK_LT(use_count_, kMaxInt);
     use_count_++;
   }
   inline void remove_use();
