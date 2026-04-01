@@ -84,7 +84,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b2ac0e7a9089039e62b84d246eca83f84c540f76',
+  'gn_version': 'git_revision:6e8dcdebbadf4f8aa75e6a4b6e0bdf89dce1513a',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -131,7 +131,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ee954f30b7392d1c1bbaf84e5f4b1d427ea03dc9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3a93baf94f12d0e7ced2a7d862cd68cf0a02d2f8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '22e55595e15ebbbbb4bef118d5a654b185b0b30d',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4e00b47c607f93021e0a26b7ae73ca323e300af1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cdde2d99ce37b42b5f8020fca4244971af80e99e',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -282,7 +282,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'ee5f27adc28bd3f15b2c293f726d14d2e336cbd5',
   'third_party/instrumented_libs': {
-    'url': Var('chromium_url') + '/chromium/third_party/instrumented_libraries.git' + '@' + '69015643b3f68dbd438c010439c59adc52cac808',
+    'url': Var('chromium_url') + '/chromium/third_party/instrumented_libraries.git' + '@' + 'e8cb570a9a2ee9128e2214c73417ad2a3c47780b',
     'condition': 'checkout_instrumented_libraries',
   },
   'third_party/ittapi': {
@@ -500,7 +500,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'c332b2ab19d2fb40590021e7bed63778f44e8780',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '8e9c81c567d519ddb77c6b63f4716b2633848c18',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
