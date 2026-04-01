@@ -75,7 +75,7 @@ class PerfettoLogger : public LogEventListener {
   bool is_listening_to_code_events() override;
 
  private:
-  Isolate& isolate_;
+  Isolate* const isolate_;
   const std::shared_ptr<v8::TaskRunner> task_runner_;
   std::atomic_flag existing_code_logged_ = ATOMIC_FLAG_INIT;
 };

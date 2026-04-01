@@ -247,8 +247,8 @@ void PerfettoLogger::OnCodeDataSourceStop() {
 
 void PerfettoLogger::LogExistingCode() {
   if (existing_code_logged_.test_and_set()) return;
-  HandleScope scope(&isolate_);
-  ExistingCodeLogger logger(&isolate_, this);
+  HandleScope scope(isolate_);
+  ExistingCodeLogger logger(isolate_, this);
   logger.LogBuiltins();
   logger.LogCodeObjects();
   logger.LogCompiledFunctions();
@@ -256,7 +256,7 @@ void PerfettoLogger::LogExistingCode() {
 
 void PerfettoLogger::TriggerExistingCodeLogging() {
   existing_code_logged_.clear();
-  isolate_.RequestInterrupt(
+  isolate_->RequestInterrupt(
       [](v8::Isolate*, void* data) {
         reinterpret_cast<PerfettoLogger*>(data)->LogExistingCode();
       },
@@ -273,12 +273,11 @@ void PerfettoLogger::TriggerExistingCodeLogging() {
     PerfettoLogger* const logger_;
   };
 
-  task_runner_->PostTask(
-      std::make_unique<LogExistingCodeTask>(&isolate_, this));
+  task_runner_->PostTask(std::make_unique<LogExistingCodeTask>(isolate_, this));
 }
 
 PerfettoLogger::PerfettoLogger(Isolate* isolate)
-    : isolate_(*isolate),
+    : isolate_(isolate),
       task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
           reinterpret_cast<v8::Isolate*>(isolate))) {}
 PerfettoLogger::~PerfettoLogger() {}
@@ -387,7 +386,7 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
             isolate_, info,
             ctx.InternJsScript(isolate_, Cast<Script>(info->script())), line,
             column));
-        WriteJsCode(&isolate_, ctx, *abstract_code, *code_proto);
+        WriteJsCode(isolate_, ctx, *abstract_code, *code_proto);
       });
 }
 #if V8_ENABLE_WEBASSEMBLY
