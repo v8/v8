@@ -242,24 +242,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   return copy;
 }
 
-class DeprecationUpdateContext {
- public:
-  explicit DeprecationUpdateContext(Isolate* isolate) { isolate_ = isolate; }
-  Isolate* isolate() { return isolate_; }
-  bool ShouldCreateMemento(DirectHandle<JSObject> object) { return false; }
-  inline void ExitScope(DirectHandle<AllocationSite> scope_site,
-                        DirectHandle<JSObject> object) {}
-  DirectHandle<AllocationSite> EnterNewScope() {
-    return DirectHandle<AllocationSite>();
-  }
-  DirectHandle<AllocationSite> current() { UNREACHABLE(); }
-
-  static const bool kCopying = false;
-
- private:
-  Isolate* isolate_;
-};
-
 // AllocationSiteCreationContext aids in the creation of AllocationSites to
 // accompany object literals.
 class AllocationSiteCreationContext : public AllocationSiteContext {
@@ -317,15 +299,6 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
   }
   static const bool kCopying = false;
 };
-
-MaybeDirectHandle<JSObject> DeepWalk(Handle<JSObject> object,
-                                     DeprecationUpdateContext* site_context) {
-  JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context);
-  MaybeDirectHandle<JSObject> result = v.StructureWalk(object);
-  DirectHandle<JSObject> for_assert;
-  DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
-  return result;
-}
 
 MaybeDirectHandle<JSObject> DeepWalk(
     Handle<JSObject> object, AllocationSiteCreationContext* site_context) {
@@ -703,11 +676,8 @@ Handle<JSObject> CreateArrayLiteral(
 template <typename LiteralHelper>
 MaybeDirectHandle<JSObject> CreateLiteralWithoutAllocationSite(
     Isolate* isolate, Handle<HeapObject> description, int flags) {
-  Handle<JSObject> literal = LiteralHelper::Create(isolate, description, flags,
-                                                   AllocationType::kYoung);
-  DeprecationUpdateContext update_context(isolate);
-  RETURN_ON_EXCEPTION(isolate, DeepWalk(literal, &update_context));
-  return literal;
+  return LiteralHelper::Create(isolate, description, flags,
+                               AllocationType::kYoung);
 }
 
 template <typename LiteralHelper>
