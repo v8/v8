@@ -31,6 +31,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -118,6 +119,11 @@ class IsolateRegistry {
   void StartLogging(const base::MutexGuard&) {
     for (const auto& [isolate, logger] : isolates_) {
       isolate->logger()->AddListener(logger.get());
+#if V8_ENABLE_WEBASSEMBLY
+      // Also enable Wasm code logging.
+      DCHECK(logger->is_listening_to_code_events());
+      wasm::GetWasmEngine()->EnableCodeLogging(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
   }
 
