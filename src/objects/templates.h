@@ -315,8 +315,7 @@ class FunctionTemplateInfo
       Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
   int GetCFunctionsCount() const;
-  Address GetCFunction(Isolate* isolate, int index) const;
-  const CFunctionInfo* GetCSignature(Isolate* isolate, int index) const;
+  CFunctionWithSignature GetCFunction(Isolate* isolate, int index) const;
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()

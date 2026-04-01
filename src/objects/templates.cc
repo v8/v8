@@ -174,21 +174,12 @@ int FunctionTemplateInfo::GetCFunctionsCount() const {
   return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value();
 }
 
-Address FunctionTemplateInfo::GetCFunction(Isolate* isolate, int index) const {
+CFunctionWithSignature FunctionTemplateInfo::GetCFunction(Isolate* isolate,
+                                                          int index) const {
   i::DisallowHeapAllocation no_gc;
-  return Cast<Managed<CFunctionWithSignature>>(
-             Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-      ->raw()
-      ->address;
-}
-
-const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
-                                                         int index) const {
-  i::DisallowHeapAllocation no_gc;
-  return Cast<Managed<CFunctionWithSignature>>(
-             Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-      ->raw()
-      ->signature;
+  return *Cast<Managed<CFunctionWithSignature>>(
+              Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+              ->raw();
 }
 
 // static

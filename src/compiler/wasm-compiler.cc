@@ -871,13 +871,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
-    const Address c_address = api_func_data->GetCFunction(isolate, 0);
-    const v8::CFunctionInfo* c_signature =
-        api_func_data->GetCSignature(isolate, 0);
+    const CFunctionWithSignature c_function =
+        api_func_data->GetCFunction(isolate, 0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    Address c_functions[] = {c_address};
-    const v8::CFunctionInfo* const c_signatures[] = {c_signature};
+    Address c_functions[] = {c_function.address};
+    const v8::CFunctionInfo* const c_signatures[] = {c_function.signature};
     isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
                                                               c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -892,18 +891,18 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                     wasm::ObjectAccess::ToTagged(
                         FunctionTemplateInfo::kCallbackDataOffset));
 
-    FastApiCallFunction c_function{c_address, c_signature};
+    FastApiCallFunction call_function{c_function.address, c_function.signature};
     Node* old_sp = BuildSwitchToTheCentralStackIfNeeded();
     Node* call = fast_api_call::BuildFastApiCall(
-        isolate, graph(), gasm_.get(), c_function, api_data_argument,
+        isolate, graph(), gasm_.get(), call_function, api_data_argument,
         // Load and convert parameters passed to C function
-        [this, c_signature, receiver_node](
+        [this, c_function, receiver_node](
             int param_index,
             GraphAssemblerLabel<0>* /* error label, unused */) {
           if (param_index == 0) {
             return gasm_->AdaptLocalArgument(receiver_node);
           }
-          switch (c_signature->ArgumentInfo(param_index).GetType()) {
+          switch (c_function.signature->ArgumentInfo(param_index).GetType()) {
             case CTypeInfo::Type::kV8Value:
               return gasm_->AdaptLocalArgument(Param(param_index));
             default:

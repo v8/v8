@@ -4,6 +4,8 @@
 
 #include "src/wasm/module-instantiate.h"
 
+#include <optional>
+
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compiler.h"
@@ -152,26 +154,24 @@ bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
 }
 #endif
 
-bool IsSupportedWasmFastApiFunction(Isolate* isolate,
-                                    const wasm::CanonicalSig* expected_sig,
-                                    Tagged<SharedFunctionInfo> shared,
-                                    ReceiverKind receiver_kind,
-                                    int* out_index) {
+std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
+    Isolate* isolate, const wasm::CanonicalSig* expected_sig,
+    Tagged<SharedFunctionInfo> shared,
+    Tagged<FunctionTemplateInfo> api_func_data, ReceiverKind receiver_kind,
+    bool* out_is_first = nullptr) {
 #ifdef V8_ENABLE_TURBOFAN
-  if (!shared->IsApiFunction()) {
-    return false;
-  }
-  if (shared->api_func_data()->GetCFunctionsCount() == 0) {
-    return false;
+  const int c_funcs_count = api_func_data->GetCFunctionsCount();
+  if (c_funcs_count == 0) {
+    return std::nullopt;
   }
   if (receiver_kind == ReceiverKind::kAnyReceiver &&
-      !shared->api_func_data()->accept_any_receiver()) {
-    return false;
+      !api_func_data->accept_any_receiver()) {
+    return std::nullopt;
   }
   if (receiver_kind == ReceiverKind::kAnyReceiver &&
-      !IsUndefined(shared->api_func_data()->signature())) {
+      !IsUndefined(api_func_data->signature())) {
     // TODO(wasm): CFunctionInfo* signature check.
-    return false;
+    return std::nullopt;
   }
 
   const auto log_imported_function_mismatch = [&shared, isolate](
@@ -196,13 +196,13 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     // that case we use the "slow" path making a normal Wasm->JS call and
     // calling the "slow" callback specified in FunctionTemplate::New().
     log_imported_function_mismatch(0, "too many return values");
-    return false;
+    return std::nullopt;
   }
 
-  for (int c_func_id = 0, end = shared->api_func_data()->GetCFunctionsCount();
-       c_func_id < end; ++c_func_id) {
-    const CFunctionInfo* info =
-        shared->api_func_data()->GetCSignature(isolate, c_func_id);
+  for (int c_func_id = 0; c_func_id < c_funcs_count; ++c_func_id) {
+    const CFunctionWithSignature c_func =
+        api_func_data->GetCFunction(isolate, c_func_id);
+    const CFunctionInfo* info = c_func.signature;
     if (!IsFastCallSupportedSignature(info)) {
       log_imported_function_mismatch(c_func_id,
                                      "signature not supported by the fast API");
@@ -275,11 +275,13 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     if (param_mismatch) {
       continue;
     }
-    *out_index = c_func_id;
-    return true;
+    if (out_is_first) {
+      *out_is_first = c_func_id == 0;
+    }
+    return c_func;
   }
 #endif
-  return false;
+  return std::nullopt;
 }
 
 bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
@@ -308,15 +310,18 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
     return false;
   }
 
-  DirectHandle<SharedFunctionInfo> shared(target->shared(), isolate);
-  int api_function_index = -1;
+  Tagged<SharedFunctionInfo> shared = target->shared();
+  if (!shared->IsApiFunction()) {
+    return false;
+  }
+  bool c_func_is_first = false;
   // The fast API call wrapper currently does not support function overloading.
   // Therefore, if the matching function is not function 0, the fast API cannot
   // be used.
-  return IsSupportedWasmFastApiFunction(isolate, expected_sig, *shared,
-                                        ReceiverKind::kAnyReceiver,
-                                        &api_function_index) &&
-         api_function_index == 0;
+  return FindSupportedWasmFastApiFunction(
+             isolate, expected_sig, shared, shared->api_func_data(),
+             ReceiverKind::kAnyReceiver, &c_func_is_first) &&
+         c_func_is_first;
 }
 
 bool IsStringRef(wasm::CanonicalValueType type) {
@@ -448,51 +453,53 @@ WellKnownImport CheckForWellKnownImport(
   if (!IsJSFunction(bound_this)) return kGeneric;
   sfi = Cast<JSFunction>(bound_this)->shared();
   Isolate* isolate = Isolate::Current();
-  int out_api_function_index = -1;
-  if (v8_flags.wasm_fast_api &&
-      IsSupportedWasmFastApiFunction(isolate, sig, sfi,
-                                     ReceiverKind::kFirstParamIsReceiver,
-                                     &out_api_function_index)) {
-    Tagged<FunctionTemplateInfo> func_data = sfi->api_func_data();
-    NativeModule* native_module = trusted_instance_data->native_module();
-    if (!native_module->TrySetFastApiCallTarget(
-            func_index,
-            func_data->GetCFunction(isolate, out_api_function_index))) {
-      return kGeneric;
-    }
+  if (v8_flags.wasm_fast_api && sfi->IsApiFunction()) {
+    Tagged<FunctionTemplateInfo> api_func_data = sfi->api_func_data();
+    std::optional<CFunctionWithSignature> c_function =
+        FindSupportedWasmFastApiFunction(isolate, sig, sfi, api_func_data,
+                                         ReceiverKind::kFirstParamIsReceiver);
+    if (c_function) {
+      NativeModule* native_module = trusted_instance_data->native_module();
+      if (!native_module->TrySetFastApiCallTarget(func_index,
+                                                  c_function->address)) {
+        return kGeneric;
+      }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    Address c_functions[] = {func_data->GetCFunction(isolate, 0)};
-    const v8::CFunctionInfo* const c_signatures[] = {
-        func_data->GetCSignature(isolate, 0)};
-    isolate->simulator_data()->RegisterFunctionsAndSignatures(c_functions,
-                                                              c_signatures, 1);
+      const CFunctionWithSignature c_function_0 =
+          api_func_data->GetCFunction(isolate, 0);
+      Address c_functions[] = {c_function_0.address};
+      const v8::CFunctionInfo* const c_signatures[] = {c_function_0.signature};
+      isolate->simulator_data()->RegisterFunctionsAndSignatures(
+          c_functions, c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    // Store the signature of the C++ function in the native_module. We check
-    // first if the signature already exists in the native_module such that we
-    // do not create a copy of the signature unnecessarily. Since
-    // `has_fast_api_signature` and `set_fast_api_signature` don't happen
-    // atomically, it is still possible that multiple copies of the signature
-    // get created. However, the `TrySetFastApiCallTarget` above guarantees that
-    // if there are concurrent calls to `set_cast_api_signature`, then all calls
-    // would store the same signature to the native module.
-    if (!native_module->has_fast_api_signature(func_index)) {
-      base::MutexGuard lock{&native_module->module()->signature_storage_mutex};
-      native_module->set_fast_api_signature(
-          func_index,
-          GetFunctionSigForFastApiImport(
-              &native_module->module()->signature_storage,
-              func_data->GetCSignature(isolate, out_api_function_index)));
-    }
+      // Store the signature of the C++ function in the native_module. We check
+      // first if the signature already exists in the native_module such that we
+      // do not create a copy of the signature unnecessarily. Since
+      // `has_fast_api_signature` and `set_fast_api_signature` don't happen
+      // atomically, it is still possible that multiple copies of the signature
+      // get created. However, the `TrySetFastApiCallTarget` above guarantees
+      // that if there are concurrent calls to `set_cast_api_signature`, then
+      // all calls would store the same signature to the native module.
+      if (!native_module->has_fast_api_signature(func_index)) {
+        base::MutexGuard lock{
+            &native_module->module()->signature_storage_mutex};
+        native_module->set_fast_api_signature(
+            func_index, GetFunctionSigForFastApiImport(
+                            &native_module->module()->signature_storage,
+                            c_function->signature));
+      }
 
-    DirectHandle<HeapObject> js_signature(sfi->api_func_data()->signature(),
-                                          isolate);
-    DirectHandle<Object> callback_data(
-        sfi->api_func_data()->callback_data(kAcquireLoad), isolate);
-    DirectHandle<WasmFastApiCallData> fast_api_call_data =
-        isolate->factory()->NewWasmFastApiCallData(js_signature, callback_data);
-    trusted_instance_data->well_known_imports()->set(func_index,
-                                                     *fast_api_call_data);
-    return WellKnownImport::kFastAPICall;
+      DirectHandle<HeapObject> js_signature(api_func_data->signature(),
+                                            isolate);
+      DirectHandle<Object> callback_data(
+          api_func_data->callback_data(kAcquireLoad), isolate);
+      DirectHandle<WasmFastApiCallData> fast_api_call_data =
+          isolate->factory()->NewWasmFastApiCallData(js_signature,
+                                                     callback_data);
+      trusted_instance_data->well_known_imports()->set(func_index,
+                                                       *fast_api_call_data);
+      return WellKnownImport::kFastAPICall;
+    }
   }
   if (!sfi->HasBuiltinId()) return kGeneric;
   switch (sfi->builtin_id()) {
