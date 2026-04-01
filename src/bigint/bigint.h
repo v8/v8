@@ -200,10 +200,32 @@ class Platform {
  public:
   virtual ~Platform() = default;
 
-  // If you want the ability to interrupt long-running operations, implement
-  // a Platform subclass that overrides this method. It will be queried
-  // every now and then by long-running operations.
-  virtual bool InterruptRequested() { return false; }
+  // Embedders can choose their own allocator for temporary buffers.
+  virtual digit_t* Allocate(size_t count) = 0;
+  virtual void Free(digit_t* ptr) = 0;
+
+  // This method will be queried every now and then by long-running operations,
+  // giving embedders the ability to interrupt such operations.
+  virtual bool InterruptRequested() = 0;
+
+  class Deleter {
+   public:
+    explicit Deleter(Platform* platform) : platform_(platform) {}
+    inline void operator()(digit_t* ptr) const { platform_->Free(ptr); }
+
+   private:
+    Platform* platform_;
+  };
+};
+
+class DefaultPlatform final : public Platform {
+ public:
+  ~DefaultPlatform() final = default;
+
+  digit_t* Allocate(size_t count) final { return new digit_t[count]; }
+  void Free(digit_t* ptr) final { delete[] ptr; }
+
+  bool InterruptRequested() final { return false; }
 };
 
 // These are the operations that this library supports.
@@ -293,7 +315,7 @@ class FromStringAccumulator;
 class Processor {
  public:
   // Takes ownership of {platform}.
-  static Processor* New(Platform* platform);
+  static Processor* New(Platform* platform) { return new Processor(platform); }
 
   // Use this for any std::unique_ptr holding an instance of {Processor}.
   class Destroyer {
@@ -339,7 +361,19 @@ class Processor {
   int inc_divisor_count() { return ++divisor_count_; }
   void reset_divisor_count() { divisor_count_ = 1; }
 
+  // Callers that want to ensure that the next small operation won't be the
+  // one that exhausts the interrupt check budget and thereby causes an
+  // interrupt check can call this to reset the budget.
+  void ResetInterruptCheckBudget() { work_estimate_ = 0; }
+
+  Platform* platform() { return platform_.get(); }
+
  protected:
+  explicit Processor(Platform* platform)
+      : platform_(platform),
+        small_scratch_(nullptr, Platform::Deleter(platform)),
+        cached_inverse_storage_(nullptr, Platform::Deleter(platform)) {}
+
   // Use {Destroy} or {Destroyer} instead of the destructor directly.
   ~Processor() = default;
 
@@ -352,8 +386,7 @@ class Processor {
 
   RWDigits GetSmallScratch() {
     if (!small_scratch_) {
-      small_scratch_ =
-          std::make_unique_for_overwrite<digit_t[]>(kSmallScratchSize);
+      small_scratch_.reset(platform_->Allocate(kSmallScratchSize));
     }
     return RWDigits(small_scratch_.get(), kSmallScratchSize);
   }
@@ -369,9 +402,14 @@ class Processor {
 
   RWDigits& AllocateCachedInverseFor(Digits& divisor);
 
+  // TODO(jkummerow): Consider merging ProcessorImpl and Processor.
+  std::unique_ptr<Platform> platform_;
+  Status status_{Status::kOk};
+  uintptr_t work_estimate_{0};
+
  private:
-  std::unique_ptr<digit_t[]> small_scratch_;
-  std::unique_ptr<digit_t[]> cached_inverse_storage_;
+  std::unique_ptr<digit_t[], Platform::Deleter> small_scratch_;
+  std::unique_ptr<digit_t[], Platform::Deleter> cached_inverse_storage_;
   RWDigits cached_divisor_{nullptr, 0};
   RWDigits cached_inverse_{nullptr, 0};
   uint32_t cached_inverse_allocated_length_{0};

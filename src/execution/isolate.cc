@@ -5693,12 +5693,30 @@ using MapOfLoadsAndStoresPerFunction =
              std::pair<uint64_t /* loads */, uint64_t /* stores */>>;
 MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
 
-class BigIntPlatform : public bigint::Platform {
+class BigIntPlatform final : public bigint::Platform {
  public:
-  explicit BigIntPlatform(Isolate* isolate) : isolate_(isolate) {}
-  ~BigIntPlatform() override = default;
+  using digit_t = bigint::digit_t;
+  ~BigIntPlatform() final = default;
 
-  bool InterruptRequested() override {
+#if V8_ENABLE_SANDBOX
+  explicit BigIntPlatform(Isolate* isolate)
+      : isolate_(isolate),
+        allocator_(
+            IsolateGroup::GetDefault()->GetSandboxedArrayBufferAllocator()) {}
+
+  digit_t* Allocate(size_t count) final {
+    DCHECK_LT(count, std::numeric_limits<size_t>::max() / sizeof(digit_t));
+    return static_cast<digit_t*>(
+        allocator_->AllocateUninitializedOrCrash(count * sizeof(digit_t)));
+  }
+  void Free(digit_t* ptr) final { allocator_->Free(ptr); }
+#else
+  explicit BigIntPlatform(Isolate* isolate) : isolate_(isolate) {}
+  digit_t* Allocate(size_t count) final { return new digit_t[count]; }
+  void Free(digit_t* ptr) final { delete[] ptr; }
+#endif  // V8_ENABLE_SANDBOX
+
+  bool InterruptRequested() final {
     StackLimitCheck interrupt_check(isolate_);
     return (interrupt_check.InterruptRequested() &&
             isolate_->stack_guard()->HasTerminationRequest());
@@ -5706,6 +5724,9 @@ class BigIntPlatform : public bigint::Platform {
 
  private:
   Isolate* isolate_;
+#if V8_ENABLE_SANDBOX
+  SandboxedArrayBufferAllocatorBase* allocator_;
+#endif  // V8_ENABLE_SANDBOX
 };
 }  // namespace
 

@@ -143,7 +143,7 @@ void ProcessorImpl::DivideSchoolbook(RWDigits& Q, RWDigits& R, Digits& A,
   if (needed_scratch_space <= kSmallScratchSize) {
     scratch = GetSmallScratch();
   } else {
-    allocated_scratch = ScratchDigits(needed_scratch_space);
+    allocated_scratch = ScratchDigits(needed_scratch_space, platform());
     scratch = allocated_scratch.value();
   }
 

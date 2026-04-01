@@ -297,16 +297,16 @@ class ThresholdRunner {
 
     // Over-allocate all storage to support bumping {max} by up to 2x if
     // needed.
-    Storage a_mem(2 * max * a_len_factor);
+    Storage a_mem(2 * max * a_len_factor, processor_->platform());
     uint32_t b_mem_size =
 #if V8_ADVANCED_BIGINT_ALGORITHMS
         which == kNewton ? InvertNewtonScratchSpace(2 * max) :
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
                          2 * max;
-    Storage b_mem(b_mem_size);
+    Storage b_mem(b_mem_size, processor_->platform());
     // Multiplication needs 2 * size (where size <= 2 * max).
     // Division needs size + 1 for the quotient plus size for the remainder.
-    Storage z_mem(4 * max + 1);
+    Storage z_mem(4 * max + 1, processor_->platform());
     // We can't simply use {ToStringResultLength} because that wants to look
     // at specific Digits, whereas we preallocate for a maximum size. The
     // production code approximates lengths, so we add some slack.
@@ -485,7 +485,8 @@ class Runner {
 
   void Initialize() {
     rng_.Initialize(random_seed_);
-    processor_.reset(Processor::New(new Platform()));
+    processor_.reset(Processor::New(new DefaultPlatform()));
+    platform_ = processor_->platform();
   }
 
   ProcessorImpl* processor() {
@@ -569,11 +570,11 @@ class Runner {
     constexpr uint32_t kMax = 3 * config::kKaratsubaThreshold;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
-        ScratchDigits A(left_size);
-        ScratchDigits B(right_size);
+        ScratchDigits A(left_size, platform_);
+        ScratchDigits B(right_size, platform_);
         uint32_t result_len = MultiplyResultLength(A, B);
-        ScratchDigits result(result_len);
-        ScratchDigits result_schoolbook(result_len);
+        ScratchDigits result(result_len, platform_);
+        ScratchDigits result_schoolbook(result_len, platform_);
         GenerateRandom(A);
         GenerateRandom(B);
         processor()->MultiplyKaratsuba(result, A, B);
@@ -593,11 +594,11 @@ class Runner {
     constexpr uint32_t kMax = config::kToomThreshold + 10;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
-        ScratchDigits A(left_size);
-        ScratchDigits B(right_size);
+        ScratchDigits A(left_size, platform_);
+        ScratchDigits B(right_size, platform_);
         uint32_t result_len = MultiplyResultLength(A, B);
-        ScratchDigits result(result_len);
-        ScratchDigits result_karatsuba(result_len);
+        ScratchDigits result(result_len, platform_);
+        ScratchDigits result_karatsuba(result_len, platform_);
         GenerateRandom(A);
         GenerateRandom(B);
         processor()->MultiplyToomCook(result, A, B);
@@ -630,11 +631,11 @@ class Runner {
     for (uint32_t right_size = min; right_size <= max; right_size += delta) {
       for (uint32_t left_size = right_size; left_size <= max;
            left_size += delta) {
-        ScratchDigits A(left_size);
-        ScratchDigits B(right_size);
+        ScratchDigits A(left_size, platform_);
+        ScratchDigits B(right_size, platform_);
         uint32_t result_len = MultiplyResultLength(A, B);
-        ScratchDigits result(result_len);
-        ScratchDigits result_toom(result_len);
+        ScratchDigits result(result_len, platform_);
+        ScratchDigits result_toom(result_len, platform_);
         GenerateRandom(A);
         GenerateRandom(B);
         processor()->MultiplyFFT(result, A, B);
@@ -654,16 +655,16 @@ class Runner {
     constexpr uint32_t kMax = 2 * config::kBurnikelThreshold;
     for (uint32_t right_size = kMin; right_size <= kMax; right_size++) {
       for (uint32_t left_size = right_size; left_size <= kMax; left_size++) {
-        ScratchDigits A(left_size);
-        ScratchDigits B(right_size);
+        ScratchDigits A(left_size, platform_);
+        ScratchDigits B(right_size, platform_);
         GenerateRandom(A);
         GenerateRandom(B);
         uint32_t quotient_len = DivideResultLength(A, B);
         uint32_t remainder_len = right_size;
-        ScratchDigits quotient(quotient_len);
-        ScratchDigits quotient_schoolbook(quotient_len);
-        ScratchDigits remainder(remainder_len);
-        ScratchDigits remainder_schoolbook(remainder_len);
+        ScratchDigits quotient(quotient_len, platform_);
+        ScratchDigits quotient_schoolbook(quotient_len, platform_);
+        ScratchDigits remainder(remainder_len, platform_);
+        ScratchDigits remainder_schoolbook(remainder_len, platform_);
         processor()->DivideBurnikelZiegler(quotient, remainder, A, B);
         processor()->DivideSchoolbook(quotient_schoolbook, remainder_schoolbook,
                                       A, B);
@@ -679,15 +680,15 @@ class Runner {
     // We could support b_len == 1, but it's not relevant in practice and
     // the implementation would have to special-case it.
     for (uint32_t b_len = 2; b_len <= 20; b_len++) {
-      ScratchDigits B(b_len);
-      ScratchDigits R(b_len);
-      ScratchDigits R_exp(b_len);
+      ScratchDigits B(b_len, platform_);
+      ScratchDigits R(b_len, platform_);
+      ScratchDigits R_exp(b_len, platform_);
       GenerateRandom(B);
       processor()->CachedMod_MakeInverse(B);
       // The length of the cached inverse determines the maximum {a_len} we
       // can handle.
       for (uint32_t a_len = b_len; a_len <= 2 * b_len; a_len++) {
-        ScratchDigits A(a_len);
+        ScratchDigits A(a_len, platform_);
         for (uint32_t j = 0; j < 200; j++) {
           GenerateRandom(A);
           processor()->CachedMod(R, A);
@@ -707,8 +708,8 @@ class Runner {
 
 #if V8_ADVANCED_BIGINT_ALGORITHMS
   void TestBarrett_Internal(uint32_t left_size, uint32_t right_size) {
-    ScratchDigits A(left_size);
-    ScratchDigits B(right_size);
+    ScratchDigits A(left_size, platform_);
+    ScratchDigits B(right_size, platform_);
     GenerateRandom(A);
     GenerateRandom(B);
     uint32_t quotient_len = DivideResultLength(A, B);
@@ -717,10 +718,10 @@ class Runner {
     // manually adjust the allocated result length.
     if (B.len() < config::kBarrettThreshold) quotient_len++;
     uint32_t remainder_len = right_size;
-    ScratchDigits quotient(quotient_len);
-    ScratchDigits quotient_burnikel(quotient_len);
-    ScratchDigits remainder(remainder_len);
-    ScratchDigits remainder_burnikel(remainder_len);
+    ScratchDigits quotient(quotient_len, platform_);
+    ScratchDigits quotient_burnikel(quotient_len, platform_);
+    ScratchDigits remainder(remainder_len, platform_);
+    ScratchDigits remainder_burnikel(remainder_len, platform_);
     processor()->DivideBarrett(quotient, remainder, A, B);
     processor()->DivideBurnikelZiegler(quotient_burnikel, remainder_burnikel, A,
                                        B);
@@ -762,7 +763,7 @@ class Runner {
     constexpr uint32_t kMin = config::kToStringFastThreshold / 2;
     constexpr uint32_t kMax = config::kToStringFastThreshold * 2;
     for (uint32_t size = kMin; size < kMax; size++) {
-      ScratchDigits X(size);
+      ScratchDigits X(size, platform_);
       GenerateRandom(X);
       for (int radix = 2; radix <= 36; radix++) {
         uint32_t chars_required = ToStringResultLength(X, radix, false);
@@ -809,8 +810,8 @@ class Runner {
       const char* end = chars.get() + num_chars;
       accumulator.Parse(start, end, radix);
       ref_accumulator.Parse(start, end, radix);
-      ScratchDigits result(accumulator.ResultLength());
-      ScratchDigits reference(ref_accumulator.ResultLength());
+      ScratchDigits result(accumulator.ResultLength(), platform_);
+      ScratchDigits reference(ref_accumulator.ResultLength(), platform_);
       processor()->FromStringLarge(result, &accumulator);
       processor()->FromStringClassic(reference, &ref_accumulator);
       AssertEquals(start, num_chars, radix, result, reference);
@@ -824,7 +825,7 @@ class Runner {
     constexpr uint32_t kMin = 1;
     constexpr uint32_t kMax = 100;
     for (uint32_t size = kMin; size < kMax; size++) {
-      ScratchDigits X(size);
+      ScratchDigits X(size, platform_);
       GenerateRandom(X);
       for (int bits = 1; bits <= 5; bits++) {
         uint32_t radix = 1 << bits;
@@ -842,7 +843,7 @@ class Runner {
         const char* end = start + chars_required;
         FromStringAccumulator accumulator(kMaxDigits);
         accumulator.Parse(start, end, radix);
-        ScratchDigits result(accumulator.ResultLength());
+        ScratchDigits result(accumulator.ResultLength(), platform_);
         processor()->FromString(result, &accumulator);
         AssertEquals(start, chars_required, radix, X, result);
         if (error_) return;
@@ -960,6 +961,7 @@ class Runner {
   int64_t random_seed_{314159265359};
   RNG rng_;
   std::unique_ptr<Processor, Processor::Destroyer> processor_;
+  Platform* platform_;
 };
 
 }  // namespace test

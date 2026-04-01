@@ -95,7 +95,7 @@ void ProcessorImpl::MultiplyKaratsuba(RWDigits Z, Digits X, Digits Y) {
   uint32_t k = KaratsubaLength(Y.len());
   static_assert(kMaxNumDigits <= UINT32_MAX / 4);
   uint32_t scratch_len = 4 * k;
-  ScratchDigits scratch(scratch_len);
+  ScratchDigits scratch(scratch_len, platform());
   KaratsubaStart(Z, X, Y, scratch, k);
 }
 
@@ -107,7 +107,7 @@ void ProcessorImpl::KaratsubaStart(RWDigits Z, Digits X, Digits Y,
   MAYBE_TERMINATE
   for (uint32_t i = 2 * k; i < Z.len(); i++) Z[i] = 0;
   if (k < Y.len() || X.len() != Y.len()) {
-    ScratchDigits T(2 * k);
+    ScratchDigits T(2 * k, platform());
     // Add X0 * Y1 * b.
     Digits X0(X, 0, k);
     Digits Y1 = Y + std::min(k, Y.len());

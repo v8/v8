@@ -286,8 +286,8 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
   DCHECK(B.len() > 0);
 
   // Normalize B, and shift A by the same amount.
-  ShiftedDigits b_normalized(B);
-  ShiftedDigits a_normalized(A, b_normalized.shift());
+  ShiftedDigits b_normalized(B, platform());
+  ShiftedDigits a_normalized(A, platform(), b_normalized.shift());
   // Keep the code below more concise.
   B = b_normalized;
   A = a_normalized;
@@ -300,11 +300,12 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
   uint32_t barrett_dividend_length =
       A.len() <= 2 * B.len() ? A.len() : 2 * B.len();
   uint32_t i_len = barrett_dividend_length - B.len();
-  ScratchDigits I(i_len + 1);  // +1 is for temporary use by Invert().
+  // +1 is for temporary use by Invert().
+  ScratchDigits I(i_len + 1, platform());
   uint32_t scratch_len =
       std::max(InvertScratchSpace(i_len),
                DivideBarrettScratchSpace(barrett_dividend_length));
-  ScratchDigits scratch(scratch_len);
+  ScratchDigits scratch(scratch_len, platform());
   Invert(I, Digits(B, B.len() - i_len, i_len), scratch);
   if (should_terminate()) return;
   I.TrimOne();
@@ -319,12 +320,12 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
     // (6)/(7): Z is used for the current 2-chunk block to be divided by B,
     // initialized to the two topmost chunks of A.
     uint32_t z_len = n * 2;
-    ScratchDigits Z(z_len);
+    ScratchDigits Z(z_len, platform());
     PutAt(Z, A + n * (t - 2), z_len);
     // (8): For i from t-2 downto 0 do
     uint32_t qi_len = n + 1;
-    ScratchDigits Qi(qi_len);
-    ScratchDigits Ri(n);
+    ScratchDigits Qi(qi_len, platform());
+    ScratchDigits Ri(n, platform());
     // First iteration unrolled and specialized.
     {
       uint32_t i = t - 2;

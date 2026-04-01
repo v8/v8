@@ -430,24 +430,23 @@ class FFTContainer {
   // {n} is the number of chunks, whose length is {K}+1.
   // {K} determines F_n = 2^(K * kDigitBits) + 1.
   FFTContainer(uint32_t n, uint32_t K, ProcessorImpl* processor)
-      : n_(n), K_(K), length_(K + 1), processor_(processor) {
-    storage_ = new digit_t[length_ * n_];
-    part_ = new digit_t*[n_];
-    digit_t* ptr = storage_;
+      : n_(n),
+        K_(K),
+        length_(K + 1),
+        processor_(processor),
+        storage_(processor_->platform()->Allocate(length_ * n_),
+                 Platform::Deleter(processor_->platform())),
+        part_(std::make_unique_for_overwrite<digit_t*[]>(n)),
+        temp_(processor_->platform()->Allocate(length_ * 2),
+              Platform::Deleter(processor_->platform())) {
+    digit_t* ptr = storage_.get();
     for (uint32_t i = 0; i < n; i++, ptr += length_) {
       part_[i] = ptr;
     }
-    temp_ = new digit_t[length_ * 2];
   }
   FFTContainer() = delete;
   FFTContainer(const FFTContainer&) = delete;
   FFTContainer& operator=(const FFTContainer&) = delete;
-
-  ~FFTContainer() {
-    delete[] storage_;
-    delete[] part_;
-    delete[] temp_;
-  }
 
   void Start_Default(Digits X, uint32_t chunk_size, int theta, int omega);
   void Start(Digits X, uint32_t chunk_size, int theta, int omega);
@@ -469,13 +468,16 @@ class FFTContainer {
                                  uint32_t end, digit_t* temp);
 
  private:
+  digit_t* temp() { return temp_.get(); }
   const uint32_t n_;       // Number of parts.
   const uint32_t K_;       // Always length_ - 1.
   const uint32_t length_;  // Length of each part, in digits.
   ProcessorImpl* processor_;
-  digit_t* storage_;  // Combined storage of all parts.
-  digit_t** part_;    // Pointers to each part.
-  digit_t* temp_;     // Temporary storage with size 2 * length_.
+  using Buffer = std::unique_ptr<digit_t[], Platform::Deleter>;
+  using Parts = std::unique_ptr<digit_t*[]>;
+  Buffer storage_;  // Combined storage of all parts.
+  Parts part_;      // Pointers to each part.
+  Buffer temp_;     // Temporary storage with size 2 * length_.
 };
 
 inline void CopyAndZeroExtend(digit_t* dst, const digit_t* src,
@@ -509,8 +511,8 @@ void FFTContainer::Start_Default(Digits X, uint32_t chunk_size, int theta,
     if (current_theta != 0) {
       // Multiply with theta^i, and reduce modulo 2^K + 1.
       // We pass theta as a shift amount; it really means 2^theta.
-      CopyAndZeroExtend(temp_, pointer, chunk_size, part_length_in_bytes);
-      ShiftModFn(part_[i], temp_, current_theta, K_, chunk_size);
+      CopyAndZeroExtend(temp(), pointer, chunk_size, part_length_in_bytes);
+      ShiftModFn(part_[i], temp(), current_theta, K_, chunk_size);
     } else {
       CopyAndZeroExtend(part_[i], pointer, chunk_size, part_length_in_bytes);
     }
@@ -521,7 +523,7 @@ void FFTContainer::Start_Default(Digits X, uint32_t chunk_size, int theta,
   for (; i < n_; i++) {
     memset(part_[i], 0, part_length_in_bytes);
   }
-  FFT_ReturnShuffledThreadsafe(0, n_, omega, temp_);
+  FFT_ReturnShuffledThreadsafe(0, n_, omega, temp());
 }
 
 // This version of Start is optimized for the case where ~half of the
@@ -554,7 +556,7 @@ void FFTContainer::Start(Digits X, uint32_t chunk_size, int theta, int omega) {
     memset(part_[i], 0, part_length_in_bytes);
     memset(part_[i + nhalf], 0, part_length_in_bytes);
   }
-  FFT_Recurse(0, nhalf, omega, temp_);
+  FFT_Recurse(0, nhalf, omega, temp());
 }
 
 // Forward transformation.
@@ -589,7 +591,7 @@ void FFTContainer::FFT_Recurse(uint32_t start, uint32_t half, int omega,
 // We use the "DIT" aka "decimation in time" transform here, because it
 // turns bit-reversed input into normally sorted output.
 void FFTContainer::BackwardFFT(uint32_t start, uint32_t len, int omega) {
-  BackwardFFT_Threadsafe(start, len, omega, temp_);
+  BackwardFFT_Threadsafe(start, len, omega, temp());
 }
 
 void FFTContainer::BackwardFFT_Threadsafe(uint32_t start, uint32_t len,
@@ -620,7 +622,7 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
   const int shift = n_ * omega - m;
   for (uint32_t i = 0; i < n_; i++, z_index += chunk_size) {
     digit_t* part = part_[i];
-    ShiftModFn(temp_, part, shift, K_);
+    ShiftModFn(temp(), part, shift, K_);
     digit_t carry = 0;
     uint32_t zi = z_index;
     uint32_t j = 0;
@@ -662,9 +664,9 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
     if (shift < 0) shift += 2 * n_ * theta;
     DCHECK(shift >= 0);
     digit_t* input = part_[k];
-    ShiftModFn(temp_, input, shift, K_);
+    ShiftModFn(temp(), input, shift, K_);
     uint32_t remaining_z = Z.len() - z_index;
-    if (ShouldBeNegative(temp_, length_, k + 1, s)) {
+    if (ShouldBeNegative(temp(), length_, k + 1, s)) {
       // Subtract F_n from input before adding to result. We use the following
       // transformation (knowing that X < F_n):
       // Z + (X - F_n) == Z - (F_n - X)
@@ -757,7 +759,7 @@ void FFTContainer::DoPointwiseMultiplication(const FFTContainer& other,
 // Convenient entry point for pointwise multiplications.
 void FFTContainer::PointwiseMultiply(const FFTContainer& other) {
   DCHECK(n_ == other.n_);
-  DoPointwiseMultiplication(other, 0, n_, temp_);
+  DoPointwiseMultiplication(other, 0, n_, temp());
 }
 
 }  // namespace
@@ -805,7 +807,7 @@ void ProcessorImpl::MultiplyFFT(RWDigits Z, Digits X, Digits Y) {
     a.BackwardFFT(0, params.n, omega);
     a.NormalizeAndRecombine(omega, m, Z, params.s);
     // Then loop for the remaining chunks.
-    ScratchDigits T(2 * k);
+    ScratchDigits T(2 * k, platform());
     for (uint32_t i = k; i < X.len(); i += k) {
       Digits Xi(X, i, k);
       a.Start(Xi, params.s, 0, omega);

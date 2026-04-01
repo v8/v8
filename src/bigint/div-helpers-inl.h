@@ -100,9 +100,10 @@ inline void PutAt(RWDigits Z, Digits A, uint32_t count) {
 // leading zeros.
 class ShiftedDigits : public Digits {
  public:
-  explicit ShiftedDigits(Digits& original, int shift = -1,
-                         bool allow_inplace = false)
-      : Digits(original.digits_, original.len_) {
+  ShiftedDigits(Digits& original, Platform* platform, int shift = -1,
+                bool allow_inplace = false)
+      : Digits(original.digits_, original.len_),
+        storage_(nullptr, Platform::Deleter(platform)) {
     int leading_zeros = CountLeadingZeros(original.msd());
     if (shift < 0) {
       shift = leading_zeros;
@@ -121,9 +122,8 @@ class ShiftedDigits : public Digits {
     }
     inplace_ = allow_inplace;
     if (!inplace_) {
-      digit_t* digits = new digit_t[len_];
-      storage_.reset(digits);
-      digits_ = digits;
+      storage_.reset(platform->Allocate(len_));
+      digits_ = storage_.get();
     }
     RWDigits rw_view(digits_, len_);
     LeftShift(rw_view, original, shift_);
@@ -131,7 +131,10 @@ class ShiftedDigits : public Digits {
 
   // For callers that have available scratch memory.
   ShiftedDigits(Digits& original, RWDigits scratch)
-      : Digits(scratch.digits_, original.len_), inplace_(false) {
+      : Digits(scratch.digits_, original.len_),
+        inplace_(false),
+        // Neither {storage_} nor its deleter will be used.
+        storage_(nullptr, Platform::Deleter(nullptr)) {
     DCHECK(scratch.len() >= original.len());
     shift_ = CountLeadingZeros(original.msd());
     // Always make a copy, even when shift_ == 0, to protect against
@@ -154,7 +157,7 @@ class ShiftedDigits : public Digits {
  private:
   int shift_;
   bool inplace_;
-  std::unique_ptr<digit_t[]> storage_;
+  std::unique_ptr<digit_t[], Platform::Deleter> storage_;
 };
 
 }  // namespace bigint

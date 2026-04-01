@@ -14,9 +14,6 @@ namespace bigint {
 
 class ProcessorImpl : public Processor {
  public:
-  explicit ProcessorImpl(Platform* platform);
-  ~ProcessorImpl();
-
   Status get_and_clear_status();
 
   void Multiply(RWDigits Z, Digits X, Digits Y);
@@ -79,11 +76,6 @@ class ProcessorImpl : public Processor {
       }
     }
   }
-
- private:
-  Status status_{Status::kOk};
-  uintptr_t work_estimate_{0};
-  Platform* platform_;
 };
 
 // Prevent computations of scratch space and number of bits from overflowing.
@@ -94,18 +86,20 @@ constexpr uint32_t kMaxNumDigits = UINT32_MAX / kDigitBits;
 // RAII memory for a Digits array.
 class Storage {
  public:
-  explicit Storage(uint32_t count) : ptr_(new digit_t[count]) {}
+  Storage(uint32_t count, Platform* platform)
+      : ptr_(platform->Allocate(count), Platform::Deleter(platform)) {}
 
   digit_t* get() { return ptr_.get(); }
 
  private:
-  std::unique_ptr<digit_t[]> ptr_;
+  std::unique_ptr<digit_t[], Platform::Deleter> ptr_;
 };
 
 // A writable Digits array with attached storage.
 class ScratchDigits : public RWDigits {
  public:
-  explicit ScratchDigits(uint32_t len) : RWDigits(nullptr, len), storage_(len) {
+  ScratchDigits(uint32_t len, Platform* platform)
+      : RWDigits(nullptr, len), storage_(len, platform) {
     digits_ = storage_.get();
   }
 

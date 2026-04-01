@@ -33,7 +33,7 @@ w64(x_addr + 904, X112);
 for (let i = 2; i < corrupt_len; i++) {
   w64(y_digits_base + i * 8, M);
 }
-w32(y_addr + 4, (corrupt_len << 1) | 0);
+w32(y_addr + 4, (corrupt_len << 8) | 0);
 
 x % y;
 

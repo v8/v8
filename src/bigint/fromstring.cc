@@ -97,7 +97,7 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
   // OOB writes into {multipliers_storage} (allocated below).
   CHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
-  Storage temp_storage(num_parts * 2);
+  Storage temp_storage(num_parts * 2, platform());
   RWDigits multipliers(temp_storage.get(), num_parts);
   RWDigits temp(temp_storage.get() + num_parts, num_parts);
   // Unrolled and specialized first iteration: part_len == 1, so instead of
