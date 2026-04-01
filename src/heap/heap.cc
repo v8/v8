@@ -7091,10 +7091,6 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 }
 
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
-  // UpdateExternalMemory() can only be called from the same isolate except for
-  // the shared space isolate.
-  DCHECK(LocalHeap::Current()->heap() == this ||
-         isolate()->is_shared_space_isolate());
   const uint64_t total_before =
       external_memory_total_.fetch_add(delta, std::memory_order_relaxed);
   CHECK_GE(static_cast<int64_t>(total_before), -delta);
@@ -7110,7 +7106,15 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     return total_after;
   }
 
+  // Only load the current LocalHeap for allocations (delta > 0). This is
+  // because GC worker threads (which don't have a LocalHeap) can free external
+  // memory.
   LocalHeap* local_heap = LocalHeap::Current();
+
+  // UpdateExternalMemory() can only be called from the same isolate except for
+  // the shared space isolate.
+  DCHECK(LocalHeap::Current()->heap() == this ||
+         isolate()->is_shared_space_isolate());
 
 #if V8_VERIFY_WRITE_BARRIERS
   // Incrementing the number of allocated bytes may trigger GC.
