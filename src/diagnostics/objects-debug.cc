@@ -2675,18 +2675,25 @@ void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PrototypeInfoVerify(*this, isolate);
+  CHECK(IsPrototypeInfo(this));
+  Object::VerifyPointer(isolate, module_namespace());
   if (IsWeakArrayList(prototype_users())) {
     PrototypeUsers::Verify(Cast<WeakArrayList>(prototype_users()));
   } else {
     CHECK(IsSmi(prototype_users()));
   }
-  Tagged<HeapObject> derived = derived_maps(isolate);
+  Object::VerifyPointer(isolate, prototype_chain_enum_cache());
+  Object::VerifyPointer(isolate, derived_maps());
+  Object::VerifyPointer(isolate, prototype_shared_closure_info());
+  for (int i = 0; i < kCachedHandlerCount; i++) {
+    Object::VerifyPointer(isolate, cached_handler(i));
+  }
+  Tagged<UnionOf<WeakArrayList, Undefined>> derived = derived_maps();
   if (!IsUndefined(derived)) {
     auto derived_list = Cast<WeakArrayList>(derived);
-    const uint32_t derived_length = derived_list->length().value();
+    const int derived_length = derived_list->length().value();
     CHECK_GT(derived_length, 0);
-    for (uint32_t i = 0; i < derived_length; ++i) {
+    for (int i = 0; i < derived_length; ++i) {
       derived_list->Get(i).IsWeakOrCleared();
     }
   }

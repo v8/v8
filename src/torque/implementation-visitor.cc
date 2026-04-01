@@ -4435,7 +4435,7 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string cpp_field_offset =
-        f.index.has_value()
+        (f.index.has_value() && !f.index_is_constant)
             ? "OFFSET_OF_DATA_START(" + name_ + ")"
             : "offsetof(" + name_ + ", " + f.name_and_type.name + "_)";
     impl_ << "  static_assert(" << field_offset << " == " << cpp_field_offset

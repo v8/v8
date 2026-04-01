@@ -1278,6 +1278,10 @@ class AccessBuilder;
 template <typename T>
 using MaybeWeak = Union<T, Weak<T>>;
 
+// Zero is a special Smi value.
+// TODO(leszeks): Add a proper Zero type.
+using Zero = Smi;
+
 // Number is either a Smi or a HeapNumber.
 using Number = Union<Smi, HeapNumber>;
 // Numeric is either a Number or a BigInt.

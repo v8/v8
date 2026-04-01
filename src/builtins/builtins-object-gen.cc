@@ -1287,8 +1287,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       TNode<PrototypeInfo> prototype_info =
           LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
-      TNode<HeapObject> derived_maps = CAST(
-          LoadObjectField(prototype_info, PrototypeInfo::kDerivedMapsOffset));
+      TNode<HeapObject> derived_maps = CAST(LoadObjectField(
+          prototype_info, offsetof(PrototypeInfo, derived_maps_)));
       // In case it exists, derived maps is a weak array list where the first
       // element is the object create map.
       GotoIf(TaggedEqual(derived_maps, UndefinedConstant()), &call_runtime);
