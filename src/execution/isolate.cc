@@ -1376,7 +1376,15 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
         auto async_generator_object =
             Cast<JSAsyncGeneratorObject>(generator_object);
         DirectHandle<Object> queue(async_generator_object->queue(), isolate);
-        DCHECK(!IsUndefined(*queue, isolate));
+        // The queue may legitimately be empty here. The kYield dispatch calls
+        // AsyncGeneratorResolve (which pops the yield request) followed by
+        // AsyncGeneratorResumeNext, which may immediately resume the generator
+        // with a subsequent queued throw/return. That resumed execution pops
+        // its own request via AsyncGeneratorReject/Resolve before RejectPromise
+        // triggers this stack capture. V8 has no separate ~draining-queue~
+        // state (spec sec-asyncgeneratorstart), so is_executing() remains true
+        // throughout; the empty queue is the tell that we're in that phase.
+        if (IsUndefined(*queue, isolate)) return MaybeDirectHandle<JSPromise>();
         auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
         DirectHandle<JSPromise> promise(
             Cast<JSPromise>(async_generator_request->promise()), isolate);
