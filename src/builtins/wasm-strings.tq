@@ -162,8 +162,12 @@ transitioning javascript builtin WebAssemblyStringFromCharCode(
 }
 
 transitioning javascript builtin WebAssemblyStringFromCharCodeShared(
-    js-implicit context: Context)(_codeArg: JSAny): JSAny {
-  unreachable;  // TODO(448741522): Implement.
+    js-implicit context: Context)(codeArg: JSAny): JSAny {
+  const code = NumberToUint32(ToNumber_Inline(codeArg));
+  const codeSmi = Convert<Smi>(code & 0xFFFF);
+  // TODO(42204563): Can we allocate the shared string in generated code?
+  return runtime::WasmStringFromCodePoint(
+      context, codeSmi, SmiConstant(1) /* shared */);
 }
 
 transitioning javascript builtin WebAssemblyStringFromCodePoint(
@@ -178,8 +182,11 @@ transitioning javascript builtin WebAssemblyStringFromCodePoint(
 }
 
 transitioning javascript builtin WebAssemblyStringFromCodePointShared(
-    js-implicit context: Context)(_codeArg: JSAny): JSAny {
-  unreachable;  // TODO(448741522): Implement.
+    js-implicit context: Context)(codeArg: JSAny): JSAny {
+  // TODO(42204563): Can we allocate the shared string in generated code?
+  const code = ToNumber_Inline(codeArg);
+  return runtime::WasmStringFromCodePoint(
+      context, code, SmiConstant(1) /* shared */);
 }
 
 transitioning javascript builtin WebAssemblyStringCodePointAt(

@@ -452,8 +452,44 @@ let kBuiltins = { builtins: ["js-string"] };
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
-// TODO(448741522): Implement StringFromCodePoint in liftoff.
-// TODO(448741522): Implement StringFromCharCode in liftoff.
+(function TestStringFromCodePoint() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+  builder.addFunction("asString", kSig_t_i)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringFromCodePointShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  for (let char of "Az1#\n\ucccc\ud800\udc00") {
+    assertEquals(char, instance.exports.asString(char.codePointAt(0)));
+  }
+  for (let codePoint of [0x110000, 0xFFFFFFFF, -1]) {
+    assertThrows(() => instance.exports.asString(codePoint),
+                 WebAssembly.RuntimeError, /Invalid code point -?[0-9]+/);
+  }
+})();
+
+(function TestStringFromCharCode() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+  builder.addFunction("asString", kSig_t_i)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringFromCharCodeShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  let inputs = "Az1#\n\ucccc\ud800\udc00";
+  for (let i = 0; i < inputs.length; i++) {
+    assertEquals(inputs.charAt(i),
+                 instance.exports.asString(inputs.charCodeAt(i)));
+  }
+})();
+
 // TODO(448741522, 42204563): Fix shared array.new_data behavior and port the
 // TestStringNewWtf16Array test.
 
