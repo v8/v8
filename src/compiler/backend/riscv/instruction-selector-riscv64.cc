@@ -1863,9 +1863,19 @@ bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
   }
 }
 
-bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node) {
+bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
+                                  FlagsCondition condition) {
   if (COMPRESS_POINTERS_BOOL) {
     return false;
+  }
+  switch (condition) {
+    case kSignedLessThan:
+    case kSignedLessThanOrEqual:
+    case kSignedGreaterThan:
+    case kSignedGreaterThanOrEqual:
+      return false;
+    default:
+      break;
   }
   const Operation& op = selector->Get(node);
   DCHECK_EQ(op.input_count, 2);
@@ -1936,9 +1946,9 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
   const Operation& rhs = selector->Get(op.input(1));
   if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
     VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else if (!CanUseOptimizedWord32Compare(selector, node)) {
+  } else if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
 #else
-  if (!CanUseOptimizedWord32Compare(selector, node)) {
+  if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
 #endif
     VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
   } else {
@@ -2883,7 +2893,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
            MachineOperatorBuilder::kFloat64RoundTruncate |
            MachineOperatorBuilder::kFloat32RoundTruncate |
            MachineOperatorBuilder::kFloat64RoundTiesEven |
-           MachineOperatorBuilder::kFloat32RoundTiesEven;
+           MachineOperatorBuilder::kFloat32RoundTiesEven |
+           MachineOperatorBuilder::kWord64Select;
   if (CpuFeatures::IsSupported(ZBB)) {
     flags |= MachineOperatorBuilder::kWord32Ctz |
              MachineOperatorBuilder::kWord64Ctz |
