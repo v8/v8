@@ -5,9 +5,15 @@
 #ifndef V8_TRACING_PERFETTO_LOGGER_H_
 #define V8_TRACING_PERFETTO_LOGGER_H_
 
+#include <atomic>
+#include <memory>
+
 #include "src/logging/code-events.h"
 
 namespace v8 {
+
+class TaskRunner;
+
 namespace internal {
 
 class Isolate;
@@ -24,6 +30,7 @@ class PerfettoLogger : public LogEventListener {
   ~PerfettoLogger() override;
 
   void LogExistingCode();
+  void TriggerExistingCodeLogging();
 
   void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                        const char* name) override;
@@ -69,6 +76,8 @@ class PerfettoLogger : public LogEventListener {
 
  private:
   Isolate& isolate_;
+  const std::shared_ptr<v8::TaskRunner> task_runner_;
+  std::atomic_flag existing_code_logged_ = ATOMIC_FLAG_INIT;
 };
 
 }  // namespace internal
