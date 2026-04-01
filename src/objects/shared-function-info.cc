@@ -739,8 +739,18 @@ int SharedFunctionInfo::StartPosition() const {
     // Works with or without scope.
     return uncompiled_data(isolate)->start_position();
   }
-  if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
+  if (IsApiFunction()) {
+    return 0;
+  }
+  if (HasBuiltinId()) {
+    // A newly allocated SharedFunctionInfo without UncompiledData attached
+    // holds the builtin ID kCompileLazy. Since the source positions are not
+    // known at this point, we return kNoSourcePosition. This allows the heap
+    // snapshot generator to safely iterate over such an SFI in this transient
+    // state (e.g. when a GC is triggered during its creation).
+    if (builtin_id() == Builtin::kCompileLazy) {
+      return kNoSourcePosition;
+    }
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -768,8 +778,18 @@ int SharedFunctionInfo::EndPosition() const {
     // Works with or without scope.
     return uncompiled_data(isolate)->end_position();
   }
-  if (IsApiFunction() || HasBuiltinId()) {
-    DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
+  if (IsApiFunction()) {
+    return 0;
+  }
+  if (HasBuiltinId()) {
+    // A newly allocated SharedFunctionInfo without UncompiledData attached
+    // holds the builtin ID kCompileLazy. Since the source positions are not
+    // known at this point, we return kNoSourcePosition. This allows the heap
+    // snapshot generator to safely iterate over such an SFI in this transient
+    // state (e.g. when a GC is triggered during its creation).
+    if (builtin_id() == Builtin::kCompileLazy) {
+      return kNoSourcePosition;
+    }
     return 0;
   }
 #if V8_ENABLE_WEBASSEMBLY
