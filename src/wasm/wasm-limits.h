@@ -71,6 +71,10 @@ constexpr size_t kMaxConfigureAllMethods = 100'000;
 // Stringref proposal. This limit is not standardized yet.
 constexpr size_t kV8MaxWasmStringLiterals = 1'000'000;
 
+// Strings in import/export/name sections etc. This limit is not standardized.
+// Discussion: https://github.com/WebAssembly/design/issues/1582
+constexpr size_t kV8MaxWasmStringLength = 100'000'000;
+
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");
 static_assert(kV8MaxWasmTableInitEntries <= kV8MaxWasmTableSize,

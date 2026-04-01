@@ -46,6 +46,8 @@ inline const char* ExternalKindName(ImportExportKindCode kind) {
 }
 
 inline bool validate_utf8(Decoder* decoder, WireBytesRef string) {
+  // All callers call `consume_string()` first, which checks the length.
+  DCHECK_LE(string.length(), kV8MaxWasmStringLength);
   return unibrow::Utf8::ValidateEncoding(
       decoder->start() + decoder->GetBufferRelativeOffset(string.offset()),
       string.length());
@@ -60,11 +62,17 @@ inline WireBytesRef consume_string(Decoder* decoder,
     tracer->Description(name);
     tracer->Description(" ");
   }
+  const uint8_t* length_start = decoder->pc();
   uint32_t length = decoder->consume_u32v("length", tracer);
   if (tracer) {
     tracer->Description(": ");
     tracer->Description(length);
     tracer->NextLine();
+  }
+  if (V8_UNLIKELY(length > kV8MaxWasmStringLength)) {
+    decoder->errorf(length_start,
+                    "Invalid string length %d, must be less than %d\n", length,
+                    kV8MaxWasmStringLength);
   }
   uint32_t offset = decoder->pc_offset();
   const uint8_t* string_start = decoder->pc();
