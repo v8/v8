@@ -1872,12 +1872,6 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     if (!initial_size_overwritten_) {
       DCHECK_IMPLIES(initial_size_overwritten_, !configured_);
       limits()->ResetAllocationLimit();
-    } else if (preconfigured_old_generation_size_) {
-      EnsureMinimumRemainingAllocationLimit(
-          limits()->initial_old_generation_size());
-      // Reset using_initial_limit() to prevent the sweeper from overwriting
-      // this limit right after this operation.
-      limits()->set_using_initial_limit(true);
     }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
