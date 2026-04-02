@@ -1407,23 +1407,13 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
     } else if (IsCode(*object_, cage_base)) {
-#ifdef V8_ENABLE_SANDBOX
-      // When the sandbox is enabled, this field contains the handle to this
-      // Code object's code pointer table entry. This will be recomputed after
-      // deserialization.
-      static uint8_t field_value[kIndirectPointerSize] = {0};
-      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               Code::kSelfIndirectPointerOffset,
-                               sizeof(field_value), field_value);
-#else
-      // In this case, instruction_start field contains a raw value that will
-      // similarly be recomputed after deserialization, so write zeros to keep
-      // the snapshot deterministic.
+      // The instruction_start field contains a raw value that will be
+      // recomputed after deserialization, so write zeros to keep the snapshot
+      // deterministic.
       static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
-#endif  // V8_ENABLE_SANDBOX
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

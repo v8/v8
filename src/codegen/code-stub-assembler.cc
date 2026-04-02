@@ -2200,26 +2200,6 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
   return offset;
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset,
-    CodeEntrypointTag tag) {
-  TNode<IndirectPointerHandleT> handle =
-      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  return LoadCodeEntryFromIndirectPointerHandle(handle, tag);
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag) {
-  TNode<RawPtrT> table = LoadCodePointerTableBase();
-  TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
-  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
-  TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
-  if (tag != 0) {
-    entry = UncheckedCast<UintPtrT>(WordXor(entry, UintPtrConstant(tag)));
-  }
-  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
-}
-
 TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   // Embed the code pointer table address into the code.
@@ -19235,14 +19215,15 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(
     TNode<Code> code, CodeEntrypointTag tag) {
+  TNode<RawPtrT> raw_start =
+      LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
 #ifdef V8_ENABLE_SANDBOX
-  // In this case, the entrypoint is stored in the code pointer table entry
-  // referenced via the Code object's 'self' indirect pointer.
-  return LoadCodeEntrypointViaCodePointerField(
-      code, Code::kSelfIndirectPointerOffset, tag);
-#else
-  return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
+  if (tag != 0) {
+    raw_start =
+        UncheckedCast<RawPtrT>(WordXor(raw_start, UintPtrConstant(tag)));
+  }
 #endif
+  return raw_start;
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
