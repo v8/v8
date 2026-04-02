@@ -31,10 +31,14 @@ void CodePointerTable::Verify(Isolate* isolate, Space* space) {
     // 1. The object must be a valid Code object.
     Tagged<Object> obj(code_ptr);
     CHECK(Is<Code>(obj));
-#ifdef VERIFY_HEAP
     Tagged<Code> code = TrustedCast<Code>(obj);
+#ifdef VERIFY_HEAP
     Object::ObjectVerify(code, isolate);
 #endif
+
+    // 2. The entrypoint must match the code's instruction start.
+    Address entrypoint = entry.GetEntrypoint(code->entrypoint_tag());
+    CHECK_EQ(entrypoint, code->instruction_start());
   });
 }
 

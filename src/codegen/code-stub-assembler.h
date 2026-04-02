@@ -1057,6 +1057,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
       TNode<IndirectPointerHandleT> handle);
 
+  // Load the pointer to a Code's entrypoint via code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
+                                                       int offset,
+                                                       CodeEntrypointTag tag) {
+    return LoadCodeEntrypointViaCodePointerField(object, IntPtrConstant(offset),
+                                                 tag);
+  }
+  TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
+                                                       TNode<IntPtrT> offset,
+                                                       CodeEntrypointTag tag);
+  TNode<RawPtrT> LoadCodeEntryFromIndirectPointerHandle(
+      TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag);
+
   // Load the value of Code pointer table corresponding to
   // IsolateGroup::current()->code_pointer_table_.
   // Only available when the sandbox is enabled.

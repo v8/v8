@@ -60,6 +60,7 @@
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
+#include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
@@ -1319,6 +1320,17 @@ bool HeapObject::IsCodePointerFieldEmpty(size_t offset) const {
 
 void HeapObject::ClearCodePointerField(size_t offset) {
   ClearTrustedPointerField(offset);
+}
+
+Address HeapObject::ReadCodeEntrypointViaCodePointerField(
+    size_t offset, CodeEntrypointTag tag) const {
+  return i::ReadCodeEntrypointViaCodePointerField(field_address(offset), tag);
+}
+
+void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
+                                                        Address value,
+                                                        CodeEntrypointTag tag) {
+  i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
 }
 
 // static

@@ -451,6 +451,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline bool IsCodePointerFieldEmpty(size_t offset) const;
   inline void ClearCodePointerField(size_t offest);
 
+  inline Address ReadCodeEntrypointViaCodePointerField(
+      size_t offset, CodeEntrypointTag tag) const;
+  inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
+                                                     Address value,
+                                                     CodeEntrypointTag tag);
+
   // JSDispatchHandles.
   //
   // These are references to entries in the JSDispatchTable, which contain the

@@ -905,9 +905,6 @@ static_assert((1 << (32 - kTrustedPointerHandleShift)) == kMaxTrustedPointers,
 // its entrypoint.
 //
 // When the sandbox is disabled, these are regular tagged pointers.
-//
-// TODO(498510170): Removing these explicit code pointer handles is work in
-// progress.
 using CodePointerHandle = IndirectPointerHandle;
 
 // The size of the virtual memory reservation for the code pointer table.
@@ -917,7 +914,7 @@ constexpr size_t kCodePointerTableReservationSize = 128 * MB;
 
 // Code pointer handles are shifted by a different amount than indirect pointer
 // handles as the tables have a different maximum size.
-constexpr uint32_t kCodePointerHandleShift = 8;
+constexpr uint32_t kCodePointerHandleShift = 9;
 
 // A null handle always references an entry that contains nullptr.
 constexpr CodePointerHandle kNullCodePointerHandle = kNullIndirectPointerHandle;
@@ -934,8 +931,8 @@ static_assert(kCodePointerHandleShift > 0);
 static_assert(kTrustedPointerHandleShift > 0);
 
 // The byte size of an entry in a code pointer table.
-constexpr int kCodePointerTableEntrySize = 8;
-constexpr int kCodePointerTableEntrySizeLog2 = 3;
+constexpr int kCodePointerTableEntrySize = 16;
+constexpr int kCodePointerTableEntrySizeLog2 = 4;
 // The maximum number of entries in a code pointer table.
 constexpr size_t kMaxCodePointers =
     kCodePointerTableReservationSize / kCodePointerTableEntrySize;
@@ -943,7 +940,8 @@ static_assert(
     (1 << (32 - kCodePointerHandleShift)) == kMaxCodePointers,
     "kCodePointerTableReservationSize and kCodePointerHandleShift don't match");
 
-constexpr int kCodePointerTableEntryCodeObjectOffset = 0;
+constexpr int kCodePointerTableEntryEntrypointOffset = 0;
+constexpr int kCodePointerTableEntryCodeObjectOffset = 8;
 
 // Constants that can be used to mark places that should be modified once
 // certain types of objects are moved out of the sandbox and into trusted space.

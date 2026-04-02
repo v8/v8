@@ -1415,14 +1415,15 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kSelfIndirectPointerOffset,
                                sizeof(field_value), field_value);
-#endif
+#else
       // In this case, instruction_start field contains a raw value that will
       // similarly be recomputed after deserialization, so write zeros to keep
       // the snapshot deterministic.
-      static uint8_t field_value2[kSystemPointerSize] = {0};
+      static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
-                               sizeof(field_value2), field_value2);
+                               sizeof(field_value), field_value);
+#endif  // V8_ENABLE_SANDBOX
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.
