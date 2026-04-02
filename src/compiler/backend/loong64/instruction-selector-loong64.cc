@@ -1336,10 +1336,9 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   switch (op.opcode) {
     // Comparisons only emit 0/1, so the upper 32 bits must be zero.
     case Opcode::kComparison:
-      return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
-    case Opcode::kOverflowCheckedBinop:
-      return op.Cast<OverflowCheckedBinopOp>().rep ==
-             WordRepresentation::Word32();
+      return true;
+    case Opcode::kProjection:
+      return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
     case Opcode::kLoad: {
       auto load = this->load_view(node);
       LoadRepresentation load_rep = load.loaded_rep();
