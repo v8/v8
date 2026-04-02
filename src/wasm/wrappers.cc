@@ -18,7 +18,6 @@
 #include "src/execution/isolate-data.h"
 #include "src/objects/object-list-macros.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wrappers-inl.h"

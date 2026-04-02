@@ -4879,6 +4879,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-deopt-data.h",
       "src/wasm/wasm-disassembler-impl.h",
       "src/wasm/wasm-disassembler.h",
+      "src/wasm/wasm-engine-globals.h",
       "src/wasm/wasm-engine.h",
       "src/wasm/wasm-export-wrapper-cache.h",
       "src/wasm/wasm-external-refs.h",

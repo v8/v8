@@ -20,8 +20,10 @@
 #include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/leb-helper.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \

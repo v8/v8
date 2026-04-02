@@ -20,7 +20,7 @@
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
 #include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-value.h"
 

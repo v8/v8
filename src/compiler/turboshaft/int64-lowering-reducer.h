@@ -12,7 +12,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-engine.h"

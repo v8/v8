@@ -39,9 +39,10 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-stack-wrapper-cache.h"

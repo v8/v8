@@ -10,11 +10,11 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
 #include "src/wasm/wasm-objects-inl.h"

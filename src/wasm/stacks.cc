@@ -7,7 +7,6 @@
 #include "src/base/platform/platform.h"
 #include "src/execution/frames.h"
 #include "src/execution/simulator.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {

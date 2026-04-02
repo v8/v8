@@ -9,7 +9,6 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/wasm/decoder.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

@@ -14,7 +14,8 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
 #include "src/wasm/code-space-access.h"
-#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine-globals.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
