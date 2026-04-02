@@ -2986,6 +2986,7 @@ void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
 
 bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  DCHECK_GT(access_size, 0);
   uintptr_t last_accessed_byte = address + access_size - 1;
   uintptr_t current_pc = registers_[pc];
   uintptr_t landing_pad =

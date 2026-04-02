@@ -215,6 +215,7 @@ TEST_F(SimulatorTrapHandlerTestWithCodegen, ProbeMemory_MultiStruct) {
   constexpr VRegister scratch = v1;
   // Generate an illegal memory access.
   __ li(addr, InaccessibleMemoryPtr());
+  __ VU.set(1, E16, m1);
   crash_offset_ = __ pc_offset();
   __ vl(scratch, addr, 0, VSew::E16);
   recovery_offset_ = __ pc_offset();
