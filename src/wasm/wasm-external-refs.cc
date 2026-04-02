@@ -964,14 +964,59 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
+namespace {
+V8_INLINE void ResumeStack(Isolate* isolate, wasm::StackMemory* from,
+                           wasm::StackMemory* to, Address sp, Address fp,
+                           Address pc) {
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
+  DCHECK(!to->jmpbuf()->is_on_central_stack);
+#if V8_TARGET_OS_WIN
+  if (from->jmpbuf()->is_on_central_stack) {
+    base::Stack::SaveStackLimit();
+  }
+  base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+#endif
+}
+
+V8_INLINE void SuspendStack(Isolate* isolate, wasm::StackMemory* from,
+                            wasm::StackMemory* to, Address sp, Address fp,
+                            Address pc) {
+  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
+      from, to, sp, fp, pc);
+  DCHECK(!from->jmpbuf()->is_on_central_stack);
+#if V8_TARGET_OS_WIN
+  if (to->jmpbuf()->is_on_central_stack) {
+    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                             base::Stack::GetStackStart());
+  } else {
+    base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+  }
+#endif
+}
+
+V8_INLINE void ReturnStack(Isolate* isolate, wasm::StackMemory* from,
+                           wasm::StackMemory* to) {
+  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
+      from, to, kNullAddress, kNullAddress, kNullAddress);
+#if V8_TARGET_OS_WIN
+  if (to->jmpbuf()->is_on_central_stack) {
+    base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                             base::Stack::GetStackStart());
+  } else {
+    base::Stack::SetCurrentThreadStackBounds(to->limit(), to->base());
+  }
+#endif
+}
+}  // namespace
+
 void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                  Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
 // The active stack is checked inline in the wasm-to-js wrapper. This only
@@ -1005,8 +1050,7 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
-      from, to, sp, fp, pc);
+  SuspendStack(isolate, from, to, sp, fp, pc);
 }
 
 void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
@@ -1021,8 +1065,7 @@ void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
   isolate->isolate_data()->set_active_suspender(suspender);
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
 void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
@@ -1034,8 +1077,7 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      from, to, sp, fp, pc);
+  ResumeStack(isolate, from, to, sp, fp, pc);
 }
 
 namespace {
@@ -1115,7 +1157,6 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
   }
   return nullptr;
 }
-
 }  // namespace
 
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
@@ -1143,8 +1184,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
-      from, to, sp, fp, pc);
+  SuspendStack(isolate, from, to, sp, fp, pc);
   return reinterpret_cast<Address>(to);
 }
 
@@ -1176,12 +1216,9 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
   from->set_param_types(return_sig->parameters());
-  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
-      from, parent, sp, fp, pc);
-
-  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
-      parent, target_stack, parent->jmpbuf()->sp, parent->jmpbuf()->fp,
-      parent->jmpbuf()->pc);
+  SuspendStack(isolate, from, parent, sp, fp, pc);
+  ResumeStack(isolate, parent, target_stack, parent->jmpbuf()->sp,
+              parent->jmpbuf()->fp, parent->jmpbuf()->pc);
   return reinterpret_cast<Address>(target_stack);
 }
 
@@ -1191,8 +1228,7 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (return)\n", from->id(), to->id());
   }
-  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
-      from, to, kNullAddress, kNullAddress, kNullAddress);
+  ReturnStack(isolate, from, to);
   isolate->RetireWasmStack(from);
 }
 
@@ -1222,6 +1258,10 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
 
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
+#if V8_TARGET_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                           base::Stack::GetStackStart());
+#endif
 
   thread_local_top->secondary_stack_limit_ = secondary_stack_limit;
   thread_local_top->secondary_stack_sp_ = current_sp;
@@ -1246,6 +1286,14 @@ void switch_from_the_central_stack(Isolate* isolate) {
 
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
+#if V8_TARGET_OS_WIN
+  // The Windows stack limit may have changed after running on the central
+  // stack, record it.
+  base::Stack::SaveStackLimit();
+  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
+  base::Stack::SetCurrentThreadStackBounds(active_stack->limit(),
+                                           active_stack->base());
+#endif
 }
 
 intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
@@ -1257,6 +1305,10 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
+#if V8_TARGET_OS_WIN
+  base::Stack::SetCurrentThreadStackBounds(base::Stack::GetStackLimit(),
+                                           base::Stack::GetStackStart());
+#endif
   thread_local_top->is_on_central_stack_flag_ = true;
   return central_stack_sp;
 }
@@ -1270,6 +1322,12 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(
       reinterpret_cast<uintptr_t>(stack->jslimit()));
+#if V8_TARGET_OS_WIN
+  // The Windows stack limit may have changed after running on the central
+  // stack, record it.
+  base::Stack::SaveStackLimit();
+  base::Stack::SetCurrentThreadStackBounds(stack->limit(), stack->base());
+#endif
 }
 
 // frame_size includes param slots area and extra frame slots above FP.
