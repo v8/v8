@@ -2436,14 +2436,12 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-  Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 #ifdef V8_ENABLE_SANDBOX
-  if (tag != 0) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.AcquireX();
-    Mov(scratch, Immediate(tag));
-    Eor(destination, destination, scratch);
-  }
+  LoadCodeEntrypointViaCodePointer(
+      destination,
+      FieldMemOperand(code_object, Code::kSelfIndirectPointerOffset), tag);
+#else
+  Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 #endif
 }
 
@@ -4073,6 +4071,26 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   // The LSB is used as marking bit by the code pointer table, so here we have
   // to set it using a bitwise OR as it may or may not be set.
   Orr(destination, destination, Immediate(kHeapObjectTag));
+}
+
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
+                                                      MemOperand field_operand,
+                                                      CodeEntrypointTag tag) {
+  DCHECK_NE(tag, kInvalidEntrypointTag);
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  LoadCodePointerTableBase(scratch);
+  Ldr(destination.W(), field_operand);
+  // TODO(saelo): can the offset computation be done more efficiently?
+  Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
+  Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
+  Ldr(destination, MemOperand(scratch, destination));
+  if (tag != 0) {
+    Mov(scratch, Immediate(tag));
+    Eor(destination, destination, scratch);
+  }
 }
 
 void MacroAssembler::LoadCodePointerTableBase(Register destination) {

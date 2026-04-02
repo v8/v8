@@ -17,15 +17,30 @@ namespace v8 {
 namespace internal {
 
 void CodePointerTableEntry::MakeCodePointerEntry(Address code,
+                                                 Address entrypoint,
                                                  CodeEntrypointTag tag,
                                                  bool mark_as_alive) {
   DCHECK_EQ(code & kMarkingBit, 0);
+  DCHECK_EQ(entrypoint >> kCodeEntrypointTagShift, 0);
   DCHECK_NE(tag, kFreeCodePointerTableEntryTag);
 
-  if (mark_as_alive) {
-    code |= kMarkingBit;
-  }
+  if (mark_as_alive) code |= kMarkingBit;
+  entrypoint_.store(entrypoint ^ tag, std::memory_order_relaxed);
   code_.store(code, std::memory_order_relaxed);
+}
+
+Address CodePointerTableEntry::GetEntrypoint(CodeEntrypointTag tag) const {
+  DCHECK(!IsFreelistEntry());
+  return entrypoint_.load(std::memory_order_relaxed) ^ tag;
+}
+
+void CodePointerTableEntry::SetEntrypoint(Address value,
+                                          CodeEntrypointTag tag) {
+  DCHECK(!IsFreelistEntry());
+  DCHECK_EQ(value >> kCodeEntrypointTagShift, 0);
+  DCHECK_NE(tag, kFreeCodePointerTableEntryTag);
+
+  entrypoint_.store(value ^ tag, std::memory_order_relaxed);
 }
 
 Address CodePointerTableEntry::GetCodeObject() const {
@@ -46,23 +61,25 @@ void CodePointerTableEntry::SetCodeObject(Address new_value) {
 
 void CodePointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   Address value = kFreeEntryTag | next_entry_index;
-  code_.store(value, std::memory_order_relaxed);
+  entrypoint_.store(value, std::memory_order_relaxed);
+  code_.store(kNullAddress, std::memory_order_relaxed);
 }
 
 bool CodePointerTableEntry::IsFreelistEntry() const {
-  auto payload = code_.load(std::memory_order_relaxed);
-  return (payload & kFreeEntryTag) == kFreeEntryTag;
+  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
 }
 
 void CodePointerTableEntry::MakeZappedEntry() {
-  code_.store(kFreeEntryTag, std::memory_order_relaxed);
+  entrypoint_.store(kFreeEntryTag, std::memory_order_relaxed);
+  code_.store(kNullAddress, std::memory_order_relaxed);
 }
 
 std::optional<uint32_t> CodePointerTableEntry::GetNextFreelistEntryIndex()
     const {
-  auto payload = code_.load(std::memory_order_relaxed);
-  if ((payload & kFreeEntryTag) == kFreeEntryTag) {
-    return static_cast<uint32_t>(payload);
+  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  if ((entrypoint & kFreeEntryTag) == kFreeEntryTag) {
+    return static_cast<uint32_t>(entrypoint);
   } else {
     return std::nullopt;
   }
@@ -92,6 +109,12 @@ bool CodePointerTableEntry::IsMarked() const {
   return value & kMarkingBit;
 }
 
+Address CodePointerTable::GetEntrypoint(CodePointerHandle handle,
+                                        CodeEntrypointTag tag) const {
+  uint32_t index = HandleToIndex(handle);
+  return at(index).GetEntrypoint(tag);
+}
+
 Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
   // Due to the fact that we use the heap object tag as marking bit, this table
@@ -99,6 +122,14 @@ Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
   // the 0th entry. That entry must therefore not be accessed here.
   DCHECK_NE(index, 0);
   return at(index).GetCodeObject();
+}
+
+void CodePointerTable::SetEntrypoint(CodePointerHandle handle, Address value,
+                                     CodeEntrypointTag tag) {
+  DCHECK_NE(kNullCodePointerHandle, handle);
+  uint32_t index = HandleToIndex(handle);
+  CFIMetadataWriteScope write_scope("CodePointerTable write");
+  at(index).SetEntrypoint(value, tag);
 }
 
 void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
@@ -116,11 +147,12 @@ void CodePointerTable::Zap(CodePointerHandle handle) {
 }
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
-    Space* space, Address code, CodeEntrypointTag tag) {
+    Space* space, Address code, Address entrypoint, CodeEntrypointTag tag) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
   CFIMetadataWriteScope write_scope("CodePointerTable write");
-  at(index).MakeCodePointerEntry(code, tag, space->allocate_black());
+  at(index).MakeCodePointerEntry(code, entrypoint, tag,
+                                 space->allocate_black());
   return IndexToHandle(index);
 }
 

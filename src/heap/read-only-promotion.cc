@@ -705,7 +705,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           IsolateForSandbox(isolate_).GetCodePointerTableSpaceFor(
               slot.address());
       IndirectPointerHandle new_handle = cpt->AllocateAndInitializeEntry(
-          space, code.address(), entrypoint_tag);
+          space, code.address(), cpt->GetEntrypoint(old_handle, entrypoint_tag),
+          entrypoint_tag);
 
       code_pointer_moves_.emplace(old_handle, new_handle);
 

@@ -949,6 +949,25 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   orq(destination, Immediate(kHeapObjectTag));
 }
 
+void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
+                                                      Operand field_operand,
+                                                      CodeEntrypointTag tag) {
+  DCHECK(!AreAliased(destination, kScratchRegister));
+  DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
+  DCHECK_NE(tag, kInvalidEntrypointTag);
+  LoadCodePointerTableBase(kScratchRegister);
+  movl(destination, field_operand);
+  shrl(destination, Immediate(kCodePointerHandleShift));
+  shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
+  movq(destination, Operand(kScratchRegister, destination, times_1,
+                            kCodePointerTableEntryEntrypointOffset));
+  if (tag != 0) {
+    // Can this be improved?
+    movq(kScratchRegister, Immediate64(tag));
+    xorq(destination, kScratchRegister);
+  }
+}
+
 void MacroAssembler::LoadCodePointerTableBase(Register destination) {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   if (!options().isolate_independent_code && isolate()) {
@@ -3518,12 +3537,12 @@ void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-  movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 #ifdef V8_ENABLE_SANDBOX
-  if (tag != 0) {
-    movq(kScratchRegister, Immediate64(tag));
-    xorq(destination, kScratchRegister);
-  }
+  LoadCodeEntrypointViaCodePointer(
+      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset),
+      tag);
+#else
+  movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 #endif
 }
 

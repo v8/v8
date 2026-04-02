@@ -409,7 +409,12 @@ class Code : public ExposedTrustedObject {
   V(kInstructionStreamOffset, kTaggedSize)                                     \
   V(kEndOfStrongFieldsOffset, 0)                                               \
   /* Untagged data not directly visited by GC starts here. */                  \
-  V(kInstructionStartOffset, kSystemPointerSize)                               \
+  /* When the sandbox is off, the instruction_start field contains a raw */    \
+  /* pointer to the first instruction of this Code. */                         \
+  /* If the sandbox is on, this field does not exist. Instead, the */          \
+  /* instruction_start is stored in this Code's code pointer table entry */    \
+  /* referenced via the kSelfIndirectPointerOffset field */                    \
+  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize)  \
   /* The serializer needs to copy bytes starting from here verbatim. */        \
   V(kDispatchHandleOffset, kJSDispatchHandleSize)                              \
   V(kFlagsOffset, kUInt32Size)                                                 \
