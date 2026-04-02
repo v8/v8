@@ -1100,6 +1100,10 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitRRR(this, kRiscvMul64, node);
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   VisitRRR(this, kRiscvDiv32, node,
            OperandGenerator::RegisterUseKind::kUseUniqueRegister);
