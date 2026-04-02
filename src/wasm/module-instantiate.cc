@@ -4,6 +4,9 @@
 
 #include "src/wasm/module-instantiate.h"
 
+#include <inttypes.h>
+#include <stdint.h>
+
 #include <optional>
 
 #include "src/api/api-inl.h"
@@ -160,7 +163,7 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
     Tagged<FunctionTemplateInfo> api_func_data, ReceiverKind receiver_kind,
     bool* out_is_first = nullptr) {
 #ifdef V8_ENABLE_TURBOFAN
-  const int c_funcs_count = api_func_data->GetCFunctionsCount();
+  const uint32_t c_funcs_count = api_func_data->GetCFunctionsCount();
   if (c_funcs_count == 0) {
     return std::nullopt;
   }
@@ -174,20 +177,19 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
     return std::nullopt;
   }
 
-  const auto log_imported_function_mismatch = [&shared, isolate](
-                                                  int func_index,
-                                                  const char* reason) {
-    if (v8_flags.trace_opt) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[disabled optimization for ");
-      ShortPrint(*shared, scope.file());
-      PrintF(scope.file(),
-             " for C function %d, reason: the signature of the imported "
-             "function in the Wasm module doesn't match that of the Fast API "
-             "function (%s)]\n",
-             func_index, reason);
-    }
-  };
+  const auto log_imported_function_mismatch =
+      [&shared, isolate](uint32_t func_index, const char* reason) {
+        if (v8_flags.trace_opt) {
+          CodeTracer::Scope scope(isolate->GetCodeTracer());
+          PrintF(scope.file(), "[disabled optimization for ");
+          ShortPrint(*shared, scope.file());
+          PrintF(scope.file(),
+                 " for C function %" PRIu32
+                 ", reason: the signature of the imported function in the Wasm "
+                 "module doesn't match that of the Fast API function (%s)]\n",
+                 func_index, reason);
+        }
+      };
 
   // C functions only have one return value.
   if (expected_sig->return_count() > 1) {
@@ -199,9 +201,9 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
     return std::nullopt;
   }
 
-  for (int c_func_id = 0; c_func_id < c_funcs_count; ++c_func_id) {
+  for (uint32_t c_func_id = 0; c_func_id < c_funcs_count; ++c_func_id) {
     const CFunctionWithSignature c_func =
-        api_func_data->GetCFunction(isolate, c_func_id);
+        api_func_data->GetCFunction(c_func_id);
     const CFunctionInfo* info = c_func.signature;
     if (!IsFastCallSupportedSignature(info)) {
       log_imported_function_mismatch(c_func_id,
@@ -466,7 +468,7 @@ WellKnownImport CheckForWellKnownImport(
       }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
       const CFunctionWithSignature c_function_0 =
-          api_func_data->GetCFunction(isolate, 0);
+          api_func_data->GetCFunction(0);
       Address c_functions[] = {c_function_0.address};
       const v8::CFunctionInfo* const c_signatures[] = {c_function_0.signature};
       isolate->simulator_data()->RegisterFunctionsAndSignatures(

@@ -871,8 +871,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
-    const CFunctionWithSignature c_function =
-        api_func_data->GetCFunction(isolate, 0);
+    const CFunctionWithSignature c_function = api_func_data->GetCFunction(0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
     Address c_functions[] = {c_function.address};

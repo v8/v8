@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include <stdint.h>
+
 #include <optional>
 #include <string_view>
 
@@ -314,8 +316,8 @@ class FunctionTemplateInfo
   static std::optional<Tagged<Name>> TryGetCachedPropertyName(
       Isolate* isolate, Tagged<Object> getter);
   // Fast API overloads.
-  int GetCFunctionsCount() const;
-  CFunctionWithSignature GetCFunction(Isolate* isolate, int index) const;
+  uint32_t GetCFunctionsCount() const;
+  CFunctionWithSignature GetCFunction(uint32_t index) const;
 
   // Bit position in the flag, from least significant bit position.
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()

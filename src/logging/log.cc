@@ -4,6 +4,8 @@
 
 #include "src/logging/log.h"
 
+#include <stdint.h>
+
 #include <atomic>
 #include <cstdarg>
 #include <memory>
@@ -2724,10 +2726,10 @@ void ExistingCodeLogger::LogExistingFunction(
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.
-      int c_functions_count = fun_data->GetCFunctionsCount();
-      for (int i = 0; i < c_functions_count; i++) {
-        CALL_CODE_EVENT_HANDLER(CallbackEvent(
-            fun_name, fun_data->GetCFunction(isolate_, i).address))
+      uint32_t c_functions_count = fun_data->GetCFunctionsCount();
+      for (uint32_t i = 0; i < c_functions_count; i++) {
+        CALL_CODE_EVENT_HANDLER(
+            CallbackEvent(fun_name, fun_data->GetCFunction(i).address))
       }
     }
 #if V8_ENABLE_WEBASSEMBLY
