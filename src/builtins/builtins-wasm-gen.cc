@@ -35,10 +35,8 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   static_assert(BuiltinFrameConstants::kFunctionOffset ==
                 WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
-  TNode<HeapObject> function_or_instance =
-      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   TNode<Object> marker_or_context =
-      LoadFromParentFrame(TypedFrameConstants::kFrameTypeOffset);
+      LoadFromParentFrame(CommonFrameConstants::kContextOrFrameTypeOffset);
 
   Label is_js_function(this);
   Label done(this);
@@ -52,17 +50,16 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
   CSA_CHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
                                         StackFrame::WASM))));
+  TNode<HeapObject> instance_data =
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   context_result =
       LoadContextFromInstanceData(TrustedCast<WasmTrustedInstanceData>(
-          function_or_instance, "from trusted stack slot"));
+          instance_data, "from trusted stack slot"));
   Goto(&done);
 
   BIND(&is_js_function);
-  CSA_DCHECK(this, IsJSFunctionInstanceType(
-                       LoadMapInstanceType(LoadMap(function_or_instance))));
-  TNode<JSFunction> function = CAST(function_or_instance);
-  TNode<Context> context =
-      LoadObjectField<Context>(function, JSFunction::kContextOffset);
+  CSA_DCHECK(this, IsContext(CAST(marker_or_context)));
+  TNode<Context> context = CAST(marker_or_context);
   context_result = LoadNativeContext(context);
   Goto(&done);
 
