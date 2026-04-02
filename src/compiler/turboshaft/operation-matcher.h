@@ -325,6 +325,18 @@ class OperationMatcher {
     return false;
   }
 
+  template <typename T>
+  bool MatchUnsignedIntegralConstant(V<Any> matched, T* constant) const {
+    if (const ConstantOp* c = TryCast<ConstantOp>(matched)) {
+      if (c->kind == ConstantOp::Kind::kWord32 ||
+          c->kind == ConstantOp::Kind::kWord64) {
+        *constant = static_cast<T>(c->integral());
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool MatchExternalConstant(V<Any> matched,
                              ExternalReference* reference) const {
     const ConstantOp* op = TryCast<ConstantOp>(matched);

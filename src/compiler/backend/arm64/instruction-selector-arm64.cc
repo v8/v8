@@ -599,6 +599,7 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
   if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
     return false;
   }
+
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
@@ -2086,6 +2087,121 @@ static void VisitLogical(InstructionSelector* selector, Zone* zone,
   }
 }
 
+namespace {
+
+// Try to fold a left shift and a mask into a single bitfield-insert
+// instruction.
+template <int bit_length>
+  requires(bit_length == 32 || bit_length == 64)
+bool TryEmitUbfiz(InstructionSelector* selector, Arm64OperandGenerator& g,
+                  OpIndex node, const WordBinopOp& bitwise_and,
+                  ArchOpcode lsl_opcode, ArchOpcode ubfiz_opcode) {
+  using Int = std::conditional_t<bit_length == 32, uint32_t, uint64_t>;
+
+  constexpr turboshaft::RegisterRepresentation kRep =
+      bit_length == 32 ? turboshaft::RegisterRepresentation::Word32()
+                       : turboshaft::RegisterRepresentation::Word64();
+  constexpr Int kBitLengthMask = bit_length - 1;
+
+  DCHECK_EQ(node, selector->Index(bitwise_and));
+  const Operation& lhs = selector->Get(bitwise_and.left());
+
+  Int mask;
+  if (lhs.Is<Opmask::kShiftLeft>() && lhs.Cast<ShiftOp>().rep == kRep &&
+      selector->CanCover(node, bitwise_and.left()) &&
+      selector->MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+    Int mask_width = base::bits::CountPopulation(mask);
+    Int mask_trailing_zeros = base::bits::CountTrailingZeros(mask);
+    Int mask_msb = base::bits::CountLeadingZeros(mask);
+
+    // The mask must be contiguous.
+    if (mask_width == 0 || mask_width == bit_length ||
+        (mask_msb + mask_width + mask_trailing_zeros != bit_length)) {
+      return false;
+    }
+
+    // Select Ubfiz or Lsl for And(Shl(x, imm), mask) where the shift amount
+    // exactly aligns with the trailing zeros of the contiguous mask.
+    const ShiftOp& shift = lhs.Cast<ShiftOp>();
+    int32_t shift_by;
+
+    if (selector->MatchIntegralWord32Constant(shift.right(), &shift_by) &&
+        static_cast<Int>(shift_by & kBitLengthMask) == mask_trailing_zeros) {
+      // If the mask width covers all bits left over after the shift, the
+      // AND operation is redundant. We can just emit a standard left shift.
+      if (mask_width + mask_trailing_zeros >= bit_length) {
+        selector->Emit(
+            lsl_opcode, g.DefineAsRegister(node), g.UseRegister(shift.left()),
+            g.UseImmediate(static_cast<int32_t>(mask_trailing_zeros)));
+      } else {
+        // Otherwise, emit a bitfield-insert instruction to perform the shift
+        // and apply the mask width, leaving the remaining upper bits as zeros.
+        selector->Emit(
+            ubfiz_opcode, g.DefineAsRegister(node), g.UseRegister(shift.left()),
+            g.UseImmediate(static_cast<int32_t>(mask_trailing_zeros)),
+            g.UseImmediate(static_cast<int32_t>(mask_width)));
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+// Try to fold a mask and a left shift into a single bitfield-insert
+// instruction.
+template <int bit_length>
+  requires(bit_length == 32 || bit_length == 64)
+bool TryEmitUbfiz(InstructionSelector* selector, Arm64OperandGenerator& g,
+                  OpIndex node, const ShiftOp& shift_op, ArchOpcode lsl_opcode,
+                  ArchOpcode ubfiz_opcode) {
+  using Int = std::conditional_t<bit_length == 32, uint32_t, uint64_t>;
+
+  constexpr turboshaft::RegisterRepresentation kRep =
+      bit_length == 32 ? turboshaft::RegisterRepresentation::Word32()
+                       : turboshaft::RegisterRepresentation::Word64();
+
+  DCHECK_EQ(node, selector->Index(shift_op));
+  const Operation& lhs = selector->Get(shift_op.left());
+
+  Int shift_by;
+  if (lhs.Is<Opmask::kBitwiseAnd>() && lhs.Cast<WordBinopOp>().rep == kRep &&
+      selector->CanCover(node, shift_op.left()) &&
+      selector->MatchUnsignedIntegralConstant(shift_op.right(), &shift_by) &&
+      base::IsInRange(shift_by, static_cast<Int>(1),
+                      static_cast<Int>(bit_length - 1))) {
+    const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
+    Int mask;
+    if (selector->MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+      Int mask_width = base::bits::CountPopulation(mask);
+      Int mask_msb = base::bits::CountLeadingZeros(mask);
+
+      if (mask_width != 0 && (mask_msb + mask_width == bit_length)) {
+        // The mask must be contiguous and starting from the least-significant
+        // bit.
+        DCHECK_EQ(0u, base::bits::CountTrailingZeros(mask));
+        if (shift_by + mask_width >= bit_length) {
+          // If the mask is contiguous and reaches or extends beyond the top
+          // bit, only the shift is needed.
+          selector->Emit(lsl_opcode, g.DefineAsRegister(node),
+                         g.UseRegister(bitwise_and.left()),
+                         g.UseImmediate(static_cast<int32_t>(shift_by)));
+        } else {
+          // Select Ubfiz for Shl(And(x, mask), imm) where the mask is
+          // contiguous, and the shift immediate non-zero.
+          selector->Emit(ubfiz_opcode, g.DefineAsRegister(node),
+                         g.UseRegister(bitwise_and.left()),
+                         g.UseImmediate(static_cast<int32_t>(shift_by)),
+                         g.UseImmediate(static_cast<int32_t>(mask_width)));
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 void InstructionSelector::VisitWord32And(OpIndex node) {
   Arm64OperandGenerator g(this);
   const WordBinopOp& bitwise_and =
@@ -2128,6 +2244,12 @@ void InstructionSelector::VisitWord32And(OpIndex node) {
       // Other cases fall through to the normal And operation.
     }
   }
+
+  if (TryEmitUbfiz<32>(this, g, node, bitwise_and, kArm64Lsl32,
+                       kArm64Ubfiz32)) {
+    return;
+  }
+
   VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And32,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical32Imm);
@@ -2172,6 +2294,11 @@ void InstructionSelector::VisitWord64And(OpIndex node) {
       // Other cases fall through to the normal And operation.
     }
   }
+
+  if (TryEmitUbfiz<64>(this, g, node, bitwise_and, kArm64Lsl, kArm64Ubfiz)) {
+    return;
+  }
+
   VisitLogical(this, zone(), node, bitwise_and.rep, kArm64And,
                CanCover(node, bitwise_and.left()),
                CanCover(node, bitwise_and.right()), kLogical64Imm);
@@ -2204,41 +2331,10 @@ void InstructionSelector::VisitWord64Xor(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord32Shl(OpIndex node) {
+  Arm64OperandGenerator g(this);
   const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
-  const Operation& lhs = Get(shift_op.left());
-  if (uint64_t constant_left;
-      lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
-      MatchUnsignedIntegralConstant(shift_op.right(), &constant_left)) {
-    uint32_t shift_by = static_cast<uint32_t>(constant_left);
-    if (base::IsInRange(shift_by, 1, 31)) {
-      const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-      if (uint64_t constant_right;
-          MatchUnsignedIntegralConstant(bitwise_and.right(), &constant_right)) {
-        uint32_t mask = static_cast<uint32_t>(constant_right);
-
-        uint32_t mask_width = base::bits::CountPopulation(mask);
-        uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
-        if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
-          DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
-          DCHECK_NE(0u, shift_by);
-          Arm64OperandGenerator g(this);
-          if ((shift_by + mask_width) >= 32) {
-            // If the mask is contiguous and reaches or extends beyond the top
-            // bit, only the shift is needed.
-            Emit(kArm64Lsl32, g.DefineAsRegister(node),
-                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by));
-            return;
-          } else {
-            // Select Ubfiz for Shl(And(x, mask), imm) where the mask is
-            // contiguous, and the shift immediate non-zero.
-            Emit(kArm64Ubfiz32, g.DefineAsRegister(node),
-                 g.UseRegister(bitwise_and.left()), g.UseImmediate(shift_by),
-                 g.TempImmediate(mask_width));
-            return;
-          }
-        }
-      }
-    }
+  if (TryEmitUbfiz<32>(this, g, node, shift_op, kArm64Lsl32, kArm64Ubfiz32)) {
+    return;
   }
   VisitRRO(this, kArm64Lsl32, node, kShift32Imm);
 }
@@ -2248,6 +2344,11 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
   const ShiftOp& shift_op = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shift_op.left());
   const Operation& rhs = this->Get(shift_op.right());
+
+  if (TryEmitUbfiz<64>(this, g, node, shift_op, kArm64Lsl, kArm64Ubfiz)) {
+    return;
+  }
+
   if ((lhs.Is<Opmask::kChangeInt32ToInt64>() ||
        lhs.Is<Opmask::kChangeUint32ToUint64>()) &&
       rhs.Is<Opmask::kWord32Constant>()) {

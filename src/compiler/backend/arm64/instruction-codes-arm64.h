@@ -274,6 +274,7 @@ namespace compiler {
   V(Arm64Sbfx32)                                     \
   V(Arm64Ubfx)                                       \
   V(Arm64Ubfx32)                                     \
+  V(Arm64Ubfiz)                                      \
   V(Arm64Ubfiz32)                                    \
   V(Arm64Sbfiz)                                      \
   V(Arm64Bfi)                                        \
