@@ -2740,6 +2740,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);
       iter.wasm_stack()->clear_stack_switch_info();
+#if V8_TARGET_OS_WIN
+      base::Stack::SetCurrentThreadStackBounds(iter.wasm_stack()->limit(),
+                                               iter.wasm_stack()->base());
+#endif
     }
     // Regardless of the stack that the handler belongs to, these fields should
     // be cleared.
@@ -6198,6 +6202,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     PrintF("Set up central stack object (limit: %p, base: %p)\n",
            stack->jslimit(), reinterpret_cast<void*>(stack->base()));
   }
+#if V8_TARGET_OS_WIN
+  // Stack::GetStackStart() is meant to return the native stack start, but we
+  // update the TEB's StackBase during wasm stack switching. So call it during
+  // initialization to ensure that it caches the correct value.
+  base::Stack::GetStackStart();
+#endif
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
