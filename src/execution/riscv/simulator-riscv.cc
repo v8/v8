@@ -50,6 +50,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+//<cfenv> is banned in Google style due to inconsistent compiler
+// support and potential interference with floating-point optimizations.
+// However, RISC-V only uses fenv.h in simulator on x64.
+#include <cfenv>  // NOLINT(build/c++11)
+
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/vector.h"
@@ -4038,6 +4043,33 @@ void Simulator::DecodeRVRType() {
   }
 }
 
+#pragma STDC FENV_ACCESS ON
+
+struct ScopedRoundingMode {
+  int old_mode;
+  int get_cfp_roud_mode(uint32_t frm) {
+    switch (frm) {
+      case RNE:
+        return FE_TONEAREST;
+      case RTZ:
+        return FE_TOWARDZERO;
+      case RDN:
+        return FE_UPWARD;
+      case RUP:
+        return FE_DOWNWARD;
+      case RMM:
+        return FE_TONEAREST;
+      default:
+        UNREACHABLE();
+    }
+  }
+  explicit ScopedRoundingMode(uint32_t new_mode) {
+    old_mode = std::fegetround();
+    std::fesetround(get_cfp_roud_mode(new_mode));
+  }
+  ~ScopedRoundingMode() { std::fesetround(old_mode); }
+};
+
 float Simulator::RoundF2FHelper(float input_val, int rmode) {
   if (rmode == DYN) rmode = get_dynamic_rounding_mode();
 
@@ -7533,12 +7565,16 @@ void Simulator::DecodeRvvFVV() {
               { UNIMPLEMENTED(); },
               {
                 auto vs2_i = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<float>(vs2_i);
                 USE(vs2);
                 USE(fs1);
               },
               {
                 auto vs2_i = Rvvelt<uint64_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<double>(vs2_i);
                 USE(vs2);
                 USE(fs1);
@@ -7549,12 +7585,16 @@ void Simulator::DecodeRvvFVV() {
               { UNIMPLEMENTED(); },
               {
                 auto vs2_i = Rvvelt<int32_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<float>(vs2_i);
                 USE(vs2);
                 USE(fs1);
               },
               {
                 auto vs2_i = Rvvelt<int64_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<double>(vs2_i);
                 USE(vs2);
                 USE(fs1);

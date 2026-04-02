@@ -3625,16 +3625,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF32x4UConvertI32x4: {
       __ VU.SetSimd128(E32);
-      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_xu_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4SConvertI32x4: {
       __ VU.SetSimd128(E32);
-      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4ReplaceLane: {
