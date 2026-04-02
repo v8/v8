@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/objects/tagged-impl.h"
 #include "src/objects/union.h"
@@ -552,7 +553,7 @@ namespace detail {
 template <typename T>
 class TaggedOperatorArrowRef {
  public:
-  V8_INLINE constexpr T* operator->() { return &object_; }
+  V8_INLINE constexpr T* operator->() V8_LIFETIME_BOUND { return &object_; }
 
  private:
   friend class Tagged<T>;
