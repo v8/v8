@@ -6,7 +6,7 @@
 """
 Performance runner for d8.
 
-Call e.g. with tools/run-perf.py --arch ia32 some_suite.json
+Call e.g. with tools/run-perf.py --arch x64 some_suite.json
 
 The suite json format is expected to be:
 {
@@ -1155,7 +1155,7 @@ class MaxTotalDurationReachedError(Exception):
 
 def Main(argv):
   parser = argparse.ArgumentParser(epilog="""example:
-      ./run_perf.py --d8-path=out/Release/d8 $V8_PERF/benchmarks/JetStream/JetStream2.json
+      ./run_perf.py --d8-path=out/Release/d8 $V8_PERF/benchmarks/JetStream/JetStream2.json -- --no-turbofan
     """)
   parser.add_argument('--arch',
                       help='The architecture to run tests for. Pass "auto" '
@@ -1249,10 +1249,21 @@ def Main(argv):
                       help='Warm up benchmarks not run since last reboot.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
+  # Manually split, since suites already grabs all additional args.
+  if '--' in argv:
+    forward_args_idx = argv.index('--')
+    forward_args = argv[forward_args_idx + 1:]
+    argv = argv[:forward_args_idx]
+  else:
+    forward_args = []
+
   try:
     args = parser.parse_args(argv)
   except SystemExit:
     return INFRA_FAILURE_RETCODE
+
+  if forward_args:
+    args.extra_flags = args.extra_flags + ' ' + ' '.join(forward_args)
 
   logging.basicConfig(
       level=logging.DEBUG if args.verbose else logging.INFO,

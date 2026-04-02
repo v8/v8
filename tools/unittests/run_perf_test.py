@@ -463,6 +463,51 @@ class PerfTest(unittest.TestCase):
     self._VerifyMock(os.path.join(
       'out', 'x64.release', 'd7'), '--flag', 'run.js', '--', '2', 'test_name')
 
+  def testOneRunWithForwardFlags(self):
+    test_input = dict(V8_JSON)
+    self._WriteTestInput(test_input)
+    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567'])
+    self.assertEqual(0, self._CallMain('--', '--max-opt=1', '--no-foo'))
+    self._VerifyResults('test', 'score', [
+        {
+            'name': 'Richards',
+            'results': [1.234],
+            'stddev': ''
+        },
+        {
+            'name': 'DeltaBlue',
+            'results': [10657567.0],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', '--max-opt=1',
+        '--no-foo', 'run.js')
+
+  def testOneRunWithForwardFlagsWithTestFlags(self):
+    test_input = dict(V8_JSON)
+    test_input['test_flags'] = ['2', 'test_name']
+    self._WriteTestInput(test_input)
+    self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567'])
+    self.assertEqual(0, self._CallMain('--', '--max-opt=1', '--no-foo'))
+    self._VerifyResults('test', 'score', [
+        {
+            'name': 'Richards',
+            'results': [1.234],
+            'stddev': ''
+        },
+        {
+            'name': 'DeltaBlue',
+            'results': [10657567.0],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', '--max-opt=1',
+        '--no-foo', 'run.js', '--', '2', 'test_name')
+
   def testTwoRuns_Units_SuiteName(self):
     test_input = dict(V8_JSON)
     test_input['run_count'] = 2
