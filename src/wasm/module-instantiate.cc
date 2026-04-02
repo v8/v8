@@ -467,10 +467,8 @@ WellKnownImport CheckForWellKnownImport(
         return kGeneric;
       }
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-      const CFunctionWithSignature c_function_0 =
-          api_func_data->GetCFunction(0);
-      Address c_functions[] = {c_function_0.address};
-      const v8::CFunctionInfo* const c_signatures[] = {c_function_0.signature};
+      Address c_functions[] = {c_function->address};
+      const v8::CFunctionInfo* const c_signatures[] = {c_function->signature};
       isolate->simulator_data()->RegisterFunctionsAndSignatures(
           c_functions, c_signatures, 1);
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
