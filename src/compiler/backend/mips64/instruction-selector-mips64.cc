@@ -759,6 +759,10 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitBinop(this, node, kMips64Dmul, true, kMips64Dmul);
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Mips64OperandGenerator g(this);
 

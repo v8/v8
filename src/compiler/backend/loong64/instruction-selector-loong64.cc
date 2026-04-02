@@ -1046,6 +1046,10 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitBinop(this, node, kLoong64Mul_d, true, kLoong64Mul_d);
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Loong64OperandGenerator g(this);
 
