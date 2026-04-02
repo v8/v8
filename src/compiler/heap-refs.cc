@@ -18,6 +18,7 @@
 #endif
 
 #include "src/api/api-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -213,13 +214,13 @@ namespace {
 
 ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
     Tagged<FixedArray> function_overloads, Isolate* isolate, Zone* zone) {
+  DisallowGarbageCollection no_gc;
   const uint32_t len = function_overloads->ulength().value();
-  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures =
-      ZoneVector<CFunctionInfoWithDetails>(len, zone);
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(len, zone);
   for (uint32_t i = 0; i < len; i++) {
     auto overload =
         Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
-            ->raw();
+            ->raw(no_gc);
     c_functions_with_signatures[i] = {overload->address, overload->signature};
   }
   return c_functions_with_signatures;

@@ -12,6 +12,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -178,10 +179,10 @@ uint32_t FunctionTemplateInfo::GetCFunctionsCount() const {
 
 CFunctionWithSignature FunctionTemplateInfo::GetCFunction(
     uint32_t index) const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   return *Cast<Managed<CFunctionWithSignature>>(
               Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-              ->raw();
+              ->raw(no_gc);
 }
 
 // static
