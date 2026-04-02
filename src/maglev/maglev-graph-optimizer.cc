@@ -1684,6 +1684,12 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToInt32(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToUint32(
+    CheckedIntPtrToUint32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitChangeInt32ToFloat64(
     ChangeInt32ToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1720,8 +1726,20 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToUint32(
+    CheckedFloat64ToUint32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
     CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32(
+    CheckedHoleyFloat64ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

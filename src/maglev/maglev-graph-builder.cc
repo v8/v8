@@ -5844,10 +5844,14 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
           return GetUint32Constant(uint32_value);
         }
       }
-      [[fallthrough]];
+      return AddNewNodeNoInputConversion<CheckedFloat64ToUint32>({object});
 
     case ValueRepresentation::kHoleyFloat64:
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToUint32>({object});
+
     case ValueRepresentation::kIntPtr:
+      return AddNewNodeNoInputConversion<CheckedIntPtrToUint32>({object});
+
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
