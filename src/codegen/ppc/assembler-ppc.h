@@ -1025,6 +1025,8 @@ class Assembler : public AssemblerBase {
 
   void subi(Register dst, Register src1, const Operand& src2);
 
+  void addpcis(Register dst, const Operand& val);
+
   void mov(Register dst, const Operand& src);
   void bitwise_mov(Register dst, intptr_t value);
   void bitwise_mov32(Register dst, int32_t value);

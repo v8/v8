@@ -1386,6 +1386,10 @@ using Instr = uint32_t;
   /* Store Vector Indexed */                            \
   V(stvx, STVX, 0x7C0001CE)
 
+#define PPC_DX_OPCODE_LIST(V)    \
+  /* Add PC Immediate Shifted */ \
+  V(addpcis, ADDPCIS, 0x4C000004)
+
 #define PPC_X_OPCODE_E_FORM_LIST(V)          \
   /* Shift Right Algebraic Word Immediate */ \
   V(srawi, SRAWIX, 0x7C000670)
@@ -2811,6 +2815,7 @@ immediate-specified index */                 \
   PPC_XO_OPCODE_LIST(V)             \
   PPC_DS_OPCODE_LIST(V)             \
   PPC_DQ_OPCODE_LIST(V)             \
+  PPC_DX_OPCODE_LIST(V)             \
   PPC_MDS_OPCODE_LIST(V)            \
   PPC_MD_OPCODE_LIST(V)             \
   PPC_XS_OPCODE_LIST(V)             \
@@ -3255,6 +3260,11 @@ class Instruction {
     opcode = extcode | BitField(2, 0);
     switch (opcode) {
       PPC_DQ_OPCODE_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 1);
+    switch (opcode) {
+      PPC_DX_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(1, 0);

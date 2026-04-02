@@ -1798,6 +1798,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_pc(get_pc() + (2 * kInstrSize));
       break;
     }
+    case ADDPCIS: {
+      int rt = instr->RTValue();
+      int d0 = instr->Bits(15, 6);
+      int d1 = instr->Bits(20, 16);
+      int d2 = instr->Bit(0);
+      int32_t imm_val = static_cast<int16_t>(((d0 << 6) | (d1 << 1) | d2));
+      imm_val <<= 16;
+      set_register(rt, get_pc() + kInstrSize + static_cast<int64_t>(imm_val));
+      break;
+    }
     case SUBFIC: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();

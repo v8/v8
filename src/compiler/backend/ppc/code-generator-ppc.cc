@@ -1069,7 +1069,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
-        __ mflr(r0);
         __ LoadPC(kScratchReg);
         __ bind(&start_call);
         start_pc_offset = __ pc_offset();
@@ -1080,7 +1079,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ addi(kScratchReg, kScratchReg, Operand::Zero());
         __ StoreU64(kScratchReg,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
-        __ mtlr(r0);
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY

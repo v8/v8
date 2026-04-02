@@ -1183,16 +1183,15 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
 }
 
 void MacroAssembler::LoadPC(Register dst) {
-  b(4, SetLK);
-  mflr(dst);
-  // dst points to address of mflr
+  addpcis(dst, Operand(0));
+  // dst contains the Next Instruction Address, emit a nop
+  // to make it point to the current instruction.
+  nop();
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
-  mflr(r0);
   LoadPC(dst);
   subi(dst, dst, Operand(pc_offset() - kInstrSize));
-  mtlr(r0);
 }
 
 void MacroAssembler::LoadConstantPoolPointerRegister() {
@@ -5344,7 +5343,7 @@ void MacroAssembler::Switch(Register scratch, Register value,
   ShiftLeftU32(value, value, Operand(entry_size_log2));
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  // offset = size of (mflr, addi, add, mtctr, bctr)
+  // offset = size of (nop, addi, add, mtctr, bctr)
   constexpr int offset = 20;
   LoadPC(scratch);
   addi(scratch, scratch, Operand(offset));

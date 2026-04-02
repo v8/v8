@@ -1111,6 +1111,16 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
 
+void Assembler::addpcis(Register dst, const Operand& val) {
+  intptr_t imm16 = val.immediate();
+  DCHECK(is_int16(imm16));
+  imm16 &= kImm16Mask;
+  int d0 = (imm16 & 0xFFC0) >> 6;
+  int d1 = (imm16 & 0x3E) >> 1;
+  int d2 = imm16 & 0x1;
+  emit(ADDPCIS | dst.code() * B21 | d1 * B16 | d0 * B6 | d2);
+}
+
 // Prefixed instructions.
 #define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
   CHECK(is_int34(immediate));                                       \
