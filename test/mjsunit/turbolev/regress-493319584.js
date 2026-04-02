@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbolev --maglev-assert-types
+// Flags: --allow-natives-syntax --turbolev
 // Flags: --maglev-untagged-phis --no-lazy-feedback-allocation
+
+// TODO(496266449): Re-enable --maglev-assert-types
 
 function __f_2() {
   function __f_3() {
