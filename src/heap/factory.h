@@ -331,10 +331,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
-      Handle<SeqOneByteString> str, int begin, int end,
-      AllocationType allocation = AllocationType::kYoung);
-
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
       base::Vector<const base::uc16> str,
       AllocationType allocation = AllocationType::kYoung);

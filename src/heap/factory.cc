@@ -973,61 +973,6 @@ MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-MaybeHandle<String> Factory::NewStringFromUtf8SubString(
-    Handle<SeqOneByteString> str, int begin, int length,
-    AllocationType allocation) {
-  base::Vector<const uint8_t> utf8_data;
-  {
-    DisallowGarbageCollection no_gc;
-    utf8_data =
-        base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-  }
-  Utf8Decoder decoder(utf8_data);
-
-  if (length == 1) {
-    uint16_t t;
-    // Decode even in the case of length 1 since it can be a bad character.
-    decoder.Decode(&t, utf8_data);
-    return LookupSingleCharacterStringFromCode(t);
-  }
-
-  if (decoder.is_ascii()) {
-    // If the string is ASCII, we can just make a substring.
-    // TODO(v8): the allocation flag is ignored in this case.
-    return NewSubString(str, begin, begin + length);
-  }
-
-  DCHECK_GT(decoder.utf16_length(), 0);
-
-  if (decoder.is_one_byte()) {
-    // Allocate string.
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        NewRawOneByteString(decoder.utf16_length(), allocation));
-    DisallowGarbageCollection no_gc;
-    // Update pointer references, since the original string may have moved after
-    // allocation.
-    utf8_data =
-        base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-    decoder.Decode(result->GetChars(no_gc), utf8_data);
-    return result;
-  }
-
-  // Allocate string.
-  Handle<SeqTwoByteString> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), result,
-      NewRawTwoByteString(decoder.utf16_length(), allocation));
-
-  DisallowGarbageCollection no_gc;
-  // Update pointer references, since the original string may have moved after
-  // allocation.
-  utf8_data = base::Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
-  decoder.Decode(result->GetChars(no_gc), utf8_data);
-  return result;
-}
-
 MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
                                                   int length,
                                                   AllocationType allocation) {
