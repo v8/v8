@@ -92,6 +92,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
+    // TODO(loong64_dev): Initialize kDoubleRegZero for use by cctest.
+    movgr2fr_d(kDoubleRegZero, zero_reg);
 #ifdef V8_COMPRESS_POINTERS
     LoadRootRelative(kPtrComprCageBaseRegister,
                      IsolateData::cage_base_offset());
@@ -783,8 +785,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
 
-  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
-
   void mov(Register rd, Register rj) { or_(rd, rj, zero_reg); }
 
   inline void Move(Register dst, Handle<HeapObject> handle) { li(dst, handle); }
@@ -1466,7 +1466,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline int32_t GetOffset(Label* L, OffsetSize bits);
 
  private:
-  bool has_double_zero_reg_set_ = false;
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
