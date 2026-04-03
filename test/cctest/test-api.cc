@@ -17419,47 +17419,36 @@ TEST(Regress2333) {
   }
 }
 
-static uint32_t* stack_limit;
+static uintptr_t stack_limit;
 
 static void GetStackLimitCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  stack_limit = reinterpret_cast<uint32_t*>(
-      CcTest::i_isolate()->stack_guard()->real_climit());
+  stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
 }
 
 
 // Uses the address of a local variable to determine the stack top now.
 // Given a size, returns an address that is that far from the current
 // top of stack.
-static uint32_t* ComputeStackLimit(uint32_t size) {
-  // Disable the gcc error which (very correctly) notes that this is an
-  // out-of-bounds access.
-#if V8_CC_GNU
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif  // V8_CC_GNU
-  uint32_t* answer = &size - (size / sizeof(size));
-#if V8_CC_GNU
-#pragma GCC diagnostic pop
-#endif  // V8_CC_GNU
+static uintptr_t ComputeStackLimit(uint32_t size) {
+  uintptr_t addr = reinterpret_cast<uintptr_t>(&size);
+  if (addr >= size) return addr - size;
   // If the size is very large and the stack is very near the bottom of
-  // memory then the calculation above may wrap around and give an address
+  // memory then the calculation above would wrap around and give an address
   // that is above the (downwards-growing) stack.  In that case we return
   // a very low address.
-  if (answer > &size) return reinterpret_cast<uint32_t*>(sizeof(size));
-  return answer;
+  return sizeof(size);
 }
-
 
 // We need at least 165kB for an x64 debug build with clang and ASAN.
 static const int stack_breathing_room = 256 * i::KB;
 
 
 TEST(SetStackLimit) {
-  uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
+  uintptr_t set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
-  CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
+  CcTest::isolate()->SetStackLimit(set_limit);
 
   // Execute a script.
   LocalContext env;
@@ -17472,18 +17461,18 @@ TEST(SetStackLimit) {
             .FromJust());
   CompileRun("get_stack_limit();");
 
-  CHECK(stack_limit == set_limit);
+  CHECK_EQ(stack_limit, set_limit);
 }
 
 
 TEST(SetStackLimitInThread) {
-  uint32_t* set_limit;
+  uintptr_t set_limit;
   {
     v8::Locker locker(CcTest::isolate());
     set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
-    CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
+    CcTest::isolate()->SetStackLimit(set_limit);
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -17496,11 +17485,11 @@ TEST(SetStackLimitInThread) {
               .FromJust());
     CompileRun("get_stack_limit();");
 
-    CHECK(stack_limit == set_limit);
+    CHECK_EQ(stack_limit, set_limit);
   }
   {
     v8::Locker locker(CcTest::isolate());
-    CHECK(stack_limit == set_limit);
+    CHECK_EQ(stack_limit, set_limit);
   }
 }
 
