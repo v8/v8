@@ -556,7 +556,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
     // Set up the reserved register for 0.0.
-    __ Move(kDoubleRegZero, 0.0);
+    __ movgr2fr_d(kDoubleRegZero, zero_reg);
 
     // Initialize the root register.
     // C calling convention. The first argument is passed in a0.

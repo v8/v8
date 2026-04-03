@@ -2824,8 +2824,8 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   vsrli_b(scratch0, src.fp().toV(), 7);
   vsrli_h(scratch1, scratch0, 7);
   vor_v(scratch0, scratch0, scratch1);
@@ -2948,8 +2948,8 @@ void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   vsrli_h(scratch0, src.fp().toV(), 15);
   vsrli_w(scratch1, scratch0, 15);
   vor_v(scratch0, scratch0, scratch1);
@@ -3071,8 +3071,8 @@ void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   vsrli_w(scratch0, src.fp().toV(), 31);
   vsrli_d(scratch1, scratch0, 31);
   vor_v(scratch0, scratch0, scratch1);
@@ -3174,8 +3174,8 @@ void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   vsrli_d(scratch0, src.fp().toV(), 63);
   vshuf4i_w(scratch1, scratch0, 0x02);
   vslli_d(scratch1, scratch1, 1);
@@ -3307,8 +3307,8 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg | rhsReg) : (rhsReg | rhsReg).
   vfcmp_cond_s(CEQ, scratch0, lhsReg, rhsReg);
@@ -3329,8 +3329,8 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg & rhsReg) : (rhsReg & rhsReg).
   vfcmp_cond_s(CEQ, scratch0, lhsReg, rhsReg);
@@ -3352,8 +3352,8 @@ void LiftoffAssembler::emit_f32x4_relaxed_min(LiftoffRegister dst,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg | rhsReg) : (rhsReg | rhsReg).
   vfcmp_cond_s(CEQ, scratch0, lhsReg, rhsReg);
@@ -3375,8 +3375,8 @@ void LiftoffAssembler::emit_f32x4_relaxed_max(LiftoffRegister dst,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg & rhsReg) : (rhsReg & rhsReg).
   vfcmp_cond_s(CEQ, scratch0, lhsReg, rhsReg);
@@ -3480,8 +3480,8 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   vfcmp_cond_d(CEQ, scratch0, lhsReg, rhsReg);
@@ -3502,8 +3502,8 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg & rhsReg) : (rhsReg & rhsReg).
   vfcmp_cond_d(CEQ, scratch0, lhsReg, rhsReg);
@@ -3549,8 +3549,8 @@ void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
   // scratch1 = (lhs == rhs) ?  (lhs | rhs) : (rhs | rhs).
   vfcmp_cond_d(CEQ, scratch0, lhsReg, rhsReg);
@@ -3572,8 +3572,8 @@ void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  VRegister scratch0 = kSimd128RegZero;
-  VRegister scratch1 = kSimd128ScratchReg;
+  VRegister scratch0 = kSimd128ScratchReg;
+  VRegister scratch1 = kSimd128ScratchReg1;
   // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
   // scratch1 = (lhsReg == rhsReg) ?  (lhsReg & rhsReg) : (rhsReg & rhsReg).
   vfcmp_cond_d(CEQ, scratch0, lhsReg, rhsReg);
@@ -3592,17 +3592,17 @@ void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-  vilvl_w(kSimd128RegZero, kSimd128RegZero, src.fp().toV());
-  vslli_d(kSimd128RegZero, kSimd128RegZero, 32);
-  vsrai_d(kSimd128RegZero, kSimd128RegZero, 32);
-  vffint_d_l(dst.fp().toV(), kSimd128RegZero);
+  vilvl_w(kSimd128ScratchReg, kSimd128RegZero, src.fp().toV());
+  vslli_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+  vsrai_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+  vffint_d_l(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-  vilvl_w(kSimd128RegZero, kSimd128RegZero, src.fp().toV());
-  vffint_d_lu(dst.fp().toV(), kSimd128RegZero);
+  vilvl_w(kSimd128ScratchReg, kSimd128RegZero, src.fp().toV());
+  vffint_d_lu(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
@@ -3656,8 +3656,8 @@ void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
   vsat_h(kSimd128ScratchReg, lhs.fp().toV(), 7);
-  vsat_h(kSimd128RegZero, rhs.fp().toV(), 7);
-  vpickev_b(dst.fp().toV(), kSimd128RegZero, kSimd128ScratchReg);
+  vsat_h(kSimd128ScratchReg1, rhs.fp().toV(), 7);
+  vpickev_b(dst.fp().toV(), kSimd128ScratchReg1, kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
@@ -3675,8 +3675,8 @@ void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
   vsat_w(kSimd128ScratchReg, lhs.fp().toV(), 15);
-  vsat_w(kSimd128RegZero, rhs.fp().toV(), 15);
-  vpickev_h(dst.fp().toV(), kSimd128RegZero, kSimd128ScratchReg);
+  vsat_w(kSimd128ScratchReg1, rhs.fp().toV(), 15);
+  vpickev_h(dst.fp().toV(), kSimd128ScratchReg1, kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,

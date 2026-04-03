@@ -2643,8 +2643,8 @@ void MacroAssembler::Dotp_h(VRegister dst, VRegister src1, VRegister src2,
   case type:                                                   \
     vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero); \
     ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1);      \
-    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2);         \
-    Dotp_instr(dst, kSimd128ScratchReg, kSimd128RegZero);      \
+    ilv_instr(kSimd128ScratchReg1, kSimd128RegZero, src2);     \
+    Dotp_instr(dst, kSimd128ScratchReg, kSimd128ScratchReg1);  \
     break;
 
 void MacroAssembler::ExtMulLow(LSXDataType type, VRegister dst, VRegister src1,
@@ -2936,17 +2936,15 @@ void MacroAssembler::Move(FPURegister dst, uint32_t src) {
 
 void MacroAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
-    fmov_d(dst, kDoubleRegZero);
-  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
-             has_double_zero_reg_set_) {
-    Neg_d(dst, kDoubleRegZero);
+  if (src == base::bit_cast<uint64_t>(0.0)) {
+    // TODO(loong64_dev): fmov_d is better, but kDoubleRegZero is not
+    // initialized in cctest and unittest, so it cannot be used directly.
+    movgr2fr_d(dst, zero_reg);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     li(scratch, Operand(static_cast<int64_t>(src)));
     movgr2fr_d(dst, scratch);
-    if (dst == kDoubleRegZero) has_double_zero_reg_set_ = true;
   }
 }
 
