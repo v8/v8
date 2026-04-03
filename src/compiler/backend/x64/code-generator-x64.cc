@@ -1325,6 +1325,24 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                         \
   } while (false)
 
+#ifdef V8_ENABLE_APX_F
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)                         \
+  do {                                                         \
+    Register dst = i.OutputRegister();                         \
+    if (UseApxSetzucc()) {                                     \
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);           \
+      __ opcode(kScratchDoubleReg, i.InputSimd128Register(0)); \
+      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);          \
+      __ setzucc(equal, dst);                                  \
+    } else {                                                   \
+      __ xorq(dst, dst);                                       \
+      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);           \
+      __ opcode(kScratchDoubleReg, i.InputSimd128Register(0)); \
+      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);          \
+      __ setcc(equal, dst);                                    \
+    }                                                          \
+  } while (false)
+#else
 #define ASSEMBLE_SIMD_ALL_TRUE(opcode)                       \
   do {                                                       \
     Register dst = i.OutputRegister();                       \
@@ -1334,6 +1352,7 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ Ptest(kScratchDoubleReg, kScratchDoubleReg);          \
     __ setcc(equal, dst);                                    \
   } while (false)
+#endif  // V8_ENABLE_APX_F
 
 // This macro will directly emit the opcode if the shift is an immediate - the
 // shift value will be taken modulo 2^width. Otherwise, it will emit code to
@@ -1601,12 +1620,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   X64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
-  if (ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
-    // Transform setcc + movzxbl into xorl + setcc to avoid register stall and
-    // encode one byte shorter.
-    Register reg = i.OutputRegister(instr->OutputCount() - 1);
-    __ xorl(reg, reg);
+#ifdef V8_ENABLE_APX_F
+  if (!UseApxSetzucc()) {
+#endif
+    if (ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
+      // Transform setcc + movzxbl into xorl + setcc to avoid register stall and
+      // encode one byte shorter.
+      Register reg = i.OutputRegister(instr->OutputCount() - 1);
+      __ xorl(reg, reg);
+    }
+#ifdef V8_ENABLE_APX_F
   }
+#endif
   switch (arch_opcode) {
     case kX64TraceInstruction: {
       __ emit_trace_instruction(i.InputImmediate(0));
@@ -7057,9 +7082,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
 
-      __ xorq(dst, dst);
-      __ Ptest(src, src);
-      __ setcc(not_equal, dst);
+#ifdef V8_ENABLE_APX_F
+      if (UseApxSetzucc()) {
+        __ Ptest(src, src);
+        __ setzucc(not_equal, dst);
+      } else {
+#endif
+        __ xorq(dst, dst);
+        __ Ptest(src, src);
+        __ setcc(not_equal, dst);
+#ifdef V8_ENABLE_APX_F
+      }
+#endif
       break;
     }
     // Need to split up all the different lane structures because the
@@ -7808,10 +7842,18 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     __ jmp(&done, Label::kNear);
   }
   __ bind(&check);
-  __ setcc(FlagsConditionToCondition(condition), reg);
-  if (!ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
-    __ movzxbl(reg, reg);
+#ifdef V8_ENABLE_APX_F
+  if (UseApxSetzucc()) {
+    __ setzucc(FlagsConditionToCondition(condition), reg);
+  } else {
+#endif
+    __ setcc(FlagsConditionToCondition(condition), reg);
+    if (!ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
+      __ movzxbl(reg, reg);
+    }
+#ifdef V8_ENABLE_APX_F
   }
+#endif
   __ bind(&done);
 }
 

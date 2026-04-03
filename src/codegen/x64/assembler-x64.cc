@@ -28,6 +28,11 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_APX_F
+bool UseApxSetzucc() {
+  return v8_flags.enable_apx_f_setzucc && CpuFeatures::IsSupported(APX_F);
+}
+#endif
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 

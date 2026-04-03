@@ -65,6 +65,10 @@ class MaglevSafepointTableBuilder;
 
 // Utility functions
 
+#ifdef V8_ENABLE_APX_F
+V8_EXPORT_PRIVATE bool UseApxSetzucc();
+#endif
+
 enum Condition : int {
   overflow = 0,
   no_overflow = 1,

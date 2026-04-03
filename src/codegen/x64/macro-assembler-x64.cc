@@ -1939,8 +1939,16 @@ void MacroAssembler::Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp) {
   j(above_equal, &f32tof16);
   // Detection of subnormal numbers.
   cmpl(tmp, Immediate(kFP32SubnormalThresholdOfFP16));
-  setcc(above_equal, tmp2);
-  movzxbl(tmp2, tmp2);
+#ifdef V8_ENABLE_APX_F
+  if (UseApxSetzucc()) {
+    setzucc(above_equal, tmp2);
+  } else {
+#endif
+    setcc(above_equal, tmp2);
+    movzxbl(tmp2, tmp2);
+#ifdef V8_ENABLE_APX_F
+  }
+#endif
   // Compute 0x1000 for normal and 0x0000 for denormal numbers.
   shll(tmp2, Immediate(12));
   // Look at the last thirteen bits of the mantissa which will be shifted out
