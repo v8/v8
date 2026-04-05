@@ -1260,7 +1260,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
 
 MaybeDirectHandle<WasmMemoryMapDescriptor>
 WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
-#if V8_TARGET_OS_LINUX
+#if V8_TARGET_OS_LINUX && V8_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
@@ -1276,9 +1276,9 @@ WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
   }
 
   return NewFromFileDescriptor(isolate, file_descriptor);
-#else   // V8_TARGET_OS_LINUX
+#else   // V8_TARGET_OS_LINUX && V8_OS_LINUX
   return {};
-#endif  // V8_TARGET_OS_LINUX
+#endif  // V8_TARGET_OS_LINUX && V8_OS_LINUX
 }
 
 DirectHandle<WasmMemoryMapDescriptor>
