@@ -31,8 +31,6 @@
   # tc39/test262 PR #4999: these tests have incorrect expectations.
   # They assume super.prop = val on a deferred namespace doesn't trigger
   # [[GetOwnProperty]], but OrdinarySetWithOwnDescriptor requires it.
-  'language/import/import-defer/evaluation-triggers/ignore-super-property-set-exported': [FAIL],
-  'language/import/import-defer/evaluation-triggers/ignore-super-property-set-not-exported': [FAIL],
 
   ###################### MISSING ES6 FEATURES #######################
 
