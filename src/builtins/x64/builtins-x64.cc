@@ -1145,6 +1145,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     // Load frame size from the BytecodeArray object.
     __ movl(rcx, FieldOperand(kInterpreterBytecodeArrayRegister,
                               BytecodeArray::kFrameSizeOffset));
+    __ addq(rcx, Immediate(kSystemPointerSize));
 
     // Do a stack check to ensure we don't go over the limit.
     __ movq(rax, rsp);
