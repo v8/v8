@@ -2387,6 +2387,11 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
 // section.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
+// Compilation hints generation is incompatible with eager tier-up.
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(wasm_generate_compilation_hints,
+                                      wasm_eager_tier_up_function)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
+                                      wasm_eager_tier_up_function)
 // Compilation hints generation is not compatible with
 // --no-wasm-dynamic-tiering or --no-wasm-lazy-compilation.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_dynamic_tiering)
