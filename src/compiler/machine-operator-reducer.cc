@@ -696,9 +696,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         // All reciprocals of non-denormal powers of two can be represented
         // exactly, so division by power of two can be reduced to
         // multiplication by reciprocal, with the same result.
-        node->ReplaceInput(1, Float64Constant(1.0 / m.right().ScalarValue()));
-        NodeProperties::ChangeOp(node, machine()->Float64Mul());
-        return Changed(node);
+        const double recip = 1.0 / m.right().ScalarValue();
+        if (std::isnormal(recip)) {
+          node->ReplaceInput(1, Float64Constant(recip));
+          NodeProperties::ChangeOp(node, machine()->Float64Mul());
+          return Changed(node);
+        }
       }
       break;
     }

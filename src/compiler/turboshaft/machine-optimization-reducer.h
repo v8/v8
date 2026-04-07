@@ -730,7 +730,10 @@ class MachineOptimizationReducer : public Next {
               matcher_.MatchFloat32Constant(rhs, &k) && std::isnormal(k) &&
               k != 0 && std::isfinite(k) &&
               base::bits::IsPowerOfTwo(base::Double(k).Significand())) {
-            return __ FloatMul(lhs, __ FloatConstant(1.0 / k, rep), rep);
+            const float recip = 1.0f / k;
+            if (std::isnormal(recip)) {
+              return __ FloatMul(lhs, __ FloatConstant(recip, rep), rep);
+            }
           }
         } else {
           DCHECK_EQ(rep, FloatRepresentation::Float64());
@@ -738,7 +741,10 @@ class MachineOptimizationReducer : public Next {
               matcher_.MatchFloat64Constant(rhs, &k) && std::isnormal(k) &&
               k != 0 && std::isfinite(k) &&
               base::bits::IsPowerOfTwo(base::Double(k).Significand())) {
-            return __ FloatMul(lhs, __ FloatConstant(1.0 / k, rep), rep);
+            const double recip = 1.0 / k;
+            if (std::isnormal(recip)) {
+              return __ FloatMul(lhs, __ FloatConstant(recip, rep), rep);
+            }
           }
         }
       }
