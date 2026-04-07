@@ -68,6 +68,9 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
     std::optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
+  // IteratorStep is used at the top of iterator loops, so check for stack
+  // overflow and process pending interrupts here.
+  PerformStackCheck(context);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   TNode<JSAny> result = Call(context, iterator.next, iterator.object);
 

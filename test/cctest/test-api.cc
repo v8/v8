@@ -22272,6 +22272,85 @@ TEST(RequestInterruptTestWithMathAbs) {
   RequestInterruptTestWithMathAbs().RunTest();
 }
 
+// Test that RequestInterrupt works when iterating over a C++ API-backed
+// iterator, where the .next() method is a pure C++ callback that never
+// enters JS. Without a stack/interrupt check in the iterator loop builtin,
+// the interrupt would never be processed.
+class RequestInterruptTestWithCppIterator
+    : public RequestInterruptTestBaseWithSimpleInterrupt {
+ public:
+  void TestBody() override {
+    // Create the iterator object template with a .next() C++ callback.
+    iterator_template_.Reset(isolate_, v8::ObjectTemplate::New(isolate_));
+    Local<v8::ObjectTemplate> iterator_template =
+        iterator_template_.Get(isolate_);
+    iterator_template->Set(isolate_, "next",
+                           v8::FunctionTemplate::New(
+                               isolate_, IteratorNextCallback,
+                               v8::External::New(isolate_, this, kTestPtrTag)));
+
+    // Create the iterable object template with [Symbol.iterator]() returning
+    // the iterator.
+    Local<v8::ObjectTemplate> iterable_template =
+        v8::ObjectTemplate::New(isolate_);
+    iterable_template->Set(v8::Symbol::GetIterator(isolate_),
+                           v8::FunctionTemplate::New(
+                               isolate_, GetIteratorCallback,
+                               v8::External::New(isolate_, this, kTestPtrTag)));
+
+    // Instantiate the iterable and expose it to JS.
+    Local<v8::Object> iterable =
+        iterable_template->NewInstance(env_.local()).ToLocalChecked();
+    CHECK(env_->Global()
+              ->Set(env_.local(), v8_str("iterable"), iterable)
+              .FromJust());
+
+    // Use Array.from which iterates entirely inside a builtin (not through
+    // the interpreter's bytecode loop, which has its own back-edge interrupt
+    // check). This tests that the builtin-level iterator loop processes
+    // interrupts.
+    CompileRun("Array.from(iterable);");
+  }
+
+ private:
+  static void GetIteratorCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    RequestInterruptTestWithCppIterator* test =
+        reinterpret_cast<RequestInterruptTestWithCppIterator*>(
+            info.Data().As<v8::External>()->Value(kTestPtrTag));
+    v8::Isolate* isolate = info.GetIsolate();
+    Local<v8::ObjectTemplate> tmpl = test->iterator_template_.Get(isolate);
+    Local<v8::Object> iterator =
+        tmpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
+    info.GetReturnValue().Set(iterator);
+  }
+
+  static void IteratorNextCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    RequestInterruptTestWithCppIterator* test =
+        reinterpret_cast<RequestInterruptTestWithCppIterator*>(
+            info.Data().As<v8::External>()->Value(kTestPtrTag));
+    v8::Isolate* isolate = info.GetIsolate();
+    Local<v8::Context> context = isolate->GetCurrentContext();
+
+    bool keep_going = test->ShouldContinue();
+
+    // Return {value: 1, done: !keep_going}.
+    Local<v8::Object> result = v8::Object::New(isolate);
+    result->Set(context, v8_str("value"), v8::Integer::New(isolate, 1))
+        .FromJust();
+    result->Set(context, v8_str("done"), v8::Boolean::New(isolate, !keep_going))
+        .FromJust();
+    info.GetReturnValue().Set(result);
+  }
+
+  v8::Global<v8::ObjectTemplate> iterator_template_;
+};
+
+TEST(RequestInterruptTestWithCppIterator) {
+  RequestInterruptTestWithCppIterator().RunTest();
+}
+
 class RequestMultipleInterrupts : public RequestInterruptTestBase {
  public:
   RequestMultipleInterrupts() : i_thread(this), counter_(0) {}
