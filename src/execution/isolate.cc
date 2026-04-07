@@ -710,6 +710,14 @@ void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
                                    StackTraceFailureMessage::kIncludeStackTrace,
                                    {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
+
+  // Print an error message similar to hitting V8_Fatal under
+  // `v8::base::ControlledCrashesAreHarmless()`, for fuzzers / Clusterfuzz but
+  // also humans investigating externally reported crashes.
+  v8::base::OS::PrintError(
+      "\n\n#\n# Safely terminating process due to hitting "
+      "Isolate::PushStackTraceAndDie\n#\n");
+
   base::OS::Abort();
 }
 
@@ -719,6 +727,14 @@ void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4,
       this, StackTraceFailureMessage::kDontIncludeStackTrace,
       {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
+
+  // Print an error message similar to hitting V8_Fatal under
+  // `v8::base::ControlledCrashesAreHarmless()`, for fuzzers / Clusterfuzz but
+  // also humans investigating externally reported crashes.
+  v8::base::OS::PrintError(
+      "\n\n#\n# Safely terminating process due to hitting "
+      "Isolate::PushParamsAndDie\n#\n");
+
   base::OS::Abort();
 }
 
