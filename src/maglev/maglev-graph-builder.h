@@ -455,12 +455,12 @@ class MaglevGraphBuilder {
   MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int index, VariableMode mode,
       MaybeAssignedFlag assigned);
-  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index,
+  ValueNode* TrySpecializeLoadContextCell(ValueNode* context, int index,
                                           MaybeAssignedFlag assigned);
   ReduceResult LoadAndCacheContextSlot(ValueNode* context, int index,
                                        ContextMode context_mode,
                                        compiler::ScopeInfoRef scope_info);
-  MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
+  MaybeReduceResult TrySpecializeStoreContextCell(ValueNode* context, int index,
                                                   ValueNode* value,
                                                   MaybeAssignedFlag assigned);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,

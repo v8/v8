@@ -3174,7 +3174,7 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
   return GetConstant(slot_value);
 }
 
-ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
+ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
     ValueNode* context_node, int index, MaybeAssignedFlag assigned) {
   if (!context_node->Is<Constant>()) return {};
   compiler::ContextRef context =
@@ -3226,6 +3226,13 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   UNREACHABLE();
 }
 
+namespace {
+bool HasContextCell(ContextMode context_mode, MaybeAssignedFlag assigned) {
+  return context_mode == ContextMode::kHasContextCells &&
+         assigned == kMaybeAssigned;
+}
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
     ValueNode* context, int index, ContextMode context_mode,
     compiler::ScopeInfoRef scope_info) {
@@ -3250,11 +3257,9 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
     known_node_aspects().UpdateMayHaveAliasingContexts(
         broker(), local_isolate(), context);
   }
-  if (context_mode == ContextMode::kHasContextCells &&
-      (v8_flags.script_context_cells || v8_flags.function_context_cells) &&
-      assigned == kMaybeAssigned) {
+  if (HasContextCell(context_mode, assigned)) {
     // We collect feedback only for mutable context slots.
-    cached_value = TrySpecializeLoadContextSlot(context, index, assigned);
+    cached_value = TrySpecializeLoadContextCell(context, index, assigned);
     if (cached_value) return cached_value;
     GET_VALUE(cached_value, AddNewNode<LoadContextSlot>({context}, offset));
     return cached_value;
@@ -3270,7 +3275,7 @@ bool MaglevGraphBuilder::ContextMayAlias(
   return true;
 }
 
-MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
+MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextCell(
     ValueNode* context, int index, ValueNode* value,
     MaybeAssignedFlag assigned) {
   DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
@@ -3361,10 +3366,9 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       maybe_assigned == kNotAssigned ? kMaybeAssigned : kNotAssigned));
 
   Node* store = nullptr;
-  if ((v8_flags.script_context_cells || v8_flags.function_context_cells) &&
-      context_mode == ContextMode::kHasContextCells) {
+  if (HasContextCell(context_mode, maybe_assigned)) {
     MaybeReduceResult result =
-        TrySpecializeStoreContextSlot(context, index, value, maybe_assigned);
+        TrySpecializeStoreContextCell(context, index, value, maybe_assigned);
     RETURN_IF_ABORT(result);
     if (result.IsDoneWithoutPayload()) {
       // If we didn't need to emit any store, there is nothing to cache.
