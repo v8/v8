@@ -152,15 +152,15 @@ TEST_F(TestWithZone, DisposeAcrossIsolatesShared) {
           Managed<WithSharedManagedTag>::From(
               i_isolate2, sizeof(WithSharedManagedTag), shared,
               AllocationType::kSharedOld);
-      CHECK_EQ(managed2->raw()->dummy(), 42);
+      CHECK_EQ(managed2->ptr()->dummy(), 42);
       isolate2->Exit();
-      CHECK_EQ(managed2->raw()->dummy(), 42);
+      CHECK_EQ(managed2->ptr()->dummy(), 42);
       managed1 =
           DirectHandle<Managed<WithSharedManagedTag>>(*managed2, i_isolate1);
     }
 
     isolate2->Dispose();
-    CHECK_EQ(managed1->raw()->dummy(), 42);
+    CHECK_EQ(managed1->ptr()->dummy(), 42);
   }
 
   isolate1->Exit();

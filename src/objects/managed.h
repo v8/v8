@@ -153,10 +153,6 @@ class Managed : public Foreign {
     std::shared_ptr<CppType> ptr_;
   };
 
-  // Deprecated. Get a raw pointer to the C++ object.
-  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
-  V8_INLINE CppType* raw() { return GetSharedPtrPtr(GetDestructor())->get(); }
-
   // Get a raw pointer to the C++ object. The returned pointer is only valid as
   // long as no GC happens; prefer `ptr()` unless on performance-critical code
   // paths.
