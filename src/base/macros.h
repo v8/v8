@@ -13,6 +13,10 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 
+
+#ifndef __has_warning
+#define __has_warning(x) 0
+#endif
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(X) X
 

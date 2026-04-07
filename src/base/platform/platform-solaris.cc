@@ -19,6 +19,7 @@
 #include <sys/regset.h>
 #include <sys/stack.h>  // for stack alignment
 #include <sys/time.h>  // gettimeofday(), timeradd()
+#include <thread.h>  // thr_stksegment()
 #include <time.h>
 #include <ucontext.h>  // walkstack(), getcontext()
 #include <unistd.h>  // getpagesize(), usleep()
@@ -73,19 +74,11 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 
 // static
 Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
-  pthread_attr_t attr;
-  int error;
-  pthread_attr_init(&attr);
-  error = pthread_attr_get_np(pthread_self(), &attr);
+  stack_t stack;
+  int error = thr_stksegment(&stack);
   if (!error) {
-    void* base;
-    size_t size;
-    error = pthread_attr_getstack(&attr, &base, &size);
-    CHECK(!error);
-    pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
+    return reinterpret_cast<uint8_t*>(stack.ss_sp);
   }
-  pthread_attr_destroy(&attr);
   return nullptr;
 }
 

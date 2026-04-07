@@ -7267,6 +7267,13 @@ v8_component("v8_libbase") {
     ]
 
     libs = [ "dl" ]
+  } else if (current_os == "solaris") {
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-solaris.cc",
+    ]
+
+    libs = [ "dl" ]
   } else if (is_android) {
     if (current_toolchain == host_toolchain) {
       libs = [

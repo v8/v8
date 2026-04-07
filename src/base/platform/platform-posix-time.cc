@@ -14,8 +14,15 @@ const char* PosixDefaultTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(std::floor(time / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
+#if V8_OS_SOLARIS
+  if (!t) return "";
+  tzset();
+  const char* zone = tzname[t->tm_isdst > 0 ? 1 : 0];
+  return zone ? zone : "";
+#else
   if (!t || !t->tm_zone) return "";
   return t->tm_zone;
+#endif
 }
 
 double PosixDefaultTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
@@ -25,9 +32,14 @@ double PosixDefaultTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
   DCHECK_NOT_NULL(t);
+#if V8_OS_SOLARIS
+  tzset();
+  return static_cast<double>(-timezone * msPerSecond);
+#else
   // tm_gmtoff includes any daylight savings offset, so subtract it.
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+#endif
 }
 
 }  // namespace base
