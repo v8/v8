@@ -5050,7 +5050,13 @@ void BytecodeGenerator::BuildVariableAssignment(
         }
         builder()->StoreContextSlot(context_reg, variable, depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
-        builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        if (mode == VariableMode::kUsing) {
+          builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+        } else if (mode == VariableMode::kAwaitUsing) {
+          builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
+        } else {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        }
       }
       break;
     }
@@ -5062,8 +5068,14 @@ void BytecodeGenerator::BuildVariableAssignment(
     case VariableLocation::MODULE: {
       DCHECK(IsDeclaredVariableMode(mode));
 
-      if (mode == VariableMode::kConst && op != Token::kInit) {
-        builder()->CallRuntime(Runtime::kThrowConstAssignError);
+      if (IsImmutableLexicalVariableMode(mode) && op != Token::kInit) {
+        if (mode == VariableMode::kUsing) {
+          builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+        } else if (mode == VariableMode::kAwaitUsing) {
+          builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
+        } else {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        }
         break;
       }
 
