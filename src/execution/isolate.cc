@@ -6638,10 +6638,6 @@ void Isolate::DumpAndResetBuiltinsProfileData() {
       BasicBlockProfiler::Get()->Print(this, out);
     }
     BasicBlockProfiler::Get()->ResetCounts(this);
-  } else {
-    // Only log builtins PGO data if v8 was built with
-    // v8_enable_builtins_profiling=true
-    CHECK_NULL(v8_flags.turbo_profiling_output);
   }
 }
 
