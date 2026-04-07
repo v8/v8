@@ -118,6 +118,8 @@ class Managed : public Foreign {
   // went out of scope and GC happened.
   class Ptr final {
    public:
+    V8_INLINE Ptr() = default;
+
     V8_INLINE Ptr(Ptr&& other) V8_NOEXCEPT = default;
     Ptr(const Ptr&) = delete;
     V8_INLINE Ptr& operator=(Ptr&& other) V8_NOEXCEPT = default;
