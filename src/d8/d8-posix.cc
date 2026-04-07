@@ -8,6 +8,7 @@
 #include "src/d8/d8.h"
 
 #ifndef V8_OS_ZOS
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #endif
 #include <signal.h>
