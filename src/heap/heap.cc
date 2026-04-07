@@ -1021,12 +1021,8 @@ void Heap::GarbageCollectionPrologue(
 
   UpdateMaximumCommitted();
 
-#ifdef DEBUG
   DCHECK(!AllowGarbageCollection::IsAllowed());
   DCHECK_EQ(gc_state(), NOT_IN_GC);
-
-  if (v8_flags.gc_verbose) Print();
-#endif  // DEBUG
 }
 
 void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {

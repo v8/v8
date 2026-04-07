@@ -326,7 +326,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--code_stats",
         "--dump_wasm_module",
         "--enable_testing_opcode_in_wasm",
-        "--gc_verbose",
         "--no-wasm-opt",
         "--print_ast",
         "--print_break_location",

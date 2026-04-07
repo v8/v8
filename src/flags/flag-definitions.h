@@ -3805,7 +3805,6 @@ DEFINE_BOOL(print_scopes, false, "print scopes")
 DEFINE_BOOL(trace_contexts, false, "trace contexts operations")
 
 // heap.cc
-DEFINE_BOOL(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_BOOL(code_stats, false, "report code statistics after GC")
 DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(check_handle_count, false,
@@ -4201,7 +4200,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
 // Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, gc_verbose)
 DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)

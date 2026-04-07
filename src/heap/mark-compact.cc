@@ -6121,8 +6121,6 @@ void MarkCompactCollector::StartSweepNewSpace() {
   PagedSpaceForNewSpace* paged_space = heap_->paged_new_space()->paged_space();
   paged_space->ClearAllocatorState();
 
-  int will_be_swept = 0;
-
   heap_->StartResizeNewSpace();
 
   DCHECK(empty_new_space_pages_to_be_swept_.empty());
@@ -6141,13 +6139,6 @@ void MarkCompactCollector::StartSweepNewSpace() {
     } else {
       empty_new_space_pages_to_be_swept_.push_back(p);
     }
-    will_be_swept++;
-  }
-
-  if (v8_flags.gc_verbose) {
-    PrintIsolate(heap_->isolate(),
-                 "sweeping: space=%s initialized_for_sweeping=%d",
-                 ToString(paged_space->identity()), will_be_swept);
   }
 }
 
@@ -6170,7 +6161,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   DCHECK_NE(NEW_SPACE, space->identity());
   space->ClearAllocatorState();
 
-  int will_be_swept = 0;
   bool unused_page_present = false;
 
   Sweeper* sweeper = heap_->sweeper();
@@ -6197,10 +6187,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     // One unused page is kept, all further are released before sweeping them.
     if (p->live_bytes() == 0) {
       if (unused_page_present) {
-        if (v8_flags.gc_verbose) {
-          PrintIsolate(heap_->isolate(), "sweeping: released page: %p",
-                       static_cast<void*>(p));
-        }
         ReleasePage(space, p);
         continue;
       }
@@ -6208,17 +6194,10 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     }
 
     sweeper->AddPage(space->identity(), p);
-    will_be_swept++;
   }
 
   if (v8_flags.sticky_mark_bits && space->identity() == OLD_SPACE) {
     static_cast<StickySpace*>(space)->set_old_objects_size(space->Size());
-  }
-
-  if (v8_flags.gc_verbose) {
-    PrintIsolate(heap_->isolate(),
-                 "sweeping: space=%s initialized_for_sweeping=%d",
-                 ToString(space->identity()), will_be_swept);
   }
 }
 
