@@ -787,10 +787,13 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ fcmpu(temp, temp2);
     Label done;
     __ JumpIf(ne, &done, Label::kNear);
+    // Copy the sign bit from `out` which carries the sign bit from the original
+    // input.
+    __ fmr(temp, out);
     __ fadd(out, temp2, out);
     __ fadd(out, temp2, out);
     // Add fcpsgn make sure -0.5 rounds to -0.0 instead of 0.0
-    __ fcpsgn(out, in, out);
+    __ fcpsgn(out, temp, out);
     __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ frip(out, in);
