@@ -1924,27 +1924,6 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
              static_cast<int>(map->visitor_id()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "visitor_name",
                 ToString(map->visitor_id()));
-  AddIntEdge(entry, HeapGraphEdge::kInternal,
-             "inobject_properties_start_or_constructor_function_index",
-             map->inobject_properties_start_or_constructor_function_index());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_non_instance_prototype",
-              map->has_non_instance_prototype());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_callable",
-              map->is_callable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_named_interceptor",
-              map->has_named_interceptor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "has_indexed_interceptor",
-              map->has_indexed_interceptor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_undetectable",
-              map->is_undetectable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_access_check_needed",
-              map->is_access_check_needed());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_constructor",
-              map->is_constructor());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "new_target_is_base",
-              map->new_target_is_base());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_immutable_proto",
-              map->is_immutable_proto());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "elements_kind",
              static_cast<int>(map->elements_kind()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "elements_kind_name",
@@ -1952,26 +1931,6 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   AddIntEdge(entry, HeapGraphEdge::kInternal, "enum_length", map->EnumLength());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "number_of_own_descriptors",
              map->NumberOfOwnDescriptors());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_prototype_map",
-              map->is_prototype_map());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_dictionary_map",
-              map->is_dictionary_map());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "owns_descriptors",
-              map->owns_descriptors());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_in_retained_map_list",
-              map->is_in_retained_map_list());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_deprecated",
-              map->is_deprecated());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_stable", map->is_stable());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_migration_target",
-              map->is_migration_target());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_extensible",
-              map->is_extensible());
-  AddBoolEdge(entry, HeapGraphEdge::kInternal,
-              "may_have_interesting_properties",
-              map->may_have_interesting_properties());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "construction_counter",
-             map->construction_counter());
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
@@ -2019,11 +1978,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
              shared->EndPosition());
   AddIntEdge(entry, HeapGraphEdge::kInternal, "function_literal_id",
              shared->function_literal_id(kRelaxedLoad));
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "unique_id", shared->unique_id());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "formal_parameter_count",
-             shared->formal_parameter_count());
-  AddIntEdge(entry, HeapGraphEdge::kInternal, "expected_nof_properties",
-             shared->expected_nof_properties());
   if (shared->HasBuiltinId()) {
     AddIntEdge(entry, HeapGraphEdge::kInternal, "builtin_id",
                static_cast<int>(shared->builtin_id()));
