@@ -17405,6 +17405,7 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
       }
     }
     PrewalkBytecode();
+    HandleTryBlock(current_offset);
   }
   TRACE(TraceColor::kRed << "DEAD " << " : " << TraceBytecode(iterator_));
 
