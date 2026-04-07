@@ -7150,7 +7150,7 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
 #endif
 
 UNINITIALIZED_TEST(HeapLimit) {
-  uint64_t kMemoryGB = 8;
+  uint64_t kMemoryGB = 16;
   v8_flags.high_end_android_physical_memory_threshold =
       static_cast<unsigned int>(kMemoryGB);
   v8::Isolate::CreateParams create_params;
@@ -7161,7 +7161,7 @@ UNINITIALIZED_TEST(HeapLimit) {
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Because we explicitly set --high_end_android_physical_memory_threshold,
   // Android has the same expected heap limit.
-  size_t kExpectedHeapLimit = size_t{2} * GB;
+  size_t kExpectedHeapLimit = size_t{4} * GB;
 #else
   size_t kExpectedHeapLimit = size_t{1} * GB;
 #endif
