@@ -2580,29 +2580,17 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
 
 namespace {
 
-bool IsSmiLiteralSwitchCaseValue(Expression* expr) {
-  if (expr->IsSmiLiteral() ||
-      (expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
-       expr->AsLiteral()->AsNumber() == 0.0)) {
-    return true;
-#ifdef DEBUG
-  } else if (expr->IsLiteral() && expr->AsLiteral()->IsNumber()) {
-    DCHECK(!IsSmiDouble(expr->AsLiteral()->AsNumber()));
-#endif
-  }
-  return false;
-}
-
-// Precondition: we called IsSmiLiteral to check this.
-inline int ReduceToSmiSwitchCaseValue(Expression* expr) {
-  if (V8_LIKELY(expr->IsSmiLiteral())) {
+inline std::optional<int> TryReduceToSmiSwitchCaseValue(Expression* expr) {
+  if (expr->IsSmiLiteral()) {
     return expr->AsLiteral()->AsSmiLiteral().value();
-  } else {
-    // Only the zero case is possible otherwise.
-    DCHECK(expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
-           expr->AsLiteral()->AsNumber() == -0.0);
+  }
+  if (expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
+      expr->AsLiteral()->AsNumber() == 0.0) {
     return 0;
   }
+  DCHECK_IMPLIES(expr->IsLiteral() && expr->AsLiteral()->IsNumber(),
+                 !IsSmiDouble(expr->AsLiteral()->AsNumber()));
+  return {};
 }
 
 // Is the range of Smi's small enough relative to number of cases?
@@ -2619,28 +2607,35 @@ struct SwitchInfo {
   SwitchInfo() { default_case = kDefaultNotFound; }
 
   bool DefaultExists() { return default_case != kDefaultNotFound; }
-  bool CaseExists(int j) {
+  bool CaseExists(int j) const {
     return covered_cases.find(j) != covered_cases.end();
   }
-  bool CaseExists(Expression* expr) {
-    return IsSmiLiteralSwitchCaseValue(expr)
-               ? CaseExists(ReduceToSmiSwitchCaseValue(expr))
-               : false;
+  bool CaseExists(Expression* expr) const {
+    std::optional<int> j = TryReduceToSmiSwitchCaseValue(expr);
+    if (!j) return false;
+    return CaseExists(*j);
   }
-  CaseClause* GetClause(int j) { return covered_cases[j]; }
 
-  bool IsDuplicate(CaseClause* clause) {
-    return IsSmiLiteralSwitchCaseValue(clause->label()) &&
-           CaseExists(clause->label()) &&
-           clause != GetClause(ReduceToSmiSwitchCaseValue(clause->label()));
+  // Returns true if this clause represents a case value, but there already
+  // exists another clause with the same case value.
+  bool IsDuplicate(CaseClause* clause) const {
+    std::optional<int> j = TryReduceToSmiSwitchCaseValue(clause->label());
+    if (!j) return false;
+    auto it = covered_cases.find(*j);
+    if (it == covered_cases.end()) return false;
+    return it->second != clause;
   }
-  int MinCase() {
-    return covered_cases.empty() ? INT_MAX : covered_cases.begin()->first;
+
+  int MinCase() const {
+    DCHECK(!covered_cases.empty());
+    return covered_cases.begin()->first;
   }
-  int MaxCase() {
-    return covered_cases.empty() ? INT_MIN : covered_cases.rbegin()->first;
+  int MaxCase() const {
+    DCHECK(!covered_cases.empty());
+    return covered_cases.rbegin()->first;
   }
-  void Print() {
+
+  void Print() const {
     std::cout << "Covered_cases: " << '\n';
     for (auto iter = covered_cases.begin(); iter != covered_cases.end();
          ++iter) {
@@ -2662,11 +2657,14 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
       // Don't consider Smi cases after a non-literal, because we
       // need to evaluate the non-literal.
       break;
-    } else if (IsSmiLiteralSwitchCaseValue(clause->label())) {
-      int value = ReduceToSmiSwitchCaseValue(clause->label());
-      info->covered_cases.insert({value, clause});
+    } else if (auto maybe_value =
+                   TryReduceToSmiSwitchCaseValue(clause->label())) {
+      info->covered_cases.insert({*maybe_value, clause});
     }
   }
+
+  // This flag is not allowed to be <= 0.
+  DCHECK_GT(v8_flags.switch_table_min_cases, 0);
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
   if (static_cast<int>(info->covered_cases.size()) >=
@@ -2909,7 +2907,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
         } else {
           // Use jump table if this is not a duplicate label.
           switch_builder.BindCaseTargetForJumpTable(
-              ReduceToSmiSwitchCaseValue(clause->label()), clause);
+              *TryReduceToSmiSwitchCaseValue(clause->label()), clause);
         }
       }
     } else {
