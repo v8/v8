@@ -11,6 +11,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +23,8 @@ class Symbol;
 // forever, even if they disappear from JS heap or external storage.
 class V8_EXPORT_PRIVATE StringsStorage {
  public:
-  StringsStorage();
+  explicit StringsStorage(
+      uint32_t string_limit = v8_flags.heap_snapshot_string_limit.value());
   ~StringsStorage();
   StringsStorage(const StringsStorage&) = delete;
   StringsStorage& operator=(const StringsStorage&) = delete;
@@ -62,10 +64,12 @@ class V8_EXPORT_PRIVATE StringsStorage {
   PRINTF_FORMAT(2, 0)
   const char* GetVFormatted(const char* format, va_list args);
   const char* GetSymbol(Tagged<Symbol> sym);
+  uint32_t GetTrimmedLength(uint32_t length) const;
 
   base::CustomMatcherHashMap names_;
   base::Mutex mutex_;
   size_t string_size_ = 0;
+  uint32_t string_limit_;
 };
 
 }  // namespace internal
