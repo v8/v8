@@ -3708,8 +3708,6 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
     TNode<HeapObject> holder;
 
     if (field_index != kNotSpecifiedFieldIndex) {
-      Tagged<Smi> target_handler;
-
       // Specified field index.
       DCHECK_GE(field_index, 0);
       // Currently we only support handlers for loading non-double fields with
@@ -3723,13 +3721,34 @@ void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
         DCHECK_EQ(field_location, FieldLocation::kOutOfObject);
         field_offset = PropertyArray::OffsetOfElementAt(field_index);
       }
-      target_handler =
+      Tagged<Smi> target_handler =
           LoadHandler::LoadField(field_offset / kTaggedSize,
                                  field_location == FieldLocation::kInObject,
                                  false, InternalIndex::NotFound());
-
-      GotoIfNot(TaggedEqual(var_handler.value(), SmiConstant(target_handler)),
-                &miss);
+      Address mask =
+          Smi::From31BitPattern(LoadHandler::KindBits::kMask |
+                                LoadHandler::IsInobjectBits::kMask |
+                                LoadHandler::IsDoubleBits::kMask |
+                                LoadHandler::StorageOffsetInWordsBits::kMask)
+              .ptr() |
+          kSmiTagMask;
+      if (SmiValuesAre31Bits()) {
+        CHECK_EQ(kSmiShiftSize + kSmiTagSize, 1);
+        TNode<Word32T> handler_word = TruncateIntPtrToInt32(
+            BitcastTaggedToWordForTagAndSmiBits(var_handler.value()));
+        GotoIfNot(
+            Word32Equal(Word32And(handler_word,
+                                  Int32Constant(static_cast<int32_t>(mask))),
+                        Int32Constant(
+                            static_cast<int32_t>(target_handler.ptr() & mask))),
+            &miss);
+      } else {
+        GotoIfNot(WordEqual(WordAnd(BitcastTaggedToWordForTagAndSmiBits(
+                                        var_handler.value()),
+                                    IntPtrConstant(mask)),
+                            IntPtrConstant(target_handler.ptr() & mask)),
+                  &miss);
+      }
       offset = IntPtrConstant(field_offset);
       holder = field_location == FieldLocation::kInObject
                    ? CAST(receiver)
@@ -4993,7 +5012,7 @@ void AccessorAssembler::GenerateLoadICFieldBaseline(
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
 
-  LazyLoadICParameters lazy_p = MakeLazyLoadICParameters(
+  LazyLoadICParameters lazy_p(
       // lazy_context
       [&] { return LoadContextFromBaseline(); }, receiver,
       // lazy_name
