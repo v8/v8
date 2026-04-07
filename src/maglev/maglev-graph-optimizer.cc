@@ -2492,6 +2492,17 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Negate(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFloat64RoundToFloat32(
+    Float64RoundToFloat32* node, const ProcessingState& state) {
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->ValueInput().node(),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    float value = static_cast<float>(cst.value().get_scalar());
+    return ReplaceWith(reducer_.GetFloat64Constant(static_cast<double>(value)));
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
     Float64Round* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
@@ -2504,6 +2515,9 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
         break;
       case Float64Round::Kind::kCeil:
         value = std::ceil(value);
+        break;
+      case Float64Round::Kind::kTrunc:
+        value = std::trunc(value);
         break;
       case Float64Round::Kind::kNearest:
         return ProcessResult::kContinue;

@@ -796,6 +796,15 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ vabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  UseScratchRegisterScope temps(masm);
+  SwVfpRegister temp_vfps = temps.AcquireS();
+  __ vcvt_f32_f64(temp_vfps, input);
+  __ vcvt_f64_f32(result, temp_vfps);
+}
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -823,6 +832,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ vrintp(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ vrintm(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ vrintz(out, in);
   }
 }
 

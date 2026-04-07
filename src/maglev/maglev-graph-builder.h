@@ -931,6 +931,9 @@ class MaglevGraphBuilder {
   V(MathClz32)                                 \
   V(MathMin)                                   \
   V(MathMax)                                   \
+  V(MathImul)                                  \
+  V(MathFround)                                \
+  V(MathTrunc)                                 \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
   V(StringFromCharCode)                        \

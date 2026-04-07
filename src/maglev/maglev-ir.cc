@@ -5413,12 +5413,17 @@ void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void Float64Round::SetValueLocationConstraints() {
+void Float64RoundToFloat32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
+}
+
+void Float64Round::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
   if (kind_ == Kind::kNearest) {
     set_double_temporaries_needed(1);
   }
+  DefineSameAsFirst(this);
 }
 
 void Int32AbsWithOverflow::SetValueLocationConstraints() {
@@ -8793,6 +8798,9 @@ void Float64Round::PrintParams(std::ostream& os) const {
       return;
     case Kind::kNearest:
       os << "(nearest)";
+      return;
+    case Kind::kTrunc:
+      os << "(trunc)";
       return;
   }
 }

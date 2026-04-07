@@ -762,6 +762,13 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ frsp(result, input);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -789,6 +796,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ frip(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ frim(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ friz(out, in);
   }
 }
 
