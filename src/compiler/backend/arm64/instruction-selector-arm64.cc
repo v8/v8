@@ -579,22 +579,8 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
                             InstructionSelector* selector,
                             MemoryRepresentation rep, OpIndex node,
                             OpIndex index, InstructionOperand* index_op,
-                            InstructionOperand* shift_immediate_op,
-                            AddressingMode* mode) {
+                            InstructionOperand* shift_immediate_op) {
   if (!selector->CanCover(node, index)) return false;
-  if (const ChangeOp* change =
-          selector->Get(index).TryCast<Opmask::kChangeUint32ToUint64>();
-      change && selector->CanCover(index, change->input())) {
-    const ShiftOp* shift =
-        selector->Get(change->input()).TryCast<Opmask::kShiftLeft>();
-    if (shift && shift->rep == RegisterRepresentation::Word32() &&
-        g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) {
-      *index_op = g->UseRegister(shift->left());
-      *shift_immediate_op = g->UseImmediate(shift->right());
-      *mode = kMode_Operand2_R_UXTW_LSL_I;
-      return true;
-    }
-  }
   const ShiftOp* shift = selector->Get(index).TryCast<Opmask::kShiftLeft>();
   if (shift == nullptr || shift->rep != RegisterRepresentation::WordPtr()) {
     return false;
@@ -602,7 +588,6 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
   if (!g->CanBeLoadStoreShiftImmediate(shift->right(), rep)) return false;
   *index_op = g->UseRegister(shift->left());
   *shift_immediate_op = g->UseImmediate(shift->right());
-  *mode = kMode_Operand2_R_LSL_I;
   return true;
 }
 
@@ -1078,11 +1063,10 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
       opcode |= AddressingModeField::encode(kMode_MRR);
     }
   } else {
-    AddressingMode mode;
     if (TryMatchLoadStoreShift(&g, selector, rep, node, index, &inputs[1],
-                               &inputs[2], &mode)) {
+                               &inputs[2])) {
       input_count = 3;
-      opcode |= AddressingModeField::encode(mode);
+      opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
     } else {
       input_count = 2;
       inputs[1] = g.UseRegister(index);
@@ -1490,17 +1474,14 @@ void InstructionSelector::VisitStore(OpIndex node) {
   if (g.CanBeImmediate(index, immediate_mode)) {
     inputs[input_count++] = g.UseImmediate(index);
     opcode |= AddressingModeField::encode(kMode_MRI);
+  } else if (TryMatchLoadStoreShift(&g, this, store_rep, node, index,
+                                    &inputs[input_count],
+                                    &inputs[input_count + 1])) {
+    input_count += 2;
+    opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
   } else {
-    AddressingMode mode;
-    if (TryMatchLoadStoreShift(&g, this, store_rep, node, index,
-                               &inputs[input_count], &inputs[input_count + 1],
-                               &mode)) {
-      input_count += 2;
-      opcode |= AddressingModeField::encode(mode);
-    } else {
-      inputs[input_count++] = g.UseRegister(index);
-      opcode |= AddressingModeField::encode(kMode_MRR);
-    }
+    inputs[input_count++] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_MRR);
   }
 
   if (store_view.is_store_trap_on_null()) {

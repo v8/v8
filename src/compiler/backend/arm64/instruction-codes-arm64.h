@@ -397,20 +397,19 @@ namespace compiler {
 // I = immediate (handle, external, int32)
 // MRI = [register + immediate]
 // MRR = [register + register]
-#define TARGET_ADDRESSING_MODE_LIST(V)                               \
-  V(MRI)                   /* [%r0 + K] */                           \
-  V(MRR)                   /* [%r0 + %r1] */                         \
-  V(Operand2_R_LSL_I)      /* %r0 LSL K */                           \
-  V(Operand2_R_UXTW_LSL_I) /* %r0 UXTW LSL K */                      \
-  V(Operand2_R_LSR_I)      /* %r0 LSR K */                           \
-  V(Operand2_R_ASR_I)      /* %r0 ASR K */                           \
-  V(Operand2_R_ROR_I)      /* %r0 ROR K */                           \
-  V(Operand2_R_UXTB)       /* %r0 UXTB (unsigned extend byte) */     \
-  V(Operand2_R_UXTH)       /* %r0 UXTH (unsigned extend halfword) */ \
-  V(Operand2_R_SXTB)       /* %r0 SXTB (signed extend byte) */       \
-  V(Operand2_R_SXTH)       /* %r0 SXTH (signed extend halfword) */   \
-  V(Operand2_R_SXTW)       /* %r0 SXTW (signed extend word) */       \
-  V(Root)                  /* [%rr + K] */
+#define TARGET_ADDRESSING_MODE_LIST(V)                          \
+  V(MRI)              /* [%r0 + K] */                           \
+  V(MRR)              /* [%r0 + %r1] */                         \
+  V(Operand2_R_LSL_I) /* %r0 LSL K */                           \
+  V(Operand2_R_LSR_I) /* %r0 LSR K */                           \
+  V(Operand2_R_ASR_I) /* %r0 ASR K */                           \
+  V(Operand2_R_ROR_I) /* %r0 ROR K */                           \
+  V(Operand2_R_UXTB)  /* %r0 UXTB (unsigned extend byte) */     \
+  V(Operand2_R_UXTH)  /* %r0 UXTH (unsigned extend halfword) */ \
+  V(Operand2_R_SXTB)  /* %r0 SXTB (signed extend byte) */       \
+  V(Operand2_R_SXTH)  /* %r0 SXTH (signed extend halfword) */   \
+  V(Operand2_R_SXTW)  /* %r0 SXTW (signed extend word) */       \
+  V(Root)             /* [%rr + K] */
 
 }  // namespace compiler
 }  // namespace internal
