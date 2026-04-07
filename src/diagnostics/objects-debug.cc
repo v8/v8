@@ -530,15 +530,25 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     FieldStorageLocation offset = map()->NextFreeFieldStorageLocation();
     const uint32_t property_array_len = property_array()->length().value();
     if (map()->HasOutOfObjectProperties()) {
-      CHECK_GT(property_array_len, 0);
       CHECK(!offset.is_in_object);
       int actual_first_unused_property_index =
           offset.offset_in_words -
           OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
       int expected_first_unused_property_index =
           property_array_len - map()->UnusedPropertyFields();
-      CHECK_EQ(actual_first_unused_property_index,
-               expected_first_unused_property_index);
+      // We expect actual_first_unused_property_index and
+      // expected_first_unused_property_index to be equal, but we might be in
+      // the middle of extending a property array, in which case either we have:
+      //   1. New property array and old map --> UnusedPropertyFields is stale
+      //      and we need to subtract the extension, or
+      //   2. Old property array and new map --> property_array_len is stale
+      //      and we need to add in the extension.
+      CHECK(actual_first_unused_property_index ==
+                expected_first_unused_property_index ||
+            actual_first_unused_property_index ==
+                expected_first_unused_property_index - JSObject::kFieldsAdded ||
+            actual_first_unused_property_index ==
+                expected_first_unused_property_index + JSObject::kFieldsAdded);
     } else {
       // We should have a 0 length property array, but we might be in the middle
       // of adding the first property array entry so we might have a fresh
@@ -574,6 +584,13 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         FieldIndex index = FieldIndex::ForDetails(map(), details);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
+        }
+        if (!index.is_inobject() &&
+            static_cast<uint32_t>(index.outobject_array_index()) >=
+                property_array()->length().value()) {
+          // We might be in the middle of property array extension with an old
+          // property array, ignore OOB reads of the property array.
+          continue;
         }
         Tagged<Object> value = RawFastPropertyAt(index);
         CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
