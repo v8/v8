@@ -1449,10 +1449,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
   uint64_t value = 0;
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
-    CHECK(IsSmi(args[i]));
+    CHECK_UNLESS_FUZZING(IsSmi(args[i]));
     uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
     value |= chunk;
   }
 
@@ -1476,10 +1476,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   uint64_t value = 0;
   for (int i = 0; i < kNum16BitChunks; ++i) {
     value <<= 16;
-    CHECK(IsSmi(args[i]));
+    CHECK_UNLESS_FUZZING(IsSmi(args[i]));
     uint32_t chunk = Cast<Smi>(args[i]).value();
     // We encode 16 bit per chunk only!
-    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
     value |= chunk;
   }
 
