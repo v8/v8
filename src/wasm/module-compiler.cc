@@ -2514,6 +2514,7 @@ class ValidateFunctionsStreamingJob final : public JobTask {
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);
+  ~AsyncStreamingProcessor() override;
 
   void InitializeIsolateSpecificInfo(Isolate* isolate) override {
     job_->InitializeIsolateSpecificInfo(isolate);
@@ -2560,6 +2561,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   // section size, but excludes the code section itself. Used by the
   // {NativeModuleCache} to detect potential duplicate modules.
   base::Hasher prefix_hasher_;
+  bool owns_cache_entry_ = false;
 };
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
@@ -3094,6 +3096,13 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
       job_(job),
       compilation_unit_builder_(nullptr) {}
 
+AsyncStreamingProcessor::~AsyncStreamingProcessor() {
+  if (owns_cache_entry_) {
+    GetWasmEngine()->StreamingCompilationFailed(prefix_hasher_.hash(),
+                                                job_->compile_imports_);
+  }
+}
+
 // Process the module header.
 bool AsyncStreamingProcessor::ProcessModuleHeader(
     base::Vector<const uint8_t> bytes) {
@@ -3162,6 +3171,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     prefix_cache_hit_ = true;
     return true;
   }
+  owns_cache_entry_ = true;
 
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task.
@@ -3301,11 +3311,11 @@ void AsyncStreamingProcessor::OnFinishedStream(
       decode_event, job_->isolate_specific_info_.context_id_);
 
   if (after_error) {
-    if (job_->new_native_module_ &&
-        job_->new_native_module_->wire_bytes().empty()) {
+    if (owns_cache_entry_) {
       // Clean up the temporary cache entry.
       GetWasmEngine()->StreamingCompilationFailed(prefix_hasher_.hash(),
                                                   job_->compile_imports_);
+      owns_cache_entry_ = false;
     }
     // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
     std::move(*job_).Failed();
@@ -3380,6 +3390,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     const bool failed = job_->new_native_module_->compilation_state()->failed();
     final_native_module = GetWasmEngine()->UpdateNativeModuleCache(
         failed, job_->new_native_module_, isolate);
+    owns_cache_entry_ = false;
     cache_hit = final_native_module != job_->new_native_module_;
     // We finally call {Failed} or {FinishCompile}, which will invalidate the
     // {AsyncCompileJob} and delete {this}.
@@ -3401,11 +3412,11 @@ void AsyncStreamingProcessor::OnAbort() {
     validate_functions_job_handle_->Cancel();
     validate_functions_job_handle_.reset();
   }
-  if (job_->new_native_module_ &&
-      job_->new_native_module_->wire_bytes().empty()) {
+  if (owns_cache_entry_) {
     // Clean up the temporary cache entry.
     GetWasmEngine()->StreamingCompilationFailed(prefix_hasher_.hash(),
                                                 job_->compile_imports_);
+    owns_cache_entry_ = false;
   }
   // {Abort} invalidates the {AsyncCompileJob}, which in turn deletes {this}.
   job_->Abort();
