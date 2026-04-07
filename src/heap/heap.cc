@@ -2379,8 +2379,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   if (!initial_size_overwritten_ && tracer()->SurvivalEventsRecorded()) {
     base::MutexGuard guard(old_space()->mutex());
-    limits()->ShrinkAllocationLimitIfNotConfigured(CurrentHeapGrowingMode(),
-                                                   OldGenerationConsumedBytes(),
+    limits()->ShrinkAllocationLimitIfNotConfigured(OldGenerationConsumedBytes(),
                                                    GlobalConsumedBytes());
   }
 
