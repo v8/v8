@@ -119,6 +119,20 @@ size_t GetTypeSize(DataViewOp op_type) {
   }
 }
 
+bool IsDataViewSetOp(DataViewOp op) {
+  switch (op) {
+#define V(Name)                \
+  case DataViewOp::kGet##Name: \
+    return false;              \
+  case DataViewOp::kSet##Name: \
+    return true;
+    DATAVIEW_OP_LIST(V)
+#undef V
+    case DataViewOp::kByteLength:
+      return false;
+  }
+}
+
 bool ReverseBytesSupported(size_t size_in_bytes) {
   switch (size_in_bytes) {
     case 4:
@@ -1679,8 +1693,12 @@ class TurboshaftGraphBuildingInterface
 
   void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
+    TypedArrayAccessMode access_mode = IsDataViewSetOp(op_type)
+                                           ? TypedArrayAccessMode::kWrite
+                                           : TypedArrayAccessMode::kRead;
+
     IF (UNLIKELY(__ ArrayBufferNotValid(V<JSArrayBufferView>::Cast(dataview),
-                                        TypedArrayAccessMode::kRead))) {
+                                        access_mode))) {
       ThrowDataViewDetachedError(decoder, op_type);
     }
   }
