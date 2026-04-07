@@ -693,7 +693,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
   static constexpr int kReturnCount = return_count;       \
   enum ParameterIndices {                                 \
     __dummy = -1, /* to be able to pass zero arguments */ \
-    ##__VA_ARGS__,                                        \
+    __VA_ARGS__ __VA_OPT__(,)                            \
                                                           \
     kParameterCount,                                      \
     kContext = kParameterCount /* implicit parameter */   \
@@ -709,12 +709,12 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
   static constexpr int kReturnCount = 1;                    \
   enum ParameterIndices {                                   \
     __dummy = -1, /* to be able to pass zero arguments */   \
-    ##__VA_ARGS__,                                          \
+    __VA_ARGS__ __VA_OPT__(,)                              \
                                                             \
     kParameterCount                                         \
   };
 
-#define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1, ##__VA_ARGS__)
+#define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1 __VA_OPT__(, __VA_ARGS__))
 
 #define DEFINE_PARAMETERS_NO_CONTEXT(...) \
   DEFINE_PARAMETERS(__VA_ARGS__)          \
@@ -733,7 +733,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
       StackArgumentOrder::kJS;
 
 #define DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(return_count, ...) \
-  DEFINE_RESULT_AND_PARAMETERS(return_count, ##__VA_ARGS__)        \
+  DEFINE_RESULT_AND_PARAMETERS(return_count __VA_OPT__(, __VA_ARGS__)) \
   static constexpr bool kNoContext = true;
 
 #define DEFINE_RESULT_AND_PARAMETER_TYPES(...)                                \
@@ -747,8 +747,8 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
   }
 
 #define DEFINE_PARAMETER_TYPES(...)                                        \
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
-                                    ##__VA_ARGS__)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */ \
+                                    __VA_OPT__(, __VA_ARGS__))
 
 // When the extra arguments described here are located in the stack, they are
 // just above the return address in the frame (first arguments).
@@ -761,7 +761,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
     kTarget,                                                \
     kNewTarget,                                             \
     kActualArgumentsCount,                                  \
-    ##__VA_ARGS__,                                          \
+    __VA_ARGS__ __VA_OPT__(,)                              \
     kParameterCount,                                        \
     kContext = kParameterCount /* implicit parameter */     \
   };
@@ -776,15 +776,15 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
     kTarget,                                                \
     kNewTarget,                                             \
     kActualArgumentsCount,                                  \
-    ##__VA_ARGS__,                                          \
+    __VA_ARGS__ __VA_OPT__(,)                              \
     kParameterCount,                                        \
   };
 
 #define DEFINE_JS_PARAMETER_TYPES(...)                                         \
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), /* kTarget */               \
                          MachineType::AnyTagged(), /* kNewTarget */            \
-                         MachineType::Int32(),     /* kActualArgumentsCount */ \
-                         ##__VA_ARGS__)
+                         MachineType::Int32() /* kActualArgumentsCount */      \
+                             __VA_OPT__(, __VA_ARGS__))
 
 // Code/Builtins using this descriptor are referenced from inside the sandbox
 // through a code pointer and must therefore be exposed via the code pointer
