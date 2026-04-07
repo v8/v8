@@ -35,7 +35,7 @@ class WasmModuleCoverageData;
 // systems with Apple silicon currently do provide trapping behaviour for
 // partially-out-of-bound writes, so we assume we can rely on that on MacOS,
 // since doing so provides better performance for writes.
-#if V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS
+#if V8_TARGET_ARCH_RISCV64 || (V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS)
 constexpr bool kPartialOOBWritesAreNoops = false;
 #else
 constexpr bool kPartialOOBWritesAreNoops = true;
