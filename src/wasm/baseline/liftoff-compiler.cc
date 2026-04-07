@@ -7163,8 +7163,10 @@ class LiftoffCompiler {
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
     // TODO(14616): Fix sharedness.
-    CHECK_EQ(decoder->module_->data_segments[imm.index].shared,
-             SharedFlag::kNo);
+    // TODO(14616): Data segments aren't available during streaming compilation,
+    // hence the `has_shared()` check below.
+    CHECK(!decoder->enabled_.has_shared() ||
+          decoder->module_->data_segments[imm.index].shared == SharedFlag::kNo);
 
     LiftoffRegList pinned;
     Register instance_data = __ cache_state() -> cached_instance_data;
