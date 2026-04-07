@@ -1212,6 +1212,7 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
           CanonicalTypeIndex{sig_index});
 
   target_stack->set_current_continuation({});
+  target_stack->clear_bound_args();
 
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);

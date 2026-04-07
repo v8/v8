@@ -4042,9 +4042,15 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   MemOperand sig_op(ebp, 2 * kSystemPointerSize);
   Label resume;
   __ Push(kContextRegister);
+  Register scratch = kContextRegister;
+
+  __ Move(scratch,
+          MemOperand(target_stack_reg, wasm::StackMemory::arg_buffer_offset()));
+  __ Push(scratch);
+
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    Register scratch = kContextRegister;
+
     DCHECK(!AreAliased(scratch, cont, target_stack_reg, arg_buffer_reg));
     __ PrepareCallCFunction(9, scratch);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
@@ -4066,19 +4072,20 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   __ cmp(kReturnRegister0, Immediate(0));
   __ j(not_equal, &ok);
   // No handler found.
+  __ Drop(1);                // Drop the pushed arg buffer.
   __ Pop(kContextRegister);  // Retrieve saved context.
   __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
   __ bind(&ok);
   // We have a prompt bracket.
-  __ Drop(1);  // Drop the pushed context.
 
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   __ mov(target_stack, kReturnRegister0);
-  // Load the arg buffer to set up resume of target stack
+
+  // Restore the saved arg buffer pointer to set up resume of target stack.
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  __ Move(arg_buffer,
-          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+  __ Pop(arg_buffer);
+  __ Drop(1);  // Drop the pushed context.
 
   DCHECK(!AreAliased(arg_buffer, target_stack, esp, ebp));
   LoadJumpBuffer(masm, target_stack, true);

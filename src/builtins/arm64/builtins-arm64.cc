@@ -4040,7 +4040,13 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   Register arg_buffer_reg = WasmFXSwitchDescriptor::GetRegisterParameter(3);
   MemOperand sig_op(fp, 2 * kSystemPointerSize);
   Label resume;
-  __ Push(kContextRegister, xzr);
+
+  Register scratch = x10;
+  DCHECK(!AreAliased(scratch, tag, cont, target_stack_reg));
+
+  __ Ldr(scratch,
+         MemOperand(target_stack_reg, wasm::StackMemory::arg_buffer_offset()));
+  __ Push(kContextRegister, scratch);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
@@ -4070,14 +4076,12 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
 
   __ bind(&ok);
   // We have a prompt bracket.
-  __ Pop(xzr, kContextRegister);
 
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   __ Move(target_stack, kReturnRegister0);
   // Load the arg buffer to set up resume of target stack
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  __ Move(arg_buffer,
-          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+  __ Pop(arg_buffer, kContextRegister);
 
   DCHECK(!AreAliased(arg_buffer, target_stack, ip1, sp, fp));
   LoadJumpBuffer(masm, target_stack, true, ip1);
