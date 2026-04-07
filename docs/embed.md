@@ -10,7 +10,7 @@ This document is intended for C++ programmers who want to embed the V8 JavaScrip
 
 ## Hello world
 
-Let’s look at a [Hello World example](https://chromium.googlesource.com/v8/v8/+/branch-heads/11.9/samples/hello-world.cc) that takes a JavaScript statement as a string argument, executes it as JavaScript code, and prints the result to standard out.
+Let’s look at a [Hello World example](https://crsrc.org/c/v8/samples/hello-world.cc) that takes a JavaScript statement as a string argument, executes it as JavaScript code, and prints the result to standard out.
 
 First, some key concepts:
 
@@ -30,31 +30,31 @@ Follow the steps below to run the example yourself:
 1. Create a build configuration using the helper script:
 
     ```bash
-    tools/dev/v8gen.py x64.release.sample
+    tools/dev/gm.py x64.release.sample
     ```
 
     You can inspect and manually edit the build configuration by running:
 
     ```bash
-    gn args out.gn/x64.release.sample
+    gn args out/x64.release.sample
     ```
 
 1. Build the static library on a Linux 64 system:
 
     ```bash
-    ninja -C out.gn/x64.release.sample v8_monolith
+    ninja -C out/x64.release.sample v8_monolith
     ```
 
 1. Compile `hello-world.cc`, linking to the static library created in the build process. For example, on 64bit Linux using the GNU compiler and LLD linker:
 
     ```bash
-    g++ -I. -Iinclude samples/hello-world.cc -o hello_world -fno-rtti -fuse-ld=lld -lv8_monolith -lv8_libbase -lv8_libplatform -ldl -Lout.gn/x64.release.sample/obj/ -pthread -std=c++20 -DV8_COMPRESS_POINTERS -DV8_ENABLE_SANDBOX
+    g++ -I. -Iinclude samples/hello-world.cc -o hello_world -fno-rtti -fuse-ld=lld -lv8_monolith -lv8_libbase -lv8_libplatform -ldl -Lout/x64.release.sample/obj/ -pthread -std=c++20 -DV8_COMPRESS_POINTERS -DV8_ENABLE_SANDBOX
     ```
 
 1. For more complex code, V8 fails without an ICU data file. Copy this file to where your binary is stored:
 
     ```bash
-    cp out.gn/x64.release.sample/icudtl.dat .
+    cp out/x64.release.sample/icudtl.dat .
     ```
 
 1. Run the `hello_world` executable file at the command line. e.g. On Linux, in the V8 directory, run:
@@ -63,20 +63,20 @@ Follow the steps below to run the example yourself:
     ./hello_world
     ```
 
-1. It prints `Hello, World!`. Yay!  
+1. It prints `Hello, World!`. Yay!
    Note: as of November 2024, it might also segfault early during process startup. Investigation is pending. If you run into this and can figure out what's wrong, please comment on [issue 377222400](https://issues.chromium.org/issues/377222400), or [submit a patch](https://v8.dev/docs/contribute).
 
-If you are looking for an example which is in sync with the main branch, check out the file [`hello-world.cc`](https://chromium.googlesource.com/v8/v8/+/main/samples/hello-world.cc). This is a very simple example and you’ll likely want to do more than just execute scripts as strings. [The advanced guide below](#advanced-guide) contains more information for V8 embedders.
+If you are looking for an example which is in sync with the main branch, check out the file [`hello-world.cc`](https://crsrc.org/c/v8/samples/hello-world.cc). This is a very simple example and you’ll likely want to do more than just execute scripts as strings. [The advanced guide below](#advanced-guide) contains more information for V8 embedders.
 
 ## More example code
 
 The following samples are provided as part of the source code download.
 
-### [`process.cc`](https://github.com/v8/v8/blob/main/samples/process.cc)
+### [`process.cc`](https://crsrc.org/c/v8/samples/process.cc)
 
 This sample provides the code necessary to extend a hypothetical HTTP request processing application — which could be part of a web server, for example — so that it is scriptable. It takes a JavaScript script as an argument, which must provide a function called `Process`. The JavaScript `Process` function can be used to, for example, collect information such as how many hits each page served by the fictional web server gets.
 
-### [`shell.cc`](https://github.com/v8/v8/blob/main/samples/shell.cc)
+### [`shell.cc`](https://crsrc.org/c/v8/samples/shell.cc)
 
 This sample takes filenames as arguments then reads and executes their contents. Includes a command prompt at which you can enter JavaScript code snippets which are then executed. In this sample additional functions like `print` are also added to JavaScript through the use of object and function templates.
 
@@ -139,10 +139,12 @@ Local<Array> NewPointArray(int x, int y, int z) {
   if (array.IsEmpty())
     return v8::Local<v8::Array>();
 
+  Local<Context> context = isolate->GetCurrentContext();
+
   // Fill out the values
-  array->Set(0, Integer::New(isolate, x));
-  array->Set(1, Integer::New(isolate, y));
-  array->Set(2, Integer::New(isolate, z));
+  array->Set(context, 0, v8::Integer::New(isolate, x)).Check();
+  array->Set(context, 1, v8::Integer::New(isolate, y)).Check();
+  array->Set(context, 2, v8::Integer::New(isolate, z)).Check();
 
   // Return the value through Escape.
   return handle_scope.Escape(array);
@@ -192,12 +194,12 @@ The following code provides an example of creating a template for the global obj
 // Create a template for the global object and set the
 // built-in global functions.
 v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-global->Set(v8::String::NewFromUtf8(isolate, "log"),
+global->Set(v8::String::NewFromUtf8Literal(isolate, "log"),
             v8::FunctionTemplate::New(isolate, LogCallback));
 
 // Each processor gets its own context so different processors
 // do not affect each other.
-v8::Persistent<v8::Context> context =
+v8::Local<v8::Context> context =
     v8::Context::New(isolate, nullptr, global);
 ```
 
@@ -214,27 +216,28 @@ The complexity of an accessor depends upon the type of data you are manipulating
 
 ### Accessing static global variables
 
-Let’s say there are two C++ integer variables, `x` and `y` that are to be made available to JavaScript as global variables within a context. To do this, you need to call C++ accessor functions whenever a script reads or writes those variables. These accessor functions convert a C++ integer to a JavaScript integer using `Integer::New`, and convert a JavaScript integer to a C++ integer using `Int32Value`. An example is provided below:
+Let’s say there are two C++ integer variables, `x` and `y` that are to be made available to JavaScript as global variables within a context. To do this, you need to call C++ accessor functions whenever a script reads or writes those variables. These accessor functions convert a C++ integer to a JavaScript integer using `v8::Integer::New`, and convert a JavaScript integer to a C++ integer using `Int32Value`. An example is provided below:
 
 ```cpp
 void XGetter(v8::Local<v8::String> property,
-              const v8::PropertyCallbackInfo<Value>& info) {
+              const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(x);
 }
 
 void XSetter(v8::Local<v8::String> property, v8::Local<v8::Value> value,
              const v8::PropertyCallbackInfo<void>& info) {
-  x = value->Int32Value();
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  x = value->Int32Value(context).ToChecked();
 }
 
 // YGetter/YSetter are so similar they are omitted for brevity
 
 v8::Local<v8::ObjectTemplate> global_templ = v8::ObjectTemplate::New(isolate);
-global_templ->SetAccessor(v8::String::NewFromUtf8(isolate, "x"),
+global_templ->SetAccessor(v8::String::NewFromUtf8Literal(isolate, "x"),
                           XGetter, XSetter);
-global_templ->SetAccessor(v8::String::NewFromUtf8(isolate, "y"),
+global_templ->SetAccessor(v8::String::NewFromUtf8Literal(isolate, "y"),
                           YGetter, YSetter);
-v8::Persistent<v8::Context> context =
+v8::Local<v8::Context> context =
     v8::Context::New(isolate, nullptr, global_templ);
 ```
 
@@ -271,9 +274,9 @@ Here the internal field count is set to `1` which means the object has one inter
 Add the `x` and `y` accessors to the template:
 
 ```cpp
-point_templ->SetAccessor(v8::String::NewFromUtf8(isolate, "x"),
+point_templ->SetAccessor(v8::String::NewFromUtf8Literal(isolate, "x"),
                          GetPointX, SetPointX);
-point_templ->SetAccessor(v8::String::NewFromUtf8(isolate, "y"),
+point_templ->SetAccessor(v8::String::NewFromUtf8Literal(isolate, "y"),
                          GetPointY, SetPointY);
 ```
 
@@ -281,7 +284,8 @@ Next, wrap a C++ point by creating a new instance of the template and then setti
 
 ```cpp
 Point* p = ...;
-v8::Local<v8::Object> obj = point_templ->NewInstance();
+v8::Local<v8::Context> context = isolate->GetCurrentContext();
+v8::Local<v8::Object> obj = point_templ->NewInstance(context).ToLocalChecked();
 obj->SetInternalField(0, v8::External::New(isolate, p));
 ```
 
@@ -290,8 +294,8 @@ The external object is simply a wrapper around a `void*`. External objects can o
 Here’s the definition of the `get` and `set` accessors for `x`, the `y` accessor definitions are identical except `y` replaces `x`:
 
 ```cpp
-void GetPointX(Local<String> property,
-               const PropertyCallbackInfo<Value>& info) {
+void GetPointX(v8::Local<v8::String> property,
+               const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Object> self = info.Holder();
   v8::Local<v8::External> wrap =
       v8::Local<v8::External>::Cast(self->GetInternalField(0));
@@ -306,7 +310,8 @@ void SetPointX(v8::Local<v8::String> property, v8::Local<v8::Value> value,
   v8::Local<v8::External> wrap =
       v8::Local<v8::External>::Cast(self->GetInternalField(0));
   void* ptr = wrap->Value();
-  static_cast<Point*>(ptr)->x_ = value->Int32Value();
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  static_cast<Point*>(ptr)->x_ = value->Int32Value(context).ToChecked();
 }
 ```
 
@@ -331,7 +336,7 @@ The `MapGet` interceptor is provided below:
 
 ```cpp
 void JsHttpRequestProcessor::MapGet(v8::Local<v8::String> name,
-                                    const v8::PropertyCallbackInfo<Value>& info) {
+                                    const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Fetch the map wrapped by this object.
   map<string, string> *obj = UnwrapMap(info.Holder());
 
@@ -347,7 +352,8 @@ void JsHttpRequestProcessor::MapGet(v8::Local<v8::String> name,
   // Otherwise fetch the value and wrap it in a JavaScript string.
   const string &value = (*iter).second;
   info.GetReturnValue().Set(v8::String::NewFromUtf8(
-      value.c_str(), v8::String::kNormalString, value.length()));
+      info.GetIsolate(), value.c_str(), v8::NewStringType::kNormal,
+      static_cast<int>(value.length())).ToLocalChecked());
 }
 ```
 
@@ -373,10 +379,11 @@ You can catch exceptions with `TryCatch`, for example:
 
 ```cpp
 v8::TryCatch trycatch(isolate);
-v8::Local<v8::Value> v = script->Run();
-if (v.IsEmpty()) {
+v8::Local<v8::Context> context = isolate->GetCurrentContext();
+v8::Local<v8::Value> v;
+if (!script->Run(context).ToLocal(&v)) {
   v8::Local<v8::Value> exception = trycatch.Exception();
-  v8::String::Utf8Value exception_str(exception);
+  v8::String::Utf8Value exception_str(isolate, exception);
   printf("Exception: %s\n", *exception_str);
   // ...
 }
@@ -416,9 +423,9 @@ The same approach is used in V8 with templates. Each `FunctionTemplate` has a `P
 
 ```cpp
 v8::Local<v8::FunctionTemplate> biketemplate = v8::FunctionTemplate::New(isolate);
-biketemplate->PrototypeTemplate().Set(
-    v8::String::NewFromUtf8(isolate, "wheels"),
-    v8::FunctionTemplate::New(isolate, MyWheelsMethodCallback)->GetFunction()
+biketemplate->PrototypeTemplate()->Set(
+    v8::String::NewFromUtf8Literal(isolate, "wheels"),
+    v8::FunctionTemplate::New(isolate, MyWheelsMethodCallback)
 );
 ```
 

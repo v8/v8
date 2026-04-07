@@ -175,7 +175,7 @@ The longer experimentation time at 10% of stable users is to accommodate for man
 - The implementation is covered by a fuzzer (if applicable).
 - The feature has been staged and opened to the VRP for several weeks to get fuzzer coverage and feedback.
 - The feature proposal is [stage 4](https://github.com/WebAssembly/proposals) (if applicable).
-- All [spec tests](https://github.com/WebAssembly/spec/tree/master/test) pass.
+- All [spec tests](https://github.com/WebAssembly/spec/tree/main/test) pass.
 - The [Chromium DevTools checklist for new WebAssembly features](https://docs.google.com/document/d/1WbL-fGuLbbNr5-n_nRGo_ILqZFnh5ZjRSUcDTT3yI8s/preview) is satisfied.
 
 ## How to ship a WebAssembly feature
@@ -187,7 +187,7 @@ The longer experimentation time at 10% of stable users is to accommodate for man
 
 ### Ship Wasm feature flags
 
-- In [`src/wasm/wasm-feature-flags.h`](https://source.chromium.org/chromium/chromium/src/+/master:v8/src/wasm/wasm-feature-flags.h), move the feature flag from the `FOREACH_WASM_STAGING_FEATURE_FLAG` macro list to the `FOREACH_WASM_SHIPPED_FEATURE_FLAG` macro list.
+- In [`src/wasm/wasm-feature-flags.h`](https://crsrc.org/c/v8/src/wasm/wasm-feature-flags.h), move the feature flag from the `FOREACH_WASM_STAGING_FEATURE_FLAG` macro list to the `FOREACH_WASM_SHIPPED_FEATURE_FLAG` macro list.
 - Additionally, enable the feature by default by changing the third parameter in `FOREACH_WASM_SHIPPED_FEATURE_FLAG` to `true`.
 
 ### Ship other feature flags

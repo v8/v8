@@ -73,7 +73,7 @@ add(1, 3);
 add(5, 7);
 ```
 
-To do it, we can hook into TurboFan's [code generator](https://source.chromium.org/chromium/chromium/src/+/master:v8/src/compiler/backend/code-generator.cc?q=CodeGenerator::AssembleCode) and access the assembler to insert our breakpoint:
+To do it, we can hook into TurboFan's [code generator](https://crsrc.org/c/v8/src/compiler/backend/code-generator.cc?q=CodeGenerator::AssembleCode) and access the assembler to insert our breakpoint:
 
 ```cpp
 void CodeGenerator::AssembleCode() {
@@ -354,7 +354,7 @@ r4: 0x0000000c 12
 # That's 5 + 7 == 12, all good!
 ```
 
-### Generated breakpoint instuctions with a few additional features { #extra }
+### Generated breakpoint instructions with a few additional features { #extra }
 
 Instead of `TurboAssembler::DebugBreak()`, you may use a lower-level instruction which has the same effect except with additional features.
 

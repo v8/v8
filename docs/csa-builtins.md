@@ -55,7 +55,7 @@ In case you’d like to follow along locally, the following code is based off re
 
 ## Declaring `MathIs42`
 
-Builtins are declared in the `BUILTIN_LIST_BASE` macro in [`src/builtins/builtins-definitions.h`](https://cs.chromium.org/chromium/src/v8/src/builtins/builtins-definitions.h?q=builtins-definitions.h+package:%5Echromium$&l=1). To create a new CSA builtin with JS linkage and one parameter named `X`:
+Builtins are declared in the `BUILTIN_LIST_BASE` macro in [`src/builtins/builtins-definitions.h`](https://crsrc.org/c/v8/src/builtins/builtins-definitions.h). To create a new CSA builtin with JS linkage and one parameter named `X`:
 
 ```cpp
 #define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)              \
@@ -138,7 +138,7 @@ TF_BUILTIN(MathIs42, MathBuiltinsAssembler) {
 
 ## Attaching `Math.Is42`
 
-Builtin objects such as `Math` are set up mostly in [`src/bootstrapper.cc`](https://cs.chromium.org/chromium/src/v8/src/bootstrapper.cc?q=src/bootstrapper.cc+package:%5Echromium$&l=1) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
+Builtin objects such as `Math` are set up mostly in [`src/init/bootstrapper.cc`](https://crsrc.org/c/v8/src/init/bootstrapper.cc) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
 
 ```cpp
 // Existing code to set up Math, included here for clarity.

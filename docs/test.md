@@ -26,13 +26,13 @@ gm x64.debug mjsunit/regress/regress-123
 If you have already built V8, you can run the tests manually:
 
 ```bash
-tools/run-tests.py --outdir=out/ia32.release
+tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug
 ```
 
 Again, you can specify which tests to run:
 
 ```bash
-tools/run-tests.py --outdir=ia32.release cctest/test-heap/SymbolTable/* mjsunit/delete-in-eval
+tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug unittests/HeapTest* mjsunit/delete-in-eval
 ```
 
 Run the script with `--help` to find out about its other options.
@@ -76,7 +76,7 @@ git diff
 
 ## Updating the bytecode expectations (rebaselining)
 
-Sometimes the bytecode expectations may change resulting in `cctest` failures. To update the golden files, build `test/cctest/generate-bytecode-expectations` by running:
+Sometimes the bytecode expectations may change resulting in `unittests` failures. To update the golden files, build `test/unittests/generate-bytecode-expectations` by running:
 
 ```bash
 gm x64.release generate-bytecode-expectations
@@ -88,11 +88,11 @@ gm x64.release generate-bytecode-expectations
 out/x64.release/generate-bytecode-expectations --rebaseline
 ```
 
-The updated goldens are now available in `test/cctest/interpreter/bytecode_expectations/`.
+The updated goldens are now available in `test/unittests/interpreter/bytecode_expectations/`.
 
 ## Adding a new bytecode expectations test
 
-1. Add a new test case to `cctest/interpreter/test-bytecode-generator.cc` and specify a golden file with the same test name.
+1. Add a new test case to `test/unittests/interpreter/bytecode-generator-unittest.cc` and specify a golden file with the same test name.
 
 1. Build `generate-bytecode-expectations`:
 
@@ -103,7 +103,7 @@ The updated goldens are now available in `test/cctest/interpreter/bytecode_expec
 1. Run
 
     ```bash
-    out/x64.release/generate-bytecode-expectations --raw-js testcase.js --output=test/cctest/interpreter/bytecode-expectations/testname.golden
+    out/x64.release/generate-bytecode-expectations --raw-js testcase.js --output=test/unittests/interpreter/bytecode_expectations/testname.golden
     ```
 
-    where `testcase.js` contains the JavaScript test case that was added to `test-bytecode-generator.cc` and `testname` is the name of the test defined in `test-bytecode-generator.cc`.
+    where `testcase.js` contains the JavaScript test case that was added to `bytecode-generator-unittest.cc` and `testname` is the name of the test defined in `bytecode-generator-unittest.cc`.

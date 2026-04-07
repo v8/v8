@@ -10,7 +10,7 @@ Torque provides language constructs to represent high-level, semantically-rich t
 
 ## Getting started
 
-Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://github.com/v8/v8/tree/master/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classses are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://github.com/v8/v8/tree/master/src/torque). Tests for Torque functionality are checked in under [`test/torque`](https://github.com/v8/v8/tree/master/test/torque), [`test/cctest/torque`](https://github.com/v8/v8/tree/master/test/cctest/torque), and [`test/unittests/torque`](https://github.com/v8/v8/tree/master/test/unittests/torque).
+Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://crsrc.org/c/v8/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classes are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://crsrc.org/c/v8/src/torque). Tests for Torque functionality are checked in under [`test/torque`](https://crsrc.org/c/v8/test/torque), [`test/cctest/torque`](https://crsrc.org/c/v8/test/cctest/torque), and [`test/unittests/torque`](https://crsrc.org/c/v8/test/unittests/torque).
 
 To give you a taste of the language, let’s write a V8 builtin that prints “Hello World!”. To do this, we’ll add a Torque `macro` in a test case and call it from the `cctest` test framework.
 
@@ -97,9 +97,9 @@ In combination with generics, `constexpr` is a powerful Torque tool that can be 
 
 ## Files
 
-Torque code is packaged in individual source files. Each source file consists of a series of declarations, which themselves can optionally wrapped in a namespace declaration to separate the namespaces of declarations. The following description of the grammar is likely out-of-date. The source-of-truth is [the grammar definition in the Torque compiler](https://source.chromium.org/chromium/chromium/src/+/master:v8/src/torque/torque-parser.cc?q=TorqueGrammar::TorqueGrammar), which is written using contex-free grammar rules.
+Torque code is packaged in individual source files. Each source file consists of a series of declarations, which themselves can optionally wrapped in a namespace declaration to separate the namespaces of declarations. The following description of the grammar is likely out-of-date. The source-of-truth is [the grammar definition in the Torque compiler](https://crsrc.org/c/v8/src/torque/torque-parser.cc?q=TorqueGrammar::TorqueGrammar), which is written using context-free grammar rules.
 
-A Torque file is a sequence of declarations. The possible declarations are listed [in `torque-parser.cc`](https://source.chromium.org/chromium/chromium/src/+/master:v8/src/torque/torque-parser.cc?q=TorqueGrammar::declaration).
+A Torque file is a sequence of declarations. The possible declarations are listed [in `torque-parser.cc`](https://crsrc.org/c/v8/src/torque/torque-parser.cc?q=TorqueGrammar::declaration).
 
 ## Namespaces
 
@@ -524,9 +524,9 @@ MacroDeclaration :
 
 Every non-`extern` Torque `macro` uses the `StatementBlock` body of the `macro` to create a CSA-generating function in its namespace’s generated `Assembler` class. This code looks just like other code that you might find in `code-stub-assembler.cc`, albeit a bit less readable because it’s machine-generated. `macro`s that are marked `extern` have no body written in Torque and simply provide the interface to hand-written C++ CSA code so that it’s usable from Torque.
 
-`macro` definitions specify implicit and explict parameters, an optional return type and optional labels. Parameters and return types will be discussed in more detail below, but for now it suffices to know that they work somewhat like TypeScript parameters, which as discussed in the Function Types section of the TypeScript documentation [here](https://www.typescriptlang.org/docs/handbook/functions.html).
+`macro` definitions specify implicit and explicit parameters, an optional return type and optional labels. Parameters and return types will be discussed in more detail below, but for now it suffices to know that they work somewhat like TypeScript parameters, which as discussed in the Function Types section of the TypeScript documentation [here](https://www.typescriptlang.org/docs/handbook/functions.html).
 
-Labels are a mechanism for exceptional exit from a `macro`. They map 1:1 to CSA labels and are added as `CodeStubAssemblerLabels*`-typed parameters to the C++ method generated for the `macro`. Their exact semantics are discussed below, but for the purpose of a `macro` declartion, the comma-separated list of a `macro`’s labels is optionally provided with the `labels` keywords and positioned after the `macro`’s parameter lists and return type.
+Labels are a mechanism for exceptional exit from a `macro`. They map 1:1 to CSA labels and are added as `CodeStubAssemblerLabels*`-typed parameters to the C++ method generated for the `macro`. Their exact semantics are discussed below, but for the purpose of a `macro` declaration, the comma-separated list of a `macro`’s labels is optionally provided with the `labels` keywords and positioned after the `macro`’s parameter lists and return type.
 
 Here’s an example from `base.tq` of external and Torque-defined `macro`s:
 
@@ -575,11 +575,11 @@ Like `builtin`s, `runtime`s cannot have labels.
 
 You can also call a `runtime` function as a tailcall when appropriate. Simply include the `tail` keyword before the call.
 
-Runtime function declarations are often placed in a namespace called `runtime`. This disambiguates them from builtins of the same name and makes it easier to see at the callsite that we are calling a runtime funtion. We should consider making this mandatory.
+Runtime function declarations are often placed in a namespace called `runtime`. This disambiguates them from builtins of the same name and makes it easier to see at the callsite that we are calling a runtime function. We should consider making this mandatory.
 
 #### `intrinsic` callables
 
-`intrinsic`s are builtin Torque callables that provide access to internal funtionality that can’t be otherwise implemented in Torque. They are declared in Torque, but not defined, since the implementation is provided by the Torque compiler. `intrinsic` declarations use the following grammar:
+`intrinsic`s are builtin Torque callables that provide access to internal functionality that can’t be otherwise implemented in Torque. They are declared in Torque, but not defined, since the implementation is provided by the Torque compiler. `intrinsic` declarations use the following grammar:
 
 ```grammar
 IntrinsicDeclaration :
@@ -593,7 +593,7 @@ The following are some of the supported intrinsics:
 // %RawObjectCast downcasts from Object to a subtype of Object without
 // rigorous testing if the object is actually the destination type.
 // RawObjectCasts should *never* (well, almost never) be used anywhere in
-// Torque code except for in Torque-based UnsafeCast operators preceeded by an
+// Torque code except for in Torque-based UnsafeCast operators preceded by an
 // appropriate type assert()
 intrinsic %RawObjectCast<A: type>(o: Object): A;
 
@@ -611,7 +611,7 @@ intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 // are supported: Smi, Number, String, uintptr, intptr, and int32
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 
-// %Allocate allocates an unitialized object of size 'size' from V8's
+// %Allocate allocates an uninitialized object of size 'size' from V8's
 // GC heap and "reinterpret casts" the resulting object pointer to the
 // specified Torque class, allowing constructors to subsequently use
 // standard field access operators to initialize the object.

@@ -2,10 +2,10 @@
 title: 'Building V8 with GN'
 description: 'This document explains how to use GN to build V8.'
 ---
-V8 is built with the help of [GN](https://gn.googlesource.com/gn/+/master/docs/). GN is a meta build system of sorts, as it generates build files for a number of other build systems. How you build therefore depends on what “back-end” build system and compiler you’re using.
+V8 is built with the help of [GN](https://gn.googlesource.com/gn/+/main/docs/). GN is a meta build system of sorts, as it generates build files for a number of other build systems. How you build therefore depends on what “back-end” build system and compiler you’re using.
 The instructions below assume that you already have a [checkout of V8](/docs/source-code) and that you have [installed the build dependencies](/docs/build).
 
-More information on GN can be found in [Chromium’s documentation](https://www.chromium.org/developers/gn-build-configuration) or [GN’s own docs](https://gn.googlesource.com/gn/+/master/docs/).
+More information on GN can be found in [Chromium’s documentation](https://www.chromium.org/developers/gn-build-configuration) or [GN’s own docs](https://gn.googlesource.com/gn/+/main/docs/).
 
 Building V8 from source involves three steps:
 
@@ -63,7 +63,7 @@ Generate build files for the directory `out/foo` using `gn`:
 gn args out/foo
 ```
 
-This opens an editor window for specifying the [`gn` arguments](https://gn.googlesource.com/gn/+/master/docs/reference.md). Alternatively, you can pass the arguments on the command line:
+This opens an editor window for specifying the [`gn` arguments](https://gn.googlesource.com/gn/+/main/docs/reference.md). Alternatively, you can pass the arguments on the command line:
 
 ```bash
 gn gen out/foo --args='is_debug=false target_cpu="x64" v8_target_cpu="arm64"'

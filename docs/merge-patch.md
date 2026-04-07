@@ -67,7 +67,7 @@ On top the **Releases** section should show a Canary.
 Let’s assume you’re merging revision af3cf11 to branch 12.2 (please specify full git hashes - abbreviations are used here for simplicity).
 
 ```
-https://source.chromium.org/chromium/chromium/src/+/main:v8/tools/release/merge_to_branch_gerrit.py --branch 12.3 -r af3cf11
+https://crsrc.org/c/v8/tools/release/merge_to_branch_gerrit.py --branch 12.3 -r af3cf11
 ```
 
 

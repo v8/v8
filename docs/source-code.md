@@ -5,8 +5,8 @@ description: 'This document explains how to check out the V8 source code locally
 This document explains how to check out the V8 source code locally. If you just want to browse the source online, use these links:
 
 - [browse](https://chromium.googlesource.com/v8/v8/)
-- [browse bleeding edge](https://chromium.googlesource.com/v8/v8/+/master)
-- [changes](https://chromium.googlesource.com/v8/v8/+log/master)
+- [browse bleeding edge](https://chromium.googlesource.com/v8/v8/+/main)
+- [changes](https://chromium.googlesource.com/v8/v8/+log/main)
 
 ## Using Git
 
@@ -18,7 +18,7 @@ Don’t just `git clone` either of these URLs! if you want to build V8 from your
 
 1. On Linux or macOS, first install Git and then [`depot_tools`](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up).
 
-    On Windows, follow the Chromium instructions ([for Googlers](https://goto.google.com/building-chrome-win), [for non-Googlers](https://chromium.googlesource.com/chromium/src/+/master/docs/windows_build_instructions.md#Setting-up-Windows)) to install Git, Visual Studio, Debugging tools for Windows, and `depot_tools`.
+    On Windows, follow the Chromium instructions ([for Googlers](https://goto.google.com/building-chrome-win), [for non-Googlers](https://chromium.googlesource.com/chromium/src/+/main/docs/windows_build_instructions.md#Setting-up-Windows)) to install Git, Visual Studio, Debugging tools for Windows, and `depot_tools`.
 
 1. Update `depot_tools` by executing the following into your terminal/shell. On Windows, this has to be done in the Command Prompt (`cmd.exe`), as opposed to PowerShell or others.
 
@@ -77,7 +77,7 @@ git cl upload
 
 ## Committing
 
-You can use the CQ checkbox on codereview for committing (preferred). See also the [chromium instructions](https://chromium.googlesource.com/chromium/src/+/master/docs/infra/cq.md) for CQ flags and troubleshooting.
+You can use the CQ checkbox on codereview for committing (preferred). See also the [chromium instructions](https://chromium.googlesource.com/chromium/src/+/main/docs/infra/cq.md) for CQ flags and troubleshooting.
 
 If you need more trybots than the default, add the following to your commit message on Gerrit (e.g. for adding a nosnap bot):
 
@@ -159,4 +159,4 @@ git cl try-results
 
 There are several different branches of V8; if you're unsure of which version to get, you most likely want the up-to-date stable version. Have a look at our [Release Process](/docs/release-process) for more information about the different branches used.
 
-You may want to follow the V8 version that Chrome is shipping on its stable (or beta) channels, see <https://omahaproxy.appspot.com/>.
+You may want to follow the V8 version that Chrome is shipping on its stable (or beta) channels, see <https://chromiumdash.appspot.com/releases>.

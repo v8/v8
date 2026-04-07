@@ -152,7 +152,7 @@ This switches on the Wasm opcode `wasm::kExprI32Eqz`, and builds a TurboFan grap
 
 The `Word32Equal` operator is provided by the underlying V8 abstract machine, which is architecture-independent. Later in the pipeline, this abstract machine operator will be translated into architecture-dependent assembly.
 
-For our new opcode, `I32Add1`, we need a graph that adds a constant 1 to the input, so we can resuse an existing machine operator, `Int32Add`, passing it the input, and a constant 1:
+For our new opcode, `I32Add1`, we need a graph that adds a constant 1 to the input, so we can reuse an existing machine operator, `Int32Add`, passing it the input, and a constant 1:
 
 ```diff
 diff --git a/src/compiler/wasm-compiler.cc b/src/compiler/wasm-compiler.cc

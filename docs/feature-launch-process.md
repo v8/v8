@@ -28,7 +28,7 @@ Blink features are required so that Chrome can turn off features without distrib
 
 JavaScript and WebAssembly features must be fuzzed for a minimum period of 4 weeks, or one (1) release milestone, with all fuzz bugs fixed, before they can be shipped.
 
-For code-complete JavaScript features, start fuzzing by moving the feature flag to the `JAVASCRIPT_STAGED_FEATURES_BASE` macro in [`src/flags/flag-definitions.h`](https://source.chromium.org/chromium/chromium/src/+/master:v8/src/flags/flag-definitions.h).
+For code-complete JavaScript features, start fuzzing by moving the feature flag to the `JAVASCRIPT_STAGED_FEATURES_BASE` macro in [`src/flags/flag-definitions.h`](https://crsrc.org/c/v8/src/flags/flag-definitions.h).
 
 For WebAssembly, see the [WebAssembly shipping checklist](/docs/wasm-shipping-checklist).
 
@@ -70,7 +70,7 @@ Adding Web Platform Tests (WPT) is not required, as JavaScript and WebAssembly l
 
 For JavaScript features, explicit correctness tests in [Test262](https://github.com/tc39/test262) are required. Note that tests in the [staging directory](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#staging) suffice.
 
-For WebAssembly features, explicit correctness tests in the [WebAssembly Spec Test repo](https://github.com/WebAssembly/spec/tree/master/test) are required.
+For WebAssembly features, explicit correctness tests in the [WebAssembly Spec Test repo](https://github.com/WebAssembly/spec/tree/main/test) are required.
 
 For performance tests, JavaScript already underlies most existing performance benchmarks, like Speedometer.
 

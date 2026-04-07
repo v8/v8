@@ -34,7 +34,7 @@ The presubmit script uses a linter from Google, [`cpplint.py`](https://raw.githu
 
 ### Upload to V8’s codereview tool
 
-All submissions, including submissions by project members, require review. We use the same code-review tools and process as the Chromium project. In order to submit a patch, you need to get the [`depot_tools`](https://dev.chromium.org/developers/how-tos/install-depot-tools) and follow these instructions on [requesting a review](https://chromium.googlesource.com/chromium/src/+/master/docs/contributing.md) (using your V8 workspace instead of a Chromium workspace).
+All submissions, including submissions by project members, require review. We use the same code-review tools and process as the Chromium project. In order to submit a patch, you need to get the [`depot_tools`](https://dev.chromium.org/developers/how-tos/install-depot-tools) and follow these instructions on [requesting a review](https://chromium.googlesource.com/chromium/src/+/main/docs/contributing.md) (using your V8 workspace instead of a Chromium workspace).
 
 ### Look out for breakage or regressions
 

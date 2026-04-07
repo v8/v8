@@ -50,7 +50,7 @@ Check `linux-perf-d8.py --help` for more details. Note that you can use all `d8`
 
 ## Profiling Chrome or content_shell with [linux-perf-chrome.py](https://source.chromium.org/search?q=linux-perf-chrome.py)
 
-1. You can use the [linux-perf-chrome.py](https://source.chromium.org/search?q=linux-perf-chrome.py) script to profile chrome. Make sure to add the [required chrome gn flags](https://chromium.googlesource.com/chromium/src/+/master/docs/profiling.md#General-checkout-setup) to get proper C++ symbols.
+1. You can use the [linux-perf-chrome.py](https://source.chromium.org/search?q=linux-perf-chrome.py) script to profile chrome. Make sure to add the [required chrome gn flags](https://chromium.googlesource.com/chromium/src/+/main/docs/profiling.md#General-checkout-setup) to get proper C++ symbols.
 
 1. Once your build is ready, you can profile a website with both, full symbols for C++ and JS code.
 
@@ -111,7 +111,7 @@ perf report --input=perf.data.jitted;
 
 ### Using linux-perf with chrome directly
 
-1. You can use the same V8 flags to profile chrome itself. Follow the instructions above for the correct V8 flags and add the [required chrome gn flags](https://chromium.googlesource.com/chromium/src/+/master/docs/profiling.md#General-checkout-setup) to your chrome build.
+1. You can use the same V8 flags to profile chrome itself. Follow the instructions above for the correct V8 flags and add the [required chrome gn flags](https://chromium.googlesource.com/chromium/src/+/main/docs/profiling.md#General-checkout-setup) to your chrome build.
 
 1. Once your build is ready, you can profile a website with both, full symbols for C++ and JS code.
 

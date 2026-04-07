@@ -2,7 +2,7 @@
 title: 'Tracing V8'
 description: 'This document explains how to make use of V8’s built-in tracing support.'
 ---
-V8 provides support for tracing. It [works automatically when V8 is embedded in Chrome through the Chrome tracing system](/docs/rcs). But you can also enable it in any standalone V8 or within an embedder that uses the Default Platform. More details about the trace-viewer can be found [here](https://github.com/catapult-project/catapult/blob/master/tracing/README.md).
+V8 provides support for tracing. It [works automatically when V8 is embedded in Chrome through the Chrome tracing system](/docs/rcs). But you can also enable it in any standalone V8 or within an embedder that uses the Default Platform. More details about the trace-viewer can be found [here](https://github.com/catapult-project/catapult/blob/main/tracing/README.md).
 
 ## Tracing in `d8`
 

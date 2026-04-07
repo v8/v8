@@ -8,7 +8,7 @@ This page is intended to give embedders the basic tools they need to implement d
 
 ## Connecting to the Inspector
 
-V8’s [command-line debug shell `d8`](/docs/d8) includes a simple inspector integration through the [`InspectorFrontend`](https://cs.chromium.org/chromium/src/v8/src/d8/d8.cc?l=2286&rcl=608c4a9c391f3b7cac68068d61f2a8996f216973) and [`InspectorClient`](https://cs.chromium.org/chromium/src/v8/src/d8/d8.cc?l=2355&rcl=608c4a9c391f3b7cac68068d61f2a8996f216973). The client sets up a communication channel for messages sent from the embedder to V8:
+V8’s [command-line debug shell `d8`](/docs/d8) includes a simple inspector integration through the [`InspectorFrontend`](https://crsrc.org/c/v8/src/d8/d8.cc?q=InspectorFrontend) and [`InspectorClient`](https://crsrc.org/c/v8/src/d8/d8.cc?q=InspectorClient). The client sets up a communication channel for messages sent from the embedder to V8:
 
 ```cpp
 static void SendInspectorMessage(
@@ -63,8 +63,8 @@ send(msg);
 
 ## Further documentation
 
-A more fleshed-out example of Inspector API usage is available at [`test-api.js`](https://cs.chromium.org/chromium/src/v8/test/debugger/test-api.js?type=cs&q=test-api&l=1), which implements a simple debugging API for use by V8’s test suite.
+A more fleshed-out example of Inspector API usage is available at [`test-api.js`](https://crsrc.org/c/v8/test/debugger/test-api.js), which implements a simple debugging API for use by V8’s test suite.
 
-V8 also contains an alternative Inspector integration at [`inspector-test.cc`](https://cs.chromium.org/chromium/src/v8/test/inspector/inspector-test.cc?q=inspector-te+package:%5Echromium$&l=1).
+V8 also contains an alternative Inspector integration at [`inspector-test.cc`](https://crsrc.org/c/v8/test/inspector/inspector-test.cc).
 
 The Chrome DevTools wiki provides [full documentation](https://chromedevtools.github.io/debugger-protocol-viewer/tot/) of all available functions.

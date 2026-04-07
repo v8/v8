@@ -22,7 +22,7 @@ The embedder should be able to adjust their code to the new API while still usin
 
 - Adding new types, constants, and functions is safe with one caveat: do not add a new pure virtual function to an existing class. New virtual functions should have default implementation.
 - Adding a new parameter to a function is safe if the parameter has the default value.
-- Removing or renaming types, constants, functions is unsafe. Use the [`V8_DEPRECATED`](https://cs.chromium.org/chromium/src/v8/include/v8config.h?l=395&rcl=0425b20ad9a8ba38c2e0dd16e8814abb722bfdde) and [`V8_DEPRECATE_SOON`](https://cs.chromium.org/chromium/src/v8/include/v8config.h?l=403&rcl=0425b20ad9a8ba38c2e0dd16e8814abb722bfdde) macros, which causes compile-time warnings when the deprecated methods are called by the embedder. For example, let’s say we want to rename function `foo` to function `bar`. Then we need to do the following:
+- Removing or renaming types, constants, functions is unsafe. Use the [`V8_DEPRECATED`](https://crsrc.org/c/v8/include/v8config.h?q=V8_DEPRECATED) and [`V8_DEPRECATE_SOON`](https://crsrc.org/c/v8/include/v8config.h?q=V8_DEPRECATE_SOON) macros, which causes compile-time warnings when the deprecated methods are called by the embedder. For example, let’s say we want to rename function `foo` to function `bar`. Then we need to do the following:
     - Add the new function `bar` near the existing function `foo`.
     - Wait until the CL rolls in Chrome. Adjust Chrome to use `bar`.
     - Annotate `foo` with `V8_DEPRECATED("Use bar instead") void foo();`

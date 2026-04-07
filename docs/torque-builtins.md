@@ -32,12 +32,12 @@ In case you’d like to follow along locally, the following code is based off re
 
 ## Defining `MathIs42`
 
-Torque code is located in `src/builtins/*.tq` files, roughly organized by topic. Since we will be writing a `Math` builtin, we’ll put our definition into `src/builtins/math.tq`. Since this file doesn't exist yet, we have to add it to [`torque_files`](https://cs.chromium.org/chromium/src/v8/BUILD.gn?l=914&rcl=589af9f257166f66774b4fb3008cd09f192c2614) in [`BUILD.gn`](https://cs.chromium.org/chromium/src/v8/BUILD.gn).
+Torque code is located in `src/builtins/*.tq` files, roughly organized by topic. Since we will be writing a `Math` builtin, we’ll put our definition into `src/builtins/math.tq`.
 
 ```torque
 namespace math {
   javascript builtin MathIs42(
-      context: Context, receiver: Object, x: Object): Boolean {
+      js-implicit context: NativeContext, receiver: JSAny)(x: JSAny): Boolean {
     // At this point, x can be basically anything - a Smi, a HeapNumber,
     // undefined, or any other arbitrary JS object. ToNumber_Inline is defined
     // in CodeStubAssembler. It inlines a fast-path (if the argument is a number
@@ -60,15 +60,15 @@ namespace math {
 }
 ```
 
-We put the definition in the Torque namespace `math`. Since this namespace didn't exist before, we have to add it to [`torque_namespaces`](https://cs.chromium.org/chromium/src/v8/BUILD.gn?l=933&rcl=589af9f257166f66774b4fb3008cd09f192c2614) in [`BUILD.gn`](https://cs.chromium.org/chromium/src/v8/BUILD.gn).
+We put the definition in the Torque namespace `math`, which already contains other math-related builtins.
 
 ## Attaching `Math.is42`
 
-Builtin objects such as `Math` are set up mostly in [`src/bootstrapper.cc`](https://cs.chromium.org/chromium/src/v8/src/bootstrapper.cc?q=src/bootstrapper.cc+package:%5Echromium$&l=1) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
+Builtin objects such as `Math` are set up mostly in [`src/init/bootstrapper.cc`](https://crsrc.org/c/v8/src/init/bootstrapper.cc) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
 
 ```cpp
 // Existing code to set up Math, included here for clarity.
-Handle<JSObject> math = factory->NewJSObject(cons, TENURED);
+Handle<JSObject> math = factory->NewJSObject(cons, AllocationType::kOld);
 JSObject::AddProperty(global, name, math, DONT_ENUM);
 // […snip…]
 SimpleInstallFunction(isolate_, math, "is42", Builtins::kMathIs42, 1, true);
@@ -77,7 +77,7 @@ SimpleInstallFunction(isolate_, math, "is42", Builtins::kMathIs42, 1, true);
 Now that `is42` is attached, it can be called from JS:
 
 ```bash
-$ out/debug/d8
+$ out/x64.optdebug/d8
 d8> Math.is42(42);
 true
 d8> Math.is42('42.0');
@@ -101,8 +101,8 @@ namespace math {
     return Convert<float64>(heapNumber) == 42 ? True : False;
   }
 
-  javascript builtin MathIs42(implicit context: Context)(
-      receiver: Object, x: Object): Boolean {
+  javascript builtin MathIs42(js-implicit context: NativeContext, receiver: JSAny)(
+      x: JSAny): Boolean {
     const number: Number = ToNumber_Inline(x);
     typeswitch (number) {
       case (smi: Smi): {
@@ -115,7 +115,7 @@ namespace math {
     }
   }
 }
-````
+```
 
 Why should you care about builtins at all? Why not leave the code inline (or extracted into macros for better readability)?
 
@@ -123,7 +123,7 @@ An important reason is code space: builtins are generated at compile-time and in
 
 ## Testing stub-linkage builtins
 
-Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to [`test/cctest/compiler/test-run-stubs.cc`](https://cs.chromium.org/chromium/src/v8/test/cctest/compiler/test-run-stubs.cc) to test the builtin on all platforms:
+Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to [`test/cctest/compiler/test-run-stubs.cc`](https://crsrc.org/c/v8/test/cctest/compiler/test-run-stubs.cc) to test the builtin on all platforms:
 
 ```cpp
 TEST(MathIsHeapNumber42) {
