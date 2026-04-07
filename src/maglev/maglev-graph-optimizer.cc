@@ -1915,27 +1915,37 @@ UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
-  MaybeReduceResult maybe_input = GetUntaggedValueWithRepresentation(
-      node->input_node(0), UseRepresentation::kInt32, {});
-  if (maybe_input.IsDoneWithValue()) {
-    ValueNode* input = maybe_input.value();
-    if (SmiValuesAre31Bits()) {
-      // When the graph builder introduced the CheckedSmiUntag, it also recorded
-      // in the alternatives that its input was a known Smi from this point on.
-      // This information could have been later used to avoid Smi checks when
-      // using this input in contexts that require Smis (like storing the length
-      // of an array for instance). We can thus bypass the CheckedSmiUntag, but
-      // still need to keep a CheckSmi.
-      // TODO(dmercadier): during graph building, record whether the "CheckSmi"
-      // part of CheckSmiUntag is useful or not.
-      ReduceResult result = reducer_.BuildCheckedSmiSizedInt32(input);
-      CHECK(result.IsDone());
-    }
-    return ReplaceWith(input);
-  } else if (maybe_input.IsDoneWithAbort()) {
-    return ProcessResult::kTruncateBlock;
-  }
-  DCHECK(maybe_input.IsFail());
+  // TODO(b/496266449): The current optimization is unsound, since the input of
+  // this node could flow to a StoreTaggedFieldNoWriteBarrier, which expects a
+  // Smi, not a Smi-sized number, which could be a HeapNumber.
+  // Re-enable this optimization once we add a Smi value representation.
+
+  // MaybeReduceResult maybe_input = GetUntaggedValueWithRepresentation(
+  //     node->input_node(0), UseRepresentation::kInt32, {});
+  // if (maybe_input.IsDoneWithValue()) {
+  //   ValueNode* input = maybe_input.value();
+  //   if (SmiValuesAre31Bits()) {
+  //     // When the graph builder introduced the CheckedSmiUntag, it also
+  //     recorded
+  //     // in the alternatives that its input was a known Smi from this point
+  //     on.
+  //     // This information could have been later used to avoid Smi checks when
+  //     // using this input in contexts that require Smis (like storing the
+  //     length
+  //     // of an array for instance). We can thus bypass the CheckedSmiUntag,
+  //     but
+  //     // still need to keep a CheckSmi.
+  //     // TODO(dmercadier): during graph building, record whether the
+  //     "CheckSmi"
+  //     // part of CheckSmiUntag is useful or not.
+  //     ReduceResult result = reducer_.BuildCheckedSmiSizedInt32(input);
+  //     CHECK(result.IsDone());
+  //   }
+  //   return ReplaceWith(input);
+  // } else if (maybe_input.IsDoneWithAbort()) {
+  //   return ProcessResult::kTruncateBlock;
+  // }
+  // DCHECK(maybe_input.IsFail());
   return ProcessResult::kContinue;
 }
 
