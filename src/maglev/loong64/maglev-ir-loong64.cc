@@ -1007,7 +1007,7 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
-    __ srli_w(result_register, result_register, shift_size);
+    __ srli_d(result_register, result_register, shift_size);
   }
 }
 
