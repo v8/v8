@@ -1237,8 +1237,6 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
       isolate->isolate_data()->active_suspender();
   // Clear the external stack pointer to avoid a UAF.
   suspender->set_stack(isolate, nullptr);
-  // Also unpublish the trusted suspender object just in case.
-  suspender->Unpublish(isolate);
   return_stack(isolate, to);
 }
 
