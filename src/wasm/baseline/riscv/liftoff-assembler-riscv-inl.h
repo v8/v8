@@ -2438,11 +2438,15 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
     }
     DCHECK_EQ(offset, num_fp_regs * sizeof(double));
   }
-
-  SaveVectorRegisters(regs.GetSimd128List());
+  if (!regs.GetSimd128List().is_empty()) {
+    SaveVectorRegisters(regs.GetSimd128List());
+  }
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
+  if (!regs.GetSimd128List().is_empty()) {
+    RestoreVectorRegisters(regs.GetSimd128List());
+  }
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   int32_t fp_offset = 0;
   while (!fp_regs.is_empty()) {
@@ -2461,8 +2465,6 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_offset += kSystemPointerSize;
   }
   AddWord(sp, sp, Operand(gp_offset));
-
-  RestoreVectorRegisters(regs.GetSimd128List());
 }
 
 void LiftoffAssembler::RecordSpillsInSafepoint(
