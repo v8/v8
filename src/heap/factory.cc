@@ -2416,9 +2416,9 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
                                               DirectHandle<Object> value,
                                               AllocationType allocation) {
   DCHECK(IsUniqueName(*name));
-  static_assert(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(sizeof(PropertyCell) <= kMaxRegularHeapObjectSize);
   Tagged<PropertyCell> cell = Cast<PropertyCell>(AllocateRawWithImmortalMap(
-      PropertyCell::kSize, allocation, *global_property_cell_map()));
+      sizeof(PropertyCell), allocation, *global_property_cell_map()));
   DisallowGarbageCollection no_gc;
   cell->set_dependent_code(
       DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),

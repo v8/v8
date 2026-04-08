@@ -2393,7 +2393,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadJSError() {
   }
 
   // Check for stack property.
-  DirectHandle<Object> stack = isolate_->factory()->undefined_value();
+  DirectHandle<UnionOf<Undefined, String>> stack =
+      isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
     DirectHandle<String> stack_string;
     if (!ReadString().ToHandle(&stack_string)) {

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class BreakPoint extends Struct {
   id: Smi;
   condition: String;
 }
 
+@cppObjectLayoutDefinition
 extern class BreakPointInfo extends Struct {
   // The position in the source for the break position.
   source_position: Smi;
@@ -69,6 +71,7 @@ bitfield struct StackFrameInfoFlags extends uint31 {
   bytecode_offset_or_source_position: int32: 30 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class StackFrameInfo extends Struct {
   // In case this field holds a SharedFunctionInfo, the
   // |bytecode_offset_or_source_position| part of the
@@ -81,6 +84,7 @@ extern class StackFrameInfo extends Struct {
   flags: SmiTagged<StackFrameInfoFlags>;
 }
 
+@cppObjectLayoutDefinition
 extern class StackTraceInfo extends Struct {
   // Unique ID of this stack trace.
   id: Smi;
@@ -101,6 +105,7 @@ extern class StackTraceInfo extends Struct {
 //     property was not yet formatted.
 // (2) A valid JavaScript object and StackTraceInfo once
 //     error.stack was accessed.
+@cppObjectLayoutDefinition
 extern class ErrorStackData extends Struct {
   // This holds either the FixedArray of raw data for constructing the
   // CallSiteInfo instances or the formatted stack value (usually a string)

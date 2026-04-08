@@ -1403,7 +1403,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         number_ = dict->FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
         Tagged<PropertyCell> cell = dict->CellAt(isolate_, number_);
-        if (IsPropertyCellHole(cell->value(isolate_), isolate_)) {
+        if (IsPropertyCellHole(cell->value(), isolate_)) {
           return NOT_FOUND;
         }
         property_details_ = cell->property_details();

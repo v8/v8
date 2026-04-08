@@ -1864,10 +1864,10 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   // affect iteration.
   TNode<PropertyCell> protector_cell = StringIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->string_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 // Instantiate template due to shared library requirements.

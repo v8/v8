@@ -404,10 +404,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
-  GotoIf(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorInvalid)),
-      &if_generic);
+  GotoIf(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorInvalid)),
+         &if_generic);
   {
     // The fast-path accesses the {spread} elements directly.
     TNode<Int32T> spread_kind = LoadMapElementsKind(spread_map);

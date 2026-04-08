@@ -3437,7 +3437,44 @@ void ClassPositions::ClassPositionsPrint(std::ostream& os) {
   this->PrintHeader(os, "ClassPositions");
   os << "\n - start: " << this->start();
   os << "\n - end: " << this->end();
-  os << '\n';
+  os << "\n";
+}
+
+void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "BreakPointInfo");
+  os << "\n - source_position: " << this->source_position();
+  os << "\n - break_points: " << Brief(this->break_points());
+  os << "\n";
+}
+
+void BreakPoint::BreakPointPrint(std::ostream& os) {
+  this->PrintHeader(os, "BreakPoint");
+  os << "\n - id: " << this->id();
+  os << "\n - condition: " << Brief(this->condition());
+  os << "\n";
+}
+
+void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "StackFrameInfo");
+  os << "\n - shared_or_script: " << Brief(this->shared_or_script());
+  os << "\n - function_name: " << Brief(this->function_name());
+  os << "\n - flags: " << this->flags();
+  os << "\n";
+}
+
+void StackTraceInfo::StackTraceInfoPrint(std::ostream& os) {
+  this->PrintHeader(os, "StackTraceInfo");
+  os << "\n - id: " << this->id();
+  os << "\n - frames: " << Brief(this->frames());
+  os << "\n";
+}
+
+void ErrorStackData::ErrorStackDataPrint(std::ostream& os) {
+  this->PrintHeader(os, "ErrorStackData");
+  os << "\n - raw_data_for_call_site_infos_or_formatted_stack: "
+     << Brief(this->raw_data_for_call_site_infos_or_formatted_stack());
+  os << "\n - stack_trace: " << Brief(this->stack_trace());
+  os << "\n";
 }
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {

@@ -264,7 +264,7 @@ Tagged<Name> GlobalDictionary::NameAt(InternalIndex entry) {
 
 Tagged<Name> GlobalDictionary::NameAt(PtrComprCageBase cage_base,
                                       InternalIndex entry) {
-  return CellAt(cage_base, entry)->name(cage_base);
+  return CellAt(cage_base, entry)->name();
 }
 
 Tagged<Object> GlobalDictionary::ValueAt(InternalIndex entry) {
@@ -274,7 +274,7 @@ Tagged<Object> GlobalDictionary::ValueAt(InternalIndex entry) {
 
 Tagged<Object> GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
                                          InternalIndex entry) {
-  return CellAt(cage_base, entry)->value(cage_base);
+  return CellAt(cage_base, entry)->value();
 }
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,

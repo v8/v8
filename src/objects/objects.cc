@@ -6182,7 +6182,8 @@ void PropertyCell::ClearAndInvalidate(Isolate* isolate) {
   details = details.set_cell_type(PropertyCellType::kConstant);
   Transition(details, isolate->factory()->property_cell_hole_value());
   DependentCode::DeoptimizeDependencyGroups(
-      isolate, *this, DependentCode::kPropertyCellChangedGroup);
+      isolate, Tagged<PropertyCell>(this),
+      DependentCode::kPropertyCellChangedGroup);
 }
 
 // static
@@ -6297,7 +6298,8 @@ void PropertyCell::InvalidateProtector(Isolate* isolate) {
     set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore,
               SKIP_WRITE_BARRIER);
     DependentCode::DeoptimizeDependencyGroups(
-        isolate, *this, DependentCode::kPropertyCellChangedGroup);
+        isolate, Tagged<PropertyCell>(this),
+        DependentCode::kPropertyCellChangedGroup);
   }
 }
 

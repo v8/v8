@@ -430,14 +430,5 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
   return source_position;
 }
 
-int StackTraceInfo::length() const {
-  // TODO(375937549): Convert to uint32_t.
-  return static_cast<int>(frames()->ulength().value());
-}
-
-Tagged<StackFrameInfo> StackTraceInfo::get(int index) const {
-  return Cast<StackFrameInfo>(frames()->get(index));
-}
-
 }  // namespace internal
 }  // namespace v8

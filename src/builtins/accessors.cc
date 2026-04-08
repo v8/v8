@@ -930,7 +930,7 @@ void Accessors::ErrorStackSetter(
   if (IsJSObject(*maybe_error_object)) {
     v8::Local<v8::Value> value = info[0];
     ErrorUtils::SetFormattedStack(isolate, Cast<JSObject>(maybe_error_object),
-                                  Utils::OpenDirectHandle(*value));
+                                  Cast<JSAny>(Utils::OpenDirectHandle(*value)));
   }
 }
 

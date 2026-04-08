@@ -677,7 +677,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       set_invalid_prototype_validity_cell(Cast<Cell>(obj));
     }
 
-    ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
+    ALLOCATE_MAP(PROPERTY_CELL_TYPE, sizeof(PropertyCell), global_property_cell)
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.

@@ -2145,10 +2145,10 @@ void V8HeapExplorer::ExtractFeedbackCellReferences(
 void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
                                                    Tagged<PropertyCell> cell) {
   SetInternalReference(entry, "value", cell->value(),
-                       PropertyCell::kValueOffset);
+                       offsetof(PropertyCell, value_));
   TagObject(cell->dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", cell->dependent_code(),
-                       PropertyCell::kDependentCodeOffset);
+                       offsetof(PropertyCell, dependent_code_));
 }
 
 void V8HeapExplorer::ExtractPrototypeInfoReferences(

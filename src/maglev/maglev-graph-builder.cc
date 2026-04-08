@@ -3819,7 +3819,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       }
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       return BuildStoreTaggedField(property_cell_node, value,
-                                   PropertyCell::kValueOffset,
+                                   offsetof(PropertyCell, value_),
                                    StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kMutable: {
@@ -3828,7 +3828,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
       ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
       return BuildStoreTaggedField(property_cell_node, GetAccumulator(),
-                                   PropertyCell::kValueOffset,
+                                   offsetof(PropertyCell, value_),
                                    StoreTaggedMode::kDefault);
     }
     case PropertyCellType::kInTransition:
@@ -3888,7 +3888,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
   }
 
   ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
-  return BuildLoadTaggedField(property_cell_node, PropertyCell::kValueOffset);
+  return BuildLoadTaggedField(property_cell_node,
+                              offsetof(PropertyCell, value_));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildGlobalStore(

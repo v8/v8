@@ -1182,7 +1182,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     TNode<Object> value = LoadPropertyCellValue(CAST(holder));
     GotoIf(IsPropertyCellHole(value), miss);
     TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
-        CAST(holder), PropertyCell::kPropertyDetailsRawOffset));
+        CAST(holder), offsetof(PropertyCell, property_details_raw_)));
 
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
@@ -1369,7 +1369,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
     CSA_DCHECK(this, IsPropertyCell(CAST(holder)));
     // Ensure the property cell doesn't contain the hole.
     TNode<Object> value =
-        LoadObjectField(CAST(holder), PropertyCell::kValueOffset);
+        LoadObjectField(CAST(holder), offsetof(PropertyCell, value_));
     GotoIf(IsPropertyCellHole(value), miss);
 
     exit_point->Return(TrueConstant());
@@ -3978,7 +3978,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
     TNode<PropertyCell> property_cell =
         CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, try_handler));
     TNode<Object> value =
-        LoadObjectField(property_cell, PropertyCell::kValueOffset);
+        LoadObjectField(property_cell, offsetof(PropertyCell, value_));
     GotoIf(TaggedEqual(value, PropertyCellHoleConstant()), miss);
     exit_point->Return(value);
   }
@@ -4492,9 +4492,9 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
   // the cell has been invalidated and that the store must be handled by the
   // runtime.
   TNode<Object> cell_contents =
-      LoadObjectField(property_cell, PropertyCell::kValueOffset);
+      LoadObjectField(property_cell, offsetof(PropertyCell, value_));
   TNode<Int32T> details = LoadAndUntagToWord32ObjectField(
-      property_cell, PropertyCell::kPropertyDetailsRawOffset);
+      property_cell, offsetof(PropertyCell, property_details_raw_));
   GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), miss);
   CSA_DCHECK(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
@@ -4534,7 +4534,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
 
   BIND(&store);
   {
-    StoreObjectField(property_cell, PropertyCell::kValueOffset, value);
+    StoreObjectField(property_cell, offsetof(PropertyCell, value_), value);
     exit_point->Return(value);
   }
 

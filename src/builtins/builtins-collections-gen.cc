@@ -868,10 +868,10 @@ void CollectionsBuiltinsAssembler::BranchIfMapIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   TNode<PropertyCell> protector_cell = MapIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->map_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 void CollectionsBuiltinsAssembler::
@@ -927,10 +927,10 @@ void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   const TNode<PropertyCell> protector_cell = SetIteratorProtectorConstant();
   DCHECK(i::IsPropertyCell(isolate()->heap()->set_iterator_protector()));
-  Branch(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorValid)),
-      if_true, if_false);
+  Branch(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorValid)),
+         if_true, if_false);
 }
 
 void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(

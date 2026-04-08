@@ -1719,7 +1719,11 @@ void Cell::CellVerify(Isolate* isolate) {
 }
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
+  CHECK(IsPropertyCell(this));
+  Object::VerifyPointer(isolate, name_.load());
+  Object::VerifyPointer(isolate, property_details_raw_.load());
+  Object::VerifyPointer(isolate, value_.load());
+  Object::VerifyPointer(isolate, dependent_code_.load());
   CHECK(IsUniqueName(name()));
   CheckDataIsCompatible(property_details(), value());
 }
@@ -2980,6 +2984,20 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
   CHECK(IsSmi(Tagged<Object>(end_.load())));
 }
 
+void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsBreakPointInfo(this));
+  CHECK(IsSmi(Tagged<Object>(source_position_.load())));
+  Object::VerifyPointer(isolate, break_points_.load());
+}
+
+void BreakPoint::BreakPointVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsBreakPoint(this));
+  CHECK(IsSmi(Tagged<Object>(id_.load())));
+  Object::VerifyPointer(isolate, condition_.load());
+}
+
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   StructVerify(isolate);
   CHECK(IsDataHandler(this));
@@ -3146,15 +3164,26 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
 }
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsStackFrameInfo(this));
+  Object::VerifyPointer(isolate, shared_or_script_.load());
+  Object::VerifyPointer(isolate, function_name_.load());
+  CHECK(IsSmi(Tagged<Object>(flags_.load())));
 }
 
 void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StackTraceInfoVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsStackTraceInfo(this));
+  CHECK(IsSmi(Tagged<Object>(id_.load())));
+  Object::VerifyPointer(isolate, frames_.load());
 }
 
 void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
+  StructVerify(isolate);
+  CHECK(IsErrorStackData(this));
+  Object::VerifyPointer(
+      isolate, raw_data_for_call_site_infos_or_formatted_stack_.load());
+  Object::VerifyPointer(isolate, stack_trace_.load());
 }
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {

@@ -20,6 +20,9 @@ namespace v8 {
 namespace internal {
 
 class BreakPoint;
+class BreakPointInfo;
+class StackFrameInfo;
+class StackTraceInfo;
 class BytecodeArray;
 class StructBodyDescriptor;
 
@@ -149,9 +152,18 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo
-    : public TorqueGeneratedBreakPointInfo<BreakPointInfo, Struct> {
+V8_OBJECT class BreakPointInfo : public StructLayout {
  public:
+  // Accessors
+  inline int source_position() const;
+  inline void set_source_position(int value);
+
+  inline Tagged<UnionOf<FixedArray, BreakPoint, Undefined>> break_points()
+      const;
+  inline void set_break_points(
+      Tagged<UnionOf<FixedArray, BreakPoint, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Removes a break point.
   static void ClearBreakPoint(Isolate* isolate,
                               DirectHandle<BreakPointInfo> info,
@@ -172,8 +184,12 @@ class BreakPointInfo
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(BreakPointInfo)
-};
+  DECL_PRINTER(BreakPointInfo)
+  DECL_VERIFIER(BreakPointInfo)
+
+  TaggedMember<Smi> source_position_;
+  TaggedMember<UnionOf<FixedArray, BreakPoint, Undefined>> break_points_;
+} V8_OBJECT_END;
 
 // Holds information related to block code coverage.
 class CoverageInfo
@@ -200,15 +216,26 @@ class CoverageInfo
 };
 
 // Holds breakpoint related information. This object is used by inspector.
-class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
+V8_OBJECT class BreakPoint : public StructLayout {
  public:
+  // Accessors
+  inline int id() const;
+  inline void set_id(int value);
+
+  inline Tagged<String> condition() const;
+  inline void set_condition(Tagged<String> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(BreakPoint)
-};
+  DECL_PRINTER(BreakPoint)
+  DECL_VERIFIER(BreakPoint)
 
-class StackFrameInfo
-    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+  TaggedMember<Smi> id_;
+  TaggedMember<String> condition_;
+} V8_OBJECT_END;
+
+V8_OBJECT class StackFrameInfo : public StructLayout {
  public:
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
@@ -216,53 +243,93 @@ class StackFrameInfo
   inline Tagged<Script> script() const;
 
   // The bytecode offset or source position for the stack frame.
-  DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
+  inline int bytecode_offset_or_source_position() const;
+  inline void set_bytecode_offset_or_source_position(int value);
 
   // Indicates that the frame corresponds to a 'new' invocation.
-  DECL_BOOLEAN_ACCESSORS(is_constructor)
+  inline bool is_constructor() const;
+  inline void set_is_constructor(bool value);
 
-  // Dispatched behavior.
-  DECL_VERIFIER(StackFrameInfo)
+  inline Tagged<UnionOf<SharedFunctionInfo, Script>> shared_or_script() const;
+  inline void set_shared_or_script(
+      Tagged<UnionOf<SharedFunctionInfo, Script>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> function_name() const;
+  inline void set_function_name(Tagged<String> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
 
   using BodyDescriptor = StructBodyDescriptor;
 
- private:
-  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
-};
+  DECL_VERIFIER(StackFrameInfo)
+  DECL_PRINTER(StackFrameInfo)
 
-class StackTraceInfo
-    : public TorqueGeneratedStackTraceInfo<StackTraceInfo, Struct> {
+  TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
+  TaggedMember<String> function_name_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+V8_OBJECT class StackTraceInfo : public StructLayout {
  public:
+  // Accessors
+  inline int id() const;
+  inline void set_id(int value);
+
+  inline Tagged<FixedArray> frames() const;
+  inline void set_frames(Tagged<FixedArray> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Access to the stack frames.
   int length() const;
   Tagged<StackFrameInfo> get(int index) const;
 
   // Dispatched behavior.
   DECL_VERIFIER(StackTraceInfo)
+  DECL_PRINTER(StackTraceInfo)
 
   using BodyDescriptor = StructBodyDescriptor;
 
- private:
-  TQ_OBJECT_CONSTRUCTORS(StackTraceInfo)
-};
+  TaggedMember<Smi> id_;
+  TaggedMember<FixedArray> frames_;
+} V8_OBJECT_END;
 
-class ErrorStackData
-    : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
+V8_OBJECT class ErrorStackData : public StructLayout {
  public:
   inline bool HasFormattedStack() const;
-  DECL_ACCESSORS(formatted_stack, Tagged<Object>)
+  inline Tagged<JSAny> formatted_stack() const;
+  inline void set_formatted_stack(Tagged<JSAny> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   inline bool HasRawDataForCallSiteInfos() const;
-  DECL_GETTER(raw_data_for_call_site_infos, Tagged<FixedArray>)
+  inline Tagged<FixedArray> raw_data_for_call_site_infos() const;
+  inline void set_raw_data_for_call_site_infos(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<FixedArray, JSAny>>
+  raw_data_for_call_site_infos_or_formatted_stack() const;
+  inline void set_raw_data_for_call_site_infos_or_formatted_stack(
+      Tagged<UnionOf<FixedArray, JSAny>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<StackTraceInfo> stack_trace() const;
+  inline void set_stack_trace(Tagged<StackTraceInfo> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(ErrorStackData)
+  DECL_PRINTER(ErrorStackData)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
-};
+  TaggedMember<UnionOf<FixedArray, JSAny>>
+      raw_data_for_call_site_infos_or_formatted_stack_;
+  TaggedMember<StackTraceInfo> stack_trace_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

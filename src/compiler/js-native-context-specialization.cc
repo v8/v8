@@ -983,9 +983,10 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
     kind = kPointerWriteBarrier;
   }
   MachineType r = MachineType::TypeForRepresentation(representation);
-  FieldAccess access = {
-      kTaggedBase, PropertyCell::kValueOffset, name.object(), map, type, r,
-      kind, "PropertyCellValue"};
+  FieldAccess access = {kTaggedBase,   offsetof(PropertyCell, value_),
+                        name.object(), map,
+                        type,          r,
+                        kind,          "PropertyCellValue"};
   return access;
 }
 

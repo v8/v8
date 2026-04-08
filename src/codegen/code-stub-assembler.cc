@@ -7979,70 +7979,80 @@ TNode<BoolT> CodeStubAssembler::IsUndetectableMap(TNode<Map> map) {
 TNode<BoolT> CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = NoElementsProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMegaDOMProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = MegaDOMProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArrayIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseResolveProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseResolveProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseThenProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArraySpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArraySpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsIsConcatSpreadableProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = IsConcatSpreadableProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = TypedArraySpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = RegExpSpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseSpeciesProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -8051,21 +8061,24 @@ TNode<BoolT>
 CodeStubAssembler::IsNumberStringNotRegexpLikeProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = NumberStringNotRegexpLikeProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSetIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = SetIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMapIteratorProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = MapIteratorProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -8073,7 +8086,8 @@ TNode<BoolT>
 CodeStubAssembler::IsStringWrapperToPrimitiveProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = StringWrapperToPrimitiveProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Object> cell_value =
+      LoadObjectField(cell, offsetof(PropertyCell, value_));
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -11021,7 +11035,7 @@ template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<GlobalDictionary>(
     TNode<HeapObject> key) {
   TNode<PropertyCell> property_cell = CAST(key);
-  return CAST(LoadObjectField(property_cell, PropertyCell::kNameOffset));
+  return CAST(LoadObjectField(property_cell, offsetof(PropertyCell, name_)));
 }
 
 template <>
@@ -12346,13 +12360,13 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
       CAST(LoadFixedArrayElement(dictionary, name_index));
 
   TNode<Object> value =
-      LoadObjectField(property_cell, PropertyCell::kValueOffset);
+      LoadObjectField(property_cell, offsetof(PropertyCell, value_));
   GotoIf(TaggedEqual(value, PropertyCellHoleConstant()), if_deleted);
 
   *var_value = value;
 
   TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
-      property_cell, PropertyCell::kPropertyDetailsRawOffset));
+      property_cell, offsetof(PropertyCell, property_details_raw_)));
   *var_details = details;
 
   Comment("] LoadPropertyFromGlobalDictionary");

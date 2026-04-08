@@ -287,7 +287,7 @@ class V8_NODISCARD PrepareStackTraceScope {
 }  // namespace
 
 // static
-MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
+MaybeDirectHandle<JSAny> ErrorUtils::FormatStackTrace(
     Isolate* isolate, DirectHandle<JSObject> error,
     DirectHandle<Object> raw_stack) {
   if (v8_flags.correctness_fuzzer_suppressions) {
@@ -313,7 +313,7 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result,
           isolate->RunPrepareStackTraceCallback(error_context, error, sites));
-      return result;
+      return Cast<JSAny>(result);
     } else {
       DirectHandle<JSFunction> global_error(error_context->error_function(),
                                             isolate);
@@ -353,7 +353,7 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
             isolate, result,
             Execution::Call(isolate, prepare_stack_trace, global_error,
                             base::VectorOf(args)));
-        return result;
+        return Cast<JSAny>(result);
       }
     }
   }
@@ -1175,7 +1175,7 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
         FormatStackTrace(isolate, error_object, expanded));
-    error_stack_data->set_formatted_stack(*formatted_stack);
+    error_stack_data->set_formatted_stack(Cast<JSAny>(*formatted_stack));
     return formatted_stack;
   }
 
@@ -1202,7 +1202,7 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
 // static
 void ErrorUtils::SetFormattedStack(Isolate* isolate,
                                    DirectHandle<JSObject> maybe_error_object,
-                                   DirectHandle<Object> formatted_stack) {
+                                   DirectHandle<JSAny> formatted_stack) {
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(isolate, maybe_error_object);
 
