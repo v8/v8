@@ -2796,7 +2796,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
   uint32_t code_point = NumberToUint32(args[0]);
   int shared = args.smi_value_at(1);
 
-  if (code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+  // `LookupSingleCharacterStringFromCode` might return an internalized string
+  // if `code_point` is not one-byte, which is not shared.
+  if ((!shared && code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) ||
+      (shared && code_point <= String::kMaxOneByteCharCode)) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code_point);
   }
   if (code_point > 0x10FFFF) {
@@ -2804,6 +2807,14 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
     // args[0] == -1, we want the error message to report 4294967295).
     return ThrowWasmError(isolate, MessageTemplate::kInvalidCodePoint,
                           {isolate->factory()->NewNumberFromUint(code_point)});
+  }
+
+  if (shared && code_point <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    DirectHandle<SeqTwoByteString> result =
+        isolate->factory()->NewRawSharedTwoByteString(1).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    CopyChars(result->GetChars(no_gc), &code_point, 1);
+    return *result;
   }
 
   base::uc16 char_buffer[] = {
