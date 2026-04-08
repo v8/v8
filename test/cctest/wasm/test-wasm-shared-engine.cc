@@ -59,7 +59,9 @@ class SharedEngineIsolate {
 
   DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     DirectHandle<WasmModuleObject> module_object =
-        GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
+        GetWasmEngine()
+            ->ImportNativeModule(isolate(), shared_module, {})
+            .ToHandleChecked();
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeDirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()->SyncInstantiate(isolate(), &thrower, module_object, {},
