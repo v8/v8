@@ -211,7 +211,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
   DirectHandle<WasmDispatchTable> dispatch_table =
       is_function_table ? isolate->factory()->NewWasmDispatchTable(
                               initial, canonical_type, SharedFlag::kNo)
-                        : DirectHandle<WasmDispatchTable>{};
+                        : isolate->factory()->empty_wasm_dispatch_table();
 
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
       isolate->factory()->undefined_value();
@@ -246,13 +246,8 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
   table_obj->set_padding_for_address_type_2(0);
 #endif
 
-  if (is_function_table) {
-    DCHECK_EQ(table_obj->current_length(), dispatch_table->length());
-    table_obj->set_trusted_dispatch_table(*dispatch_table);
-    if (out_dispatch_table) *out_dispatch_table = dispatch_table;
-  } else {
-    table_obj->clear_trusted_dispatch_table();
-  }
+  table_obj->set_trusted_dispatch_table(*dispatch_table);
+  if (out_dispatch_table) *out_dispatch_table = dispatch_table;
   return table_obj;
 }
 
@@ -285,9 +280,14 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
     table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
   }
 
-  if (table->has_trusted_dispatch_table()) {
-    DirectHandle<WasmDispatchTable> dispatch_table(
-        table->trusted_dispatch_table(isolate), isolate);
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      table->trusted_dispatch_table(isolate), isolate);
+  bool has_dispatch_table = !dispatch_table.is_identical_to(
+      isolate->factory()->empty_wasm_dispatch_table());
+  DCHECK_EQ(
+      table->unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction,
+      has_dispatch_table);
+  if (has_dispatch_table) {
     DCHECK_EQ(old_size, dispatch_table->length());
     DirectHandle<WasmDispatchTable> new_dispatch_table =
         WasmDispatchTable::Grow(isolate, dispatch_table, new_size);
@@ -2645,6 +2645,10 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   // purposes we also want to ensure tables can never shrink below their
   // static minimum size.
   SBXCHECK_LT(old_length, new_length);
+  // We should never try to grow the empty dispatch table; it has a too generic
+  // type.
+  SBXCHECK(!old_table.is_identical_to(
+      isolate->factory()->empty_wasm_dispatch_table()));
 
   uint32_t old_capacity = old_table->capacity();
   // Catch possible corruption. {new_length} is computed from untrusted data.

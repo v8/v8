@@ -226,7 +226,7 @@ extern class WasmTableObject extends JSObject {
   // of this table. Used for spec-level type checks and debugging.
   // For sandbox-related checks, use WasmDispatchTable::table_type instead!
   raw_type: Smi;
-  // This field is not set if the table is not a function table.
+  // This is the empty wasm dispatch table if the table is not a function table.
   trusted_dispatch_table: TrustedPointer<WasmDispatchTable>;
   // The instance in which this WasmTableObject is defined.
   // This field is not set if the table is defined outside any Wasm module,

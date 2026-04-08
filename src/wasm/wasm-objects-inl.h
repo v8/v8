@@ -281,10 +281,10 @@ const wasm::WasmModule* WasmTrustedInstanceData::module() const {
   return native_module()->module();
 }
 
-Tagged<Union<Smi, WasmDispatchTable>> WasmTrustedInstanceData::dispatch_table(
+Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
     uint32_t i) const {
   if (i == 0) return dispatch_table0();
-  return TrustedCast<Union<Smi, WasmDispatchTable>>(dispatch_tables()->get(i));
+  return TrustedCast<WasmDispatchTable>(dispatch_tables()->get(i));
 }
 
 // WasmInstanceObject

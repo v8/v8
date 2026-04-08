@@ -1309,13 +1309,11 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
           table.address_type, &dispatch_table);
       (table.shared == SharedFlag::kYes ? shared_tables : tables)
           ->set(i, *table_obj);
-      if (!dispatch_table.is_null()) {
-        (table.shared == SharedFlag::kYes ? shared_dispatch_tables
-                                          : dispatch_tables)
-            ->set(i, *dispatch_table);
-        if (i == 0) {
-          trusted_data(table.shared)->set_dispatch_table0(*dispatch_table);
-        }
+      (table.shared == SharedFlag::kYes ? shared_dispatch_tables
+                                        : dispatch_tables)
+          ->set(i, *dispatch_table);
+      if (i == 0) {
+        trusted_data(table.shared)->set_dispatch_table0(*dispatch_table);
       }
     }
   }
@@ -2094,19 +2092,18 @@ bool InstanceBuilder::ProcessImportedTable(int import_index, int table_index,
   // Note: {trusted_instance_data} is selected by the caller to be the
   // shared or non-shared part, depending on {table.shared}.
   trusted_instance_data->tables()->set(table_index, *table_object);
-  if (table_object->has_trusted_dispatch_table()) {
-    Tagged<WasmDispatchTable> dispatch_table =
-        table_object->trusted_dispatch_table(isolate_);
+  Tagged<WasmDispatchTable> dispatch_table =
+      table_object->trusted_dispatch_table(isolate_);
+  if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
+    SBXCHECK(dispatch_table !=
+             *isolate_->factory()->empty_wasm_dispatch_table());
     SBXCHECK_EQ(dispatch_table->table_type(),
                 module_->canonical_type(table.type));
     SBXCHECK_GE(dispatch_table->length(), table.initial_size);
-    trusted_instance_data->dispatch_tables()->set(table_index, dispatch_table);
-    if (table_index == 0) {
-      trusted_instance_data->set_dispatch_table0(dispatch_table);
-    }
-  } else {
-    // Function tables are required to have a WasmDispatchTable.
-    SBXCHECK(!IsSubtypeOf(table.type, kWasmFuncRef, module_));
+  }
+  trusted_instance_data->dispatch_tables()->set(table_index, dispatch_table);
+  if (table_index == 0) {
+    trusted_instance_data->set_dispatch_table0(dispatch_table);
   }
   return true;
 }

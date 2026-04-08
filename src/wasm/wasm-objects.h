@@ -486,7 +486,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   DECL_PROTECTED_POINTER_ACCESSORS(shared_part, WasmTrustedInstanceData)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table0, WasmDispatchTable)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray)
-  inline Tagged<Union<Smi, WasmDispatchTable>> dispatch_table(uint32_t i) const;
+  inline Tagged<WasmDispatchTable> dispatch_table(uint32_t i) const;
   DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
   DECL_ACCESSORS(func_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
