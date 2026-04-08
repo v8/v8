@@ -101,7 +101,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '95080735a9f5b8c39891f58aca3922e84b6f7de8',
+  'partition_alloc_version': '8013b1e0ce431d1587f41b46ed7cdaa3c024575a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -131,9 +131,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ab3776260e07922b0330a62e5ca16918e6bb545e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4220903157b55f49a9c9336f8f22eaf22d04e14b',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '22e55595e15ebbbbb4bef118d5a654b185b0b30d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '11cc2bd83053cb790b7516aa3eb3f3935fb05a0e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '86e72435d847c7cda3f07b0d8da7b4813d2fca91',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '58c5376e7b82be75c50a0eeb7cdd321d36fe5d44',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -486,7 +486,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '49b1e2d6106e9af282510f35eeb810dc1e5e87a9',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'e4caa8a3d0a1ff237d41aaeac8919e5aaaed7a32',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '04bb12d7ca5e16c58b55012acb32f07c89dd4e2b',
   'third_party/re2/src':
@@ -500,7 +500,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '507a795e2da12457079a0acc27d595cb408238f6',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'a07d8aef71ffaed47773d41b27015f7fb0e67dd1',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
