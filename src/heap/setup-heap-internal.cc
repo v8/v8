@@ -1734,6 +1734,10 @@ void Heap::CreateInitialMutableObjects() {
     set_empty_protected_fixed_array(*ProtectedFixedArray::New(isolate_, 0));
     set_empty_protected_weak_fixed_array(
         *ProtectedWeakFixedArray::New(isolate_, 0));
+#ifdef V8_ENABLE_WEBASSEMBLY
+    set_empty_wasm_dispatch_table(*isolate_->factory()->NewWasmDispatchTable(
+        0, wasm::kWasmFuncRef, SharedFlag::kNo));
+#endif
   }
 }
 

@@ -2725,8 +2725,10 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     new_table->WriteField<uint32_t>(offset + kSigBias, old_table->sig(i).index);
   }
 
-  new_table->offheap_data()->wrappers_ =
-      std::move(old_table->offheap_data()->wrappers_);
+  if (old_table->has_protected_offheap_data()) {
+    new_table->offheap_data()->wrappers_ =
+        std::move(old_table->offheap_data()->wrappers_);
+  }
 
   // Update users.
   Tagged<ProtectedWeakFixedArray> uses = old_table->protected_uses();

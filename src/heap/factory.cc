@@ -1851,12 +1851,14 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
     int length, wasm::CanonicalValueType table_type, SharedFlag shared) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
 
-  // TODO(jkummerow): Any chance to get a better estimate?
-  size_t estimated_offheap_size = 0;
-  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
-      TrustedManaged<WasmDispatchTableData>::From(
-          isolate(), estimated_offheap_size,
-          std::make_shared<WasmDispatchTableData>(), shared);
+  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data;
+  if (length > 0) {
+    // TODO(jkummerow): Any chance to get a better estimate?
+    size_t estimated_offheap_size = 0;
+    offheap_data = TrustedManaged<WasmDispatchTableData>::From(
+        isolate(), estimated_offheap_size,
+        std::make_shared<WasmDispatchTableData>(), shared);
+  }
 
   int bytes = WasmDispatchTable::SizeFor(length);
   Tagged<WasmDispatchTable> result =
@@ -1869,7 +1871,11 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   result->InitAndPublish(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
-  result->set_protected_offheap_data(*offheap_data);
+  if (length > 0) {
+    result->set_protected_offheap_data(*offheap_data);
+  } else {
+    result->clear_protected_offheap_data();
+  }
   result->set_protected_uses(*empty_protected_weak_fixed_array());
   result->set_table_type(table_type);
   for (int i = 0; i < length; ++i) {
