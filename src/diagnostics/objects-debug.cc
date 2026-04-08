@@ -2984,6 +2984,18 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
   CHECK(IsSmi(Tagged<Object>(end_.load())));
 }
 
+void DebugInfo::DebugInfoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsDebugInfo(this));
+  Object::VerifyPointer(isolate, shared());
+  Object::VerifyPointer(isolate, break_points());
+  Object::VerifyPointer(isolate, coverage_info());
+  CHECK_IMPLIES(has_original_bytecode_array(),
+                IsBytecodeArray(original_bytecode_array(isolate)));
+  CHECK_IMPLIES(has_debug_bytecode_array(),
+                IsBytecodeArray(debug_bytecode_array(isolate)));
+}
+
 void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {
   StructVerify(isolate);
   CHECK(IsBreakPointInfo(this));

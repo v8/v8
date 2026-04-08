@@ -11,6 +11,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
+#include "src/objects/trusted-pointer.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -19,6 +20,7 @@
 namespace v8 {
 namespace internal {
 
+class DebugInfo;
 class BreakPoint;
 class BreakPointInfo;
 class StackFrameInfo;
@@ -30,7 +32,7 @@ class StructBodyDescriptor;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
+V8_OBJECT class DebugInfo : public StructLayout {
  public:
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
 
@@ -104,13 +106,16 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // ---------------------------
 
   // Indicates that the function should be skipped during stepping.
-  DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
+  inline bool debug_is_blackboxed() const;
+  inline void set_debug_is_blackboxed(bool value);
 
   // Indicates that |debug_is_blackboxed| has been computed and set.
-  DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
+  inline bool computed_debug_is_blackboxed() const;
+  inline void set_computed_debug_is_blackboxed(bool value);
 
   // Indicates the side effect state.
-  DECL_INT_ACCESSORS(side_effect_state)
+  inline int side_effect_state() const;
+  inline void set_side_effect_state(int value);
 
   enum SideEffectState {
     kNotComputed = 0,
@@ -123,7 +128,8 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   // Id assigned to the function for debugging.
   // This could also be implemented as a weak hash table.
-  DECL_INT_ACCESSORS(debugging_id)
+  inline int debugging_id() const;
+  inline void set_debugging_id(int value);
 
   // Bit positions in |debugger_hints|.
   DEFINE_TORQUE_GENERATED_DEBUGGER_HINTS()
@@ -140,14 +146,44 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
+  DECL_PRINTER(DebugInfo)
+  DECL_VERIFIER(DebugInfo)
+
   class BodyDescriptor;
+
+  inline Tagged<SharedFunctionInfo> shared() const;
+  inline void set_shared(Tagged<SharedFunctionInfo> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int debugger_hints() const;
+  inline void set_debugger_hints(int value);
+
+  inline Tagged<FixedArray> break_points() const;
+  inline void set_break_points(Tagged<FixedArray> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Flags flags(RelaxedLoadTag) const;
+  inline void set_flags(Flags value, RelaxedStoreTag);
+
+  inline Tagged<UnionOf<CoverageInfo, Undefined>> coverage_info() const;
+  inline void set_coverage_info(Tagged<UnionOf<CoverageInfo, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  private:
   // Get the break point info object for a source position.
   Tagged<Object> GetBreakPointInfo(Isolate* isolate, int source_position);
 
-  TQ_OBJECT_CONSTRUCTORS(DebugInfo)
-};
+ public:
+  TaggedMember<SharedFunctionInfo> shared_;
+  TaggedMember<Smi> debugger_hints_;
+  TaggedMember<FixedArray> break_points_;
+  TaggedMember<Smi> flags_;
+  TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+      original_bytecode_array_;
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+      debug_bytecode_array_;
+} V8_OBJECT_END;
 
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code

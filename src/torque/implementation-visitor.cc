@@ -4319,8 +4319,8 @@ void CppClassGenerator::GenerateClass() {
               !type_->IsSubtypeOf(TypeOracle::GetJSObjectType()))) {
     cpp::Function f(&c, "SizeFor");
     f.SetReturnType("int32_t");
-    f.SetFlags(cpp::Function::kStatic | cpp::Function::kConstexpr |
-               cpp::Function::kV8Inline);
+    f.SetFlags({cpp::Function::kStatic, cpp::Function::kConstexpr,
+                cpp::Function::kV8Inline});
     for (const Field& field : *index_fields) {
       f.AddParameter("int", field.name_and_type.name);
     }

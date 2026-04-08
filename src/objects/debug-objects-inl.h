@@ -52,6 +52,88 @@ void BreakPoint::set_condition(Tagged<String> value, WriteBarrierMode mode) {
   condition_.store(this, value, mode);
 }
 
+Tagged<SharedFunctionInfo> DebugInfo::shared() const { return shared_.load(); }
+void DebugInfo::set_shared(Tagged<SharedFunctionInfo> value,
+                           WriteBarrierMode mode) {
+  shared_.store(this, value, mode);
+}
+
+int DebugInfo::debugger_hints() const { return debugger_hints_.load().value(); }
+void DebugInfo::set_debugger_hints(int value) {
+  debugger_hints_.store(this, Smi::FromInt(value));
+}
+
+Tagged<FixedArray> DebugInfo::break_points() const {
+  return break_points_.load();
+}
+void DebugInfo::set_break_points(Tagged<FixedArray> value,
+                                 WriteBarrierMode mode) {
+  break_points_.store(this, value, mode);
+}
+
+DebugInfo::Flags DebugInfo::flags(RelaxedLoadTag) const {
+  return Flags(flags_.Relaxed_Load().value());
+}
+void DebugInfo::set_flags(Flags value, RelaxedStoreTag) {
+  flags_.Relaxed_Store(this, Smi::From31BitPattern(value));
+}
+
+Tagged<UnionOf<CoverageInfo, Undefined>> DebugInfo::coverage_info() const {
+  return coverage_info_.load();
+}
+void DebugInfo::set_coverage_info(
+    Tagged<UnionOf<CoverageInfo, Undefined>> value, WriteBarrierMode mode) {
+  coverage_info_.store(this, value, mode);
+}
+
+Tagged<BytecodeArray> DebugInfo::original_bytecode_array(
+    IsolateForSandbox isolate) const {
+  return original_bytecode_array_.load(isolate);
+}
+Tagged<BytecodeArray> DebugInfo::original_bytecode_array(
+    IsolateForSandbox isolate, AcquireLoadTag tag) const {
+  return original_bytecode_array_.Acquire_Load(isolate);
+}
+void DebugInfo::set_original_bytecode_array(Tagged<BytecodeArray> value,
+                                            WriteBarrierMode mode) {
+  original_bytecode_array_.store(this, value, mode);
+}
+void DebugInfo::set_original_bytecode_array(Tagged<BytecodeArray> value,
+                                            ReleaseStoreTag tag,
+                                            WriteBarrierMode mode) {
+  original_bytecode_array_.Release_Store(this, value, mode);
+}
+bool DebugInfo::has_original_bytecode_array() const {
+  return !original_bytecode_array_.is_empty();
+}
+void DebugInfo::clear_original_bytecode_array() {
+  original_bytecode_array_.clear(this);
+}
+
+Tagged<BytecodeArray> DebugInfo::debug_bytecode_array(
+    IsolateForSandbox isolate) const {
+  return debug_bytecode_array_.load(isolate);
+}
+Tagged<BytecodeArray> DebugInfo::debug_bytecode_array(
+    IsolateForSandbox isolate, AcquireLoadTag tag) const {
+  return debug_bytecode_array_.Acquire_Load(isolate);
+}
+void DebugInfo::set_debug_bytecode_array(Tagged<BytecodeArray> value,
+                                         WriteBarrierMode mode) {
+  debug_bytecode_array_.store(this, value, mode);
+}
+void DebugInfo::set_debug_bytecode_array(Tagged<BytecodeArray> value,
+                                         ReleaseStoreTag tag,
+                                         WriteBarrierMode mode) {
+  debug_bytecode_array_.Release_Store(this, value, mode);
+}
+bool DebugInfo::has_debug_bytecode_array() const {
+  return !debug_bytecode_array_.is_empty();
+}
+void DebugInfo::clear_debug_bytecode_array() {
+  debug_bytecode_array_.clear(this);
+}
+
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
                     DebugInfo::SideEffectStateBits)
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debug_is_blackboxed,
@@ -76,13 +158,6 @@ Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
   return result;
 }
-
-TRUSTED_POINTER_ACCESSORS(DebugInfo, debug_bytecode_array, BytecodeArray,
-                          kDebugBytecodeArrayOffset,
-                          kBytecodeArrayIndirectPointerTag)
-TRUSTED_POINTER_ACCESSORS(DebugInfo, original_bytecode_array, BytecodeArray,
-                          kOriginalBytecodeArrayOffset,
-                          kBytecodeArrayIndirectPointerTag)
 
 Tagged<UnionOf<SharedFunctionInfo, Script>> StackFrameInfo::shared_or_script()
     const {

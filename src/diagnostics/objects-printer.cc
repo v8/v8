@@ -3440,6 +3440,24 @@ void ClassPositions::ClassPositionsPrint(std::ostream& os) {
   os << "\n";
 }
 
+void DebugInfo::DebugInfoPrint(std::ostream& os) {
+  PrintHeader(os, "DebugInfo");
+  os << "\n - shared: " << Brief(shared());
+  os << "\n - debugger_hints: " << debugger_hints();
+  os << "\n - break_points: " << Brief(break_points());
+  os << "\n - flags: " << flags(kRelaxedLoad);
+  os << "\n - coverage_info: " << Brief(coverage_info());
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  if (has_original_bytecode_array()) {
+    os << "\n - original_bytecode_array: "
+       << Brief(original_bytecode_array(isolate));
+  }
+  if (has_debug_bytecode_array()) {
+    os << "\n - debug_bytecode_array: " << Brief(debug_bytecode_array(isolate));
+  }
+  os << "\n";
+}
+
 void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {
   this->PrintHeader(os, "BreakPointInfo");
   os << "\n - source_position: " << this->source_position();
