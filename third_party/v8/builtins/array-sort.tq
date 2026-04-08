@@ -14,6 +14,8 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 namespace array {
+const kMinTimSortLen: constexpr int31 = 10;
+
 class SortState extends HeapObject {
   transitioning macro Compare(implicit context: Context)(x: JSAny,
                               y: JSAny): Number {
@@ -169,7 +171,9 @@ transitioning macro NewSortState(
     isResetToGeneric: False,
     minGallop: kMinGallopWins,
     pendingRunsSize: 0,
-    pendingRuns: AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
+    // This temporary array is not used for the BinaryInsertionSort used on
+    // small arrays
+    pendingRuns: kEmptyFixedArray,
     workArray: AllocateZeroedFixedArray(workArrayLength),
     tempArray: kEmptyFixedArray,
     sortLength: 0,
@@ -1240,6 +1244,9 @@ transitioning macro ArrayTimSortImpl(
   if (length < 2) return;
   let remaining: Smi = length;
 
+  sortState.pendingRuns =
+      AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
+
   // March over the array once, left to right, finding natural runs,
   // and extending short natural runs to minrun elements.
   let low: Smi = 0;
@@ -1278,27 +1285,6 @@ transitioning macro CompactReceiverElementsIntoWorkArray(
     length: 0
   };
 
-  let loadFn: builtin(Context, SortState, Smi) => (JSAny | TheHole);
-  try {
-    if (sortState.isResetToGeneric == True) goto Slow;
-    Cast<FastJSArray>(sortState.receiver) otherwise Slow;
-
-    const elementsKind: ElementsKind = sortState.receiver.map.elements_kind;
-    if (IsDoubleElementsKind(elementsKind)) {
-      loadFn = Load<FastDoubleElements>;
-    } else if (IsFastSmiElementsKind(elementsKind)) {
-      loadFn = Load<FastSmiElements>;
-    } else {
-      loadFn = Load<FastObjectElements>;
-    }
-  } label Slow {
-    if constexpr (isToSorted) {
-      loadFn = LoadNoHasPropertyCheck<GenericElementsAccessor>;
-    } else {
-      loadFn = Load<GenericElementsAccessor>;
-    }
-  }
-
   // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
   //               https://crbug.com/v8/7970.
   const receiverLength: Number = sortState.initialReceiverLength;
@@ -1311,30 +1297,78 @@ transitioning macro CompactReceiverElementsIntoWorkArray(
   // Move all non-undefined elements into {sortState.workArray}, holes
   // are ignored.
   let numberOfUndefined: Smi = 0;
-  for (let i: Smi = 0; i < receiverLength; ++i) {
-    const element: JSAny|TheHole = loadFn(context, sortState, i);
 
-    if (element == TheHole) {
-      if constexpr (isToSorted) {
-        // Array.prototype.toSorted does not have the HasProperty check that
-        // Array.prototype.sort has and unconditionally performs a GetProperty
-        // for each element.
-        //
-        // Only fast JSArray accessors return TheHole, and fast JSArrays are
-        // protected by the NoElements protector which ensures that objects on
-        // the prototype chain do not have indexed properties. So if a fast
-        // JSArray accessor returns TheHole, we know the prototype walk will
-        // return Undefined.
+  if ((sortState.isResetToGeneric == False) &&
+      Is<FastJSArray>(sortState.receiver)) {
+    const fastArray = UnsafeCast<FastJSArray>(sortState.receiver);
+    const elementsKind: ElementsKind = fastArray.map.elements_kind;
+    if (!IsDoubleElementsKind(elementsKind)) {
+      // Fast path for Smi and Object elements
+      const elements = UnsafeCast<FixedArray>(fastArray.elements);
+      for (let i: Smi = 0; i < receiverLength; ++i) {
+        const element: Object = elements.objects[i];
 
+        if (element == TheHole) {
+          if constexpr (isToSorted) {
+            // Array.prototype.toSorted does not have the HasProperty check
+            // that Array.prototype.sort has and unconditionally performs a
+            // GetProperty for each element.
+            //
+            // Only fast JSArray accessors return TheHole, and fast JSArrays
+            // are protected by the NoElements protector which ensures that
+            // objects on the prototype chain do not have indexed properties.
+            // So if a fast JSArray accessor returns TheHole, we know the
+            // prototype walk will return Undefined.
+            numberOfUndefined++;
+          } else {
+            // Do nothing for holes for Array.prototype.sort. The result
+            // is that elements are compacted at the front of the work array.
+          }
+        } else if (element == Undefined) {
+          numberOfUndefined++;
+        } else {
+          growableWorkArray.Push(UnsafeCast<JSAny>(element));
+        }
+      }
+    } else {
+      // Fast path for Double elements
+      const elements = UnsafeCast<FixedDoubleArray>(fastArray.elements);
+
+      for (let i: Smi = 0; i < receiverLength; ++i) {
+        try {
+          const value = elements.values[i].Value() otherwise IfUndefined,
+                IfHole;
+          const element = AllocateHeapNumberWithValue(value);
+          growableWorkArray.Push(element);
+        } label IfUndefined {
+          numberOfUndefined++;
+        } label IfHole {
+          if constexpr (isToSorted) {
+            numberOfUndefined++;
+          }
+        }
+      }
+    }
+  } else {
+    let loadFn: builtin(Context, SortState, Smi) => (JSAny | TheHole);
+    if constexpr (isToSorted) {
+      loadFn = LoadNoHasPropertyCheck<GenericElementsAccessor>;
+    } else {
+      loadFn = Load<GenericElementsAccessor>;
+    }
+
+    for (let i: Smi = 0; i < receiverLength; ++i) {
+      const element: JSAny|TheHole = loadFn(context, sortState, i);
+
+      if (element == TheHole) {
+        if constexpr (isToSorted) {
+          numberOfUndefined++;
+        }
+      } else if (element == Undefined) {
         numberOfUndefined++;
       } else {
-        // Do nothing for holes for Array.prototype.sort. The result
-        // is that elements are compacted at the front of the work array.
+        growableWorkArray.Push(element);
       }
-    } else if (element == Undefined) {
-      numberOfUndefined++;
-    } else {
-      growableWorkArray.Push(element);
     }
   }
 
@@ -1421,7 +1455,7 @@ transitioning builtin ArrayTimSort(context: Context, sortState: SortState):
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
 
-  if (numberOfNonUndefined < 8) {
+  if (numberOfNonUndefined < kMinTimSortLen) {
     // Faster for small arrays.
     BinaryInsertionSort(0, 0, numberOfNonUndefined);
   } else {

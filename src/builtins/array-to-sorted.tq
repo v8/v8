@@ -56,8 +56,11 @@ transitioning builtin ArrayTimSortIntoCopy(
   const isToSorted: constexpr bool = true;
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
-  ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
-
+  if (numberOfNonUndefined < kMinTimSortLen) {
+    BinaryInsertionSort(0, 0, numberOfNonUndefined);
+  } else {
+    ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
+  }
   if (sortState.sortLength <= kMaxFastArrayLength) {
     // The result copy of Array.prototype.toSorted is always packed.
     try {
