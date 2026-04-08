@@ -4,6 +4,10 @@
 
 #include "src/debug/debug-interface.h"
 
+#include <stdint.h>
+
+#include <vector>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
@@ -448,13 +452,15 @@ size_t ScriptSource::Length() const {
 }
 
 size_t ScriptSource::Size() const {
+  auto source = Utils::OpenDirectHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
-  MemorySpan<const uint8_t> wasm_bytecode;
-  if (WasmBytecode().To(&wasm_bytecode)) {
-    return wasm_bytecode.size();
+  if (IsForeign(*source)) {
+    return i::Cast<i::Managed<i::wasm::NativeModule>>(*source)
+        ->ptr()
+        ->wire_bytes()
+        .size();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  auto source = Utils::OpenDirectHandle(this);
   if (!IsString(*source)) return 0;
   auto string = i::Cast<i::String>(source);
   return string->length() * (string->IsTwoByteRepresentation() ? 2 : 1);
@@ -467,12 +473,14 @@ MaybeLocal<String> ScriptSource::JavaScriptCode() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-Maybe<MemorySpan<const uint8_t>> ScriptSource::WasmBytecode() const {
+Maybe<std::vector<uint8_t>> ScriptSource::GetWasmBytecode(
+    size_t max_size) const {
   auto source = Utils::OpenDirectHandle(this);
   if (!IsForeign(*source)) return {};
-  base::Vector<const uint8_t> wire_bytes =
-      i::Cast<i::Managed<i::wasm::NativeModule>>(*source)->raw()->wire_bytes();
-  return Just(MemorySpan<const uint8_t>{wire_bytes.begin(), wire_bytes.size()});
+  auto ptr = i::Cast<i::Managed<i::wasm::NativeModule>>(*source)->ptr();
+  base::Vector<const uint8_t> wire_bytes = ptr->wire_bytes();
+  if (wire_bytes.size() > max_size) return Just(std::vector<uint8_t>());
+  return Just(std::vector<uint8_t>(wire_bytes.begin(), wire_bytes.end()));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

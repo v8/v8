@@ -30,7 +30,10 @@
 #ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 #define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
+#include <stdint.h>
+
 #include <memory>
+#include <vector>
 
 #include "include/v8-local-handle.h"
 #include "include/v8-maybe.h"
@@ -104,7 +107,7 @@ class V8DebuggerScript {
   bool setInstrumentationBreakpoint(int* id) const;
 
 #if V8_ENABLE_WEBASSEMBLY
-  v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const;
+  v8::Maybe<std::vector<uint8_t>> getWasmBytecode(size_t max_size) const;
   std::vector<v8::debug::WasmScript::DebugSymbols> getDebugSymbols() const;
   void removeWasmBreakpoint(int id);
   void Disassemble(v8::debug::DisassemblyCollector* collector,

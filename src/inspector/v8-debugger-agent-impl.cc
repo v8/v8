@@ -4,8 +4,12 @@
 
 #include "src/inspector/v8-debugger-agent-impl.h"
 
+#include <stdint.h>
+
 #include <algorithm>
+#include <limits>
 #include <memory>
+#include <vector>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "include/cppgc/macros.h"
@@ -1264,14 +1268,15 @@ Response V8DebuggerAgentImpl::getScriptSource(
     }
     return Response::ServerError("No script for id: " + scriptId.utf8());
   }
-  *scriptSource = it->second->source(0);
+  V8DebuggerScript* script = it->second.get();
+  *scriptSource = script->source(0);
 #if V8_ENABLE_WEBASSEMBLY
-  v8::MemorySpan<const uint8_t> span;
-  if (it->second->wasmBytecode().To(&span)) {
-    if (span.size() > kWasmBytecodeMaxLength) {
+  std::vector<uint8_t> bytecode_bytes;
+  if (script->getWasmBytecode(kWasmBytecodeMaxLength).MoveTo(&bytecode_bytes)) {
+    if (bytecode_bytes.empty()) {
       return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
     }
-    *bytecode = protocol::Binary::fromSpan(span);
+    *bytecode = protocol::Binary::fromBytes(std::move(bytecode_bytes));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return Response::Success();
@@ -1433,14 +1438,16 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   ScriptsMap::iterator it = m_scripts.find(scriptId);
   if (it == m_scripts.end())
     return Response::ServerError("No script for id: " + scriptId.utf8());
-  v8::MemorySpan<const uint8_t> span;
-  if (!it->second->wasmBytecode().To(&span))
+  V8DebuggerScript* script = it->second.get();
+  std::vector<uint8_t> bytes;
+  if (!script->getWasmBytecode(kWasmBytecodeMaxLength).MoveTo(&bytes)) {
     return Response::ServerError("Script with id " + scriptId.utf8() +
                                  " is not WebAssembly");
-  if (span.size() > kWasmBytecodeMaxLength) {
+  }
+  if (bytes.empty()) {
     return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
   }
-  *bytecode = protocol::Binary::fromSpan(span);
+  *bytecode = protocol::Binary::fromBytes(std::move(bytes));
   return Response::Success();
 #else
   return Response::ServerError("WebAssembly is disabled");
@@ -2373,11 +2380,8 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
   DCHECK_NE(m_scripts.find(script->scriptId()), m_scripts.end());
   std::vector<uint8_t> bytecode;
 #if V8_ENABLE_WEBASSEMBLY
-  v8::MemorySpan<const uint8_t> span;
-  if (script->wasmBytecode().To(&span)) {
-    bytecode.reserve(span.size());
-    bytecode.insert(bytecode.begin(), span.data(), span.data() + span.size());
-  }
+  std::ignore = script->getWasmBytecode(std::numeric_limits<size_t>::max())
+                    .MoveTo(&bytecode);
 #endif
   {
     CachedScript cachedScript{script->scriptId(), script->source(0),
