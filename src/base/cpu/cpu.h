@@ -127,6 +127,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_hbc() const { return has_hbc_; }
   bool has_cssc() const { return has_cssc_; }
   bool has_mops() const { return has_mops_; }
+  bool has_sve() const { return has_sve_; }
   bool has_svebitperm() const { return has_svebitperm_; }
 
   // mips features
@@ -212,6 +213,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_hbc_ = false;
   bool has_cssc_ = false;
   bool has_mops_ = false;
+  bool has_sve_ = false;
   bool has_svebitperm_ = false;
   bool is_fp64_mode_ = false;
   bool has_non_stop_time_stamp_counter_ = false;

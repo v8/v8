@@ -350,6 +350,9 @@ void CPU::DetectFeatures() {
 #if !defined(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE = 51;
 #endif
+#if !defined(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SVE_INSTRUCTIONS_AVAILABLE = 46;
+#endif
 #if !defined(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE = 67;
 #endif
@@ -364,6 +367,7 @@ void CPU::DetectFeatures() {
       IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
   has_fp16_ = IsProcessorFeaturePresent(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE);
   has_sha3_ = IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
+  has_sve_ = IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
   has_svebitperm_ =
       IsProcessorFeaturePresent(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE);
 
@@ -383,6 +387,7 @@ void CPU::DetectFeatures() {
     has_pmull1q_ = (hwcaps & HWCAP_PMULL) != 0;
     has_fp16_ = (hwcaps & HWCAP_FPHP) != 0;
     has_sha3_ = (hwcaps & HWCAP_SHA3) != 0;
+    has_sve_ = (hwcaps & HWCAP_SVE) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
@@ -393,6 +398,7 @@ void CPU::DetectFeatures() {
     has_pmull1q_ = HasListItem(features, "pmull");
     has_fp16_ = HasListItem(features, "half");
     has_sha3_ = HasListItem(features, "sha3");
+    has_sve_ = HasListItem(features, "sve");
     delete[] features;
   }
 #elif V8_OS_DARWIN
