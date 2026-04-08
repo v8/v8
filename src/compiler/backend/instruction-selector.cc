@@ -39,15 +39,6 @@ namespace compiler {
 
 using namespace turboshaft;  // NOLINT(build/namespaces)
 
-namespace {
-// Here we really want the raw Bits of the mask, but the `.bits()` method is
-// not constexpr, and so users of this constant need to call it.
-// TODO(turboshaft): EffectDimensions could probably be defined via
-// base::Flags<> instead, which should solve this.
-constexpr EffectDimensions kTurboshaftEffectLevelMask =
-    OpEffects().CanReadMemory().produces;
-}
-
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Graph* schedule,
@@ -1443,8 +1434,7 @@ bool increment_effect_level_for_node(InstructionSelector* selector,
     // would prevent covering in the ISEL.
     return false;
   }
-  return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask.bits()) !=
-         0;
+  return op.Effects().can_write() || op.Effects().can_allocate;
 }
 }  // namespace
 
