@@ -2670,13 +2670,12 @@ class GraphBuildingNodeProcessor {
     int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
 
     uint32_t length = node->homomorphic_array().length().value();
-    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map.Get());
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
     V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
         __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
         __ WordPtrConstant(length - 1));
     V<HeapObject> array = __ HeapConstant(node->homomorphic_array().object());
-    V<WordPtr> weak_map =
-        __ WordPtrBitwiseOr(map_word, __ WordPtrConstant(kWeakHeapObjectMask));
+    V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
 
     V<Object> array_entry =
         __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
@@ -2686,28 +2685,24 @@ class GraphBuildingNodeProcessor {
     IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
       // 1. Check descriptor count.
       V<Word32> bitfield3 =
-          __ Load(map, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Int32(), Map::kBitField3Offset);
+          __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
       V<Word32> nof_desc = __ Word32BitwiseAnd(
           bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
-      V<Word32> encoded_descriptor_index = __ Word32Constant(
-          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index));
+      uint32_t encoded_descriptor_index =
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
       __ DeoptimizeIf(
           __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
           frame_state, DeoptimizeReason::kWrongMap,
           node->eager_deopt_info()->feedback_to_update());
 
       // 2. Load descriptor array.
-      V<DescriptorArray> descriptors =
-          __ Load(map, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::TaggedPointer(),
-                  Map::kInstanceDescriptorsOffset);
+      V<DescriptorArray> descriptors = __ template LoadField<DescriptorArray>(
+          map, AccessBuilder::ForMapDescriptors());
 
       // 3. Check key.
       int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
                        DescriptorArray::kEntryKeyOffset;
-      V<Object> key = __ Load(descriptors, LoadOp::Kind::TaggedBase(),
-                              MemoryRepresentation::AnyTagged(), key_offset);
+      V<Object> key = __ LoadTaggedField(descriptors, key_offset);
       V<Object> name = __ HeapConstant(node->name().object());
       __ DeoptimizeIfNot(__ TaggedEqual(key, name), frame_state,
                          DeoptimizeReason::kWrongMap,
@@ -2726,6 +2721,7 @@ class GraphBuildingNodeProcessor {
       uint16_t storage_offset =
           LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
       uint32_t expected_details_mask =
           PropertyDetails::KindField::kMask |
           PropertyDetails::LocationField::kMask |
@@ -2736,6 +2732,12 @@ class GraphBuildingNodeProcessor {
           PropertyDetails::LocationField::encode(PropertyLocation::kField) |
           PropertyDetails::OffsetInWordsField::encode(storage_offset) |
           PropertyDetails::InObjectField::encode(is_inobject);
+      if (is_double) {
+        // 4b. Check Representation is exactly double, if needed.
+        expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+        expected_details |= PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+      }
 
       V<Word32> masked_details =
           __ Word32BitwiseAnd(details, expected_details_mask);
@@ -2743,18 +2745,15 @@ class GraphBuildingNodeProcessor {
                          frame_state, DeoptimizeReason::kWrongMap,
                          node->eager_deopt_info()->feedback_to_update());
 
-      // 4b. Check Representation.
-      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
-      uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
-          PropertyDetails::EncodeRepresentation(Representation::Double()));
+      if (!is_double) {
+        // 4b. Check Representation is NOT double. If we wanted a double
+        // representation, we would have checked it already as part of the
+        // expected details check.
+        uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+        uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
 
-      V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
-      if (is_double) {
-        __ DeoptimizeIfNot(__ Word32Equal(masked_repr, expected_repr),
-                           frame_state, DeoptimizeReason::kWrongMap,
-                           node->eager_deopt_info()->feedback_to_update());
-      } else {
+        V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
         __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
                         DeoptimizeReason::kWrongMap,
                         node->eager_deopt_info()->feedback_to_update());

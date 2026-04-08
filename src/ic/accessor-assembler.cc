@@ -160,21 +160,6 @@ void AccessorAssembler::TryHomomorphicCase(
     handler = CAST(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize));
   }
 
-  TNode<Int32T> handler_value = SmiToInt32(handler);
-  // Decode handler info needed for execution/checks.
-  TNode<Uint32T> descriptor_index =
-      DecodeWord32<LoadHandler::DescriptorIndexBits>(handler_value);
-
-  // Special handling for special descriptor index values.
-  // TODO(leszeks): Make this a single check or a different IC type.
-  Label if_array_len(this), if_string_len(this);
-  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
-             handler_value, LoadHandler::kArrayLengthFieldDescriptorIndex),
-         &if_array_len);
-  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
-             handler_value, LoadHandler::kStringLengthFieldDescriptorIndex),
-         &if_string_len);
-
   Label execute_handler(this);
 
   // Look up in map cache.
@@ -197,6 +182,21 @@ void AccessorAssembler::TryHomomorphicCase(
       ReinterpretCast<WeakFixedArray>(array), cache_index);
   GotoIf(TaggedEqual(element, MakeWeak(lookup_start_object_map)),
          &execute_handler);
+
+  TNode<Int32T> handler_value = SmiToInt32(handler);
+  // Decode handler info needed for execution/checks.
+  TNode<Uint32T> descriptor_index =
+      DecodeWord32<LoadHandler::DescriptorIndexBits>(handler_value);
+
+  // Special handling for special descriptor index values.
+  // TODO(leszeks): Make this a single check or a different IC type.
+  Label if_array_len(this), if_string_len(this);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kArrayLengthFieldDescriptorIndex),
+         &if_array_len);
+  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
+             handler_value, LoadHandler::kStringLengthFieldDescriptorIndex),
+         &if_string_len);
 
   {
     // Fallback checks -- decode the handler, and validate against the incoming

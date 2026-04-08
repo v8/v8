@@ -2377,6 +2377,7 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
   uint16_t storage_offset =
       LoadHandler::StorageOffsetInWordsBits::decode(handler_value_);
   bool is_inobject = LoadHandler::IsInobjectBits::decode(handler_value_);
+  bool is_double = LoadHandler::IsDoubleBits::decode(handler_value_);
   uint32_t expected_details_mask = PropertyDetails::KindField::kMask |
                                    PropertyDetails::LocationField::kMask |
                                    PropertyDetails::OffsetInWordsField::kMask |
@@ -2386,22 +2387,31 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
       PropertyDetails::LocationField::encode(PropertyLocation::kField) |
       PropertyDetails::OffsetInWordsField::encode(storage_offset) |
       PropertyDetails::InObjectField::encode(is_inobject);
+  if (is_double) {
+    // 4b. Check Representation is exactly double, if needed.
+    expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+    expected_details |= PropertyDetails::RepresentationField::encode(
+        PropertyDetails::EncodeRepresentation(Representation::Double()));
+  }
 
   __ AndInt32(scratch, descriptor_entry, expected_details_mask);
   __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_details),
                            kNotEqual,
                            __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
 
-  // 4b. Check Representation.
-  bool is_double = LoadHandler::IsDoubleBits::decode(handler_value_);
-  uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
-  uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
-      PropertyDetails::EncodeRepresentation(Representation::Double()));
+  if (!is_double) {
+    // 4b. Check Representation is NOT double. If we wanted a double
+    // representation, we would have checked it already as part of the expected
+    // details check.
+    uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+    uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+        PropertyDetails::EncodeRepresentation(Representation::Double()));
 
-  __ AndInt32(scratch, descriptor_entry, repr_mask);
-  __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_repr),
-                           is_double ? kNotEqual : kEqual,
-                           __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+    __ AndInt32(scratch, descriptor_entry, repr_mask);
+    __ CompareInt32AndJumpIf(
+        scratch, static_cast<int32_t>(expected_repr), kEqual,
+        __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+  }
 
   // 5. Update cache.
   {
