@@ -469,7 +469,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(RegExpSplit, 3, 1)                              \
   F(RegExpStringFromFlags, 1, 1)                    \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
-  F(StringSplit, 3, 1)                              \
+  F(StringSplit, 4, 1)                              \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExperimentalOneshotExec, 4, 1)
 

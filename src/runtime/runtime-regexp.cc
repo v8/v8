@@ -440,13 +440,13 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 
 void FindOneByteStringIndices(base::Vector<const uint8_t> subject,
                               uint8_t pattern, std::vector<int>* indices,
-                              unsigned int limit) {
+                              unsigned int limit, int start_index = 0) {
   DCHECK_LT(0, limit);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
   const uint8_t* subject_start = subject.begin();
   const uint8_t* subject_end = subject_start + subject.length();
-  const uint8_t* pos = subject_start;
+  const uint8_t* pos = subject_start + start_index;
   while (limit > 0) {
     pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
@@ -459,12 +459,12 @@ void FindOneByteStringIndices(base::Vector<const uint8_t> subject,
 
 void FindTwoByteStringIndices(const base::Vector<const base::uc16> subject,
                               base::uc16 pattern, std::vector<int>* indices,
-                              unsigned int limit) {
+                              unsigned int limit, int start_index = 0) {
   DCHECK_LT(0, limit);
   const base::uc16* subject_start = subject.begin();
   const base::uc16* subject_end = subject_start + subject.length();
-  for (const base::uc16* pos = subject_start; pos < subject_end && limit > 0;
-       pos++) {
+  for (const base::uc16* pos = subject_start + start_index;
+       pos < subject_end && limit > 0; pos++) {
     if (*pos == pattern) {
       indices->push_back(static_cast<int>(pos - subject_start));
       limit--;
@@ -476,12 +476,13 @@ template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate,
                        base::Vector<const SubjectChar> subject,
                        base::Vector<const PatternChar> pattern,
-                       std::vector<int>* indices, unsigned int limit) {
+                       std::vector<int>* indices, unsigned int limit,
+                       int start_index = 0) {
   DCHECK_LT(0, limit);
   // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
   int pattern_length = pattern.length();
-  int index = 0;
+  int index = start_index;
   StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
   while (limit > 0) {
     index = search.Search(subject, index);
@@ -494,7 +495,15 @@ void FindStringIndices(Isolate* isolate,
 
 void FindStringIndicesDispatch(Isolate* isolate, Tagged<String> subject,
                                Tagged<String> pattern,
-                               std::vector<int>* indices, unsigned int limit) {
+                               std::vector<int>* indices, unsigned int limit,
+                               int first_index = -1) {
+  int start_index = 0;
+  if (first_index >= 0) {
+    indices->push_back(first_index);
+    limit--;
+    if (limit == 0) return;
+    start_index = first_index + pattern->length();
+  }
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent subject_content = subject->GetFlatContent(no_gc);
@@ -509,14 +518,15 @@ void FindStringIndicesDispatch(Isolate* isolate, Tagged<String> subject,
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindOneByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit);
+                                   limit, start_index);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit);
+                            limit, start_index);
         }
       } else {
         FindStringIndices(isolate, subject_vector,
-                          pattern_content.ToUC16Vector(), indices, limit);
+                          pattern_content.ToUC16Vector(), indices, limit,
+                          start_index);
       }
     } else {
       base::Vector<const base::uc16> subject_vector =
@@ -526,20 +536,20 @@ void FindStringIndicesDispatch(Isolate* isolate, Tagged<String> subject,
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindTwoByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit);
+                                   limit, start_index);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit);
+                            limit, start_index);
         }
       } else {
         base::Vector<const base::uc16> pattern_vector =
             pattern_content.ToUC16Vector();
         if (pattern_vector.length() == 1) {
           FindTwoByteStringIndices(subject_vector, pattern_vector[0], indices,
-                                   limit);
+                                   limit, start_index);
         } else {
           FindStringIndices(isolate, subject_vector, pattern_vector, indices,
-                            limit);
+                            limit, start_index);
         }
       }
     }
@@ -842,10 +852,11 @@ StringReplaceGlobalRegExpWithEmptyString(
 
 RUNTIME_FUNCTION(Runtime_StringSplit) {
   HandleScope handle_scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   DirectHandle<String> subject = args.at<String>(0);
   DirectHandle<String> pattern = args.at<String>(1);
   uint32_t limit = NumberToUint32(args[2]);
+  int first_index = NumberToInt32(args[3]);
   CHECK_LT(0, limit);
 
   int subject_length = subject->length();
@@ -876,7 +887,8 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   std::vector<int>* indices = GetRewoundRegexpIndicesList(isolate);
 
-  FindStringIndicesDispatch(isolate, *subject, *pattern, indices, limit);
+  FindStringIndicesDispatch(isolate, *subject, *pattern, indices, limit,
+                            first_index);
 
   if (static_cast<uint32_t>(indices->size()) < limit) {
     indices->push_back(subject_length);
