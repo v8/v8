@@ -2839,6 +2839,22 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringAdd_CheckNone_Shared) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+
+  DirectHandle<String> left(Cast<String>(args[0]), isolate);
+  DirectHandle<String> right(Cast<String>(args[1]), isolate);
+
+  DirectHandle<String> result;
+  if (isolate->factory()->WasmStringAddShared(left, right).ToHandle(&result)) {
+    return *result;
+  } else {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+}
+
 // For cont.new: this initializes the continuation with a new stack and with the
 // given function reference, such that calling "resume" on it will call the
 // function on the new stack.

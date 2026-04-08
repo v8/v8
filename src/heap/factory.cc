@@ -971,6 +971,53 @@ MaybeDirectHandle<String> Factory::NewSharedStringFromUtf16(
                                                 AllocationType::kSharedOld,
                                                 MessageTemplate::kNone);
 }
+
+MaybeDirectHandle<String> Factory::WasmStringAddShared(
+    DirectHandle<String> left, DirectHandle<String> right) {
+  DCHECK(left->IsFlat());
+  DCHECK(HeapLayout::InAnySharedSpace(*left));
+  DCHECK(right->IsFlat());
+  DCHECK(HeapLayout::InAnySharedSpace(*right));
+  uint32_t left_length = left->length();
+  uint32_t right_length = right->length();
+  if (left_length == 0) return right;
+  if (right_length == 0) return left;
+  uint32_t length = left_length + right_length;
+  if (length > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  bool one_byte_repr =
+      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
+  if (one_byte_repr) {
+    DirectHandle<SeqOneByteString> result =
+        NewRawSharedOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    uint8_t* dest = result->GetChars(no_gc, access_guard);
+    {
+      const uint8_t* src =
+          left->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
+      CopyChars(dest, src, left_length);
+    }
+    {
+      const uint8_t* src =
+          right->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
+      CopyChars(dest + left_length, src, right_length);
+    }
+    return result;
+  } else {
+    DirectHandle<SeqTwoByteString> result =
+        NewRawSharedTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    base::uc16* dest = result->GetChars(no_gc, access_guard);
+    String::WriteToFlat(*left, dest, 0, left_length, access_guard);
+    String::WriteToFlat(*right, dest + left_length, 0, right_length,
+                        access_guard);
+    return result;
+  }
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,

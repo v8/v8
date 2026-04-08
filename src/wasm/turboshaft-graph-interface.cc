@@ -2195,7 +2195,14 @@ class TurboshaftGraphBuildingInterface
         break;
       }
       case WKI::kStringConcatShared: {
-        UNIMPLEMENTED();
+        V<String> head_string = ExternRefToString(args[0]);
+        V<String> tail_string = ExternRefToString(args[1]);
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringAdd_CheckNone_Shared>(
+            decoder, {head_string, tail_string});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
       }
       case WKI::kStringEquals:
       case WKI::kStringEqualsShared: {

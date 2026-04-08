@@ -758,7 +758,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringLength:
     case Builtin::kWebAssemblyStringMeasureUtf8:
     case Builtin::kWebAssemblyStringConcat:
-    case Builtin::kWebAssemblyStringConcatShared:
     case Builtin::kWebAssemblyStringSubstring:
     case Builtin::kWebAssemblyStringSubstringShared:
     case Builtin::kWebAssemblyStringEquals:

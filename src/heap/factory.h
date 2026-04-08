@@ -329,6 +329,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewSharedStringFromUtf16(
       DirectHandle<WasmArray> array, uint32_t start, uint32_t end);
+
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> WasmStringAddShared(
+      DirectHandle<String> left, DirectHandle<String> right);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(

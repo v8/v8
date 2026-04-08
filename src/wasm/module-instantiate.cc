@@ -1788,7 +1788,7 @@ std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
     CASE(StringCompare, StringCompare, "compare", 2);
     CASE(StringCompareShared, StringCompare, "compare", 2);
     CASE(StringConcat, StringConcat, "concat", 2);
-    CASE(StringConcatShared, StringConcatShared, "concat", 2);
+    CASE(StringConcatShared, StringConcat, "concat", 2);
     CASE(StringEquals, StringEquals, "equals", 2);
     CASE(StringEqualsShared, StringEquals, "equals", 2);
     CASE(StringFromCharCode, StringFromCharCode, "fromCharCode", 1);

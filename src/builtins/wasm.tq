@@ -85,6 +85,7 @@ extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
 extern runtime WasmStringFromCodePoint(Context, Number, Smi): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
+extern runtime WasmStringAdd_CheckNone_Shared(Context, String, String): String;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -1349,6 +1350,10 @@ extern builtin WasmStringAdd_CheckNone(
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   tail WasmStringAdd_CheckNone(a, b);
+}
+
+builtin WasmStringAdd_CheckNone_Shared(a: String, b: String): String {
+  tail runtime::WasmStringAdd_CheckNone_Shared(LoadContextFromFrame(), a, b);
 }
 
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;

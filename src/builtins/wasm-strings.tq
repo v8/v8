@@ -253,11 +253,6 @@ transitioning javascript builtin WebAssemblyStringConcat(
   }
 }
 
-transitioning javascript builtin WebAssemblyStringConcatShared(
-    js-implicit context: Context)(_firstArg: JSAny, _secondArg: JSAny): JSAny {
-  unreachable;  // TODO(448741522): Implement.
-}
-
 transitioning javascript builtin WebAssemblyStringSubstring(
     js-implicit context: Context)(stringArg: JSAny, startArg: JSAny,
     endArg: JSAny): JSAny {

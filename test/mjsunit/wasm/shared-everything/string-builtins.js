@@ -115,7 +115,6 @@ function MakeBuilder() {
   kStringCompareShared =
       builder.addImport('wasm:js-string', 'compare', kSig_i_ss);
   kStringIndexOfImported = builder.addImport('m', 'indexOf', kSig_i_ssi);
-  // TODO(448741522): This will work out of the box.
   kStringToLowerCaseImported =
       builder.addImport('m', 'toLowerCase', kSig_s_s);
 
@@ -237,8 +236,6 @@ let kBuiltins = { builtins: ["js-string"] };
       'illegal cast');
 })();
 
-// TODO(448741522): This works, but we need additional testing to ensure the
-// lowercase string is allocated in the shared space inside Wasm.
 (function TestStringToLowerCaseImported() {
   print(arguments.callee.name);
   let builder = new MakeBuilder();
@@ -311,7 +308,51 @@ let kBuiltins = { builtins: ["js-string"] };
                WebAssembly.RuntimeError, "illegal cast");
 })();
 
-// TODO(448741522): Implement shared string concat.
+(function TestStringConcat() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("concat", kSig_t_ss)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  builder.addFunction("concat_null_head", kSig_t_s)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  builder.addFunction("concat_null_tail", kSig_t_s)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprCallFunction, kStringConcatShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+
+  for (let head of interestingStrings) {
+    for (let tail of interestingStrings) {
+      assertEquals(head + tail, instance.exports.concat(head, tail));
+    }
+  }
+
+  assertThrows(() => instance.exports.concat(null, "hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat('hey', null),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat_null_head("hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.concat_null_tail("hey"),
+               WebAssembly.RuntimeError, "illegal cast");
+})();
 
 (function TestStringEq() {
   print(arguments.callee.name);
