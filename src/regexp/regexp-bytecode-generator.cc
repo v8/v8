@@ -354,8 +354,22 @@ void BytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                  int eats_at_least) {
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
-    Emit<Bytecode::kCheckPosition>(cp_offset + eats_at_least - 1, on_failure);
-    check_bounds = false;  // Load below doesn't need to check.
+    // eats_at_least + cp_offset can overflow BytecodeOperandType::kOffset.
+    // Only emit this optimization if the computed value fits into the expected
+    // range for the CheckPosition BC.
+    using CheckPositionOps = BytecodeOperands<Bytecode::kCheckPosition>;
+    using OffsetTraits =
+        OperandTypeTraits<CheckPositionOps::Type(CheckPositionOps::cp_offset)>;
+    using OffsetType = OffsetTraits::kCType;
+    base::internal::CheckedNumeric<OffsetType> checked_offset = cp_offset;
+    checked_offset += eats_at_least - 1;
+    OffsetType total_offset;
+    if (checked_offset.AssignIfValid(&total_offset) &&
+        base::IsInRange(total_offset, OffsetTraits::kMinValue,
+                        OffsetTraits::kMaxValue)) {
+      Emit<Bytecode::kCheckPosition>(total_offset, on_failure);
+      check_bounds = false;  // Load below doesn't need to check.
+    }
   }
 
   CHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
