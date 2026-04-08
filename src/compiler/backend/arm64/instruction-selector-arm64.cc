@@ -3595,6 +3595,98 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, OpIndex node,
   }
 }
 
+// Try to emit TST for some comparisons with powers of 2 and similar cases.
+//
+// An unsigned number being greater than or equal to 2^i implies that at least
+// one of its most significant bits, starting from bit i, is non-zero. This is
+// equivalent to applying the mask ~(2^i - 1) to the input number and checking
+// if the result is non-zero, which can be expressed using the TST instruction
+// and the kNotEqual condition. The advantage is that the mask can be encoded as
+// an immediate operand.
+//
+// Similarly, we can perform the opposite comparison, i.e. an unsigned number
+// being less than 2^i, by negating the condition to kEqual. Furthermore, it is
+// evident from the mask value that we can apply the same transformation to
+// equivalent comparisons with 2^i - 1 by slightly adjusting the conditions that
+// we are matching.
+bool TryEmitTst(InstructionSelector* selector, OpIndex left, OpIndex right,
+                FlagsContinuation* cont) {
+  const ConstantOp* constant_op = selector->Get(right).TryCast<ConstantOp>();
+  FlagsCondition cond = cont->condition();
+
+  if (constant_op == nullptr) {
+    cond = CommuteFlagsCondition(cond);
+    constant_op = selector->Get(left).TryCast<ConstantOp>();
+    left = right;
+  }
+
+  if (constant_op == nullptr || !constant_op->IsIntegral() ||
+      cont->IsSelect()) {
+    return false;
+  }
+
+  DCHECK(constant_op->rep == RegisterRepresentation::Word32() ||
+         constant_op->rep == RegisterRepresentation::Word64());
+
+  uint64_t value = constant_op->integral();
+
+  Arm64OperandGenerator g(selector);
+
+  // These cases can also be encoded as immediate operands to the CMN and CMP
+  // instructions, so handling them in the fallback code paths simplifies the
+  // rest of the function.
+  if (g.CanBeImmediate(value, kArithmeticImm) ||
+      (constant_op->rep == RegisterRepresentation::Word32() &&
+       value == std::numeric_limits<uint32_t>::max())) {
+    return false;
+  }
+
+  if (base::bits::IsPowerOfTwo(value)) {
+    if (cond == kUnsignedGreaterThanOrEqual) {
+      cond = kNotEqual;
+    } else if (cond == kUnsignedLessThan) {
+      cond = kEqual;
+    } else {
+      return false;
+    }
+
+    value--;
+  } else if (base::bits::IsPowerOfTwo(value + 1)) {
+    if (cond == kUnsignedGreaterThan) {
+      cond = kNotEqual;
+    } else if (cond == kUnsignedLessThanOrEqual) {
+      cond = kEqual;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+
+  value = ~value;
+
+  InstructionCode opcode = kArchNop;
+  InstructionOperand r;
+
+  if (constant_op->rep == WordRepresentation::Word32()) {
+    opcode = kArm64Tst32;
+    DCHECK(g.CanBeImmediate(value, kLogical32Imm));
+    r = g.UseImmediate(static_cast<uint32_t>(value));
+  } else {
+    opcode = kArm64Tst;
+    DCHECK(g.CanBeImmediate(value, kLogical64Imm));
+    r = g.UseImmediate64(value);
+  }
+
+  if (cont->IsBranch() && cont->hint() != BranchHint::kNone) {
+    opcode |= BranchHintField::encode(true);
+  }
+
+  cont->Overwrite(cond);
+  selector->EmitWithContinuation(opcode, g.UseRegister(left), r, cont);
+  return true;
+}
+
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuation* cont,
@@ -3604,6 +3696,10 @@ void VisitWordCompare(InstructionSelector* selector, OpIndex node,
   DCHECK_EQ(op.input_count, 2);
   auto left = op.input(0);
   auto right = op.input(1);
+
+  if (opcode == kArm64Cmp && TryEmitTst(selector, left, right, cont)) {
+    return;
+  }
 
   // If one of the two inputs is an immediate, make sure it's on the right.
   if (!g.CanBeImmediate(right, immediate_mode) &&
@@ -3767,6 +3863,8 @@ void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
     }
   } else if (TryEmitMaxMin(selector, cont, RegisterRepresentation::Word32(),
                            lhs, rhs)) {
+    return;
+  } else if (TryEmitTst(selector, lhs, rhs, cont)) {
     return;
   }
 
