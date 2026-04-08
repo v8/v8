@@ -161,7 +161,7 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
     Isolate* isolate, const wasm::CanonicalSig* expected_sig,
     Tagged<SharedFunctionInfo> shared,
     Tagged<FunctionTemplateInfo> api_func_data, ReceiverKind receiver_kind,
-    bool* out_is_first = nullptr) {
+    bool only_first_allowed) {
 #ifdef V8_ENABLE_TURBOFAN
   const uint32_t c_funcs_count = api_func_data->GetCFunctionsCount();
   if (c_funcs_count == 0) {
@@ -202,6 +202,8 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
   }
 
   for (uint32_t c_func_id = 0; c_func_id < c_funcs_count; ++c_func_id) {
+    if (only_first_allowed && c_func_id > 0) break;
+
     const CFunctionWithSignature c_func =
         api_func_data->GetCFunction(c_func_id);
     const CFunctionInfo* info = c_func.signature;
@@ -277,9 +279,6 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
     if (param_mismatch) {
       continue;
     }
-    if (out_is_first) {
-      *out_is_first = c_func_id == 0;
-    }
     return c_func;
   }
 #endif
@@ -316,14 +315,13 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
   if (!shared->IsApiFunction()) {
     return false;
   }
-  bool c_func_is_first = false;
   // The fast API call wrapper currently does not support function overloading.
   // Therefore, if the matching function is not function 0, the fast API cannot
   // be used.
   return FindSupportedWasmFastApiFunction(
              isolate, expected_sig, shared, shared->api_func_data(),
-             ReceiverKind::kAnyReceiver, &c_func_is_first) &&
-         c_func_is_first;
+             ReceiverKind::kAnyReceiver,
+             /*only_first_allowed=*/true) != std::nullopt;
 }
 
 bool IsStringRef(wasm::CanonicalValueType type) {
@@ -459,7 +457,8 @@ WellKnownImport CheckForWellKnownImport(
     Tagged<FunctionTemplateInfo> api_func_data = sfi->api_func_data();
     std::optional<CFunctionWithSignature> c_function =
         FindSupportedWasmFastApiFunction(isolate, sig, sfi, api_func_data,
-                                         ReceiverKind::kFirstParamIsReceiver);
+                                         ReceiverKind::kFirstParamIsReceiver,
+                                         /*only_first_allowed=*/false);
     if (c_function) {
       NativeModule* native_module = trusted_instance_data->native_module();
       if (!native_module->TrySetFastApiCallTarget(func_index,

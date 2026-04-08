@@ -871,6 +871,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Tagged<SharedFunctionInfo> shared = target->shared();
     Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
+    // !!! Warning !!! This relies on the preceding logic to validate that this
+    // overload matches the expected signature, which is generally unsafe in the
+    // sandbox attacker model.
     const CFunctionWithSignature c_function = api_func_data->GetCFunction(0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
