@@ -100,37 +100,6 @@ TEST(Heap, GenerationSizesFromHeapSize) {
   }
 }
 
-void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
-    uint64_t physical_memory) {
-  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB,
-            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
-}
-
-void AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-    uint64_t physical_memory, size_t adjust) {
-  // The expected value is old_generation_size + semi_space_multiplier *
-  // semi_space_size.
-
-  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust,
-            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
-}
-
-TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
-  // Low memory
-  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(0);
-  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(512u * MB);
-
-  // High memory
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(1) * GB, 4);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(2) * GB, 2);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(4) * GB, 1);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(8) * GB, 1);
-}
-
 TEST(Heap, LimitsComputationBoundariesClamp) {
   using Boundaries = HeapLimitBounds;
   Boundaries boundaries;
@@ -221,6 +190,7 @@ std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
 
 TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
   if (v8_flags.max_semi_space_size != 0) return;
+  v8_flags.new_old_generation_heap_size = false;
 
   struct OldLimit {
     uint64_t physical_memory;
@@ -349,6 +319,8 @@ TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
     uint64_t physical_memory;
     // Max old generation allocation limit for 32-bit.
     uint64_t arch_32bit;
+    // Max old generation allocation limit for 64-bit Android.
+    uint64_t arch_64bit_android;
     // Max old generation allocation limit for 64-bit.
     uint64_t arch_64bit;
   };
@@ -382,19 +354,19 @@ TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
 
   // Expected old generation limits.
   std::vector<OldLimit> old_limits = {
-      {512 * kMB, 256 * kMB, 256 * kMB},
-      {1 * kGB, 256 * kMB, 512 * kMB},
-      {1536 * kMB, 384 * kMB, 768 * kMB},
-      {2 * kGB, 512 * kMB, 1 * kGB},
-      {3 * kGB, 768 * kMB, 1536 * kMB},
-      {4 * kGB, kGB, 2 * kGB},
-      {6 * kGB, kGB, 3 * kGB},
-      {8 * kGB - 1, kGB, 4 * kGB},
-      {8 * kGB, kGB, 4 * kGB},
-      {15 * kGB - 1, kGB, 4 * kGB},
-      {15 * kGB, kGB, 4 * kGB},
-      {16 * kGB, kGB, 4 * kGB},
-      {32 * kGB, kGB, 4 * kGB},
+      {512 * kMB, 256 * kMB, 256 * kMB, 256 * kMB},
+      {1 * kGB, 256 * kMB, 256 * kMB, 512 * kMB},
+      {1536 * kMB, 384 * kMB, 384 * kMB, 768 * kMB},
+      {2 * kGB, 512 * kMB, 512 * kMB, 1 * kGB},
+      {3 * kGB, 768 * kMB, 768 * kMB, 1536 * kMB},
+      {4 * kGB, kGB, kGB, 2 * kGB},
+      {6 * kGB, kGB, 1 * kGB + 512 * kMB, 3 * kGB},
+      {8 * kGB - 1, kGB, 2 * kGB, 4 * kGB},
+      {8 * kGB, kGB, 2 * kGB, 4 * kGB},
+      {15 * kGB - 1, kGB, 3 * kGB + 768 * kMB, 4 * kGB},
+      {15 * kGB, kGB, 3 * kGB + 768 * kMB, 4 * kGB},
+      {16 * kGB, kGB, 4 * kGB, 4 * kGB},
+      {32 * kGB, kGB, 4 * kGB, 4 * kGB},
   };
 
   EXPECT_EQ(young_limits.size(), old_limits.size());
@@ -421,6 +393,8 @@ TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
 
 #if defined(V8_TARGET_ARCH_32_BIT)
     const uint64_t expected_old = old_limit.arch_32bit;
+#elif V8_OS_ANDROID
+    const uint64_t expected_old = old_limit.arch_64bit_android;
 #else
     const uint64_t expected_old = old_limit.arch_64bit;
 #endif

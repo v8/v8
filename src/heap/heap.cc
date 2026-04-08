@@ -348,9 +348,14 @@ size_t Heap::YoungGenerationSizeFromHeapSize(uint64_t physical_memory,
 size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   if (v8_flags.new_old_generation_heap_size) {
-    uint64_t old_generation = physical_memory /
-                              kPhysicalMemoryToOldGenerationRatio *
-                              kSystemPointerSize / 4;
+#if V8_OS_ANDROID || defined(V8_TARGET_ARCH_32_BIT)
+    // Android requires 16GB of physical memory to reach the maximum of 4GB.
+    static constexpr size_t kRatio = 4;
+#else
+    // On 64-bit 8GB of physical memory is enough for the maximum of 4GB.
+    static constexpr size_t kRatio = 2;
+#endif
+    uint64_t old_generation = physical_memory / kRatio;
     old_generation = std::clamp<uint64_t>(
         old_generation, DefaultMinHeapSize(physical_memory),
         MaxOldGenerationSizeFromPhysicalMemory(physical_memory));

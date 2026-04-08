@@ -1096,7 +1096,7 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
-DEFINE_BOOL(new_old_generation_heap_size, false,
+DEFINE_BOOL(new_old_generation_heap_size, true,
             "Enables new old generation max heap size.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
