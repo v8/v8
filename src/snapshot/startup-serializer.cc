@@ -237,8 +237,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
                                                 FullObjectSlot end) {
   for (FullObjectSlot p = start; p < end; ++p) {
     if (serialized_.find(*p) != serialized_.end()) continue;
-    PrintF("%s handle not serialized: ",
-           root == Root::kGlobalHandles ? "global" : "eternal");
+    PrintF("%s handle not serialized: ", RootVisitor::RootName(root));
     Print(*p);
     PrintF("\n");
     ok_ = false;
