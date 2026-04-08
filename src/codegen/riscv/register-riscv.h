@@ -56,10 +56,11 @@ namespace internal {
 #define C_CALL_CALLEE_SAVE_FP_REGISTERS \
   fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
 
+
+// ft0, ft11 are used in DefaultFPTmpList
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                           \
   V(ft1) V(ft2) V(ft3) V(ft4) V(ft5) V(ft6) V(ft7) V(fa0) V(fa1)  \
-  V(fa2) V(fa3) V(fa4) V(fa5) V(fa6) V(fa7) V(ft8) V(ft9) V(ft10) \
-  V(ft11)
+  V(fa2) V(fa3) V(fa4) V(fa5) V(fa6) V(fa7) V(ft8) V(ft9) V(ft10)
 
 
 // v0      Argument

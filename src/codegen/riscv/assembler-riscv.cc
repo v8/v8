@@ -2024,7 +2024,9 @@ int Assembler::GeneralLiCount(int64_t imm, bool is_get_temp_reg) {
 #endif
 
 RegList Assembler::DefaultTmpList() { return {t3, t5}; }
-DoubleRegList Assembler::DefaultFPTmpList() { return {kScratchDoubleReg}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, ft11};
+}
 
 }  // namespace internal
 }  // namespace v8
