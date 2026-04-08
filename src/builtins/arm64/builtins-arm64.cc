@@ -4018,7 +4018,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ cmp(target_stack, Operand(0));
   __ B(ne, &ok);
   // No handler found.
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
@@ -4072,7 +4073,8 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
 
   // No handler found.
   __ Pop(xzr, kContextRegister);
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
   // We have a prompt bracket.

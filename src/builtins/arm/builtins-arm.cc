@@ -3463,7 +3463,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ cmp(target_stack, Operand(0));
   __ b(ne, &ok);
   // No handler found.
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
@@ -3515,7 +3516,8 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   // No handler found.
   __ Pop(kContextRegister);  // Retrieve saved context.
   __ Drop(1);                // Drop saved arg buffer.
-  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ TailCallBuiltin(Builtin::kThrowWasmTrapSuspend);
 
   __ bind(&ok);
 

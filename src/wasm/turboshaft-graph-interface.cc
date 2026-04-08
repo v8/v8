@@ -4175,11 +4175,7 @@ class TurboshaftGraphBuildingInterface
                 IsolateData::is_on_central_stack_flag_offset());
     V<Context> native_context = instance_cache_.native_context();
 
-    IF (is_on_central_stack) {
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
-                         native_context);
-      __ Unreachable();
-    }
+    __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
 
     V<WordPtr> stack = CheckContAndGetStack(cont_ref);
 
@@ -4275,11 +4271,9 @@ class TurboshaftGraphBuildingInterface
         __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
                 IsolateData::is_on_central_stack_flag_offset());
     V<Context> native_context = instance_cache_.native_context();
-    IF (is_on_central_stack) {
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
-                         native_context);
-      __ Unreachable();
-    }
+
+    __ TrapIf(is_on_central_stack, TrapId::kTrapSuspend);
+
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;

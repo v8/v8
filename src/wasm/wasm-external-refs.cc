@@ -1203,8 +1203,8 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   if (!parent) return kNullAddress;
 
   if (v8_flags.trace_wasm_stack_switching) {
-    PrintF("Switch from stack %d to %d\n", from->id(), target_stack->id());
-    PrintF("parent is %d\n", parent->id());
+    PrintF("Switch from stack %d to %d, parent %d\n", from->id(),
+           target_stack->id(), parent->id());
   }
 
   const CanonicalSig* return_sig =

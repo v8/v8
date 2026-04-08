@@ -60,7 +60,7 @@ let instance = builder.instantiate();
   // resume_suspend_handle_switch only has an on_suspend handler.
   // The switch instruction should not be caught by it.
   assertThrows(() => instance.exports.resume_suspend_handle_switch(),
-               WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
+               WebAssembly.RuntimeError, /WasmFX: unhandled suspend/);
 })();
 
 (function TestSwitchArgs() {
