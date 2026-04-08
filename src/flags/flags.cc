@@ -1161,7 +1161,8 @@ class ImplicationProcessor {
     if (ComputeFlagListHash() == cycle_start_hash_) {
       DCHECK(!cycle_.str().empty());
       // {cycle_} starts with a newline.
-      FATAL("Cycle in flag implications:%s", cycle_.str().c_str());
+      base::FatalNoSecurityImpact("Cycle in flag implications:%s",
+                                  cycle_.str().c_str());
     }
     // We must have found a cycle within another {kMaxNumIterations}.
     DCHECK_GE(2 * kMaxNumIterations, num_iterations_);
