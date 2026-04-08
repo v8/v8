@@ -91,12 +91,14 @@ inline WireBytesRef consume_string(Decoder* decoder,
         case unibrow::Utf8Variant::kLossyUtf8:
           break;
         case unibrow::Utf8Variant::kUtf8:
-          if (!unibrow::Utf8::ValidateEncoding(string_start, length)) {
+          if (V8_UNLIKELY(
+                  !unibrow::Utf8::ValidateEncoding(string_start, length))) {
             decoder->errorf(string_start, "%s: no valid UTF-8 string", name);
           }
           break;
         case unibrow::Utf8Variant::kWtf8:
-          if (!unibrow::Wtf8::ValidateEncoding(string_start, length)) {
+          if (V8_UNLIKELY(
+                  !unibrow::Wtf8::ValidateEncoding(string_start, length))) {
             decoder->errorf(string_start, "%s: no valid WTF-8 string", name);
           }
           break;
@@ -122,7 +124,7 @@ inline WireBytesRef consume_utf8_string(Decoder* decoder, const char* name,
 inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
                                                   ITracer* tracer) {
   WireBytesRef string = consume_utf8_string(decoder, "section name", tracer);
-  if (decoder->failed()) {
+  if (V8_UNLIKELY(decoder->failed())) {
     return kUnknownSectionCode;
   }
   const uint8_t* section_name_start =
@@ -198,7 +200,7 @@ class WasmSectionIterator {
       decoder_->consume_bytes(
           static_cast<uint32_t>(section_end_ - decoder_->pc()));
     }
-    if (decoder_->pc() != section_end_) {
+    if (V8_UNLIKELY(decoder_->pc() != section_end_)) {
       const char* msg = decoder_->pc() < section_end_ ? "shorter" : "longer";
       decoder_->errorf(decoder_->pc(),
                        "section was %s than expected size "
@@ -241,7 +243,7 @@ class WasmSectionIterator {
     }
     payload_start_ = decoder_->pc();
     section_end_ = payload_start_ + section_length;
-    if (section_length > decoder_->available_bytes()) {
+    if (V8_UNLIKELY(section_length > decoder_->available_bytes())) {
       decoder_->errorf(
           section_start_,
           "section (code %u, \"%s\") extends past end of the module "
@@ -263,7 +265,7 @@ class WasmSectionIterator {
       // As a side effect, the above function will forward the decoder to after
       // the identifier string.
       payload_start_ = decoder_->pc();
-    } else if (!IsValidSectionCode(section_code)) {
+    } else if (V8_UNLIKELY(!IsValidSectionCode(section_code))) {
       decoder_->errorf(decoder_->pc(), "unknown section code #0x%02x",
                        section_code);
     }
@@ -324,14 +326,14 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
-    if (failed()) return;
+    if (V8_UNLIKELY(failed())) return;
     Reset(bytes);
 
     const uint8_t* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic", tracer_);
     if (tracer_) tracer_->NextLine();
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
-    if (magic_word != kWasmMagic) {
+    if (V8_UNLIKELY(magic_word != kWasmMagic)) {
       errorf(pos,
              "expected magic word %02x %02x %02x %02x, "
              "found %02x %02x %02x %02x",
@@ -342,7 +344,7 @@ class ModuleDecoderImpl : public Decoder {
     {
       uint32_t magic_version = consume_u32("wasm version", tracer_);
       if (tracer_) tracer_->NextLine();
-      if (magic_version != kWasmVersion) {
+      if (V8_UNLIKELY(magic_version != kWasmVersion)) {
         errorf(pos,
                "expected version %02x %02x %02x %02x, "
                "found %02x %02x %02x %02x",
@@ -356,7 +358,7 @@ class ModuleDecoderImpl : public Decoder {
     // Check the order of ordered sections.
     if (section_code >= kFirstSectionInModule &&
         section_code < kFirstUnorderedSection) {
-      if (section_code < next_ordered_section_) {
+      if (V8_UNLIKELY(section_code < next_ordered_section_)) {
         errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         return false;
       }
@@ -376,7 +378,7 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK_GE(kLastKnownModuleSection, section_code);
 
     // Check that unordered sections don't appear multiple times.
-    if (has_seen_unordered_section(section_code)) {
+    if (V8_UNLIKELY(has_seen_unordered_section(section_code))) {
       errorf(pc(), "Multiple %s sections not allowed",
              SectionName(section_code));
       return false;
@@ -388,7 +390,7 @@ class ModuleDecoderImpl : public Decoder {
     auto check_order = [this, section_code](SectionCode before,
                                             SectionCode after) -> bool {
       DCHECK_LT(before, after);
-      if (next_ordered_section_ > after) {
+      if (V8_UNLIKELY(next_ordered_section_ > after)) {
         errorf(pc(), "The %s section must appear before the %s section",
                SectionName(section_code), SectionName(after));
         return false;
@@ -421,7 +423,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeSection(SectionCode section_code,
                      base::Vector<const uint8_t> bytes, uint32_t offset) {
-    if (failed()) return;
+    if (V8_UNLIKELY(failed())) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
     TRACE("Decode Section %p - %p\n", bytes.begin(), bytes.end());
@@ -541,7 +543,7 @@ class ModuleDecoderImpl : public Decoder {
         return;
     }
 
-    if (pc() != bytes.end()) {
+    if (V8_UNLIKELY(pc() != bytes.end())) {
       const char* msg = pc() < bytes.end() ? "shorter" : "longer";
       errorf(pc(),
              "section was %s than expected size "
@@ -573,7 +575,7 @@ class ModuleDecoderImpl : public Decoder {
     switch (kind) {
       case kWasmFunctionTypeCode: {
         const FunctionSig* sig = consume_sig();
-        if (sig == nullptr) {
+        if (V8_UNLIKELY(sig == nullptr)) {
           CHECK(!ok());
           return {};
         }
@@ -583,7 +585,7 @@ class ModuleDecoderImpl : public Decoder {
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
         const StructType* type = consume_struct(is_descriptor, is_shared);
-        if (type == nullptr) {
+        if (V8_UNLIKELY(type == nullptr)) {
           CHECK(!ok());
           return {};
         }
@@ -592,14 +594,14 @@ class ModuleDecoderImpl : public Decoder {
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
         const ArrayType* type = consume_array();
-        if (type == nullptr) {
+        if (V8_UNLIKELY(type == nullptr)) {
           CHECK(!ok());
           return {};
         }
         return {type, kNoSuperType, is_final, is_shared};
       }
       case kWasmContTypeCode: {
-        if (!enabled_features_.has_wasmfx()) {
+        if (V8_UNLIKELY(!enabled_features_.has_wasmfx())) {
           error(pc() - 1,
                 "core stack switching not enabled (enable with "
                 "--experimental-wasm-wasmfx)");
@@ -609,7 +611,7 @@ class ModuleDecoderImpl : public Decoder {
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (!hp.has_index()) {
+        if (V8_UNLIKELY(!hp.has_index())) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
@@ -629,7 +631,7 @@ class ModuleDecoderImpl : public Decoder {
                                         SharedFlag is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescriptorCode) {
-      if (!enabled_features_.has_custom_descriptors()) {
+      if (V8_UNLIKELY(!enabled_features_.has_custom_descriptors())) {
         error(pc(),
               "descriptor types need --experimental-wasm-custom-descriptors");
         return {};
@@ -638,7 +640,7 @@ class ModuleDecoderImpl : public Decoder {
       consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
       uint32_t descriptor = consume_u32v(" descriptor", tracer_);
-      if (descriptor >= module_->types.size()) {
+      if (V8_UNLIKELY(descriptor >= module_->types.size())) {
         errorf(pos, "descriptor type index %u is out of bounds", descriptor);
         return {};
       }
@@ -646,7 +648,7 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->NextLine();
       TypeDefinition type =
           consume_base_type_definition(is_descriptor, is_shared);
-      if (type.kind != TypeDefinition::kStruct) {
+      if (V8_UNLIKELY(type.kind != TypeDefinition::kStruct)) {
         error(pos - 1, "'descriptor' may only be used with structs");
         return {};
       }
@@ -661,7 +663,7 @@ class ModuleDecoderImpl : public Decoder {
                                          SharedFlag is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescribesCode) {
-      if (!enabled_features_.has_custom_descriptors()) {
+      if (V8_UNLIKELY(!enabled_features_.has_custom_descriptors())) {
         error(pc(),
               "descriptor types need --experimental-wasm-custom-descriptors");
         return {};
@@ -670,14 +672,14 @@ class ModuleDecoderImpl : public Decoder {
       consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
       uint32_t describes = consume_u32v(" describes", tracer_);
-      if (describes >= current_type_index) {
+      if (V8_UNLIKELY(describes >= current_type_index)) {
         error(pos, "types can only describe previously-declared types");
         return {};
       }
       if (tracer_) tracer_->Description(describes);
       if (tracer_) tracer_->NextLine();
       TypeDefinition type = consume_described_type(true, is_shared);
-      if (type.kind != TypeDefinition::kStruct) {
+      if (V8_UNLIKELY(type.kind != TypeDefinition::kStruct)) {
         error(pos - 1, "'describes' may only be used with structs");
         return {};
       }
@@ -691,7 +693,7 @@ class ModuleDecoderImpl : public Decoder {
   TypeDefinition consume_shared_type(size_t current_type_index) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kSharedFlagCode) {
-      if (!enabled_features_.has_shared()) {
+      if (V8_UNLIKELY(!enabled_features_.has_shared())) {
         errorf(pc() - 1,
                "unknown type form: %d, enable with --experimental-wasm-shared",
                kind);
@@ -702,8 +704,8 @@ class ModuleDecoderImpl : public Decoder {
       TypeDefinition type =
           consume_describing_type(current_type_index, SharedFlag::kYes);
       DCHECK(type.is_shared == SharedFlag::kYes || failed());
-      if (type.kind == TypeDefinition::kFunction ||
-          type.kind == TypeDefinition::kCont) {
+      if (V8_UNLIKELY(type.kind == TypeDefinition::kFunction ||
+                      type.kind == TypeDefinition::kCont)) {
         // TODO(42204563): Support shared functions/continuations.
         error(pc() - 1, "shared functions/continuations are not supported yet");
         return {};
@@ -729,7 +731,7 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t supertype = kNoSuperType.index;
       if (supertype_count == 1) {
         supertype = consume_u32v("supertype", tracer_);
-        if (supertype >= current_type_index) {
+        if (V8_UNLIKELY(supertype >= current_type_index)) {
           errorf("type %u: invalid supertype %u", current_type_index,
                  supertype);
           return {};
@@ -765,7 +767,7 @@ class ModuleDecoderImpl : public Decoder {
         group_size = consume_count("recursive group size", kV8MaxWasmTypes);
         if (tracer_) tracer_->RecGroupOffset(rec_group_offset, group_size);
       }
-      if (initial_size + group_size > kV8MaxWasmTypes) {
+      if (V8_UNLIKELY(initial_size + group_size > kV8MaxWasmTypes)) {
         errorf(pc(), "Type definition count exceeds maximum %zu",
                kV8MaxWasmTypes);
         return;
@@ -776,7 +778,7 @@ class ModuleDecoderImpl : public Decoder {
       for (uint32_t j = 0; j < group_size; j++) {
         if (tracer_) tracer_->TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition(initial_size + j);
-        if (failed()) return;
+        if (V8_UNLIKELY(failed())) return;
         module_->types[initial_size + j] = type;
       }
       FinalizeRecgroup(group_size, type_canon);
@@ -807,8 +809,8 @@ class ModuleDecoderImpl : public Decoder {
           for (uint32_t j = 0; j < count; j++) {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
-            if (is_shared == SharedFlag::kYes &&
-                type.is_shared() == SharedFlag::kNo) {
+            if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
+                            type.is_shared() == SharedFlag::kNo)) {
               DCHECK(enabled_features_.has_shared());
               uint32_t retcount =
                   static_cast<uint32_t>(type_def.function_sig->return_count());
@@ -834,8 +836,8 @@ class ModuleDecoderImpl : public Decoder {
           for (uint32_t j = 0; j < count; j++) {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
-            if (is_shared == SharedFlag::kYes &&
-                type.is_shared() == SharedFlag::kNo) {
+            if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
+                            type.is_shared() == SharedFlag::kNo)) {
               errorf(pc_,
                      "Type %u: shared struct must have shared field types, "
                      "actual type for field %d is %s",
@@ -846,14 +848,14 @@ class ModuleDecoderImpl : public Decoder {
           if (type_def.descriptor.valid()) {
             const TypeDefinition& descriptor =
                 module->type(type_def.descriptor);
-            if (descriptor.describes.index != i) {
+            if (V8_UNLIKELY(descriptor.describes.index != i)) {
               uint32_t d = type_def.descriptor.index;
               errorf(pc_,
                      "Type %u has descriptor %u but %u doesn't describe %u", i,
                      d, d, i);
               return;
             }
-            if (descriptor.is_shared != type_def.is_shared) {
+            if (V8_UNLIKELY(descriptor.is_shared != type_def.is_shared)) {
               errorf(pc_,
                      "Type %u and its descriptor %u must have same sharedness",
                      i, type_def.descriptor.index);
@@ -861,7 +863,8 @@ class ModuleDecoderImpl : public Decoder {
             }
           }
           if (type_def.describes.valid()) {
-            if (module->type(type_def.describes).descriptor.index != i) {
+            if (V8_UNLIKELY(module->type(type_def.describes).descriptor.index !=
+                            i)) {
               uint32_t d = type_def.describes.index;
               errorf(pc_,
                      "Type %u describes %u but %u isn't a descriptor for %u", i,
@@ -877,8 +880,8 @@ class ModuleDecoderImpl : public Decoder {
                   ->element_type_writable_ptr(),
               module);
           ValueType type = type_def.array_type->element_type();
-          if (is_shared == SharedFlag::kYes &&
-              type.is_shared() == SharedFlag::kNo) {
+          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
+                          type.is_shared() == SharedFlag::kNo)) {
             errorf(pc_,
                    "Type %u: shared array must have shared element type, "
                    "actual element type is %s",
@@ -892,15 +895,15 @@ class ModuleDecoderImpl : public Decoder {
               type_def.cont_type->contfun_typeindex();
           const TypeDefinition contfun_type =
               module_->types[contfun_typeid.index];
-          if (contfun_type.kind != TypeDefinition::kFunction) {
+          if (V8_UNLIKELY(contfun_type.kind != TypeDefinition::kFunction)) {
             errorf(pc_,
                    "Type %u: cont type must refer to a signature index, "
                    "actual type is %s",
                    i, module_->heap_type(contfun_typeid).name().c_str());
             return;
           }
-          if (is_shared == SharedFlag::kYes &&
-              contfun_type.is_shared == SharedFlag::kNo) {
+          if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
+                          contfun_type.is_shared == SharedFlag::kNo)) {
             errorf(pc_,
                    "Type %u: shared cont type must refer to a shared signature,"
                    " actual type is %s",
@@ -921,17 +924,18 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t depth = module->type(explicit_super).subtyping_depth + 1;
       type_def.subtyping_depth = depth;
       DCHECK_GE(depth, 0);
-      if (depth > kV8MaxRttSubtypingDepth) {
+      if (V8_UNLIKELY(depth > kV8MaxRttSubtypingDepth)) {
         errorf("type %u: subtyping depth is greater than allowed", i);
         return;
       }
       // This check is technically redundant; we include for the improved error
       // message.
-      if (module->type(explicit_super).is_final) {
+      if (V8_UNLIKELY(module->type(explicit_super).is_final)) {
         errorf("type %u extends final type %u", i, explicit_super.index);
         return;
       }
-      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module)) {
+      if (V8_UNLIKELY(!ValidSubtypeDefinition(ModuleTypeIndex{i},
+                                              explicit_super, module))) {
         errorf("type %u has invalid explicit supertype %u", i,
                explicit_super.index);
         return;
@@ -944,7 +948,7 @@ class ModuleDecoderImpl : public Decoder {
                          ? consume_count("count", kV8MaxWasmImports)
                          : 1;
 
-    if (module_->import_table.size() + count > kV8MaxWasmImports) {
+    if (V8_UNLIKELY(module_->import_table.size() + count > kV8MaxWasmImports)) {
       errorf(pc_, "Exceeding maximum number of imports (%u)",
              kV8MaxWasmImports);
       return 0;
@@ -987,8 +991,8 @@ class ModuleDecoderImpl : public Decoder {
       case kExternalFunction:
       case kExternalExactFunction: {
         // ===== Imported function ===========================================
-        if (kind == kExternalExactFunction &&
-            !enabled_features_.has_custom_descriptors()) {
+        if (V8_UNLIKELY(kind == kExternalExactFunction &&
+                        !enabled_features_.has_custom_descriptors())) {
           errorf(pc_ - 1,
                  "Invalid import kind %d, enable with "
                  "--experimental-wasm-custom-descriptors",
@@ -1025,7 +1029,7 @@ class ModuleDecoderImpl : public Decoder {
         // ===== Imported table ==============================================
         const uint8_t* type_position = pc();
         ValueType type = consume_value_type(module_.get());
-        if (!type.is_ref()) {
+        if (V8_UNLIKELY(!type.is_ref())) {
           errorf(type_position, "Invalid table type %s", type.name().c_str());
           break;
         }
@@ -1039,7 +1043,7 @@ class ModuleDecoderImpl : public Decoder {
         if (table_template.shared == SharedFlag::kYes &&
             enabled_features_.has_shared()) {
           module_->has_shared_part = true;
-          if (type.is_shared() == SharedFlag::kNo) {
+          if (V8_UNLIKELY(type.is_shared() == SharedFlag::kNo)) {
             errorf(type_position,
                    "Shared table %i must have shared element type, actual "
                    "type %s",
@@ -1083,7 +1087,8 @@ class ModuleDecoderImpl : public Decoder {
         uint32_t count = GetImportGroupCount(is_compact_encoding_by_type);
 
         static_assert(kV8MaxWasmMemories <= kMaxUInt32);
-        if (module_->memories.size() + count > kV8MaxWasmMemories) {
+        if (V8_UNLIKELY(module_->memories.size() + count >
+                        kV8MaxWasmMemories)) {
           errorf(pc_, "At most %u imported memories are supported",
                  kV8MaxWasmMemories);
           break;
@@ -1174,7 +1179,7 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t kind = consume_u8("kind or compact flag", tracer_);
 
       if (kind == kCompactImportByModule && field_name.length() == 0) {
-        if (!enabled_features_.has_compact_imports()) {
+        if (V8_UNLIKELY(!enabled_features_.has_compact_imports())) {
           errorf(pc_ - 1,
                  "Invalid import kind %d, enable with "
                  "--experimental-wasm-compact-imports",
@@ -1194,7 +1199,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else if (kind == kCompactImportByModuleAndType &&
                  field_name.length() == 0) {
-        if (!enabled_features_.has_compact_imports()) {
+        if (V8_UNLIKELY(!enabled_features_.has_compact_imports())) {
           errorf(pc_ - 1,
                  "Invalid import kind %d, enable with "
                  "--experimental-wasm-compact-imports",
@@ -1257,7 +1262,7 @@ class ModuleDecoderImpl : public Decoder {
       function->func_index = func_index;
       if (tracer_) tracer_->FunctionName(func_index);
       function->sig_index = consume_sig_index(module_.get(), &function->sig);
-      if (!ok()) return;
+      if (V8_UNLIKELY(!ok())) return;
     }
   }
 
@@ -1278,7 +1283,7 @@ class ModuleDecoderImpl : public Decoder {
         has_initializer = true;
         type_position++;
         uint8_t reserved = consume_u8("reserved-byte", tracer_);
-        if (reserved != 0) {
+        if (V8_UNLIKELY(reserved != 0)) {
           error(type_position, "Reserved byte must be 0x00");
           break;
         }
@@ -1286,11 +1291,11 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       ValueType table_type = consume_value_type(module_.get());
-      if (!table_type.is_ref()) {
+      if (V8_UNLIKELY(!table_type.is_ref())) {
         error(type_position, "Only reference types can be used as table types");
         break;
       }
-      if (!has_initializer && !table_type.is_defaultable()) {
+      if (V8_UNLIKELY(!has_initializer && !table_type.is_defaultable())) {
         errorf(type_position,
                "Table of non-defaultable table %s needs initial value",
                table_type.name().c_str());
@@ -1303,7 +1308,7 @@ class ModuleDecoderImpl : public Decoder {
                      enabled_features_.has_shared() || !ok());
       if (table->shared == SharedFlag::kYes && enabled_features_.has_shared()) {
         module_->has_shared_part = true;
-        if (table_type.is_shared() == SharedFlag::kNo) {
+        if (V8_UNLIKELY(table_type.is_shared() == SharedFlag::kNo)) {
           errorf(
               type_position,
               "Shared table %i must have shared element type, actual type %s",
@@ -1335,7 +1340,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
     size_t imported_memories = module_->memories.size();
     DCHECK_GE(kV8MaxWasmMemories, imported_memories);
-    if (memory_count > kV8MaxWasmMemories - imported_memories) {
+    if (V8_UNLIKELY(memory_count > kV8MaxWasmMemories - imported_memories)) {
       errorf(mem_count_pc,
              "Exceeding maximum number of memories (%u; declared %u, "
              "imported %zu)",
@@ -1379,8 +1384,9 @@ class ModuleDecoderImpl : public Decoder {
       const uint8_t* pos = pc_;
       ValueType type = consume_value_type(module_.get());
       auto [mutability, shared] = consume_global_flags();
-      if (failed()) return;
-      if (shared == SharedFlag::kYes && type.is_shared() == SharedFlag::kNo) {
+      if (V8_UNLIKELY(failed())) return;
+      if (V8_UNLIKELY(shared == SharedFlag::kYes &&
+                      type.is_shared() == SharedFlag::kNo)) {
         CHECK(enabled_features_.has_shared());
         errorf(pos, "Shared global %i must have shared type, actual type %s",
                i + imported_globals, type.name().c_str());
@@ -1434,7 +1440,7 @@ class ModuleDecoderImpl : public Decoder {
           WasmFunction* func = nullptr;
           exp->index = consume_func_index(module_.get(), &func);
 
-          if (failed()) break;
+          if (V8_UNLIKELY(failed())) break;
           DCHECK_NOT_NULL(func);
 
           module_->num_exported_functions++;
@@ -1453,7 +1459,7 @@ class ModuleDecoderImpl : public Decoder {
           const uint8_t* index_pos = pc();
           exp->index = consume_u32v("memory index", tracer_);
           size_t num_memories = module_->memories.size();
-          if (exp->index >= module_->memories.size()) {
+          if (V8_UNLIKELY(exp->index >= module_->memories.size())) {
             errorf(index_pos,
                    "invalid exported memory index %u (having %zu memor%s)",
                    exp->index, num_memories, num_memories == 1 ? "y" : "ies");
@@ -1504,7 +1510,7 @@ class ModuleDecoderImpl : public Decoder {
       WasmExport* last = &*it++;
       for (auto end = sorted_exports.end(); it != end; last = &*it++) {
         DCHECK(!cmp_less(*it, *last));  // Vector must be sorted.
-        if (!cmp_less(*last, *it)) {
+        if (V8_UNLIKELY(!cmp_less(*last, *it))) {
           const uint8_t* pc =
               start() + GetBufferRelativeOffset(it->name.offset());
           TruncatedUserString<> name(pc, it->name.length());
@@ -1523,8 +1529,8 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* pos = pc_;
     module_->start_function_index = consume_func_index(module_.get(), &func);
     if (tracer_) tracer_->NextLine();
-    if (func &&
-        (func->sig->parameter_count() > 0 || func->sig->return_count() > 0)) {
+    if (V8_UNLIKELY(func && (func->sig->parameter_count() > 0 ||
+                             func->sig->return_count() > 0))) {
       error(pos, "invalid start function: non-zero parameter or return count");
     }
   }
@@ -1537,14 +1543,14 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->ElementOffset(pc_offset());
       WasmElemSegment segment = consume_element_segment_header();
       if (tracer_) tracer_->NextLineIfNonEmpty();
-      if (failed()) return;
+      if (V8_UNLIKELY(failed())) return;
       DCHECK_NE(segment.type, kWasmBottom);
 
       for (uint32_t j = 0; j < segment.element_count; j++) {
         // Just run validation on elements; do not store them anywhere. We will
         // decode them again from wire bytes as needed.
         consume_element_segment_entry(module_.get(), segment);
-        if (failed()) return;
+        if (V8_UNLIKELY(failed())) return;
       }
       module_->elem_segments.push_back(std::move(segment));
     }
@@ -1578,14 +1584,14 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->Description(size);
         tracer_->NextLine();
       }
-      if (size > kV8MaxWasmFunctionSize) {
+      if (V8_UNLIKELY(size > kV8MaxWasmFunctionSize)) {
         errorf(pos, "size %u > maximum function size %zu", size,
                kV8MaxWasmFunctionSize);
         return;
       }
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
-      if (failed()) break;
+      if (V8_UNLIKELY(failed())) break;
       DecodeFunctionBody(function_index, size, offset);
 
       // Now that the function has been decoded, we can compute module offsets.
@@ -1621,7 +1627,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset) {
-    if (functions_count != module_->num_declared_functions) {
+    if (V8_UNLIKELY(functions_count != module_->num_declared_functions)) {
       errorf(error_offset, "function body count %u mismatch (%u expected)",
              functions_count, module_->num_declared_functions);
       return false;
@@ -1643,8 +1649,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool CheckDataSegmentsCount(uint32_t data_segments_count) {
-    if (has_seen_unordered_section(kDataCountSectionCode) &&
-        data_segments_count != module_->num_declared_data_segments) {
+    if (V8_UNLIKELY(has_seen_unordered_section(kDataCountSectionCode) &&
+                    data_segments_count !=
+                        module_->num_declared_data_segments)) {
       errorf(pc(), "data segments count %u mismatch (%u expected)",
              data_segments_count, module_->num_declared_data_segments);
       return false;
@@ -1686,7 +1693,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       consume_bytes(source_length, "segment data");
 
-      if (failed()) break;
+      if (V8_UNLIKELY(failed())) break;
       module_->data_segments.emplace_back(
           header.is_active, header.is_shared, header.memory_index,
           header.dest_addr, WireBytesRef{source_offset, source_length});
@@ -1785,7 +1792,7 @@ class ModuleDecoderImpl : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t{func_idx} <= last_func_idx) {
+        if (V8_UNLIKELY(int64_t{func_idx} <= last_func_idx)) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1805,7 +1812,7 @@ class ModuleDecoderImpl : public Decoder {
           for (uint32_t k = 0; k < mark_size; k++) {
             trace_mark_id |= inner.consume_u8("trace mark id") << k * 8;
           }
-          if (int64_t{func_off} <= last_func_off) {
+          if (V8_UNLIKELY(int64_t{func_off} <= last_func_off)) {
             inner.errorf("Invalid branch offset: %d", func_off);
             break;
           }
@@ -1821,7 +1828,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       }
       // Extra unexpected bytes are an error.
-      if (inner.more()) {
+      if (V8_UNLIKELY(inner.more())) {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
@@ -1849,7 +1856,7 @@ class ModuleDecoderImpl : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t{func_idx} <= last_func_idx) {
+        if (V8_UNLIKELY(int64_t{func_idx} <= last_func_idx)) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1862,13 +1869,13 @@ class ModuleDecoderImpl : public Decoder {
         int64_t last_br_off = -1;
         for (uint32_t j = 0; j < num_hints; ++j) {
           uint32_t br_off = inner.consume_u32v("branch instruction offset");
-          if (int64_t{br_off} <= last_br_off) {
+          if (V8_UNLIKELY(int64_t{br_off} <= last_br_off)) {
             inner.errorf("Invalid branch offset: %d", br_off);
             break;
           }
           last_br_off = br_off;
           uint32_t data_size = inner.consume_u32v("data size");
-          if (data_size != 1) {
+          if (V8_UNLIKELY(data_size != 1)) {
             inner.errorf("Invalid data size: %#x. Expected 1.", data_size);
             break;
           }
@@ -1888,18 +1895,18 @@ class ModuleDecoderImpl : public Decoder {
               inner.errorf(inner.pc(), "Invalid branch hint %#x", br_dir);
               break;
           }
-          if (!inner.ok()) {
+          if (V8_UNLIKELY(!inner.ok())) {
             break;
           }
           func_branch_hints.insert(br_off, hint);
         }
-        if (!inner.ok()) {
+        if (V8_UNLIKELY(!inner.ok())) {
           break;
         }
         branch_hints.emplace(func_idx, std::move(func_branch_hints));
       }
       // Extra unexpected bytes are an error.
-      if (inner.more()) {
+      if (V8_UNLIKELY(inner.more())) {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
@@ -1930,13 +1937,13 @@ class ModuleDecoderImpl : public Decoder {
 
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_index = inner.consume_u32v("function index");
-        if (static_cast<int64_t>(func_index) <= last_func_index) {
+        if (V8_UNLIKELY(static_cast<int64_t>(func_index) <= last_func_index)) {
           inner.error("out of order functions");
           break;
         }
         last_func_index = func_index;
         uint32_t byte_offset = inner.consume_u32v("byte offset");
-        if (byte_offset != 0) {
+        if (V8_UNLIKELY(byte_offset != 0)) {
           inner.error("byte offset has to be 0 (function level only)");
           break;
         }
@@ -1944,8 +1951,8 @@ class ModuleDecoderImpl : public Decoder {
         const uint8_t* pc_after_hint_length = inner.pc();
         uint32_t compilation_priority =
             inner.consume_u32v("compilation priority");
-        if (static_cast<int64_t>(hint_length) <
-            inner.pc() - pc_after_hint_length) {
+        if (V8_UNLIKELY(static_cast<int64_t>(hint_length) <
+                        inner.pc() - pc_after_hint_length)) {
           inner.error("Compilation priority longer than declared hint length");
           break;
         }
@@ -1957,14 +1964,14 @@ class ModuleDecoderImpl : public Decoder {
             inner.pc() - pc_after_hint_length) {
           uint32_t parsed_priority =
               inner.consume_u32v("optimization priority");
-          if (static_cast<int>(parsed_priority) >
-              kOptimizationPriorityExecutedOnceSentinel) {
+          if (V8_UNLIKELY(static_cast<int>(parsed_priority) >
+                          kOptimizationPriorityExecutedOnceSentinel)) {
             inner.error("Optimization priority too large");
             break;
           }
           optimization_priority = static_cast<int>(parsed_priority);
-          if (static_cast<int64_t>(hint_length) <
-              inner.pc() - pc_after_hint_length) {
+          if (V8_UNLIKELY(static_cast<int64_t>(hint_length) <
+                          inner.pc() - pc_after_hint_length)) {
             inner.error("Optimization priority overflows declared hint length");
             break;
           }
@@ -1983,7 +1990,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       // Extra unexpected bytes are an error.
-      if (inner.more()) {
+      if (V8_UNLIKELY(inner.more())) {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
@@ -2018,7 +2025,7 @@ class ModuleDecoderImpl : public Decoder {
 
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_index = inner.consume_u32v("function index");
-        if (static_cast<int64_t>(func_index) <= last_func_index) {
+        if (V8_UNLIKELY(static_cast<int64_t>(func_index) <= last_func_index)) {
           inner.error("out of order functions");
           break;
         }
@@ -2029,21 +2036,22 @@ class ModuleDecoderImpl : public Decoder {
 
         for (uint32_t hint = 0; hint < hints_count; hint++) {
           uint32_t byte_offset = inner.consume_u32v("byte offset");
-          if (static_cast<int64_t>(byte_offset) <= last_byte_offset) {
+          if (V8_UNLIKELY(static_cast<int64_t>(byte_offset) <=
+                          last_byte_offset)) {
             inner.error("out of order hints");
             break;
           }
           last_byte_offset = byte_offset;
 
           uint32_t hint_length = inner.consume_u32v("hint length");
-          if (hint_length == 0) {
+          if (V8_UNLIKELY(hint_length == 0)) {
             inner.error("hint length must be larger than 0");
             break;
           }
 
           uint8_t frequency = inner.consume_u8("frequency");
 
-          if (!(frequency <= 64 || frequency == 127)) {
+          if (V8_UNLIKELY(!(frequency <= 64 || frequency == 127))) {
             inner.error("invalid frequency");
             break;
           }
@@ -2058,7 +2066,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       // Extra unexpected bytes are an error.
-      if (inner.more()) {
+      if (V8_UNLIKELY(inner.more())) {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
@@ -2092,7 +2100,7 @@ class ModuleDecoderImpl : public Decoder {
 
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_index = inner.consume_u32v("function index");
-        if (static_cast<int64_t>(func_index) <= last_func_index) {
+        if (V8_UNLIKELY(static_cast<int64_t>(func_index) <= last_func_index)) {
           inner.error("out of order functions");
           break;
         }
@@ -2103,13 +2111,14 @@ class ModuleDecoderImpl : public Decoder {
 
         for (uint32_t hint = 0; hint < hints_count; hint++) {
           uint32_t byte_offset = inner.consume_u32v("byte offset");
-          if (static_cast<int64_t>(byte_offset) <= last_byte_offset) {
+          if (V8_UNLIKELY(static_cast<int64_t>(byte_offset) <=
+                          last_byte_offset)) {
             inner.error("out of order hints");
             break;
           }
           last_byte_offset = byte_offset;
           uint32_t hint_length = inner.consume_u32v("hint length");
-          if (hint_length == 0) {
+          if (V8_UNLIKELY(hint_length == 0)) {
             inner.error("hint length must be greater than 0");
             break;
           }
@@ -2118,8 +2127,8 @@ class ModuleDecoderImpl : public Decoder {
             auto [function_index, function_index_length] =
                 inner.read_u32v<FullValidationTag>(inner.pc(),
                                                    "function index");
-            if (inner.failed()) break;
-            if (function_index_length > hint_length) {
+            if (V8_UNLIKELY(inner.failed())) break;
+            if (V8_UNLIKELY(function_index_length > hint_length)) {
               inner.error("function length overflows declared hint length");
               break;
             }
@@ -2129,12 +2138,12 @@ class ModuleDecoderImpl : public Decoder {
             auto [call_frequency, call_frequency_length] =
                 inner.read_u32v<FullValidationTag>(inner.pc(),
                                                    "call frequency");
-            if (inner.failed()) break;
-            if (call_frequency_length > hint_length) {
+            if (V8_UNLIKELY(inner.failed())) break;
+            if (V8_UNLIKELY(call_frequency_length > hint_length)) {
               inner.error("call frequency overflows declared hint length");
               break;
             }
-            if (call_frequency > 100U) {
+            if (V8_UNLIKELY(call_frequency > 100U)) {
               inner.error("invalid call frequency percentage");
               break;
             }
@@ -2144,7 +2153,7 @@ class ModuleDecoderImpl : public Decoder {
             call_targets_for_offset.emplace_back(function_index,
                                                  call_frequency);
           }
-          if (inner.failed()) break;
+          if (V8_UNLIKELY(inner.failed())) break;
 
           DCHECK_EQ(hint_length, 0);
 
@@ -2153,7 +2162,7 @@ class ModuleDecoderImpl : public Decoder {
             sum_of_percentages += call_target.call_frequency_percent;
           }
 
-          if (sum_of_percentages > 100U) {
+          if (V8_UNLIKELY(sum_of_percentages > 100U)) {
             inner.error("percentages must sum to at most 100");
             break;
           }
@@ -2161,11 +2170,11 @@ class ModuleDecoderImpl : public Decoder {
           call_targets[func_index].emplace_back(byte_offset,
                                                 call_targets_for_offset);
         }
-        if (inner.failed()) break;
+        if (V8_UNLIKELY(inner.failed())) break;
       }
 
       // Extra unexpected bytes are an error.
-      if (inner.more()) {
+      if (V8_UNLIKELY(inner.more())) {
         inner.errorf("Unexpected extra bytes: %d\n",
                      static_cast<int>(inner.pc() - inner.start()));
       }
@@ -2204,7 +2213,7 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeStringRefSection() {
     uint32_t deferred = consume_count("deferred string literal count",
                                       kV8MaxWasmStringLiterals);
-    if (deferred) {
+    if (V8_UNLIKELY(deferred)) {
       errorf(pc(), "Invalid deferred string literal count %u (expected 0)",
              deferred);
     }
@@ -2229,7 +2238,8 @@ class ModuleDecoderImpl : public Decoder {
       DCHECK_LT(module_->num_imported_functions, module_->functions.size());
       // We know that the code section has been decoded if the first
       // non-imported function has its code set.
-      if (!module_->functions[module_->num_imported_functions].code.is_set()) {
+      if (V8_UNLIKELY(!module_->functions[module_->num_imported_functions]
+                           .code.is_set())) {
         errorf(pc(), "function count is %u, but code section is absent",
                module_->num_declared_functions);
         return false;
@@ -2237,8 +2247,8 @@ class ModuleDecoderImpl : public Decoder {
     }
     // Perform a similar check for the DataCount and Data sections, where data
     // segments are declared but the Data section is absent.
-    if (!CheckDataSegmentsCount(
-            static_cast<uint32_t>(module_->data_segments.size()))) {
+    if (V8_UNLIKELY(!CheckDataSegmentsCount(
+            static_cast<uint32_t>(module_->data_segments.size())))) {
       return false;
     }
     return true;
@@ -2264,13 +2274,13 @@ class ModuleDecoderImpl : public Decoder {
     // error.
     base::Vector<const uint8_t> wire_bytes(start_, end_ - start_);
     size_t max_size = max_module_size();
-    if (wire_bytes.size() > max_size) {
+    if (V8_UNLIKELY(wire_bytes.size() > max_size)) {
       return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
                                     max_size, wire_bytes.size()}};
     }
 
     DecodeModuleHeader(wire_bytes);
-    if (failed()) return toResult(nullptr);
+    if (V8_UNLIKELY(failed())) return toResult(nullptr);
 
     static constexpr uint32_t kWasmHeaderSize = 8;
     Decoder section_iterator_decoder(start_ + kWasmHeaderSize, end_,
@@ -2283,7 +2293,7 @@ class ModuleDecoderImpl : public Decoder {
                                                 wire_bytes.begin());
         DecodeSection(section_iter.section_code(), section_iter.payload(),
                       offset);
-        if (!ok()) break;
+        if (V8_UNLIKELY(!ok())) break;
       }
       if (!section_iter.more()) break;
       section_iter.advance(true);
@@ -2292,7 +2302,7 @@ class ModuleDecoderImpl : public Decoder {
     // Check for module structure errors before validating function bodies, to
     // produce consistent error message independent of whether validation
     // happens here or later.
-    if (section_iterator_decoder.failed()) {
+    if (V8_UNLIKELY(section_iterator_decoder.failed())) {
       return section_iterator_decoder.toResult(nullptr);
     }
 
@@ -2314,7 +2324,8 @@ class ModuleDecoderImpl : public Decoder {
   // Decodes a single function signature at {start}.
   const FunctionSig* DecodeFunctionSignatureForTesting(const uint8_t* start) {
     pc_ = start;
-    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
+    if (V8_UNLIKELY(!expect_u8("type form", kWasmFunctionTypeCode)))
+      return nullptr;
     const FunctionSig* result = consume_sig();
     return ok() ? result : nullptr;
   }
@@ -2385,7 +2396,7 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* pos = pc_;
     ModuleTypeIndex sig_index{consume_u32v("signature index")};
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
-    if (!module->has_signature(sig_index)) {
+    if (V8_UNLIKELY(!module->has_signature(sig_index))) {
       errorf(pos, "no signature at index %u (%d types)", sig_index.index,
              static_cast<int>(module->types.size()));
       *sig = nullptr;
@@ -2404,8 +2415,8 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* pos = pc_;
     ModuleTypeIndex sig_index = consume_sig_index(module, sig);
 
-    if (!enabled_features_.has_wasmfx() && *sig &&
-        (*sig)->return_count() != 0) {
+    if (V8_UNLIKELY(!enabled_features_.has_wasmfx() && *sig &&
+                    (*sig)->return_count() != 0)) {
       errorf(pos, "tag signature %u has non-void return", sig_index);
       *sig = nullptr;
       return {};
@@ -2424,7 +2435,7 @@ class ModuleDecoderImpl : public Decoder {
         tracer_->NextLine();
       }
     }
-    if (count > maximum) {
+    if (V8_UNLIKELY(count > maximum)) {
       errorf(p, "%s of %u exceeds internal limit of %zu", name, count, maximum);
       return 0;
     }
@@ -2455,7 +2466,7 @@ class ModuleDecoderImpl : public Decoder {
       tracer_->Description(": ");
       tracer_->Description(index);
     }
-    if (index >= vector->size()) {
+    if (V8_UNLIKELY(index >= vector->size())) {
       errorf(pos, "%s index %u out of bounds (%d entr%s)", name, index,
              static_cast<int>(vector->size()),
              vector->size() == 1 ? "y" : "ies");
@@ -2487,7 +2498,7 @@ class ModuleDecoderImpl : public Decoder {
     if (tracer_) tracer_->Bytes(pc_, 1);
     LimitsByte limits{consume_u8(
         limits_type == kMemory ? "memory limits flags" : "table limits flags")};
-    if (!limits.is_valid()) {
+    if (V8_UNLIKELY(!limits.is_valid())) {
       errorf(pc() - 1, "invalid %s limits flags 0x%x",
              limits_type == kMemory ? "memory" : "table", limits.flags);
     }
@@ -2495,12 +2506,12 @@ class ModuleDecoderImpl : public Decoder {
     if (limits.is_shared() == SharedFlag::kYes) {
       if constexpr (limits_type == kMemory) {
         // V8 does not support shared memory without a maximum.
-        if (!limits.has_maximum()) {
+        if (V8_UNLIKELY(!limits.has_maximum())) {
           error(pc() - 1, "shared memory must have a maximum defined");
         }
         // TODO(42204563): Implement proper handling of shared memories when
         // Shared Everything is enabled.
-      } else if (!enabled_features_.has_shared()) {  // table
+      } else if (V8_UNLIKELY(!enabled_features_.has_shared())) {  // table
         error(pc() - 1, "invalid table limits flags");
       } else {
         // TODO(42204563): Support shared tables.
@@ -2546,7 +2557,7 @@ class ModuleDecoderImpl : public Decoder {
 
   std::pair<bool, SharedFlag> consume_global_flags() {
     uint8_t flags = consume_u8("global flags");
-    if (flags & ~0b11) {
+    if (V8_UNLIKELY(flags & ~0b11)) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, SharedFlag::kNo};
     }
@@ -2557,7 +2568,7 @@ class ModuleDecoderImpl : public Decoder {
       if (shared) tracer_->Description(" shared");
       tracer_->Description(mutability ? " mutable" : " immutable");
     }
-    if (shared && !enabled_features_.has_shared()) {
+    if (V8_UNLIKELY(shared && !enabled_features_.has_shared())) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, SharedFlag::kNo};
     }
@@ -2581,7 +2592,7 @@ class ModuleDecoderImpl : public Decoder {
     uint64_t initial_64 = type == k64BitLimits
                               ? consume_u64v("initial size", tracer_)
                               : consume_u32v("initial size", tracer_);
-    if (initial_64 > max_initial) {
+    if (V8_UNLIKELY(initial_64 > max_initial)) {
       errorf(pos,
              "initial %s size (%" PRIu64
              " %s) is larger than implementation limit (%u %s)",
@@ -2597,13 +2608,13 @@ class ModuleDecoderImpl : public Decoder {
       uint64_t maximum_64 = type == k64BitLimits
                                 ? consume_u64v("maximum size", tracer_)
                                 : consume_u32v("maximum size", tracer_);
-      if (maximum_64 > max_maximum) {
+      if (V8_UNLIKELY(maximum_64 > max_maximum)) {
         errorf(pos,
                "maximum %s size (%" PRIu64
                " %s) is larger than implementation limit (%" PRIu64 " %s)",
                name, maximum_64, units, max_maximum, units);
       }
-      if (maximum_64 < *initial) {
+      if (V8_UNLIKELY(maximum_64 < *initial)) {
         errorf(pos,
                "maximum %s size (%" PRIu64 " %s) is less than initial (%u %s)",
                name, maximum_64, units, *initial, units);
@@ -2622,7 +2633,7 @@ class ModuleDecoderImpl : public Decoder {
   bool expect_u8(const char* name, uint8_t expected) {
     const uint8_t* pos = pc();
     uint8_t value = consume_u8(name);
-    if (value != expected) {
+    if (V8_UNLIKELY(value != expected)) {
       errorf(pos, "expected %s 0x%02x, got 0x%02x", name, expected, value);
       return false;
     }
@@ -2648,7 +2659,7 @@ class ModuleDecoderImpl : public Decoder {
     // We need to make sure to check that the expression ends in {kExprEnd};
     // otherwise, it is just the first operand of a composite expression, and we
     // fall back to the default case.
-    if (!more()) {
+    if (V8_UNLIKELY(!more())) {
       error("Beyond end of code");
       return {};
     }
@@ -2759,12 +2770,12 @@ class ModuleDecoderImpl : public Decoder {
       }
       this->pc_ = decoder.end();
 
-      if (decoder.failed()) {
+      if (V8_UNLIKELY(decoder.failed())) {
         error(decoder.error().offset(), decoder.error().message().c_str());
         return {};
       }
 
-      if (!decoder.interface().end_found()) {
+      if (V8_UNLIKELY(!decoder.interface().end_found())) {
         error("constant expression is missing 'end'");
         return {};
       }
@@ -2793,7 +2804,7 @@ class ModuleDecoderImpl : public Decoder {
                            : val == 1 ? " mutable"
                                       : " invalid");
     }
-    if (val > 1) error(pc_ - 1, "invalid mutability");
+    if (V8_UNLIKELY(val > 1)) error(pc_ - 1, "invalid mutability");
     return val != 0;
   }
 
@@ -2845,7 +2856,7 @@ class ModuleDecoderImpl : public Decoder {
         consume_bytes(1, " i16", tracer_);
         return kWasmI16;
       case kWaitQueueCode:
-        if (!enabled_features_.has_shared()) {
+        if (V8_UNLIKELY(!enabled_features_.has_shared())) {
           error(
               "invalid storage type 'waitqueue', enable with "
               "--experimental-wasm-shared");
@@ -2898,7 +2909,7 @@ class ModuleDecoderImpl : public Decoder {
   const StructType* consume_struct(bool is_descriptor, SharedFlag is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
-    if (failed()) return nullptr;
+    if (V8_UNLIKELY(failed())) return nullptr;
     ValueType* fields =
         module_->signature_storage.AllocateArray<ValueType>(field_count);
     bool* mutabilities =
@@ -2908,7 +2919,7 @@ class ModuleDecoderImpl : public Decoder {
       mutabilities[i] = consume_mutability();
       if (tracer_) tracer_->NextLine();
     }
-    if (failed()) return nullptr;
+    if (V8_UNLIKELY(failed())) return nullptr;
     uint32_t* offsets =
         module_->signature_storage.AllocateArray<uint32_t>(field_count);
     StructType* result = module_->signature_storage.New<StructType>(
@@ -2919,13 +2930,13 @@ class ModuleDecoderImpl : public Decoder {
 
   const ArrayType* consume_array() {
     ValueType element_type = consume_storage_type();
-    if (element_type == kWasmWaitQueue) {
+    if (V8_UNLIKELY(element_type == kWasmWaitQueue)) {
       error("arrays of waitqueue not supported yet");
       return nullptr;
     }
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
-    if (failed()) return nullptr;
+    if (V8_UNLIKELY(failed())) return nullptr;
     return module_->signature_storage.New<ArrayType>(element_type, mutability);
   }
 
@@ -2934,7 +2945,7 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* pos = pc_;
     uint32_t attribute = consume_u32v("exception attribute");
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
-    if (attribute != kExceptionAttribute) {
+    if (V8_UNLIKELY(attribute != kExceptionAttribute)) {
       errorf(pos, "exception attribute %u not supported", attribute);
       return 0;
     }
@@ -2961,17 +2972,18 @@ class ModuleDecoderImpl : public Decoder {
                                   kExpressionsAsElementsMask | kSharedFlag;
 
     uint32_t flag = consume_u32v("flag", tracer_);
-    if ((flag & kFullMask) != flag) {
+    if (V8_UNLIKELY((flag & kFullMask) != flag)) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
 
     SharedFlag is_shared = SharedFlag(flag & kSharedFlag);
-    if (is_shared == SharedFlag::kYes && !enabled_features_.has_shared()) {
+    if (V8_UNLIKELY(is_shared == SharedFlag::kYes &&
+                    !enabled_features_.has_shared())) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
-    if (is_shared == SharedFlag::kYes) {
+    if (V8_UNLIKELY(is_shared == SharedFlag::kYes)) {
       // TODO(42204563): Support shared element segments.
       error(pos, "shared element segments are not supported yet.");
       return {};
@@ -3027,7 +3039,7 @@ class ModuleDecoderImpl : public Decoder {
           module_->tables[table_index].is_table64() ? kWasmI64 : kWasmI32,
           is_shared);
       // Failed to parse offset initializer, return early.
-      if (failed()) return {};
+      if (V8_UNLIKELY(failed())) return {};
     }
 
     // Denotes an active segment without table index, type, or element kind.
@@ -3040,7 +3052,7 @@ class ModuleDecoderImpl : public Decoder {
       } else {
         if (tracer_) tracer_->Description(" element type:");
         type = consume_value_type(module_.get());
-        if (failed()) return {};
+        if (V8_UNLIKELY(failed())) return {};
       }
     } else {
       if (!backwards_compatible_mode) {
@@ -3091,7 +3103,7 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* pos = pc();
     uint32_t flag = consume_u32v("flag", tracer_);
 
-    if (flag & ~0b1011) {
+    if (V8_UNLIKELY(flag & ~0b1011)) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
@@ -3107,9 +3119,9 @@ class ModuleDecoderImpl : public Decoder {
                                                           : "unknown");
     }
 
-    if (status_flag != SegmentFlags::kActiveNoIndex &&
-        status_flag != SegmentFlags::kPassive &&
-        status_flag != SegmentFlags::kActiveWithIndex) {
+    if (V8_UNLIKELY(status_flag != SegmentFlags::kActiveNoIndex &&
+                    status_flag != SegmentFlags::kPassive &&
+                    status_flag != SegmentFlags::kActiveWithIndex)) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
@@ -3143,7 +3155,7 @@ class ModuleDecoderImpl : public Decoder {
 
     if (is_active) {
       size_t num_memories = module_->memories.size();
-      if (mem_index >= num_memories) {
+      if (V8_UNLIKELY(mem_index >= num_memories)) {
         errorf(pos,
                "invalid memory index %u for data section (having %zu memor%s)",
                mem_index, num_memories, num_memories == 1 ? "y" : "ies");
@@ -3162,7 +3174,7 @@ class ModuleDecoderImpl : public Decoder {
     const uint8_t* initial_pc = pc();
     uint32_t index = consume_func_index(module, &func);
     if (tracer_) tracer_->NextLine();
-    if (failed()) return index;
+    if (V8_UNLIKELY(failed())) return index;
     DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
     ValueType entry_type =

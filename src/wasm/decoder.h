@@ -380,7 +380,7 @@ class Decoder {
   }
 
   bool ok() const { return !failed(); }
-  bool failed() const { return error_.has_error(); }
+  bool failed() const { return V8_UNLIKELY(error_.has_error()); }
   bool more() const { return pc_ < end_; }
   const WasmError& error() const { return error_; }
 
