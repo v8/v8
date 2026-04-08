@@ -1684,15 +1684,15 @@ class PrototypesSetup : public wasm::Decoder {
     }
     if (IsHeapObject(*maybe_proto)) {
       DirectHandle<HeapObject> heap_proto = Cast<HeapObject>(maybe_proto);
-      if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
-        DCHECK(v8_flags.harmony_struct);
-        // Shared JS structs are not supported as prototypes, and probably
-        // never will be: we cannot change their maps to add new properties,
-        // and we cannot add pointers to non-shared methods to them.
-        ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
-        return {};
-      }
       if (IsJSObject(*heap_proto)) {
+        if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
+          DCHECK(v8_flags.harmony_struct);
+          // Shared JS structs are not supported as prototypes, and probably
+          // never will be: we cannot change their maps to add new properties,
+          // and we cannot add pointers to non-shared methods to them.
+          ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+          return {};
+        }
         DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
         if (!proto->map()->is_prototype_map()) {
           // Important for correctness: switch to a non-shared map.
