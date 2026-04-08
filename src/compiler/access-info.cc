@@ -172,12 +172,11 @@ PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
-                                                    MapRef receiver_map,
-                                                    CellRef cell) {
-  return PropertyAccessInfo(zone, kModuleExport, {} /* holder */,
-                            cell /* constant */, {} /* api_holder */,
-                            {} /* name */, {{receiver_map}, zone});
+PropertyAccessInfo PropertyAccessInfo::ModuleExport(
+    Zone* zone, MapRef receiver_map, CellRef cell, OptionalJSObjectRef holder) {
+  return PropertyAccessInfo(zone, kModuleExport, holder, cell /* constant */,
+                            {} /* api_holder */, {} /* name */,
+                            {{receiver_map}, zone});
 }
 
 // static
@@ -777,7 +776,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       return PropertyAccessInfo::Invalid(zone);
     }
     return PropertyAccessInfo::ModuleExport(zone, receiver_map,
-                                            cell_ref.value());
+                                            cell_ref.value(), holder);
   }
   if (access_mode == AccessMode::kHas) {
     // kHas is not supported for dictionary mode objects.
