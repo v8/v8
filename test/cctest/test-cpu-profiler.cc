@@ -2822,10 +2822,12 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
+#ifdef DEBUG
   if (i::v8_flags.turboshaft_verify_load_store_taggedness) {
     // TODO(dmercadier): investigate why this test doesn't work with this flag.
     return;
   }
+#endif
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});

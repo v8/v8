@@ -1867,9 +1867,6 @@ DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
 DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
                      "trace Turboshaft's if-else to switch reducer")
-DEFINE_BOOL_READONLY(turboshaft_verify_load_store_taggedness, false,
-                     "insert runtime checks to verify the representation of "
-                     "loaded/stored values")
 DEFINE_BOOL_READONLY(verify_turboshaft, false,
                      "enable various verifications on Turboshaft")
 #endif  // DEBUG

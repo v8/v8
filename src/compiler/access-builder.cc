@@ -366,7 +366,7 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectReceiver() {
   FieldAccess access = {
       kTaggedBase,          JSGeneratorObject::kReceiverOffset,
       Handle<Name>(),       OptionalMapRef(),
-      Type::Internal(),     MachineType::TaggedPointer(),
+      Type::Internal(),     MachineType::AnyTagged(),
       kPointerWriteBarrier, "JSGeneratorObjectReceiver"};
   return access;
 }
