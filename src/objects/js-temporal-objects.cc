@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 
+#include "include/v8config.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -1735,7 +1736,8 @@ struct DateRecord {
   std::optional<double> era_year;
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
   Maybe<temporal_rs::PartialDate> Regulate(
-      Isolate* isolate, temporal_rs::ArithmeticOverflow overflow);
+      Isolate* isolate,
+      temporal_rs::ArithmeticOverflow overflow) V8_LIFETIME_BOUND;
 };
 
 // https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
@@ -1807,7 +1809,8 @@ struct CombinedRecord {
   // For use in generic contexts
   template <typename Ret>
   Maybe<Ret> Regulate(Isolate* isolate,
-                      temporal_rs::ArithmeticOverflow overflow);
+                      temporal_rs::ArithmeticOverflow overflow)
+      V8_LIFETIME_BOUND;
 };
 
 template <>
@@ -3195,7 +3198,7 @@ class RelativeTo {
     zoned_ = std::move(owned.zoned);
   }
 
-  temporal_rs::RelativeTo ToRust() const {
+  temporal_rs::RelativeTo ToRust() const V8_LIFETIME_BOUND {
     return temporal_rs::RelativeTo{
         .date = date_.get(),
         .zoned = zoned_.get(),
