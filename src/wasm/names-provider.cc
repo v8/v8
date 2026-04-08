@@ -491,12 +491,12 @@ void CanonicalTypeNamesProvider::PrintTypeName(
     StringBuilder& out, CanonicalTypeIndex type_index,
     NamesProvider::IndexAsComment index_as_comment) {
   uint32_t index = type_index.index;
-  if (index > type_names_.size() || type_names_[index].empty()) {
+  if (index >= type_names_.size() || type_names_[index].empty()) {
     DecodeNameSections();
   }
   // {index} should now always be in range, but let's be robust towards
   // invalid parameter values.
-  if (index > type_names_.size() || type_names_[index].empty()) {
+  if (index >= type_names_.size() || type_names_[index].empty()) {
     out << "$canon" << index;
     return;
   }
@@ -533,7 +533,7 @@ void CanonicalTypeNamesProvider::PrintFieldName(StringBuilder& out,
                                                 CanonicalTypeIndex struct_index,
                                                 uint32_t field_index) {
   uint32_t index = struct_index.index;
-  if (index > type_names_.size()) DecodeNameSections();
+  if (index >= type_names_.size()) DecodeNameSections();
 
   auto per_type = field_names_.find(index);
   if (per_type != field_names_.end()) {
