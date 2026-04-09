@@ -59,7 +59,8 @@ constexpr const char* kUnimplementedCodeMessage = "unimplemented code";
 constexpr const char* kUnreachableCodeMessage = "unreachable code";
 }  // namespace v8::base
 
-#define UNIMPLEMENTED() FATAL(::v8::base::kUnimplementedCodeMessage)
+#define UNIMPLEMENTED() \
+  ::v8::base::FatalNoSecurityImpact(::v8::base::kUnimplementedCodeMessage)
 // UNREACHABLE is used both to mark areas of the code that should never be
 // reached, and to guard against UB issues with the sandbox given an in-sandbox
 // corruption.
