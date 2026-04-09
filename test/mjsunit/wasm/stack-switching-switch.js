@@ -66,17 +66,24 @@ let instance = builder.instantiate();
 (function TestSwitchArgs() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig_i_v = builder.addType(kSig_i_v);
-  let cont_i_v = builder.addCont(sig_i_v);
-  let sig_v_v = builder.addType(kSig_v_v);
-  let cont_v_v = builder.addCont(sig_v_v);
-  let sig_i_c = builder.addType(makeSig([kWasmI32, wasmRefType(cont_v_v)], []));
-  let cont_i_c = builder.addCont(sig_i_c);
   let types = [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmEqRef];
-  // Target takes types + return continuation (cont_i_c).
-  let sig_target = builder.addType(makeSig(types.concat([wasmRefType(cont_i_c)]), []));
+
+  builder.startRecGroup();
+  let sig_switch_func = builder.addType(kSig_i_v);
+  let cont_switch_func = builder.addCont(sig_switch_func);
+
+  // return continuation signature: takes i32 and dummy continuation, returns i32
+  let sig_return_cont = builder.addType(makeSig([kWasmI32, wasmRefNullType(builder.nextTypeIndex() + 1)], [kWasmI32]));
+  let cont_return = builder.addCont(sig_return_cont);
+
+  // target continuation signature: takes types + return continuation, returns i32
+  let sig_target = builder.addType(makeSig(types.concat([wasmRefNullType(cont_return)]), [kWasmI32]));
   let cont_target = builder.addCont(sig_target);
-  let tag_switch = builder.addTag(makeSig(types, []));
+  builder.endRecGroup();
+
+  let tag_to_target = builder.addTag(makeSig(types, [kWasmI32]));
+  let tag_to_switch_func = builder.addTag(makeSig([kWasmI32], [kWasmI32]));
+
   let g_ref = builder.addGlobal(kWasmEqRef, true).exportAs('g_ref');
 
   let target = builder.addFunction("target", sig_target)
@@ -91,12 +98,13 @@ let instance = builder.instantiate();
             kExprUnreachable,
           kExprEnd,
           kExprI32Const, 42,
-          kExprLocalGet, 5, // The return continuation (cont_i_c)
-          kExprSwitch, cont_i_c, tag_switch,
+          kExprLocalGet, 5, // The return continuation (cont_return)
+          kExprSwitch, cont_return, tag_to_switch_func,
+          // Unreachable because we don't switch back to `target`
           kExprUnreachable,
       ]).exportFunc();
 
-  let switch_func = builder.addFunction("switch_func", sig_i_v)
+  let switch_func = builder.addFunction("switch_func", sig_switch_func)
       .addBody([
           ...wasmI32Const(10),
           ...wasmI64Const(20n),
@@ -105,8 +113,8 @@ let instance = builder.instantiate();
           kExprGlobalGet, g_ref.index,
           kExprRefFunc, target.index,
           kExprContNew, cont_target,
-          kExprSwitch, cont_target, tag_switch,
-          // switch pushes the parameters of the return continuation: i32, cont
+          kExprSwitch, cont_target, tag_to_target,
+          // switch pushes the results of tag_to_target: i32, cont
           kExprDrop, // drop the dummy cont
           kExprReturn,
       ]).exportFunc();
@@ -114,9 +122,10 @@ let instance = builder.instantiate();
   builder.addFunction("main", kSig_i_v)
       .addBody([
           kExprRefFunc, switch_func.index,
-          kExprContNew, cont_i_v,
-          kExprResume, cont_i_v, 1,
-            kOnSwitch, tag_switch,
+          kExprContNew, cont_switch_func,
+          kExprResume, cont_switch_func, 2,
+            kOnSwitch, tag_to_target,
+            kOnSwitch, tag_to_switch_func,
       ]).exportFunc();
 
   let ref = 123;

@@ -4791,7 +4791,19 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         stack_.shrink_to(stack_size);
         DCHECK_LT(i, handler_table_imm.table_count);
-      } else if (handler.kind != kSwitch) {
+      } else if (handler.kind == kSwitch) {
+        const WasmTagSig* tag_sig = handler.tag.tag->sig;
+        base::Vector<const ValueType> old_cont_returns =
+            this->module_->signature(cont_imm.cont_type->contfun_typeindex())
+                ->returns();
+        if (!VALIDATE(IsSubtypeVec(tag_sig->returns(), old_cont_returns))) {
+          this->DecodeError(
+              "Type mismatch between tag returns and cont returns for switch "
+              "handler %u",
+              handler_iterator.cur_index() - 1);
+          return -1;
+        }
+      } else {
         this->DecodeError("invalid handler kind %d", handler.kind);
         return -1;
       }

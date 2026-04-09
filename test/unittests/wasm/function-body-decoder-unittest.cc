@@ -6120,6 +6120,7 @@ TEST_F(FunctionBodyDecoderTest, WasmResume) {
   uint8_t func_index = builder.AddFunction(sig_index);
 
   uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_v = builder.AddTag(sigs.i_v());
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
 
   ExpectValidates(sigs.v_v(),
@@ -6155,7 +6156,7 @@ TEST_F(FunctionBodyDecoderTest, WasmResume) {
            sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
            WASM_CONT_NEW(ToByte(cont_i_i_index)),
            WASM_RESUME(ToByte(cont_i_i_index), 2, WASM_ON_TAG(tag_i_i, 0),
-                       WASM_SWITCH_TAG(tag_v_v)),
+                       WASM_SWITCH_TAG(tag_i_v)),
            WASM_RETURN0),
        WASM_DROP, WASM_DROP});
 }
@@ -6295,6 +6296,7 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
 
   uint8_t tag_v_v = builder.AddTag(sigs.v_v());
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+  uint8_t tag_i_v = builder.AddTag(sigs.i_v());
 
   ExpectValidates(
       sigs.v_v(),
@@ -6330,7 +6332,7 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
            sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
            WASM_CONT_NEW(ToByte(cont1_index)),
            WASM_RESUME_THROW(ToByte(cont1_index), ex_tag, 2,
-                             WASM_ON_TAG(tag_i_i, 0), WASM_SWITCH_TAG(tag_v_v)),
+                             WASM_ON_TAG(tag_i_i, 0), WASM_SWITCH_TAG(tag_i_v)),
            WASM_RETURN0),
        WASM_DROP, WASM_DROP});
 }
