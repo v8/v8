@@ -79,6 +79,11 @@ namespace internal {
 //             unknown tags)
 // Version 14: flags for JSArrayBufferViews
 // Version 15: support for shared objects with an explicit tag
+// Version 16: don't truncate JSArrayBuffer's and JSArrayBufferView's lengths
+//             and offsets to 32-bit values and write full size_t's instead,
+//             make sure deserializer is ready to handle 64-bit values even on
+//             32-bit architectures. Allow serialization of resizable
+//             ArrayBuffers with maxByteLength larger than 4GB.
 //
 // WARNING: Increasing this value is a change which cannot safely be rolled
 // back without breaking compatibility with data stored on disk. It is
@@ -87,7 +92,7 @@ namespace internal {
 //
 // Recent changes are routinely reverted in preparation for branch, and this
 // has been the cause of at least one bug in the past.
-static const uint32_t kLatestVersion = 15;
+static const uint32_t kLatestVersion = 16;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
 
@@ -1048,20 +1053,12 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  size_t max_byte_length = 0;
+
   bool is_resizable = array_buffer->is_resizable_by_js();
   if (is_resizable) {
-    max_byte_length = array_buffer->max_byte_length();
-    if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
-      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
-                                 array_buffer);
-    }
-  }
-
-  if (is_resizable) {
     WriteTag(SerializationTag::kResizableArrayBuffer);
-    WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
-    WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
+    WriteVarint<size_t>(byte_length);
+    WriteVarint<size_t>(array_buffer->max_byte_length());
     WriteRawBytes(array_buffer->backing_store(), byte_length);
     return ThrowIfOutOfMemory();
   }
@@ -1074,7 +1071,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   } else {
     WriteTag(SerializationTag::kArrayBuffer);
   }
-  WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
+  WriteVarint<size_t>(byte_length);
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
 }
@@ -1110,8 +1107,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
-  WriteVarint(static_cast<uint32_t>(view->byte_offset()));
-  WriteVarint(static_cast<uint32_t>(view->byte_length()));
+  WriteVarint<size_t>(view->byte_offset());
+  WriteVarint<size_t>(view->byte_length());
   uint32_t flags =
       JSArrayBufferViewIsLengthTracking::encode(view->is_length_tracking()) |
       JSArrayBufferViewIsBackedByRab::encode(view->is_backed_by_rab());
@@ -1570,6 +1567,16 @@ bool ValueDeserializer::ReadUint32(uint32_t* value) {
 
 bool ValueDeserializer::ReadUint64(uint64_t* value) {
   return ReadVarint<uint64_t>().To(value);
+}
+
+bool ValueDeserializer::ReadSizeT(size_t* value) {
+  uint64_t value64;
+  if (!ReadVarint<uint64_t>().To(&value64) ||
+      value64 > std::numeric_limits<size_t>::max()) {
+    return false;
+  }
+  *value = static_cast<size_t>(value64);
+  return true;
 }
 
 bool ValueDeserializer::ReadDouble(double* value) {
@@ -2180,13 +2187,13 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
 
     return array_buffer;
   }
-  uint32_t byte_length;
-  if (!ReadVarint<uint32_t>().To(&byte_length)) {
+  size_t byte_length;
+  if (!ReadSizeT(&byte_length)) {
     return MaybeDirectHandle<JSArrayBuffer>();
   }
-  uint32_t max_byte_length = byte_length;
+  size_t max_byte_length = byte_length;
   if (is_resizable) {
-    if (!ReadVarint<uint32_t>().To(&max_byte_length)) {
+    if (!ReadSizeT(&max_byte_length)) {
       return MaybeDirectHandle<JSArrayBuffer>();
     }
     if (byte_length > max_byte_length) {
@@ -2237,15 +2244,13 @@ ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeDirectHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     DirectHandle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->GetByteLength());
+  size_t buffer_byte_length = buffer->GetByteLength();
   uint8_t tag = 0;
-  uint32_t byte_offset = 0;
-  uint32_t byte_length = 0;
+  size_t byte_offset = 0;
+  size_t byte_length = 0;
   uint32_t flags = 0;
-  if (!ReadVarint<uint8_t>().To(&tag) ||
-      !ReadVarint<uint32_t>().To(&byte_offset) ||
-      !ReadVarint<uint32_t>().To(&byte_length) ||
-      byte_offset > buffer_byte_length ||
+  if (!ReadVarint<uint8_t>().To(&tag) || !ReadSizeT(&byte_offset) ||
+      !ReadSizeT(&byte_length) || byte_offset > buffer_byte_length ||
       byte_length > buffer_byte_length - byte_offset) {
     return MaybeDirectHandle<JSArrayBufferView>();
   }
