@@ -70,7 +70,7 @@ class SharedEngineIsolate {
   }
 
   SharedModule ExportInstance(DirectHandle<WasmInstanceObject> instance) {
-    return instance->module_object()->shared_native_module();
+    return instance->module_object()->native_module().as_shared_ptr();
   }
 
   int32_t Run(DirectHandle<WasmInstanceObject> instance) {

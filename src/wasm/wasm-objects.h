@@ -145,9 +145,7 @@ enum InternalizeString : bool { kInternalize = true, kNoInternalize = false };
 class WasmModuleObject
     : public TorqueGeneratedWasmModuleObject<WasmModuleObject, JSObject> {
  public:
-  inline Managed<wasm::NativeModule>::Ptr native_module() const;
-  inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
-      const;
+  inline Managed<wasm::NativeModule>::Ptr native_module();
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -313,7 +311,7 @@ class WasmMemoryObject
 
   DECL_ACCESSORS(instances, Tagged<WeakArrayList>)
 
-  inline const std::shared_ptr<BackingStore>& backing_store() const;
+  inline Managed<BackingStore>::Ptr backing_store() const;
 
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
@@ -371,7 +369,7 @@ class WasmMemoryObject
   // bit on the backing store is not authoritative).
   static DirectHandle<JSArrayBuffer> RefreshBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      std::shared_ptr<BackingStore> backing_store,
+      Managed<BackingStore>::Ptr backing_store,
       std::optional<ResizableFlag> override_resizable = {});
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,

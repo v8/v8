@@ -21,6 +21,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
+#include "src/objects/managed.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -3459,12 +3460,13 @@ bool AsyncStreamingProcessor::Deserialize(
   }
 
   DCHECK_NULL(job_->new_native_module_);
-  std::shared_ptr<NativeModule> deserialized_native_module =
-      module_object->shared_native_module();
+  Managed<NativeModule>::Ptr deserialized_native_module =
+      module_object->native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
   // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
-  std::move(*job_).FinishCompile(deserialized_native_module, module_object,
-                                 false);
+  std::move(*job_).FinishCompile(
+      std::move(deserialized_native_module).as_shared_ptr(), module_object,
+      false);
   return true;
 }
 

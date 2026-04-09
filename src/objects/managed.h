@@ -140,9 +140,20 @@ class Managed : public Foreign {
       return ptr_.get();
     }
 
-    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() { return ptr_; }
+    // Only use these when necessary, since unlike `std::shared_ptr` the `Ptr`
+    // class uses "lifetimebound" annotations for static analysis.
+    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() & { return ptr_; }
+    V8_INLINE std::shared_ptr<CppType> as_shared_ptr() && {
+      return std::move(ptr_);
+    }
+
+    V8_INLINE void Reset() { ptr_.reset(); }
 
     V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
+    V8_INLINE bool operator==(const Ptr&) const = default;
+    V8_INLINE bool operator==(const std::shared_ptr<CppType>& other) const {
+      return ptr_ == other;
+    }
 
    private:
     friend class Managed;

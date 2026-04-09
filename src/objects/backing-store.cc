@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
+#include "src/objects/managed.h"
 #include "src/sandbox/sandbox.h"
 
 #if V8_ENABLE_WEBASSEMBLY

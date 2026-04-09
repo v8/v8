@@ -234,9 +234,6 @@ class StreamTester {
   Managed<NativeModule>::Ptr native_module() const {
     return module_object()->native_module();
   }
-  std::shared_ptr<NativeModule> shared_native_module() const {
-    return module_object()->shared_native_module();
-  }
 
   // Run all compiler tasks, both foreground and background tasks.
   void RunCompilerTasks() {
@@ -1285,9 +1282,9 @@ STREAM_TEST(TestIncrementalCaching) {
   IndirectHandle<WasmInstanceObject> instance;
   {
     DirectHandle<Script> script = GetWasmEngine()->GetOrCreateScript(
-        i_isolate, tester.shared_native_module(), kNoSourceUrl);
-    DirectHandle<WasmModuleObject> module_object =
-        WasmModuleObject::New(i_isolate, tester.shared_native_module(), script);
+        i_isolate, tester.native_module().as_shared_ptr(), kNoSourceUrl);
+    DirectHandle<WasmModuleObject> module_object = WasmModuleObject::New(
+        i_isolate, tester.native_module().as_shared_ptr(), script);
     ErrorThrower thrower(i_isolate, "Instantiation");
     // We instantiated before, so the second instantiation must also succeed:
     instance = indirect_handle(

@@ -911,10 +911,12 @@ void WasmMemoryObject::UseInInstance(
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t memory_index_in_instance) {
   SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
-                    memory->backing_store(), memory_index_in_instance);
+                    memory->backing_store().as_shared_ptr(),
+                    memory_index_in_instance);
   if (!shared_trusted_instance_data.is_null()) {
     SetInstanceMemory(*shared_trusted_instance_data, memory->array_buffer(),
-                      memory->backing_store(), memory_index_in_instance);
+                      memory->backing_store().as_shared_ptr(),
+                      memory_index_in_instance);
   }
   DirectHandle<WeakArrayList> instances{memory->instances(), isolate};
   auto weak_instance_object = MaybeObjectDirectHandle::Weak(
@@ -972,8 +974,8 @@ void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
     uint32_t num_memories = memory_objects->ulength().value();
     for (uint32_t mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
       if (memory_objects->get(mem_idx) == *this) {
-        SetInstanceMemory(trusted_data, array_buffer(), backing_store(),
-                          mem_idx);
+        SetInstanceMemory(trusted_data, array_buffer(),
+                          backing_store().as_shared_ptr(), mem_idx);
       }
     }
   }
@@ -1020,22 +1022,23 @@ void WasmMemoryObject::FixUpResizableArrayBuffer(
 // static
 DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
-    std::shared_ptr<BackingStore> backing_store,
+    Managed<BackingStore>::Ptr backing_store,
     std::optional<ResizableFlag> override_resizable) {
-  DCHECK_EQ(backing_store, memory_object->backing_store());
+  DCHECK_EQ(backing_store.raw(), memory_object->backing_store().raw());
 
   DirectHandle<JSArrayBuffer> new_buffer;
   const bool bs_shared = backing_store->is_shared();
   DCHECK_IMPLIES(override_resizable.has_value(), bs_shared);
   if (bs_shared) {
-    new_buffer =
-        isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+    new_buffer = isolate->factory()->NewJSSharedArrayBuffer(
+        backing_store.as_shared_ptr());
     if (override_resizable.has_value()) {
       bool resizable = *override_resizable == ResizableFlag::kResizable;
       new_buffer->set_is_resizable_by_js(resizable);
     }
   } else {
-    new_buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
+    new_buffer = isolate->factory()->NewJSArrayBuffer(
+        std::move(backing_store).as_shared_ptr());
   }
   WasmMemoryObject::SetNewBuffer(isolate, memory_object, new_buffer);
   return new_buffer;
@@ -1047,7 +1050,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0("v8.wasm", "wasm.GrowMemory");
 
-  std::shared_ptr<BackingStore> backing_store = memory_object->backing_store();
+  Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
   DCHECK_NOT_NULL(backing_store);
 
   DirectHandle<JSArrayBuffer> maybe_old_buffer;
@@ -1164,7 +1167,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     return -1;
   }
 
-  DCHECK_EQ(backing_store, memory_object->backing_store());
+  DCHECK_EQ(backing_store.raw(), memory_object->backing_store().raw());
   size_t new_byte_length = new_backing_store->byte_length();
   memory_object->managed_backing_store()->SetManagedObject(
       std::move(new_backing_store), isolate, new_byte_length);
@@ -1206,7 +1209,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
     return buffer;
   }
 
-  std::shared_ptr<BackingStore> backing_store = memory_object->backing_store();
+  Managed<BackingStore>::Ptr backing_store = memory_object->backing_store();
   // For shared memory the flag on the backing store is not authoritative.
   // Since the AB is never detached, we just update the AB and use that as the
   // authoritative source of resizability.
@@ -1273,7 +1276,7 @@ size_t WasmMemoryMapDescriptor::MapDescriptor(
     DirectHandle<WasmMemoryObject> memory, size_t offset) {
 #if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
-  std::shared_ptr<BackingStore> backing_store = memory->backing_store();
+  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
   if (backing_store->is_shared()) {
     // TODO(ahaas): Handle concurrent calls to `MapDescriptor`. To prevent
     // concurrency issues, we disable `MapDescriptor` for shared wasm memories
@@ -1332,7 +1335,7 @@ bool WasmMemoryMapDescriptor::UnmapDescriptor() {
   }
   uint32_t offset = this->offset();
   uint32_t size = this->size();
-  std::shared_ptr<BackingStore> backing_store = memory->backing_store();
+  Managed<BackingStore>::Ptr backing_store = memory->backing_store();
 
   // The following checks already passed during `MapDescriptor`, and they should
   // still pass.

@@ -18,6 +18,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/lookup-inl.h"
+#include "src/objects/managed.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -723,7 +724,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  std::shared_ptr<BackingStore> backing_store =
+  Managed<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());
@@ -734,7 +735,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm32(isolate, backing_store.get(), offset,
+  return FutexEmulation::WaitWasm32(isolate, backing_store.raw(), offset,
                                     expected_value, timeout_ns->AsInt64());
 }
 
@@ -749,7 +750,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  std::shared_ptr<BackingStore> backing_store =
+  Managed<BackingStore>::Ptr backing_store =
       trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, backing_store->byte_length());
@@ -760,7 +761,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm64(isolate, backing_store.get(), offset,
+  return FutexEmulation::WaitWasm64(isolate, backing_store.raw(), offset,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
 }

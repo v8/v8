@@ -167,7 +167,7 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
       i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
-  return managed->get();
+  return managed->ptr().as_shared_ptr();
 }
 
 class WasmModuleCompilation::Impl {
@@ -2857,7 +2857,7 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  std::shared_ptr<i::BackingStore> backing_store = receiver->backing_store();
+  i::Managed<i::BackingStore>::Ptr backing_store = receiver->backing_store();
 #ifdef DEBUG
   if (i::Tagged<i::JSArrayBuffer> buffer;
       TryCast(receiver->array_buffer(), &buffer)) {
@@ -2933,7 +2933,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(memory, WasmMemoryObject);
 
-  std::shared_ptr<i::BackingStore> backing_store = memory->backing_store();
+  i::Managed<i::BackingStore>::Ptr backing_store = memory->backing_store();
   size_t curr_size = backing_store->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
   uint32_t min_size = static_cast<uint32_t>(curr_size);

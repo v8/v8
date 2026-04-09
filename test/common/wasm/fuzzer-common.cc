@@ -25,6 +25,7 @@
 #include "include/v8-metrics.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/objects/managed.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -762,8 +763,8 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<WasmMemoryObject> ref_memory =
         ref_instance_data->memory_object(memory_index);
 
-    std::shared_ptr<BackingStore> store = memory->backing_store();
-    std::shared_ptr<BackingStore> ref_store = ref_memory->backing_store();
+    Managed<BackingStore>::Ptr store = memory->backing_store();
+    Managed<BackingStore>::Ptr ref_store = ref_memory->backing_store();
 
     size_t memory_size = store->byte_length();
     size_t ref_memory_size = ref_store->byte_length();

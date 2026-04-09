@@ -9,6 +9,7 @@
 #include "include/v8-platform.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
+#include "src/objects/managed.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
@@ -180,8 +181,7 @@ class InstantiateResolver : public InstantiationResultResolver {
 class CompileResolver : public CompilationResultResolver {
  public:
   CompileResolver(CompilationStatus* status, std::string* error_message,
-                  Isolate* isolate,
-                  std::shared_ptr<NativeModule>* native_module)
+                  Isolate* isolate, Managed<NativeModule>::Ptr* native_module)
       : status_(status),
         error_message_(error_message),
         isolate_(isolate),
@@ -190,7 +190,7 @@ class CompileResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(
       i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
-      *native_module_ = module->shared_native_module();
+      *native_module_ = module->native_module();
       GetWasmEngine()->AsyncInstantiate(isolate_,
                                         std::make_unique<InstantiateResolver>(
                                             isolate_, status_, error_message_),
@@ -210,7 +210,7 @@ class CompileResolver : public CompilationResultResolver {
   CompilationStatus* const status_;
   std::string* const error_message_;
   Isolate* isolate_;
-  std::shared_ptr<NativeModule>* const native_module_;
+  Managed<NativeModule>::Ptr* const native_module_;
 };
 
 }  // namespace test
@@ -286,7 +286,7 @@ COMPILE_TEST(TestEventMetrics) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   test::CompilationStatus status = test::CompilationStatus::kPending;
   std::string error_message;
-  std::shared_ptr<NativeModule> native_module;
+  Managed<NativeModule>::Ptr native_module;
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer);
   GetWasmEngine()->AsyncCompile(
       isolate, enabled_features, CompileTimeImports{},

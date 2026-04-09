@@ -1145,8 +1145,9 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   CHECK_NOT_NULL(module);
 
   WasmEngine* wasm_engine = GetWasmEngine();
-  auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, wire_bytes_vec.as_vector(), compile_imports);
+  std::shared_ptr<NativeModule> shared_native_module =
+      wasm_engine->MaybeGetNativeModule(
+          module->origin, wire_bytes_vec.as_vector(), compile_imports);
   if (shared_native_module) {
     // For consistency, take ownership of the passed `wire_bytes_vec` also when
     // taking a module from cache.

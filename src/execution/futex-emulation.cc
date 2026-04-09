@@ -17,6 +17,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -347,7 +348,7 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
   Tagged<Managed<FutexManagedObjectWaitList>> managed =
       Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
           object, offset + wasm::kWaitQueueManagedOffset));
-  const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
+  Managed<FutexManagedObjectWaitList>::Ptr wait_list = managed->ptr();
   NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
 
   int32_t loaded_control_value =
@@ -355,7 +356,7 @@ Tagged<Object> FutexEmulation::WaitWasmManagedObject(Isolate* isolate,
           ->load();
 
   return *WaitSyncImpl<FutexManagedObjectWaitList>(
-      isolate, wait_list.get(), node, lock_guard, use_timeout, timeout_time,
+      isolate, wait_list.raw(), node, lock_guard, use_timeout, timeout_time,
       expected_value, loaded_control_value, {});
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -761,7 +762,7 @@ int FutexEmulation::Wake(Address raw_object, int32_t offset,
       Cast<Managed<FutexManagedObjectWaitList>>(TaggedField<Object>::load(
           Cast<HeapObject>(Tagged<Object>(raw_object)),
           offset + wasm::kWaitQueueManagedOffset));
-  const std::shared_ptr<FutexManagedObjectWaitList> wait_list = managed->get();
+  Managed<FutexManagedObjectWaitList>::Ptr wait_list = managed->ptr();
 
   NoGarbageCollectionMutexGuard lock_guard(GetWaitList()->mutex());
 

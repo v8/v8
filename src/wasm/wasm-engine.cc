@@ -656,10 +656,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
     DirectHandle<Script> script) {
-  std::shared_ptr<NativeModule> native_module =
-      asm_wasm_data->managed_native_module()->get();
-  DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script);
+  Managed<wasm::NativeModule>::Ptr native_module =
+      asm_wasm_data->managed_native_module()->ptr();
+  DirectHandle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, std::move(native_module).as_shared_ptr(), script);
   return module_object;
 }
 
