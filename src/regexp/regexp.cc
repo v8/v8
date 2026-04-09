@@ -1346,24 +1346,12 @@ std::optional<int> RegExpImpl::IrregexpExec(
 
 namespace {
 
-// Returns true if we've either generated too much irregex code within this
-// isolate, or the pattern string is too long.
-bool TooMuchRegExpCode(Isolate* isolate, DirectHandle<RegExpData> re_data) {
-  // Limit the space regexps take up on the heap.  In order to limit this we
-  // would like to keep track of the amount of regexp code on the heap.  This
-  // is not tracked, however.  As a conservative approximation we track the
-  // total regexp code compiled including code that has subsequently been freed
-  // and the total executable memory at any point.
-  static constexpr size_t kRegExpExecutableMemoryLimit = 16 * MB;
-  static constexpr size_t kRegExpCompiledLimit = 1 * MB;
-
-  Heap* heap = isolate->heap();
-  if (re_data->original_source()->length() >
-      RegExp::kRegExpTooLargeToOptimize) {
-    return true;
-  }
-  return (isolate->total_regexp_code_generated() > kRegExpCompiledLimit &&
-          heap->CommittedMemoryExecutable() > kRegExpExecutableMemoryLimit);
+// Returns true if the pattern string is too long for regexp optimization to
+// be worthwhile (the optimization work would take too long relative to the
+// benefit).
+bool SubjectStringTooLargeToOptimize(DirectHandle<RegExpData> re_data) {
+  return re_data->original_source()->length() >
+         RegExp::kRegExpTooLargeToOptimize;
 }
 
 }  // namespace
@@ -1406,7 +1394,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   if (compiler.optimize()) {
-    compiler.set_optimize(!TooMuchRegExpCode(isolate, re_data));
+    compiler.set_optimize(!SubjectStringTooLargeToOptimize(re_data));
   }
 
   // Sample some characters from the middle of the string.
@@ -1466,7 +1454,6 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
   }
 
-  macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, re_data));
   SetBacktrackAndExperimentalFallback(macro_assembler.get(), re_data);
 
   // Inserted here, instead of in Assembler, because it depends on information

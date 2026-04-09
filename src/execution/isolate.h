@@ -1459,11 +1459,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(jgruber): Consider removing it.
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
-  size_t total_regexp_code_generated() const {
-    return total_regexp_code_generated_;
-  }
-  void IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code);
-
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   void PrintAndClearRegExpSubjectStrings();
   int64_t& trace_regexp_exec_start_ticks() {
@@ -2889,8 +2884,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // This is only maintained by the shared-space isolate, otherwise it is
   // always null.
   ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
-
-  size_t total_regexp_code_generated_ = 0;
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   int64_t trace_regexp_exec_start_ticks_ = 0;

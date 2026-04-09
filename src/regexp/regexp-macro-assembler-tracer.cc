@@ -576,11 +576,6 @@ void RegExpMacroAssemblerTracer::set_global_mode(GlobalMode mode) {
   assembler_->set_global_mode(mode);
 }
 
-void RegExpMacroAssemblerTracer::set_slow_safe(bool ssc) {
-  RegExpMacroAssembler::set_slow_safe(ssc);
-  assembler_->set_slow_safe(ssc);
-}
-
 void RegExpMacroAssemblerTracer::set_backtrack_limit(uint32_t backtrack_limit) {
   RegExpMacroAssembler::set_backtrack_limit(backtrack_limit);
   assembler_->set_backtrack_limit(backtrack_limit);

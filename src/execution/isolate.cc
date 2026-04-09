@@ -6689,12 +6689,6 @@ bool Isolate::use_optimizer() {
          CpuFeatures::SupportsOptimizer() && !is_precise_count_code_coverage();
 }
 
-void Isolate::IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code) {
-  PtrComprCageBase cage_base(this);
-  DCHECK(IsCode(*code, cage_base) || IsTrustedByteArray(*code, cage_base));
-  total_regexp_code_generated_ += code->Size(cage_base);
-}
-
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
   return NeedsSourcePositions() || detailed_source_positions_for_profiling();
 }

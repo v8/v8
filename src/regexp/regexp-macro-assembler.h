@@ -293,10 +293,6 @@ class RegExpMacroAssembler {
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
                                           Address raw_byte_array);
 
-  // Controls the generation of large inlined constants in the code.
-  virtual void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
-  bool slow_safe() const { return slow_safe_compiler_; }
-
   // Controls after how many backtracks irregexp should abort execution.  If it
   // can fall back to the experimental engine (see `set_can_fallback`), it will
   // return the appropriate error code, otherwise it will return the number of
@@ -359,7 +355,6 @@ class RegExpMacroAssembler {
   static const uint8_t word_character_map_[kWordCharacterMapSize];
 
  private:
-  bool slow_safe_compiler_;
   uint32_t backtrack_limit_;
   bool can_fallback_ = false;
   GlobalMode global_mode_;

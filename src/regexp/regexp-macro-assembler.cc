@@ -28,8 +28,7 @@ namespace regexp {
 
 RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
                                            Mode mode)
-    : slow_safe_compiler_(false),
-      backtrack_limit_(JSRegExp::kNoBacktrackLimit),
+    : backtrack_limit_(JSRegExp::kNoBacktrackLimit),
       global_mode_(NOT_GLOBAL),
       isolate_(isolate),
       zone_(zone),
@@ -53,8 +52,7 @@ int RegExpMacroAssembler::stack_limit_slack_slot_count() const {
 }
 
 bool RegExpMacroAssembler::CanReadUnaligned() const {
-  return kUnalignedReadSupported && v8_flags.enable_regexp_unaligned_accesses &&
-         !slow_safe();
+  return kUnalignedReadSupported && v8_flags.enable_regexp_unaligned_accesses;
 }
 
 // static

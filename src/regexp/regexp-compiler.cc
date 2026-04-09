@@ -372,7 +372,6 @@ Compiler::CompilationResult Compiler::Assemble(
   }
 
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
-  isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
   return {code, next_register_};
