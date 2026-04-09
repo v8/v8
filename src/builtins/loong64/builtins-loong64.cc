@@ -3762,7 +3762,10 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
 
   MemOperand sig_op(fp, 2 * kSystemPointerSize);
   Label resume;
-  __ Push(kContextRegister);
+
+  __ Ld_d(scratch,
+          MemOperand(target_stack_reg, wasm::StackMemory::arg_buffer_offset()));
+  __ Push(kContextRegister, scratch);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
@@ -3786,19 +3789,19 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   __ Branch(&ok, ne, kReturnRegister0, Operand(0));
 
   // No handler found.
+  __ Drop(1);                // Drop saved arg buffer.
   __ Pop(kContextRegister);  // Retrieve saved context.
   __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
   __ bind(&ok);
-  // Drop saved context.
-  __ Drop(1);
 
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   __ Move(target_stack, kReturnRegister0);
-  // Load the arg buffer to set up resume of target stack
+
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  __ Ld_d(arg_buffer,
-          MemOperand(target_stack, wasm::StackMemory::arg_buffer_offset()));
+  __ Pop(arg_buffer);  // Retrieve saved arg_buffer to set up resume of target
+                       // stack.
+  __ Drop(1);          // Drop saved context.
 
   DCHECK(!AreAliased(arg_buffer, target_stack, scratch, sp, fp));
   LoadJumpBuffer(masm, target_stack, true, scratch);
