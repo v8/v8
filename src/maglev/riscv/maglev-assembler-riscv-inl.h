@@ -995,30 +995,10 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   MacroAssembler::Branch(max,  // value >= 255.0
                          not_equal, scratch, Operand(zero_reg));
 
-  // value in (0.0, 255.0)
-  fmv_x_d(result, value);
-  // check if fractional part in result is absent
-  Label has_fraction;
-  Mv(scratch, result);
-  SllWord(scratch, scratch, Operand(64 - kFloat64MantissaBits));
-  MacroAssembler::Branch(&has_fraction, not_equal, scratch, Operand(zero_reg));
-  // no fractional part, compute exponent part taking bias into account.
-  SrlWord(result, result, Operand(kFloat64MantissaBits));
-  SubWord(result, result, kFloat64ExponentBias);
-  MacroAssembler::Branch(done);
-
-  bind(&has_fraction);
-  // Actual rounding is here. Notice that ToUint8Clamp does “round half to even”
-  // tie-breaking and that differs from Math.round which does “round half up”
-  // tie-breaking.
-  fcvt_l_d(scratch, value, RNE);
-  fcvt_d_l(ftmp1, scratch, RNE);
-  // A special handling is needed if the result is a very small positive number
-  // that rounds to zero. JS semantics requires that the rounded result retains
-  // the sign of the input, so a very small positive floating-point number
-  // should be rounded to positive 0.
-  fsgnj_d(ftmp1, ftmp1, value);
-  fmv_x_d(result, ftmp1);
+  // value in (0.0, 255.0): round to nearest even, then store as integer.
+  // fcvt.l.d converts float64 to int64 with round-to-nearest-even (RNE),
+  // matching the ECMA-262 §7.1.12 ToUint8Clamp rounding semantics.
+  fcvt_l_d(result, value, RNE);
   MacroAssembler::Branch(done);
 }
 
