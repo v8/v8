@@ -1233,6 +1233,38 @@ Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str,
   }
 }
 
+Handle<String> Factory::NewCopiedSubstringShared(DirectHandle<String> str,
+                                                 uint32_t begin,
+                                                 uint32_t length) {
+  DCHECK(str->IsFlat());  // Callers must flatten.
+  DCHECK_GT(length, 0);   // Callers must handle empty string.
+  bool one_byte;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent flat = str->GetFlatContent(no_gc);
+    if (flat.IsOneByte()) {
+      one_byte = true;
+    } else {
+      one_byte = String::IsOneByte(flat.ToUC16Vector().data() + begin, length);
+    }
+  }
+  if (one_byte) {
+    Handle<SeqOneByteString> result =
+        NewRawSharedOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    uint8_t* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  } else {
+    Handle<SeqTwoByteString> result =
+        NewRawSharedTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    base::uc16* dest = result->GetChars(no_gc);
+    String::WriteToFlat(*str, dest, begin, length);
+    return result;
+  }
+}
+
 Handle<String> Factory::NewProperSubString(DirectHandle<String> str,
                                            uint32_t begin, uint32_t end) {
 #if VERIFY_HEAP

@@ -401,7 +401,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {str} must be flat, {length} must be non-zero.
   Handle<String> NewCopiedSubstring(DirectHandle<String> str, uint32_t begin,
                                     uint32_t length);
-
+  // Same, but allocates a shared string in shared space.
+  Handle<String> NewCopiedSubstringShared(DirectHandle<String> str,
+                                          uint32_t begin, uint32_t length);
   // Create a new string object which holds a substring of a string.
   template <typename T, template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<T>, HandleType<String>>)

@@ -2341,7 +2341,14 @@ class TurboshaftGraphBuildingInterface
         break;
       }
       case WKI::kStringSubstringShared: {
-        UNIMPLEMENTED();
+        V<String> string = ExternRefToString(args[0]);
+        // We do not have to flatten the string; shared strings are always flat.
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringSliceShared>(
+            decoder, {string, args[1].op, args[2].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
+        decoder->detected_->add_imported_strings();
+        break;
       }
       case WKI::kStringToWtf16Array:
       case WKI::kStringToWtf16ArrayShared: {

@@ -2327,11 +2327,21 @@ RUNTIME_FUNCTION(Runtime_WasmSubstring) {
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<String> string(Cast<String>(args[0]), isolate);
-  int start = args.positive_smi_value_at(1);
-  int length = args.positive_smi_value_at(2);
+  uint32_t start = args.positive_smi_value_at(1);
+  uint32_t length = args.positive_smi_value_at(2);
 
   string = String::Flatten(isolate, string);
   return *isolate->factory()->NewCopiedSubstring(string, start, length);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmSubstringShared) {
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
+  uint32_t start = args.positive_smi_value_at(1);
+  uint32_t length = args.positive_smi_value_at(2);
+
+  return *isolate->factory()->NewCopiedSubstringShared(string, start, length);
 }
 
 // Returns the new string if the operation succeeds.  Otherwise traps.

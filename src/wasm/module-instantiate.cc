@@ -1810,7 +1810,7 @@ std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
     CASE(StringMeasureUtf8, StringMeasureUtf8, "measureStringAsUTF8", 1);
     CASE(StringMeasureUtf8Shared, StringMeasureUtf8, "measureStringAsUTF8", 1);
     CASE(StringSubstring, StringSubstring, "substring", 3);
-    CASE(StringSubstringShared, StringSubstringShared, "substring", 3);
+    CASE(StringSubstringShared, StringSubstring, "substring", 3);
     CASE(StringTest, StringTest, "test", 1);
     CASE(StringTestShared, StringTest, "test", 1);
     CASE(StringToUtf8Array, StringToUtf8Array, "encodeStringToUTF8Array", 1);

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-shared --allow-natives-syntax
+// Flags: --expose-externalize-string
 
 // Adapted from 'test/mjsunit/wasm/imported-strings.js'.
 
@@ -407,7 +408,132 @@ let kBuiltins = { builtins: ["js-string"] };
   assertEquals(1, instance.exports.eq(null, null));
 })();
 
-// TODO(448741522): Implement substring and adapt the TestStringViewWtf16 test.
+(function TestStringViewWtf16() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  builder.addFunction("get_codeunit", kSig_i_si)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringCharCodeAtShared,
+    ]);
+
+  builder.addFunction("get_codeunit_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringCharCodeAtShared,
+    ]);
+
+  builder.addFunction("get_codepoint", kSig_i_si)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, kStringCodePointAtShared,
+    ]);
+
+  builder.addFunction("get_codepoint_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringCodePointAtShared,
+    ]);
+
+  builder.addFunction("slice", kSig_t_sii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprCallFunction, kStringSubstringShared,
+    ]);
+
+  builder.addFunction("slice_null", kSig_t_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kWasmSharedTypeForm, kExternRefCode,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kExprCallFunction, kStringSubstringShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  for (let str of interestingStrings) {
+    for (let i = 0; i < str.length; i++) {
+      assertEquals(str.charCodeAt(i),
+                   instance.exports.get_codeunit(str, i));
+      assertEquals(str.codePointAt(i),
+                   instance.exports.get_codepoint(str, i));
+    }
+    assertEquals(str, instance.exports.slice(str, 0, -1));
+  }
+
+  assertEquals("", instance.exports.slice("foo", 0, 0));
+  assertEquals("f", instance.exports.slice("foo", 0, 1));
+  assertEquals("fo", instance.exports.slice("foo", 0, 2));
+  assertEquals("foo", instance.exports.slice("foo", 0, 3));
+  assertEquals("foo", instance.exports.slice("foo", 0, 4));
+  assertEquals("o", instance.exports.slice("foo", 1, 2));
+  assertEquals("oo", instance.exports.slice("foo", 1, 3));
+  assertEquals("oo", instance.exports.slice("foo", 1, 100));
+  assertEquals("", instance.exports.slice("foo", 1, 0));
+  assertEquals("", instance.exports.slice("foo", 3, 4));
+  assertEquals("foo", instance.exports.slice("foo", 0, -1));
+  assertEquals("", instance.exports.slice("foo", -1, 1));
+
+  assertThrows(() => instance.exports.get_codeunit(null, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codeunit_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codeunit("", 0),
+               WebAssembly.RuntimeError, "string offset out of bounds");
+  assertThrows(() => instance.exports.get_codepoint(null, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codepoint_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.get_codepoint("", 0),
+               WebAssembly.RuntimeError, "string offset out of bounds");
+  assertThrows(() => instance.exports.slice(null, 0, 0),
+               WebAssembly.RuntimeError, "illegal cast");
+  assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "illegal cast");
+
+  // Cover runtime code path for long slices.
+  const prefix = "a".repeat(10);
+  const slice = "x".repeat(40);
+  const suffix = "b".repeat(40);
+  const input = prefix + slice + suffix;
+  const start = prefix.length;
+  const end = start + slice.length;
+  assertEquals(slice, instance.exports.slice(input, start, end));
+
+  // Check that we create one-byte substrings when possible.
+  let onebyte = instance.exports.slice("\u1234abcABCDE", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the CodeStubAssembler implementation also creates one-byte
+  // substrings.
+  onebyte = instance.exports.slice("\u1234abcA", 1, 4);
+  assertEquals("abc", onebyte);
+  assertTrue(isOneByteString(onebyte));
+  // Cover the code path that checks 8 characters at a time.
+  onebyte = instance.exports.slice("\u1234abcdefgh\u1234", 1, 9);
+  assertEquals("abcdefgh", onebyte);  // Exactly 8 characters.
+  assertTrue(isOneByteString(onebyte));
+  onebyte = instance.exports.slice("\u1234abcdefghij\u1234", 1, 11);
+  assertEquals("abcdefghij", onebyte);  // Longer than 8.
+  assertTrue(isOneByteString(onebyte));
+
+  // Check that the runtime code path also creates one-byte substrings.
+  assertTrue(isOneByteString(
+      instance.exports.slice(input + "\u1234", start, end)));
+})();
 
 (function TestStringCompare() {
   print(arguments.callee.name);

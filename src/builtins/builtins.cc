@@ -759,7 +759,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringMeasureUtf8:
     case Builtin::kWebAssemblyStringConcat:
     case Builtin::kWebAssemblyStringSubstring:
-    case Builtin::kWebAssemblyStringSubstringShared:
     case Builtin::kWebAssemblyStringEquals:
     case Builtin::kWebAssemblyStringCompare:
     case Builtin::kWebAssemblyConfigureAllPrototypes:

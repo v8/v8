@@ -1185,6 +1185,18 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
+  struct WasmStringSliceShared : public Descriptor<WasmStringSliceShared> {
+    static constexpr auto kFunction = Builtin::kWasmStringSliceShared;
+    using arguments_t = std::tuple<V<String>, V<Word32>, V<Word32>>;
+    using results_t = std::tuple<V<String>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
   struct WasmStringEncodeWtf8Array
       : public Descriptor<WasmStringEncodeWtf8Array> {
     static constexpr auto kFunction = Builtin::kWasmStringEncodeWtf8Array;

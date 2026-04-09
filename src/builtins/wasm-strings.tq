@@ -266,12 +266,6 @@ transitioning javascript builtin WebAssemblyStringSubstring(
   }
 }
 
-transitioning javascript builtin WebAssemblyStringSubstringShared(
-    js-implicit context: Context)(_stringArg: JSAny, _startArg: JSAny,
-    _endArg: JSAny): JSAny {
-  unreachable;  // TODO(448741522): Implement.
-}
-
 transitioning javascript builtin WebAssemblyStringEquals(
     js-implicit context: Context)(a: JSAny, b: JSAny): JSAny {
   try {
