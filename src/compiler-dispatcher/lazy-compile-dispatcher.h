@@ -146,8 +146,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
     void ClearFromUncompiledData();
 
     bool is_running_on_background() const {
-      State s = state.load(std::memory_order_relaxed);
-      return s == State::kRunning || s == State::kAbortRequested;
+      return state == State::kRunning || state == State::kAbortRequested;
     }
 
     // The task that this Job will run.
@@ -162,13 +161,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
                                 UncompiledDataWithoutPreparseDataWithJob>>
         owning_uncompiled_data;
 
-    // The state is atomic to allow unsynchronized reads from the main thread
-    // and background threads (e.g., in VerifyBackgroundTaskCount).
-    // Transitions that involve moving the job between queues (e.g., adding to
-    // pending_background_jobs_) must still be performed while holding the
-    // dispatcher's mutex_ to ensure the queues and state remain in sync for
-    // consistency checks.
-    std::atomic<State> state{State::kPending};
+    State state = State::kPending;
   };
 
   using SharedToJobMap = IdentityMap<Job*, FreeStoreAllocationPolicy>;
