@@ -79,7 +79,7 @@ WasmInterpreterObject::GetInterpretedStack(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetInterpretedStack(frame_pointer);
 }
 
@@ -89,7 +89,7 @@ int WasmInterpreterObject::GetFunctionIndex(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetFunctionIndex(frame_pointer, index);
 }
 
