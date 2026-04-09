@@ -189,7 +189,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                                 compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
-                             base::Vector<OpIndex> args, bool do_conversion,
+                             base::Vector<OpIndex> args,
                              OptionalV<FrameState> frame_state,
                              compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
@@ -682,8 +682,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
  private:
   V<Object> InlineWasmFunctionInsideWrapper(
       V<Context> js_context, V<WasmFunctionData> function_data,
-      base::Vector<OpIndex> inlined_args, bool do_conversion,
-      OptionalV<FrameState> frame_state,
+      base::Vector<OpIndex> inlined_args, OptionalV<FrameState> frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   bool is_inlining_into_js_;

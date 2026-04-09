@@ -207,8 +207,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
     V<Context> js_context, V<HeapObject> function_data,
-    base::Vector<OpIndex> args, bool do_conversion,
-    OptionalV<FrameState> frame_state,
+    base::Vector<OpIndex> args, OptionalV<FrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> OpIndex {
   const int rets_count = static_cast<int>(sig_->return_count());
   base::SmallVector<OpIndex, 1> rets(rets_count);
@@ -229,8 +228,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
     DCHECK_NOT_NULL(__ data()->isolate());
     jsval = __ HeapConstant(__ data()->isolate()->factory()->undefined_value());
   } else if (sig_->return_count() == 1) {
-    jsval =
-        do_conversion ? ToJS(rets[0], sig_->GetReturn(), js_context) : rets[0];
+    jsval = ToJS(rets[0], sig_->GetReturn(), js_context);
   } else {
     int32_t return_count = static_cast<int32_t>(sig_->return_count());
     V<Smi> size = __ SmiConstant(Smi::FromInt(return_count));
@@ -253,8 +251,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
     V<Context> js_context, V<WasmFunctionData> function_data,
-    base::Vector<OpIndex> inlined_args, bool do_conversion,
-    OptionalV<FrameState> frame_state,
+    base::Vector<OpIndex> inlined_args, OptionalV<FrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Object> {
   if constexpr (requires(const Assembler& assembler) {
                   assembler.has_wasm_in_js_inlining_reducer;
@@ -291,7 +288,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
 
   // If the wasm function was not inlined, we need to call it.
   return BuildCallAndReturn(js_context, function_data, inlined_args,
-                            do_conversion, frame_state, lazy_deopt_on_throw);
+                            frame_state, lazy_deopt_on_throw);
 }
 
 template <typename Assembler>
@@ -369,9 +366,9 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   }
 
   // Inline the wasm function, if possible.
-  V<Object> jsval = InlineWasmFunctionInsideWrapper(
-      js_context, function_data, VectorOf(args), /* do_conversion */ true,
-      lazy_frame_state, lazy_deopt_on_throw);
+  V<Object> jsval =
+      InlineWasmFunctionInsideWrapper(js_context, function_data, VectorOf(args),
+                                      lazy_frame_state, lazy_deopt_on_throw);
   return jsval;
 }
 
