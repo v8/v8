@@ -79,9 +79,6 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # BUG(chromium:1497251): Probably some data race in the interpreter.
-  'regress/regress-1497251': [SKIP],
-
   # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
