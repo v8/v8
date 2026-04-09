@@ -66,8 +66,8 @@ BUILTIN(MathSumPrecise) {
   };
 
   uint64_t max_count;
-  if (IterableForEach(isolate, items, int_visitor, double_visitor,
-                      generic_visitor, &max_count, kMaxSafeIntegerUint64)
+  if (IterableForEach<false>(isolate, items, int_visitor, double_visitor,
+                             generic_visitor, &max_count, kMaxSafeIntegerUint64)
           .is_null()) {
     return ReadOnlyRoots(isolate).exception();
   }

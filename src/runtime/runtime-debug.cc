@@ -66,8 +66,8 @@ RUNTIME_FUNCTION(Runtime_IterableForEach) {
                 .is_null();
   };
 
-  if (IterableForEach(isolate, iterable, int_visitor, double_visitor,
-                      generic_visitor)
+  if (IterableForEach<true>(isolate, iterable, int_visitor, double_visitor,
+                            generic_visitor)
           .is_null()) {
     return ReadOnlyRoots(isolate).exception();
   }
