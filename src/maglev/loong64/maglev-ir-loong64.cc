@@ -878,11 +878,17 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     MaglevAssembler::TemporaryRegisterScope temps(masm);
     DoubleRegister temp = temps.AcquireScratchDouble();
     DoubleRegister half_one = temps.AcquireScratchDouble();
+    Label done;
+    __ fmov_d(temp, in);
+    __ Round_d(out, in);
+    __ fsub_d(temp, temp, out);
     __ Move(half_one, 0.5);
-    __ fadd_d(temp, in, half_one);
-    __ Floor_d(temp, temp);
-    // Reserve the sign bit when it is between -0.5 and -0.0.
-    __ fcopysign_d(out, temp, in);
+    __ CompareF64(temp, half_one, CUNE);
+    __ BranchTrueF(&done);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ fadd_d(out, out, half_one);
+    __ fadd_d(out, out, half_one);
+    __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ Ceil_d(out, in);
   } else if (kind_ == Kind::kFloor) {
