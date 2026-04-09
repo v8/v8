@@ -142,10 +142,6 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // Contains a Smi; boxed so that generated code can update the value.
   wrapper_budget: Cell;
 
-  // Experimental: set this to non-zero to let the JS-side receiver be passed
-  // as Wasm-side first parameter.
-  receiver_is_first_param: Smi;
-
   // {packed_args_size} and {c_wrapper_code} are for fast calling from C++.
   // The contract is that they are lazily populated, and either both will be
   // present or neither.

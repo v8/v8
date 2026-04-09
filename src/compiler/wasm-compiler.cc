@@ -1032,11 +1032,8 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    bool receiver_is_first_param) {
-  wasm::WrapperCompilationInfo info{
-      .code_kind = CodeKind::JS_TO_WASM_FUNCTION,
-      .receiver_is_first_param = receiver_is_first_param};
+    Isolate* isolate, const wasm::CanonicalSig* sig) {
+  wasm::WrapperCompilationInfo info{.code_kind = CodeKind::JS_TO_WASM_FUNCTION};
   return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
       isolate, sig, info, WasmExportedFunction::GetDebugName(sig),
       WasmAssemblerOptions());

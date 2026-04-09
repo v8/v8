@@ -122,8 +122,7 @@ static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 // TODO(jkummerow): Most of this could move into the .cc file.
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
-  JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
-                                 bool receiver_is_first_param);
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig);
   ~JSToWasmWrapperCompilationUnit();
 
   // Allow move construction and assignment, for putting units in a std::vector.
@@ -136,8 +135,8 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   DirectHandle<Code> Finalize();
 
   // Run a compilation unit synchronously.
-  static DirectHandle<Code> CompileJSToWasmWrapper(
-      Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param);
+  static DirectHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                                   const CanonicalSig* sig);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -146,7 +145,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
   const CanonicalSig* sig_;
-  bool receiver_is_first_param_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 

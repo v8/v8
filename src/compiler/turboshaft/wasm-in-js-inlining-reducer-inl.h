@@ -136,7 +136,6 @@ class WasmInJSInliningReducer : public Next {
       // the wrapper is always inlined.
       V<Any> result = TryInlineJSWasmCallWrapperAndBody(
           native_module, func_idx, arguments, js_closure, js_context,
-          descriptor->js_wasm_call_parameters->receiver_is_first_param(),
           frame_state.value(), descriptor->lazy_deopt_on_throw,
           descriptor->js_wasm_call_parameters->shared_fct_info(),
           eager_frame_state);
@@ -179,8 +178,7 @@ class WasmInJSInliningReducer : public Next {
   V<Any> TryInlineJSWasmCallWrapperAndBody(
       wasm::NativeModule* native_module, uint32_t func_idx,
       base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
-      V<Context> js_context, bool receiver_is_first_param,
-      V<turboshaft::FrameState> outer_frame_state,
+      V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
       SharedFunctionInfoRef shared_function_info,
       OptionalV<turboshaft::FrameState> eager_frame_state);
@@ -1439,8 +1437,7 @@ template <class Next>
 V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
     wasm::NativeModule* native_module, uint32_t func_idx,
     base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
-    V<Context> js_context, bool receiver_is_first_param,
-    V<turboshaft::FrameState> outer_frame_state,
+    V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
     SharedFunctionInfoRef shared_function_info,
     OptionalV<turboshaft::FrameState> eager_frame_state) {
@@ -1486,9 +1483,9 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
   // lazy deoptimizations, for which we would not have a proper frame state.
   // By eagerly deopting on JSReceivers first, the conversion builtins only
   // see primitives and can safely run without a frame state.
-  return builder.BuildJSToWasmWrapperImpl(
-      receiver_is_first_param, js_closure, js_context, arguments, frame_state,
-      lazy_deopt_on_throw, eager_frame_state);
+  return builder.BuildJSToWasmWrapperImpl(js_closure, js_context, arguments,
+                                          frame_state, lazy_deopt_on_throw,
+                                          eager_frame_state);
 }
 
 template <class Next>

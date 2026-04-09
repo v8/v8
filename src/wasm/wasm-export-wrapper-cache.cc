@@ -25,19 +25,17 @@ DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
 
 // static
 void WasmExportWrapperCache::Put(Isolate* isolate, CanonicalTypeIndex sig_index,
-                                 bool receiver_is_first_param,
                                  DirectHandle<Code> code) {
-  uint32_t hash = Hash(sig_index, receiver_is_first_param);
+  uint32_t hash = Hash(sig_index);
   Tagged<WeakFixedArray> cache = EnsureCapacity(isolate);
   PutInternal<true>(cache, hash, code->wrapper());
 }
 
 // static
 Tagged<CodeWrapper> WasmExportWrapperCache::Get(Isolate* isolate,
-                                                CanonicalTypeIndex sig_index,
-                                                bool receiver_is_first_param) {
+                                                CanonicalTypeIndex sig_index) {
   Tagged<WeakFixedArray> cache = isolate->heap()->js_to_wasm_wrappers();
-  uint32_t hash = Hash(sig_index, receiver_is_first_param);
+  uint32_t hash = Hash(sig_index);
   uint32_t capacity = Capacity(cache);
   if (capacity == 0) return {};  // Not found (cache is uninitialized).
   uint32_t count = 1;

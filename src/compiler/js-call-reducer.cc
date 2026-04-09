@@ -4012,7 +4012,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
 
   wasm::NativeModule* native_module = instance_data->native_module();
   int wasm_function_index = function_data->function_index();
-  bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
 
   if (wasm_native_module_for_inlining_ == nullptr) {
     wasm_native_module_for_inlining_ = native_module;
@@ -4030,13 +4029,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
   DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
             n.FeedbackVectorIndex());
   size_t expected_arity = wasm_signature->parameter_count();
-
-  // Duplicate the receiver into the first argument slot if requested.
-  if (receiver_is_first_param) {
-    node->InsertInput(graph()->zone(), n.FirstArgumentIndex(),
-                      node->InputAt(n.ReceiverIndex()));
-    actual_arity++;
-  }
 
   // Remove additional inputs.
   while (actual_arity > expected_arity) {

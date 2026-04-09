@@ -29,11 +29,11 @@ class WasmExportWrapperCache : public AllStatic {
  public:
   // DCHECK-fails if a caller attempts to overwrite an existing wrapper.
   static void Put(Isolate* isolate, CanonicalTypeIndex sig_index,
-                  bool receiver_is_first_param, DirectHandle<Code> code);
+                  DirectHandle<Code> code);
 
   // Returns an empty Tagged if no cache entry was found.
-  static Tagged<CodeWrapper> Get(Isolate* isolate, CanonicalTypeIndex sig_index,
-                                 bool receiver_is_first_param);
+  static Tagged<CodeWrapper> Get(Isolate* isolate,
+                                 CanonicalTypeIndex sig_index);
 
 #ifdef VERIFY_HEAP
   static void Verify(Heap* heap);
@@ -55,16 +55,11 @@ class WasmExportWrapperCache : public AllStatic {
 
   static uint32_t Capacity(Tagged<WeakFixedArray> cache);
 
-  static uint32_t Hash(CanonicalTypeIndex sig_index,
-                       bool receiver_is_first_param) {
-    // We expect most signatures to get only one wrapper, so putting the
-    // {receiver_is_first_param} bit at the top should give good distribution
-    // of hash values.
+  static uint32_t Hash(CanonicalTypeIndex sig_index) {
     // Note: "hash" is a bit of a misnomer here; we require this value to
     // fully represent the identity of the cached value. See {FirstProbe} for
     // the step where collisions can and do happen.
-    static_assert(kMaxCanonicalTypes < (1u << 21));
-    return ((receiver_is_first_param ? 1 : 0) << 21) | sig_index.index;
+    return sig_index.index;
   }
 
   // Maps the n-th entry to an index in the underlying WeakFixedArray.

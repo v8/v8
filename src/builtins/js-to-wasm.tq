@@ -503,7 +503,7 @@ const kCppQuietNaN64: constexpr float64
     generates 'std::numeric_limits<double>::quiet_NaN()';
 
 macro JSToWasmWrapperHelper(
-    context: NativeContext, receiver: JSAny, target: JSFunction,
+    context: NativeContext, _receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
@@ -674,15 +674,8 @@ macro JSToWasmWrapperHelper(
   // JavaScript using `Function.prototype.arguments`.
   let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
-  const receiverIsFirstParam: bool =
-      functionData.receiver_is_first_param != SmiConstant(0);
-  const zero: intptr = 0;  // Torque insists. Whatever.
-  const argumentsOffset: intptr = receiverIsFirstParam ? -1 : zero;
-
   for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
-    const param = (receiverIsFirstParam && paramIndex == 0) ?
-        receiver :
-        arguments[paramIndex + argumentsOffset];
+    const param = arguments[paramIndex];
     const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
     if (paramType == kWasmI32Type) {
       let toRef = locationAllocator.GetGPSlot();

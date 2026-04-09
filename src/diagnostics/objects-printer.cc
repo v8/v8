@@ -3266,7 +3266,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - instance_data: " << Brief(instance_data());
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
-  os << "\n - receiver_is_first_param: " << receiver_is_first_param();
   os << "\n - packed_args_size: " << packed_args_size();
   os << "\n - c_wrapper_code: "
      << c_wrapper_code(GetCurrentIsolateForSandbox());

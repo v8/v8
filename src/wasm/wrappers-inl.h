@@ -293,8 +293,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
 
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
-    bool receiver_is_first_param, V<JSFunction> js_closure,
-    V<Context> js_context, base::Vector<const OpIndex> arguments,
+    V<JSFunction> js_closure, V<Context> js_context,
+    base::Vector<const OpIndex> arguments,
     OptionalV<FrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
     OptionalV<FrameState> eager_frame_state) -> V<Any> {
@@ -311,7 +311,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   __ Bind(__ NewBlock());
 
   base::SmallVector<OpIndex, 16> params(wasm_param_count);
-  const int param_offset = receiver_is_first_param ? 0 : 1;
+  const int param_offset = 1;  // Skip the JS receiver.
   if (is_inlining_into_js_) {
     // We only marked this call for inlining in Turbolev if the argument counts
     // matched already there.
@@ -385,13 +385,12 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
 }
 
 template <typename Assembler>
-void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
-    bool receiver_is_first_param) {
+void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper() {
   // JS-to-Wasm wrappers are compiled per isolate, so they can emit
   // isolate-dependent code.
   DCHECK_NOT_NULL(__ data()->isolate());
   V<Any> result = BuildJSToWasmWrapperImpl(
-      receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
+      OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
       compiler::LazyDeoptOnThrow::kNo, OpIndex::Invalid());
   if (result != OpIndex::Invalid()) {  // Invalid signature.
     __ Return(result);

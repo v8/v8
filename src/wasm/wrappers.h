@@ -194,13 +194,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                              compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   V<Any> BuildJSToWasmWrapperImpl(
-      bool receiver_is_first_param, V<JSFunction> js_closure,
-      V<Context> js_context, base::Vector<const OpIndex> arguments,
+      V<JSFunction> js_closure, V<Context> js_context,
+      base::Vector<const OpIndex> arguments,
       OptionalV<FrameState> lazy_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
       OptionalV<FrameState> eager_frame_state);
 
-  void BuildJSToWasmWrapper(bool receiver_is_first_param);
+  void BuildJSToWasmWrapper();
 
   void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
                             Suspend suspend);

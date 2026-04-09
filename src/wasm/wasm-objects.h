@@ -1067,14 +1067,10 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<Code> export_wrapper, wasm::ModuleOrigin origin,
       int func_index, wasm::Promise promise);
 
-  static void MarkAsReceiverIsFirstParam(
-      Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
-
   // Returns the generic wrapper, or a cached compiled wrapper, or
   // a freshly-compiled wrapper.
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
-                                       bool receiver_is_first_param,
                                        wasm::ModuleOrigin origin);
 
   // Return a null-terminated string with the debug name in the form

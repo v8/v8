@@ -1373,28 +1373,19 @@ class GraphBuildingNodeProcessor {
             TrustedCast<WasmExportedFunctionData>(data);
         wasm_signature = function_data->internal()->sig();
         if (CanInlineJSToWasmCall(wasm_signature)) {
-          // TODO(403372470): `receiver_is_first_param` is deprecated, do not
-          // support inlining for it. Remove it completely.
-          const bool receiver_is_first_param =
-              function_data->receiver_is_first_param();
-          if (!receiver_is_first_param) {
-            int wasm_arity =
-                static_cast<int>(wasm_signature->parameter_count());
-            int js_arity = node->num_args();
-            // TODO(353475584): The old Turbofan-based inlining also handled
-            // mismatched arity by creating the appropriate undefined values.
-            // For now, we conservatively inline only if the arguments match.
-            if (js_arity == wasm_arity) {
-              Tagged<WasmTrustedInstanceData> instance_data =
-                  function_data->instance_data();
-              wasm::NativeModule* native_module =
-                  instance_data->native_module();
-              int wasm_function_index = function_data->function_index();
-              wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-                  native_module, wasm_function_index, shared, feedback,
-                  receiver_is_first_param);
-              __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
-            }
+          int wasm_arity = static_cast<int>(wasm_signature->parameter_count());
+          int js_arity = node->num_args();
+          // TODO(353475584): The old Turbofan-based inlining also handled
+          // mismatched arity by creating the appropriate undefined values.
+          // For now, we conservatively inline only if the arguments match.
+          if (js_arity == wasm_arity) {
+            Tagged<WasmTrustedInstanceData> instance_data =
+                function_data->instance_data();
+            wasm::NativeModule* native_module = instance_data->native_module();
+            int wasm_function_index = function_data->function_index();
+            wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
+                native_module, wasm_function_index, shared, feedback);
+            __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
           }
         }
       }

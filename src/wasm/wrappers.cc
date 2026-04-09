@@ -57,7 +57,7 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
       &zone, assembler, sig,
       /*is_inlining_into_js*/ false);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
-    builder.BuildJSToWasmWrapper(wrapper_info.receiver_is_first_param);
+    builder.BuildJSToWasmWrapper();
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
     builder.BuildWasmToJSWrapper(wrapper_info.import_kind,
                                  wrapper_info.expected_arity,
