@@ -1606,11 +1606,12 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   DCHECK(!type.has_index());  // The JS API can't express type indices.
   i::wasm::CanonicalValueType canonical_type{type};
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
   i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
       canonical_type, initial, maybe_maximum.has_value(),
       maybe_maximum.value_or(0) /* note: unused if previous param is false */,
-      DefaultReferenceValue(i_isolate, type), address_type);
+      DefaultReferenceValue(i_isolate, type), address_type, &dispatch_table);
 
   // The infrastructure for `new Foo` calls allocates an object, which is
   // available here as {info.This()}. We're going to discard this object
@@ -1637,7 +1638,8 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return;
     }
     for (uint32_t index = 0; index < initial; ++index) {
-      i::WasmTableObject::Set(i_isolate, table_obj, index, element);
+      i::WasmTableObject::Set(i_isolate, table_obj, dispatch_table, index,
+                              element);
     }
   } else if (initial > 0) {
     DCHECK_EQ(type, table_obj->unsafe_type());
@@ -2658,11 +2660,13 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   static_assert(i::wasm::kV8MaxWasmTableSize <= i::kMaxUInt32);
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      receiver->trusted_dispatch_table(i_isolate), i_isolate);
   int old_size = grow_by > i::wasm::max_table_size()
                      ? -1
-                     : i::WasmTableObject::Grow(i_isolate, receiver,
-                                                static_cast<uint32_t>(grow_by),
-                                                init_value);
+                     : i::WasmTableObject::Grow(
+                           i_isolate, receiver, dispatch_table,
+                           static_cast<uint32_t>(grow_by), init_value);
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %" PRIu64, grow_by);
     return;
@@ -2768,7 +2772,9 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, table_object,
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      table_object->trusted_dispatch_table(i_isolate), i_isolate);
+  i::WasmTableObject::Set(i_isolate, table_object, dispatch_table,
                           static_cast<uint32_t>(address), element);
 }
 

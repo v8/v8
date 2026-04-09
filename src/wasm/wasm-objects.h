@@ -209,10 +209,10 @@ class WasmTableObject
 
   DECL_VERIFIER(WasmTableObject)
 
-  V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
-                                    DirectHandle<WasmTableObject> table,
-                                    uint32_t count,
-                                    DirectHandle<Object> init_value);
+  V8_EXPORT_PRIVATE static int Grow(
+      Isolate* isolate, DirectHandle<WasmTableObject> table,
+      DirectHandle<WasmDispatchTable> dispatch_table, uint32_t count,
+      DirectHandle<Object> init_value);
 
   // TODO(jkummerow): Consider getting rid of {type}, use {canonical_type}
   // instead.
@@ -237,38 +237,34 @@ class WasmTableObject
 
   // This function will not handle JS objects; i.e., {entry} needs to be in wasm
   // representation.
-  V8_EXPORT_PRIVATE static void Set(Isolate* isolate,
-                                    DirectHandle<WasmTableObject> table,
-                                    uint32_t index, DirectHandle<Object> entry);
+  V8_EXPORT_PRIVATE static void Set(
+      Isolate* isolate, DirectHandle<WasmTableObject> table,
+      DirectHandle<WasmDispatchTable> dispatch_table, uint32_t index,
+      DirectHandle<Object> entry);
 
   V8_EXPORT_PRIVATE static DirectHandle<Object> Get(
       Isolate* isolate, DirectHandle<WasmTableObject> table, uint32_t index);
 
-  V8_EXPORT_PRIVATE static void Fill(Isolate* isolate,
-                                     DirectHandle<WasmTableObject> table,
-                                     uint32_t start, DirectHandle<Object> entry,
-                                     uint32_t count);
+  V8_EXPORT_PRIVATE static void Fill(
+      Isolate* isolate, DirectHandle<WasmTableObject> table,
+      DirectHandle<WasmDispatchTable> dispatch_table, uint32_t start,
+      DirectHandle<Object> entry, uint32_t count);
 
-  // TODO(wasm): Unify these three methods into one.
   static void UpdateDispatchTable(
-      Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-      const wasm::WasmFunction* func,
+      Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+      int entry_index, const wasm::WasmFunction* func,
       DirectHandle<WasmTrustedInstanceData> target_instance
 #if V8_ENABLE_DRUMBRAKE
       ,
       int target_func_index
 #endif  // V8_ENABLE_DRUMBRAKE
   );
-  static void UpdateDispatchTable(Isolate* isolate,
-                                  DirectHandle<WasmTableObject> table,
-                                  int entry_index,
-                                  DirectHandle<WasmJSFunction> function);
-  static void UpdateDispatchTable(Isolate* isolate,
-                                  DirectHandle<WasmTableObject> table,
-                                  int entry_index,
-                                  DirectHandle<WasmCapiFunction> capi_function);
-
-  void ClearDispatchTable(int index);
+  static void UpdateDispatchTable(
+      Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+      int entry_index, DirectHandle<WasmJSFunction> function);
+  static void UpdateDispatchTable(
+      Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+      int entry_index, DirectHandle<WasmCapiFunction> capi_function);
 
   V8_EXPORT_PRIVATE static void SetFunctionTablePlaceholder(
       Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
@@ -277,10 +273,10 @@ class WasmTableObject
 
  private:
   // {entry} is either {Null} or a {WasmInternalFunction}.
-  static void SetFunctionTableEntry(Isolate* isolate,
-                                    DirectHandle<WasmTableObject> table,
-                                    int entry_index,
-                                    DirectHandle<Object> entry);
+  static void SetFunctionTableEntry(
+      Isolate* isolate, DirectHandle<WasmTableObject> table,
+      DirectHandle<WasmDispatchTable> dispatch_table, int entry_index,
+      DirectHandle<Object> entry);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTableObject)
 };

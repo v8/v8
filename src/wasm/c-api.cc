@@ -2178,8 +2178,10 @@ WASM_EXPORT auto Table::make(Store* store_abs, const TableType* type,
 
   if (ref) {
     i::DirectHandle<i::JSReceiver> init = impl(ref)->v8_object();
+    i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+        table_obj->trusted_dispatch_table(isolate), isolate);
     for (uint32_t i = 0; i < minimum; i++) {
-      table_obj->Set(isolate, table_obj, i, init);
+      i::WasmTableObject::Set(isolate, table_obj, dispatch_table, i, init);
     }
   }
   return implement<Table>::type::make(store, table_obj);
@@ -2242,8 +2244,10 @@ WASM_EXPORT auto Table::set(size_t index, const Ref* ref) -> bool {
       i::wasm::JSToWasmObject(isolate, nullptr, obj, table->unsafe_type(),
                               &error_message)
           .ToHandleChecked();
-  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index),
-                          obj_as_wasm);
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      table->trusted_dispatch_table(isolate), isolate);
+  i::WasmTableObject::Set(isolate, table, dispatch_table,
+                          static_cast<uint32_t>(index), obj_as_wasm);
   return true;
 }
 
@@ -2269,8 +2273,11 @@ WASM_EXPORT auto Table::grow(size_t delta, const Ref* ref) -> bool {
       i::wasm::JSToWasmObject(isolate, nullptr, obj, table->unsafe_type(),
                               &error_message)
           .ToHandleChecked();
-  int result = i::WasmTableObject::Grow(
-      isolate, table, static_cast<uint32_t>(delta), obj_as_wasm);
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      table->trusted_dispatch_table(isolate), isolate);
+  int result =
+      i::WasmTableObject::Grow(isolate, table, dispatch_table,
+                               static_cast<uint32_t>(delta), obj_as_wasm);
   return result >= 0;
 }
 

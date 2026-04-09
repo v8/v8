@@ -252,6 +252,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
 }
 
 int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
+                          DirectHandle<WasmDispatchTable> dispatch_table,
                           uint32_t count, DirectHandle<Object> init_value) {
   uint32_t old_size = table->current_length();
   if (count == 0) return old_size;  // Degenerate case: nothing to do.
@@ -280,8 +281,6 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
     table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
   }
 
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      table->trusted_dispatch_table(isolate), isolate);
   bool has_dispatch_table = !dispatch_table.is_identical_to(
       isolate->factory()->empty_wasm_dispatch_table());
   DCHECK_EQ(
@@ -289,11 +288,8 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
       has_dispatch_table);
   if (has_dispatch_table) {
     DCHECK_EQ(old_size, dispatch_table->length());
-    DirectHandle<WasmDispatchTable> new_dispatch_table =
-        WasmDispatchTable::Grow(isolate, dispatch_table, new_size);
-    if (!dispatch_table.is_identical_to(new_dispatch_table)) {
-      table->set_trusted_dispatch_table(*new_dispatch_table);
-    }
+    dispatch_table = WasmDispatchTable::Grow(isolate, dispatch_table, new_size);
+    table->set_trusted_dispatch_table(*dispatch_table);
     DCHECK_EQ(new_size, table->trusted_dispatch_table(isolate)->length());
 
 #if V8_ENABLE_DRUMBRAKE
@@ -321,7 +317,7 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
   table->set_current_length(new_size);
 
   for (uint32_t entry = old_size; entry < new_size; ++entry) {
-    WasmTableObject::Set(isolate, table, entry, init_value);
+    WasmTableObject::Set(isolate, table, dispatch_table, entry, init_value);
   }
   return old_size;
 }
@@ -336,12 +332,12 @@ MaybeDirectHandle<Object> WasmTableObject::JSToWasmElement(
                               error_message);
 }
 
-void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
-                                            DirectHandle<WasmTableObject> table,
-                                            int entry_index,
-                                            DirectHandle<Object> entry) {
+void WasmTableObject::SetFunctionTableEntry(
+    Isolate* isolate, DirectHandle<WasmTableObject> table,
+    DirectHandle<WasmDispatchTable> dispatch_table, int entry_index,
+    DirectHandle<Object> entry) {
   if (IsWasmNull(*entry, isolate)) {
-    table->ClearDispatchTable(entry_index);  // Degenerate case.
+    dispatch_table->Clear(entry_index, WasmDispatchTable::kExistingEntry);
     table->entries()->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
     return;
   }
@@ -358,7 +354,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
     const WasmModule* module = target_instance_data->module();
     SBXCHECK_BOUNDS(func_index, module->functions.size());
     auto* wasm_function = module->functions.data() + func_index;
-    UpdateDispatchTable(isolate, table, entry_index, wasm_function,
+    UpdateDispatchTable(isolate, dispatch_table, entry_index, wasm_function,
                         target_instance_data
 #if V8_ENABLE_DRUMBRAKE
                         ,
@@ -366,11 +362,11 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
 #endif  // V8_ENABLE_DRUMBRAKE
     );
   } else if (WasmJSFunction::IsWasmJSFunction(*external)) {
-    UpdateDispatchTable(isolate, table, entry_index,
+    UpdateDispatchTable(isolate, dispatch_table, entry_index,
                         Cast<WasmJSFunction>(external));
   } else {
     DCHECK(WasmCapiFunction::IsWasmCapiFunction(*external));
-    UpdateDispatchTable(isolate, table, entry_index,
+    UpdateDispatchTable(isolate, dispatch_table, entry_index,
                         Cast<WasmCapiFunction>(external));
   }
   table->entries()->set(entry_index, *entry);
@@ -378,6 +374,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
 
 // Note: This needs to be handlified because it can call {NewWasmImportData}.
 void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
+                          DirectHandle<WasmDispatchTable> dispatch_table,
                           uint32_t index, DirectHandle<Object> entry) {
   // Callers need to perform bounds checks, type check, and error handling.
   DCHECK(table->is_in_bounds(index));
@@ -391,7 +388,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
     DCHECK(table->has_trusted_data());
     const wasm::WasmModule* module = table->trusted_data(isolate)->module();
     if (module->has_signature(table->type(module).ref_index())) {
-      SetFunctionTableEntry(isolate, table, entry_index, entry);
+      SetFunctionTableEntry(isolate, table, dispatch_table, entry_index, entry);
       return;
     }
     entries->set(entry_index, *entry);
@@ -418,7 +415,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
       entries->set(entry_index, *entry);
       return;
     case wasm::GenericKind::kFunc:
-      SetFunctionTableEntry(isolate, table, entry_index, entry);
+      SetFunctionTableEntry(isolate, table, dispatch_table, entry_index, entry);
       return;
     case wasm::GenericKind::kBottom:
     case wasm::GenericKind::kTop:
@@ -509,15 +506,17 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
 }
 
 void WasmTableObject::Fill(Isolate* isolate,
-                           DirectHandle<WasmTableObject> table, uint32_t start,
-                           DirectHandle<Object> entry, uint32_t count) {
+                           DirectHandle<WasmTableObject> table,
+                           DirectHandle<WasmDispatchTable> dispatch_table,
+                           uint32_t start, DirectHandle<Object> entry,
+                           uint32_t count) {
   // Bounds checks must be done by the caller.
   DCHECK_LE(start, table->current_length());
   DCHECK_LE(count, table->current_length());
   DCHECK_LE(start + count, table->current_length());
 
   for (uint32_t i = 0; i < count; i++) {
-    WasmTableObject::Set(isolate, table, start + i, entry);
+    WasmTableObject::Set(isolate, table, dispatch_table, start + i, entry);
   }
 }
 
@@ -546,8 +545,8 @@ bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
 
 // static
 void WasmTableObject::UpdateDispatchTable(
-    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-    const wasm::WasmFunction* func,
+    Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+    int entry_index, const wasm::WasmFunction* func,
     DirectHandle<WasmTrustedInstanceData> target_instance_data
 #if V8_ENABLE_DRUMBRAKE
     ,
@@ -577,8 +576,7 @@ void WasmTableObject::UpdateDispatchTable(
   const WasmModule* target_module = target_instance_data->module();
   wasm::CanonicalTypeIndex sig_id =
       target_module->canonical_sig_id(func->sig_index);
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      table->trusted_dispatch_table(isolate), isolate);
+
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
 
   if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
@@ -641,14 +639,12 @@ void WasmTableObject::UpdateDispatchTable(
 
 // static
 void WasmTableObject::UpdateDispatchTable(
-    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-    DirectHandle<WasmJSFunction> function) {
+    Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+    int entry_index, DirectHandle<WasmJSFunction> function) {
   Tagged<WasmJSFunctionData> function_data =
       function->shared()->wasm_js_function_data();
   const wasm::CanonicalSig* sig = function_data->internal()->sig();
 
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      table->trusted_dispatch_table(isolate), isolate);
   SBXCHECK(FunctionSigMatchesTable(sig->index(), dispatch_table->table_type()));
 
   std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
@@ -694,8 +690,8 @@ void WasmTableObject::UpdateDispatchTable(
 
 // static
 void WasmTableObject::UpdateDispatchTable(
-    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-    DirectHandle<WasmCapiFunction> capi_function) {
+    Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+    int entry_index, DirectHandle<WasmCapiFunction> capi_function) {
   DirectHandle<WasmCapiFunctionData> func_data(
       capi_function->shared()->wasm_capi_function_data(), isolate);
   const wasm::CanonicalSig* sig = func_data->internal()->sig();
@@ -710,8 +706,7 @@ void WasmTableObject::UpdateDispatchTable(
 
   Tagged<WasmImportData> implicit_arg =
       TrustedCast<WasmImportData>(func_data->internal()->implicit_arg());
-  Tagged<WasmDispatchTable> dispatch_table =
-      table->trusted_dispatch_table(isolate);
+
   SBXCHECK(FunctionSigMatchesTable(sig->index(), dispatch_table->table_type()));
   dispatch_table->SetForWrapper(entry_index, implicit_arg, wrapper_handle,
                                 sig->index(),
@@ -719,31 +714,6 @@ void WasmTableObject::UpdateDispatchTable(
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kExistingEntry);
-}
-
-void WasmTableObject::ClearDispatchTable(int index) {
-  DisallowGarbageCollection no_gc;
-  Isolate* isolate = Isolate::Current();
-  Tagged<WasmDispatchTable> dispatch_table = trusted_dispatch_table(isolate);
-  dispatch_table->Clear(index, WasmDispatchTable::kExistingEntry);
-#if V8_ENABLE_DRUMBRAKE
-  if (v8_flags.wasm_jitless) {
-    Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
-    int used_length = GetUsedLength(uses);
-    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
-      if (uses->get(i).IsCleared()) continue;
-      Tagged<WasmTrustedInstanceData> non_shared_instance_data =
-          GetInstance(uses, i);
-      if (non_shared_instance_data->has_interpreter_object()) {
-        int table_index = GetTableIndex(uses, i);
-        DirectHandle<WasmInstanceObject> instance_handle(
-            non_shared_instance_data->instance_object(), isolate);
-        wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
-            isolate, instance_handle, table_index, index);
-      }
-    }
-  }
-#endif  // V8_ENABLE_DRUMBRAKE
 }
 
 // static
@@ -1841,11 +1811,13 @@ bool WasmTrustedInstanceData::CopyTableEntries(
     return true;
   }
 
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      trusted_instance_data->dispatch_table(table_dst_index), isolate);
   for (uint32_t i = 0; i < count; ++i) {
     uint32_t src_index = copy_backward ? (src + count - i - 1) : src + i;
     uint32_t dst_index = copy_backward ? (dst + count - i - 1) : dst + i;
     auto value = WasmTableObject::Get(isolate, table_src, src_index);
-    WasmTableObject::Set(isolate, table_dst, dst_index, value);
+    WasmTableObject::Set(isolate, table_dst, dispatch_table, dst_index, value);
   }
   return true;
 }
@@ -1890,10 +1862,14 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
                                   elem_segment->ulength().value())) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
   }
-
+  DirectHandle<WasmDispatchTable> dispatch_table(
+      (table_is_shared == SharedFlag::kYes ? shared_trusted_instance_data
+                                           : trusted_instance_data)
+          ->dispatch_table(table_index),
+      isolate);
   for (size_t i = 0; i < count; i++) {
     WasmTableObject::Set(
-        isolate, table_object, static_cast<int>(dst + i),
+        isolate, table_object, dispatch_table, static_cast<int>(dst + i),
         direct_handle(elem_segment->get(static_cast<int>(src + i)), isolate));
   }
 
@@ -2547,6 +2523,27 @@ void DispatchTableClear(Tagged<DispatchTable> dispatch_table, int index,
 void WasmDispatchTable::Clear(
     int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {
   DispatchTableClear<WasmDispatchTable>(*this, index, new_or_existing);
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless &&
+      new_or_existing == WasmDispatchTable::kExistingEntry) {
+    DisallowGarbageCollection no_gc;
+    Tagged<ProtectedWeakFixedArray> uses = protected_uses();
+    int used_length = GetUsedLength(uses);
+    Isolate* isolate = Isolate::Current();
+    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+      if (uses->get(i).IsCleared()) continue;
+      Tagged<WasmTrustedInstanceData> non_shared_instance_data =
+          GetInstance(uses, i);
+      if (non_shared_instance_data->has_interpreter_object()) {
+        int table_index = GetTableIndex(uses, i);
+        DirectHandle<WasmInstanceObject> instance_handle(
+            non_shared_instance_data->instance_object(), isolate);
+        wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
+            isolate, instance_handle, table_index, index);
+      }
+    }
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 }
 void WasmDispatchTableForImports::Clear(
     int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {
