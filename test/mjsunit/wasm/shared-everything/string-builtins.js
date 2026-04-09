@@ -531,8 +531,101 @@ let kBuiltins = { builtins: ["js-string"] };
   }
 })();
 
-// TODO(448741522, 42204563): Fix shared array.new_data behavior and port the
-// TestStringNewWtf16Array test.
+function encodeWtf16LE(str) {
+  // String iterator coalesces surrogate pairs.
+  let out = [];
+  for (let i = 0; i < str.length; i++) {
+    codeunit = str.charCodeAt(i);
+    out.push(codeunit & 0xff)
+    out.push(codeunit >> 8);
+  }
+  return out;
+}
+
+function makeWtf16TestDataSegment(strings) {
+  let data = []
+  let valid = {};
+
+  for (let str of strings) {
+    valid[str] = { offset: data.length, length: str.length };
+    for (let byte of encodeWtf16LE(str)) {
+      data.push(byte);
+    }
+  }
+
+  return { valid, data: Uint8Array.from(data) };
+};
+
+(function TestStringNewWtf16Array() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  // string.new_wtf16_array switches to a different implementation (runtime
+  // instead of Torque) for more than 32 characters, so provide some coverage
+  // for that case.
+  let strings = interestingStrings.concat([
+    "String with more than 32 characters, all of which are ASCII",
+    "Two-byte string with more than 32 characters \ucccc \ud800\udc00 \xa9?"
+  ]);
+
+  let data = makeWtf16TestDataSegment(strings);
+  let data_index = builder.addPassiveDataSegment(data.data);
+  let ascii_data_index =
+      builder.addPassiveDataSegment(Uint8Array.from(encodeWtf16LE("ascii")));
+
+  let make_i16_array = builder.addFunction(
+      "make_i16_array", makeSig([], [wasmRefType(kArrayI16Shared)]))
+    .addBody([
+      ...wasmI32Const(0),
+      ...wasmI32Const(data.data.length / 2),
+      kGCPrefix, kExprArrayNewData, kArrayI16Shared, data_index
+    ]).index;
+
+  builder.addFunction("new_wtf16", kSig_t_ii)
+    .exportFunc()
+    .addBody([
+      kExprCallFunction, make_i16_array,
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  builder.addFunction("bounds_check", kSig_t_ii)
+    .exportFunc()
+    .addBody([
+      ...wasmI32Const(0),
+      ...wasmI32Const("ascii".length),
+      kGCPrefix, kExprArrayNewData, kArrayI16Shared, ascii_data_index,
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  builder.addFunction("null_array", kSig_t_v).exportFunc()
+    .addBody([
+      kExprRefNull, kArrayI16Shared,
+      kExprI32Const, 0, kExprI32Const, 0,
+      kExprCallFunction, kStringFromWtf16ArrayShared,
+    ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+  for (let [str, {offset, length}] of Object.entries(data.valid)) {
+    let start = offset / 2;
+    let end = start + length;
+    assertEquals(str, instance.exports.new_wtf16(start, end));
+  }
+
+  assertEquals("ascii", instance.exports.bounds_check(0, "ascii".length));
+  assertEquals("", instance.exports.bounds_check("ascii".length,
+                                                 "ascii".length));
+  assertEquals("i", instance.exports.bounds_check("ascii".length - 1,
+                                                  "ascii".length));
+  assertThrows(() => instance.exports.bounds_check(0, 100),
+               WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.bounds_check("ascii".length,
+                                                   "ascii".length + 1),
+               WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
 
 (function TestStringEncodeWtf16Array() {
   print(arguments.callee.name);
