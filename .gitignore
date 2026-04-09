@@ -40,6 +40,8 @@
 .settings
 .torquelint-cache
 .vscode
+.agents
+.gemini
 
 # Directories added by standalone gclient setup.
 /.cipd
