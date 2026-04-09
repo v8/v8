@@ -234,9 +234,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
 
   Handle<Cell> cell;
   if (!ResolveImport(isolate, module, import_name, entry->module_request(),
-                     new_loc, true, resolve_set)
+                     new_loc, must_resolve, resolve_set)
            .ToHandle(&cell)) {
-    DCHECK(isolate->has_exception());
     return MaybeHandle<Cell>();
   }
 
