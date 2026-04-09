@@ -156,9 +156,9 @@ MaybeDirectHandle<Object> IterableForEach(
     // Holey arrays are only supported if there are no properties on the lookup
     // chain. This is approximated by checking for the array prototype and
     // ensuring it has not elements.
-    if (IsFastElementsKind(kind) && (!IsHoleyElementsKind(kind) ||
-                                     (Protectors::IsNoElementsIntact(isolate) &&
-                                      array->HasArrayPrototype(isolate)))) {
+    if (IsFastElementsKind(kind) && array->HasArrayPrototype(isolate) &&
+        (!IsHoleyElementsKind(kind) ||
+         Protectors::IsNoElementsIntact(isolate))) {
       DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
       uint32_t len;
       if (Object::ToUint32(array->length(), &len)) {
