@@ -420,7 +420,7 @@ TEST_F(UnifiedHeapSnapshotTest, NoWeakTracedReference) {
   gced->v8_object_.Reset(v8_isolate(), v8::Object::New(v8_isolate()));
 
   const v8::HeapSnapshot* snapshot =
-      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_FALSE(ContainsRetainingPath(
       *snapshot,
