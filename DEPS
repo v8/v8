@@ -131,7 +131,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c52e9c82dcc3d7f185ee5adf2dc1b17b4bcc422f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '08cae1166f77101a3ef811fc98942943dd68388a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '11cc2bd83053cb790b7516aa3eb3f3935fb05a0e',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ab4f69079080316ef03ce3bbe67d52c287862718',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cce6753da6f06f78c6228468d69b78181b6170eb',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -486,7 +486,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'c9055bca3a12a3425c1976e65b9fdb6410d57bd0',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9e464409381c0bf8ededdbc741133182dc88f304',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '04bb12d7ca5e16c58b55012acb32f07c89dd4e2b',
   'third_party/re2/src':
@@ -500,7 +500,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'bfff5550ec231441c314c64878d860fdb6fdf174',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f98b607d9e124d35ced0a45830245db945f58416',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '847ac6aa398f02fe9ca38b5a76de97fbfa0bf863',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
