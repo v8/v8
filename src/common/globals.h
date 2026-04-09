@@ -2334,6 +2334,10 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode <= VariableMode::kLastLexicalVariableMode;
 }
 
+inline bool IsResourceManagedVariableMode(VariableMode mode) {
+  return mode == VariableMode::kUsing || mode == VariableMode::kAwaitUsing;
+}
+
 enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a

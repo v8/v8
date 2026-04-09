@@ -2527,7 +2527,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
           for_info.bound_names[i],
-          for_info.parsing_result.descriptor.mode == VariableMode::kAwaitUsing
+          IsResourceManagedVariableMode(for_info.parsing_result.descriptor.mode)
               ? VariableMode::kConst
               : for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
