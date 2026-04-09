@@ -721,9 +721,9 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
     // ---
     // Code below handles the unlikely case that this node's backing store was
     // deleted during an async wait and a new one was allocated in its place.
-    // We delete the node if possible (no timeout, or context is gone).
+    // If there's no timeout, we clean up the node here. Otherwise, the timeout
+    // task will eventually fire and clean it up.
     // ---
-    bool delete_this_node = false;
     DCHECK(node->IsAsync());
     if (node->async_state_->timeout_time.IsNull()) {
       // Backing store has been deleted and the node is still waiting, and
@@ -737,31 +737,14 @@ int FutexEmulation::Wake(void* wait_location, uint32_t num_waiters_to_wake) {
       DCHECK(node->IsAsync());
       DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
                 node->async_state_->timeout_task_id);
-      delete_this_node = true;
-    }
-    if (node->async_state_->native_context.IsEmpty()) {
-      // The NativeContext related to the async waiter has been deleted.
-      // Ditto, clean up now.
 
-      // Using the CancelableTaskManager here is OK since the Isolate is
-      // guaranteed to be alive - FutexEmulation::IsolateDeinit removes all
-      // FutexWaitListNodes owned by an Isolate which is going to die.
-      if (node->CancelTimeoutTask()) {
-        delete_this_node = true;
-      }
-      // If cancelling the timeout task failed, the timeout task is already
-      // running and will clean up the node.
-    }
-
-    FutexWaitListNode* next_node = node->next_;
-    if (delete_this_node) {
       node->async_state_->waiting_for_main_thread_cleanup = true;
       node->waiting_ = false;
       // This will schedule a task to call ResolveAsyncWaiterPromises, which
       // will then delete the node.
       NotifyAsyncWaiter(node);
     }
-    node = next_node;
+    node = node->next_;
   }
 
   return num_waiters_woken;
