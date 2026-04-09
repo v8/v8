@@ -4,6 +4,7 @@
 
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
+    BENCHMARKS = {"checkout_benchmarks": "True"},
     CENTIPEDE = {"checkout_centipede_deps": "True"},
     GCMOLE = {"download_gcmole": "True"},
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
@@ -14,7 +15,8 @@ GCLIENT_VARS = struct(
 )
 
 def gclient_vars_properties(props):
-    gclient_vars = {}
+    # We check out benchmarks on all bots.
+    gclient_vars = dict(GCLIENT_VARS.BENCHMARKS)
     for prop in props:
         gclient_vars.update(prop)
     if gclient_vars:
