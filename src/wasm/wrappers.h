@@ -198,7 +198,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       V<Context> js_context, base::Vector<const OpIndex> arguments,
       OptionalV<FrameState> lazy_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-      OptionalV<FrameState> eager_frame_state = {});
+      OptionalV<FrameState> eager_frame_state);
 
   void BuildJSToWasmWrapper(bool receiver_is_first_param);
 

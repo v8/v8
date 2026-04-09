@@ -474,9 +474,9 @@ addTestcase('brNoInline', kSig_i_v, [], [
 addTestcase('insideTryCatch', kSig_i_v, [], [
   ...wasmI32Const(0),
 ], (wasmExports) => {
-  return function js_insideTryCatch(arg) {
+  return function js_insideTryCatch() {
     try {
-      return wasmExports.insideTryCatch(arg);
+      return wasmExports.insideTryCatch();
     } catch (e) {
       return e.toString() + e.stack;
     }

@@ -298,14 +298,27 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     OptionalV<FrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
     OptionalV<FrameState> eager_frame_state) -> V<Any> {
+  // These parameters are all set if and only if we are inlining the wrapper.
+  DCHECK_EQ(is_inlining_into_js_, js_closure.valid());
+  DCHECK_EQ(is_inlining_into_js_, js_context.valid());
+  DCHECK_EQ(is_inlining_into_js_, lazy_frame_state.valid());
+  // We only need an `eager_frame_state` if there actually are arguments to
+  // convert.
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
+  DCHECK_EQ(is_inlining_into_js_ && wasm_param_count > 0,
+            eager_frame_state.valid());
 
   __ Bind(__ NewBlock());
 
   base::SmallVector<OpIndex, 16> params(wasm_param_count);
   const int param_offset = receiver_is_first_param ? 0 : 1;
-  if (js_closure.valid()) {
-    DCHECK(js_context.valid());
+  if (is_inlining_into_js_) {
+    // We only marked this call for inlining in Turbolev if the argument counts
+    // matched already there.
+    // Note that the JS `CallOp` in Turboshaft contains extra arguments at the
+    // end (e.g. argument count, context), see `turbolev-graph-builder.cc`,
+    // hence we `CHECK_GE` here.
+    CHECK_GE(arguments.size(), wasm_param_count + param_offset);
 
     // Prepare Param() nodes. Param() nodes can only be created once, so we
     // need to use the same nodes along all possible transformation paths.
@@ -356,7 +369,6 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
 
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
-  DCHECK_IMPLIES(!is_inlining_into_js_, !lazy_frame_state.valid());
   const int args_count = wasm_param_count + /* instance_data */ 1;
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
@@ -380,7 +392,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   DCHECK_NOT_NULL(__ data()->isolate());
   V<Any> result = BuildJSToWasmWrapperImpl(
       receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
-      compiler::LazyDeoptOnThrow::kNo);
+      compiler::LazyDeoptOnThrow::kNo, OpIndex::Invalid());
   if (result != OpIndex::Invalid()) {  // Invalid signature.
     __ Return(result);
   }
