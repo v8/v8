@@ -3986,9 +3986,11 @@ bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   return true;
 }
 
-Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
-                                                SharedFunctionInfoRef shared) {
+Reduction JSCallReducer::ReduceCallWasmFunction(
+    Node* node, SharedFunctionInfoRef shared,
+    Tagged<WasmExportedFunctionData> function_data) {
   DCHECK(flags() & kInlineJSToWasmCalls);
+  DCHECK_EQ(function_data, shared.object()->GetTrustedData(isolate()));
 
   JSCallNode n(node);
   const CallParameters& p = n.Parameters();
@@ -3998,11 +4000,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
       p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
     return NoChange();
   }
-
-  // Read the trusted object only once to ensure a consistent view on it.
-  auto trusted_data = shared.object()->GetTrustedData(isolate());
-  Tagged<WasmExportedFunctionData> function_data;
-  if (!TryCast(trusted_data, &function_data)) return NoChange();
 
   if (function_data->is_promising()) return NoChange();
 
@@ -5395,11 +5392,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if ((flags() & kInlineJSToWasmCalls) &&
-      // Peek at the trusted object; ReduceCallWasmFunction will do that again
-      // and crash if this is not a WasmExportedFunctionData any more then.
-      IsWasmExportedFunctionData(shared.object()->GetTrustedData(isolate()))) {
-    return ReduceCallWasmFunction(node, shared);
+  if (flags() & kInlineJSToWasmCalls) {
+    // Read the trusted object only once and pass it into
+    // `ReduceCallWasmFunction` to ensure a consistent view on it.
+    auto trusted_data = shared.object()->GetTrustedData(isolate());
+    Tagged<WasmExportedFunctionData> function_data;
+    if (TryCast(trusted_data, &function_data)) {
+      return ReduceCallWasmFunction(node, shared, function_data);
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

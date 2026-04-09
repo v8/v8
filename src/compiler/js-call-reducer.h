@@ -92,7 +92,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
  private:
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node, SharedFunctionInfoRef shared);
-  Reduction ReduceCallWasmFunction(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceCallWasmFunction(
+      Node* node, SharedFunctionInfoRef shared,
+      Tagged<WasmExportedFunctionData> function_data);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
