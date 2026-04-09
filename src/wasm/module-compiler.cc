@@ -2140,13 +2140,20 @@ void CompileNativeModule(ErrorThrower* thrower,
 
 class BackgroundCompileJob final : public JobTask {
  public:
-  explicit BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
-                                CompilationTier tier)
+  BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
+                       CompilationTier tier, IsolateGroup* isolate_group)
       : native_module_(std::move(native_module)),
         engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
-        tier_(tier) {}
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+        isolate_group_(isolate_group),
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+        tier_(tier) {
+  }
 
   void Run(JobDelegate* delegate) override {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+    IsolateGroup::set_current(isolate_group_);
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
     ExecuteCompilationUnits(native_module_, delegate, tier_);
@@ -2167,6 +2174,9 @@ class BackgroundCompileJob final : public JobTask {
  private:
   std::weak_ptr<NativeModule> native_module_;
   std::shared_ptr<OperationsBarrier> engine_barrier_;
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup* isolate_group_;
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   const CompilationTier tier_;
 };
 
@@ -3475,11 +3485,13 @@ void CompilationStateImpl::InitCompileJob() {
   baseline_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
       std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationTier::kBaseline));
+                                             CompilationTier::kBaseline,
+                                             IsolateGroup::current()));
   top_tier_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
       std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             CompilationTier::kTopTier));
+                                             CompilationTier::kTopTier,
+                                             IsolateGroup::current()));
 }
 
 void CompilationStateImpl::CancelCompilation(
