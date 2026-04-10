@@ -540,12 +540,28 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_code_handler);
   {
-    TNode<Code> code_handler = TrustedCast<Code>(
-        handler, "used in a call which will be checkd via dispatch table");
+    TNode<Code> code_handler = CastToCode(handler);
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
                                p->name(), p->slot(), p->vector());
   }
+}
+
+TNode<Code> AccessorAssembler::CastToCode(TNode<MaybeObject> code_candidate) {
+  TNode<Code> code = TrustedCast<Code>(code_candidate, "Type check below");
+#ifdef V8_ENABLE_SANDBOX
+  // The `code_candidate` is a Code object retrieved from untrusted sandbox
+  // memory, e.g. a StoreHandler. For sandbox builds we must validate that we
+  // are indeed holding a valid code object. This can be done via retrieving the
+  // code object via self-indirect reference.
+  //
+  // Ideally, the Code pointer would be a proper trusted pointer, which is hard
+  // to consolidate with a union of a Smi. The use of
+  // TaggedMember<UnionOf<Smi,Code>> requires manual validation of the Code
+  // object here.
+  code = LoadCodePointerFromObject(code, Code::kSelfIndirectPointerOffset);
+#endif
+  return code;
 }
 
 void AccessorAssembler::HandleLoadCallbackProperty(
@@ -1393,9 +1409,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
-      TNode<Code> code = TrustedCast<Code>(
-          smi_or_code_handler,
-          "used in a call which will be checkd via dispatch table");
+      TNode<Code> code = CastToCode(smi_or_code_handler);
       on_code_handler(code);
 
       BIND(&if_smi_handler);
@@ -1800,9 +1814,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      TNode<Code> code_handler = TrustedCast<Code>(
-          strong_handler,
-          "used in a call which will be checkd via dispatch table");
+      TNode<Code> code_handler = CastToCode(strong_handler);
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
                    p->vector());
@@ -4709,8 +4721,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
 
       {
-        TNode<Code> code_handler = TrustedCast<Code>(
-            handler, "used in a call which will be checkd via dispatch table");
+        TNode<Code> code_handler = CastToCode(handler);
         TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                      p->receiver(), p->name(), p->value(), p->slot(),
                      p->vector());
@@ -4723,9 +4734,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        TNode<Code> code = TrustedCast<Code>(
-            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)),
-            "used in a call which will be checkd via dispatch table");
+
+        TNode<Code> code = CastToCode(
+            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)));
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());

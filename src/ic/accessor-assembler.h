@@ -729,6 +729,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void BranchIfPrototypesHaveNoElements(TNode<Map> receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
+
+  TNode<Code> CastToCode(TNode<MaybeObject> code_candidate);
 };
 
 // Abstraction over direct and indirect exit points. Direct exits correspond to
