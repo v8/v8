@@ -2196,7 +2196,6 @@ DEFINE_BOOL(flush_liftoff_code, true,
 DEFINE_BOOL(stress_branch_hinting, false,
             "stress branch hinting by generating a random hint for each branch "
             "instruction")
-DEFINE_WEAK_IMPLICATION(fuzzing, stress_branch_hinting)
 
 DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
               "maximum allowed size of wasm modules")

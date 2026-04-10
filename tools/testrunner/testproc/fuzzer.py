@@ -86,6 +86,7 @@ EXTRA_FLAGS = [
     (0.1, '--wasm-assert-types'),
     (0.5, '--private-field-bytecodes'),
     (0.5, '--proto-assign-seq-lazy-func-opt --proto-assign-seq-opt-count=1'),
+    (0.1, '--stress-branch-hinting'),
 ]
 
 MIN_DEOPT = 1
