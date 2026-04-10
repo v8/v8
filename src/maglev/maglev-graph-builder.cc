@@ -3167,6 +3167,10 @@ MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     // See also: JSContextSpecialization::ReduceJSLoadContext.
     if (slot_value.IsTheHole()) return {};
     if (mode == VariableMode::kVar && slot_value.IsUndefined()) return {};
+    if (IsPrivateMethodOrAccessorVariableMode(mode) &&
+        slot_value.IsUndefined()) {
+      return {};
+    }
   }
 
   // Fold the load of the immutable slot.
