@@ -3454,9 +3454,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   DEFINE_REG(sfi);
   __ LoadTaggedField(
       sfi,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()),
+      MemOperand(closure, wasm::ObjectAccess::ToTagged(
+                              JSFunction::kSharedFunctionInfoOffset)),
       r0);
   FREE_REG(closure);
   // Suspender should be ObjectRegister register to be used in

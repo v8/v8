@@ -386,13 +386,15 @@ Node* WasmGraphAssembler::LoadImmutableFixedArrayElement(Node* fixed_array,
 Node* WasmGraphAssembler::LoadFixedArrayElement(Node* array, int index,
                                                 MachineType type) {
   return LoadFromObject(
-      type, array, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index));
+      type, array,
+      wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(index)));
 }
 
 Node* WasmGraphAssembler::LoadProtectedFixedArrayElement(Node* array,
                                                          int index) {
   return LoadProtectedPointerFromObject(
-      array, wasm::ObjectAccess::ElementOffsetInProtectedFixedArray(index));
+      array, wasm::ObjectAccess::ToTagged(
+                 ProtectedFixedArray::OffsetOfElementAt(index)));
 }
 
 Node* WasmGraphAssembler::LoadProtectedFixedArrayElement(Node* array,
@@ -452,7 +454,8 @@ Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
                                                  Node* value,
                                                  ObjectAccess access) {
   return StoreToObject(
-      access, array, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index),
+      access, array,
+      wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(index)),
       value);
 }
 
@@ -461,7 +464,7 @@ Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
 Node* WasmGraphAssembler::LoadSharedFunctionInfo(Node* js_function) {
   return LoadImmutableFromObject(
       MachineType::TaggedPointer(), js_function,
-      wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
+      wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset));
 }
 Node* WasmGraphAssembler::LoadContextNoCellFromJSFunction(Node* js_function) {
   return LoadFromObject(

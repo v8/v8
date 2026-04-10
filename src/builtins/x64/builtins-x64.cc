@@ -3876,10 +3876,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   Register sfi = closure;
   __ LoadTaggedField(
-      sfi,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+      sfi, MemOperand(closure, wasm::ObjectAccess::ToTagged(
+                                   JSFunction::kSharedFunctionInfoOffset)));
   Register resume_data = sfi;
   __ LoadTaggedField(
       resume_data,

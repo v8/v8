@@ -3791,11 +3791,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Load suspender from closure.
   // -------------------------------------------
   Register sfi = closure;
-  __ Move(
-      sfi,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  __ Move(sfi, MemOperand(closure, wasm::ObjectAccess::ToTagged(
+                                       JSFunction::kSharedFunctionInfoOffset)));
   Register function_data = sfi;
   __ Move(function_data,
           FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));

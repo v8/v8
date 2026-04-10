@@ -1704,7 +1704,7 @@ class LiftoffCompiler {
     LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
     __ LoadTaggedPointer(
         imm_tag, imm_tag, no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
+        wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(imm.index)));
 
     CODE_COMMENT("compare tags");
 
@@ -1891,9 +1891,10 @@ class LiftoffCompiler {
     CODE_COMMENT("load expected exception tag");
     Register imm_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
-    __ LoadTaggedPointer(imm_tag, imm_tag, no_reg,
-                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                             catch_case.maybe_tag.tag_imm.index));
+    __ LoadTaggedPointer(
+        imm_tag, imm_tag, no_reg,
+        wasm::ObjectAccess::ToTagged(
+            FixedArray::OffsetOfElementAt(catch_case.maybe_tag.tag_imm.index)));
 
     VarState exn = __ cache_state() -> stack_state.back();
 
@@ -3273,16 +3274,17 @@ class LiftoffCompiler {
                                    pinned);
     // Load the global-specific `FixedArray` from the
     // `imported_mutable_globals_buffers` `FixedArray`.
-    __ LoadTaggedPointer(buffer, buffer, no_reg,
-                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                             global->mutable_imported_global_index));
+    __ LoadTaggedPointer(
+        buffer, buffer, no_reg,
+        wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(
+            global->mutable_imported_global_index)));
 
     // Load the offset of the global within its buffer.
     LOAD_TAGGED_PTR_INSTANCE_FIELD(offset, ImportedMutableGlobalsOffsets,
                                    pinned);
     __ Load(LiftoffRegister(offset), offset, no_reg,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
-                global->mutable_imported_global_index),
+            wasm::ObjectAccess::ToTagged(FixedUInt32Array::OffsetOfElementAt(
+                global->mutable_imported_global_index)),
             LoadType::kI32Load);
   }
 
@@ -5656,19 +5658,19 @@ class LiftoffCompiler {
     --*index_in_array;
     __ emit_i32_andi(tmp_reg, value, 0xffff);
     ToSmi(tmp_reg);
-    __ StoreTaggedPointer(
-        values_array, no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
+    __ StoreTaggedPointer(values_array, no_reg,
+                          wasm::ObjectAccess::ToTagged(
+                              FixedArray::OffsetOfElementAt(*index_in_array)),
+                          tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
 
     // Get the upper half word into tmp_reg and extend to a Smi.
     --*index_in_array;
     __ emit_i32_shri(tmp_reg, value, 16);
     ToSmi(tmp_reg);
-    __ StoreTaggedPointer(
-        values_array, no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
+    __ StoreTaggedPointer(values_array, no_reg,
+                          wasm::ObjectAccess::ToTagged(
+                              FixedArray::OffsetOfElementAt(*index_in_array)),
+                          tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
   }
 
   void Store64BitExceptionValue(Register values_array, int* index_in_array,
@@ -5692,7 +5694,7 @@ class LiftoffCompiler {
                                LiftoffRegList pinned) {
     __ LoadSmiAsInt32(
         dst, values_array.gp(),
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index));
+        wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(*index)));
     (*index)++;
   }
 
@@ -5769,8 +5771,8 @@ class LiftoffCompiler {
         --(*index_in_array);
         __ StoreTaggedPointer(
             values_array, no_reg,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                *index_in_array),
+            wasm::ObjectAccess::ToTagged(
+                FixedArray::OffsetOfElementAt(*index_in_array)),
             value.gp(), pinned);
         break;
       }
@@ -5826,9 +5828,9 @@ class LiftoffCompiler {
       }
       case wasm::kRef:
       case wasm::kRefNull: {
-        __ LoadTaggedPointer(
-            value.gp(), values_array.gp(), no_reg,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index));
+        __ LoadTaggedPointer(value.gp(), values_array.gp(), no_reg,
+                             wasm::ObjectAccess::ToTagged(
+                                 FixedArray::OffsetOfElementAt(*index)));
         (*index)++;
         break;
       }
@@ -5936,7 +5938,7 @@ class LiftoffCompiler {
     LOAD_TAGGED_PTR_INSTANCE_FIELD(exception_tag.gp(), TagsTable, pinned);
     __ LoadTaggedPointer(
         exception_tag.gp(), exception_tag.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
+        wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(imm.index)));
 
     // Finally, call WasmThrow.
     Register instance_data = __ cache_state() -> cached_instance_data;
@@ -7347,10 +7349,8 @@ class LiftoffCompiler {
 
     LiftoffRegister seg_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(
-        seg_index,
-        WasmValue(
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index)));
+    __ LoadConstant(seg_index, WasmValue(wasm::ObjectAccess::ToTagged(
+                                   FixedArray::OffsetOfElementAt(imm.index))));
 
     // Mark the segment as dropped by setting it to the empty fixed array.
     Register empty_fixed_array =
@@ -7436,7 +7436,7 @@ class LiftoffCompiler {
     Register table = tables;
     __ LoadTaggedPointer(
         table, tables, no_reg,
-        ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index));
+        wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(imm.index)));
 
     int length_field_size = WasmTableObject::kCurrentLengthOffsetEnd -
                             WasmTableObject::kCurrentLengthOffset + 1;
@@ -8065,9 +8065,8 @@ class LiftoffCompiler {
           Register actual = tmp1.gp();
           LiftoffRegister expected = tmp2;
           LOAD_TAGGED_PTR_INSTANCE_FIELD(actual, WellKnownImports, pinned);
-          int field_offset =
-              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                  matcher.function_index());
+          int field_offset = wasm::ObjectAccess::ToTagged(
+              FixedArray::OffsetOfElementAt(matcher.function_index()));
           // TODO(clemensb): Introduce `LoadTaggedPointerWithoutDecompressing`
           // and use it here and elsewhere where we only compare the loaded
           // value against another reference or Smi.
@@ -8103,8 +8102,8 @@ class LiftoffCompiler {
                                          pinned);
           __ LoadTaggedPointer(
               tmp2.gp(), global.gp(), no_reg,
-              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                  matcher.global_offset()));
+              wasm::ObjectAccess::ToTagged(
+                  FixedArray::OffsetOfElementAt(matcher.global_offset())));
 
           // The {matcher} started at the current position, so the positions
           // it reports are relative to that. Here we translate them to being
@@ -8287,9 +8286,9 @@ class LiftoffCompiler {
     } else {
       LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps, pinned);
     }
-    __ LoadTaggedPointer(
-        rtt.gp(), rtt.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index.index));
+    __ LoadTaggedPointer(rtt.gp(), rtt.gp(), no_reg,
+                         wasm::ObjectAccess::ToTagged(
+                             FixedArray::OffsetOfElementAt(type_index.index)));
     return rtt;
   }
 
@@ -9962,9 +9961,9 @@ class LiftoffCompiler {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset,
                 kIntPtrKind);
-        __ IncrementSmi(
-            vector,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(vector_slot));
+        __ IncrementSmi(vector,
+                        wasm::ObjectAccess::ToTagged(
+                            FixedArray::OffsetOfElementAt(vector_slot)));
         // Warning: {vector} may be clobbered by {IncrementSmi}!
       }
       // A direct call within this module just gets the current instance.
@@ -10034,9 +10033,10 @@ class LiftoffCompiler {
       Register dispatch_tables = dispatch_table.gp_reg();
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_tables, DispatchTables,
                                         pinned);
-      __ LoadProtectedPointer(dispatch_table.gp_reg(), dispatch_tables,
-                              ObjectAccess::ElementOffsetInProtectedFixedArray(
-                                  imm.table_imm.index));
+      __ LoadProtectedPointer(
+          dispatch_table.gp_reg(), dispatch_tables,
+          wasm::ObjectAccess::ToTagged(
+              ProtectedFixedArray::OffsetOfElementAt(imm.table_imm.index)));
     }
 
     {
@@ -10226,8 +10226,8 @@ class LiftoffCompiler {
                                        kGpCacheRegList);
         __ LoadTaggedPointer(
             formal_rtt.gp_reg(), formal_rtt.gp_reg(), no_reg,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                imm.sig_imm.index.index));
+            wasm::ObjectAccess::ToTagged(
+                FixedArray::OffsetOfElementAt(imm.sig_imm.index.index)));
         __ emit_cond_jump(kNotEqual, sig_mismatch.label(), kRef,
                           formal_rtt.gp_reg(), maybe_match.gp_reg(),
                           sig_mismatch.frozen());

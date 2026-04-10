@@ -22,26 +22,6 @@ class ObjectAccess : public AllStatic {
  public:
   // Convert an offset into an object to an offset into a tagged object.
   static constexpr int ToTagged(int offset) { return offset - kHeapObjectTag; }
-
-  // Get the offset into a fixed array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedArray(int index) {
-    return ToTagged(FixedArray::OffsetOfElementAt(index));
-  }
-
-  // Get the offset into a fixed uint32 array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedUInt32Array(int index) {
-    return ToTagged(FixedUInt32Array::OffsetOfElementAt(index));
-  }
-
-  // Get the offset into a ProtectedFixedArray for a given {index}.
-  static constexpr int ElementOffsetInProtectedFixedArray(int index) {
-    return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
-  }
-
-  // Get the offset of the shared function info in a {JSFunction} object.
-  static constexpr int SharedFunctionInfoOffsetInTaggedJSFunction() {
-    return ToTagged(JSFunction::kSharedFunctionInfoOffset);
-  }
 };
 
 }  // namespace wasm
