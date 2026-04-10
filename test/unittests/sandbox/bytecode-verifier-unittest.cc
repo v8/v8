@@ -572,6 +572,34 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
                             "Invalid write to special register");
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+TEST_F(BytecodeVerifierTest, ForbiddenRuntimeFunction) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  // Test that disallowed runtime functions are blocked by the verifier, for
+  // example TrapHandlerThrowWasmError.
+  uint16_t runtime_id =
+      static_cast<uint16_t>(Runtime::kTrapHandlerThrowWasmError);
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id & 0xFF),
+      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      static_cast<uint8_t>(interpreter::Register(0).ToOperand()),
+      0,  // argument count
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Disallowed runtime function");
+}
+#endif
+
 }  // namespace internal
 }  // namespace v8
 
