@@ -1048,48 +1048,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
     BIND(&found);
     {
-      {
-        Comment("Update LRU dictionary index");
-        Label done_update(this);
-        // We might arrive here without a vector (e.g. via the megamorphic
-        // stub cache or generic ICs).
-        TNode<HeapObject> vector = p->vector();
-        GotoIf(IsUndefined(vector), &done_update);
-        TNode<MaybeObject> current_handler =
-            LoadFeedbackVectorSlot(CAST(vector), p->slot(), kTaggedSize);
-
-        // Atm we only update the handler in the monomorphic case, as doing it
-        // for other cases is too expensive.
-        GotoIfNot(TaggedEqual(current_handler, handler), &done_update);
-
-        TNode<Uint32T> new_index;
-        if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-          new_index = Unsigned(TruncateIntPtrToInt32(var_name_index.value()));
-        } else {
-          TNode<IntPtrT> entry_index = IntPtrDiv(
-              IntPtrSub(var_name_index.value(),
-                        IntPtrConstant(NameDictionary::kElementsStartIndex)),
-              IntPtrConstant(NameDictionary::kEntrySize));
-          new_index = Unsigned(TruncateIntPtrToInt32(entry_index));
-        }
-
-        GotoIf(Word32Equal(new_index, index), &done_update);
-        GotoIf(Uint32GreaterThanOrEqual(
-                   new_index,
-                   Uint32Constant(LoadHandler::DictionaryIndexBits::kMax)),
-               &done_update);
-
-        TNode<Word32T> new_handler_word =
-            UpdateWord32<LoadHandler::DictionaryIndexBits>(handler_word,
-                                                           new_index);
-        StoreFeedbackVectorSlot(CAST(vector),
-                                Unsigned(TaggedIndexToIntPtr(p->slot())),
-                                SmiFromInt32(Signed(new_handler_word)),
-                                SKIP_WRITE_BARRIER, kTaggedSize);
-        Goto(&done_update);
-        BIND(&done_update);
-      }
-
       TVARIABLE(Uint32T, var_details);
       TVARIABLE(Object, var_value);
       LoadPropertyFromDictionary<PropertyDictionary>(
