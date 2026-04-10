@@ -17189,6 +17189,30 @@ void MaglevGraphBuilder::PrewalkBytecode() {
       }
       break;
     }
+    case interpreter::Bytecode::kMov: {
+      interpreter::Register src = iterator_.GetRegisterOperand(0);
+      interpreter::Register dst = iterator_.GetRegisterOperand(1);
+      register_scope_infos_[dst] = register_scope_infos_[src];
+      break;
+    }
+    case interpreter::Bytecode::kLdar: {
+      interpreter::Register src = iterator_.GetRegisterOperand(0);
+      accumulator_scope_info_ = register_scope_infos_[src];
+      break;
+    }
+    case interpreter::Bytecode::kStar: {
+      interpreter::Register dst = iterator_.GetRegisterOperand(0);
+      register_scope_infos_[dst] = accumulator_scope_info_;
+      break;
+    }
+#define SHORT_STAR_CASE(Name, ...) case interpreter::Bytecode::k##Name:
+    SHORT_STAR_BYTECODE_LIST(SHORT_STAR_CASE) {
+      interpreter::Register dst = interpreter::Register::FromShortStar(
+          iterator_.current_bytecode());
+      register_scope_infos_[dst] = accumulator_scope_info_;
+      break;
+    }
+#undef SHORT_STAR_CASE
     default:
       break;
   }
