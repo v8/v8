@@ -546,7 +546,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <typename... Rs>
   void pop_helper(Register r, Rs... rs) {
     pop_helper(rs...);
-    LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
+    if (r != zero_reg) {
+      LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
+    }
   }
 
   void pop_helper() {}
