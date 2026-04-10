@@ -1677,6 +1677,34 @@ inline FreezeCacheState::FreezeCacheState(FreezeCacheState&& other) V8_NOEXCEPT
 inline FreezeCacheState::~FreezeCacheState() { assm_.UnfreezeCacheState(); }
 #endif
 
+// This is subtle. In situations where control flow in the compiled function
+// does not return, it is safe to modify a frozen cache state, so long as it
+// is restored to its previous state afterwards.
+class SaveAndUnfreezeCacheState {
+ public:
+  SaveAndUnfreezeCacheState(LiftoffAssembler::CacheState* original, Zone* zone)
+      : original_(original), saved_state_(zone) {
+    saved_state_.Split(*original);
+#if DEBUG
+    saved_frozenness_ = original->frozen;
+    original->frozen = 0;
+#endif
+  }
+  ~SaveAndUnfreezeCacheState() {
+    original_->Steal(saved_state_);
+#if DEBUG
+    original_->frozen = saved_frozenness_;
+#endif
+  }
+
+ private:
+  LiftoffAssembler::CacheState* original_;
+  LiftoffAssembler::CacheState saved_state_;
+#if DEBUG
+  uint32_t saved_frozenness_;
+#endif
+};
+
 class LiftoffStackSlots {
  public:
   explicit LiftoffStackSlots(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}

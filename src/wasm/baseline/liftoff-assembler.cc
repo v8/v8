@@ -993,12 +993,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
   // cause a spill in the cache state. Conservatively save and restore the
   // original state in case it is needed after the current instruction
   // (conditional branch).
-  CacheState saved_state{zone()};
-#if DEBUG
-  uint32_t saved_state_frozenness = cache_state_.frozen;
-  cache_state_.frozen = 0;
-#endif
-  saved_state.Split(*cache_state());
+  SaveAndUnfreezeCacheState saved_state(&cache_state_, zone());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
@@ -1054,10 +1049,6 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
       }
     }
   }
-  cache_state()->Steal(saved_state);
-#if DEBUG
-  cache_state_.frozen = saved_state_frozenness;
-#endif
 }
 
 #if DEBUG

@@ -3080,36 +3080,53 @@ class LiftoffCompiler {
 
   void Drop(FullDecoder* decoder) { __ DropValues(1); }
 
-  V8_NOINLINE V8_PRESERVE_MOST void TraceFunctionExit(FullDecoder* decoder) {
-    CODE_COMMENT("trace function exit");
-    // Before making the runtime call, spill all cache registers.
-    __ SpillAllRegisters();
+  struct TraceFunctionExit {
+    V8_NOINLINE TraceFunctionExit(LiftoffCompiler* compiler,
+                                  FullDecoder* decoder)
+        : compiler_(compiler),
+          asm_(compiler->asm_),
+          saved_state_(__ cache_state(), compiler->zone_) {
+      CODE_COMMENT("trace function exit");
+      // Before making the runtime call, spill all cache registers.
+      __ SpillAllRegisters();
 
-    // Store the return value if there is exactly one. Multiple return values
-    // are not handled yet.
-    size_t num_returns = decoder->sig_->return_count();
-    // Put the parameter in its place.
-    WasmTraceExitDescriptor descriptor;
-    DCHECK_EQ(0, descriptor.GetStackParameterCount());
-    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
-    Register param_reg = descriptor.GetRegisterParameter(0);
-    if (num_returns == 1) {
-      auto& return_slot = __ cache_state()->stack_state.back();
-      if (return_slot.is_const()) {
-        __ Spill(&return_slot);
+      // Store the return value if there is exactly one. Multiple return values
+      // are not handled yet.
+      size_t num_returns = decoder->sig_->return_count();
+      // Put the parameter in its place.
+      WasmTraceExitDescriptor descriptor;
+      DCHECK_EQ(0, descriptor.GetStackParameterCount());
+      DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+      Register param_reg = descriptor.GetRegisterParameter(0);
+      if (num_returns == 1) {
+        auto& return_slot = __ cache_state() -> stack_state.back();
+        if (return_slot.is_const()) {
+          __ Spill(&return_slot);
+        }
+        DCHECK(return_slot.is_stack());
+        __ LoadSpillAddress(param_reg, return_slot.offset(),
+                            return_slot.kind());
+      } else {
+        // Make sure to pass a "valid" parameter (Smi::zero()).
+        compiler_->LoadSmi(LiftoffRegister{param_reg}, 0);
       }
-      DCHECK(return_slot.is_stack());
-      __ LoadSpillAddress(param_reg, return_slot.offset(), return_slot.kind());
-    } else {
-      // Make sure to pass a "valid" parameter (Smi::zero()).
-      LoadSmi(LiftoffRegister{param_reg}, 0);
+
+      compiler_->source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), false);
+      __ CallBuiltin(Builtin::kWasmTraceExit);
+      compiler_->DefineSafepoint();
     }
 
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), false);
-    __ CallBuiltin(Builtin::kWasmTraceExit);
-    DefineSafepoint();
-  }
+    ~TraceFunctionExit() = default;
+
+    LiftoffCompiler* compiler_;
+    LiftoffAssembler& asm_;
+    // Saving and unfreezing the current cache state to allow spills is safe
+    // because we're about to emit a function exit; callers who will see the
+    // restored cache state will only deal with control flow that didn't exit
+    // from the function.
+    SaveAndUnfreezeCacheState saved_state_;
+  };
 
   void TierupCheckOnTailCall(FullDecoder* decoder) {
     if (!dynamic_tiering()) return;
@@ -3122,7 +3139,10 @@ class LiftoffCompiler {
   }
 
   void ReturnImpl(FullDecoder* decoder) {
-    if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionExit(decoder);
+    std::optional<TraceFunctionExit> trace_exit;
+    if (V8_UNLIKELY(v8_flags.trace_wasm)) {
+      trace_exit.emplace(this, decoder);
+    }
     // A function returning an uninhabitable type can't ever actually reach
     // a {ret} instruction (it can only return by throwing or trapping). So
     // if we do get here, there must have been a bug. Crash to flush it out.
