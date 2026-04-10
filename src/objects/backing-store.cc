@@ -232,9 +232,6 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     if (mb_length > 0) {
       counters->array_buffer_big_allocations()->AddSample(mb_length);
     }
-    if (shared == SharedFlag::kYes) {
-      counters->shared_array_allocations()->AddSample(mb_length);
-    }
     auto allocate_buffer = [allocator, initialized](size_t byte_length) {
       if (initialized == InitializedFlag::kUninitialized) {
         return allocator->AllocateUninitialized(byte_length);

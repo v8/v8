@@ -1170,27 +1170,16 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
       static_cast<int>(space()->CommittedMemory()));    \
   isolate_->counters()->space##_bytes_used()->Set(      \
       static_cast<int>(space()->SizeOfObjects()));
-#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                          \
-  if (space()->CommittedMemory() > 0) {                                \
-    isolate_->counters()->external_fragmentation_##space()->AddSample( \
-        static_cast<int>(100 - (space()->SizeOfObjects() * 100.0) /    \
-                                   space()->CommittedMemory()));       \
-  }
-#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space) \
-  UPDATE_COUNTERS_FOR_SPACE(space)                         \
-  UPDATE_FRAGMENTATION_FOR_SPACE(space)
 
   if (new_space()) {
     UPDATE_COUNTERS_FOR_SPACE(new_space)
   }
 
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
+  UPDATE_COUNTERS_FOR_SPACE(old_space)
+  UPDATE_COUNTERS_FOR_SPACE(code_space)
 
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
+  UPDATE_COUNTERS_FOR_SPACE(lo_space)
 #undef UPDATE_COUNTERS_FOR_SPACE
-#undef UPDATE_FRAGMENTATION_FOR_SPACE
-#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
 #ifdef DEBUG
   if (v8_flags.print_global_handles) isolate_->global_handles()->Print();

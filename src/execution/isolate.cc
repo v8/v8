@@ -7743,7 +7743,6 @@ void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
         env->global_object()));
     return;
   }
-  counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
 
   {
     // Create a copy of JSGlobalProxy that will be used as holder for contextual
