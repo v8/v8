@@ -954,9 +954,15 @@ Scope* Scope::FinalizeBlockScope() {
   if (inner_scope_ != nullptr) {
     Scope* scope = inner_scope_;
     scope->outer_scope_ = outer_scope();
+    if (private_name_lookup_skips_outer_class()) {
+      scope->set_private_name_lookup_skips_outer_class(true);
+    }
     while (scope->sibling_ != nullptr) {
       scope = scope->sibling_;
       scope->outer_scope_ = outer_scope();
+      if (private_name_lookup_skips_outer_class()) {
+        scope->set_private_name_lookup_skips_outer_class(true);
+      }
     }
     scope->sibling_ = outer_scope()->inner_scope_;
     outer_scope()->inner_scope_ = inner_scope_;
