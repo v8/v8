@@ -4572,7 +4572,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->clear_capture_name_map();
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   int ticks_until_tier_up = v8_flags.regexp_tier_up
@@ -4612,7 +4612,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   instance->clear_uc16_code();
   instance->clear_latin1_bytecode();
   instance->clear_uc16_bytecode();
-  instance->set_capture_name_map(Smi::FromInt(JSRegExp::kUninitializedValue));
+  instance->clear_capture_name_map();
   instance->set_max_register_count(JSRegExp::kUninitializedValue);
   instance->set_capture_count(capture_count);
   instance->set_ticks_until_tier_up(JSRegExp::kUninitializedValue);

@@ -6496,15 +6496,6 @@ bool Genesis::InstallABunchOfRandomThings() {
     {
       PropertyAttributes attribs = DONT_ENUM;
 
-      // names descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(), factory()->regexp_result_names_symbol(),
-            JSRegExpResult::kNamesOffset, attribs, Representation::Tagged(),
-            true);
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
-
       // regexp_input_index descriptor.
       {
         Descriptor d = Descriptor::DataField(

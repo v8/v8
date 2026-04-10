@@ -475,12 +475,11 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
 
     IterateProtectedPointer(obj, offsetof(IrRegExpData, latin1_bytecode_), v);
     IterateProtectedPointer(obj, offsetof(IrRegExpData, uc16_bytecode_), v);
+    IterateProtectedPointer(obj, offsetof(IrRegExpData, capture_name_map_), v);
     IterateCodePointer(obj, &TrustedCast<IrRegExpData>(obj)->latin1_code_, v,
                        IndirectPointerMode::kStrong);
     IterateCodePointer(obj, &TrustedCast<IrRegExpData>(obj)->uc16_code_, v,
                        IndirectPointerMode::kStrong);
-
-    IteratePointer(obj, offsetof(IrRegExpData, capture_name_map_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {

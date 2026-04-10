@@ -618,9 +618,9 @@ struct CaptureIndexLess {
 }  // namespace
 
 // static
-DirectHandle<FixedArray> RegExp::CreateCaptureNameMap(
+DirectHandle<TrustedFixedArray> RegExp::CreateCaptureNameMap(
     Isolate* isolate, ZoneVector<regexp::Capture*>* named_captures) {
-  if (named_captures == nullptr) return DirectHandle<FixedArray>();
+  if (named_captures == nullptr) return DirectHandle<TrustedFixedArray>();
 
   DCHECK(!named_captures->empty());
 
@@ -630,7 +630,8 @@ DirectHandle<FixedArray> RegExp::CreateCaptureNameMap(
   std::sort(named_captures->begin(), named_captures->end(), CaptureIndexLess{});
 
   int len = static_cast<int>(named_captures->size()) * 2;
-  DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(len);
+  DirectHandle<TrustedFixedArray> array =
+      isolate->factory()->NewTrustedFixedArray(len);
 
   int i = 0;
   for (const regexp::Capture* capture : *named_captures) {
@@ -984,7 +985,7 @@ bool RegExpImpl::CompileIrregexpFromSource(
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
     re_data->set_code(is_one_byte, *trampoline);
   }
-  DirectHandle<FixedArray> capture_name_map =
+  DirectHandle<TrustedFixedArray> capture_name_map =
       RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
   re_data->set_capture_name_map(capture_name_map);
   int register_max = re_data->max_register_count();

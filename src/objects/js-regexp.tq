@@ -39,9 +39,9 @@ extern class IrRegExpData extends RegExpData {
   // reside in trusted space.
   latin1_bytecode: ProtectedPointer<TrustedByteArray>;
   uc16_bytecode: ProtectedPointer<TrustedByteArray>;
+  capture_name_map: ProtectedPointer<TrustedFixedArray>;
   latin1_code: TrustedPointer<Code>;
   uc16_code: TrustedPointer<Code>;
-  capture_name_map: FixedArray|Smi;
   max_register_count: Smi;
   capture_count: Smi;
   ticks_until_tier_up: Smi;
@@ -102,7 +102,6 @@ extern shape JSRegExpResult extends JSArray {
   groups: JSAny;
 
   // The below fields are for internal use only.
-  names: FixedArray|Undefined;
   regexp_input: String;
   regexp_last_index: Smi;
 }

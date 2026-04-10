@@ -56,7 +56,8 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 template <typename Matcher, typename = std::enable_if<std::is_invocable_r_v<
                                 bool, Matcher, Tagged<String>>>>
 int LookupNamedCapture(Matcher name_matches,
-                       Tagged<FixedArray> capture_name_map, int* index_in_out) {
+                       Tagged<TrustedFixedArray> capture_name_map,
+                       int* index_in_out) {
   int index_in_val = *index_in_out;
   DCHECK_GE(index_in_val, 0);
   // TODO(jgruber): Sort capture_name_map and do binary search via
@@ -165,7 +166,7 @@ class CompiledReplacement {
 
   template <typename Char>
   bool ParseReplacementPattern(base::Vector<Char> characters,
-                               Tagged<FixedArray> capture_name_map,
+                               Tagged<TrustedFixedArray> capture_name_map,
                                int capture_count, int subject_length) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
@@ -354,16 +355,13 @@ bool CompiledReplacement::Compile(Isolate* isolate,
     String::FlatContent content = replacement->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
 
-    Tagged<FixedArray> capture_name_map;
+    Tagged<TrustedFixedArray> capture_name_map;
     if (capture_count > 0) {
       // capture_count > 0 implies IrRegExpData. Since capture_count is in
       // trusted space, this is not a SBXCHECK.
       Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*regexp_data);
-
-      Tagged<UnionOf<FixedArray, Smi>> maybe_capture_name_map =
-          re_data->capture_name_map();
-      if (IsFixedArray(maybe_capture_name_map)) {
-        capture_name_map = Cast<FixedArray>(maybe_capture_name_map);
+      if (re_data->has_capture_name_map()) {
+        capture_name_map = re_data->capture_name_map();
       }
     }
 
@@ -1036,15 +1034,15 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
 
 RUNTIME_FUNCTION(Runtime_RegExpBuildIndices) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  DirectHandle<RegExpMatchInfo> match_info = args.at<RegExpMatchInfo>(1);
-  DirectHandle<Object> maybe_names = args.at(2);
-#ifdef DEBUG
+  DCHECK_EQ(2, args.length());
   DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<RegExpMatchInfo> match_info = args.at<RegExpMatchInfo>(1);
+#ifdef DEBUG
   DCHECK(regexp->flags() & JSRegExp::kHasIndices);
 #endif
 
-  return *JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
+  return *JSRegExpResultIndices::BuildIndices(
+      isolate, match_info, direct_handle(regexp->data(isolate), isolate));
 }
 
 namespace {
@@ -1060,11 +1058,11 @@ class MatchInfoBackedMatch : public String::Match {
 
     if (RegExpData::TypeSupportsCaptures(regexp_data->type_tag())) {
       DCHECK(Is<IrRegExpData>(*regexp_data));
-      Tagged<UnionOf<FixedArray, Smi>> o =
-          TrustedCast<IrRegExpData>(regexp_data)->capture_name_map();
-      has_named_captures_ = IsFixedArray(o);
+      DirectHandle<IrRegExpData> re_data =
+          TrustedCast<IrRegExpData>(regexp_data);
+      has_named_captures_ = re_data->has_capture_name_map();
       if (has_named_captures_) {
-        capture_name_map_ = direct_handle(Cast<FixedArray>(o), isolate);
+        capture_name_map_ = direct_handle(re_data->capture_name_map(), isolate);
       }
     } else {
       has_named_captures_ = false;
@@ -1134,7 +1132,7 @@ class MatchInfoBackedMatch : public String::Match {
   DirectHandle<RegExpMatchInfo> match_info_;
 
   bool has_named_captures_;
-  DirectHandle<FixedArray> capture_name_map_;
+  DirectHandle<TrustedFixedArray> capture_name_map_;
 };
 
 class VectorBackedMatch : public String::Match {
@@ -1230,7 +1228,7 @@ class VectorBackedMatch : public String::Match {
 template <typename FunctionType,
           typename = std::enable_if_t<std::is_function_v<Tagged<Object>(int)>>>
 DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
-    Isolate* isolate, DirectHandle<FixedArray> capture_map,
+    Isolate* isolate, DirectHandle<TrustedFixedArray> capture_map,
     const FunctionType& f_get_capture) {
   DirectHandle<JSObject> groups =
       isolate->factory()->NewJSObjectWithNullProto();
@@ -1336,6 +1334,13 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   // Two smis before and after the match, for very long strings.
   static const uint32_t kMaxBuilderEntriesPerRegExpMatch = 5;
 
+  DirectHandle<IrRegExpData> re_data;
+  bool has_named_captures = false;
+  // has_capture can only be true for IrRegExp.
+  if (has_capture) {
+    re_data = TrustedCast<IrRegExpData>(regexp_data);
+    has_named_captures = re_data->has_capture_name_map();
+  }
   while (true) {
     int32_t* current_match = runner.FetchNext();
     if (current_match == nullptr) break;
@@ -1364,12 +1369,6 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
         // subject, i.e., 3 + capture count in total. If the RegExp contains
         // named captures, they are also passed as the last argument.
 
-        // has_capture can only be true for IrRegExp.
-        Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*regexp_data);
-        DirectHandle<UnionOf<FixedArray, Smi>> maybe_capture_map(
-            re_data->capture_name_map(), isolate);
-        const bool has_named_captures = IsFixedArray(*maybe_capture_map);
-
         const int argc =
             has_named_captures ? 4 + capture_count : 3 + capture_count;
 
@@ -1396,8 +1395,8 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
-          DirectHandle<FixedArray> capture_map =
-              Cast<FixedArray>(maybe_capture_map);
+          DirectHandle<TrustedFixedArray> capture_map(
+              re_data->capture_name_map(), isolate);
           DirectHandle<JSObject> groups = ConstructNamedCaptureGroupsObject(
               isolate, capture_map, [=](int ix) { return elements->get(ix); });
           elements->set(cursor++, *groups);
@@ -1664,13 +1663,12 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const int m = match_indices->number_of_capture_registers() / 2;
 
   bool has_named_captures = false;
-  DirectHandle<FixedArray> capture_map;
+  DirectHandle<TrustedFixedArray> capture_map;
   if (m > 1) {
-    Tagged<UnionOf<FixedArray, Smi>> maybe_capture_map =
-        SbxCast<IrRegExpData>(data)->capture_name_map();
-    if (IsFixedArray(maybe_capture_map)) {
+    DirectHandle<IrRegExpData> re_data = SbxCast<IrRegExpData>(data);
+    if (re_data->has_capture_name_map()) {
       has_named_captures = true;
-      capture_map = direct_handle(Cast<FixedArray>(maybe_capture_map), isolate);
+      capture_map = direct_handle(re_data->capture_name_map(), isolate);
     }
   }
 

@@ -2423,11 +2423,8 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
   CHECK_IMPLIES(has_latin1_bytecode(), Is<TrustedByteArray>(latin1_bytecode()));
   CHECK_IMPLIES(has_uc16_bytecode(), Is<TrustedByteArray>(uc16_bytecode()));
 
-  CHECK_IMPLIES(IsSmi(capture_name_map()),
-                Smi::ToInt(Cast<Smi>(capture_name_map())) ==
-                        JSRegExp::kUninitializedValue ||
-                    capture_name_map() == Smi::zero());
-  CHECK_IMPLIES(!IsSmi(capture_name_map()), Is<FixedArray>(capture_name_map()));
+  CHECK_IMPLIES(has_capture_name_map(),
+                Is<TrustedFixedArray>(capture_name_map()));
 
   switch (type_tag()) {
     case RegExpData::Type::EXPERIMENTAL: {

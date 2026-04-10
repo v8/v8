@@ -75,7 +75,7 @@ namespace {
 
 struct CompilationResult {
   DirectHandle<TrustedByteArray> bytecode;
-  DirectHandle<FixedArray> capture_name_map;
+  DirectHandle<TrustedFixedArray> capture_name_map;
 };
 
 // Compiles source pattern, but doesn't change the regexp object.

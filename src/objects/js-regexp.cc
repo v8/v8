@@ -17,7 +17,7 @@ namespace v8::internal {
 
 DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-    DirectHandle<Object> maybe_names) {
+    DirectHandle<RegExpData> re_data) {
   DirectHandle<JSRegExpResultIndices> indices(
       Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
@@ -58,7 +58,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // If there are no capture groups, set the groups property to undefined.
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
-  if (IsUndefined(*maybe_names, isolate)) {
+  if (re_data->type_tag() != RegExpData::Type::IRREGEXP ||
+      !TrustedCast<IrRegExpData>(re_data)->has_capture_name_map()) {
     indices->FastPropertyAtPut(groups_index,
                                ReadOnlyRoots(isolate).undefined_value());
     return indices;
@@ -66,7 +67,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
-  auto names = Cast<FixedArray>(maybe_names);
+  auto names = direct_handle(
+      TrustedCast<IrRegExpData>(re_data)->capture_name_map(), isolate);
   const int num_names = static_cast<int>(names->ulength().value() >> 1);
   DirectHandle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {

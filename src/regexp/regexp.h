@@ -20,6 +20,7 @@ class RegExpData;
 class IrRegExpData;
 class AtomRegExpData;
 class RegExpMatchInfo;
+class TrustedFixedArray;
 
 namespace regexp {
 
@@ -186,7 +187,7 @@ class RegExp final : public AllStatic {
   static bool IsUnmodifiedRegExp(Isolate* isolate,
                                  DirectHandle<JSRegExp> regexp);
 
-  static DirectHandle<FixedArray> CreateCaptureNameMap(
+  static DirectHandle<TrustedFixedArray> CreateCaptureNameMap(
       Isolate* isolate, ZoneVector<regexp::Capture*>* named_captures);
 };
 
