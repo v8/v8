@@ -2476,7 +2476,8 @@ bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
   return false;
 }
 
-std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception) {
+std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception,
+                                             bool is_stack_overflow) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
   // Temporarily clear any exception to allow evaluating
@@ -2490,7 +2491,8 @@ std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception) {
                 catch_type == Isolate::CAUGHT_BY_ASYNC_AWAIT ||
                         catch_type == Isolate::CAUGHT_BY_PROMISE
                     ? v8::debug::kPromiseRejection
-                    : v8::debug::kException);
+                    : v8::debug::kException,
+                is_stack_overflow);
   }
   PrepareStepOnThrow();
   // If the OnException handler requested termination, then indicated this to
@@ -2531,12 +2533,12 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
 
 void Debug::OnException(DirectHandle<Object> exception,
                         MaybeDirectHandle<JSPromise> promise,
-                        v8::debug::ExceptionType exception_type) {
+                        v8::debug::ExceptionType exception_type,
+                        bool is_stack_overflow) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Do not trigger exception event on stack overflow. We cannot perform
   // anything useful for debugging in that situation.
-  StackLimitCheck stack_limit_check(isolate_);
-  if (stack_limit_check.JsHasOverflowed()) return;
+  if (is_stack_overflow) return;
 
   // Return if the event has nowhere to go.
   if (!debug_delegate_) return;

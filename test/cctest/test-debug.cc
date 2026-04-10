@@ -3729,6 +3729,7 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
 UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
   // We must set v8_flags.stack_size before initializing the isolate.
   i::v8_flags.stack_size = 100;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3745,7 +3746,78 @@ UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
 
     CompileRun(
         "function f() { return f(); }"
+        "%NeverOptimizeFunction(f);"
         "try { f() } catch {}");
+
+    CHECK_EQ(0, delegate.exception_event_count);
+  }
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(NoBreakOnStackOverflowMaglev) {
+  // We must set v8_flags.stack_size before initializing the isolate.
+  i::v8_flags.stack_size = 100;
+  i::v8_flags.allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
+
+    ChangeBreakOnException(isolate, true, true);
+
+    ExceptionEventCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+    CHECK_EQ(0, delegate.exception_event_count);
+
+    CompileRun(
+        "function f(d) {"
+        "  if (d == 0) return 0;"
+        "  return f(d - 1);"
+        "}"
+        "%PrepareFunctionForOptimization(f);"
+        "f(10);"
+        "%OptimizeMaglevOnNextCall(f);"
+        "f(10);"
+        "try { f(1000000); } catch {}");
+
+    CHECK_EQ(0, delegate.exception_event_count);
+  }
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(NoBreakOnStackOverflowTurbofan) {
+  // We must set v8_flags.stack_size before initializing the isolate.
+  i::v8_flags.stack_size = 100;
+  i::v8_flags.allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
+
+    ChangeBreakOnException(isolate, true, true);
+
+    ExceptionEventCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+    CHECK_EQ(0, delegate.exception_event_count);
+
+    CompileRun(
+        "function f(d) {"
+        "  if (d == 0) return 0;"
+        "  return f(d - 1);"
+        "}"
+        "%PrepareFunctionForOptimization(f);"
+        "f(10);"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f(10);"
+        "try { f(1000000); } catch {}");
 
     CHECK_EQ(0, delegate.exception_event_count);
   }

@@ -2380,7 +2380,7 @@ Tagged<Object> Isolate::StackOverflow() {
   JSObject::AddProperty(this, exception, factory()->wasm_uncatchable_symbol(),
                         factory()->true_value(), NONE);
 
-  Throw(*exception);
+  Throw(*exception, nullptr, true);
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap && v8_flags.stress_compaction) {
@@ -2559,7 +2559,8 @@ DirectHandle<JSMessageObject> Isolate::CreateMessageOrAbort(
 }
 
 Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
-                              MessageLocation* location) {
+                              MessageLocation* location,
+                              bool is_stack_overflow) {
   if (has_exception()) {
     // A termination exception may have been thrown while preparing
     // {raw_exception}, e.g. by the near heap limit callback
@@ -2629,7 +2630,8 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   // Notify debugger of exception.
   if (is_catchable_by_javascript(*exception)) {
     DirectHandle<Object> message(pending_message(), this);
-    std::optional<Tagged<Object>> maybe_exception = debug()->OnThrow(exception);
+    std::optional<Tagged<Object>> maybe_exception =
+        debug()->OnThrow(exception, is_stack_overflow);
     if (maybe_exception.has_value()) {
       return *maybe_exception;
     }
