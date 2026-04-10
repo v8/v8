@@ -3386,6 +3386,14 @@ DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_INT(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
+DEFINE_BOOL(
+    regexp_jit_all, false,
+    "compile all regexp patterns directly to native code, skipping the "
+    "interpreter (equivalent to --regexp-tier-up --regexp-tier-up-ticks=0)")
+DEFINE_IMPLICATION(regexp_jit_all, regexp_tier_up)
+// clang-format off
+DEFINE_VALUE_IMPLICATION(regexp_jit_all, regexp_tier_up_ticks, 0)
+// clang-format on
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")

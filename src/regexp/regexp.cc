@@ -841,7 +841,13 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
   // Recompile is needed when we're dealing with the first execution of the
   // regexp after the decision to tier up has been made. If the tiering up
   // strategy is not in use, this value is always false.
-  bool needs_tier_up_compilation = re_data->MarkedForTierUp() && has_bytecode;
+  // The has_bytecode check detects post-tier-up state: after successful
+  // tier-up, bytecode is cleared, so MarkedForTierUp() && !has_bytecode &&
+  // has_code means tier-up already completed. With tier_up_ticks=0 however,
+  // tier-up is requested immediately before any compilation, so !has_bytecode
+  // && needs_initial_compilation means we need to compile bytecode first.
+  bool needs_tier_up_compilation =
+      re_data->MarkedForTierUp() && (has_bytecode || needs_initial_compilation);
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   if (V8_UNLIKELY(v8_flags.trace_regexp_tier_up && needs_tier_up_compilation)) {
@@ -856,11 +862,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
     return true;
   }
 
-  DCHECK_IMPLIES(needs_tier_up_compilation, has_bytecode);
-
-  const bool is_tier_up_requested =
-      v8_flags.regexp_tier_up_ticks > 0 && re_data->MarkedForTierUp();
-  if (v8_flags.regexp_assemble_from_bytecode && is_tier_up_requested) {
+  if (v8_flags.regexp_assemble_from_bytecode && needs_tier_up_compilation) {
     if (CompileIrregexpFromBytecode(isolate, re_data, sample_subject,
                                     is_one_byte)) {
       return true;
