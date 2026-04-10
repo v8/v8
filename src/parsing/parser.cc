@@ -662,7 +662,6 @@ void Parser::DeserializeScopeChain(
   DirectHandle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-
     Tagged<Script> eval_from_script = *script;
     Tagged<ScopeInfo> eval_from_scope_info;
     if (eval_from_script->has_eval_from_scope_info()) {
@@ -745,9 +744,12 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   }
 
   scanner_.Initialize();
-  FunctionLiteral* result = DoParseProgram(isolate, info);
+  FunctionLiteral* result =
+      DoParseProgram(isolate, info, script->eval_from_position());
   HandleDebugMagicComments(isolate, script);
   if (result == nullptr) return;
+  result->scope()->set_is_hoisted_in_context(
+      info->flags().is_hoisted_in_context());
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
 
@@ -766,7 +768,8 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
   }
 }
 
-FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
+FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
+                                        int eval_from_position) {
   // Note that this function can be called from the main thread or from a
   // background thread. We should not access anything Isolate / heap dependent
   // via ParseInfo, and also not pass it forward. If not on the main thread
@@ -789,7 +792,9 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
     if (flags().is_eval()) {
-      outer = NewEvalScope(outer);
+      DeclarationScope* eval_scope = NewEvalScope(outer);
+      eval_scope->set_eval_position(std::max(0, eval_from_position));
+      outer = eval_scope;
     } else if (flags().is_module()) {
       DCHECK_EQ(outer, info->script_scope());
       outer = NewModuleScope(info->script_scope());
@@ -1114,6 +1119,10 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
                              function_literal_id, info->function_name());
   }
   if (result == nullptr) return;
+
+  result->scope()->set_is_hoisted_in_context(
+      info->flags().is_hoisted_in_context());
+
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
@@ -2937,6 +2946,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
+  if (function_syntax_kind == FunctionSyntaxKind::kDeclaration) {
+    scope->set_is_hoisted_in_context(true);
+  }
   if (is_wrapped) {
     scope->set_is_wrapped_function();
   }
@@ -3662,8 +3674,11 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
 
   // We can park the isolate while parsing, it doesn't need to allocate or
   // access the main thread.
+  int eval_from_position =
+      flags().is_toplevel() ? script->eval_from_position() : 0;
   isolate->ParkIfOnBackgroundAndExecute([this, start_position, end_position,
-                                         function_literal_id, info, &result]() {
+                                         function_literal_id, info,
+                                         eval_from_position, &result]() {
     scanner_.Initialize();
 
     DCHECK(original_scope_);
@@ -3679,7 +3694,8 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
       DCHECK_EQ(start_position, 0);
       DCHECK_EQ(end_position, 0);
       DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
-      result = DoParseProgram(/* isolate = */ nullptr, info);
+      result =
+          DoParseProgram(/* isolate = */ nullptr, info, eval_from_position);
     } else {
       std::optional<ClassScope::HeritageParsingScope> heritage;
       if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&

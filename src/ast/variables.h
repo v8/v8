@@ -171,6 +171,20 @@ class Variable final : public ZoneObject {
     return initialization_flag() == kNeedsInitialization;
   }
 
+  enum class HoleCheckState : uint8_t {
+    kUncached = 0,
+    kForce = 1,
+    kSkip = 2,
+  };
+
+  HoleCheckState hole_check_state() const {
+    return HoleCheckStateField::decode(hole_check_analysis_bit_field_);
+  }
+  void set_hole_check_state(HoleCheckState state) {
+    hole_check_analysis_bit_field_ =
+        HoleCheckStateField::update(hole_check_analysis_bit_field_, state);
+  }
+
   enum ForceHoleInitializationFlag {
     kHoleInitializationNotForced = 0,
     kHasHoleCheckUseInDifferentClosureScope = 1 << 0,
@@ -363,6 +377,8 @@ class Variable final : public ZoneObject {
   using HoleCheckBitmapIndexField = base::BitField16<uint8_t, 0, 8>;
   using ForceHoleInitializationFlagField =
       HoleCheckBitmapIndexField::Next<ForceHoleInitializationFlag, 2>;
+  using HoleCheckStateField =
+      ForceHoleInitializationFlagField::Next<HoleCheckState, 2>;
 
   Variable** next() { return &next_; }
   friend List;

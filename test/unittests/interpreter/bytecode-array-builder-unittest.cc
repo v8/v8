@@ -216,6 +216,24 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadContextSlot(Register::current_context(), &fun2_var1, 0)
       .PopContext(reg);
 
+  Handle<ScopeInfo> scope_info3 =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  int flags3 = ScopeInfo::IsHoistedInContextBit::encode(true);
+  scope_info3->set_flags(flags3, kRelaxedStore);
+  scope_info3->set_context_local_count(0);
+  scope_info3->set_parameter_count(0);
+  scope_info3->set_position_info_start(0);
+  scope_info3->set_position_info_end(0);
+  DeclarationScope fun_scope3(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
+                              scope_info3);
+  EXPECT_TRUE(fun_scope3.is_hoisted_in_context());
+
+  int flags4 = ScopeInfo::IsHoistedInContextBit::encode(false);
+  scope_info3->set_flags(flags4, kRelaxedStore);
+  DeclarationScope fun_scope4(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
+                              scope_info3);
+  EXPECT_FALSE(fun_scope4.is_hoisted_in_context());
+
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
       .LoadNamedPropertyFromSuper(reg, name, load_slot.ToInt())

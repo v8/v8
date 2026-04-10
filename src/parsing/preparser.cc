@@ -274,6 +274,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
+  if (function_syntax_kind == FunctionSyntaxKind::kDeclaration) {
+    function_scope->set_is_hoisted_in_context(true);
+  }
   int function_literal_id = GetNextInfoId();
   bool skippable_function = false;
 
