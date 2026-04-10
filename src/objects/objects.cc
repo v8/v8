@@ -4510,7 +4510,7 @@ Maybe<bool> JSArray::SetLength(Isolate* isolate, DirectHandle<JSArray> array,
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)
 // static
 Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
-                                  DirectHandle<Object> value,
+                                  DirectHandle<JSPrototype> value,
                                   bool from_javascript,
                                   ShouldThrow should_throw) {
   STACK_CHECK(isolate, Nothing<bool>());

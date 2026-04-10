@@ -4917,9 +4917,10 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
     // We do not allow exceptions thrown while setting the prototype
     // to propagate outside.
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate));
-    auto result =
-        i::JSProxy::SetPrototype(i_isolate, i::Cast<i::JSProxy>(self),
-                                 value_obj, from_javascript, i::kThrowOnError);
+    if (!i::IsJSReceiver(*value_obj) && !i::IsNull(*value_obj)) return {};
+    auto result = i::JSProxy::SetPrototype(i_isolate, i::Cast<i::JSProxy>(self),
+                                           i::Cast<i::JSPrototype>(value_obj),
+                                           from_javascript, i::kThrowOnError);
     if (result.IsNothing()) return {};
     // Convert Just(false) to Just(true).
     return Just(true);

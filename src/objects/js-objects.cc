@@ -2410,8 +2410,13 @@ Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
   }
 
   if (IsJSProxy(*object)) {
-    return JSProxy::SetPrototype(isolate, Cast<JSProxy>(object), value,
-                                 from_javascript, should_throw);
+    if (!IsJSReceiver(*value) && !IsNull(*value)) {
+      RETURN_FAILURE(isolate, should_throw,
+                     NewTypeError(MessageTemplate::kProtoObjectOrNull, value));
+    }
+    return JSProxy::SetPrototype(isolate, Cast<JSProxy>(object),
+                                 Cast<JSPrototype>(value), from_javascript,
+                                 should_throw);
   }
   return JSObject::SetPrototype(isolate, Cast<JSObject>(object), value,
                                 from_javascript, should_throw);

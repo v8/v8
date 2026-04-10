@@ -1607,6 +1607,8 @@ class PrototypesSetup : public wasm::Decoder {
                   "Object.setPrototypeOf")));
           return ReadOnlyRoots(isolate()).exception();
         }
+        // Previous entries in the prototypes array may have been overwritten
+        // since we last saw them, so we cannot make any assumptions about them.
         DirectHandle<Object> parent =
             PrototypeByIndex(static_cast<uint32_t>(parent_idx));
         if (!JSReceiver::SetPrototype(isolate(), prototype, parent, true,

@@ -36,8 +36,9 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
 
   // ES6 9.5.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
-      Isolate* isolate, DirectHandle<JSProxy> proxy, DirectHandle<Object> value,
-      bool from_javascript, ShouldThrow should_throw);
+      Isolate* isolate, DirectHandle<JSProxy> proxy,
+      DirectHandle<JSPrototype> value, bool from_javascript,
+      ShouldThrow should_throw);
   // ES6 9.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
       DirectHandle<JSProxy> proxy);
