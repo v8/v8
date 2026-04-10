@@ -564,7 +564,7 @@ void OS::ExitProcess(int exit_code) {
 // for output. However, if the application is linked as a GUI application,
 // the process doesn't have a console, and therefore (debugging) output is lost.
 // This is the case if we are embedded in a windows program (like a browser).
-// In order to be able to get debug output in this case the the debugging
+// In order to be able to get debug output in this case the debugging
 // facility using OutputDebugString. This output goes to the active debugger
 // for the process (if any). Else the output can be monitored using DBMON.EXE.
 

@@ -65,7 +65,7 @@ constexpr uint32_t kFP32MinFP16ZeroRepresentable = 0x33000000;
 constexpr uint32_t kFP32MaxFP16Representable = 0x47800000;
 constexpr uint32_t kFP32SubnormalThresholdOfFP16 = 0x38800000;
 
-// The limit for the the fractionDigits/precision for toFixed, toPrecision
+// The limit for the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.
 constexpr int kMaxFractionDigits = 100;
 constexpr int kDoubleToFixedMaxDigitsBeforePoint = 21;

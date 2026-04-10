@@ -1082,7 +1082,7 @@ Reduction MachineOperatorReducer::ReduceTruncateInt64ToInt32(Node* node) {
         }
         if (value_edges == 1) {
           // Removing the input is required as node is replaced by the Load, but
-          // is still used by the the BitcastTaggedToWordForTagAndSmiBits, so
+          // is still used by the BitcastTaggedToWordForTagAndSmiBits, so
           // will prevent future CanCover calls being true.
           m.node()->RemoveInput(0);
           NodeProperties::ChangeOp(

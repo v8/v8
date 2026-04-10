@@ -2836,7 +2836,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForInsertion(
     TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> capacity) {
   // See HashTable::FindInsertionEntry().
   auto is_not_live = [&](TNode<Object> entry_key, Label* if_found) {
-    // This is the the negative form BaseShape::IsLive().
+    // This is the negative form of BaseShape::IsLive().
     GotoIf(Word32Or(IsTheHole(entry_key), IsUndefined(entry_key)), if_found);
   };
   return FindKeyIndex(table, key_hash, capacity, is_not_live);

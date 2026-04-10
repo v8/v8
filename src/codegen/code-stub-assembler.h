@@ -1718,7 +1718,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            if_equal);
   }
 
-  // Loads the initial map of the the Object constructor.
+  // Loads the initial map of the Object constructor.
   TNode<Map> LoadObjectFunctionInitialMap(TNode<NativeContext> native_context);
   TNode<Map> LoadSlowObjectWithNullPrototypeMap(
       TNode<NativeContext> native_context);

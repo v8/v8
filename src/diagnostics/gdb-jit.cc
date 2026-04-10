@@ -1610,7 +1610,7 @@ void UnwindInfoSection::WriteFDE(Writer* w, int cie_position) {
 }
 
 void UnwindInfoSection::WriteFDEStateOnEntry(Writer* w) {
-  // The first state, just after the control has been transferred to the the
+  // The first state, just after the control has been transferred to the
   // function.
 
   // RBP for this function will be the value of RSP after pushing the RBP

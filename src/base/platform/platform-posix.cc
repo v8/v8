@@ -498,7 +498,7 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 
   if (aligned_base != base && handle.has_value()) {
     // We have to remap because the base of mapping must correspond to the base
-    // of the the underlying file.
+    // of the underlying file.
     uint8_t* new_base = reinterpret_cast<uint8_t*>(base::Allocate(
         aligned_base, size, access, page_type, handle, true /* fixed */));
     if (new_base != aligned_base) {

@@ -180,7 +180,7 @@ V8_OBJECT class Script : public StructLayout {
   inline uint32_t flags() const;
   inline void set_flags(uint32_t new_flags);
 
-  // [compilation_type]: how the the script was compiled. Encoded in the
+  // [compilation_type]: how the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type() const;
   inline void set_compilation_type(CompilationType type);

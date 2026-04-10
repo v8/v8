@@ -3871,7 +3871,7 @@ void UnboxedDoubleIndexedPropertyEnumerator(
 }
 }  // namespace
 
-// Make sure that the the interceptor code in the runtime properly handles
+// Make sure that the interceptor code in the runtime properly handles
 // merging property name lists for double-array-backed arrays.
 THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -3936,7 +3936,7 @@ v8::Intercepted SloppyIndexedPropertyGetter(
 }
 }  // namespace
 
-// Make sure that the the interceptor code in the runtime properly handles
+// Make sure that the interceptor code in the runtime properly handles
 // merging property name lists for non-string arguments arrays.
 THREADED_TEST(IndexedInterceptorSloppyArgsWithIndexedAccessor) {
   v8::Isolate* isolate = CcTest::isolate();

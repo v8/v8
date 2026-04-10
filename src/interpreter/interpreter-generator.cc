@@ -3298,7 +3298,7 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
 
 // ForInNext <receiver> <index> <cache_info_pair>
 //
-// Returns the next enumerable property in the the accumulator.
+// Returns the next enumerable property in the accumulator.
 IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<JSAnyNotSmi> receiver = CAST(LoadRegisterAtOperandIndex(0));
   TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(1));

@@ -3719,7 +3719,7 @@ void WasmJs::Install(Isolate* isolate) {
   // Even in interpreter-only mode, wasm currently still creates executable
   // memory at runtime. Unexpose wasm until this changes.
   // The correctness fuzzers are a special case: many of their test cases are
-  // built by fetching a random property from the the global object, and thus
+  // built by fetching a random property from the global object, and thus
   // the global object layout must not change between configs. That is why we
   // continue exposing wasm on correctness fuzzers even in jitless mode.
   // TODO(jgruber): Remove this once / if wasm can run without executable

@@ -608,7 +608,7 @@ void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
   //
   // Fallback to scalar version if there are less than kCharsPerVector chars
   // left in the subject. We subtract 1 because CheckPosition assumes we are
-  // reading 1 character plus cp_offset. So the -1 is the the character that is
+  // reading 1 character plus cp_offset. So the -1 is the character that is
   // assumed to be read by default.
   static constexpr int kCheckPositionOffset = -1;
   CheckPosition(cp_offset + kCharsPerVector + kCheckPositionOffset +
@@ -819,7 +819,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
     // Fallback to scalar version if there are less than kCharsPerVector +
     // character_count - 1 chars left in the subject. We subtract 1 from
     // kCharsPerVector because CheckPosition assumes we are reading 1 character
-    // plus max_offset. So the -1 is the the character that is assumed to be
+    // plus max_offset. So the -1 is the character that is assumed to be
     // read by default.
     const int max_stride_offset =
         max_offset + kCharsPerVector - 1 + character_count - 1;

@@ -959,7 +959,7 @@ builtin JSToWasmHandleReturns(
       wrapperBuffer, kWrapperBufferRefReturnCount);
 
   if (hasRefReturns) {
-    // We first process all references and copy them in the the result array to
+    // We first process all references and copy them in the result array to
     // put them into a location that is known to the GC. The processing of
     // references does not trigger a GC, but the allocation of HeapNumbers and
     // BigInts for primitive types may trigger a GC.

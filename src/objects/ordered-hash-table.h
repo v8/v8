@@ -390,7 +390,7 @@ class V8_EXPORT_PRIVATE OrderedHashMap
 //
 // Note: For the sake of brevity, the following start with index 0
 // but, they actually start from kPrefixSize * kTaggedSize to
-// account for the the prefix.
+// account for the prefix.
 //
 // [ Header ]  :
 //    [0] : Number of elements

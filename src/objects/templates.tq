@@ -72,7 +72,7 @@ extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Either the_hole or a private symbol. Used to cache the result on
-  // the receiver under the the cached_property_name when this
+  // the receiver under the cached_property_name when this
   // FunctionTemplateInfo is used as a getter.
   cached_property_name: Object;
 

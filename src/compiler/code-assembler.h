@@ -390,7 +390,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
 // create code objects with TurboFan's backend. This class is mostly a thin
 // shim around the RawMachineAssembler, and its primary job is to ensure that
 // the innards of the RawMachineAssembler and other compiler implementation
-// details don't leak outside of the the compiler directory..
+// details don't leak outside of the compiler directory.
 //
 // V8 components that need to generate low-level code using this interface
 // should include this header--and this header only--from the compiler

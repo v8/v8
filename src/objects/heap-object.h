@@ -403,7 +403,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Trusted pointers.
   //
   // A pointer to a trusted object. When the sandbox is enabled, these are
-  // indirect pointers using the the TrustedPointerTable (TPT). When the sandbox
+  // indirect pointers using the TrustedPointerTable (TPT). When the sandbox
   // is disabled, they are regular tagged pointers. They must always point to an
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.

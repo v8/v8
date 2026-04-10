@@ -98,7 +98,7 @@ template <typename T>
 V8_INLINE static T* ReadCppHeapPointerField(v8::Isolate* isolate,
                                             Address heap_object_ptr, int offset,
                                             CppHeapPointerTagRange tag_range) {
-  // This is a specialized version of the the CppHeapPointerTable accessors
+  // This is a specialized version of the CppHeapPointerTable accessors
   // which (1) allows the code to be inlined into the callers for performance
   // and (2) is optimized for code size as there are a huge number of callers
   // from auto-generated bindings code.

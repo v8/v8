@@ -381,7 +381,7 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(enum_cache->indices()->length().value(), 3u);
   }
 
-  // Initializing the EnumCache for the the topmost map {a} will not create the
+  // Initializing the EnumCache for the topmost map {a} will not create the
   // cache for the other maps.
   RunJS("var s = 0; for (let key in a) { s += a[key] };");
   {

@@ -3126,7 +3126,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
               caller_code->GetOffsetFromInstructionStart(this, fast_call_pc);
           // Check if there is actually an exception handler registered at the
           // return address of the fast call. If so, then we tell the
-          // deoptimizer of the exception and just return the the Deotimization
+          // deoptimizer of the exception and just return the Deoptimization
           // Entry. Otherwise we iterate the stack further to find a handler.
           HandlerTable table(caller_code->UnsafeCastToCode());
           int handler_offset = table.LookupReturn(caller_offset);

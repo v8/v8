@@ -1705,7 +1705,7 @@ MaybeDirectHandle<String> String::GetSubstitution(
         break;
     }
 
-    // Go the the next $ in the replacement.
+    // Go the next $ in the replacement.
     // TODO(jgruber): Single-char lookups could be much more efficient.
     DCHECK_NE(continue_from_ix, -1);
     next_dollar_ix =

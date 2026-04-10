@@ -2043,7 +2043,7 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_fast_api,
     "Enable direct calls from wasm to fast API functions with bound "
-    "call function to pass the the receiver as first parameter")
+    "call function to pass the receiver as first parameter")
 
 DEFINE_EXPERIMENTAL_FEATURE(
     wasm_assert_types,

@@ -200,7 +200,7 @@ void CPU::DetectFeatures() {
   }
 
   // Extract architecture from the "CPU Architecture" field.
-  // The list is well-known, unlike the the output of
+  // The list is well-known, unlike the output of
   // the 'Processor' field which can vary greatly.
   // See the definition of the 'proc_arch' array in
   // $KERNEL/arch/arm/kernel/setup.c and the 'c_show' function in

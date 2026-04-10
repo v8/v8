@@ -1149,7 +1149,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
   // Declare the function variable for a function literal. This variable
-  // is in an intermediate scope between this function scope and the the
+  // is in an intermediate scope between this function scope and the
   // outer scope. Only possible for function scopes; at most one variable.
   //
   // This function needs to be called after all other variables have been

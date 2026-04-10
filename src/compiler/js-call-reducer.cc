@@ -5936,7 +5936,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
                        jsgraph()->ZeroConstant()),
       graph()->NewNode(simplified()->NumberSubtract(), length, initStart));
 
-  // The the select below uses {resultLength} only if {resultLength > 0},
+  // The select below uses {resultLength} only if {resultLength > 0},
   // but our typer can't figure that out yet.
   Node* to = effect = graph()->NewNode(
       common()->TypeGuard(Type::UnsignedSmall()),
