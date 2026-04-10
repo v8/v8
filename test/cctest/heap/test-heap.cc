@@ -1990,9 +1990,7 @@ TEST(TestSizeOfRegExpCode) {
 
   LocalContext context;
 
-  // Adjust source below and this check to match
-  // RegExp::kRegExpTooLargeToOptimize.
-  CHECK_EQ(i::RegExp::kRegExpTooLargeToOptimize, 20 * KB);
+  CHECK_EQ(i::RegExp::kMaxOptimizedPatternLength, 20 * KB);
 
   // Compile a regexp that is much larger if we are using regexp optimizations.
   CompileRun(

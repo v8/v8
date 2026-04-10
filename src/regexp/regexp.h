@@ -173,7 +173,7 @@ class RegExp final : public AllStatic {
   V8_EXPORT_PRIVATE static void DotPrintForTesting(const char* label,
                                                    regexp::Node* node);
 
-  static const int kRegExpTooLargeToOptimize = 20 * KB;
+  static const int kMaxOptimizedPatternLength = 20 * KB;
 
   V8_WARN_UNUSED_RESULT
   static MaybeDirectHandle<Object> ThrowRegExpException(

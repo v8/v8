@@ -1344,18 +1344,6 @@ std::optional<int> RegExpImpl::IrregexpExec(
   }
 }
 
-namespace {
-
-// Returns true if the pattern string is too long for regexp optimization to
-// be worthwhile (the optimization work would take too long relative to the
-// benefit).
-bool SubjectStringTooLargeToOptimize(DirectHandle<RegExpData> re_data) {
-  return re_data->original_source()->length() >
-         RegExp::kRegExpTooLargeToOptimize;
-}
-
-}  // namespace
-
 // static
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
                          Flags flags, DirectHandle<String> sample_subject,
@@ -1394,7 +1382,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   if (compiler.optimize()) {
-    compiler.set_optimize(!SubjectStringTooLargeToOptimize(re_data));
+    compiler.set_optimize(re_data->original_source()->length() <=
+                          RegExp::kMaxOptimizedPatternLength);
   }
 
   // Sample some characters from the middle of the string.
