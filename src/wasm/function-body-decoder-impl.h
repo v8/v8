@@ -2823,9 +2823,11 @@ class WasmDecoder : public Decoder {
             decoder->read_prefixed_opcode<ValidationTag>(pc, "atomic_index");
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
-            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kAcquireReleaseAtomicEnabled,
-                                      kIsRMWAtomicOp, validate);
+            WasmOpcode full_opcode =
+                static_cast<WasmOpcode>((kAtomicPrefix << 8) | opcode);
+            MemoryAccessImmediate imm(
+                decoder, pc + length, UINT32_MAX, kAcquireReleaseAtomicEnabled,
+                WasmOpcodes::IsAtomicRmwOpcode(full_opcode), validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }

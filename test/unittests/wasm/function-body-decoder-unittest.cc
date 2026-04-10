@@ -5376,6 +5376,23 @@ TEST_F(WasmOpcodeLengthTest, PrefixedOpcodesLEB) {
   ExpectLength(5, 0xfe, 0x80, 0x00, 0x00, 0x00);
 }
 
+TEST_F(WasmOpcodeLengthTest, Atomics) {
+  // kExprI32AtomicLoad: prefix + opcode + align + offset.
+  ExpectLength(4, kAtomicPrefix, kExprI32AtomicLoad & 0xFF, 0x02, 0x00);
+  // kExprI32AtomicLoad with explicit memory order:
+  // prefix + opcode + align|0x20 + order + offset.
+  ExpectLength(5, kAtomicPrefix, kExprI32AtomicLoad & 0xFF, 0x22, 0x01, 0x00);
+
+  // kExprI32AtomicAdd: prefix + opcode + align + offset.
+  ExpectLength(4, kAtomicPrefix, kExprI32AtomicAdd & 0xFF, 0x02, 0x00);
+  // kExprI32AtomicAdd with explicit memory order:
+  // prefix + opcode + align|0x20 + order + offset.
+  ExpectLength(5, kAtomicPrefix, kExprI32AtomicAdd & 0xFF, 0x22, 0x11, 0x00);
+
+  // kExprAtomicNotify: prefix + opcode + align + offset.
+  ExpectLength(4, kAtomicPrefix, kExprAtomicNotify & 0xFF, 0x02, 0x00);
+}
+
 class TypeReaderTest : public TestWithZone {
  public:
   HeapType DecodeHeapType(const uint8_t* start, const uint8_t* end) {
