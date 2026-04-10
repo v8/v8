@@ -1183,7 +1183,7 @@ class ParserBase {
                 original_scope_) &&
             IsModule(function_state_->kind())));
     return IsAsyncFunction(kind) ||
-           kind == FunctionKind::kClassStaticInitializerFunction;
+           IsClassStaticInitializerFunction(kind);
   }
   bool is_using_allowed() const {
     // UsingDeclaration and AwaitUsingDeclaration are Syntax Errors if the goal
@@ -6303,8 +6303,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
     case BLOCK_SCOPE:
       // Class static blocks disallow return. They are their own var scopes and
       // have a varblock scope.
-      if (function_state_->kind() ==
-          FunctionKind::kClassStaticInitializerFunction) {
+      if (IsClassStaticInitializerFunction(
+              function_state_->kind())) {
         impl()->ReportMessageAt(loc, MessageTemplate::kIllegalReturn);
         return impl()->NullStatement();
       }
