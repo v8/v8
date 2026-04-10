@@ -29,6 +29,7 @@
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/transitions.h"
+#include "src/utils/memcopy.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
@@ -842,7 +843,7 @@ void Map::InitializeDescriptors(Isolate* isolate,
 void Map::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
   DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+  Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 

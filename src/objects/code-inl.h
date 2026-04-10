@@ -19,6 +19,7 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -875,7 +876,8 @@ void Code::UpdateInstructionStart(IsolateForSandbox isolate,
 }
 
 void Code::clear_padding() {
-  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+  if (kSize - kUnalignedSize == 0) return;
+  Memset(reinterpret_cast<uint8_t*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);
 }
 

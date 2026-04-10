@@ -15,6 +15,7 @@
 #include "src/objects/name.h"
 #include "src/objects/oddball.h"
 #include "src/objects/templates.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -114,7 +115,7 @@ void AccessorInfo::RestoreCallbackRedirectionAfterDeserialization(
 
 void AccessorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+  Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 
@@ -225,7 +226,7 @@ void InterceptorInfo::RestoreCallbackRedirectionAfterDeserialization(
 
 void InterceptorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+  Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 
