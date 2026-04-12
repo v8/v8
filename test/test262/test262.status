@@ -1149,4 +1149,34 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Promise/allKeyed/arg-is-function': [SKIP],
+  'built-ins/Promise/allKeyed/arg-not-object-reject': [SKIP],
+  'built-ins/Promise/allKeyed/arg-not-object-reject-bigint': [SKIP],
+  'built-ins/Promise/allKeyed/key-order-preserved': [SKIP],
+  'built-ins/Promise/allKeyed/non-enumerable-properties-ignored': [SKIP],
+  'built-ins/Promise/allKeyed/prototype-keys-ignored': [SKIP],
+  'built-ins/Promise/allKeyed/reject-deferred': [SKIP],
+  'built-ins/Promise/allKeyed/reject-immed': [SKIP],
+  'built-ins/Promise/allKeyed/resolve-not-callable-reject-with-typeerror': [SKIP],
+  'built-ins/Promise/allKeyed/resolves-empty-object': [SKIP],
+  'built-ins/Promise/allKeyed/symbol-keys': [SKIP],
+  'built-ins/Promise/allSettledKeyed/arg-is-function': [SKIP],
+  'built-ins/Promise/allSettledKeyed/arg-not-object-reject': [SKIP],
+  'built-ins/Promise/allSettledKeyed/arg-not-object-reject-bigint': [SKIP],
+  'built-ins/Promise/allSettledKeyed/key-order-preserved': [SKIP],
+  'built-ins/Promise/allSettledKeyed/non-enumerable-properties-ignored': [SKIP],
+  'built-ins/Promise/allSettledKeyed/prototype-keys-ignored': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolve-not-callable-reject-with-typeerror': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolved-all-fulfilled': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolved-all-mixed': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolved-all-rejected': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolves-empty-object': [SKIP],
+  'built-ins/Promise/allSettledKeyed/symbol-keys': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]

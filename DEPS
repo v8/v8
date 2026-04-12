@@ -192,7 +192,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'ff0d1611d3d5084dabf7b6887c45a7321ec1b531',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '2b2ecead6e828dd9af13a9ec72065e645724a50f',
   'third_party/android_platform': {
     'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + 'e3919359f2387399042d31401817db4a02d756ec',
     'condition': 'checkout_android',
