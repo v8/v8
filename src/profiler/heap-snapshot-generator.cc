@@ -2853,44 +2853,26 @@ void V8HeapExplorer::SetElementReference(HeapEntry* parent_entry, int index,
 void V8HeapExplorer::AddIntEdge(HeapEntry* parent_entry,
                                 HeapGraphEdge::Type type,
                                 const char* reference_name, int value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kHeapNumber, "int", id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
-
-  HeapEntry* value_entry =
-      snapshot_->AddEntry(HeapEntry::kString, names_->GetFormatted("%d", value),
-                          heap_object_map_->get_next_id(), 0, 0);
-  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
-                           generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateIntEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::AddBoolEdge(HeapEntry* parent_entry,
                                  HeapGraphEdge::Type type,
                                  const char* reference_name, bool value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kHeapNumber, "bool", id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
-
-  HeapEntry* value_entry =
-      snapshot_->AddEntry(HeapEntry::kString, value ? "true" : "false",
-                          heap_object_map_->get_next_id(), 0, 0);
-  entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
-                           generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateBoolEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::AddStringEdge(HeapEntry* parent_entry,
                                    HeapGraphEdge::Type type,
                                    const char* reference_name,
                                    const char* value) {
-  SnapshotObjectId id = heap_object_map_->get_next_id();
-  // Use size 0 here because this method is not intended to be used for actual
-  // String objects but for displaying a visible name for e.g. VisitorId in
-  // visitor_name.
-  HeapEntry* entry =
-      snapshot_->AddEntry(HeapEntry::kString, names_->GetCopy(value), id, 0, 0);
-  parent_entry->SetNamedReference(type, reference_name, entry, generator_);
+  parent_entry->SetNamedReference(type, reference_name,
+                                  generator_->FindOrCreateStringEntry(value),
+                                  generator_);
 }
 
 void V8HeapExplorer::SetInternalReference(HeapEntry* parent_entry,
@@ -3480,11 +3462,50 @@ HeapSnapshotGenerator::HeapSnapshotGenerator(
     v8::HeapProfiler::ContextNameResolver* resolver, Heap* heap,
     cppgc::EmbedderStackState stack_state)
     : snapshot_(snapshot),
+      heap_object_map_(snapshot->profiler()->heap_object_map()),
+      names_(snapshot->profiler()->names()),
       control_(control),
       v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this),
       heap_(heap),
       stack_state_(stack_state) {}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateIntEntry(int value) {
+  HeapEntry*& entry = int_entries_[value];
+  if (!entry) {
+    HeapEntry* value_entry = snapshot_->AddEntry(
+        HeapEntry::kString, names_->GetFormatted("%d", value),
+        heap_object_map_->get_next_id(), 0, 0);
+    entry = snapshot_->AddEntry(HeapEntry::kHeapNumber, "int",
+                                heap_object_map_->get_next_id(), 0, 0);
+    entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
+                             this);
+  }
+  return entry;
+}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateBoolEntry(bool value) {
+  HeapEntry*& entry = bool_entries_[value ? 1 : 0];
+  if (!entry) {
+    HeapEntry* value_entry =
+        snapshot_->AddEntry(HeapEntry::kString, value ? "true" : "false",
+                            heap_object_map_->get_next_id(), 0, 0);
+    entry = snapshot_->AddEntry(HeapEntry::kHeapNumber, "bool",
+                                heap_object_map_->get_next_id(), 0, 0);
+    entry->SetNamedReference(HeapGraphEdge::kInternal, "value", value_entry,
+                             this);
+  }
+  return entry;
+}
+
+HeapEntry* HeapSnapshotGenerator::FindOrCreateStringEntry(const char* string) {
+  HeapEntry*& entry = string_entries_[string];
+  if (!entry) {
+    entry = snapshot_->AddEntry(HeapEntry::kString, names_->GetCopy(string),
+                                heap_object_map_->get_next_id(), 0, 0);
+  }
+  return entry;
+}
 
 namespace {
 class V8_NODISCARD NullContextForSnapshotScope {
