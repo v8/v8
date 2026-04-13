@@ -201,7 +201,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     DisallowGarbageCollection no_gc;
     Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*obj);
     if (restore_bytecode) {
-      sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray(isolate()),
+      sfi->SetActiveBytecodeArray(debug_info->debug_bytecode_array(isolate()),
                                   isolate());
     }
     if (v8_flags.profile_guided_optimization &&
