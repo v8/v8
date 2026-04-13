@@ -1784,6 +1784,10 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
                                     callable_node_if_not_constant);
   }
 
+  if constexpr (!ReducerBaseCanBuildCall<BaseT>) {
+    return {};
+  }
+
   if (access_info.IsFastDataConstant()) {
     compiler::OptionalJSObjectRef holder = access_info.holder();
     bool found_on_proto = holder.has_value();
@@ -1800,11 +1804,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOf(
       return {};
     }
 
-    // Abort before the checks if we cannot reduce the node.
-    if (!has_instance_field->IsJSFunction() &&
-        !ReducerBaseCanBuildCall<BaseT>) {
-      return {};
-    }
+    if (!has_instance_field->IsJSFunction()) return {};
 
     if (found_on_proto) {
       broker()->dependencies()->DependOnStablePrototypeChains(
