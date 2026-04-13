@@ -51,11 +51,13 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
     if (interpreter::Bytecodes::IsJump(current_bytecode)) {
       unsigned target_offset = iterator.GetJumpTargetOffset();
       Check(target_offset < bytecode_length, "Invalid jump offset");
-      // We're specifically disallowing a forward jump with offset zero (i.e.
-      // to itself here) as that may cause our compilers to become confused.
-      Check(!interpreter::Bytecodes::IsForwardJump(current_bytecode) ||
-                target_offset > current_offset,
-            "Invalid jump offset");
+      if (interpreter::Bytecodes::IsForwardJump(current_bytecode)) {
+        // We're specifically disallowing a forward jump with offset zero (i.e.
+        // to itself here) as that may cause our compilers to become confused.
+        Check(target_offset > current_offset, "Invalid jump offset");
+      } else {
+        Check(target_offset <= current_offset, "Invalid jump offset");
+      }
       seen_jumps.Add(target_offset);
     } else if (interpreter::Bytecodes::IsSwitch(current_bytecode)) {
       for (const auto entry : iterator.GetJumpTableTargetOffsets()) {

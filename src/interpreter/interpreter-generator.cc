@@ -2414,7 +2414,8 @@ IGNITION_HANDLER(JumpIfForInDoneConstant, InterpreterAssembler) {
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
 // performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
+  TNode<IntPtrT> relative_jump =
+      ChangeInt32ToIntPtr(Signed(BytecodeOperandUImm(0)));
 
   ClobberAccumulator(UndefinedConstant());
 
