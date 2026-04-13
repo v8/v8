@@ -2317,21 +2317,29 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   // iOS cannot adjust page permissions for MAP_JIT'd pages, they are set as RWX
   // at the start.
 #if !defined(V8_OS_WIN) && !defined(V8_OS_IOS)
+  bool success = false;
   if (MemoryProtectionKeysEnabled()) {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
     if (ThreadIsolation::Enabled()) {
-      CHECK(ThreadIsolation::MakeExecutable(mem.address(), mem.size()));
+      success = ThreadIsolation::MakeExecutable(mem.address(), mem.size());
     } else {
-      CHECK(base::MemoryProtectionKey::SetPermissionsAndKey(
+      success = base::MemoryProtectionKey::SetPermissionsAndKey(
           mem.region(), PagePermissions::kReadWriteExecute,
-          RwxMemoryWriteScope::memory_protection_key()));
+          RwxMemoryWriteScope::memory_protection_key());
     }
 #else
     UNREACHABLE();
 #endif
   } else {
-    CHECK(SetPermissions(GetPageAllocator(), mem.address(), mem.size(),
-                         PageAllocator::kReadWriteExecute));
+    success = SetPermissions(GetPageAllocator(), mem.address(), mem.size(),
+                             PageAllocator::kReadWriteExecute);
+  }
+
+  if (!success) {
+    auto oom_detail = base::FormattedString{} << "region size: " << mem.size();
+    V8::FatalProcessOutOfMemory(nullptr, "Make wasm code space executable",
+                                {.detail = oom_detail.PrintToArray().data()});
+    UNREACHABLE();
   }
   page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
                                      mem.size());
