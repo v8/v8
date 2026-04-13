@@ -33,6 +33,9 @@ vars = {
   # Checkout extra benchmarks.
   'checkout_benchmarks': False,
 
+  # Fetch the internal v8 perf repository for additional benchmarks.
+  'checkout_v8_perf': False,
+
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
   # the gn arg 'use_clang_coverage').
@@ -49,6 +52,7 @@ vars = {
 
   'android_url': 'https://android.googlesource.com',
   'chromium_url': 'https://chromium.googlesource.com',
+  'chrome_internal_url': 'https://chrome-internal.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'download_prebuilt_bazel': False,
@@ -180,6 +184,10 @@ deps = {
   'test/benchmarks/JetStream3': {
     'url': Var('chromium_jetstream_git') + '@' + Var('jetstream_3.0-custom_revision'),
     'condition': 'checkout_benchmarks',
+  },
+  'third_party/v8-perf': {
+    'url': Var('chrome_internal_url') + '/v8/v8-perf.git',
+    'condition': 'checkout_v8_perf',
   },
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
