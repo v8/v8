@@ -47,9 +47,15 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
 
   // Otherwise this must be a proper `WASM` frame, holding a
   // `WasmTrustedInstanceData` in the slot.
+  // There is a special case for wasm frames that are the first frame of a
+  // growable stack segment: they are represented with the special frame type
+  // `WASM_SEGMENT_START`.
   TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
-  CSA_CHECK(this, WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
-                                        StackFrame::WASM))));
+  CSA_CHECK(this,
+            Word32Or(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                           StackFrame::WASM))),
+                     WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                           StackFrame::WASM_SEGMENT_START)))));
   TNode<HeapObject> instance_data =
       CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   context_result =
