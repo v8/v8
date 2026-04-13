@@ -1184,6 +1184,9 @@ void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
       DirectHandle<NativeContext> job_context;
       if (it->first->context().ToHandle(&job_context) &&
           job_context.is_identical_to(context)) {
+        // Check that jobs are only cancelled from the isolate's main thread
+        // (see https://crbug.com/466449860).
+        CHECK_EQ(Isolate::Current(), it->first->isolate());
         jobs_to_delete.push_back(std::move(it->second));
         it = async_compile_jobs_.erase(it);
       } else {
@@ -1194,6 +1197,9 @@ void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
+  // Check that jobs are only cancelled from the isolate's main thread
+  // (see https://crbug.com/466449860).
+  CHECK_EQ(Isolate::Current(), isolate);
   // Under the mutex get all jobs to delete. Then delete them without holding
   // the mutex, such that deletion can reenter the WasmEngine.
   std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;

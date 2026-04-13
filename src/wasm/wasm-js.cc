@@ -56,6 +56,8 @@ void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
 
 }  // namespace internal
 
+// This is the implementation of the public `WasmStreaming` API, see
+// `include/v8-wasm.h`.
 class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
@@ -74,6 +76,8 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
   void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
+    // Finish can only be called on the main thread of the isolate.
+    CHECK_EQ(i_isolate_->thread_id(), i::ThreadId::Current());
     streaming_decoder_->Finish(caching_callback);
   }
 

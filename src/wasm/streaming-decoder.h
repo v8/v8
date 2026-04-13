@@ -87,8 +87,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   virtual void OnBytesReceived(base::Vector<const uint8_t> bytes) = 0;
 
-  // The argument matches WasmStreaming::GetCachedModuleFn, but we avoid the
-  // include and just repeat the full type instead.
   virtual void Finish(const WasmStreaming::ModuleCachingCallback&) = 0;
 
   virtual void Abort() = 0;
