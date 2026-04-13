@@ -1075,7 +1075,14 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     return AddEntry(object, HeapEntry::kHidden, name);
 
   } else if (InstanceTypeChecker::IsContext(instance_type)) {
-    return AddEntry(object, HeapEntry::kObject, "system / Context");
+    Tagged<Context> context = Cast<Context>(object);
+    Tagged<ScopeInfo> scope_info =
+        Cast<ScopeInfo>(context->get(Context::SCOPE_INFO_INDEX, kRelaxedLoad));
+    SnapshotObjectId scope_info_id = heap_object_map_->FindOrAddEntry(
+        scope_info.address(), SizeForSnapshot(scope_info, cage_base));
+    return AddEntry(
+        object, HeapEntry::kObject,
+        names_->GetFormatted("system / Context / scope @%u", scope_info_id));
 
   } else if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");

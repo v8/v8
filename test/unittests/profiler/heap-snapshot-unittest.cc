@@ -112,4 +112,46 @@ TEST_F(HeapSnapshotTest, PositionOnSharedFunctionInfo) {
   EXPECT_EQ(52, lazy_end_position.value());
 }
 
+TEST_F(HeapSnapshotTest, ContextGroupingByScopeInfo) {
+  RunJS(
+      "function factory() {\n"
+      "  let x = 1;\n"
+      "  return function closure() { return x; };\n"
+      "}\n"
+      "globalThis.f1 = factory();\n"
+      "globalThis.f2 = factory();\n");
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* closure = nullptr;
+  for (const HeapEntry& entry : snapshot->entries()) {
+    if (entry.type() == HeapEntry::kClosure &&
+        strcmp(entry.name(), "closure") == 0) {
+      closure = &entry;
+      break;
+    }
+  }
+  ASSERT_NE(nullptr, closure);
+
+  const HeapGraphEdge* context_edge = GetNamedEdge(*closure, "context");
+  ASSERT_NE(nullptr, context_edge);
+  const HeapEntry* context_entry = context_edge->to();
+
+  const HeapGraphEdge* scope_info_edge =
+      GetNamedEdge(*context_entry, "scope_info");
+  ASSERT_NE(nullptr, scope_info_edge);
+  const HeapEntry* scope_info_entry = scope_info_edge->to();
+
+  char expected_name[100];
+  snprintf(expected_name, sizeof(expected_name), "system / Context / scope @%u",
+           scope_info_entry->id());
+
+  int count = 0;
+  for (const HeapEntry& entry : snapshot->entries()) {
+    if (strcmp(entry.name(), expected_name) == 0) {
+      count++;
+    }
+  }
+  EXPECT_EQ(count, 2);
+}
+
 }  // namespace v8::internal
