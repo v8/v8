@@ -15503,7 +15503,6 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
         // backing store.
         int param_count = parameter_count_without_receiver();
         DCHECK_GT(param_count, 0);
-        DCHECK(CanAllocateSloppyArgumentElements());
         int param_idx_in_ctxt = compilation_unit_->shared_function_info()
                                     .context_parameters_start() +
                                 param_count - 1;
@@ -15529,6 +15528,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                   broker()),
               GetInt32Constant(length), elements, GetClosure());
         } else {
+          DCHECK(CanAllocateSloppyArgumentElements());
           ArgumentsLength* length =
               AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
