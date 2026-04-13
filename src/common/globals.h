@@ -2083,32 +2083,6 @@ enum ScopeType : uint8_t {
   SHADOW_REALM_SCOPE,  // Synthetic scope for ShadowRealm NativeContexts.
 };
 
-inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
-  switch (type) {
-    case ScopeType::EVAL_SCOPE:
-      return os << "EVAL_SCOPE";
-    case ScopeType::FUNCTION_SCOPE:
-      return os << "FUNCTION_SCOPE";
-    case ScopeType::MODULE_SCOPE:
-      return os << "MODULE_SCOPE";
-    case ScopeType::SCRIPT_SCOPE:
-      return os << "SCRIPT_SCOPE";
-    case ScopeType::CATCH_SCOPE:
-      return os << "CATCH_SCOPE";
-    case ScopeType::BLOCK_SCOPE:
-      return os << "BLOCK_SCOPE";
-    case ScopeType::CLASS_SCOPE:
-      return os << "CLASS_SCOPE";
-    case ScopeType::WITH_SCOPE:
-      return os << "WITH_SCOPE";
-    case ScopeType::SHADOW_REALM_SCOPE:
-      return os << "SHADOW_REALM_SCOPE";
-    case ScopeType::REPL_MODE_SCOPE:
-      return os << "REPL_MODE_SCOPE";
-  }
-  UNREACHABLE();
-}
-
 // AllocationSiteMode controls whether allocations are tracked by an allocation
 // site.
 enum AllocationSiteMode {

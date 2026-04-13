@@ -28,6 +28,12 @@ class SourceTextModuleInfo;
 class StringSet;
 class Zone;
 
+V8_EXPORT_PRIVATE const char* ToString(ScopeType type);
+
+inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
+  return os << ToString(type);
+}
+
 struct VariableLookupResult {
   int context_index;
   int slot_index;

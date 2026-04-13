@@ -2273,6 +2273,26 @@ void V8HeapExplorer::ExtractBytecodeArrayReferences(
 
 void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
                                                 Tagged<ScopeInfo> info) {
+  // Empty ScopeInfo is used for builtins and NativeContexts and does not have
+  // any of the following fields.
+  if (info->IsEmpty()) return;
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "scope_type", info->scope_type());
+  AddStringEdge(entry, HeapGraphEdge::kInternal, "scope_type_name",
+                ToString(info->scope_type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "context_local_count",
+             info->ContextLocalCount());
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "parameter_count",
+             info->ParameterCount());
+  if (info->HasOuterScopeInfo()) {
+    SetInternalReference(entry, "outer_scope_info", info->OuterScopeInfo(),
+                         info->OuterScopeInfoOffset());
+  }
+  if (info->HasPositionInfo()) {
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "start_position",
+               info->StartPosition());
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "end_position",
+               info->EndPosition());
+  }
   if (!info->HasInlinedLocalNames()) {
     TagObject(info->context_local_names_hashtable(), "(context local names)",
               HeapEntry::kCode);

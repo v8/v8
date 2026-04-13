@@ -1462,6 +1462,32 @@ Tagged<FixedArray> SourceTextModuleInfo::RegularExportExportNames(int i) const {
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }
 
+const char* ToString(ScopeType type) {
+  switch (type) {
+    case ScopeType::EVAL_SCOPE:
+      return "EVAL_SCOPE";
+    case ScopeType::FUNCTION_SCOPE:
+      return "FUNCTION_SCOPE";
+    case ScopeType::MODULE_SCOPE:
+      return "MODULE_SCOPE";
+    case ScopeType::SCRIPT_SCOPE:
+      return "SCRIPT_SCOPE";
+    case ScopeType::CATCH_SCOPE:
+      return "CATCH_SCOPE";
+    case ScopeType::BLOCK_SCOPE:
+      return "BLOCK_SCOPE";
+    case ScopeType::CLASS_SCOPE:
+      return "CLASS_SCOPE";
+    case ScopeType::WITH_SCOPE:
+      return "WITH_SCOPE";
+    case ScopeType::SHADOW_REALM_SCOPE:
+      return "SHADOW_REALM_SCOPE";
+    case ScopeType::REPL_MODE_SCOPE:
+      return "REPL_MODE_SCOPE";
+  }
+  UNREACHABLE();
+}
+
 }  // namespace internal
 }  // namespace v8
 
