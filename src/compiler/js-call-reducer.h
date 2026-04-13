@@ -130,6 +130,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayPrototypeSlice(Node* node);
   Reduction ReduceArrayReduce(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceArrayReduceRight(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArraySort(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceArraySome(Node* node, SharedFunctionInfoRef shared);
 
   enum class ArrayIteratorKind { kArrayLike, kTypedArray };
