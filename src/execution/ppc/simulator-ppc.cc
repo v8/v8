@@ -3896,6 +3896,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         invalid_convert = true;
       } else {
         switch (mode) {
+          case kRoundToNearest:
+            frb_val = std::nearbyint(frb_val);
+            break;
           case kRoundToZero:
             frb_val = std::trunc(frb_val);
             break;
