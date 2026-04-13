@@ -1337,10 +1337,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
 
   CHECK_UNLESS_FUZZING(args.length() == 2 + kNum16BitChunks + 1);
 
-  CHECK(IsSmi(args[1]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   DebugPrintValueType value_type =
       static_cast<DebugPrintValueType>(Cast<Smi>(args[1]).value());
-  CHECK(IsSmi(args[6]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[6]));
   int stream_int = Cast<Smi>(args[6]).value();
   FILE* output_stream = stream_int == fileno(stderr) ? stderr : stdout;
 
@@ -1357,10 +1357,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
   if (value_type != DebugPrintValueType::kTagged) {
     for (int i = 0; i < kNum16BitChunks; ++i) {
       value <<= 16;
-      CHECK(IsSmi(args[2 + i]));
+      CHECK_UNLESS_FUZZING(IsSmi(args[2 + i]));
       uint32_t chunk = Cast<Smi>(args[2 + i]).value();
       // We encode 16 bit per chunk only!
-      CHECK_EQ(chunk & 0xFFFF0000, 0);
+      CHECK_UNLESS_FUZZING((chunk & 0xFFFF0000) == 0);
       value |= chunk;
     }
   }
@@ -1395,7 +1395,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {
     }
     case DebugPrintValueType::kTagged: {
       Tagged<Object> tagged = args[5];
-      CHECK(IsHeapObject(tagged));
+      CHECK_UNLESS_FUZZING(IsHeapObject(tagged));
       if (IsString(tagged) && !IsString(args[0])) {
         // We don't have a prefix and just print a string. In this case we don't
         // print the full JS object but just the text.
