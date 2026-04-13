@@ -281,20 +281,21 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
 #endif
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Label* fbv_undef,
-                                        Label::Distance distance) {
-  Label done;
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
+  LoadTaggedField(dst, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+}
 
-  // Load the feedback vector from the closure.
-  TaggedRegister feedback_cell(dst);
-  LoadTaggedField(feedback_cell,
-                  FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef,
+                                                Label::Distance distance) {
+  Label done;
   LoadTaggedField(dst,
                   FieldOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  IsObjectType(dst, FEEDBACK_VECTOR_TYPE, rcx);
+  IsObjectType(dst, FEEDBACK_VECTOR_TYPE, scratch);
   j(equal, &done, Label::kNear);
 
   // Not valid, load undefined.
@@ -302,6 +303,13 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   jmp(fbv_undef, distance);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Label* fbv_undef,
+                                        Label::Distance distance) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, rcx, fbv_undef, distance);
 }
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(

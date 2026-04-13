@@ -1096,9 +1096,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // V8_ENABLE_SANDBOX
 
   Label push_stack_frame;
+
+  Register feedback_cell = r8;
+  __ LoadFeedbackCell(feedback_cell, closure);
+
   Register feedback_vector = rbx;
-  __ LoadFeedbackVector(feedback_vector, closure, &push_stack_frame,
-                        Label::kNear);
+  __ LoadFeedbackVectorFromCell(feedback_vector, feedback_cell, rcx,
+                                &push_stack_frame, Label::kNear);
 
 #ifndef V8_JITLESS
 
@@ -1177,6 +1181,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ movq(Operand(rbp, rcx, times_system_pointer_size, 0), rdx);
   __ bind(&no_incoming_new_target_or_generator_register);
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  Label after_budget_check;
+  __ SmiUntagField(r11, FieldOperand(kInterpreterBytecodeArrayRegister,
+                                     BytecodeArray::kLengthOffset));
+  __ subl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r11);
+  __ j(less, &budget_interrupt);
+  __ bind(&after_budget_check);
+
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
@@ -1242,6 +1257,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   LeaveInterpreterFrame(masm, rbx, rcx);
   __ ret(0);
 
+  __ bind(&budget_interrupt);
+  __ Push(Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
+
+  // After the call, restore the bytecode array, bytecode offset and accumulator
+  // registers again.
+  __ movq(kInterpreterBytecodeArrayRegister,
+          Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ Move(kInterpreterBytecodeOffsetRegister,
+          BytecodeArray::kHeaderSize - kHeapObjectTag);
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+
+  __ jmp(&after_budget_check);
+
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
   // for the call to the StackGuard.
@@ -1259,7 +1288,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
           BytecodeArray::kHeaderSize - kHeapObjectTag);
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 
-  __ SmiTag(rcx, kInterpreterBytecodeArrayRegister);
+  __ SmiTag(rcx, kInterpreterBytecodeOffsetRegister);
   __ movq(Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp), rcx);
 
   __ jmp(&after_stack_check_interrupt);
