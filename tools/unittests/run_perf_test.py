@@ -116,13 +116,56 @@ V8_NESTED_SUITES_JSON = {
 }
 
 V8_GENERIC_JSON = {
-  'path': ['.'],
-  'owners': ['username@chromium.org'],
-  'binary': 'cc',
-  'flags': ['--flag'],
-  'generic': True,
-  'run_count': 1,
-  'units': 'ms',
+    'path': ['.'],
+    'owners': ['username@chromium.org'],
+    'binary': 'cc',
+    'flags': ['--flag'],
+    'run_count': 1,
+    'units': 'ms',
+}
+
+V8_DYNAMIC_GENERIC_JSON = {
+    'path': ['.'],
+    'owners': ['username@chromium.org'],
+    'binary':
+        'd7',
+    'timeout':
+        60,
+    'flags': ['--flag'],
+    'main':
+        'run.js',
+    'run_count':
+        1,
+    'units':
+        'pts',
+    'tests': [
+        {
+            'name': 'FixedTest',
+            'units': 'score-fixed',
+            'results_regexp': r'^FixedTest:\s+(?P<value>[\d\.]+) pts$',
+        },
+        {
+            'name': 'FixedTest2',
+            'units': 'score-fixed2',
+            'results_regexp': r'^FixedTest2:\s+(?P<value>[\d\.]+) pts$',
+        },
+        {
+            'unit':
+                'score',
+            'dynamic':
+                True,
+            'results_regexp':
+                r'^(?P<name>[\w\-]+(?: [\w\-]+)+)[\s\:]+(?P<value>[\d\.]+)\s+pts$',
+        },
+        {
+            'unit':
+                'ms',
+            'dynamic':
+                True,
+            'results_regexp':
+                r'^(?P<name>[\w\-]+(?: [\w\-]+)+)[\s\:]+(?P<value>[\d\.]+)\s+ms$',
+        },
+    ]
 }
 
 
@@ -628,6 +671,190 @@ class PerfTest(unittest.TestCase):
         (os.path.join('out', 'x64.release', 'd8'),
          '--flag', '--flag2', 'run.js'))
 
+  def testVariableGenericRuns(self):
+    test_input = dict(V8_DYNAMIC_GENERIC_JSON)
+    self._WriteTestInput(test_input)
+    self._MockCommand(['.', '.'], [
+        'FixedTest:                                       11.2 pts\n'
+        'FixedTest2:                                     120.3 pts\n'
+        '8bitbench-wasm Wall-Time                      2600.00 ms\n'
+        'Overall Score                                  258.12 pts\n'
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score-fixed',
+            'graphs': ['test', 'FixedTest'],
+            'results': [11.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score-fixed2',
+            'graphs': ['test', 'FixedTest2'],
+            'results': [120.3],
+            'stddev': ''
+        },
+        {
+            'units': 'ms',
+            'graphs': ['test', '8bitbench-wasm', 'Wall-Time'],
+            'results': [2600.00],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'Overall', 'Score'],
+            'results': [258.12],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testVariableGenericMultipleRuns(self):
+    test_input = dict(V8_DYNAMIC_GENERIC_JSON)
+    test_input['run_count'] = 2
+    self._WriteTestInput(test_input)
+    self._MockCommand(['.', '.'], [
+        'FixedTest:                                       11.2 pts\n'
+        'FixedTest2:                                     120.3 pts\n'
+        '8bitbench-wasm Wall-Time                      2600.00 ms\n'
+        'Overall Score                                  258.12 pts\n',
+        'FixedTest:                                       12.3 pts\n'
+        'FixedTest2:                                     120.3 pts\n'
+        '8bitbench-wasm Wall-Time                      2592.96 ms\n'
+        'Overall Score                                  260.34 pts\n'
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score-fixed',
+            'graphs': ['test', 'FixedTest'],
+            'results': [12.3, 11.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score-fixed2',
+            'graphs': ['test', 'FixedTest2'],
+            'results': [120.3, 120.3],
+            'stddev': ''
+        },
+        {
+            'units': 'ms',
+            'graphs': ['test', '8bitbench-wasm', 'Wall-Time'],
+            'results': [2592.96, 2600.00],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'Overall', 'Score'],
+            'results': [260.34, 258.12],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testVariableGenericExtendedValues(self):
+    test_input = dict(V8_DYNAMIC_GENERIC_JSON)
+    self._WriteTestInput(test_input)
+    self._MockCommand(['.', '.'], [
+        'FixedTest:                                       11.2 pts\n'
+        '8bitbench-wasm Wall-Time                      2600.00 ms\n'
+        'FixedTest2:                                     120.3 pts\n'
+        'jsprism Total-Score                              44.3 pts\n'
+        'Overall Score                                  260.34 pts\n'
+    ])
+    return_code = self._CallMain()
+    self.assertEqual(0, return_code, msg=self._LoadResults().get('errors', []))
+    self._VerifyResultTraces([
+        {
+            'units': 'score-fixed',
+            'graphs': ['test', 'FixedTest'],
+            'results': [11.2],
+            'stddev': ''
+        },
+        {
+            'units': 'ms',
+            'graphs': ['test', '8bitbench-wasm', 'Wall-Time'],
+            'results': [2600.00],
+            'stddev': ''
+        },
+        {
+            'units': 'score-fixed2',
+            'graphs': ['test', 'FixedTest2'],
+            'results': [120.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'jsprism', 'Total-Score'],
+            'results': [44.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'Overall', 'Score'],
+            'results': [260.34],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testStrictConfig_MissingName(self):
+    config = dict(V8_JSON)
+    # Remove name from first test
+    new_tests = list(config['tests'])
+    new_tests[0] = dict(new_tests[0])
+    del new_tests[0]['name']
+    config['tests'] = new_tests
+    self._WriteTestInput(config)
+    with self.assertRaises(Exception):
+      self._CallMain()
+
+  def testStrictConfig_MissingNameWithDynamic(self):
+    config = dict(V8_DYNAMIC_GENERIC_JSON)
+    self._WriteTestInput(config)
+    self._MockCommand(['.', '.'], [
+        'FixedTest: 11.2 pts\n'
+        'FixedTest2: 120.3 pts\n'
+        'OtherTest Wall-Time 2600.00 ms\n'
+        'Overall Score Score 258.12 pts\n'
+    ])
+    self.assertEqual(0, self._CallMain())
+
+  def testStrictConfig_InvalidRegexpWithDynamic(self):
+    config = dict(V8_DYNAMIC_GENERIC_JSON)
+    new_tests = list(config['tests'])
+    new_tests[2] = dict(new_tests[2])
+    new_tests[2]['results_regexp'] = r'^Richards: (.+)$'  # Only 1 group
+    config['tests'] = new_tests
+    self._WriteTestInput(config)
+    with self.assertRaises(Exception):
+      self._CallMain()
+
+  def testStrictConfig_MissingRegexpWithDynamic(self):
+    config = dict(V8_DYNAMIC_GENERIC_JSON)
+    new_tests = list(config['tests'])
+    new_tests[2] = dict(new_tests[2])
+    del new_tests[2]['results_regexp']
+    config['tests'] = new_tests
+    self._WriteTestInput(config)
+    with self.assertRaises(Exception):
+      self._CallMain()
+
+  def testStrictConfig_InvalidPositionalRegexpWithDynamic(self):
+    config = dict(V8_DYNAMIC_GENERIC_JSON)
+    new_tests = list(config['tests'])
+    new_tests[2] = dict(new_tests[2])
+    new_tests[2]['results_regexp'] = r'^(TestName): ([\d\.]+) pts$'  # 2 groups
+    config['tests'] = new_tests
+    self._WriteTestInput(config)
+    with self.assertRaises(Exception):
+      self._CallMain()
 
   def testOneRunStdDevRegExp(self):
     test_input = dict(V8_JSON)
