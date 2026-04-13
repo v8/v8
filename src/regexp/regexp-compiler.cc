@@ -350,6 +350,8 @@ Compiler::CompilationResult Compiler::Assemble(
   Trace new_trace;
   if (start->Emit(this, &new_trace).IsError()) {
     work_list_ = nullptr;
+    fail.UnuseNear();
+    fail.Unuse();
     return ReportError();
   }
   macro_assembler_->BindJumpTarget(&fail);
