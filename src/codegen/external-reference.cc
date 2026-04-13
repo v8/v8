@@ -371,12 +371,6 @@ ExternalReference ExternalReference::interpreter_dispatch_table_address(
   return ExternalReference(isolate->interpreter()->dispatch_table_address());
 }
 
-ExternalReference ExternalReference::interpreter_dispatch_counters(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->interpreter()->bytecode_dispatch_counters_table());
-}
-
 ExternalReference
 ExternalReference::address_of_interpreter_entry_trampoline_instruction_start(
     Isolate* isolate) {

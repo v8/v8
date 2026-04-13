@@ -32,7 +32,6 @@ enum class IsolateFieldId : uint8_t;
     "Isolate::handle_scope_implementer_address")                               \
   V(address_of_interpreter_entry_trampoline_instruction_start,                 \
     "Address of the InterpreterEntryTrampoline instruction start")             \
-  V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \

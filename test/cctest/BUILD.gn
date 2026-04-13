@@ -145,7 +145,6 @@ v8_cluster_source_set("cctest_sources") {
     "test-func-name-inference.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
-    "test-ignition-statistics-extension.cc",
     "test-inobject-slack-tracking.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",

@@ -197,15 +197,6 @@ declare_args() {
   # default setting code below.
   v8_enable_concurrent_marking = true
 
-  # Sets -DV8_IGNITION_DISPATCH_COUNTING.
-  # Enables counting frequencies of bytecode dispatches. After building in this
-  # configuration, subsequent runs of d8 can output frequencies for each pair
-  # of (current, next) bytecode instructions executed if you specify
-  # --trace-ignition-dispatches-output-file, or can generate a JS object with
-  # those frequencies if you run with --expose-ignition-statistics and call the
-  # extension function getIgnitionDispatchCounters().
-  v8_enable_ignition_dispatch_counting = false
-
   # Enable frame elision for builtins.
   v8_enable_builtins_frame_elision = true
 
@@ -1386,9 +1377,6 @@ config("features") {
   }
   if (v8_enable_atomic_object_field_writes) {
     defines += [ "V8_ATOMIC_OBJECT_FIELD_WRITES" ]
-  }
-  if (v8_enable_ignition_dispatch_counting) {
-    defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
@@ -4047,7 +4035,6 @@ v8_header_set("v8_internal_headers") {
     "src/extensions/cputracemark-extension.h",
     "src/extensions/externalize-string-extension.h",
     "src/extensions/gc-extension.h",
-    "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.h",
     "src/flags/save-flags.h",
@@ -5960,7 +5947,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/extensions/cputracemark-extension.cc",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/gc-extension.cc",
-    "src/extensions/ignition-statistics-extension.cc",
     "src/extensions/statistics-extension.cc",
     "src/extensions/trigger-failure-extension.cc",
     "src/flags/flags.cc",

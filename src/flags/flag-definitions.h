@@ -1242,10 +1242,6 @@ DEFINE_BOOL(
 #endif
 DEFINE_BOOL(trace_ignition_codegen, false,
             "trace the codegen of ignition interpreter bytecode handlers")
-DEFINE_STRING(
-    trace_ignition_dispatches_output_file, nullptr,
-    "write the bytecode handler dispatch table to the specified file (d8 only) "
-    "(requires building with v8_enable_ignition_dispatch_counting)")
 
 DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
@@ -2955,9 +2951,6 @@ DEFINE_BOOL(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_BOOL(expose_statistics, false, "expose statistics extension")
 DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
-DEFINE_BOOL(expose_ignition_statistics, false,
-            "expose ignition-statistics extension (requires building with "
-            "v8_enable_ignition_dispatch_counting)")
 DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")

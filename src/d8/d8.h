@@ -849,7 +849,6 @@ class Shell : public i::AllStatic {
   static std::atomic<bool> script_executed_;
   static std::atomic<bool> valid_fuzz_script_;
 
-  static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.
   static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);

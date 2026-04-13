@@ -1397,10 +1397,6 @@ void InterpreterAssembler::DispatchToBytecodeWithOptionalStarLookahead(
 
 void InterpreterAssembler::DispatchToBytecode(
     TNode<WordT> target_bytecode, TNode<IntPtrT> new_bytecode_offset) {
-  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
-    TraceBytecodeDispatch(target_bytecode);
-  }
-
   TNode<RawPtrT> target_code_entry = Load<RawPtrT>(
       DispatchTablePointer(), TimesSystemPointerSize(target_bytecode));
 
@@ -1425,10 +1421,6 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   DCHECK_IMPLIES(Bytecodes::MakesCallAlongCriticalPath(bytecode_), made_call_);
   TNode<IntPtrT> next_bytecode_offset = Advance(1);
   TNode<WordT> next_bytecode = LoadBytecode(next_bytecode_offset);
-
-  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
-    TraceBytecodeDispatch(next_bytecode);
-  }
 
   TNode<IntPtrT> base_index;
   switch (operand_scale) {
@@ -1598,33 +1590,6 @@ void InterpreterAssembler::OnStackReplacement(
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
               SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
-}
-
-void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
-  TNode<ExternalReference> counters_table = ExternalConstant(
-      ExternalReference::interpreter_dispatch_counters(isolate()));
-  TNode<IntPtrT> source_bytecode_table_index = IntPtrConstant(
-      static_cast<int>(bytecode_) * (static_cast<int>(Bytecode::kLast) + 1));
-
-  TNode<WordT> counter_offset = TimesSystemPointerSize(
-      IntPtrAdd(source_bytecode_table_index, target_bytecode));
-  TNode<IntPtrT> old_counter = Load<IntPtrT>(counters_table, counter_offset);
-
-  Label counter_ok(this), counter_saturated(this, Label::kDeferred);
-
-  TNode<BoolT> counter_reached_max = WordEqual(
-      old_counter, IntPtrConstant(std::numeric_limits<uintptr_t>::max()));
-  Branch(counter_reached_max, &counter_saturated, &counter_ok);
-
-  BIND(&counter_ok);
-  {
-    TNode<IntPtrT> new_counter = IntPtrAdd(old_counter, IntPtrConstant(1));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), counters_table,
-                        counter_offset, new_counter);
-    Goto(&counter_saturated);
-  }
-
-  BIND(&counter_saturated);
 }
 
 // static

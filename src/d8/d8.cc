@@ -4807,22 +4807,6 @@ MaybeLocal<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   return handle_scope.Escape(context);
 }
 
-void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
-  HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate);
-  Context::Scope context_scope(context);
-
-  i::DirectHandle<i::JSObject> dispatch_counters =
-      reinterpret_cast<i::Isolate*>(isolate)
-          ->interpreter()
-          ->GetDispatchCountersObject();
-  std::ofstream dispatch_counters_stream(
-      i::v8_flags.trace_ignition_dispatches_output_file);
-  dispatch_counters_stream << *String::Utf8Value(
-      isolate, JSON::Stringify(context, Utils::ToLocal(dispatch_counters))
-                   .ToLocalChecked());
-}
-
 namespace {
 int LineFromOffset(Local<debug::Script> script, int offset) {
   debug::Location location = script->GetSourceLocation(offset);
@@ -7541,10 +7525,6 @@ int Shell::Main(int argc, char* argv[]) {
       // executed, but never on --test
       if (use_interactive_shell()) {
         RunShell(isolate);
-      }
-
-      if (i::v8_flags.trace_ignition_dispatches_output_file != nullptr) {
-        WriteIgnitionDispatchCountersFile(isolate);
       }
 
       if (options.cpu_profiler) {
