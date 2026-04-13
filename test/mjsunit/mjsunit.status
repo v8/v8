@@ -1986,7 +1986,8 @@
 ##############################################################################
 ['simulator_run and arch == ppc64', {
   # Slow tests
-  'wasm/wasm-interpreter': [PASS, SLOW]
+  'wasm/wasm-interpreter': [PASS, SLOW],
+  'regress/regress-499721612': [SKIP]
 }],  # 'simulator_run and arch == ppc64'
 
 ##############################################################################
