@@ -2891,6 +2891,9 @@ void WasmDispatchTableForImports::WasmDispatchTableForImportsVerify(
 
 void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
+  // If Wasm instantiation fails, trusted objects are unpublished.
+  // Orphaned JS objects might still point to them though.
+  if (has_trusted_dispatch_table_unpublished(isolate)) return;
   bool is_function_table =
       unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction;
   bool has_dispatch_table = trusted_dispatch_table(isolate) !=
