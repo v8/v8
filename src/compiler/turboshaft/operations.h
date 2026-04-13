@@ -18,6 +18,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/small-vector.h"
+#include "src/base/string-format.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
@@ -2646,12 +2647,14 @@ struct PhiOp : OperationT<PhiOp> {
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(CheckPhiInputCount(inputs)), rep(rep) {}
 
-  static base::Vector<const OpIndex> CheckPhiInputCount(
+  static V8_INLINE base::Vector<const OpIndex> CheckPhiInputCount(
       base::Vector<const OpIndex> inputs) {
-    // We add an additional CHECK specifically for Phi, to prevent Wasm from
-    // passing too many inputs, e.g. as part of a br_table operation.
-    CHECK_LE(inputs.size(),
-             std::numeric_limits<decltype(PhiOp::input_count)>::max());
+    // We check the phi input count explicitly to prevent Wasm from passing too
+    // many inputs, e.g. as part of a br_table operation.
+    if (V8_UNLIKELY(inputs.size() >
+                    std::numeric_limits<decltype(PhiOp::input_count)>::max())) {
+      V8::FatalProcessOutOfMemory(nullptr, "Too many phi inputs");
+    }
     return inputs;
   }
 

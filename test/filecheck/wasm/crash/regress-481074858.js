@@ -215,6 +215,6 @@ const result2 = instance.exports.test(5, 0);  // else branch
 
 // This should have failed either on lazy compilation or (if lazy compilation
 // was disabled) on compilation above.
-// CHECK: # Check failed: inputs.size() <= std::numeric_limits
+// CHECK: # Fatal process out of memory: Too many phi inputs
 // CHECK-NOT: Results:
 print('Results: ' + result1 + ', ' + result2);
