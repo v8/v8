@@ -20,10 +20,30 @@
 #include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
+#if V8_OS_LINUX
+#include <sys/mman.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
+
+namespace {
+
+// Exclude a large virtual reservation from core dumps. Without this, the
+// kernel walks the multi-TB sandbox reservation when writing a coredump,
+// which can take minutes even though almost none of it is resident. See
+// core(5) on MADV_DONTDUMP. No-op on non-Linux platforms; other OSes either
+// already skip PROT_NONE mappings or don't expose an equivalent knob.
+void ExcludeReservationFromCoreDump(Address base, size_t size) {
+#if V8_OS_LINUX
+  // Best-effort: ignore failures (e.g. old kernels without MADV_DONTDUMP).
+  madvise(reinterpret_cast<void*>(base), size, MADV_DONTDUMP);
+#endif
+}
+
+}  // namespace
 
 bool Sandbox::smi_address_range_reserved_ = false;
 
@@ -252,6 +272,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
                             kSandboxMaxPermissions, sandbox_pkey);
   if (!address_space_) return false;
   address_space_->SetName(kSandboxAddressSpaceName);
+  ExcludeReservationFromCoreDump(address_space_->base(),
+                                 address_space_->size());
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   SandboxTesting::RegisterSafeMemoryRegion(
       address_space_->base(), address_space_->size(),
@@ -351,6 +373,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   end_ = base_ + size_;
   reservation_size_ = size_to_reserve;
   initialized_ = true;
+  ExcludeReservationFromCoreDump(reservation_base_, reservation_size_);
   address_space_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
       vas, reservation_base_, reservation_size_, size_);
   sandbox_page_allocator_ =
