@@ -5753,11 +5753,27 @@ void StringIndexOf::SetValueLocationConstraints() {
   UseFixed(PositionInput(), D::GetRegisterParameter(2));
   DefineAsFixed(this, kReturnRegister0);
 }
-
 void StringIndexOf::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   __ CallBuiltin<Builtin::kStringIndexOf>(StringInput(), SearchStringInput(),
                                           PositionInput());
+}
+
+void StringSubstring::SetValueLocationConstraints() {
+  using D = StringSubstringDescriptor;
+  UseFixed(StringInput(), D::GetRegisterParameter(D::kString));
+  UseAndClobberFixed(FromInput(), D::GetRegisterParameter(D::kFrom));
+  UseAndClobberFixed(ToInput(), D::GetRegisterParameter(D::kTo));
+  DefineAsFixed(this, kReturnRegister0);
+  set_temporaries_needed(0);
+}
+void StringSubstring::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register string = ToRegister(StringInput());
+  Register from = ToRegister(FromInput());
+  Register to = ToRegister(ToInput());
+
+  __ CallBuiltin<Builtin::kStringSubstring>(string, from, to);
 }
 
 void StringConcat::SetValueLocationConstraints() {

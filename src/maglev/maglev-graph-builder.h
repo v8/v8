@@ -955,6 +955,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
+  V(StringPrototypeSubstring)                  \
   V(StringPrototypeStartsWith)                 \
   V(StringPrototypeIndexOf)                    \
   V(StringPrototypeIncludes)                   \

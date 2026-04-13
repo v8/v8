@@ -9758,6 +9758,42 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
   return {};
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSubstring(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  if (args.count() != 1 && args.count() != 2) return {};
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
+  ValueNode* start_index = args[0];
+  ValueNode* end_index;
+  if (args.count() > 1) {
+    end_index = args[1];
+  } else {
+    GET_VALUE_OR_ABORT(end_index, BuildLoadStringLength(receiver));
+  }
+
+  ValueNode* zero = GetInt32Constant(0);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
+
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Max(start_index, zero));
+  GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(clamped_start, length));
+
+  ValueNode* clamped_end;
+  GET_VALUE_OR_ABORT(clamped_end, BuildInt32Max(end_index, zero));
+  GET_VALUE_OR_ABORT(clamped_end, BuildInt32Min(clamped_end, length));
+
+  ValueNode* from;
+  GET_VALUE_OR_ABORT(from, BuildInt32Min(clamped_start, clamped_end));
+  ValueNode* to;
+  GET_VALUE_OR_ABORT(to, BuildInt32Max(clamped_start, clamped_end));
+  return AddNewNode<StringSubstring>({receiver, from, to});
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall({SpeculationMode::kDisallowBoundsCheckSpeculation})) {

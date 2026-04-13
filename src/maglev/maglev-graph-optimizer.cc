@@ -2798,6 +2798,12 @@ ProcessResult MaglevGraphOptimizer::VisitStringSlice(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStringSubstring(
+    StringSubstring* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitObjectIsArray(
     ObjectIsArray* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

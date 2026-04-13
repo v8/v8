@@ -2318,6 +2318,16 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::StringSubstring* node,
+                                const maglev::ProcessingState& state) {
+    V<String> string = Map(node->StringInput());
+    V<Word32> from = Map(node->FromInput());
+    V<Word32> to = Map(node->ToInput());
+    V<String> substring = __ StringSubstring(string, from, to);
+    SetMap(node, substring);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::ObjectIsArray* node,
                                 const maglev::ProcessingState& state) {
     ThrowingScope throwing_scope(this, node);
