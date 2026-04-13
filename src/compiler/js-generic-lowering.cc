@@ -87,7 +87,6 @@ REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::LowerJSAsyncFunctionAwait(Node* node) {
-  RelaxControls(node);
   ReplaceWithBuiltinCall(node, Builtin::kAsyncFunctionAwait);
 }
 

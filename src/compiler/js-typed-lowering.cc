@@ -2877,9 +2877,21 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
       await_callable.descriptor().GetStackParameterCount(),
       CallDescriptor::kNeedsFrameState);
   Node* await_code = jsgraph()->HeapConstantNoHole(await_callable.code());
-  slow_effect = graph()->NewNode(common()->Call(await_descriptor), await_code,
-                                 async_function_object, value, context,
-                                 frame_state, slow_effect, slow_control);
+  Node* call = graph()->NewNode(common()->Call(await_descriptor), await_code,
+                                async_function_object, value, context,
+                                frame_state, slow_effect, slow_control);
+  slow_effect = call;
+  slow_control = call;
+
+  // The slow-path builtin can throw (e.g. via PromiseResolve's .constructor
+  // getter). Rewire any IfException user of {node} to the slow-path call.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, call);
+    NodeProperties::ReplaceEffectInput(on_exception, call);
+    slow_control = graph()->NewNode(common()->IfSuccess(), call);
+    Revisit(on_exception);
+  }
 
   // === Merge ===
   Node* merge =
