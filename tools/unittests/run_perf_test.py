@@ -5,6 +5,7 @@
 
 from pathlib import Path
 
+import copy
 import json
 import os
 import platform
@@ -505,6 +506,85 @@ class PerfTest(unittest.TestCase):
     self._VerifyErrors([])
     self._VerifyMock(os.path.join(
       'out', 'x64.release', 'd7'), '--flag', 'run.js', '--', '2', 'test_name')
+
+  def testOneRunVariantsWithTestFlags(self):
+    config = dict(V8_VARIANTS_JSON)
+    config['test_flags'] = ['2', 'test_name']
+
+    self._WriteTestInput(config)
+    self._MockCommand(['.', '.', '.'], [
+        'x\nRichards: 3.3\nDeltaBlue: 3000\ny\n',
+        'x\nRichards: 2.2\nDeltaBlue: 2000\ny\n',
+        'x\nRichards: 1.1\nDeltaBlue: 1000\ny\n'
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'Richards'],
+            'results': [1.1],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'DeltaBlue'],
+            'results': [1000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'Richards'],
+            'results': [2.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'DeltaBlue'],
+            'results': [2000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'Richards'],
+            'results': [3.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'DeltaBlue'],
+            'results': [3000],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', 'run.js', '--', '2', 'test_name'),
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', '--variant-a-flag',
+         'run.js', '--', '2', 'test_name'),
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', '--variant-b-flag',
+         'run.js', '--', '2', 'test_name'))
+
+  def testOneRunVariantsWithTestFlagsAppend(self):
+    config = copy.deepcopy(V8_VARIANTS_JSON)
+    config['test_flags'] = ['top']
+    config['variants'][1]['test_flags'] = ['variant-a']
+
+    self._WriteTestInput(config)
+    self._MockCommand(['.', '.', '.'], [
+        'Richards: 1.1\nDeltaBlue: 1000\n',
+        'Richards: 1.1\nDeltaBlue: 1000\n',
+        'Richards: 1.1\nDeltaBlue: 1000\n',
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', 'run.js', '--', 'top'),
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', '--variant-a-flag',
+         'run.js', '--', 'top', 'variant-a'),
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', '--variant-b-flag',
+         'run.js', '--', 'top'))
 
   def testOneRunWithForwardFlags(self):
     test_input = dict(V8_JSON)
