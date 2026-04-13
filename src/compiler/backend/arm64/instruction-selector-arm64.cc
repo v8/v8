@@ -2846,7 +2846,26 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
+  Arm64OperandGenerator g(this);
+
+  // Arm64 doesn't have a dedicated single instruction to return the 128-bit
+  // product of two 64 bit operands but we can use two multiply instructions
+  // (Mul and either Smulh or Umulh).
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+  OpIndex lhs = op.left();
+  OpIndex rhs = op.right();
+
+  InstructionOperand left = g.UseRegister(lhs);
+  InstructionOperand right = g.UseRegister(rhs);
+
+  Emit(kArm64Mul, g.DefineAsRegister(node), left, right);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    InstructionCode high_opcode = is_signed ? kArm64Smulh : kArm64Umulh;
+    Emit(high_opcode, g.DefineAsRegister(out_high.value()), left, right);
+  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY
