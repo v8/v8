@@ -17,6 +17,7 @@
 namespace v8::internal::wasm {
 
 using compiler::turboshaft::WasmBodyInliningResult;
+using TSBlock = compiler::turboshaft::Block;
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
@@ -748,6 +749,77 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
     }
     __ Return(__ Word32Constant(0), base::VectorOf(returns));
   }
+}
+
+template <typename Assembler>
+void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
+  __ Bind(__ NewBlock());
+
+  V<Word32> code_entry = __ Parameter(CWasmEntryParameters::kCodeEntry,
+                                      RegisterRepresentation::Word32());
+  V<Object> object_ref = __ Parameter(CWasmEntryParameters::kObjectRef,
+                                      RegisterRepresentation::Tagged());
+  V<WordPtr> arg_buffer = __ Parameter(CWasmEntryParameters::kArgumentsBuffer,
+                                       RegisterRepresentation::WordPtr());
+  V<WordPtr> c_entry_fp = __ Parameter(CWasmEntryParameters::kCEntryFp,
+                                       RegisterRepresentation::WordPtr());
+
+  V<WordPtr> fp_value = __ FramePointer();
+  __ Store(fp_value, c_entry_fp, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           TypedFrameConstants::kFirstPushedFrameValueOffset);
+
+  size_t wasm_arg_count = sig_->parameter_count();
+  base::SmallVector<OpIndex, 16> args(wasm_arg_count + 1);  // +1 for instance.
+
+  size_t pos = 0;
+  V<WasmTrustedInstanceData> instance_data = V<WasmTrustedInstanceData>::Cast(
+      __ LoadTrustedPointer(V<HeapObject>::Cast(object_ref),
+                            LoadOp::Kind::TaggedBase().Immutable(),
+                            kWasmTrustedInstanceDataIndirectPointerTag,
+                            WasmInstanceObject::kTrustedDataOffset));
+  args[pos++] = instance_data;
+
+  int offset = 0;
+  for (CanonicalValueType type : sig_->parameters()) {
+    args[pos++] = SafeLoad(arg_buffer, offset, type);
+    offset += type.value_kind_size();
+  }
+
+  const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+      compiler::GetWasmCallDescriptor(
+          __ graph_zone(), sig_, compiler::WasmCallKind::kWasmIndirectFunction,
+          false),
+      compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+      __ graph_zone());
+
+  TSBlock* catch_block = __ NewBlock();
+  OpIndex call;
+  {
+    typename Assembler::CatchScope scope(Asm(), catch_block);
+    OpIndex frame_state = OpIndex::Invalid();
+    call = __ Call(code_entry, frame_state, base::VectorOf(args), descriptor,
+                   OpEffects().CanCallAnything());
+  }
+
+  // Handle success: store the return value(s).
+  size_t return_count = sig_->return_count();
+  if (return_count == 1) {
+    SafeStore(0, sig_->GetReturn(), arg_buffer, call);
+  } else if (return_count > 1) {
+    offset = 0;
+    for (size_t i = 0; i < return_count; ++i) {
+      CanonicalValueType type = sig_->GetReturn(i);
+      OpIndex val = __ Projection(call, i, this->RepresentationFor(type));
+      SafeStore(offset, type, arg_buffer, val);
+      offset += type.value_kind_size();
+    }
+  }
+  __ Return(__ IntPtrConstant(0));
+
+  __ Bind(catch_block);
+  V<Object> exception = __ CatchBlockBegin();
+  __ Return(exception);
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -443,45 +443,6 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
                                        parameter_count);
 }
 
-const Operator* WasmGraphBuilder::GetSafeLoadOperator(
-    int offset, wasm::ValueTypeBase type) {
-  int alignment = offset % type.value_kind_size();
-  MachineType mach_type = type.machine_type();
-  if (COMPRESS_POINTERS_BOOL && mach_type.IsTagged()) {
-    // We are loading tagged value from off-heap location, so we need to load
-    // it as a full word otherwise we will not be able to decompress it.
-    mach_type = MachineType::Pointer();
-  }
-  if (alignment == 0 || mcgraph()->machine()->UnalignedLoadSupported(
-                            type.machine_representation())) {
-    return mcgraph()->machine()->Load(mach_type);
-  }
-  return mcgraph()->machine()->UnalignedLoad(mach_type);
-}
-
-Node* WasmGraphBuilder::BuildSafeStore(int offset, wasm::ValueTypeBase type,
-                                       Node* arg_buffer, Node* value,
-                                       Node* effect, Node* control) {
-  int alignment = offset % type.value_kind_size();
-  MachineRepresentation rep = type.machine_representation();
-  if (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep)) {
-    // We are storing tagged value to off-heap location, so we need to store
-    // it as a full word otherwise we will not be able to decompress it.
-    rep = MachineType::PointerRepresentation();
-    value = effect = graph()->NewNode(
-        mcgraph()->machine()->BitcastTaggedToWord(), value, effect, control);
-  }
-  if (alignment == 0 || mcgraph()->machine()->UnalignedStoreSupported(rep)) {
-    StoreRepresentation store_rep(rep, WriteBarrierKind::kNoWriteBarrier);
-    return graph()->NewNode(mcgraph()->machine()->Store(store_rep), arg_buffer,
-                            Int32Constant(offset), value, effect, control);
-  }
-  UnalignedStoreRepresentation store_rep(rep);
-  return graph()->NewNode(mcgraph()->machine()->UnalignedStore(store_rep),
-                          arg_buffer, Int32Constant(offset), value, effect,
-                          control);
-}
-
 TFGraph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
 
 Zone* WasmGraphBuilder::graph_zone() { return graph()->zone(); }
@@ -927,89 +888,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Return(call);
   }
 
-  void BuildCWasmEntry() {
-    // +1 offset for first parameter index being -1.
-    Start(CWasmEntryParameters::kNumParameters + 1);
-
-    Node* code_entry = Param(CWasmEntryParameters::kCodeEntry);
-    Node* object_ref = Param(CWasmEntryParameters::kObjectRef);
-    Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer);
-    Node* c_entry_fp = Param(CWasmEntryParameters::kCEntryFp);
-
-    Node* fp_value = graph()->NewNode(mcgraph()->machine()->LoadFramePointer());
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 fp_value, TypedFrameConstants::kFirstPushedFrameValueOffset,
-                 c_entry_fp);
-
-    int wasm_arg_count = static_cast<int>(wrapper_sig_->parameter_count());
-    base::SmallVector<Node*, 16> args(wasm_arg_count + 4);
-
-    int pos = 0;
-    args[pos++] = code_entry;
-    args[pos++] = gasm_->LoadTrustedDataFromInstanceObject(object_ref);
-
-    int offset = 0;
-    for (wasm::CanonicalValueType type : wrapper_sig_->parameters()) {
-      Node* arg_load = SetEffect(
-          graph()->NewNode(GetSafeLoadOperator(offset, type), arg_buffer,
-                           Int32Constant(offset), effect(), control()));
-      args[pos++] = arg_load;
-      offset += type.value_kind_size();
-    }
-
-    args[pos++] = effect();
-    args[pos++] = control();
-
-    // Call the wasm code.
-    auto call_descriptor = GetWasmCallDescriptor(
-        mcgraph()->zone(), wrapper_sig_, WasmCallKind::kWasmIndirectFunction);
-
-    DCHECK_EQ(pos, args.size());
-    Node* call = gasm_->Call(call_descriptor, pos, args.begin());
-
-    Node* if_success = graph()->NewNode(mcgraph()->common()->IfSuccess(), call);
-    Node* if_exception =
-        graph()->NewNode(mcgraph()->common()->IfException(), call, call);
-
-    // Handle exception: return it.
-    SetEffectControl(if_exception);
-    Return(if_exception);
-
-    // Handle success: store the return value(s).
-    SetEffectControl(call, if_success);
-    pos = 0;
-    offset = 0;
-    for (wasm::CanonicalValueType type : wrapper_sig_->returns()) {
-      Node* value = wrapper_sig_->return_count() == 1
-                        ? call
-                        : graph()->NewNode(mcgraph()->common()->Projection(pos),
-                                           call, control());
-      SetEffect(
-          BuildSafeStore(offset, type, arg_buffer, value, effect(), control()));
-      offset += type.value_kind_size();
-      pos++;
-    }
-
-    Return(mcgraph()->IntPtrConstant(0));
-
-    if (mcgraph()->machine()->Is32() && ContainsInt64(wrapper_sig_)) {
-      // These correspond to {sig_types[]} in {CompileCWasmEntry}.
-      MachineRepresentation sig_reps[] = {
-          MachineType::PointerRepresentation(),  // return value
-          MachineType::PointerRepresentation(),  // target
-          MachineRepresentation::kTagged,        // object_ref
-          MachineType::PointerRepresentation(),  // argv
-          MachineType::PointerRepresentation()   // c_entry_fp
-      };
-      Signature<MachineRepresentation> c_entry_sig(1, 4, sig_reps);
-      Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(),
-                      mcgraph()->common(), gasm_->simplified(),
-                      mcgraph()->zone(), &c_entry_sig);
-      r.LowerGraph();
-    }
-  }
-
  private:
   SetOncePointer<const Operator> int32_to_heapnumber_operator_;
   SetOncePointer<const Operator> tagged_non_smi_to_int32_operator_;
@@ -1170,34 +1048,6 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate,
                                const wasm::CanonicalSig* sig) {
   DCHECK(!v8_flags.wasm_jitless);
 
-  std::unique_ptr<Zone> zone =
-      std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
-  TFGraph* graph = zone->New<TFGraph>(zone.get());
-  CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
-  MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
-      zone.get(), MachineType::PointerRepresentation(),
-      InstructionSelector::SupportedMachineOperatorFlags(),
-      InstructionSelector::AlignmentRequirements());
-  MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
-
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig,
-                                  WasmGraphBuilder::kNoSpecialParameterMode,
-                                  nullptr, nullptr);
-  builder.BuildCWasmEntry();
-
-  // Schedule and compile to machine code.
-  MachineType sig_types[] = {MachineType::Pointer(),    // return
-                             MachineType::Pointer(),    // target
-                             MachineType::AnyTagged(),  // object_ref
-                             MachineType::Pointer(),    // argv
-                             MachineType::Pointer()};   // c_entry_fp
-  MachineSignature incoming_sig(1, 4, sig_types);
-  // Traps need the root register, for TailCallRuntime to call
-  // Runtime::kThrowWasmError.
-  CallDescriptor::Flags flags = CallDescriptor::kInitializeRootRegister;
-  CallDescriptor* incoming =
-      Linkage::GetSimplifiedCDescriptor(zone.get(), &incoming_sig, flags);
-
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
   constexpr size_t kMaxNameLen = 128;
   constexpr size_t kNamePrefixLen = 13;
@@ -1207,9 +1057,9 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate,
       base::VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen, sig);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<TurbofanCompilationJob> job(
-      Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, incoming, std::move(zone), graph, CodeKind::C_WASM_ENTRY,
+  std::unique_ptr<turboshaft::TurboshaftCompilationJob> job(
+      Pipeline::NewWasmTurboshaftWrapperCompilationJob(
+          isolate, sig, wasm::WrapperCompilationInfo{CodeKind::C_WASM_ENTRY},
           std::move(name_buffer), AssemblerOptions::Default(isolate)));
 
   CHECK_NE(job->ExecuteJob(isolate->counters()->runtime_call_stats(), nullptr),

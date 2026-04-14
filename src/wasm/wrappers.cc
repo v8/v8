@@ -4,19 +4,11 @@
 
 #include "src/wasm/wrappers.h"
 
-#include <bit>
-#include <optional>
-
-#include "src/base/small-vector.h"
-#include "src/codegen/bailout-reason.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/turboshaft/dataview-lowering-reducer.h"
-#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
-#include "src/execution/isolate-data.h"
-#include "src/objects/object-list-macros.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -54,8 +46,7 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
       compiler::turboshaft::VariableReducer>;
   WrapperAssembler assembler(data, graph, graph, &zone);
   WasmWrapperTSGraphBuilder<WrapperAssembler> builder(
-      &zone, assembler, sig,
-      /*is_inlining_into_js*/ false);
+      &zone, assembler, sig, /*is_inlining_into_js*/ false);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
     builder.BuildJSToWasmWrapper();
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
@@ -64,6 +55,8 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                                  wrapper_info.suspend);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
     builder.BuildCapiCallWrapper();
+  } else if (wrapper_info.code_kind == CodeKind::C_WASM_ENTRY) {
+    builder.BuildCWasmEntryWrapper();
   } else if (wrapper_info.code_kind == CodeKind::WASM_STACK_ENTRY) {
     builder.BuildWasmStackEntryWrapper();
   } else {

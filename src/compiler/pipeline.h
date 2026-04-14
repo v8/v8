@@ -131,12 +131,6 @@ class Pipeline : public AllStatic {
       wasm::WasmDetectedFeatures* detected,
       DelayedCounterUpdates* counter_updates);
 
-  // Returns a new compilation job for a wasm heap stub.
-  static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
-
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
   NewWasmTurboshaftWrapperCompilationJob(
       Isolate* isolate, const wasm::CanonicalSig* sig,

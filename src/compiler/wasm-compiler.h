@@ -87,19 +87,23 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig);
 
-enum CWasmEntryParameters {
-  kCodeEntry,
-  kObjectRef,
-  kArgumentsBuffer,
-  kCEntryFp,
-  // marker:
-  kNumParameters
-};
-
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
 V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
                                                  const wasm::CanonicalSig*);
+
+constexpr MachineType kCWasmEntrySigTypes[] = {
+    MachineType::Pointer(),    // return
+    MachineType::Uint32(),     // target
+    MachineType::AnyTagged(),  // object_ref
+    MachineType::Pointer(),    // argv
+    MachineType::Pointer()};   // c_entry_fp
+
+constexpr MachineSignature kCWasmEntrySig(1, 4, kCWasmEntrySigTypes);
+
+constexpr const MachineSignature* CWasmEntrySignature() {
+  return &kCWasmEntrySig;
+}
 
 struct WasmLoopInfo {
   Node* header;
@@ -213,10 +217,6 @@ class WasmGraphBuilder {
 
   Node* BuildLoadIsolateRoot();
   Node* UndefinedValue();
-
-  const Operator* GetSafeLoadOperator(int offset, wasm::ValueTypeBase type);
-  Node* BuildSafeStore(int offset, wasm::ValueTypeBase type, Node* arg_buffer,
-                       Node* value, Node* effect, Node* control);
 
   Node* BuildCallNode(size_t param_count, base::Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,

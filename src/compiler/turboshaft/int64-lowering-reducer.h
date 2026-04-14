@@ -20,6 +20,16 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+constexpr MachineRepresentation kCWasmEntrySigReps[] = {
+    kCWasmEntrySigTypes[0].representation(),
+    kCWasmEntrySigTypes[1].representation(),
+    kCWasmEntrySigTypes[2].representation(),
+    kCWasmEntrySigTypes[3].representation(),
+    kCWasmEntrySigTypes[4].representation()};
+
+constexpr Signature<MachineRepresentation> kCWasmEntryRepSig(
+    1, 4, kCWasmEntrySigReps);
+
 // This reducer is run on 32 bit platforms to lower unsupported 64 bit integer
 // operations to supported 32 bit operations.
 template <class Next>
@@ -38,8 +48,12 @@ class Int64LoweringReducer : public Next {
                                   : wasm::kCalledFromWasm;
     // To compute the machine signature, it doesn't matter whether types
     // are canonicalized, just use whichever signature is present (functions
-    // will have one and wrappers the other).
-    if (__ data()->wasm_module_sig()) {
+    // will have one and wrappers the other). For CWasmEntry jobs, the
+    // stored signature describes the Wasm function called by the wrapper, so we
+    // materialize the wrapper's signature here.
+    if (__ data()->info()->code_kind() == CodeKind::C_WASM_ENTRY) {
+      sig_ = &kCWasmEntryRepSig;
+    } else if (__ data()->wasm_module_sig()) {
       sig_ =
           CreateMachineSignature(zone_, __ data()->wasm_module_sig(), origin);
     } else {

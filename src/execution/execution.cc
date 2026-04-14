@@ -12,10 +12,10 @@
 #include "src/logging/runtime-call-stats-scope.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/compiler/wasm-compiler.h"  // Only for static asserts.
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine-globals.h"
+#include "src/wasm/wrappers.h"  // Only for static asserts.
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -659,7 +659,7 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
   DCHECK_EQ(isolate, Isolate::TryGetCurrent());
 
   using WasmEntryStub = GeneratedCode<Address(
-      Address target, Address object_ref, Address argv, Address c_entry_fp)>;
+      uint32_t target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =
       WasmEntryStub::FromAddress(isolate, wrapper_code->instruction_start());
 
@@ -685,10 +685,10 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
 
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
-    static_assert(compiler::CWasmEntryParameters::kCodeEntry == 0);
-    static_assert(compiler::CWasmEntryParameters::kObjectRef == 1);
-    static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
-    static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
+    static_assert(wasm::CWasmEntryParameters::kCodeEntry == 0);
+    static_assert(wasm::CWasmEntryParameters::kObjectRef == 1);
+    static_assert(wasm::CWasmEntryParameters::kArgumentsBuffer == 2);
+    static_assert(wasm::CWasmEntryParameters::kCEntryFp == 3);
     Address result =
         stub_entry.CallSandboxed(wasm_call_target.value(), (*object_ref).ptr(),
                                  packed_args, saved_c_entry_fp);

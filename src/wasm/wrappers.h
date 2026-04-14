@@ -50,6 +50,15 @@ struct WasmBodyInliningResult {
 
 namespace v8::internal::wasm {
 
+enum CWasmEntryParameters {
+  kCodeEntry,
+  kObjectRef,
+  kArgumentsBuffer,
+  kCEntryFp,
+  // marker:
+  kNumParameters
+};
+
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 const compiler::turboshaft::TSCallDescriptor* GetBuiltinCallDescriptor(
@@ -208,6 +217,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   void BuildWasmStackEntryWrapper();
 
   void BuildCapiCallWrapper();
+
+  void BuildCWasmEntryWrapper();
 
   V<Word32> BuildSmiShiftBitsConstant() {
     return __ Word32Constant(kSmiShiftSize + kSmiTagSize);

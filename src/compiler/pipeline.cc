@@ -1565,54 +1565,7 @@ struct VerifyGraphPhase {
 #undef DECL_PIPELINE_PHASE_CONSTANTS_HELPER
 
 #if V8_ENABLE_WEBASSEMBLY
-class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
- public:
-  WasmHeapStubCompilationJob(Isolate* isolate, CallDescriptor* call_descriptor,
-                             std::unique_ptr<Zone> zone, TFGraph* graph,
-                             CodeKind kind, std::unique_ptr<char[]> debug_name,
-                             const AssemblerOptions& options)
-      // Note that the OptimizedCompilationInfo is not initialized at the time
-      // we pass it to the CompilationJob constructor, but it is not
-      // dereferenced there.
-      : TurbofanCompilationJob(isolate, &info_,
-                               CompilationJob::State::kReadyToExecute),
-        debug_name_(std::move(debug_name)),
-        info_(base::CStrVector(debug_name_.get()), graph->zone(), kind),
-        call_descriptor_(call_descriptor),
-        zone_stats_(zone->allocator()),
-        zone_(std::move(zone)),
-        graph_(graph),
-        turboshaft_data_(&zone_stats_,
-                         turboshaft::TurboshaftPipelineKind::kWasm, isolate,
-                         &info_, options),
-        data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
-              graph_, nullptr, nullptr, nullptr,
-              zone_->New<NodeOriginTable>(graph_), nullptr, options, nullptr),
-        pipeline_(&data_) {}
 
-  WasmHeapStubCompilationJob(const WasmHeapStubCompilationJob&) = delete;
-  WasmHeapStubCompilationJob& operator=(const WasmHeapStubCompilationJob&) =
-      delete;
-
- protected:
-  Status PrepareJobImpl(Isolate* isolate) final;
-  Status ExecuteJobImpl(RuntimeCallStats* stats,
-                        LocalIsolate* local_isolate) final;
-  Status FinalizeJobImpl(Isolate* isolate) final;
-
- private:
-  const std::unique_ptr<char[]> debug_name_;
-  OptimizedCompilationInfo info_;
-  CallDescriptor* const call_descriptor_;
-  ZoneStats zone_stats_;
-  const std::unique_ptr<Zone> zone_;
-  TFGraph* const graph_;
-  turboshaft::PipelineData turboshaft_data_;
-  TFPipelineData data_;
-  PipelineImpl pipeline_;
-};
-
-#if V8_ENABLE_WEBASSEMBLY
 class WasmTurboshaftWrapperCompilationJob final
     : public turboshaft::TurboshaftCompilationJob {
  public:
@@ -1667,10 +1620,17 @@ class WasmTurboshaftWrapperCompilationJob final
       return Is64() ? call_descriptor
                     : GetI32WasmCallDescriptor(zone, call_descriptor);
     }
-    DCHECK_EQ(code_kind, CodeKind::JS_TO_WASM_FUNCTION);
-    return Linkage::GetJSCallDescriptor(
-        zone, false, static_cast<int>(sig->parameter_count()) + 1,
-        CallDescriptor::kNoFlags);
+    if (code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
+      return Linkage::GetJSCallDescriptor(
+          zone, false, static_cast<int>(sig->parameter_count()) + 1,
+          CallDescriptor::kNoFlags);
+    }
+    if (code_kind == CodeKind::C_WASM_ENTRY) {
+      CallDescriptor::Flags flags = CallDescriptor::kInitializeRootRegister;
+      return Linkage::GetSimplifiedCDescriptor(zone, CWasmEntrySignature(),
+                                               flags);
+    }
+    UNREACHABLE();
   }
 
   Zone zone_;
@@ -1687,16 +1647,6 @@ class WasmTurboshaftWrapperCompilationJob final
 };
 
 // static
-std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
-    Isolate* isolate, CallDescriptor* call_descriptor,
-    std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
-    std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
-  return std::make_unique<WasmHeapStubCompilationJob>(
-      isolate, call_descriptor, std::move(zone), graph, kind,
-      std::move(debug_name), options);
-}
-
-// static
 std::unique_ptr<turboshaft::TurboshaftCompilationJob>
 Pipeline::NewWasmTurboshaftWrapperCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig,
@@ -1704,12 +1654,6 @@ Pipeline::NewWasmTurboshaftWrapperCompilationJob(
     std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
   return std::make_unique<WasmTurboshaftWrapperCompilationJob>(
       isolate, sig, wrapper_info, std::move(debug_name), options);
-}
-#endif
-
-CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
-    Isolate* isolate) {
-  UNREACHABLE();
 }
 
 namespace {
@@ -1783,46 +1727,6 @@ CompilationJob::Status FinalizeWrapperCompilation(
   return CompilationJob::SUCCEEDED;
 }
 }  // namespace
-
-CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
-    RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
-  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new TurbofanPipelineStatistics(
-        &info_, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(),
-        &zone_stats_));
-    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
-  }
-  TraceWrapperCompilation("Turbofan", &info_, &data_);
-  pipeline_.RunPrintAndVerify("V8.WasmMachineCode", true);
-  if (!pipeline_.Run<MemoryOptimizationPhase>()) return FAILED;
-  if (!pipeline_.ComputeScheduledGraph()) return FAILED;
-
-  Linkage linkage(call_descriptor_);
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, &linkage);
-
-  // We convert the turbofan graph to turboshaft.
-  if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data_, &linkage)) {
-    return FAILED;
-  }
-
-  // We need to run simplification to normalize some patterns for instruction
-  // selection (e.g. loads and stores).
-  if (!turboshaft_pipeline.RunSimplificationAndNormalizationPhase()) {
-    return FAILED;
-  }
-
-  const bool success = GenerateCodeFromTurboshaftGraph(
-      &linkage, turboshaft_pipeline, &pipeline_, data_.osr_helper_ptr());
-  return success ? SUCCEEDED : FAILED;
-}
-
-CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
-    Isolate* isolate) {
-  return FinalizeWrapperCompilation(
-      &turboshaft_data_, &info_, call_descriptor_, isolate,
-      "WasmHeapStubCompilationJob::FinalizeJobImpl");
-}
 
 CompilationJob::Status WasmTurboshaftWrapperCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
