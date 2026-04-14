@@ -30,7 +30,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1088,7 +1087,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
@@ -3791,8 +3789,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Load suspender from closure.
   // -------------------------------------------
   Register sfi = closure;
-  __ Move(sfi, MemOperand(closure, wasm::ObjectAccess::ToTagged(
-                                       JSFunction::kSharedFunctionInfoOffset)));
+  __ Move(sfi, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   Register function_data = sfi;
   __ Move(function_data,
           FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));

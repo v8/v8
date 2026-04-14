@@ -277,8 +277,8 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset_imm) {
-  LoadProtectedPointerField(dst, MemOperand{src_addr, offset_imm});
+                                            int32_t field_offset) {
+  LoadProtectedPointerField(dst, FieldMemOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,

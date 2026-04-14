@@ -712,10 +712,11 @@ class LiftoffAssembler : public MacroAssembler {
                                       uint32_t* trapping_load_pc = nullptr,
                                       bool offset_reg_needs_shift = false);
   inline void LoadProtectedPointer(Register dst, Register src_addr,
-                                   int32_t offset);
+                                   int32_t field_offset);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
-  inline void LoadCodePointer(Register dst, Register src_addr, int32_t offset);
+  inline void LoadCodePointer(Register dst, Register src_addr,
+                              int32_t field_offset);
 
   enum Endianness { kNative, kLittle };
   inline void EmitWriteBarrier(Register target_object, Operand store_location,

@@ -32,7 +32,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-linkage.h"
@@ -3782,8 +3781,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   DEFINE_REG(sfi);
   __ LoadTaggedField(
-      sfi, MemOperand(closure, wasm::ObjectAccess::ToTagged(
-                                   JSFunction::kSharedFunctionInfoOffset)));
+      sfi, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   FREE_REG(closure);
   // Suspender should be ObjectRegister register to be used in
   // RecordWriteField calls later.

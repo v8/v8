@@ -13,7 +13,6 @@
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -405,9 +404,9 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     LoadInstanceDataFromFrame(instance_data);
   }
 
-  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-      WasmTrustedInstanceData::kTieringBudgetArrayOffset);
-  Ld_d(budget_array, MemOperand(instance_data, kArrayOffset));
+  Ld_d(budget_array,
+       FieldMemOperand(instance_data,
+                       WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
   int budget_arr_offset = kInt32Size * declared_func_index;
 
@@ -506,13 +505,13 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
   DCHECK_LE(0, offset);
   switch (size) {
     case 1:
-      Ld_b(dst, MemOperand(instance, offset));
+      Ld_b(dst, FieldMemOperand(instance, offset));
       break;
     case 4:
-      Ld_w(dst, MemOperand(instance, offset));
+      Ld_w(dst, FieldMemOperand(instance, offset));
       break;
     case 8:
-      Ld_d(dst, MemOperand(instance, offset));
+      Ld_d(dst, FieldMemOperand(instance, offset));
       break;
     default:
       UNIMPLEMENTED();
@@ -522,7 +521,7 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int32_t offset) {
-  LoadTaggedField(dst, MemOperand(instance, offset));
+  LoadTaggedField(dst, FieldMemOperand(instance, offset));
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}
@@ -543,8 +542,8 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset_imm) {
-  LoadProtectedPointerField(dst, MemOperand{src_addr, offset_imm});
+                                            int32_t field_offset) {
+  LoadProtectedPointerField(dst, FieldMemOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,

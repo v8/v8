@@ -11,7 +11,6 @@
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -451,9 +450,9 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     LoadInstanceDataFromFrame(instance_data);
   }
 
-  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-      WasmTrustedInstanceData::kTieringBudgetArrayOffset);
-  Ld(budget_array, MemOperand(instance_data, kArrayOffset));
+  Ld(budget_array,
+     FieldMemOperand(instance_data,
+                     WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
   int budget_arr_offset = kInt32Size * declared_func_index;
 
@@ -508,13 +507,13 @@ void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
   DCHECK_LE(0, offset);
   switch (size) {
     case 1:
-      Lb(dst, MemOperand(instance, offset));
+      Lb(dst, FieldMemOperand(instance, offset));
       break;
     case 4:
-      Lw(dst, MemOperand(instance, offset));
+      Lw(dst, FieldMemOperand(instance, offset));
       break;
     case 8:
-      Ld(dst, MemOperand(instance, offset));
+      Ld(dst, FieldMemOperand(instance, offset));
       break;
     default:
       UNIMPLEMENTED();
@@ -525,7 +524,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int32_t offset) {
   static_assert(kTaggedSize == kSystemPointerSize);
-  Ld(dst, MemOperand(instance, offset));
+  Ld(dst, FieldMemOperand(instance, offset));
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}
@@ -550,9 +549,9 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset_imm) {
+                                            int32_t field_offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
-  LoadTaggedPointer(dst, src_addr, no_reg, offset_imm);
+  Ld(dst, FieldMemOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,

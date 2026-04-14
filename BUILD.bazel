@@ -3148,7 +3148,6 @@ filegroup(
             "src/wasm/module-instantiate.h",
             "src/wasm/names-provider.cc",
             "src/wasm/names-provider.h",
-            "src/wasm/object-access.h",
             "src/wasm/pgo.cc",
             "src/wasm/pgo.h",
             "src/wasm/signature-hashing.h",

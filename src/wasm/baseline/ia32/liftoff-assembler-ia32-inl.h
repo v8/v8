@@ -12,7 +12,6 @@
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-linkage.h"
@@ -404,9 +403,9 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
       LoadInstanceDataFromFrame(instance_data);
     }
 
-    constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-        WasmTrustedInstanceData::kTieringBudgetArrayOffset);
-    mov(budget_array, Operand{instance_data, kArrayOffset});
+    mov(budget_array,
+        FieldOperand(instance_data,
+                     WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
     int array_offset = kInt32Size * declared_func_index;
     sub(Operand{budget_array, array_offset}, Immediate(budget_used));
@@ -500,7 +499,7 @@ void LiftoffAssembler::LoadTrustedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::LoadFromInstance(Register dst, Register instance,
                                         int offset, int size) {
   DCHECK_LE(0, offset);
-  Operand src{instance, offset};
+  Operand src = FieldOperand(instance, offset);
   switch (size) {
     case 1:
       movzx_b(dst, src);
@@ -517,7 +516,7 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      Register instance,
                                                      int offset) {
   static_assert(kTaggedSize == kSystemPointerSize);
-  mov(dst, Operand{instance, offset});
+  mov(dst, FieldOperand(instance, offset));
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}
@@ -529,9 +528,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          bool needs_shift) {
   DCHECK_GE(offset_imm, 0);
   static_assert(kTaggedSize == kInt32Size);
-  Load(LiftoffRegister(dst), src_addr, offset_reg,
-       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, trapping_load_pc,
-       false, false, needs_shift);
+  ScaleFactor scale_factor = !needs_shift ? times_1 : times_4;
+  Operand src_op = offset_reg == no_reg ? Operand(src_addr, offset_imm)
+                                        : Operand(src_addr, offset_reg,
+                                                  scale_factor, offset_imm);
+  if (trapping_load_pc) *trapping_load_pc = pc_offset();
+  mov(dst, src_op);
 }
 
 void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
@@ -545,9 +547,9 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset) {
+                                            int32_t field_offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
-  LoadTaggedPointer(dst, src_addr, no_reg, offset);
+  mov(dst, FieldOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,

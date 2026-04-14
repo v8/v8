@@ -226,9 +226,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          uint32_t* trapping_load_pc,
                                          bool needs_shift) {
   static_assert(kTaggedSize == kSystemPointerSize);
-  Load(LiftoffRegister(dst), src_addr, offset_reg,
-       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, trapping_load_pc,
-       false, false, needs_shift);
+  unsigned shift_amount = needs_shift ? 2 : 0;
+  MemOperand src_op =
+      liftoff::GetMemOp(this, src_addr, offset_reg,
+                        static_cast<uint32_t>(offset_imm), shift_amount);
+  if (trapping_load_pc) *trapping_load_pc = pc_offset();
+  Lw(dst, src_op);
 }
 
 void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
@@ -242,9 +245,9 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
-                                            int32_t offset) {
+                                            int32_t field_offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
-  LoadTaggedPointer(dst, src_addr, no_reg, offset);
+  Lw(dst, FieldMemOperand(src_addr, field_offset));
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,

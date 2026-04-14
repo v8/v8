@@ -52,7 +52,6 @@
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -224,8 +223,7 @@ void WasmGraphBuilder::Start(unsigned params) {
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadProtectedPointerFromObject(
-          param, wasm::ObjectAccess::ToTagged(
-                     WasmImportData::kProtectedInstanceDataOffset));
+          param, WasmImportData::kProtectedInstanceDataOffset - kHeapObjectTag);
       break;
     }
     case kJSFunctionAbiMode: {
@@ -594,22 +592,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     const int rets_count = static_cast<int>(wrapper_sig_->return_count());
     base::SmallVector<Node*, 1> rets(rets_count);
 
-      // Call to an import or a wasm function defined in this module.
-      // The (cached) call target is the jump table slot for that function.
-      // We do not use the imports dispatch table here so that the wrapper is
-      // target independent, in particular for tier-up.
-      Node* internal = gasm_->LoadImmutableProtectedPointerFromObject(
-          function_data, wasm::ObjectAccess::ToTagged(
-                             WasmFunctionData::kProtectedInternalOffset));
-      args[0] = gasm_->LoadFromObject(
-          MachineType::Uint32(), internal,
-          wasm::ObjectAccess::ToTagged(
-              WasmInternalFunction::kRawCallTargetOffset));
-      Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
-          internal, wasm::ObjectAccess::ToTagged(
-                        WasmInternalFunction::kProtectedImplicitArgOffset));
-      BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
-                    wasm::kNoCodePosition, implicit_arg, true, frame_state);
+    // Call to an import or a wasm function defined in this module.
+    // The (cached) call target is the jump table slot for that function.
+    // We do not use the imports dispatch table here so that the wrapper is
+    // target independent, in particular for tier-up.
+    Node* internal = gasm_->LoadImmutableProtectedPointerFromObject(
+        function_data,
+        WasmFunctionData::kProtectedInternalOffset - kHeapObjectTag);
+    args[0] = gasm_->LoadFromObject(
+        MachineType::Uint32(), internal,
+        WasmInternalFunction::kRawCallTargetOffset - kHeapObjectTag);
+    Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
+        internal,
+        WasmInternalFunction::kProtectedImplicitArgOffset - kHeapObjectTag);
+    BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
+                  wasm::kNoCodePosition, implicit_arg, true, frame_state);
 
     Node* jsval;
     if (wrapper_sig_->return_count() == 0) {
@@ -708,7 +705,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(callable_node);
     Node* flags = gasm_->LoadFromObject(
         MachineType::Int32(), shared_function_info,
-        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFlagsOffset));
+        SharedFunctionInfo::kFlagsOffset - kHeapObjectTag);
     Node* strict_check = gasm_->Word32And(
         flags, Int32Constant(SharedFunctionInfo::IsNativeBit::kMask |
                              SharedFunctionInfo::IsStrictBit::kMask));
@@ -790,12 +787,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Here 'callable_node' must be equal to 'callable' but we cannot pass a
     // HeapConstant(callable) because WasmCode::Validate() fails with
     // Unexpected mode: FULL_EMBEDDED_OBJECT.
-    Node* callable_node = gasm_->Load(
-        MachineType::TaggedPointer(), Param(0),
-        wasm::ObjectAccess::ToTagged(WasmImportData::kCallableOffset));
-    Node* native_context = gasm_->Load(
-        MachineType::TaggedPointer(), Param(0),
-        wasm::ObjectAccess::ToTagged(WasmImportData::kNativeContextOffset));
+    Node* callable_node =
+        gasm_->Load(MachineType::TaggedPointer(), Param(0),
+                    WasmImportData::kCallableOffset - kHeapObjectTag);
+    Node* native_context =
+        gasm_->Load(MachineType::TaggedPointer(), Param(0),
+                    WasmImportData::kNativeContextOffset - kHeapObjectTag);
 
     gasm_->Store(StoreRepresentation(mcgraph_->machine()->Is64()
                                          ? MachineRepresentation::kWord64
@@ -815,13 +812,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           Cast<JSFunction>(
               Cast<JSBoundFunction>(callable)->bound_target_function()),
           isolate);
-      target_node =
-          gasm_->Load(MachineType::TaggedPointer(), callable_node,
-                      wasm::ObjectAccess::ToTagged(
-                          JSBoundFunction::kBoundTargetFunctionOffset));
-      receiver_node = gasm_->Load(
+      target_node = gasm_->Load(
           MachineType::TaggedPointer(), callable_node,
-          wasm::ObjectAccess::ToTagged(JSBoundFunction::kBoundThisOffset));
+          JSBoundFunction::kBoundTargetFunctionOffset - kHeapObjectTag);
+      receiver_node =
+          gasm_->Load(MachineType::TaggedPointer(), callable_node,
+                      JSBoundFunction::kBoundThisOffset - kHeapObjectTag);
     } else {
       DCHECK(IsJSFunction(*callable));
       target = Cast<JSFunction>(callable);
@@ -845,14 +841,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
     Node* shared_function_info = gasm_->LoadSharedFunctionInfo(target_node);
-    Node* function_template_info =
-        gasm_->Load(MachineType::TaggedPointer(), shared_function_info,
-                    wasm::ObjectAccess::ToTagged(
-                        SharedFunctionInfo::kUntrustedFunctionDataOffset));
+    Node* function_template_info = gasm_->Load(
+        MachineType::TaggedPointer(), shared_function_info,
+        SharedFunctionInfo::kUntrustedFunctionDataOffset - kHeapObjectTag);
     Node* api_data_argument =
         gasm_->Load(MachineType::TaggedPointer(), function_template_info,
-                    wasm::ObjectAccess::ToTagged(
-                        FunctionTemplateInfo::kCallbackDataOffset));
+                    FunctionTemplateInfo::kCallbackDataOffset - kHeapObjectTag);
 
     FastApiCallFunction call_function{c_function.address, c_function.signature};
     Node* old_sp = BuildSwitchToTheCentralStackIfNeeded();

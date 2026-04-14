@@ -15,7 +15,6 @@
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/string.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
@@ -27,7 +26,7 @@ namespace compiler {
 namespace {
 int TaggedOffset(FieldAccess access) {
   DCHECK(access.base_is_tagged);
-  return wasm::ObjectAccess::ToTagged(access.offset);
+  return access.offset - kHeapObjectTag;
 }
 }  // namespace
 
@@ -172,8 +171,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              wasm::ObjectAccess::ToTagged(
-                  WasmTypeInfo::kSupertypesLengthOffset)));
+              WasmTypeInfo::kSupertypesLengthOffset - kHeapObjectTag));
       gasm_.GotoIfNot(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                          supertypes_length),
                       &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
@@ -181,8 +179,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
     Node* maybe_match = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), type_info,
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                     kTaggedSize * rtt_depth));
+        (WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth) -
+            kHeapObjectTag);
 
     gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   }
@@ -344,8 +342,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              wasm::ObjectAccess::ToTagged(
-                  WasmTypeInfo::kSupertypesLengthOffset)));
+              WasmTypeInfo::kSupertypesLengthOffset - kHeapObjectTag));
       gasm_.TrapUnless(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                           supertypes_length),
                        TrapId::kTrapIllegalCast);
@@ -354,8 +351,8 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
     Node* maybe_match = gasm_.LoadImmutableFromObject(
         MachineType::TaggedPointer(), type_info,
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
-                                     kTaggedSize * rtt_depth));
+        (WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth) -
+            kHeapObjectTag);
 
     gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
                      TrapId::kTrapIllegalCast);
@@ -490,7 +487,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
         static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
         Node* trap_null = gasm_.LoadTrapOnNull(
             MachineType::Int32(), object,
-            gasm_.IntPtrConstant(wasm::ObjectAccess::ToTagged(kTaggedSize)));
+            gasm_.IntPtrConstant(kTaggedSize - kHeapObjectTag));
         UpdateSourcePosition(trap_null, node);
       }
     }
@@ -534,7 +531,7 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
       WasmTrustedInstanceData::kManagedObjectMapsOffset - kHeapObjectTag);
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
-      wasm::ObjectAccess::ToTagged(FixedArray::OffsetOfElementAt(type_index))));
+      FixedArray::OffsetOfElementAt(type_index) - kHeapObjectTag));
 }
 
 namespace {
@@ -592,7 +589,7 @@ Reduction WasmGCLowering::ReduceWasmAnyConvertExtern(Node* node) {
   gasm_.Bind(&heap_number_label);
   Node* float_value = gasm_.LoadFromObject(
       MachineType::Float64(), input,
-      wasm::ObjectAccess::ToTagged(AccessBuilder::ForHeapNumberValue().offset));
+      AccessBuilder::ForHeapNumberValue().offset - kHeapObjectTag);
   // Check range of float value.
   gasm_.GotoIf(
       gasm_.Float64LessThan(float_value, gasm_.Float64Constant(kInt31MinValue)),
@@ -807,11 +804,10 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
       use_null_trap
           ? gasm_.LoadTrapOnNull(
                 MachineType::Uint32(), object,
-                gasm_.IntPtrConstant(
-                    wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset)))
+                gasm_.IntPtrConstant(WasmArray::kLengthOffset - kHeapObjectTag))
           : gasm_.LoadImmutableFromObject(
                 MachineType::Uint32(), object,
-                wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
+                WasmArray::kLengthOffset - kHeapObjectTag);
   if (use_null_trap) {
     UpdateSourcePosition(length, node);
   }
@@ -831,7 +827,7 @@ Reduction WasmGCLowering::ReduceWasmArrayInitializeLength(Node* node) {
 
   Node* set_length = gasm_.InitializeImmutableInObject(
       ObjectAccess{MachineType::Uint32(), kNoWriteBarrier}, object,
-      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
+      WasmArray::kLengthOffset - kHeapObjectTag, length);
 
   return Replace(set_length);
 }
@@ -982,9 +978,9 @@ Reduction WasmGCLowering::ReduceStringPrepareForGetCodeunit(Node* node) {
               AccessBuilder::ForSeqTwoByteStringCharacter().header_size);
     const int chars_start_offset =
         AccessBuilder::ForSeqOneByteStringCharacter().header_size;
-    Node* final_offset = gasm_.Int32Add(
-        gasm_.Int32Constant(wasm::ObjectAccess::ToTagged(chars_start_offset)),
-        gasm_.Word32Shl(offset, charwidth_shift));
+    Node* final_offset =
+        gasm_.Int32Add(gasm_.Int32Constant(chars_start_offset - kHeapObjectTag),
+                       gasm_.Word32Shl(offset, charwidth_shift));
     gasm_.Goto(&done, string, gasm_.BuildChangeInt32ToIntPtr(final_offset),
                charwidth_shift);
 

@@ -4844,7 +4844,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/module-decoder.h",
       "src/wasm/module-instantiate.h",
       "src/wasm/names-provider.h",
-      "src/wasm/object-access.h",
       "src/wasm/pgo.h",
       "src/wasm/signature-hashing.h",
       "src/wasm/simd-shuffle.h",

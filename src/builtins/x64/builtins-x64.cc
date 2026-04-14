@@ -30,7 +30,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-linkage.h"
@@ -3297,9 +3296,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // After the instance data register has been restored, we can add the jump
     // table start to the jump table offset already stored in r15.
     __ addq(r15,
-            MemOperand(kWasmImplicitArgRegister,
-                       wasm::ObjectAccess::ToTagged(
-                           WasmTrustedInstanceData::kJumpTableStartOffset)));
+            FieldMemOperand(kWasmImplicitArgRegister,
+                            WasmTrustedInstanceData::kJumpTableStartOffset));
   }
 
   // Finally, jump to the jump table slot for the function.
@@ -3876,8 +3874,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   Register sfi = closure;
   __ LoadTaggedField(
-      sfi, MemOperand(closure, wasm::ObjectAccess::ToTagged(
-                                   JSFunction::kSharedFunctionInfoOffset)));
+      sfi, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   Register resume_data = sfi;
   __ LoadTaggedField(
       resume_data,

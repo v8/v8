@@ -16,7 +16,6 @@
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -615,18 +614,15 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
       LoadInstanceDataFromFrame(instance_data);
     }
     if (target.cached_mem_index == 0) {
-      LoadFromInstance(
-          target.cached_mem_start, instance_data,
-          ObjectAccess::ToTagged(WasmTrustedInstanceData::kMemory0StartOffset),
-          sizeof(size_t));
+      LoadFromInstance(target.cached_mem_start, instance_data,
+                       WasmTrustedInstanceData::kMemory0StartOffset,
+                       sizeof(size_t));
     } else {
       LoadProtectedPointer(
           target.cached_mem_start, instance_data,
-          ObjectAccess::ToTagged(
-              WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset));
-      int buffer_offset =
-          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
-          kSystemPointerSize * target.cached_mem_index * 2;
+          WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
+      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
+                          kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
     }
