@@ -188,9 +188,8 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+      MemOperand(closure, wasm::ObjectAccess::ToTagged(
+                              JSFunction::kSharedFunctionInfoOffset)));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
@@ -1096,11 +1095,10 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ movq(callable, r8);  // Callable passed in r8.
 
   Register shared_function_info = r15;
-  __ LoadTaggedField(
-      shared_function_info,
-      MemOperand(
-          target_js_function,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  __ LoadTaggedField(shared_function_info,
+                     MemOperand(target_js_function,
+                                wasm::ObjectAccess::ToTagged(
+                                    JSFunction::kSharedFunctionInfoOffset)));
 
   // Set the context of the function; the call has to run in the function
   // context.

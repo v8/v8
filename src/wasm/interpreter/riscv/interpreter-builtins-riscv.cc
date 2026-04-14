@@ -313,9 +313,8 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+      MemOperand(closure, wasm::ObjectAccess::ToTagged(
+                              JSFunction::kSharedFunctionInfoOffset)));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
@@ -1189,11 +1188,10 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
                  WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset));
 
   DEFINE_REG(shared_function_info);
-  __ LoadTaggedField(
-      shared_function_info,
-      MemOperand(
-          target_js_function,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  __ LoadTaggedField(shared_function_info,
+                     MemOperand(target_js_function,
+                                wasm::ObjectAccess::ToTagged(
+                                    JSFunction::kSharedFunctionInfoOffset)));
 
   // Set the context of the function; the call has to run in the function
   // context.
