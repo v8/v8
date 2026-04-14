@@ -2070,13 +2070,16 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
 // https://chromium-review.googlesource.com/c/v8/v8/+/3429210
 constexpr int kScopeInfoMaxInlinedLocalNamesSize = 75;
 
+// The first 4 scopes are top-level scopes. The order is used for range checks.
 enum ScopeType : uint8_t {
-  SCRIPT_SCOPE,        // The top-level scope for a script or a top-level eval.
-  REPL_MODE_SCOPE,     // The top-level scope for a repl-mode script.
+  // Start of top-level scopes.
+  SCRIPT_SCOPE,     // The top-level scope for a script or a top-level eval.
+  REPL_MODE_SCOPE,  // The top-level scope for a repl-mode script.
+  EVAL_SCOPE,       // The top-level scope for an eval source.
+  MODULE_SCOPE,     // The scope introduced by a module literal
+  // End of top-level scopes.
   CLASS_SCOPE,         // The scope introduced by a class.
-  EVAL_SCOPE,          // The top-level scope for an eval source.
   FUNCTION_SCOPE,      // The top-level scope for a function.
-  MODULE_SCOPE,        // The scope introduced by a module literal
   CATCH_SCOPE,         // The scope introduced by catch.
   BLOCK_SCOPE,         // The scope introduced by a new block.
   WITH_SCOPE,          // The scope introduced by with.

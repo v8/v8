@@ -375,6 +375,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_script_scope() const {
     return scope_type_ == SCRIPT_SCOPE || scope_type_ == REPL_MODE_SCOPE;
   }
+  bool is_toplevel_scope() const { return scope_type_ <= MODULE_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
   bool is_block_scope() const {
     return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;

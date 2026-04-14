@@ -10,12 +10,14 @@ extern enum ScopeType extends uint32 {
   // in a way that it gets the first scope type in line, see
   // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
   // bit, so it doesn't matter what scope type it gets.
+  // Start of top-level scopes.
   SCRIPT_SCOPE,
   REPL_MODE_SCOPE,
-  CLASS_SCOPE,
   EVAL_SCOPE,
-  FUNCTION_SCOPE,
   MODULE_SCOPE,
+  // End of top-level scopes.
+  CLASS_SCOPE,
+  FUNCTION_SCOPE,
   CATCH_SCOPE,
   BLOCK_SCOPE,
   WITH_SCOPE,

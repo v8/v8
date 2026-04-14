@@ -317,6 +317,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
               kCreatedInitialized, maybe_assigned, &was_added);
   DCHECK(was_added);
   AllocateHeapSlot(variable);
+  set_is_hoisted_in_context(scope_info->is_hoisted_in_context());
 }
 
 void DeclarationScope::SetDefaults() {
