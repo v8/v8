@@ -416,8 +416,9 @@ class HexDumpModuleDis : public ITracer {
                 << " out of " << wire_bytes_.length() << " bytes.\n";
     }
 
-    // For cleanliness, reset {names_} in case we set it at a fake above.
+    // Reset members that we set to point to locals above.
     names_ = original_names;
+    decoder_ = nullptr;
   }
 
   // Tracer hooks.
