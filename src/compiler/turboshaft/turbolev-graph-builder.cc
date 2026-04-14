@@ -1382,10 +1382,13 @@ class GraphBuildingNodeProcessor {
             Tagged<WasmTrustedInstanceData> instance_data =
                 function_data->instance_data();
             wasm::NativeModule* native_module = instance_data->native_module();
-            int wasm_function_index = function_data->function_index();
-            wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-                native_module, wasm_function_index, shared, feedback);
-            __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+            if (__ data()->try_set_wasm_module_for_inlining(
+                    native_module->module())) {
+              int wasm_function_index = function_data->function_index();
+              wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
+                  native_module, wasm_function_index, shared, feedback);
+              __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+            }
           }
         }
       }

@@ -425,6 +425,23 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
+  bool try_set_wasm_module_for_inlining(const wasm::WasmModule* module) {
+    // This is used during Wasm-in-JS body inlining in the JavaScript (!)
+    // pipeline.
+    DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);
+
+    // We should only ever inline functions from one Wasm module.
+    if (wasm_module_ == nullptr) {
+      // First Wasm call being inlined.
+      wasm_module_ = module;
+      return true;
+    } else if (wasm_module_ == module) {
+      // Another Wasm call to inline, but from the same module.
+      return true;
+    }
+    return false;
+  }
+
   SharedFlag wasm_shared() const { return wasm_shared_; }
 
   void SetIsWasmFunction(const wasm::WasmModule* module,

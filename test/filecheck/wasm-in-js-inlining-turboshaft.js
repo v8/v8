@@ -16,6 +16,7 @@ d8.file.execute("test/mjsunit/mjsunit.js");
 
 const builder = new WasmModuleBuilder();
 const array = builder.addArray(kWasmI32);
+const struct = builder.addStruct([makeField(kWasmI32, true)]);
 const globalI32 = builder.addGlobal(kWasmI32, true, false);
 const globalEqRef = builder.addGlobal(kWasmEqRef, true, false);
 
@@ -389,6 +390,91 @@ addTestcase('arrayLenNull', kSig_i_v, [], [
   kGCPrefix, kExprArrayLen,
 ]);
 
+// We statically know that this cast will not succeed (because it's casting an
+// array to a struct), so this is optimized into a null check only.
+// CHECK: Considering wasm function [{{[0-9]+}}] assertNullTypecheck of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('assertNullTypecheck', kSig_i_v, [], [
+  kExprGlobalGet, globalNullArray.index,
+  kGCPrefix, kExprRefCastNull, struct,
+  kExprRefIsNull,
+]);
+
+// We statically know that this cast will succeed, so this is also a null check.
+// CHECK: Considering wasm function [{{[0-9]+}}] assertNotNullTypecheck of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('assertNotNullTypecheck', kSig_i_v, [], [
+  kExprGlobalGet, globalNullArray.index,
+  kGCPrefix, kExprRefCast, array,
+  kGCPrefix, kExprArrayLen,
+]);
+
+const globalAnyRef = builder.addGlobal(kWasmAnyRef, true, false);
+
+builder.addFunction('initGlobalAnyRefArray', makeSig([], [])).addBody([
+  ...wasmI32Const(42),
+  kGCPrefix, kExprArrayNewDefault, array,
+  kExprGlobalSet, globalAnyRef.index,
+]).exportFunc();
+
+// CHECK: Considering wasm function [{{[0-9]+}}] refCast of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('refCast', makeSig([], [kWasmI32]), [], [
+  kExprGlobalGet, globalAnyRef.index,
+  kGCPrefix, kExprRefCast, array,
+  kGCPrefix, kExprArrayLen,
+], (wasmExports) => {
+  wasmExports.initGlobalAnyRefArray();
+  return function js_refCast() {
+    return wasmExports.refCast();
+  };
+});
+
+builder.addFunction('initGlobalAnyRefStruct', makeSig([], [])).addBody([
+  kGCPrefix, kExprStructNewDefault, struct,
+  kExprGlobalSet, globalAnyRef.index,
+]).exportFunc();
+
+// This will throw because we cannot cast a struct to an array.
+// CHECK: Considering wasm function [{{[0-9]+}}] refCastFail of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('refCastFail', makeSig([], [kWasmI32]), [], [
+  kExprGlobalGet, globalAnyRef.index,
+  kGCPrefix, kExprRefCast, array,
+  kGCPrefix, kExprArrayLen,
+], (wasmExports) => {
+  wasmExports.initGlobalAnyRefStruct();
+  return function js_refCastFail() {
+    return wasmExports.refCastFail();
+  };
+});
+
+// CHECK: Considering wasm function [{{[0-9]+}}] refCastAbstract of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('refCastAbstract', makeSig([], [kWasmI32]), [], [
+  kExprGlobalGet, globalAnyRef.index,
+  kGCPrefix, kExprRefCast, kEqRefCode,
+  kExprRefIsNull,
+], (wasmExports) => {
+  wasmExports.initGlobalAnyRefStruct();
+  return function js_refCastAbstract() {
+    return wasmExports.refCastAbstract();
+  };
+});
+
+// CHECK: Considering wasm function [{{[0-9]+}}] refCastAbstractFail of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('refCastAbstractFail', makeSig([], [kWasmI32]), [], [
+  kExprGlobalGet, globalAnyRef.index,
+  kGCPrefix, kExprRefCast, kArrayRefCode,
+  kExprRefIsNull,
+], (wasmExports) => {
+  wasmExports.initGlobalAnyRefStruct();
+  return function js_refCastAbstractFail() {
+    return wasmExports.refCastAbstractFail();
+  };
+});
+
 
 // =============================================================================
 // Testcases that we (currently) do not inline (the JS-to-Wasm wrapper or body):
@@ -497,6 +583,32 @@ addTestcase('trapNoInline', kSig_v_v, [], [
     } catch (e) {
       return e.toString() + e.stack;
     }
+  };
+});
+
+
+// CHECK: Considering wasm function [{{[0-9]+}}] empty of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+// CHECK: Considering wasm function [{{[0-9]+}}] sameModuleMultipleFunctions of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('sameModuleMultipleFunctions', kSig_v_v, [], [], (wasmExports) => {
+  return function js_sameModuleMultipleFunctions() {
+    wasmExports.empty();
+    wasmExports.sameModuleMultipleFunctions();
+  };
+});
+
+const builder2 = new WasmModuleBuilder();
+builder2.addFunction('noop2', kSig_v_v).addBody([]).exportFunc();
+const wasmExports2 = builder2.instantiate({}).exports;
+
+// CHECK: Considering wasm function [{{[0-9]+}}] noop2 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+// CHECK-NOT: Considering wasm function [{{[0-9]+}}] multiModule of module {{.*}} for inlining
+addTestcase('multiModule', kSig_v_v, [], [], (wasmExports) => {
+  return function js_multiModule() {
+    wasmExports2.noop2();
+    wasmExports.multiModule();
   };
 });
 

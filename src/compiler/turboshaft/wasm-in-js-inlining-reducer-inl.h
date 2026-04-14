@@ -854,11 +854,15 @@ class WasmInJsInliningInterface {
   }
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
-    Bailout(decoder);
+    __ TrapIfNot(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
+                 TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    Bailout(decoder);
+    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
+              TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
                     OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
@@ -1093,17 +1097,57 @@ class WasmInJsInliningInterface {
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     Bailout(decoder);
   }
-  void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
-    Bailout(decoder);
+
+  V<FixedArray> managed_object_maps() {
+    // TODO(dlehmann): Optimize this by baking in the Map into the generated
+    // code as a HeapConstant (which we can do in JS, but not in Wasm).
+    return LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data_,
+                                         ManagedObjectMaps,
+                                         MemoryRepresentation::TaggedPointer());
   }
+
+  void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
+    ValueType target = result->type;
+    if (target.is_shared() == SharedFlag::kYes) {
+      return Bailout(decoder);
+    }
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    V<Map> rtt = __ RttCanon(managed_object_maps(), target.ref_index());
+    compiler::WasmTypeCheckConfig config{
+        object.type, target,
+        compiler::GetExactness(decoder->module_, target.heap_type())};
+    result->op =
+        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
+  }
+
   void RefCastDescEq(FullDecoder* decoder, const Value& object,
                      const Value& descriptor, Value* result) {
     Bailout(decoder);
   }
+
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
-    Bailout(decoder);
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    // TODO(jkummerow): {type} is redundant.
+    DCHECK_IMPLIES(null_succeeds, result->type.is_nullable());
+    DCHECK_EQ(type, result->type.heap_type());
+    compiler::WasmTypeCheckConfig config{
+        object.type,
+        ValueType::RefMaybeNull(
+            type, null_succeeds ? wasm::kNullable : wasm::kNonNullable)};
+    V<Map> rtt = OpIndex::Invalid();
+    result->op =
+        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
   }
+
   void LoadMem(FullDecoder* decoder, wasm::LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
@@ -1375,7 +1419,7 @@ class WasmInJsInliningInterface {
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
-    Bailout(decoder);
+    to->op = from.op;
   }
 
  private:
@@ -1498,6 +1542,9 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   V<turboshaft::FrameState> frame_state = inlined_data.js_caller_frame_state;
   int inlining_id = inlined_data.inlining_id;
   const wasm::WasmModule* module = native_module->module();
+  // The `WasmModule` on the `PipelineData` (set by the Turbolev frontend)
+  // and the one from the `NativeModule` should be the same.
+  CHECK_EQ(__ data()->wasm_module(), module);
   const wasm::WasmFunction& func = module->functions[func_idx];
 
   TRACE("Considering wasm function ["

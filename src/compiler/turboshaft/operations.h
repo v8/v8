@@ -7456,27 +7456,42 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 
 struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   WasmTypeCheckConfig config;
+  bool has_rtt;
+  bool has_frame_state;
 
   static constexpr OpEffects effects =
       OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
-                 WasmTypeCheckConfig config)
-      : Base(1 + rtt.valid()), config(config) {
+                 WasmTypeCheckConfig config, OptionalV<FrameState> frame_state)
+      : Base(1 + rtt.valid() + frame_state.valid()),
+        config(config),
+        has_rtt(rtt.valid()),
+        has_frame_state(frame_state.valid()) {
     input(0) = object;
-    if (rtt.valid()) {
-      input(1) = rtt.value();
+    int idx = 1;
+    if (has_rtt) {
+      input(idx++) = rtt.value();
+    }
+    if (has_frame_state) {
+      input(idx++) = frame_state.value();
     }
   }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    return fn(mapper.Map(object()), mapper.Map(rtt()), config);
+    return fn(mapper.Map(object()), mapper.Map(rtt()), config,
+              mapper.Map(frame_state()));
   }
 
   V<Object> object() const { return Base::input<Object>(0); }
   OptionalV<Map> rtt() const {
-    return input_count > 1 ? input<Map>(1) : OptionalV<Map>::Nullopt();
+    return has_rtt ? input<Map>(1) : OptionalV<Map>::Nullopt();
+  }
+  OptionalV<FrameState> frame_state() const {
+    int idx = 1 + (has_rtt ? 1 : 0);
+    return has_frame_state ? input<FrameState>(idx)
+                           : OptionalV<FrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -7485,18 +7500,18 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return input_count > 1
-               ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                                MaybeRegisterRepresentation::Tagged()>()
-               : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+    return has_rtt ? MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                                    MaybeRegisterRepresentation::Tagged()>()
+                   : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
-
 
   auto options() const { return std::tuple{config}; }
 
   static WasmTypeCastOp& New(Graph* graph, V<Object> object, OptionalV<Map> rtt,
-                             WasmTypeCheckConfig config) {
-    return Base::New(graph, 1 + rtt.valid(), object, rtt, config);
+                             WasmTypeCheckConfig config,
+                             OptionalV<FrameState> frame_state) {
+    return Base::New(graph, 1 + rtt.valid() + frame_state.valid(), object, rtt,
+                     config, frame_state);
   }
 
   void Validate(const Graph& graph) const { DCHECK(config.is_valid()); }

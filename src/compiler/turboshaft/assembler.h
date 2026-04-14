@@ -5091,10 +5091,11 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
-                         WasmTypeCheckConfig config) {
+                         WasmTypeCheckConfig config,
+                         OptionalV<turboshaft::FrameState> frame_state = {}) {
     DCHECK(__ generating_unreachable_operations() ||
            rtt.valid() != config.to.is_abstract_ref());
-    return ReduceIfReachableWasmTypeCast(object, rtt, config);
+    return ReduceIfReachableWasmTypeCast(object, rtt, config, frame_state);
   }
 
   V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared) {
