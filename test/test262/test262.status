@@ -745,10 +745,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncDisposableStack/prototype/Symbol.asyncDispose': [SKIP],
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/is-function': [SKIP],
-  'built-ins/DisposableStack/prototype/Symbol.dispose': [SKIP],
-  'built-ins/Iterator/prototype/Symbol.dispose/is-function': [SKIP],
   'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
   'language/expressions/delete/super-property-uninitialized-this': [SKIP],
 }],
@@ -863,9 +859,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-rejected-return': [SKIP],
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return': [SKIP],
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return-getter': [SKIP],
   'built-ins/Atomics/notify/retrieve-length-before-index-coercion': [SKIP],
   'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared': [SKIP],
   'built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached': [SKIP],
