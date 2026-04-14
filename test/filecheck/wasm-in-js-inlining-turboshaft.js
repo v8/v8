@@ -136,16 +136,6 @@ addUnaryTestcase('I32SExtendI16', kSig_i_i, 0);
 // CHECK: Considering wasm function [{{[0-9]+}}] RefIsNull of module {{.*}} for inlining
 // CHECK-NEXT: - inlining
 addUnaryTestcase('RefIsNull', kSig_i_r, null);
-// We cannot pass Wasm any refs across the JS-Wasm boundary, hence convert to
-// any and back in one test.
-// TODO(dlehmann): Update output once arm64 no-ptr-compression calls are fixed.
-// CHECK: Considering wasm function [{{[0-9]+}}] anyConvertExternConvertAny of module {{.*}} for inlining
-// CHECK-NEXT: - not inlining: unsupported operation: any.convert_extern
-addTestcase('anyConvertExternConvertAny', kSig_r_r, [{}], [
-  kExprLocalGet, 0,
-  kGCPrefix, kExprAnyConvertExtern,
-  kGCPrefix, kExprExternConvertAny,
-]);
 
 function addBinaryTestcase(op, wasmSignature, wasmArgument0, wasmArgument1) {
   addTestcase(op, wasmSignature, [wasmArgument0, wasmArgument1], [
@@ -292,6 +282,7 @@ addBinaryTestcase('F64Min', kSig_d_dd, 3, 7);
 // CHECK: Considering wasm function [{{[0-9]+}}] F64Max of module {{.*}} for inlining
 // CHECK-NEXT: - inlining
 addBinaryTestcase('F64Max', kSig_d_dd, 3, 7);
+
 // This currently cannot be inlined when passing `eqref`s as an argument from JS
 // because the JS-to-Wasm wrapper inlining bails out in that case.
 // So go through through globals instead.
@@ -307,6 +298,12 @@ addTestcase('RefEq', kSig_i_v, [], [
 // CHECK: Considering wasm function [{{[0-9]+}}] passthroughI32 of module {{.*}} for inlining
 // CHECK-NEXT: - inlining
 addTestcase('passthroughI32', kSig_i_i, [13], [kExprLocalGet, 0]);
+// We now support i64 in Wasm signatures when inlining the JS-to-Wasm wrapper on
+// 32-bit architectures.
+// CHECK: Inlining JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] passthroughI64 of module {{.*}}
+// CHECK: Considering wasm function [{{[0-9]+}}] passthroughI64 of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('passthroughI64', kSig_l_l, [13n], [kExprLocalGet, 0]);
 // CHECK: Considering wasm function [{{[0-9]+}}] localTee of module {{.*}} for inlining
 // CHECK-NEXT: - inlining
 addTestcase('localTee', kSig_i_i, [42], [
@@ -352,12 +349,53 @@ addTestcase('globalSetGet', kSig_i_i, [42], [
   kExprI32Add,
 ]);
 
+// CHECK: Considering wasm function [{{[0-9]+}}] anyConvertExtern of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('anyConvertExtern', makeSig([kWasmExternRef], [kWasmI32]), [{}], [
+  kExprLocalGet, 0,
+  kGCPrefix, kExprAnyConvertExtern,
+  kExprRefIsNull,
+]);
+
+// CHECK: Considering wasm function [{{[0-9]+}}] anyConvertExternLargeSmi of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+// On 64-bit platforms without pointer compression, Smis are 32-bit.
+// 1073741824 == 2^30 == kInt31MaxValue + 1 exceeds the 31-bit range of Wasm's
+// i31ref, forcing any.convert_extern to allocate a HeapNumber via a builtin
+// call, covering that specific Turboshaft lowering path.
+addTestcase('anyConvertExternLargeSmi', makeSig([kWasmExternRef], [kWasmI32]), [1073741824], [
+  kExprLocalGet, 0,
+  kGCPrefix, kExprAnyConvertExtern,
+  kExprRefIsNull,
+]);
+
+// CHECK: Considering wasm function [{{[0-9]+}}] externConvertAny of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('externConvertAny', makeSig([], [kWasmExternRef]), [], [
+  kExprGlobalGet, globalEqRef.index,
+  kGCPrefix, kExprExternConvertAny,
+]);
+
 // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [{{[0-9]+}}] unreachable of module {{.*}}
 // CHECK-NEXT: Considering wasm function [{{[0-9]+}}] unreachable of module {{.*}} for inlining
 // CHECK-NEXT: - inlining
 addTestcase('unreachable', kSig_v_v, [], [
   kExprUnreachable,
 ]);
+
+// CHECK: Considering wasm function [{{[0-9]+}}] arrayLenParam of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('arrayLenParam', makeSig([kWasmExternRef], [kWasmI32]), [null], [
+  kExprLocalGet, 0,
+  kGCPrefix, kExprAnyConvertExtern,
+  kGCPrefix, kExprRefCastNull, array,
+  kGCPrefix, kExprArrayLen,
+], (wasmExports) => {
+  const array = wasmExports.createArray(42);
+  return function js_arrayLenParam() {
+    wasmExports.arrayLenParam(array);
+  };
+});
 
 const globalArray = builder.addGlobal(wasmRefNullType(array), true, false);
 
@@ -475,6 +513,17 @@ addTestcase('refCastAbstractFail', makeSig([], [kWasmI32]), [], [
   };
 });
 
+// CHECK: Considering wasm function [{{[0-9]+}}] empty of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+// CHECK: Considering wasm function [{{[0-9]+}}] sameModuleMultipleFunctions of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('sameModuleMultipleFunctions', kSig_v_v, [], [], (wasmExports) => {
+  return function js_sameModuleMultipleFunctions() {
+    wasmExports.empty();
+    wasmExports.sameModuleMultipleFunctions();
+  };
+});
+
 
 // =============================================================================
 // Testcases that we (currently) do not inline (the JS-to-Wasm wrapper or body):
@@ -489,23 +538,6 @@ addTestcase('createArray', makeSig([kWasmI32], [kWasmExternRef]), [42], [
   kGCPrefix, kExprArrayNewDefault, array,
   kGCPrefix, kExprExternConvertAny,
 ]);
-// CHECK: Considering wasm function [{{[0-9]+}}] arrayLenParam of module {{.*}} for inlining
-// CHECK-NEXT: - not inlining: unsupported operation: any.convert_extern
-addTestcase('arrayLenParam', makeSig([kWasmExternRef], [kWasmI32]), [null], [
-  kExprLocalGet, 0,
-  kGCPrefix, kExprAnyConvertExtern,
-  kGCPrefix, kExprRefCastNull, array,
-  kGCPrefix, kExprArrayLen,
-], (wasmExports) => {
-  const array = wasmExports.createArray(42);
-  return function js_arrayLenParam() {
-    wasmExports.arrayLenParam(array);
-  };
-});
-
-// TODO(dlehmann,353475584): Support i64 in Wasm signatures when inlining the
-// JS-to-Wasm wrapper on 32-bit architectures.
-// addTestcase('passthroughI64', kSig_l_l, [13n], [kExprLocalGet, 0]);
 
 // TODO(dlehmann,353475584): We don't support i64 ops yet, since that requires
 // `Int64LoweringReducer`, which isn't compatible with the JS pipeline yet.
@@ -583,18 +615,6 @@ addTestcase('trapNoInline', kSig_v_v, [], [
     } catch (e) {
       return e.toString() + e.stack;
     }
-  };
-});
-
-
-// CHECK: Considering wasm function [{{[0-9]+}}] empty of module {{.*}} for inlining
-// CHECK-NEXT: - inlining
-// CHECK: Considering wasm function [{{[0-9]+}}] sameModuleMultipleFunctions of module {{.*}} for inlining
-// CHECK-NEXT: - inlining
-addTestcase('sameModuleMultipleFunctions', kSig_v_v, [], [], (wasmExports) => {
-  return function js_sameModuleMultipleFunctions() {
-    wasmExports.empty();
-    wasmExports.sameModuleMultipleFunctions();
   };
 });
 

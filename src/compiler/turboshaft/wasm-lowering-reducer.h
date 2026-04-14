@@ -160,14 +160,31 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Object> heap_number =
-          is_shared == SharedFlag::kYes
-              ? __ template WasmCallBuiltinThroughJumptable<
-                    deprecated::BuiltinCallDescriptor::
-                        WasmInt32ToSharedHeapNumber>({int_value})
-              : __ template WasmCallBuiltinThroughJumptable<
-                    deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
-                    {int_value});
+      V<Object> heap_number;
+      if (!__ data()->is_wasm()) {
+        // We are in the JS pipeline (i.e. Wasm-in-JS inlining). Wasm nodes
+        // are compiled within the JS compiler, so there is no Wasm jump table.
+        // We use regular builtin calls instead.
+        Isolate* isolate = __ data() -> isolate();
+        DCHECK_NOT_NULL(isolate);
+        heap_number =
+            is_shared == SharedFlag::kYes
+                ? __ template CallBuiltin<deprecated::BuiltinCallDescriptor::
+                                              WasmInt32ToSharedHeapNumber>(
+                      isolate, {int_value})
+                : __ template CallBuiltin<
+                      deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
+                      isolate, {int_value});
+      } else {
+        heap_number =
+            is_shared == SharedFlag::kYes
+                ? __ template WasmCallBuiltinThroughJumptable<
+                      deprecated::BuiltinCallDescriptor::
+                          WasmInt32ToSharedHeapNumber>({int_value})
+                : __ template WasmCallBuiltinThroughJumptable<
+                      deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
+                      {int_value});
+      }
       GOTO(end_label, heap_number);
     }
 

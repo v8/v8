@@ -374,6 +374,10 @@ class WasmInJsInliningInterface {
         // not otherwise used in this switch) as a sentinel for the negation of
         // ref.is_null. See `function-body-decoder-impl.h`
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
+      case wasm::kExprAnyConvertExtern:
+        return __ AnyConvertExtern(arg, input_type.is_shared());
+      case wasm::kExprExternConvertAny:
+        return __ ExternConvertAny(arg);
 
       // We currently don't support operations that:
       // - could trap,
@@ -424,11 +428,6 @@ class WasmInJsInliningInterface {
       case wasm::kExprF32UConvertI64:
       case wasm::kExprF64SConvertI64:
       case wasm::kExprF64UConvertI64:
-
-      // TODO(dlehmann): Fix arm64 no-ptr-compression builds, see relevant
-      // earlier CL https://crrev.com/c/4311941/1..4.
-      case wasm::kExprAnyConvertExtern:
-      case wasm::kExprExternConvertAny:
 
       // asm.js:
       case wasm::kExprF64Acos:
