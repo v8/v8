@@ -2675,6 +2675,8 @@ DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
 DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
+DEFINE_BOOL(compaction_on_regular_gcs, true,
+            "Perform compaction on regular GCs")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
 DEFINE_INT(compaction_max_evacuated_bytes_mb, 4,

@@ -356,6 +356,19 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
     return false;
   }
 
+  // We perform compaction when any of the following conditions are met:
+  // 1) The 'compaction_on_regular_gcs' flag is enabled.
+  // 2) A compaction testing or stress mode is enabled.
+  // 3) We are in a memory reduction garbage collection.
+  // 4) We should optimize for memory usage.
+  if (!v8_flags.compaction_on_regular_gcs &&
+      !v8_flags.compact_on_every_full_gc && !v8_flags.stress_compaction &&
+      !v8_flags.stress_compaction_random &&
+      !v8_flags.manual_evacuation_candidates_selection &&
+      !heap_->ShouldReduceMemory() && !heap_->ShouldOptimizeForMemoryUsage()) {
+    return false;
+  }
+
   // For --no-compact-with-stack we can bail out for atomic GCs with a stack
   // present. For non-atomic GCs the final atomic pause could still be triggered
   // from a task.
