@@ -2805,23 +2805,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
   // If the constant is the undefined value, we can compare it
   // against holey floats.
-  if (maybe_constant->IsUndefined()) {
-    ValueNode* holey_float = nullptr;
-    if (left->is_holey_float64()) {
-      holey_float = left;
-    } else if (right->is_holey_float64()) {
-      holey_float = right;
-    }
-    if (holey_float) {
+  if (maybe_constant->IsUndefined() && other->is_holey_float64()) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-      SetAccumulator(AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>(
-          {holey_float}));
+    SetAccumulator(
+        AddNewNodeNoInputConversion<HoleyFloat64IsUndefinedOrHole>({other}));
 #else
-      SetAccumulator(
-          AddNewNodeNoInputConversion<HoleyFloat64IsHole>({holey_float}));
+    SetAccumulator(AddNewNodeNoInputConversion<HoleyFloat64IsHole>({other}));
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
       return ReduceResult::Done();
-    }
   }
 
   if (left->properties().value_representation() !=
