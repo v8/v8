@@ -2776,6 +2776,14 @@ class AssemblerOpInterface : public Next {
                                          ChangeOrDeoptOp::Kind::kFloat64ToInt64,
                                          minus_zero_mode, feedback));
   }
+  V<Word64> ChangeFloat64ToUint64OrDeopt(V<Float64> input,
+                                         V<turboshaft::FrameState> frame_state,
+                                         CheckForMinusZeroMode minus_zero_mode,
+                                         const FeedbackSource& feedback) {
+    return V<Word64>::Cast(ChangeOrDeopt(
+        input, frame_state, ChangeOrDeoptOp::Kind::kFloat64ToUint64,
+        minus_zero_mode, feedback));
+  }
 
   V<Smi> TagSmi(ConstOrV<Word32> input) {
     constexpr int kSmiShiftBits = kSmiShiftSize + kSmiTagSize;

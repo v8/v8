@@ -328,6 +328,7 @@
   V(CheckedUint64ToTaggedSigned)         \
   V(CheckedFloat64ToInt32)               \
   V(CheckedFloat64ToInt64)               \
+  V(CheckedFloat64ToUint64)              \
   V(CheckedFloat64ToAdditiveSafeInteger) \
   V(CheckedTaggedSignedToInt32)          \
   V(CheckedTaggedToInt32)                \
@@ -336,6 +337,7 @@
   V(CheckedTaggedToFloat64)              \
   V(CheckedTaggedToAdditiveSafeInteger)  \
   V(CheckedTaggedToInt64)                \
+  V(CheckedTaggedToUint64)               \
   V(CheckedTaggedToTaggedSigned)         \
   V(CheckedTaggedToTaggedPointer)
 

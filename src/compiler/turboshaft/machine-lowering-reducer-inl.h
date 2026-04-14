@@ -210,6 +210,27 @@ class MachineLoweringReducer : public Next {
 
         return i64;
       }
+      case ChangeOrDeoptOp::Kind::kFloat64ToUint64: {
+        V<Float64> f64_input = V<Float64>::Cast(input);
+        V<Word64> ui64 = __ TruncateFloat64ToUint64OverflowToMin(f64_input);
+        __ DeoptimizeIfNot(
+            __ Float64Equal(__ ChangeUint64ToFloat64(ui64), f64_input),
+            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
+
+        if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+          // Check if {value} is -0.
+          IF (UNLIKELY(__ Word64Equal(ui64, 0))) {
+            // In case of 0, we need to check the high bits for the IEEE -0
+            // pattern.
+            V<Word32> check_negative =
+                __ Int32LessThan(__ Float64ExtractHighWord32(f64_input), 0);
+            __ DeoptimizeIf(check_negative, frame_state,
+                            DeoptimizeReason::kMinusZero, feedback);
+          }
+        }
+
+        return ui64;
+      }
       case ChangeOrDeoptOp::Kind::kFloat64NotHole: {
         V<Float64> f64_input = V<Float64>::Cast(input);
         // First check whether {value} is a NaN at all...
@@ -1440,6 +1461,32 @@ class MachineLoweringReducer : public Next {
           GOTO(done,
                __ ChangeFloat64ToInt64OrDeopt(heap_number_value, frame_state,
                                               minus_zero_mode, feedback));
+        }
+
+        BIND(done, result);
+        return result;
+      }
+      case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64: {
+        DCHECK_EQ(
+            from_kind,
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber);
+        Label<Word64> done(this);
+
+        IF (LIKELY(__ ObjectIsSmi(object))) {
+          V<Word32> untagged = __ UntagSmi(V<Smi>::Cast(object));
+          __ DeoptimizeIf(__ Int32LessThan(untagged, 0), frame_state,
+                          DeoptimizeReason::kLostPrecision, feedback);
+          GOTO(done, __ ChangeUint32ToUint64(untagged));
+        } ELSE {
+          V<Map> map = __ LoadMapField(object);
+          __ DeoptimizeIfNot(
+              __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+              frame_state, DeoptimizeReason::kNotAHeapNumber, feedback);
+          V<Float64> heap_number_value =
+              __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
+          GOTO(done,
+               __ ChangeFloat64ToUint64OrDeopt(heap_number_value, frame_state,
+                                               minus_zero_mode, feedback));
         }
 
         BIND(done, result);

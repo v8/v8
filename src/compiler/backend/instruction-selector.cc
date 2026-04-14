@@ -2848,6 +2848,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
             case multi(Rep::Float64(), Rep::Word64(), true, A::kNoOverflow):
             case multi(Rep::Float64(), Rep::Word64(), true, A::kNoAssumption):
               return VisitTruncateFloat64ToInt64(node);
+            case multi(Rep::Float64(), Rep::Word64(), false, A::kNoOverflow):
+            case multi(Rep::Float64(), Rep::Word64(), false, A::kNoAssumption):
+              return VisitChangeFloat64ToUint64(node);
             default:
               // Invalid combination.
               UNREACHABLE();

@@ -2616,7 +2616,6 @@ void InstructionSelector::VisitWord64Ror(OpIndex node) {
   V(ChangeFloat64ToInt32, kArm64Float64ToInt32)               \
   V(ChangeFloat64ToInt64, kArm64Float64ToInt64)               \
   V(ChangeFloat64ToUint32, kArm64Float64ToUint32)             \
-  V(ChangeFloat64ToUint64, kArm64Float64ToUint64)             \
   V(RoundInt64ToFloat32, kArm64Int64ToFloat32)                \
   V(RoundInt64ToFloat64, kArm64Int64ToFloat64)                \
   V(RoundUint64ToFloat32, kArm64Uint64ToFloat32)              \
@@ -3097,6 +3096,17 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   }
 
   Emit(kArm64Float64ToUint64, output_count, outputs, 1, inputs);
+}
+
+void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
+  Arm64OperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionCode opcode = kArm64Float64ToUint64;
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {

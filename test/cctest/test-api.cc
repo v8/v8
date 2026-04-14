@@ -29605,10 +29605,6 @@ TEST(FastApiCalls) {
                         Behavior::kNoException, ApiCheckerResult::kSlowCalled,
                         v8_num(static_cast<double>(1ull << 63) * 3 + 4096));
 
-  // Corner cases - uint64_t
-  CallAndCheck<uint64_t>(static_cast<double>(1ull << 63) * 2 - 2048,
-                         Behavior::kNoException, ApiCheckerResult::kSlowCalled,
-                         v8_num(static_cast<double>(1ull << 63) * 2 - 2048));
   // TODO(mslekova): We deopt for unsafe integers, but ultimately we want to
   // stay on the fast path.
   CallAndCheck<uint64_t>(0, Behavior::kNoException,
@@ -29674,6 +29670,9 @@ TEST(FastApiCalls) {
                         v8_num(-0.0));
 
   // Corner cases - uint64_t
+  CallAndCheck<uint64_t>(static_cast<double>(1ull << 63) * 2 - 2048,
+                         Behavior::kNoException, expected_path_for_64bit_test,
+                         v8_num(static_cast<double>(1ull << 63) * 2 - 2048));
   CallAndCheck<uint64_t>(static_cast<uint64_t>(i::Smi::kMaxValue) + 1,
                          Behavior::kNoException, expected_path_for_64bit_test,
                          v8_num(static_cast<uint64_t>(i::Smi::kMaxValue) + 1));
@@ -29682,16 +29681,17 @@ TEST(FastApiCalls) {
                          v8_num(std::numeric_limits<uint64_t>::min()));
   CallAndCheck<uint64_t>(1ll << 62, Behavior::kNoException,
                          expected_path_for_64bit_test, v8_num(1ll << 62));
+  // Negative numbers are outside the range of uint64_t.
   CallAndCheck<uint64_t>(
       std::numeric_limits<uint64_t>::max() - ((1ll << 62) - 1),
-      Behavior::kNoException, expected_path_for_64bit_test,
+      Behavior::kNoException, ApiCheckerResult::kSlowCalled,
       v8_num(-(1ll << 62)));
   CallAndCheck<uint64_t>(i::kMaxSafeIntegerUint64, Behavior::kNoException,
                          expected_path_for_64bit_test,
                          v8_num(i::kMaxSafeInteger));
   CallAndCheck<uint64_t>(
       std::numeric_limits<uint64_t>::max() - (i::kMaxSafeIntegerUint64 - 1),
-      Behavior::kNoException, expected_path_for_64bit_test,
+      Behavior::kNoException, ApiCheckerResult::kSlowCalled,
       v8_num(-i::kMaxSafeInteger));
   CallAndCheck<uint64_t>(0, Behavior::kNoException,
                          expected_path_for_64bit_test, v8_num(-0.0));
@@ -29712,7 +29712,7 @@ TEST(FastApiCalls) {
                         Behavior::kNoException, ApiCheckerResult::kSlowCalled,
                         v8_num(-static_cast<double>(1ll << 63)));
   CallAndCheck<uint64_t>(1ull << 63, Behavior::kNoException,
-                         ApiCheckerResult::kSlowCalled,
+                         expected_path_for_64bit_test,
                          v8_num(static_cast<double>(1ull << 63)));
 
   // Corner cases - float and double

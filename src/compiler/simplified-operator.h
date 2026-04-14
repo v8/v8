@@ -1060,6 +1060,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
       CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedFloat64ToInt64(CheckForMinusZeroMode,
                                         const FeedbackSource& feedback);
+  const Operator* CheckedFloat64ToUint64(CheckForMinusZeroMode,
+                                         const FeedbackSource& feedback);
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Div();
   const Operator* CheckedInt32Mod();
@@ -1087,6 +1089,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
       CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
+  const Operator* CheckedTaggedToUint64(CheckForMinusZeroMode,
+                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckBigInt(const FeedbackSource& feedback);

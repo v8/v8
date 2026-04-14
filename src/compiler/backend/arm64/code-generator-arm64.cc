@@ -2393,15 +2393,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Cset(i.OutputRegister(1), ne);
       }
       break;
-    case kArm64Float64ToUint64:
+    case kArm64Float64ToUint64: {
       __ Fcvtzu(i.OutputRegister64(), i.InputDoubleRegister(0));
       if (i.OutputCount() > 1) {
         // See kArm64Float32ToInt64 for a detailed description.
         __ Fcmp(i.InputDoubleRegister(0), -1.0);
         __ Ccmp(i.OutputRegister(0), -1, ZFlag, gt);
         __ Cset(i.OutputRegister(1), ne);
+        break;
+      }
+      bool set_overflow_to_min_u64 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u64) {
+        // Avoid UINT64_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        // Cmn(x0, 1) will set the carry flag if x0 is UINT64_MAX.
+        // Adc(x0, x0, 0) will then set x0 to 0 if the carry flag is set,
+        // otherwise it will leave x0 unchanged.
+        __ Cmn(i.OutputRegister64(), 1);
+        __ Adc(i.OutputRegister64(), i.OutputRegister64(), Operand(0));
       }
       break;
+    }
     case kArm64Int32ToFloat32:
       __ Scvtf(i.OutputFloat32Register(), i.InputRegister32(0));
       break;

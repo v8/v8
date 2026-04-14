@@ -2145,11 +2145,18 @@ class RepresentationSelector {
       // want to make this less restrictive in order to stay on the fast
       // path.
       case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
         if (repr == CFunctionInfo::Int64Representation::kBigInt) {
           return UseInfo::CheckedBigIntTruncatingWord64(feedback);
         } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
           return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+        } else {
+          UNREACHABLE();
+        }
+      case CTypeInfo::Type::kUint64:
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return UseInfo::CheckedBigIntTruncatingWord64(feedback);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return UseInfo::CheckedUnsigned64AsWord64(kIdentifyZeros, feedback);
         } else {
           UNREACHABLE();
         }

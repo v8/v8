@@ -1180,6 +1180,14 @@ OpIndex GraphBuilder::Process(
                               ChangeOrDeoptOp::Kind::kFloat64ToInt64,
                               params.mode(), params.feedback());
     }
+    case IrOpcode::kCheckedFloat64ToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kFloat64ToUint64,
+                              params.mode(), params.feedback());
+    }
 
     case IrOpcode::kCheckedTaggedToInt32: {
       DCHECK(dominating_frame_state.valid());
@@ -1212,6 +1220,16 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), dominating_frame_state,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
           ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64,
+          params.mode(), params.feedback());
+    }
+    case IrOpcode::kCheckedTaggedToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckMinusZeroParameters& params =
+          CheckMinusZeroParametersOf(node->op());
+      return __ ConvertJSPrimitiveToUntaggedOrDeopt(
+          Map(node->InputAt(0)), dominating_frame_state,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber,
+          ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64,
           params.mode(), params.feedback());
     }
 

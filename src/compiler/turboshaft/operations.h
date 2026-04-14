@@ -2390,6 +2390,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt64,
     kFloat64ToInt32,
     kFloat64ToUint32,
+    kFloat64ToUint64,
     kFloat64ToAdditiveSafeInteger,
     kFloat64ToInt64,
     kFloat64NotHole,
@@ -2411,6 +2412,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
+      case Kind::kFloat64ToUint64:
         return RepVector<RegisterRepresentation::Word64()>();
       case Kind::kFloat64NotHole:
         return RepVector<RegisterRepresentation::Float64()>();
@@ -2431,6 +2433,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64ToUint32:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
+      case Kind::kFloat64ToUint64:
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
     }
@@ -5372,6 +5375,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     kInt32,
     kAdditiveSafeInteger,
     kInt64,
+    kUint64,
     kFloat64,
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
     kHoleyFloat64,
@@ -5401,6 +5405,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
         return RepVector<RegisterRepresentation::Word32()>();
       case UntaggedKind::kAdditiveSafeInteger:
       case UntaggedKind::kInt64:
+      case UntaggedKind::kUint64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE

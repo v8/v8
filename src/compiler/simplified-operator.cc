@@ -765,9 +765,11 @@ bool operator==(CheckTaggedInputParameters const& lhs,
 
 const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kCheckedTaggedToInt32 ||
+         op->opcode() == IrOpcode::kCheckedTaggedToUint64 ||
          op->opcode() == IrOpcode::kCheckedTaggedToAdditiveSafeInteger ||
          op->opcode() == IrOpcode::kCheckedTaggedToInt64 ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt32 ||
+         op->opcode() == IrOpcode::kCheckedFloat64ToUint64 ||
          op->opcode() == IrOpcode::kCheckedFloat64ToAdditiveSafeInteger ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt64);
   return OpParameter<CheckMinusZeroParameters>(op);
@@ -1223,6 +1225,21 @@ struct SimplifiedOperatorGlobalCache final {
       kCheckedFloat64ToInt64DontCheckForMinusZeroOperator;
 
   template <CheckForMinusZeroMode kMode>
+  struct CheckedFloat64ToUint64Operator final
+      : public Operator1<CheckMinusZeroParameters> {
+    CheckedFloat64ToUint64Operator()
+        : Operator1<CheckMinusZeroParameters>(
+              IrOpcode::kCheckedFloat64ToUint64,
+              Operator::kFoldable | Operator::kNoThrow,
+              "CheckedFloat64ToUint64", 1, 1, 1, 1, 1, 0,
+              CheckMinusZeroParameters(kMode, FeedbackSource())) {}
+  };
+  CheckedFloat64ToUint64Operator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedFloat64ToUint64CheckForMinusZeroOperator;
+  CheckedFloat64ToUint64Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedFloat64ToUint64DontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
   struct CheckedTaggedToInt32Operator final
       : public Operator1<CheckMinusZeroParameters> {
     CheckedTaggedToInt32Operator()
@@ -1268,6 +1285,21 @@ struct SimplifiedOperatorGlobalCache final {
       kCheckedTaggedToInt64CheckForMinusZeroOperator;
   CheckedTaggedToInt64Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
       kCheckedTaggedToInt64DontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
+  struct CheckedTaggedToUint64Operator final
+      : public Operator1<CheckMinusZeroParameters> {
+    CheckedTaggedToUint64Operator()
+        : Operator1<CheckMinusZeroParameters>(
+              IrOpcode::kCheckedTaggedToUint64,
+              Operator::kFoldable | Operator::kNoThrow, "CheckedTaggedToUint64",
+              1, 1, 1, 1, 1, 0,
+              CheckMinusZeroParameters(kMode, FeedbackSource())) {}
+  };
+  CheckedTaggedToUint64Operator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedTaggedToUint64CheckForMinusZeroOperator;
+  CheckedTaggedToUint64Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedTaggedToUint64DontCheckForMinusZeroOperator;
 
   template <CheckTaggedInputMode kMode>
   struct CheckedTaggedToFloat64Operator final
@@ -1929,6 +1961,22 @@ const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToInt64(
       1, 1, 1, 0, CheckMinusZeroParameters(mode, feedback));
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToUint64(
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckForMinusZeroMode::kCheckForMinusZero:
+        return &cache_.kCheckedFloat64ToUint64CheckForMinusZeroOperator;
+      case CheckForMinusZeroMode::kDontCheckForMinusZero:
+        return &cache_.kCheckedFloat64ToUint64DontCheckForMinusZeroOperator;
+    }
+  }
+  return zone()->New<Operator1<CheckMinusZeroParameters>>(
+      IrOpcode::kCheckedFloat64ToUint64,
+      Operator::kFoldable | Operator::kNoThrow, "CheckedFloat64ToUint64", 1, 1,
+      1, 1, 1, 0, CheckMinusZeroParameters(mode, feedback));
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt32(
     CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1976,6 +2024,22 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt64(
       IrOpcode::kCheckedTaggedToInt64, Operator::kFoldable | Operator::kNoThrow,
       "CheckedTaggedToInt64", 1, 1, 1, 1, 1, 0,
       CheckMinusZeroParameters(mode, feedback));
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckedTaggedToUint64(
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckForMinusZeroMode::kCheckForMinusZero:
+        return &cache_.kCheckedTaggedToUint64CheckForMinusZeroOperator;
+      case CheckForMinusZeroMode::kDontCheckForMinusZero:
+        return &cache_.kCheckedTaggedToUint64DontCheckForMinusZeroOperator;
+    }
+  }
+  return zone()->New<Operator1<CheckMinusZeroParameters>>(
+      IrOpcode::kCheckedTaggedToUint64,
+      Operator::kFoldable | Operator::kNoThrow, "CheckedTaggedToUint64", 1, 1,
+      1, 1, 1, 0, CheckMinusZeroParameters(mode, feedback));
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
