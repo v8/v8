@@ -1154,6 +1154,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(was_added);
   var->AllocateTo(location, index);
   var->set_initializer_position(lookup_result.initializer_position);
+
   return var;
 }
 
@@ -2278,6 +2279,12 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
     }
 
     if (scope->outer_scope_ == outer_scope_end) break;
+    if (scope->is_hoisted_in_context()) {
+      *access_position = scope->outer_scope()->start_position();
+    } else if (scope->is_eval_scope()) {
+      *access_position = scope->AsDeclarationScope()->eval_position();
+    }
+
     if (V8_UNLIKELY(scope->is_dynamic_scope())) {
       DCHECK(!scope->is_script_scope());
       if (scope->is_declaration_scope() &&
@@ -2292,12 +2299,6 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
       CHECK_EQ(mode, kDeserializedScope);
       CHECK(scope->is_debug_evaluate_scope());
       return cache_scope->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
-    }
-
-    if (scope->is_hoisted_in_context()) {
-      *access_position = scope->outer_scope()->start_position();
-    } else if (scope->is_eval_scope()) {
-      *access_position = scope->AsDeclarationScope()->eval_position();
     }
     force_context_allocation |= scope->is_function_scope();
     scope = scope->outer_scope_;
