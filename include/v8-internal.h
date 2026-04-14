@@ -229,6 +229,12 @@ constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 // 16 GB so that the base address + size for the emulated virtual address space
 // lies within the 64 GB total virtual address space.
 constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
+#elif defined(V8_HOST_ARCH_RISCV64)
+// Most RISC-V hardware currently uses Sv39 (39-bit VA, 256GB userspace).
+// Limit the sandbox to 128GB (a quarter of Sv39 userspace) to avoid exceeding
+// the available virtual address space. Uses V8_HOST_ARCH so that simulator
+// builds on x64 are not unnecessarily constrained.
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB

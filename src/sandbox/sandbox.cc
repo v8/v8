@@ -93,6 +93,25 @@ static Address DetermineAddressSpaceLimit() {
   // results in `hardware_virtual_address_bits` being at least the minimum (36)
   // otherwise we will override it with the default value (48) incorrectly.
   hardware_virtual_address_bits = 37;
+#elif defined(V8_HOST_ARCH_RISCV64)
+  // RISC-V supports multiple virtual addressing modes (Sv39, Sv48, Sv57).
+  // Detect the active mode at runtime via /proc/cpuinfo to avoid assuming
+  // 48-bit VA on Sv39 hardware, where userspace only has 256GB.
+  // Uses V8_HOST_ARCH since /proc/cpuinfo reflects the host CPU.
+  {
+    base::CPU cpu;
+    switch (cpu.riscv_mmu()) {
+      case base::CPU::RV_MMU_MODE::kRiscvSV39:
+        hardware_virtual_address_bits = 39;
+        break;
+      case base::CPU::RV_MMU_MODE::kRiscvSV48:
+        hardware_virtual_address_bits = 48;
+        break;
+      case base::CPU::RV_MMU_MODE::kRiscvSV57:
+        hardware_virtual_address_bits = 57;
+        break;
+    }
+  }
 #endif
 
   // Assume virtual address space is split 50/50 between userspace and kernel.
