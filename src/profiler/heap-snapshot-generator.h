@@ -342,13 +342,16 @@ class HeapObjectsMap {
 
   Heap* heap() const { return heap_; }
 
-  SnapshotObjectId FindEntry(Address addr);
+  V8_EXPORT_PRIVATE SnapshotObjectId FindEntry(Address addr);
   SnapshotObjectId FindOrAddEntry(
       Address addr, unsigned int size,
       MarkEntryAccessed accessed = MarkEntryAccessed::kYes,
       IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
+  V8_EXPORT_PRIVATE bool ContainsEntryWithIdForTesting(
+      SnapshotObjectId id) const;
+
   bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
@@ -377,6 +380,10 @@ class HeapObjectsMap {
 
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
+#ifdef DEBUG
+  // Verifies that no entries have their accessed flag set.
+  void CheckEntriesNotAccessed();
+#endif
 
  private:
   struct EntryInfo {
