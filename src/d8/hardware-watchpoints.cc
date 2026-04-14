@@ -616,20 +616,25 @@ void SetHardwareWatchpointCallback(
         i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
   }
 
-  // Keep the object alive, using the original `info[0]` Local handle.
-  g_support.kept_alive.emplace_back(isolate, info[0]);
-
   i::Address watch_addr = object->address() + offset;
-  uint32_t current_content = *reinterpret_cast<uint32_t*>(watch_addr);
 
   int watchpoint_idx = 0;
-  while (g_support.shared->watchpoints[watchpoint_idx].address) {
+  while (uintptr_t address =
+             g_support.shared->watchpoints[watchpoint_idx].address) {
+    if (address == watch_addr) {
+      TRACE("[d8] Ignoring duplicate watchpoint for addr 0x%lx\n", watch_addr);
+      return;
+    }
     if (++watchpoint_idx == kNumWatchpoints) {
       FATAL("Maximum number of watchpoints (%d) exceeded", kNumWatchpoints);
     }
   }
   g_support.shared->watchpoints[watchpoint_idx].address = watch_addr;
 
+  // Keep the object alive, using the original `info[0]` Local handle.
+  g_support.kept_alive.emplace_back(isolate, info[0]);
+
+  uint32_t current_content = *reinterpret_cast<uint32_t*>(watch_addr);
   TRACE(
       "[d8] sending watch request (#%d/%d) for addr 0x%lx (current content: "
       "%u/0x%x)\n",
