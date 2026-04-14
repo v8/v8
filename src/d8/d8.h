@@ -536,6 +536,7 @@ class ShellOptions {
   DisallowReassignment<bool> flush_denormals = {"flush-denormals", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
+  DisallowReassignment<bool> bundle = {"bundle", false};
 };
 
 class Shell : public i::AllStatic {
