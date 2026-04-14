@@ -197,8 +197,6 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(
              filename.c_str());
     }
   });
-
-  ids_->RemoveDeadEntries();
 }
 
 // static

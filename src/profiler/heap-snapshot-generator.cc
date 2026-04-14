@@ -643,15 +643,6 @@ HeapObjectsMap::HeapObjectsMap(Heap* heap)
   entries_.emplace_back(0, kNullAddress, 0, true);
 }
 
-bool HeapObjectsMap::ContainsEntryWithIdForTesting(SnapshotObjectId id) const {
-  for (auto& entry : entries_) {
-    if (entry.id == id) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
   DCHECK_NE(kNullAddress, to);
   DCHECK_NE(kNullAddress, from);
@@ -899,20 +890,6 @@ void HeapObjectsMap::RemoveDeadEntries() {
   DCHECK(static_cast<uint32_t>(entries_.size()) - 1 ==
          entries_map_.occupancy());
 }
-
-#ifdef DEBUG
-void HeapObjectsMap::CheckEntriesNotAccessed() {
-  // First entry is dummy.
-  DCHECK_EQ(entries_[0].id, 0);
-  DCHECK_EQ(entries_[0].size, 0);
-  DCHECK_EQ(entries_[0].addr, kNullAddress);
-  DCHECK(entries_[0].accessed);
-
-  for (size_t i = 1; i < entries_.size(); ++i) {
-    DCHECK(!entries_.at(i).accessed);
-  }
-}
-#endif
 
 V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
                                SnapshottingProgressReportingInterface* progress,
@@ -3579,10 +3556,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   Isolate* isolate = heap_->isolate();
   SafepointScope scope(isolate, kGlobalSafepointForSharedSpaceIsolate);
 
-#ifdef DEBUG
-  heap_object_map_->CheckEntriesNotAccessed();
-#endif
-
   auto temporary_native_context_tags =
       v8_heap_explorer_.CollectTemporaryNativeContextTags();
 
@@ -3626,11 +3599,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   // Same as above, but no allocations, no GC run, and no progress report.
   SafepointScope scope(heap_->isolate(), kGlobalSafepointForSharedSpaceIsolate);
-
-#ifdef DEBUG
-  heap_object_map_->CheckEntriesNotAccessed();
-#endif
-
   // There is short gap between leaving the GC's safepoint and entering the
   // snapshot's safepoint above. It is necessary to not only complete sweeping,
   // but also ensure that linear allocation areas are iterable.
