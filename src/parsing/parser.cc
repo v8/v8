@@ -920,6 +920,15 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
               RuntimeCallStats::kThreadSpecific);
+    DeclarationScope* scope = literal->scope()->AsDeclarationScope();
+    // Top-level variables in a script can be accessed by other scripts.
+    if (scope->is_script_scope()) {
+      for (Variable* var : *scope->locals()) {
+        var->set_is_used();
+        var->SetMaybeAssigned();
+      }
+    }
+
     bool has_stack_overflow = false;
     if (!Rewriter::Rewrite(info, &has_stack_overflow) ||
         !DeclarationScope::Analyze(info)) {

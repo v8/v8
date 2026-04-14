@@ -2230,11 +2230,12 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   SourceTextModuleDescriptor* descriptor =
       closure_scope()->AsModuleScope()->module();
   for (auto entry : descriptor->namespace_imports()) {
+    Variable* var = closure_scope()->LookupInModule(entry.first);
+    if (!var->is_used()) continue;
     builder()
         ->LoadLiteral(Smi::FromInt(entry.second->module_request))
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
-    Variable* var = closure_scope()->LookupInModule(entry.first);
     BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kElided);
   }
 }

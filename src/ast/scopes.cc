@@ -1216,18 +1216,6 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   Variable* var =
       Declare(zone(), name, mode, kind, init_flag, kNotAssigned, was_added);
 
-  // Pessimistically assume that top-level variables will be assigned and used.
-  //
-  // Top-level variables in a script can be accessed by other scripts or even
-  // become global properties. While this does not apply to top-level variables
-  // in a module (assuming they are not exported), we must still mark these as
-  // assigned because they might be accessed by a lazily parsed top-level
-  // function, which, for efficiency, we preparse without variable tracking.
-  if (is_script_scope() || is_module_scope()) {
-    if (mode != VariableMode::kConst) var->SetMaybeAssigned();
-    var->set_is_used();
-  }
-
   return var;
 }
 
@@ -1362,6 +1350,7 @@ Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
   Variable* result = Declare(zone(), name, VariableMode::kVar, NORMAL_VARIABLE,
                              kCreatedInitialized, kNotAssigned, &was_added);
   DCHECK(was_added);
+  result->set_is_used();
   return result;
 }
 
@@ -2610,10 +2599,9 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   // TODO(dcarney): hoist this check out of MustAllocate since it's mutating
   // state and confusing.
-  if (!var->raw_name()->IsEmpty() &&
-      (inner_scope_calls_eval() || is_catch_scope() || is_script_scope())) {
+  if (!var->raw_name()->IsEmpty() && inner_scope_calls_eval()) {
     var->set_is_used();
-    if (inner_scope_calls_eval() && !var->is_this()) var->SetMaybeAssigned();
+    if (!var->is_this()) var->SetMaybeAssigned();
   }
   CHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
