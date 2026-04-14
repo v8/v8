@@ -1104,16 +1104,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   Label push_stack_frame;
   Register feedback_vector = r2;
-  Register feedback_cell = r4;
-
-  __ LoadFeedbackCell(feedback_cell, closure);
-
-  Label budget_interrupt;
-  Label after_budget_check;
-
-  __ mov(r8, feedback_cell);
-  __ LoadFeedbackVectorFromCell(feedback_vector, feedback_cell, r9,
-                                &push_stack_frame);
+  __ LoadFeedbackVector(feedback_vector, closure, r4, &push_stack_frame);
 
 #ifndef V8_JITLESS
 
@@ -1183,15 +1174,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ cmp(r9, Operand::Zero());
   __ str(r3, MemOperand(fp, r9, LSL, kPointerSizeLog2), ne);
 
-  // Reduce interrupt budget.
-  __ ldr(r4, FieldMemOperand(r8, offsetof(FeedbackCell, interrupt_budget_)));
-  __ SmiUntagField(r9, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                       BytecodeArray::kLengthOffset));
-  __ sub(r4, r4, r9, SetCC);
-  __ str(r4, FieldMemOperand(r8, offsetof(FeedbackCell, interrupt_budget_)));
-  __ b(lt, &budget_interrupt);
-  __ bind(&after_budget_check);
-
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
@@ -1252,21 +1234,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The return value is in r0.
   LeaveInterpreterFrame(masm, r2, r4);
   __ Jump(lr);
-
-  __ bind(&budget_interrupt);
-  __ ldr(r0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ Push(r0);
-  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
-
-  // After the call, restore the bytecode array, bytecode offset and accumulator
-  // registers again.
-  __ ldr(kInterpreterBytecodeArrayRegister,
-         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(kInterpreterBytecodeOffsetRegister,
-         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-
-  __ b(&after_budget_check);
 
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset

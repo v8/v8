@@ -2361,16 +2361,13 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
   ldr(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
-  ldr(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-}
-
-void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
-                                                Register feedback_cell,
-                                                Register scratch,
-                                                Label* fbv_undef) {
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
   Label done;
-  ldr(dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
+
+  // Load the feedback vector from the closure.
+  ldr(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  ldr(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   ldr(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
@@ -2383,12 +2380,6 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
   b(fbv_undef);
 
   bind(&done);
-}
-
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef) {
-  LoadFeedbackCell(dst, closure);
-  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef);
 }
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(

@@ -1311,16 +1311,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   Label push_stack_frame;
   Register feedback_vector = x2;
-  Register feedback_cell = x6;
-
-  __ LoadFeedbackCell(feedback_cell, closure);
-
-  Label budget_interrupt;
-  Label after_budget_check;
-
-  __ Mov(x21, feedback_cell);
-  __ LoadFeedbackVectorFromCell(feedback_vector, feedback_cell, x7,
-                                &push_stack_frame);
+  __ LoadFeedbackVector(feedback_vector, closure, x7, &push_stack_frame);
 
 #ifndef V8_JITLESS
 
@@ -1404,15 +1395,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Str(x3, MemOperand(fp, x10, LSL, kSystemPointerSizeLog2));
   __ Bind(&no_incoming_new_target_or_generator_register);
 
-  // Reduce interrupt budget.
-  __ Ldr(w11, FieldMemOperand(x21, offsetof(FeedbackCell, interrupt_budget_)));
-  __ SmiUntagField(x12, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                        BytecodeArray::kLengthOffset));
-  __ Subs(w11, w11, w12);
-  __ Str(w11, FieldMemOperand(x21, offsetof(FeedbackCell, interrupt_budget_)));
-  __ B(lt, &budget_interrupt);
-  __ bind(&after_budget_check);
-
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
@@ -1474,21 +1456,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The return value is in x0.
   LeaveInterpreterFrame(masm, x2, x5);
   __ Ret();
-
-  __ bind(&budget_interrupt);
-  __ Ldr(x0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ PushArgument(x0);
-  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
-
-  // After the call, restore the bytecode array, bytecode offset and accumulator
-  // registers again.
-  __ Ldr(kInterpreterBytecodeArrayRegister,
-         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ Mov(kInterpreterBytecodeOffsetRegister,
-         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-
-  __ B(&after_budget_check);
 
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
