@@ -2424,6 +2424,10 @@ FrameSummaries StubFrame::Summarize(bool never_allocate) const {
 }
 
 void JavaScriptFrame::SetParameterValue(int index, Tagged<Object> value) const {
+  CHECK_LE(-1, index);
+  CHECK(index == -1 ||
+        static_cast<uint32_t>(index) <
+            std::max(GetActualArgumentCount(), ComputeParametersCount()));
   Memory<Address>(GetParameterSlot(index)) = value.ptr();
 }
 

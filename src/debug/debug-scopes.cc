@@ -1106,9 +1106,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             DCHECK(!generator_.is_null());
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_GE(index, 0);
-            DCHECK_LT(static_cast<uint32_t>(index),
-                      parameters_and_registers->ulength().value());
+            CHECK_GE(index, 0);
+            CHECK_LT(static_cast<uint32_t>(index),
+                     parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             JavaScriptFrame* frame = GetFrame();
@@ -1128,9 +1128,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             index += parameter_count;
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_GE(index, 0);
-            DCHECK_LT(static_cast<uint32_t>(index),
-                      parameters_and_registers->ulength().value());
+            CHECK_GE(index, 0);
+            CHECK_LT(static_cast<uint32_t>(index),
+                     parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             // Set the variable on the stack.
