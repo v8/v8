@@ -3520,12 +3520,6 @@ class LiftoffCompiler {
     __ jmp(target->label.get());
   }
 
-  bool NeedsTierupCheck(FullDecoder* decoder, uint32_t br_depth) {
-    if (!dynamic_tiering()) return false;
-    return br_depth == decoder->control_depth() - 1 ||
-           decoder->control_at(br_depth)->is_loop();
-  }
-
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
       ReturnImpl(decoder);
