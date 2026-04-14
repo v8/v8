@@ -376,6 +376,27 @@ Compiler::CompilationResult Compiler::Assemble(
   DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   work_list_ = nullptr;
 
+#ifdef V8_TARGET_LITTLE_ENDIAN
+  // Generate a bitmask of valid characters for fast rejection.
+  // Skip for multiline regexps as match attempts are less likely to be
+  // rejected early based on the first few characters.
+  constexpr bool kPossiblyAtStart = false;
+  constexpr int kMinChars = 1;
+  constexpr int kMaxChars = 4;
+  int eats_at_least = start->EatsAtLeast(kPossiblyAtStart);
+  if (one_byte_ && eats_at_least >= kMinChars && !IsMultiline(flags_)) {
+    int chars = std::min(eats_at_least, kMaxChars);
+    QuickCheckDetails quick_check(chars);
+    start->GetQuickCheckDetails(&quick_check, this, 0, kPossiblyAtStart,
+                                Node::kRecursionBudget);
+
+    if (!quick_check.cannot_match()) {
+      quick_check.Rationalize(one_byte_);
+      re_data->set_quick_check_mask(quick_check.mask());
+      re_data->set_quick_check_value(quick_check.value());
+    }
+  }
+#endif
   return {code, next_register_};
 }
 

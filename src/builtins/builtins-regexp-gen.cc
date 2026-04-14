@@ -703,6 +703,35 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     BIND(&next);
   }
 
+  // Fast-reject via (chars & mask) == value, using up to a 4-character
+  // mask precomputed during RegExp compilation.
+  {
+    Label proceed(this);
+
+    GotoIfNot(to_direct.IsOneByte(), &proceed);
+
+    TNode<Uint32T> mask =
+        LoadObjectField<Uint32T>(data, offsetof(RegExpData, quick_check_mask_));
+    GotoIf(Word32Equal(mask, Int32Constant(0)), &proceed);
+
+    TNode<IntPtrT> remaining = IntPtrSub(int_string_length, int_last_index);
+    GotoIf(IntPtrLessThan(remaining, IntPtrConstant(kUInt32Size / kCharSize)),
+           &proceed);
+
+    TNode<Uint32T> expected = LoadObjectField<Uint32T>(
+        data, offsetof(RegExpData, quick_check_value_));
+
+    TNode<IntPtrT> actual_index = IntPtrAdd(int_last_index, to_direct.offset());
+    TNode<RawPtrT> string_data = to_direct.PointerToData(&proceed);
+
+    TNode<Uint32T> loaded_word = Load<Uint32T>(string_data, actual_index);
+
+    TNode<Word32T> masked_chars = Word32And(loaded_word, mask);
+    Branch(Word32Equal(masked_chars, expected), &proceed, &out);
+
+    BIND(&proceed);
+  }
+
   // Check (number_of_captures + 1) * 2 <= offsets vector size.
   CSA_DCHECK(
       this, SmiLessThanOrEqual(RegistersForCaptureCount(LoadCaptureCount(data)),

@@ -21,6 +21,8 @@ extern class RegExpData extends ExposedTrustedObject {
   escaped_source: String;
   flags: Smi;
   wrapper: RegExpDataWrapper;
+  quick_check_mask: uint32;
+  quick_check_value: uint32;
 }
 
 @cppObjectLayoutDefinition

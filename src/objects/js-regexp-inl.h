@@ -91,6 +91,16 @@ void RegExpData::set_wrapper(Tagged<RegExpDataWrapper> value,
   wrapper_.store(this, value, mode);
 }
 
+uint32_t RegExpData::quick_check_mask() const { return quick_check_mask_; }
+void RegExpData::set_quick_check_mask(uint32_t value) {
+  quick_check_mask_ = value;
+}
+
+uint32_t RegExpData::quick_check_value() const { return quick_check_value_; }
+void RegExpData::set_quick_check_value(uint32_t value) {
+  quick_check_value_ = value;
+}
+
 int RegExpData::capture_count() const {
   switch (type_tag()) {
     case Type::ATOM:

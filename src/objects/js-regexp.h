@@ -179,6 +179,12 @@ V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
   inline void set_wrapper(Tagged<RegExpDataWrapper> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  inline uint32_t quick_check_mask() const;
+  inline void set_quick_check_mask(uint32_t value);
+
+  inline uint32_t quick_check_value() const;
+  inline void set_quick_check_value(uint32_t value);
+
   inline int capture_count() const;
 
   static constexpr bool TypeSupportsCaptures(Type t) {
@@ -197,6 +203,8 @@ V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
   TaggedMember<String> escaped_source_;
   TaggedMember<Smi> flags_;
   TaggedMember<RegExpDataWrapper> wrapper_;
+  uint32_t quick_check_mask_;
+  uint32_t quick_check_value_;
 } V8_OBJECT_END;
 
 V8_OBJECT class RegExpDataWrapper : public StructLayout {
