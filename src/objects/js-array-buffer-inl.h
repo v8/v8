@@ -231,6 +231,17 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
                     JSArrayBuffer::IsImmutableBit)
 
+bool JSArrayBuffer::was_detached(AcquireLoadTag) const {
+  uint32_t bits = ACQUIRE_READ_UINT32_FIELD(*this, kBitFieldOffset);
+  return WasDetachedBit::decode(bits);
+}
+
+void JSArrayBuffer::set_was_detached(bool value, ReleaseStoreTag) {
+  uint32_t bits = bit_field();
+  bits = WasDetachedBit::update(bits, value);
+  RELEASE_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
+}
+
 bool JSArrayBuffer::IsEmpty() const {
   auto backing_store = GetBackingStore();
   bool is_empty = !backing_store || backing_store->IsEmpty();

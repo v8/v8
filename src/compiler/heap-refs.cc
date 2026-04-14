@@ -434,7 +434,14 @@ class JSTypedArrayData : public JSObjectData {
   JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
                    InstanceType instance_type,
                    IndirectHandle<JSTypedArray> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, instance_type, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {
+    byte_length_ = object->byte_length();
+  }
+
+  size_t byte_length() const { return byte_length_; }
+
+ private:
+  size_t byte_length_;
 };
 
 class JSDataViewData : public JSObjectData {
@@ -1964,13 +1971,14 @@ size_t JSTypedArrayRef::length(JSHeapBroker* broker) const {
   if (map(broker).instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE) {
     return 0;
   }
-  return object()->byte_length() /
-         ElementsKindToByteSize(elements_kind(broker));
+  return byte_length() / ElementsKindToByteSize(elements_kind(broker));
 }
 
 size_t JSTypedArrayRef::byte_length() const {
-  // Immutable after initialization (since this is not used for RAB/GSAB).
-  return object()->byte_length();
+  if (object()->buffer()->was_detached(kAcquireLoad)) {
+    return 0;
+  }
+  return data()->AsJSTypedArray()->byte_length();
 }
 
 ElementsKind JSTypedArrayRef::elements_kind(JSHeapBroker* broker) const {

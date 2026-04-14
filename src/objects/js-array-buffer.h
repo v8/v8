@@ -74,6 +74,8 @@ class JSArrayBuffer
 
   // [was_detached]: true => the buffer was previously detached.
   DECL_BOOLEAN_ACCESSORS(was_detached)
+  inline bool was_detached(AcquireLoadTag) const;
+  inline void set_was_detached(bool value, ReleaseStoreTag);
 
   // [is_shared]: true if this is a SharedArrayBuffer or a
   // GrowableSharedArrayBuffer.

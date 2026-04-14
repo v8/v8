@@ -226,7 +226,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
-  array_buffer->set_was_detached(true);
+  array_buffer->set_was_detached(true, kReleaseStore);
 
   if (Protectors::IsArrayBufferDetachingIntact(isolate) &&
       !TryDetachViews(array_buffer, isolate)) {
