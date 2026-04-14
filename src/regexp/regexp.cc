@@ -1906,7 +1906,15 @@ void RegExp::TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
       engine_type = "EXPERIMENTAL";
       break;
     case RegExpData::Type::IRREGEXP: {
-      bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject);
+      // TraceExecutionEnd may be reached on the early-out path in the
+      // RegExpExecInternal builtin (when lastIndex > subject.length) before
+      // the subject has been flattened. IsOneByteRepresentationUnderneath
+      // requires a flat string, so for non-flat subjects we fall back to
+      // IsOneByteRepresentation on the top-level string — this matches the
+      // encoding that would be chosen by SlowFlatten.
+      bool is_one_byte =
+          subject->IsFlat() ? String::IsOneByteRepresentationUnderneath(subject)
+                            : subject->IsOneByteRepresentation();
       engine_type = SbxCast<IrRegExpData>(data)->has_bytecode(is_one_byte)
                         ? "BYTECODE"
                         : "IRREGEXP";
