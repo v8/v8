@@ -317,11 +317,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static RegList DefaultTmpList();
   static VfpRegList DefaultFPTmpList();
 
-  void AbortedCodeGeneration() override {
-    pending_32_bit_constants_.clear();
-    first_const_pool_32_use_ = -1;
-    constant_pool_deadline_ = kMaxInt;
-  }
+  void AbortedCodeGeneration() override { ClearInternalState(); }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
@@ -1082,7 +1078,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Clear any internal state to avoid check failures if we drop
   // the assembly code.
-  void ClearInternalState() { pending_32_bit_constants_.clear(); }
+  void ClearInternalState() {
+    pending_32_bit_constants_.clear();
+    first_const_pool_32_use_ = -1;
+    constant_pool_deadline_ = kMaxInt;
+  }
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
