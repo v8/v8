@@ -46,6 +46,7 @@
 ['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-in-js-inlining-turboshaft': [FAIL],
+  'wasm-in-js-inlining-turboshaft-stacktrace-api': [FAIL],
 }],
 
 # There are two sources of output differences between 32 and 64 bit platforms:
@@ -54,6 +55,7 @@
 # which is not supported on 32 bit platforms.
 ['arch in (ia32, arm, riscv32)', {
   'wasm-in-js-inlining-turboshaft': [SKIP],
+  'wasm-in-js-inlining-turboshaft-stacktrace-api': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
 }],
 ]
