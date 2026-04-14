@@ -826,6 +826,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                         UnresolvedList* new_unresolved_list,
                         bool maybe_in_arrowhead);
 
+  // Mark a variable as used and maybe-assigned if it might be dynamically
+  // accessed by name (e.g. via eval(), in a catch scope, or script scope).
+  void MarkMaybeAssignedIfEval(Variable* var);
+
   // Predicates.
   bool MustAllocate(Variable* var);
   bool MustAllocateInContext(Variable* var);
