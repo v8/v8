@@ -18664,19 +18664,21 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
 
 TNode<Uint8T> CodeStubAssembler::ElementsKindToElementByteShift(
     TNode<Int32T> elements_kind) {
-  Label invalid_kind(this, Label::kDeferred), end(this);
+  CSA_DCHECK(this, IsElementsKindInRange(
+                       elements_kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+                       LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
   TNode<Uint32T> index = Unsigned(Int32Sub(
       elements_kind, Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
-  Branch(
-      Uint32GreaterThan(
-          index, Uint32Constant(LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)),
-      &invalid_kind, &end);
 
-  BIND(&invalid_kind);
-  Unreachable();
+#ifdef V8_ENABLE_SANDBOX
+  // Make sure we don't read out of bounds in case the elements_kind value is
+  // not trusted.
+  constexpr size_t table_size =
+      TypedArrayAndRabGsabTypedArrayElementsKindTableSize();
+  static_assert(base::bits::IsPowerOfTwo(table_size));
+  index = Word32And(index, Uint32Constant(table_size - 1));
+#endif  // V8_ENABLE_SANDBOX
 
-  BIND(&end);
   TNode<RawPtrT> shift_table = UncheckedCast<RawPtrT>(ExternalConstant(
       ExternalReference::
           typed_array_and_rab_gsab_typed_array_elements_kind_shifts()));

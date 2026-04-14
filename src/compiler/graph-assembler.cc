@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/bits.h"
 #include "src/base/container-utils.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
@@ -1021,6 +1022,15 @@ TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
     TNode<Uint32T> elements_kind) {
   TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
+#ifdef V8_ENABLE_SANDBOX
+  // Make sure we don't read out of bounds in case the elements_kind value is
+  // not trusted.
+  constexpr size_t table_size =
+      TypedArrayAndRabGsabTypedArrayElementsKindTableSize();
+  static_assert(base::bits::IsPowerOfTwo(table_size));
+  index = TNode<UintPtrT>::UncheckedCast(
+      WordAnd(index, UintPtrConstant(table_size - 1)));
+#endif  // V8_ENABLE_SANDBOX
   TNode<RawPtrT> shift_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
           typed_array_and_rab_gsab_typed_array_elements_kind_shifts()));
@@ -1032,6 +1042,15 @@ TNode<Uint32T> JSGraphAssembler::LookupByteSizeForElementsKind(
     TNode<Uint32T> elements_kind) {
   TNode<UintPtrT> index = ChangeUint32ToUintPtr(Int32Sub(
       elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
+#ifdef V8_ENABLE_SANDBOX
+  // Make sure we don't read out of bounds in case the elements_kind value is
+  // not trusted.
+  constexpr size_t table_size =
+      TypedArrayAndRabGsabTypedArrayElementsKindTableSize();
+  static_assert(base::bits::IsPowerOfTwo(table_size));
+  index = TNode<UintPtrT>::UncheckedCast(
+      WordAnd(index, UintPtrConstant(table_size - 1)));
+#endif  // V8_ENABLE_SANDBOX
   TNode<RawPtrT> size_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
       ExternalReference::
           typed_array_and_rab_gsab_typed_array_elements_kind_sizes()));
