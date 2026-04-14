@@ -424,7 +424,7 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
   }
   HandleScope scope(isolate);
   if (args.length() != 1 || !IsWasmInstanceObject(args[0])) {
-    // TODO(manoskouk): What is a more elegant way to report an error here?
+    PrintF("Pass a Wasm instance as the first and only argument!\n");
     return CrashUnlessFuzzing(isolate);
   }
 
@@ -451,7 +451,12 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmCode* code = native_module->GetCode(i);
       if (code) {
-        DCHECK(code->is_liftoff());
+        if (!code->is_liftoff()) {
+          PrintF(
+              "You're holding it wrong! Don't call "
+              "%%GenerateWasmCompilationHints after triggering tier-up!\n");
+          return CrashUnlessFuzzing(isolate);
+        }
         if (module->marked_for_tierup.contains(i)) {
           PrintF("%d: optimized\n", i);
         } else {
