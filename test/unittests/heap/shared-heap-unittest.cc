@@ -640,6 +640,8 @@ class SharedHeapTestBase : public TestJSSharedMemoryWithNativeContext {
     if (complete_callback_) complete_callback_(this);
     thread()->ParkedJoin(i_isolate()->main_thread_local_isolate());
     if (teardown_callback_) teardown_callback_(this);
+
+    state_ = nullptr;
   }
 
   ConcurrentThread<State>* thread() const {
