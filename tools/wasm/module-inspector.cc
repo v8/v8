@@ -385,13 +385,11 @@ class HexDumpModuleDis : public ITracer {
         module_(module),
         names_(names),
         wire_bytes_(wire_bytes),
-        zone_(allocator, "disassembler") {}
+        zone_(allocator, "disassembler"),
+        decoder_(wire_bytes, this) {}
 
   // Public entrypoint.
   void PrintModule() {
-    DumpingModuleDecoder decoder{wire_bytes_, this};
-    decoder_ = &decoder;
-
     // If the module failed validation, create fakes to allow us to print
     // what we can.
     std::unique_ptr<WasmModule> fake_module;
@@ -407,7 +405,7 @@ class HexDumpModuleDis : public ITracer {
     out_ << "[";
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(kNoVerifyFunctions);
+    decoder_.DecodeModule(kNoVerifyFunctions);
     NextLine();
     out_ << "]";
 
@@ -418,7 +416,6 @@ class HexDumpModuleDis : public ITracer {
 
     // Reset members that we set to point to locals above.
     names_ = original_names;
-    decoder_ = nullptr;
   }
 
   // Tracer hooks.
@@ -585,9 +582,9 @@ class HexDumpModuleDis : public ITracer {
                              ValueType expected_type) override {
     WasmDetectedFeatures detected;
     auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
-    uint32_t offset = decoder_->pc_offset();
+    uint32_t offset = decoder_.pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
+    if (!module) module = decoder_.shared_module().get();
     ExtendedFunctionDis d(&zone_, module, 0, SharedFlag::kNo, &detected, &sig,
                           start, end, offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
@@ -600,7 +597,7 @@ class HexDumpModuleDis : public ITracer {
     DCHECK_EQ(start - wire_bytes_.start(), pc_offset());
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
+    if (!module) module = decoder_.shared_module().get();
     SharedFlag shared = module->type(func->sig_index).is_shared;
     ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
@@ -731,7 +728,7 @@ class HexDumpModuleDis : public ITracer {
   uint32_t queue_length_{0};
   uint32_t line_bytes_{0};
   size_t total_bytes_{0};
-  DumpingModuleDecoder* decoder_{nullptr};
+  DumpingModuleDecoder decoder_;
 
   uint32_t next_type_index_{0};
   uint32_t next_import_index_{0};
