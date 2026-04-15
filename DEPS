@@ -186,7 +186,7 @@ deps = {
     'condition': 'checkout_benchmarks',
   },
   'third_party/v8-perf': {
-    'url': Var('chrome_internal_url') + '/v8/v8-perf.git',
+    'url': Var('chrome_internal_url') + '/v8/v8-perf.git' + '@' + 'HEAD',
     'condition': 'checkout_v8_perf',
   },
   'test/mozilla/data':
