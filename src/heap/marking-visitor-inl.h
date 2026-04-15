@@ -84,7 +84,7 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
                   IsFreeSpaceOrFiller(
                       heap_object, ObjectVisitorWithCageBases::cage_base()))) {
-    heap_->isolate()->PushStackTraceAndDie(
+    heap_->isolate()->PushParamsAndDie(
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
