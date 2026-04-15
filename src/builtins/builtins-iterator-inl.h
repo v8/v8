@@ -378,14 +378,8 @@ MaybeDirectHandle<Object> IterableForEach(
                 // Synchronize the iterator from our state.
                 if constexpr (kAllowJSExecution) {
                   uint32_t next_index = current_index + 1;
-                  if (V8_LIKELY(next_index <=
-                                static_cast<uint32_t>(Smi::kMaxValue))) {
-                    array_iterator->set_next_index(Smi::FromInt(next_index));
-                  } else {
-                    auto num =
-                        isolate->factory()->NewNumberFromUint(next_index);
-                    array_iterator->set_next_index(*num);
-                  }
+                  auto num = isolate->factory()->NewNumberFromUint(next_index);
+                  array_iterator->set_next_index(*num);
                 }
                 if (kind == PACKED_SMI_ELEMENTS) {
                   DirectHandle<FixedArray> smi_elements =
@@ -520,14 +514,12 @@ MaybeDirectHandle<Object> IterableForEach(
             }
           }
         }
+        set_iterator->set_table(
+            ReadOnlyRoots(isolate).empty_ordered_hash_set());
         if (current_index < capacity) {
-          auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
-          set_iterator->set_index(*num);
           IteratorClose(isolate, iterator);
           return MaybeDirectHandle<Object>();
         }
-        set_iterator->set_table(
-            ReadOnlyRoots(isolate).empty_ordered_hash_set());
         return isolate->root_handle(RootIndex::kUndefinedValue);
       }
     }
