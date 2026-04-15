@@ -1234,6 +1234,10 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
+  // TODO(pthier): Change to const Isolate*, this currently doesn't work for
+  // the implicit IsolateForSandbox conversion.
+  inline Address resource_as_address(Isolate* isolate) const;
+  // TODO(pthier): Pass isolate from all callers and remove this overload.
   inline Address resource_as_address() const;
   inline void set_address_as_resource(Isolate* isolate, Address address);
   inline uint32_t GetResourceRefForDeserialization();
@@ -1287,17 +1291,13 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate);
+  inline void update_data_cache(Isolate* isolate, Resource* resource);
 
   inline const uint8_t* GetChars() const;
 
   // Dispatched behavior.
   inline uint8_t Get(uint32_t index,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
-
- private:
-  // The underlying resource as a non-const pointer.
-  inline Resource* mutable_resource();
 } V8_OBJECT_END;
 
 static_assert(sizeof(ExternalOneByteString) == sizeof(ExternalString));
@@ -1325,7 +1325,7 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate);
+  inline void update_data_cache(Isolate* isolate, Resource* resource);
 
   inline const uint16_t* GetChars() const;
 
@@ -1336,10 +1336,6 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(uint32_t start);
-
- private:
-  // The underlying resource as a non-const pointer.
-  inline Resource* mutable_resource();
 } V8_OBJECT_END;
 
 static_assert(sizeof(ExternalTwoByteString) == sizeof(ExternalString));

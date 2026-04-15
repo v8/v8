@@ -699,7 +699,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   // with the encoded external reference, which we restore upon deserialize.
   // For the rest we serialize them to look like ordinary sequential strings.
   auto string = Cast<ExternalString>(object_);
-  Address resource = string->resource_as_address();
+  Address resource = string->resource_as_address(isolate());
   ExternalReferenceEncoder::Value reference;
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {

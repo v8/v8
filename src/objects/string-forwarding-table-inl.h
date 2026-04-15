@@ -222,7 +222,7 @@ void StringForwardingTable::Record::DisposeUnusedExternalResource(
 #endif
   if (!IsExternalString(original)) return;
   Address original_resource =
-      Cast<ExternalString>(original)->resource_as_address();
+      Cast<ExternalString>(original)->resource_as_address(isolate);
   bool is_one_byte;
   auto resource = external_resource(&is_one_byte);
   if (resource != nullptr &&

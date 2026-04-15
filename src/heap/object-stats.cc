@@ -1085,7 +1085,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(
     // them manually. The on-heap String object is recorded independently in
     // the normal pass.
     Tagged<ExternalString> string = Cast<ExternalString>(raw_source);
-    Address resource = string->resource_as_address();
+    Address resource = string->resource_as_address(isolate());
     size_t off_heap_size = string->ExternalPayloadSize();
     RecordExternalResourceStats(
         resource,
@@ -1107,7 +1107,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
     Tagged<ExternalString> string) {
   // Track the external string resource size in a separate category.
 
-  Address resource = string->resource_as_address();
+  Address resource = string->resource_as_address(isolate());
   size_t off_heap_size = string->ExternalPayloadSize();
   RecordExternalResourceStats(
       resource,

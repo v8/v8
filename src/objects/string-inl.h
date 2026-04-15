@@ -1475,17 +1475,23 @@ void ExternalString::VisitExternalPointers(ObjectVisitor* visitor) {
   visitor->VisitExternalPointer(this, ExternalPointerSlot(&resource_data_));
 }
 
-Address ExternalString::resource_as_address() const {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+Address ExternalString::resource_as_address(Isolate* isolate) const {
   return resource_.load(isolate);
+}
+
+Address ExternalString::resource_as_address() const {
+  Isolate* isolate = Isolate::Current();
+  return resource_as_address(isolate);
 }
 
 void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
   resource_.store(isolate, value);
   if (IsExternalOneByteString(this)) {
-    Cast<ExternalOneByteString>(this)->update_data_cache(isolate);
+    Cast<ExternalOneByteString>(this)->update_data_cache(
+        isolate, reinterpret_cast<ExternalOneByteString::Resource*>(value));
   } else {
-    Cast<ExternalTwoByteString>(this)->update_data_cache(isolate);
+    Cast<ExternalTwoByteString>(this)->update_data_cache(
+        isolate, reinterpret_cast<ExternalTwoByteString::Resource*>(value));
   }
 }
 
@@ -1518,17 +1524,13 @@ const ExternalOneByteString::Resource* ExternalOneByteString::resource() const {
   return reinterpret_cast<const Resource*>(resource_as_address());
 }
 
-ExternalOneByteString::Resource* ExternalOneByteString::mutable_resource() {
-  return reinterpret_cast<Resource*>(resource_as_address());
-}
-
-void ExternalOneByteString::update_data_cache(Isolate* isolate) {
+void ExternalOneByteString::update_data_cache(
+    Isolate* isolate, ExternalOneByteString::Resource* resource) {
   DisallowGarbageCollection no_gc;
   if (is_uncached()) {
-    if (resource()->IsCacheable()) mutable_resource()->UpdateDataCache();
+    if (resource->IsCacheable()) resource->UpdateDataCache();
   } else {
-    resource_data_.store(isolate,
-                         reinterpret_cast<Address>(resource()->data()));
+    resource_data_.store(isolate, reinterpret_cast<Address>(resource->data()));
   }
 }
 
@@ -1544,7 +1546,10 @@ void ExternalOneByteString::SetResource(
 void ExternalOneByteString::set_resource(
     Isolate* isolate, const ExternalOneByteString::Resource* resource) {
   resource_.store(isolate, reinterpret_cast<Address>(resource));
-  if (resource != nullptr) update_data_cache(isolate);
+  if (resource != nullptr) {
+    update_data_cache(isolate,
+                      const_cast<ExternalOneByteString::Resource*>(resource));
+  }
 }
 
 const uint8_t* ExternalOneByteString::GetChars() const {
@@ -1581,17 +1586,13 @@ const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() const {
   return reinterpret_cast<const Resource*>(resource_as_address());
 }
 
-ExternalTwoByteString::Resource* ExternalTwoByteString::mutable_resource() {
-  return reinterpret_cast<Resource*>(resource_as_address());
-}
-
-void ExternalTwoByteString::update_data_cache(Isolate* isolate) {
+void ExternalTwoByteString::update_data_cache(
+    Isolate* isolate, ExternalTwoByteString::Resource* resource) {
   DisallowGarbageCollection no_gc;
   if (is_uncached()) {
-    if (resource()->IsCacheable()) mutable_resource()->UpdateDataCache();
+    if (resource->IsCacheable()) resource->UpdateDataCache();
   } else {
-    resource_data_.store(isolate,
-                         reinterpret_cast<Address>(resource()->data()));
+    resource_data_.store(isolate, reinterpret_cast<Address>(resource->data()));
   }
 }
 
@@ -1607,7 +1608,10 @@ void ExternalTwoByteString::SetResource(
 void ExternalTwoByteString::set_resource(
     Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
   resource_.store(isolate, reinterpret_cast<Address>(resource));
-  if (resource != nullptr) update_data_cache(isolate);
+  if (resource != nullptr) {
+    update_data_cache(isolate,
+                      const_cast<ExternalTwoByteString::Resource*>(resource));
+  }
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() const {

@@ -89,7 +89,7 @@ template <class StringClass>
 void MigrateExternalStringResource(Isolate* isolate,
                                    Tagged<ExternalString> from,
                                    Tagged<StringClass> to) {
-  Address to_resource_address = to->resource_as_address();
+  Address to_resource_address = to->resource_as_address(isolate);
   if (to_resource_address == kNullAddress) {
     Tagged<StringClass> cast_from = Cast<StringClass>(from);
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
@@ -99,7 +99,7 @@ void MigrateExternalStringResource(Isolate* isolate,
     isolate->heap()->UpdateExternalString(
         from, Cast<ExternalString>(from)->ExternalPayloadSize(), 0);
     cast_from->SetResource(isolate, nullptr);
-  } else if (to_resource_address != from->resource_as_address()) {
+  } else if (to_resource_address != from->resource_as_address(isolate)) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);
   }
