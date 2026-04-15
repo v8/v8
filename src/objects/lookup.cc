@@ -152,7 +152,7 @@ void LookupIterator::NextInternal(Tagged<Map> orig_map,
     }
   } while (!IsFound());
 
-  if (V8_UNLIKELY(is_element && IsJSArrayMap(*orig_map))) {
+  if (V8_UNLIKELY(is_element && IsJSArrayMap(orig_map))) {
     isolate_->CountUsage(v8::Isolate::kHoleyArrayReadthrough);
   }
 
@@ -751,7 +751,7 @@ Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
   }
   DirectHandle<Map> transition = transition_map();
   bool simple_transition =
-      transition->GetBackPointer(isolate_) == receiver->map(isolate_);
+      transition->GetBackPointer() == receiver->map(isolate_);
 
   if (configuration_ == DEFAULT && !transition->is_dictionary_map() &&
       !transition->is_prototype_map() &&
@@ -876,7 +876,7 @@ void LookupIterator::TransitionToAccessorProperty(
     DirectHandle<Map> new_map = Map::TransitionToAccessorProperty(
         isolate_, old_map, name_, number_, getter, setter, attributes);
     bool simple_transition =
-        new_map->GetBackPointer(isolate_) == receiver->map(isolate_);
+        new_map->GetBackPointer() == receiver->map(isolate_);
     JSObject::MigrateToMap(isolate_, receiver, new_map);
 
     if (simple_transition) {

@@ -3730,7 +3730,7 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
   DCHECK(source_map->OnlyHasSimpleProperties());
   DCHECK(!source_map->IsInobjectSlackTrackingInProgress());
   DCHECK(!target_map->IsInobjectSlackTrackingInProgress());
-  DCHECK_EQ(*target_map->map(), *source_map->map());
+  DCHECK_EQ(target_map->map(), source_map->map());
   DCHECK_EQ(target_map->GetConstructor(), *isolate->object_function());
   DCHECK_IMPLIES(
       !null_proto_literal,

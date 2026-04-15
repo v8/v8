@@ -329,7 +329,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   DCHECK(!map->is_extensible());
-  Tagged<Map> previous = Cast<Map>(map->GetBackPointer(isolate));
+  Tagged<Map> previous = Cast<Map>(map->GetBackPointer());
   TransitionsAccessor last_transitions(isolate, previous, IsConcurrent(cmode));
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           map, &info.integrity_level_symbol, &info.integrity_level)) {
@@ -347,7 +347,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // transitions. If we encounter any non-integrity level transition interleaved
   // with integrity level transitions, just bail out.
   while (!source_map->is_extensible()) {
-    previous = Cast<Map>(source_map->GetBackPointer(isolate));
+    previous = Cast<Map>(source_map->GetBackPointer());
     TransitionsAccessor transitions(isolate, previous, IsConcurrent(cmode));
     if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
       return info;
@@ -429,19 +429,19 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
 
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, *result, IsConcurrent(cmode))
+    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
   if (result.is_null()) return {};
 
   // TODO(olivf, 370536107): For investigating crashes. Should become a CHECK
   // again once resolved.
-  if (old_map->elements_kind() != (*result)->elements_kind()) {
+  if (old_map->elements_kind() != result->elements_kind()) {
     isolate->PushStackTraceAndDie(reinterpret_cast<void*>(old_map.address()),
-                                  reinterpret_cast<void*>((*result).address()),
+                                  reinterpret_cast<void*>(result.address()),
                                   reinterpret_cast<void*>(root_map.address()));
   }
-  CHECK_EQ(old_map->instance_type(), (*result)->instance_type());
+  CHECK_EQ(old_map->instance_type(), result->instance_type());
   return result;
 }
 

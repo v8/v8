@@ -44,7 +44,12 @@ V8_OBJECT class HeapObjectLayout {
   // [map]: Contains a map which contains the object's reflective
   // information.
   inline Tagged<Map> map() const;
+  // The cage_base parameter is unused for HeapObjectLayout (memory is
+  // accessed directly without decompression-base hint); the overload
+  // exists for source compatibility with the legacy HeapObject API.
+  inline Tagged<Map> map(PtrComprCageBase cage_base) const;
   inline Tagged<Map> map(AcquireLoadTag) const;
+  inline Tagged<Map> map(PtrComprCageBase cage_base, AcquireLoadTag tag) const;
 
   inline MapWord map_word(RelaxedLoadTag) const;
 

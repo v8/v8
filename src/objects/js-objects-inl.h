@@ -291,11 +291,11 @@ void JSObject::initialize_elements() {
 }
 
 DEF_GETTER(JSObject, GetIndexedInterceptor, Tagged<InterceptorInfo>) {
-  return map(cage_base)->GetIndexedInterceptor(cage_base);
+  return map(cage_base)->GetIndexedInterceptor();
 }
 
 DEF_GETTER(JSObject, GetNamedInterceptor, Tagged<InterceptorInfo>) {
-  return map(cage_base)->GetNamedInterceptor(cage_base);
+  return map(cage_base)->GetNamedInterceptor();
 }
 
 // static

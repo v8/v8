@@ -643,9 +643,17 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 }
 
 void Map::MapVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::MapVerify(*this, isolate);
+  CHECK(IsMap(this));
+  Object::VerifyPointer(isolate, prototype());
+  Object::VerifyPointer(isolate,
+                        constructor_or_back_pointer_or_native_context_.load());
+  Object::VerifyPointer(isolate, instance_descriptors_.load());
+  Object::VerifyPointer(isolate, dependent_code_.load());
+  Object::VerifyPointer(isolate, prototype_validity_cell_.load());
+  Object::VerifyMaybeObjectPointer(isolate,
+                                   transitions_or_prototype_info_.load());
   Heap* heap = isolate->heap();
-  CHECK(!HeapLayout::InYoungGeneration(Tagged<Map>(*this)));
+  CHECK(!HeapLayout::InYoungGeneration(this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
@@ -655,7 +663,7 @@ void Map::MapVerify(Isolate* isolate) {
 #else
   constexpr bool is_wasm_struct = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (IsContextMap(*this)) {
+  if (IsContextMap(this)) {
     // The map for the NativeContext is allocated before the NativeContext
     // itself, so it may happen that during a GC the native_context() is still
     // null.
@@ -703,9 +711,9 @@ void Map::MapVerify(Isolate* isolate) {
                                  NumberOfOwnDescriptors());
     SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
   }
-  SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
+  SLOW_DCHECK(TransitionsAccessor(isolate, this).IsSortedNoDuplicates());
   SLOW_DCHECK(
-      TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
+      TransitionsAccessor(isolate, this).IsConsistentWithBackPointers());
 
   if (InstanceTypeChecker::IsNativeContextSpecific(instance_type())) {
     // Native context-specific objects must have their own contextful meta map
@@ -742,7 +750,7 @@ void Map::MapVerify(Isolate* isolate) {
       instance_type() == WASM_ARRAY_TYPE) {
     // Wasm structs are sometimes shared. In this case, the meta map of this map
     // has to be the context-free RO meta map.
-    if (HeapLayout::InAnySharedSpace(*this)) {
+    if (HeapLayout::InAnySharedSpace(this)) {
       CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
     }
     // Wasm maps must have a WasmTypeInfo, which must contain all of their
@@ -768,18 +776,18 @@ void Map::MapVerify(Isolate* isolate) {
   }
 #endif
 
-  if (IsJSObjectMap(*this)) {
-    int header_end_offset = JSObject::GetHeaderSize(*this);
+  if (IsJSObjectMap(this)) {
+    int header_end_offset = JSObject::GetHeaderSize(this);
     int inobject_fields_start_offset = GetInObjectPropertyOffset(0);
     // Ensure that embedder fields are located exactly between header and
     // inobject properties.
-    CHECK_EQ(header_end_offset, JSObject::GetEmbedderFieldsStartOffset(*this));
+    CHECK_EQ(header_end_offset, JSObject::GetEmbedderFieldsStartOffset(this));
     CHECK_EQ(header_end_offset +
-                 JSObject::GetEmbedderFieldCount(*this) * kEmbedderDataSlotSize,
+                 JSObject::GetEmbedderFieldCount(this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
 
-    if (IsJSSharedStructMap(*this) || IsJSSharedArrayMap(*this) ||
-        IsJSAtomicsMutex(*this) || IsJSAtomicsCondition(*this)) {
+    if (IsJSSharedStructMap(this) || IsJSSharedArrayMap(this) ||
+        IsJSAtomicsMutex(this) || IsJSAtomicsCondition(this)) {
       if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
@@ -791,11 +799,11 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
         // CHECK(instance_descriptors(isolate).InSharedHeap());
-        if (IsJSSharedArrayMap(*this)) {
+        if (IsJSSharedArrayMap(this)) {
           CHECK(has_shared_array_elements());
         }
       } else {
-        CHECK(HeapLayout::InAnySharedSpace(*this));
+        CHECK(HeapLayout::InAnySharedSpace(this));
         CHECK(IsUndefined(GetBackPointer(), isolate));
         Tagged<Object> maybe_cell = prototype_validity_cell(kRelaxedLoad);
         if (IsCell(maybe_cell))
@@ -804,14 +812,14 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
         CHECK(HeapLayout::InAnySharedSpace(instance_descriptors(isolate)));
-        if (IsJSSharedArrayMap(*this)) {
+        if (IsJSSharedArrayMap(this)) {
           CHECK(has_shared_array_elements());
         }
       }
     }
 
     // Check constructor value in JSFunction's maps.
-    if (IsJSFunctionMap(*this) && !IsMap(constructor_or_back_pointer())) {
+    if (IsJSFunctionMap(this) && !IsMap(constructor_or_back_pointer())) {
       Tagged<Object> maybe_constructor = constructor_or_back_pointer();
       // Constructor field might still contain a tuple if this map used to
       // have non-instance prototype earlier.
@@ -843,12 +851,11 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_properties());
   CHECK_IMPLIES(is_dictionary_map(), owns_descriptors());
   CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_properties());
-  CHECK_IMPLIES(
-      IsJSObjectMap(*this) && !CanHaveFastTransitionableElementsKind(),
-      IsDictionaryElementsKind(elements_kind()) ||
-          IsTerminalElementsKind(elements_kind()) ||
-          IsAnyHoleyNonextensibleElementsKind(elements_kind()) ||
-          IsSharedArrayElementsKind(elements_kind()));
+  CHECK_IMPLIES(IsJSObjectMap(this) && !CanHaveFastTransitionableElementsKind(),
+                IsDictionaryElementsKind(elements_kind()) ||
+                    IsTerminalElementsKind(elements_kind()) ||
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()) ||
+                    IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     CHECK(prototype_info() == Smi::zero() ||
@@ -864,7 +871,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
            instance_descriptors(isolate));
   CHECK_EQ(0, UnusedPropertyFields());
-  CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
+  CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
 
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {

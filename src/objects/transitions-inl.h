@@ -207,7 +207,6 @@ Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
-      return Map();
     case kWeakRef:
       return Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
     case kFullTransitionArray:

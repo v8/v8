@@ -270,7 +270,7 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
                                    SKIP_WRITE_BARRIER);
   Tagged<Map> map = isolate()->factory()->InitializeMap(
       Cast<Map>(result), instance_type, instance_size, elements_kind,
-      inobject_properties, roots);
+      inobject_properties, roots, /*during_bootstrap=*/true);
 
   return AllocationResult::FromObject(map);
 }
@@ -320,7 +320,7 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
   map->set_raw_transitions(Smi::zero());
   map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);
-  map->init_prototype_and_constructor_or_back_pointer(roots);
+  map->init_prototype_and_constructor_or_back_pointer_during_bootstrap(roots);
 }
 
 AllocationResult Heap::Allocate(DirectHandle<Map> map,

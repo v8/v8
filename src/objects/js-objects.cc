@@ -3192,7 +3192,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
                        DirectHandle<Map> new_map) {
   DirectHandle<Map> old_map(object->map(), isolate);
   // In case of a regular transition.
-  if (new_map->GetBackPointer(isolate) == *old_map) {
+  if (new_map->GetBackPointer() == *old_map) {
     // If the map does not add named properties, simply set the map.
     if (old_map->NumberOfOwnDescriptors() ==
         new_map->NumberOfOwnDescriptors()) {
@@ -3550,7 +3550,7 @@ void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
       // Ensure that no transition was inserted for prototype migrations.
       DCHECK_EQ(0,
                 TransitionsAccessor(isolate, *old_map).NumberOfTransitions());
-      DCHECK(IsUndefined(new_map->GetBackPointer(isolate), isolate));
+      DCHECK(IsUndefined(new_map->GetBackPointer(), isolate));
       DCHECK(object->map(isolate) != *old_map);
     }
   } else {
@@ -5326,7 +5326,7 @@ void InvalidatePrototypeChainsInternal(Tagged<Map> map) {
   // overflows. So, conceptually, the outer loop iterates the depth of the
   // prototype tree, and the inner loop iterates the breadth of a node.
   Tagged<Map> next_map;
-  for (; !map.is_null(); map = next_map, next_map = Map()) {
+  for (; !map.is_null(); map = next_map, next_map = {}) {
     InvalidateOnePrototypeValidityCellInternal(map);
 
     Tagged<PrototypeInfo> proto_info;

@@ -202,6 +202,70 @@ void MyObject::set_my_atomic_field(Tagged<Object> value, ReleaseStoreTag,
 }
 ```
 
+### Primitive Byte / Word Atomic Fields
+
+Legacy classes often used `RELAXED_READ_BYTE_FIELD(obj, kFooOffset)` /
+`RELAXED_WRITE_UINT16_FIELD(...)` / `ACQUIRE_READ_UINT32_FIELD(...)` style
+macros to access primitive `uint8_t` / `uint16_t` / `uint32_t` fields
+atomically. These macros expand to `FIELD_ADDR(obj, offset)` which does
+not exist on `HeapObjectLayout` subclasses.
+
+**Do not add `RELAXED_READ_BYTE(&obj->field_)` style "field-pointer"
+macros as a workaround.** Instead, declare the field as a `std::atomic`
+member of the appropriate width and use the standard `.load()` /
+`.store()` accessors with `std::memory_order_*`:
+
+```cpp
+// In the V8_OBJECT body:
+std::atomic<uint8_t> visitor_id_;
+std::atomic<uint16_t> instance_type_;
+std::atomic<uint32_t> bit_field3_;
+
+// In -inl.h:
+VisitorId MyObject::visitor_id() const {
+  return static_cast<VisitorId>(
+      visitor_id_.load(std::memory_order_relaxed));
+}
+void MyObject::set_visitor_id(VisitorId id) {
+  visitor_id_.store(static_cast<uint8_t>(id), std::memory_order_relaxed);
+}
+
+uint32_t MyObject::release_acquire_bit_field3() const {
+  return bit_field3_.load(std::memory_order_acquire);
+}
+void MyObject::set_release_acquire_bit_field3(uint32_t value) {
+  bit_field3_.store(value, std::memory_order_release);
+}
+```
+
+`std::atomic<uintN_t>` for N in {8, 16, 32, 64} is lock-free and has the
+same size and alignment as the underlying integer type, so the object
+layout is unchanged. Fields accessed only non-atomically can stay plain
+integers.
+
+### Dropping `PtrComprCageBase` Getter Overloads
+
+`DECL_GETTER(FooName, Type)` expands to *two* declarations: a no-arg
+version and one taking a `PtrComprCageBase cage_base`. Under
+`HeapObjectLayout`, the cage base can always be derived from `this`, so
+the cage-arg overload is redundant. **Drop the with-cage overload** when
+porting: replace `DECL_GETTER(GetFoo, Tagged<X>)` with
+`inline Tagged<X> GetFoo() const;` and inline only the no-arg variant in
+`-inl.h`. Update callers that were passing `cage_base` to use the
+no-arg form. Example:
+
+```cpp
+// Before (in .h):
+DECL_GETTER(GetBackPointer, Tagged<HeapObject>)
+
+// After (in .h):
+inline Tagged<HeapObject> GetBackPointer() const;
+
+// Caller update (js-objects.cc etc.):
+- if (new_map->GetBackPointer(isolate) == *old_map) ...
++ if (new_map->GetBackPointer() == *old_map) ...
+```
+
 ### Missing Functionality in `FooMember` Types
 
 As you migrate classes, you will replace static `FooField` operations (e.g., `TaggedField`, `TrustedPointerField`) with instance-based `FooMember` wrappers (e.g., `TaggedMember`, `TrustedPointerMember`).

@@ -4480,9 +4480,9 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
-  bool is_meta_map = IsMetaMapMap(*this);
+  bool is_meta_map = IsMetaMapMap(this);
 #if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_map = IsWasmObjectMap(*this);
+  bool is_wasm_map = IsWasmObjectMap(this);
 #else
   constexpr bool is_wasm_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4506,7 +4506,7 @@ void Map::MapPrint(std::ostream& os) {
     os << instance_size();
   }
 
-  if (IsJSObjectMap(*this)) {
+  if (IsJSObjectMap(this)) {
     os << "\n - inobject properties: " << GetInObjectProperties();
     os << "\n - unused property fields: " << UnusedPropertyFields();
   }
@@ -4532,7 +4532,7 @@ void Map::MapPrint(std::ostream& os) {
   if (has_non_instance_prototype()) os << "\n - has_non_instance_prototype";
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
-  if (IsContextMap(*this)) {
+  if (IsContextMap(this)) {
     os << "\n - native context: " << Brief(native_context());
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
@@ -4556,11 +4556,11 @@ void Map::MapPrint(std::ostream& os) {
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (!HeapLayout::InReadOnlySpace(*this)) {
-    Isolate* isolate = HeapLayout::InWritableSharedSpace(*this)
+  if (!HeapLayout::InReadOnlySpace(this)) {
+    Isolate* isolate = HeapLayout::InWritableSharedSpace(this)
                            ? Isolate::Current()->shared_space_isolate()
                            : Isolate::Current();
-    TransitionsAccessor transitions(isolate, *this);
+    TransitionsAccessor transitions(isolate, this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0 || transitions.HasPrototypeTransitions() ||
         transitions.HasSideStepTransitions()) {
@@ -4581,7 +4581,7 @@ void Map::MapPrint(std::ostream& os) {
   if (has_non_instance_prototype()) {
     os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
   }
-  if (!IsContextMap(*this)) {
+  if (!IsContextMap(this)) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }
   os << "\n - dependent code: " << Brief(dependent_code());

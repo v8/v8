@@ -1528,9 +1528,18 @@ Tagged<Map> HeapObjectLayout::map() const {
   return Tagged<HeapObject>(this)->map();
 }
 
+Tagged<Map> HeapObjectLayout::map(PtrComprCageBase cage_base) const {
+  return Tagged<HeapObject>(this)->map(cage_base);
+}
+
 Tagged<Map> HeapObjectLayout::map(AcquireLoadTag) const {
   // TODO(leszeks): Support MapWord members and access via that instead.
   return Tagged<HeapObject>(this)->map(kAcquireLoad);
+}
+
+Tagged<Map> HeapObjectLayout::map(PtrComprCageBase cage_base,
+                                  AcquireLoadTag tag) const {
+  return Tagged<HeapObject>(this)->map(cage_base, tag);
 }
 
 MapWord HeapObjectLayout::map_word(RelaxedLoadTag) const {

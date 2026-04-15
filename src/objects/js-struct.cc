@@ -297,7 +297,7 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
 MaybeHandle<String> JSSharedStruct::GetRegistryKey(Isolate* isolate,
                                                    Tagged<Map> instance_map) {
   return GetSpecialSlotValue<String>(
-      isolate, *instance_map,
+      isolate, instance_map,
       ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol());
 }
 

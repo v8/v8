@@ -302,7 +302,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 
 Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext(*this));
-  if (!IsFastElementsKind(kind)) return Map();
+  if (!IsFastElementsKind(kind)) return {};
   DisallowGarbageCollection no_gc;
   Tagged<Object> const initial_js_array_map =
       get(Context::ArrayMapIndex(kind), kRelaxedLoad);

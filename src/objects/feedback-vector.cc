@@ -678,7 +678,7 @@ Tagged<Map> FeedbackNexus::GetFirstMap() const {
     return it.map();
   }
 
-  return Map();
+  return {};
 }
 
 InlineCacheState FeedbackNexus::ic_state() const {

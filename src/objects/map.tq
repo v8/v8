@@ -34,6 +34,7 @@ bitfield struct MapBitFields3 extends uint32 {
   construction_counter: int32: 3 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class Map extends HeapObject {
   macro PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
     typeswitch (this.transitions_or_prototype_info) {
@@ -78,7 +79,6 @@ extern class Map extends HeapObject {
   bit_field3: MapBitFields3;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;

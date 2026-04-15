@@ -957,15 +957,30 @@ class Tagged : public detail::BaseForTagged<T>::type {
     return operator_arrow_impl();
   }
 
-  // Implicit conversions and explicit casts to/from raw pointers
+  // Implicit conversions and explicit casts to/from raw pointers.
   // TODO(leszeks): Remove once we're using Tagged everywhere.
+  //
+  // These come in two flavours keyed on U's base class. The canonical
+  // pass-by-value form is used for the legacy HeapObject hierarchy where
+  // `U` is a thin wrapper over a tagged address and both the copy
+  // constructor and `raw.ptr()` are available. For HeapObjectLayout-derived
+  // U the copy constructor is deleted (Tagged<T>::operator* yields U& for
+  // layout types, not U-by-value), so pass-by-value wouldn't even compile.
+  // The second overload accepts the layout object by const reference and
+  // reconstructs the tagged address from its untagged memory location
+  // (i.e. `&raw + kHeapObjectTag`).
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(U raw)
-    requires(is_subtype_v<U, T>)
+    requires(is_subtype_v<U, T> && !std::is_base_of_v<HeapObjectLayout, U>)
       : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
+  template <typename U>
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const U& raw)
+    requires(is_subtype_v<U, T> && std::is_base_of_v<HeapObjectLayout, U>)
+      : Base(reinterpret_cast<Address>(&raw) + kHeapObjectTag) {}
   template <typename U>
   static constexpr Tagged<T> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);

@@ -2600,8 +2600,8 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
 Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                                    int instance_size,
                                    ElementsKind elements_kind,
-                                   int inobject_properties,
-                                   ReadOnlyRoots roots) {
+                                   int inobject_properties, ReadOnlyRoots roots,
+                                   bool during_bootstrap) {
   DisallowGarbageCollection no_gc;
   map->set_bit_field(0);
   map->set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -2612,7 +2612,11 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
       Map::Bits3::IsExtensibleBit::encode(true);
   map->set_bit_field3(bit_field3);
   map->set_instance_type(type);
-  map->init_prototype_and_constructor_or_back_pointer(roots);
+  if (during_bootstrap) {
+    map->init_prototype_and_constructor_or_back_pointer_during_bootstrap(roots);
+  } else {
+    map->init_prototype_and_constructor_or_back_pointer(roots);
+  }
   map->set_instance_size(instance_size);
   if (InstanceTypeChecker::IsJSObject(type)) {
     // JSObjects that may be allocated in RO space must have RO maps.

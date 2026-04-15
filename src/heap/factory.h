@@ -590,7 +590,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // call NewMap which takes care of it.
   Tagged<Map> InitializeMap(Tagged<Map> map, InstanceType type,
                             int instance_size, ElementsKind elements_kind,
-                            int inobject_properties, ReadOnlyRoots roots);
+                            int inobject_properties, ReadOnlyRoots roots,
+                            bool during_bootstrap = false);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.

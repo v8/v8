@@ -368,7 +368,7 @@ RELEASE_ACQUIRE_ACCESSORS_CHECKED(
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {
   // It's slightly cheaper to check for JSFunctionWithoutPrototype because
   // there's only one such instance type.
-  return !IsJSFunctionWithoutPrototypeMap(*map(cage_base));
+  return !IsJSFunctionWithoutPrototypeMap(map(cage_base));
 }
 
 DEF_GETTER(JSFunction, initial_map, Tagged<Map>) {
@@ -419,7 +419,7 @@ DEF_GETTER(JSFunction, prototype, Tagged<Object>) {
   // value, that value is stored in the constructor field of the map.
   Tagged<Map> map = this->map(cage_base);
   if (map->has_non_instance_prototype()) {
-    return map->GetNonInstancePrototype(cage_base);
+    return map->GetNonInstancePrototype();
   }
   return instance_prototype(cage_base);
 }

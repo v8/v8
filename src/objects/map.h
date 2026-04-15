@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAP_H_
 #define V8_OBJECTS_MAP_H_
 
+#include <atomic>
 #include <optional>
 
 #include "include/v8-memory-span.h"
@@ -241,7 +242,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 // |               |   [raw_transitions]                             |
 // +---------------+-------------------------------------------------+
 
-class Map : public TorqueGeneratedMap<Map, HeapObject> {
+V8_OBJECT class Map : public HeapObjectLayout {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -273,8 +274,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Tagged<Map> map, Tagged<Context> native_context);
 
   // Retrieve interceptors.
-  DECL_GETTER(GetNamedInterceptor, Tagged<InterceptorInfo>)
-  DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
+  inline Tagged<InterceptorInfo> GetNamedInterceptor() const;
+  inline Tagged<InterceptorInfo> GetIndexedInterceptor() const;
 
   // Instance type.
   // Inline definition here to avoid a circular dependency in map-inl.h
@@ -283,7 +284,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
     // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
     // non-atomic when TSAN sees the map's store synchronization.
     return static_cast<InstanceType>(
-        RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+        instance_type_.load(std::memory_order_relaxed));
   }
   inline void set_instance_type(InstanceType value);
 
@@ -510,12 +511,16 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline Tagged<FixedArrayBase> GetInitialElements() const;
 
   // [raw_transitions]: Provides access to the transitions storage field.
+  // This is a reinterpret-load of the shared transitions_or_prototype_info_
+  // slot; the returned value may be any member of the full union, and
+  // consumers (primarily TransitionsAccessor::GetEncoding) dispatch on the
+  // runtime type.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions,
-                 Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(
-      raw_transitions, Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
+  using RawTransitionsT = UnionOf<Smi, MaybeWeak<Map>, TransitionArray,
+                                  PrototypeInfo, PrototypeSharedClosureInfo>;
+  DECL_ACCESSORS(raw_transitions, Tagged<RawTransitionsT>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_transitions, Tagged<RawTransitionsT>)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_GETTER(prototype_info,
@@ -668,9 +673,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       DirectHandle<JSPrototype> prototype,
       bool enable_prototype_setup_mode = true);
 
-  // Sets prototype and constructor fields to null. Can be called during
-  // bootstrapping.
+  // Sets prototype and constructor fields to null.
   inline void init_prototype_and_constructor_or_back_pointer(
+      ReadOnlyRoots roots);
+  // As above, but safe to call during early RO-heap bootstrapping
+  // where GetReadOnlyRoots (used by Cast's IsNull) is not yet usable.
+  inline void init_prototype_and_constructor_or_back_pointer_during_bootstrap(
       ReadOnlyRoots roots);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
@@ -692,13 +700,13 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Gets |constructor_or_back_pointer| field value from the root map.
   // The result might be null, JSFunction, FunctionTemplateInfo or a Tuple2
   // for JSFunctions with non-instance prototypes.
-  DECL_GETTER(GetConstructorRaw, Tagged<Object>)
+  inline Tagged<Object> GetConstructorRaw() const;
 
   // Gets constructor value from the root map. Unwraps Tuple2 in case of
   // JSFunction map with non-instance prototype.
   // The result returned might be null, JSFunction or FunctionTemplateInfo.
-  DECL_GETTER(GetConstructor, Tagged<Object>)
-  DECL_GETTER(GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>)
+  inline Tagged<Object> GetConstructor() const;
+  inline Tagged<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
   inline void SetConstructor(Tagged<Object> constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Constructor getter that performs at most the given number of steps
@@ -709,11 +717,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Gets non-instance prototype value which is stored in Tuple2 in a
   // root map's |constructor_or_back_pointer| field.
-  DECL_GETTER(GetNonInstancePrototype, Tagged<Object>)
+  inline Tagged<Object> GetNonInstancePrototype() const;
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  DECL_GETTER(GetBackPointer, Tagged<HeapObject>)
+  inline Tagged<HeapObject> GetBackPointer() const;
   inline void SetBackPointer(Tagged<HeapObject> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool TryGetBackPointer(PtrComprCageBase cage_base,
@@ -729,7 +737,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
 #if V8_ENABLE_WEBASSEMBLY
   // Only for WasmStructs: custom descriptor instead of instance_descriptors.
-  DECL_ACCESSORS(custom_descriptor, Tagged<WasmStruct>)
+  // The getter widens to the full field union since callers may speculatively
+  // inspect the slot before confirming it actually holds a WasmStruct (e.g.
+  // MapVerify, where a canonical-RTT wasm struct map may still hold a
+  // DescriptorArray).
+  DECL_GETTER(custom_descriptor, Tagged<UnionOf<DescriptorArray, WasmStruct>>)
+  DECL_SETTER(custom_descriptor, Tagged<WasmStruct>)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   inline void UpdateDescriptors(Isolate* isolate,
@@ -746,7 +759,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // (i.e. the canonical RTT for their static type) here, for fast access
   // from type checks in generated code.
   DECL_ACCESSORS(immediate_supertype_map, Tagged<Map>)
-  static constexpr int kImmediateSupertypeOffset = kDependentCodeOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
@@ -1007,8 +1019,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static DirectHandle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                       DirectHandle<Map> map);
 
-  static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
-
   class BodyDescriptor;
 
   // Compares this map to another to see if they describe equivalent objects,
@@ -1155,8 +1165,98 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
 
-  TQ_OBJECT_CONSTRUCTORS(Map)
-};
+ public:
+  // Backwards-compatible offset constants. Defined out-of-line below
+  // because offsetof / sizeof on Map cannot appear inside Map's own body.
+  static const int kInstanceSizeInWordsOffset;
+  static const int kInobjectPropertiesStartOrConstructorFunctionIndexOffset;
+  static const int kUsedOrUnusedInstanceSizeInWordsOffset;
+  static const int kVisitorIdOffset;
+  static const int kInstanceTypeOffset;
+  static const int kBitFieldOffset;
+  static const int kBitFieldOffsetEnd;
+  static const int kBitField2Offset;
+  static const int kBitField3Offset;
+  static const int kPrototypeOffset;
+  static const int kConstructorOrBackPointerOrNativeContextOffset;
+  static const int kInstanceDescriptorsOffset;
+  static const int kDependentCodeOffset;
+#if V8_ENABLE_WEBASSEMBLY
+  static const int kImmediateSupertypeOffset;
+#endif
+  static const int kPrototypeValidityCellOffset;
+  static const int kTransitionsOrPrototypeInfoOffset;
+  static const int kStartOfStrongFieldsOffset;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kEndOfWeakFieldsOffset;
+  static const int kHeaderSize;
+  static const int kSize;
+
+  std::atomic<uint8_t> instance_size_in_words_;
+  std::atomic<uint8_t> inobject_properties_start_or_constructor_function_index_;
+  std::atomic<uint8_t> used_or_unused_instance_size_in_words_;
+  std::atomic<uint8_t> visitor_id_;
+  std::atomic<uint16_t> instance_type_;
+  std::atomic<uint8_t> bit_field_;
+  uint8_t bit_field2_;
+  std::atomic<uint32_t> bit_field3_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<UnionOf<JSReceiver, Null>> prototype_;
+  TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
+#if V8_ENABLE_WEBASSEMBLY
+  TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;
+  TaggedMember<UnionOf<DependentCode, Map>> dependent_code_;
+#else
+  TaggedMember<DescriptorArray> instance_descriptors_;
+  TaggedMember<DependentCode> dependent_code_;
+#endif
+  TaggedMember<UnionOf<Smi, Cell>> prototype_validity_cell_;
+  TaggedMember<UnionOf<Smi, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
+                       PrototypeSharedClosureInfo>>
+      transitions_or_prototype_info_;
+} V8_OBJECT_END;
+
+// Backwards-compatible Map offset constants. Defined out-of-line because
+// offsetof / sizeof on Map cannot appear inside Map's own class body.
+inline constexpr int Map::kInstanceSizeInWordsOffset =
+    offsetof(Map, instance_size_in_words_);
+inline constexpr int
+    Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset =
+        offsetof(Map, inobject_properties_start_or_constructor_function_index_);
+inline constexpr int Map::kUsedOrUnusedInstanceSizeInWordsOffset =
+    offsetof(Map, used_or_unused_instance_size_in_words_);
+inline constexpr int Map::kVisitorIdOffset = offsetof(Map, visitor_id_);
+inline constexpr int Map::kInstanceTypeOffset = offsetof(Map, instance_type_);
+inline constexpr int Map::kBitFieldOffset = offsetof(Map, bit_field_);
+inline constexpr int Map::kBitFieldOffsetEnd =
+    offsetof(Map, bit_field_) + sizeof(uint8_t) - 1;
+inline constexpr int Map::kBitField2Offset = offsetof(Map, bit_field2_);
+inline constexpr int Map::kBitField3Offset = offsetof(Map, bit_field3_);
+inline constexpr int Map::kPrototypeOffset = offsetof(Map, prototype_);
+inline constexpr int Map::kConstructorOrBackPointerOrNativeContextOffset =
+    offsetof(Map, constructor_or_back_pointer_or_native_context_);
+inline constexpr int Map::kInstanceDescriptorsOffset =
+    offsetof(Map, instance_descriptors_);
+inline constexpr int Map::kDependentCodeOffset = offsetof(Map, dependent_code_);
+#if V8_ENABLE_WEBASSEMBLY
+inline constexpr int Map::kImmediateSupertypeOffset =
+    offsetof(Map, dependent_code_);
+#endif
+inline constexpr int Map::kPrototypeValidityCellOffset =
+    offsetof(Map, prototype_validity_cell_);
+inline constexpr int Map::kTransitionsOrPrototypeInfoOffset =
+    offsetof(Map, transitions_or_prototype_info_);
+inline constexpr int Map::kStartOfStrongFieldsOffset =
+    offsetof(Map, prototype_);
+inline constexpr int Map::kEndOfStrongFieldsOffset =
+    offsetof(Map, transitions_or_prototype_info_);
+inline constexpr int Map::kEndOfWeakFieldsOffset = sizeof(Map);
+inline constexpr int Map::kHeaderSize = sizeof(Map);
+inline constexpr int Map::kSize = sizeof(Map);
+
+static_assert(Map::kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
