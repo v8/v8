@@ -1077,11 +1077,15 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmMemoryMapDescriptor::BodyDescriptor : public BodyDescriptorBase {
+class WasmMemoryMapDescriptor::BodyDescriptor final : public BodyDescriptorBase {
  public:
+  template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset, kMemoryOffset,
+                    v);
     IterateMaybeWeakPointer(obj, kMemoryOffset, v);
+    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
