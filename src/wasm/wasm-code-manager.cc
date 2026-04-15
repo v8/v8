@@ -1507,7 +1507,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
   DCHECK_NULL(owned_code);
 
   // Add the code to the surrounding code ref scope, so the returned pointer is
-  // guaranteed to be valid.
+  // guaranteed to stay valid.
   WasmCodeRefScope::AddRef(code);
 
   if (code->index() < static_cast<int>(module_->num_imported_functions)) {
@@ -1535,6 +1535,8 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
   if (should_update_code_table(code, prior_code)) {
     code_table_[slot_idx] = code;
     if (prior_code) {
+      // Code in the code table is always live, so `AddRef` can be used instead
+      // of `AddRefIfNotDying`.
       WasmCodeRefScope::AddRef(prior_code);
       // The code is added to the current {WasmCodeRefScope}, hence the ref
       // count cannot drop to zero here.
@@ -1598,9 +1600,9 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
 
   uint32_t slot_idx = declared_function_index(module(), code->index());
   if (WasmCode* prior_code = code_table_[slot_idx]) {
-    WasmCodeRefScope::AddRef(prior_code);
     // The code is added to the current {WasmCodeRefScope}, hence the ref
     // count cannot drop to zero here.
+    WasmCodeRefScope::AddRef(prior_code);
     prior_code->DecRefOnLiveCode();
   }
   code_table_[slot_idx] = code;
@@ -1665,6 +1667,8 @@ NativeModule::SnapshotCodeTable() const {
   WasmCode** start = code_table_.get();
   WasmCode** end = start + module_->num_declared_functions;
   for (WasmCode* code : base::VectorOf(start, end - start)) {
+    // Code in the code table is always live, so `AddRef` can be used instead
+    // of `AddRefIfNotDying`.
     if (code) WasmCodeRefScope::AddRef(code);
   }
   std::vector<WellKnownImport> import_statuses(module_->num_imported_functions);
@@ -1678,16 +1682,20 @@ std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
 
-  std::vector<WasmCode*> all_code(owned_code_.size());
-  std::transform(owned_code_.begin(), owned_code_.end(), all_code.begin(),
-                 [](auto& entry) { return entry.second.get(); });
-  std::for_each(all_code.begin(), all_code.end(), WasmCodeRefScope::AddRef);
+  std::vector<WasmCode*> all_code;
+  all_code.reserve(owned_code_.size());
+  for (auto& [address, unique_code_ptr] : owned_code_) {
+    if (!WasmCodeRefScope::AddRefIfNotDying(unique_code_ptr.get())) continue;
+    all_code.push_back(unique_code_ptr.get());
+  }
   return all_code;
 }
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   WasmCode* code = code_table_[declared_function_index(module(), index)];
+  // Code in the code table is always live, so `AddRef` can be used instead of
+  // `AddRefIfNotDying`.
   if (code) WasmCodeRefScope::AddRef(code);
   return code;
 }
@@ -2006,6 +2014,8 @@ WasmCode* NativeModule::Lookup(Address pc) const {
   WasmCode* candidate = iter->second.get();
   DCHECK_EQ(candidate->instruction_start(), iter->first);
   if (!candidate->contains(pc)) return nullptr;
+  // Code we lookup by address is expected to be live, so use `AddRef` instead
+  // of `AddRefIfNotDying`.
   WasmCodeRefScope::AddRef(candidate);
   return candidate;
 }
