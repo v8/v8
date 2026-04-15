@@ -265,8 +265,8 @@ enum class PropertyCellType {
 };
 
 struct FieldStorageLocation {
-  // We don't have PropertyArray::kHeaderSize here so hard-code the value 2 (map
-  // + length). This is asserted elsewhere.
+  // We don't have OFFSET_OF_DATA_START(PropertyArray) here so hard-code
+  // the value 2 (map + length). This is asserted elsewhere.
   static constexpr uint16_t kFirstOutOfObjectOffsetInWords = 2;
 
   // Offset from the start of the field storage, whether it's the JSObject for

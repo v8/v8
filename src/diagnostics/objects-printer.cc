@@ -1732,7 +1732,7 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {
   uint32_t len = length().value();
   os << "\n - length: " << len;
   os << "\n - hash: " << Hash();
-  PrintFixedArrayElements(os, Tagged(*this), len);
+  PrintFixedArrayElements<PropertyArray>(os, this, len);
   os << "\n";
 }
 

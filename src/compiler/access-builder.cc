@@ -770,7 +770,7 @@ FieldAccess AccessBuilder::ForSloppyArgumentsElementsArguments() {
 // static
 FieldAccess AccessBuilder::ForPropertyArrayLengthAndHash() {
   FieldAccess access = {
-      kTaggedBase,         PropertyArray::kLengthAndHashOffset,
+      kTaggedBase,         offsetof(PropertyArray, length_and_hash_),
       MaybeHandle<Name>(), OptionalMapRef(),
       Type::SignedSmall(), MachineType::TaggedSigned(),
       kNoWriteBarrier,     "PropertyArrayLengthAndHash"};

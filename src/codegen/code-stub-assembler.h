@@ -4085,7 +4085,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
     return GetArrayAllocationSize(element_count, PACKED_ELEMENTS,
-                                  PropertyArray::kHeaderSize);
+                                  OFFSET_OF_DATA_START(PropertyArray));
   }
 
   template <typename TIndex>

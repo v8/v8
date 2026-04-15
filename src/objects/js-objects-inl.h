@@ -395,13 +395,23 @@ Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
   return RawFastPropertyAt(cage_base, index);
 }
 
+// Type system violation: the declared return type Tagged<JSAny> is incorrect.
+// Property slots can also hold non-JSAny values such as the Hole sentinel
+// (`uninitialized_value` during MigrateFastToFast) and class metadata Structs
+// (e.g. ClassPositions, AccessorPair, AccessorInfo). The legacy code
+// reinterpret-loaded the slot as JSAny without validation; callers dispatch
+// on the descriptor's PropertyKind to know what they actually got.
+// TODO(jgruber): Change this to return
+// Tagged<UnionOf<JSAny, Hole, ClassPositions, AccessorPair, AccessorInfo>>
+// (or Tagged<Object>) and update the ~50 callers to Cast<JSAny> (or
+// whatever narrower type they actually expect) at the use site.
 Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
                                           FieldIndex index) const {
   if (index.is_inobject()) {
     return TaggedField<JSAny>::Relaxed_Load(cage_base, *this, index.offset());
   } else {
-    return property_array(cage_base)->get(cage_base,
-                                          index.outobject_array_index());
+    return UncheckedCast<JSAny>(property_array(cage_base)->get(
+        cage_base, index.outobject_array_index()));
   }
 }
 
@@ -413,14 +423,15 @@ Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
   return RawFastPropertyAt(cage_base, index, tag);
 }
 
+// See the TODO(jgruber) on the non-SeqCst overload above.
 Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
                                           FieldIndex index,
                                           SeqCstAccessTag tag) const {
   if (index.is_inobject()) {
     return TaggedField<JSAny>::SeqCst_Load(cage_base, *this, index.offset());
   } else {
-    return property_array(cage_base)->get(cage_base,
-                                          index.outobject_array_index(), tag);
+    return UncheckedCast<JSAny>(property_array(cage_base)->get(
+        cage_base, index.outobject_array_index(), tag));
   }
 }
 

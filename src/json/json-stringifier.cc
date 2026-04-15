@@ -2855,7 +2855,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         DCHECK_EQ(property_index,
                   PropertyArray::OffsetInWordsToIndex(
                       descriptors->GetDetails(i).field_offset()));
-        property = obj->property_array()->get(property_index);
+        property = Cast<JSAny>(obj->property_array()->get(property_index));
       }
     }
 

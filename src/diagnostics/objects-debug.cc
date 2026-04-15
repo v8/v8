@@ -1043,11 +1043,12 @@ void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
 }
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);
+  CHECK(IsPropertyArray(this));
+  CHECK(length_and_hash_.load().IsSmi());
   const uint32_t len = length().value();
   // There are no empty PropertyArrays.
   if (len == 0) {
-    CHECK_EQ(*this, ReadOnlyRoots(isolate).empty_property_array());
+    CHECK_EQ(this, ReadOnlyRoots(isolate).empty_property_array());
     return;
   }
   for (uint32_t i = 0; i < len; i++) {

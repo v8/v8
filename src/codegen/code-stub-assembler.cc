@@ -2642,7 +2642,7 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
   BIND(&if_property_array);
   {
     TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
-        properties, PropertyArray::kLengthAndHashOffset);
+        properties, offsetof(PropertyArray, length_and_hash_));
     var_hash = DecodeWord32<PropertyArray::HashField>(length_and_hash);
     Goto(&done);
   }
@@ -3104,8 +3104,8 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
     TNode<PropertyArray> object, TNode<IntPtrT> index) {
   int additional_offset = 0;
-  return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
-                               additional_offset));
+  return CAST(LoadArrayElement(object, OFFSET_OF_DATA_START(PropertyArray),
+                               index, additional_offset));
 }
 
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
@@ -3124,7 +3124,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
     TNode<PropertyArray> object) {
   TNode<Int32T> value = LoadAndUntagToWord32ObjectField(
-      object, PropertyArray::kLengthAndHashOffset);
+      object, offsetof(PropertyArray, length_and_hash_));
   return Signed(
       ChangeUint32ToWord(DecodeWord32<PropertyArray::LengthField>(value)));
 }
@@ -4138,7 +4138,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
          barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   static_assert(static_cast<int>(OFFSET_OF_DATA_START(FixedArray)) ==
-                static_cast<int>(PropertyArray::kHeaderSize));
+                static_cast<int>(OFFSET_OF_DATA_START(PropertyArray)));
   int header_size =
       OFFSET_OF_DATA_START(FixedArray) + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset =
@@ -4148,7 +4148,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
                 static_cast<int>(offsetof(WeakFixedArray, length_)));
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
-                static_cast<int>(PropertyArray::kLengthAndHashOffset));
+                static_cast<int>(offsetof(PropertyArray, length_and_hash_)));
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
   CSA_DCHECK(
@@ -4159,7 +4159,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
               IsPropertyArray(object),
               [=, this] {
                 TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
-                    object, PropertyArray::kLengthAndHashOffset);
+                    object, offsetof(PropertyArray, length_and_hash_));
                 return Signed(ChangeUint32ToWord(
                     DecodeWord32<PropertyArray::LengthField>(length_and_hash)));
               },
@@ -5967,8 +5967,9 @@ void CodeStubAssembler::InitializePropertyArrayLength(
   CSA_DCHECK(this,
              IntPtrLessThanOrEqual(
                  length, IntPtrConstant(PropertyArray::LengthField::kMax)));
-  StoreObjectFieldNoWriteBarrier(
-      property_array, PropertyArray::kLengthAndHashOffset, SmiTag(length));
+  StoreObjectFieldNoWriteBarrier(property_array,
+                                 offsetof(PropertyArray, length_and_hash_),
+                                 SmiTag(length));
 }
 
 TNode<PropertyArray> CodeStubAssembler::AllocatePropertyArray(
@@ -12303,11 +12304,13 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&load_property_array);
     {
       var_storage = LoadFastProperties(CAST(object), true);
-      CSA_DCHECK(this, UintPtrLessThan(
-                           IntPtrSub(field_offset_in_words,
-                                     IntPtrConstant(PropertyArray::kHeaderSize /
-                                                    kTaggedSize)),
-                           LoadPropertyArrayLength(CAST(var_storage.value()))));
+      CSA_DCHECK(
+          this,
+          UintPtrLessThan(
+              IntPtrSub(field_offset_in_words,
+                        IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) /
+                                       kTaggedSize)),
+              LoadPropertyArrayLength(CAST(var_storage.value()))));
       Goto(&load_field);
     }
 

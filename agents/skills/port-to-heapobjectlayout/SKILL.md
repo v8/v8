@@ -52,6 +52,39 @@ Define the explicit memory layout in the C++ header.
    * *Note:* You can omit `PtrComprCageBase` getter overloads (e.g. `value(cage_base)`) as `TaggedMember` handles decompression natively.
 6. **Diagnostic Declarations:** Add `DECL_PRINTER(MyObject)` and `DECL_VERIFIER(MyObject)`.
 7. **Size Constants:** If you need size constants (like `kAlignedSize`), define them as `inline constexpr int` in the header, outside the `V8_OBJECT` block to avoid duplicate symbol errors during linking.
+8. **Variable-Length Tail:** For objects with a variable-length suffix (FixedArray-style data), declare the tail as `FLEXIBLE_ARRAY_MEMBER(ElementT, name)` after the fixed members. Per-index access is then natural via the generated `name()` accessor combined with TaggedMember's atomic methods, avoiding any need to reach for the static `TaggedField<>` API. For tagged elements use `FLEXIBLE_ARRAY_MEMBER(TaggedMember<JSAny>, objects)`; for raw embedder slots use `FLEXIBLE_ARRAY_MEMBER(Address, slots)`. Example accessors:
+   ```cpp
+   Tagged<JSAny> MyArray::get(int index) const {
+     return objects()[index].Relaxed_Load();
+   }
+   void MyArray::set(int index, Tagged<JSAny> value, WriteBarrierMode mode) {
+     objects()[index].Relaxed_Store(this, value, mode);
+   }
+   Tagged<JSAny> MyArray::Swap(int index, Tagged<JSAny> value, SeqCstAccessTag) {
+     return objects()[index].SeqCst_Swap(this, value);
+   }
+   ```
+   `SizeFor(int length)` and `OffsetOfElementAt(int index)` should be **declared inside the class but defined out of line** so they can use `OFFSET_OF_DATA_START(MyObject)` (which references the FAM and is therefore not visible mid-class-body):
+   ```cpp
+   V8_OBJECT class MyObject : public HeapObjectLayout {
+     // ...
+     static constexpr int SizeFor(int length);
+     // ...
+     FLEXIBLE_ARRAY_MEMBER(TaggedMember<JSAny>, objects);
+   } V8_OBJECT_END;
+
+   constexpr int MyObject::SizeFor(int length) {
+     return OFFSET_OF_DATA_START(MyObject) + length * kTaggedSize;
+   }
+   ```
+   The `BodyDescriptor` typedef can also use `OFFSET_OF_DATA_START`:
+   ```cpp
+   template <>
+   struct ObjectTraits<MyObject> {
+     using BodyDescriptor =
+         FlexibleBodyDescriptor<OFFSET_OF_DATA_START(MyObject)>;
+   };
+   ```
 
 ```cpp
 // Example: src/objects/my-object.h
@@ -235,7 +268,8 @@ Before building with `@cppObjectLayoutDefinition`, look in your build output dir
 
 Update references to sizes and offsets throughout the codebase (e.g., in `code-stub-assembler.cc` or builtins).
 
-*   **Size:** Use `sizeof(MyObject)` instead of `MyObject::kSize`.
+*   **Size (fixed-size objects):** Use `sizeof(MyObject)` instead of `MyObject::kSize`.
+*   **Size (variable-size objects with a `FLEXIBLE_ARRAY_MEMBER`):** Use `OFFSET_OF_DATA_START(MyObject)` instead of `MyObject::kHeaderSize`. The values are equivalent, but `OFFSET_OF_DATA_START` makes the intent explicit and statically asserts that the class has a flexible array member.
 *   **Offsets:** Use `offsetof(MyObject, field_name_)` instead of `MyObject::kFieldNameOffset`. Because the fields are public, `offsetof` will work seamlessly anywhere.
 
 ### Handling Field Addresses in Internal APIs

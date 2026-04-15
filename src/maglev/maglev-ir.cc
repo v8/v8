@@ -5023,7 +5023,7 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
     __ ShiftLeft(scratch, PropertyArray::HashField::kShift);
   } else {
     __ LoadTaggedField(scratch, old_property_array,
-                       PropertyArray::kLengthAndHashOffset);
+                       offsetof(PropertyArray, length_and_hash_));
     __ SmiUntag(scratch);
     __ AndInt32(scratch, PropertyArray::HashField::kMask);
   }
@@ -5034,7 +5034,7 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
 
   __ UncheckedSmiTagInt32(scratch, scratch);
   __ StoreTaggedFieldNoWriteBarrier(
-      new_property_array, PropertyArray::kLengthAndHashOffset, scratch);
+      new_property_array, offsetof(PropertyArray, length_and_hash_), scratch);
 
   {
     RegisterSnapshot snapshot = register_snapshot();

@@ -2095,9 +2095,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       // TODO(leszeks): The field_word_offset already represents the offset
       // inside the property array, we could do a direct (scaled) access to the
       // property array.
-      TNode<IntPtrT> backing_store_index = Signed(
-          IntPtrSub(field_word_offset,
-                    IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
+      TNode<IntPtrT> backing_store_index = Signed(IntPtrSub(
+          field_word_offset,
+          IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) / kTaggedSize)));
 
       if (do_transitioning_store) {
         // Allocate mutable heap number before extending properties backing
@@ -2199,9 +2199,9 @@ void AccessorAssembler::StoreJSSharedStructField(
     // TODO(leszeks): The field_word_offset already represents the offset
     // inside the property array, we could do a direct (scaled) access to the
     // property array.
-    TNode<IntPtrT> backing_store_index = Signed(
-        IntPtrSub(field_word_offset,
-                  IntPtrConstant(PropertyArray::kHeaderSize / kTaggedSize)));
+    TNode<IntPtrT> backing_store_index = Signed(IntPtrSub(
+        field_word_offset,
+        IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) / kTaggedSize)));
 
     CSA_DCHECK(
         this,
@@ -2707,7 +2707,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
   {
     var_properties = CAST(properties);
     TNode<Int32T> length_and_hash_int32 = LoadAndUntagToWord32ObjectField(
-        var_properties.value(), PropertyArray::kLengthAndHashOffset);
+        var_properties.value(), offsetof(PropertyArray, length_and_hash_));
     var_encoded_hash = Word32And(
         length_and_hash_int32, Int32Constant(PropertyArray::HashField::kMask));
     var_length = ChangeInt32ToIntPtr(
@@ -2753,7 +2753,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     TNode<Int32T> new_capacity_int32 = TruncateIntPtrToInt32(new_capacity);
     TNode<Int32T> new_length_and_hash_int32 =
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
-    StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
+    StoreObjectField(new_properties, offsetof(PropertyArray, length_and_hash_),
                      SmiFromInt32(new_length_and_hash_int32));
     StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
     Comment("] Extend storage");
