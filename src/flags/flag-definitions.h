@@ -4270,7 +4270,7 @@ DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags &&
 // Note: The mode may be insufficient and/or incomplete. Passing this flag does
 // not guarantee a bug will be classified as a valid vulnerability. The V8 team
 // reserves the right to make the final determination on security impact during
-// triage. See docs/security_triaging.md.
+// triage. See docs/security/triaging.md.
 DEFINE_BOOL(run_as_security_poc, false,
             "Run programs as security proof of concept (POC).")
 // Unsafe flags generally lead to unsupported configurations.
@@ -4284,6 +4284,27 @@ DEFINE_IMPLICATION(run_as_security_poc, fuzzing)
 // Experimental features are not ready for broad usage yet. Bugs in these areas
 // are not considered security issues.
 DEFINE_NEG_IMPLICATION(run_as_security_poc, experimental)
+
+// Runs a program as sandbox security POC. This mode is used to determine
+// whether a bug in a program can lead to a sandbox violation. The mode enables
+// the memory corruption APIs and as such allows to directly modify untrusted V8
+// heap contents. V8 supports many different configurations and modes that are
+// sometimes incomplete or incompatible. The flag aims at providing guidance on
+// what is actually considered a security issue.
+//
+// Note: The mode may be insufficient and/or incomplete. Passing this flag does
+// not guarantee a bug will be classified as a valid vulnerability. The V8 team
+// reserves the right to make the final determination on security impact during
+// triage. See docs/security/triaging.md.
+DEFINE_BOOL(
+    run_as_sandbox_security_poc, false,
+    "Run programs as security proof of concept (POC) for the V8 sandbox")
+// Use the same configuration as `--run-as-security-poc`.
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, run_as_security_poc)
+// Enable sandbox test mode which allows for using memory corruption APIs and
+// also installs the crash filter that determines whether issues are crashing
+// inside or outside of the sandbox.
+DEFINE_IMPLICATION(run_as_sandbox_security_poc, sandbox_testing)
 
 #undef FLAG
 
