@@ -3523,8 +3523,6 @@ filegroup(
         "src/compiler/simplified-operator-reducer.h",
         "src/compiler/state-values-utils.cc",
         "src/compiler/state-values-utils.h",
-        "src/compiler/string-builder-optimizer.cc",
-        "src/compiler/string-builder-optimizer.h",
         "src/compiler/turbofan.h",
         "src/compiler/turbofan-enabled.cc",
         "src/compiler/turbofan-graph.cc",
