@@ -2171,26 +2171,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLhu:
       __ Lhu(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvUlhu:
-      __ Ulhu(i.OutputRegister(), i.MemoryOperand());
-      break;
     case kRiscvLh:
       __ Lh(i.OutputRegister(), i.MemoryOperand(), trapper);
-      break;
-    case kRiscvUlh:
-      __ Ulh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kRiscvSh:
       __ Sh(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
       break;
-    case kRiscvUsh:
-      __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand());
-      break;
     case kRiscvLw:
       __ Lw(i.OutputRegister(), i.MemoryOperand(), trapper);
-      break;
-    case kRiscvUlw:
-      __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvLwu:
@@ -2199,28 +2187,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLd:
       __ Ld(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvUld:
-      __ Uld(i.OutputRegister(), i.MemoryOperand());
-      break;
     case kRiscvSd:
       __ Sd(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
-      break;
-    case kRiscvUsd:
-      __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
 #endif
     case kRiscvSw:
       __ Sw(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
       break;
-    case kRiscvUsw:
-      __ Usw(i.InputOrZeroRegister(2), i.MemoryOperand());
-      break;
     case kRiscvLoadFloat: {
       __ LoadFloat(i.OutputSingleRegister(), i.MemoryOperand(), trapper);
-      break;
-    }
-    case kRiscvULoadFloat: {
-      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
     case kRiscvStoreFloat: {
@@ -2232,37 +2207,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreFloat(ft, operand, trapper);
       break;
     }
-    case kRiscvUStoreFloat: {
-      size_t index = 0;
-      MemOperand operand = i.MemoryOperand(&index);
-      FPURegister ft = i.InputOrZeroSingleRegister(index);
-      if (ft == kSingleRegZero && !__ IsSingleZeroRegSet()) {
-        __ LoadFPRImmediate(kSingleRegZero, 0.0f);
-      }
-      __ UStoreFloat(ft, operand);
-      break;
-    }
     case kRiscvLoadDouble:
       __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvULoadDouble: {
-      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
-      break;
-    }
     case kRiscvStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(0);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0);
       }
       __ StoreDouble(ft, i.MemoryOperand(1), trapper);
-      break;
-    }
-    case kRiscvUStoreDouble: {
-      FPURegister ft = i.InputOrZeroDoubleRegister(2);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ LoadFPRImmediate(kDoubleRegZero, 0.0);
-      }
-      __ UStoreDouble(ft, i.MemoryOperand());
       break;
     }
     case kRiscvSync: {

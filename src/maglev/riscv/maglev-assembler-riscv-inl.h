@@ -926,7 +926,7 @@ inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
-  ULoadDouble(dst, MemOperand(address));
+  LoadDouble(dst, MemOperand(address));
 }
 inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
     DoubleRegister dst, Register base, Register index) {
@@ -934,7 +934,7 @@ inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
   Register scratch = base;  // reuse base as scratch register
-  Uld(scratch, MemOperand(address));
+  LoadWord(scratch, MemOperand(address));
   ByteSwap(scratch, scratch, 8, address);
   MacroAssembler::Move(dst, scratch);
 }
@@ -944,7 +944,7 @@ inline void MaglevAssembler::StoreUnalignedFloat64(Register base,
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
-  UStoreDouble(src, MemOperand(address));
+  StoreDouble(src, MemOperand(address));
 }
 inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
     Register base, Register index, DoubleRegister src) {
@@ -954,7 +954,7 @@ inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
   MacroAssembler::Move(scratch, src);
   ByteSwap(scratch, scratch, 8, address);  // reuse address as scratch register
   Add64(address, base, index);
-  Usd(scratch, MemOperand(address));
+  StoreWord(scratch, MemOperand(address));
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {

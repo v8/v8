@@ -1737,15 +1737,17 @@ void InstructionSelector::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
 }
 
 // static
+/*
+Only support FullUnalignedAccessSupport in V8.
+
+Mainstream high-performance RISC-V cores (U74, U54, XuanTie C9xx)
+now support misaligned access in hardware.If hardware lacking support, the SBI
+specification requires firmware to handle these cases via trap handlers.
+*/
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {
-#ifdef RISCV_HAS_NO_UNALIGNED
-  return MachineOperatorBuilder::AlignmentRequirements::
-      NoUnalignedAccessSupport();
-#else
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
-#endif
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

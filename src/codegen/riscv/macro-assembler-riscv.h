@@ -910,22 +910,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <int NBYTES, bool LOAD_SIGNED>
   void LoadNBytesOverwritingBaseReg(const MemOperand& rs, Register scratch0,
                                     Register scratch1);
-  // load/store macros
-  void Ulh(Register rd, const MemOperand& rs);
-  void Ulhu(Register rd, const MemOperand& rs);
-  void Ush(Register rd, const MemOperand& rs);
-
-  void Ulw(Register rd, const MemOperand& rs);
-  void Usw(Register rd, const MemOperand& rs);
-
-  void Uld(Register rd, const MemOperand& rs);
-  void Usd(Register rd, const MemOperand& rs);
-
-  void ULoadFloat(FPURegister fd, const MemOperand& rs);
-  void UStoreFloat(FPURegister fd, const MemOperand& rs);
-
-  void ULoadDouble(FPURegister fd, const MemOperand& rs);
-  void UStoreDouble(FPURegister fd, const MemOperand& rs);
 
   using Trapper = std::function<void(int)>;
 
@@ -956,6 +940,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef ATOMIC_BINOP32
 #undef ATOMIC_BINOP64
 
+  // load/store macros
   void Lb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Lbu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -968,7 +953,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Sw(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
 #if V8_TARGET_ARCH_RISCV64
-  void Ulwu(Register rd, const MemOperand& rs);
   void Lwu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Ld(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sd(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -1651,9 +1635,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
-
-  void LoadWordPair(Register rd, const MemOperand& rs);
-  void StoreWordPair(Register rd, const MemOperand& rs);
 
   void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
