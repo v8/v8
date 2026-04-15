@@ -21,7 +21,6 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/interpreter/wasm-interpreter-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/zone.h"
@@ -843,9 +842,9 @@ static void PrintAndClearProfilingData() {
 
 #endif  // DRUMBRAKE_ENABLE_PROFILING
 
-static int StructFieldOffset(const StructType* struct_type, int field_index) {
-  return wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize +
-                                      struct_type->field_offset(field_index));
+int StructFieldOffset(const StructType* struct_type, int field_index) {
+  return WasmStruct::kHeaderSize + struct_type->field_offset(field_index) -
+         kHeapObjectTag;
 }
 
 InstructionHandler s_unwind_code = InstructionHandler::k_s2s_Unwind;

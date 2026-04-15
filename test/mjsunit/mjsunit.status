@@ -677,6 +677,10 @@
   'regress/wasm/regress-488089242': [SKIP],
   'regress/wasm/regress-489349562': [SKIP],
   'wasm/cont-bind': [SKIP],
+  'wasm/regress-496645739': [SKIP],
+  'wasm/regress-497667917': [SKIP],
+  'wasm/regress-498482620': [SKIP],
+  'wasm/regress-499719427': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/wasmfx*': [SKIP],
@@ -821,6 +825,12 @@
   'regress/wasm/regress-457106696': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
+
+  # --experimental-wasm-compact-imports
+  'wasm/compact-imports': [SKIP],
+
+  # --experimental-wasm-wide-arithmetic
+  'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-deopt
   'regress/wasm/regress-363826217': [SKIP],

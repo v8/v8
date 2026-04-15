@@ -9,10 +9,10 @@
 #include "src/codegen/signature.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate.h"
+#include "src/objects/shared-function-info.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -53,9 +53,8 @@ void PrepareForJsToWasmConversionBuiltinCall(MacroAssembler* masm,
       kWasmTrustedInstanceDataIndirectPointerTag);
   __ LoadTaggedField(
       kContextRegister,  // cp(s7)
-      MemOperand(wasm_trusted_instance,
-                 wasm::ObjectAccess::ToTagged(
-                     WasmTrustedInstanceData::kNativeContextOffset)));
+      FieldMemOperand(wasm_trusted_instance,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 }
 
 void RestoreAfterJsToWasmConversionBuiltinCall(MacroAssembler* masm,
@@ -95,9 +94,8 @@ void PrepareForBuiltinCall(MacroAssembler* masm, Register array_start,
       kWasmTrustedInstanceDataIndirectPointerTag);
   __ LoadTaggedField(
       kContextRegister,  // cp(s7)
-      MemOperand(wasm_trusted_instance,
-                 wasm::ObjectAccess::ToTagged(
-                     WasmTrustedInstanceData::kNativeContextOffset)));
+      FieldMemOperand(wasm_trusted_instance,
+                      WasmTrustedInstanceData::kNativeContextOffset));
 }
 
 void RestoreAfterBuiltinCall(MacroAssembler* masm, Register wasm_instance,
@@ -134,9 +132,8 @@ void PrepareForWasmToJsConversionBuiltinCall(
         kWasmTrustedInstanceDataIndirectPointerTag);
     __ LoadTaggedField(
         kContextRegister,  // cp(s7)
-        MemOperand(wasm_trusted_instance,
-                   wasm::ObjectAccess::ToTagged(
-                       WasmTrustedInstanceData::kNativeContextOffset)));
+        FieldMemOperand(wasm_trusted_instance,
+                        WasmTrustedInstanceData::kNativeContextOffset));
   }
 }
 
@@ -313,8 +310,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      MemOperand(closure, wasm::ObjectAccess::ToTagged(
-                              JSFunction::kSharedFunctionInfoOffset)));
+      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
@@ -1189,9 +1185,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   DEFINE_REG(shared_function_info);
   __ LoadTaggedField(shared_function_info,
-                     MemOperand(target_js_function,
-                                wasm::ObjectAccess::ToTagged(
-                                    JSFunction::kSharedFunctionInfoOffset)));
+                     FieldMemOperand(target_js_function,
+                                     JSFunction::kSharedFunctionInfoOffset));
 
   // Set the context of the function; the call has to run in the function
   // context.
