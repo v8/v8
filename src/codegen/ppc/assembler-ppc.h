@@ -759,6 +759,12 @@ class Assembler : public AssemblerBase {
       case nooverflow32:
         bc(b_offset, BF, encode_crbit(cr, CR_OV32), lk);
         break;
+      case overflow64:
+        bc(b_offset, BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bc(b_offset, BF, encode_crbit(cr, CR_OV), lk);
+        break;
       default:
         UNIMPLEMENTED();
     }
@@ -806,6 +812,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         bclr(BF, encode_crbit(cr, CR_OV32), lk);
+        break;
+      case overflow64:
+        bclr(BT, encode_crbit(cr, CR_OV), lk);
+        break;
+      case nooverflow64:
+        bclr(BF, encode_crbit(cr, CR_OV), lk);
         break;
       default:
         UNIMPLEMENTED();
@@ -856,6 +868,12 @@ class Assembler : public AssemblerBase {
         break;
       case nooverflow32:
         isel(rt, rb, ra, encode_crbit(cr, CR_OV32));
+        break;
+      case overflow64:
+        isel(rt, ra, rb, encode_crbit(cr, CR_OV));
+        break;
+      case nooverflow64:
+        isel(rt, rb, ra, encode_crbit(cr, CR_OV));
         break;
       default:
         UNIMPLEMENTED();

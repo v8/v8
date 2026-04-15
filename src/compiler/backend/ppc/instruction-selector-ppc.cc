@@ -1106,7 +1106,7 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   if (this->MatchIntegralZero(sub.left())) {
     Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate);
+    VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate);
   }
 }
 
@@ -1116,7 +1116,7 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   if (this->MatchIntegralZero(sub.left())) {
     Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate);
+    VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate);
   }
 }
 
@@ -1575,21 +1575,20 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
+    return VisitBinop(this, node, kPPC_Add32, kInt16Imm, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_AddWithOverflow32, kInt16Imm, &cont);
+    VisitBinop(this, node, kPPC_Add32, kInt16Imm, &cont);
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate,
-                      &cont);
+    return VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_SubWithOverflow32, kInt16Imm_Negate, &cont);
+    VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate, &cont);
 }
 
 void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
@@ -1606,10 +1605,10 @@ void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    return VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+    return VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
-    VisitBinop(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+    VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate, &cont);
 }
 
 void InstructionSelector::VisitInt64MulWithOverflow(OpIndex node) {
@@ -1769,13 +1768,11 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop(this, node,
-                                is64 ? kPPC_Add64 : kPPC_AddWithOverflow32,
+              return VisitBinop(this, node, is64 ? kPPC_Add64 : kPPC_Add32,
                                 kInt16Imm, cont);
             case OverflowCheckedBinopOp::Kind::kSignedSub:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop(this, node,
-                                is64 ? kPPC_Sub : kPPC_SubWithOverflow32,
+              return VisitBinop(this, node, is64 ? kPPC_Sub64 : kPPC_Sub32,
                                 kInt16Imm_Negate, cont);
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               if (is64) {
@@ -1830,7 +1827,7 @@ void InstructionSelector::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
       InstructionOperand index_operand = value_operand;
       if (sw.min_value()) {
       index_operand = g.TempRegister();
-      Emit(kPPC_Sub, index_operand, value_operand,
+      Emit(kPPC_Sub64, index_operand, value_operand,
            g.TempImmediate(sw.min_value()));
       }
       // Zero extend, because we use it as 64-bit index into the jump table.
