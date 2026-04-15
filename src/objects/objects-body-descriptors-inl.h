@@ -1493,7 +1493,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
     // We store raw aligned pointers as Smis, so it's safe to iterate the whole
     // array.
     static_assert(kEmbedderDataSlotSize == kTaggedSize);
-    IteratePointers(obj, EmbedderDataArray::kHeaderSize, object_size, v);
+    IteratePointers(obj, sizeof(EmbedderDataArray), object_size, v);
 #endif
   }
 

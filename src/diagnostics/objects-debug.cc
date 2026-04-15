@@ -868,9 +868,10 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
 }
 
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::EmbedderDataArrayVerify(*this, isolate);
-  EmbedderDataSlot start(*this, 0);
-  EmbedderDataSlot end(*this, length());
+  CHECK(IsEmbedderDataArray(this));
+  CHECK(length_.load().IsSmi());
+  EmbedderDataSlot start(this, 0);
+  EmbedderDataSlot end(this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     Tagged<Object> e = slot.load_tagged();
     Object::VerifyPointer(isolate, e);
