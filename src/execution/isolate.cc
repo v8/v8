@@ -2739,6 +2739,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
             active_stack, parent, kNullAddress, kNullAddress, kNullAddress);
         if (suspender->has_parent() && parent == suspender->parent()->stack()) {
+          // Exception escapes the current suspender, unwind to the parent.
+          // Clear the external stack pointer to avoid a UAF.
+          suspender->set_stack(this, nullptr);
           suspender = suspender->parent();
         }
         RetireWasmStack(active_stack);
