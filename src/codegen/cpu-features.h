@@ -63,8 +63,6 @@ enum CpuFeature {
   CSSC,
   // Standardization of memory operations
   MOPS,
-  // Scalable Vector Extension
-  SVE,
   // Scalable Vector Bit Permutes instructions
   SVEBITPERM,
 

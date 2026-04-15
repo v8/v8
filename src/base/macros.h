@@ -447,20 +447,13 @@ constexpr inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
 }
 
-template <typename T>
-constexpr inline bool IsAlignedAddress(T* address, size_t alignment) {
-  return IsAligned(reinterpret_cast<uintptr_t>(address), alignment);
-}
-
-template <typename T>
-inline T* AlignedAddress(T* address, size_t alignment) {
-  return reinterpret_cast<T*>(
+inline void* AlignedAddress(void* address, size_t alignment) {
+  return reinterpret_cast<void*>(
       RoundDown(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
-template <typename T>
-inline T* RoundUpAddress(T* address, size_t alignment) {
-  return reinterpret_cast<T*>(
+inline void* RoundUpAddress(void* address, size_t alignment) {
+  return reinterpret_cast<void*>(
       RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
 }
 

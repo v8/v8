@@ -94,9 +94,6 @@ constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
   features.Add(FP16);
 #endif
-#if defined(__ARM_FEATURE_SVE)
-  features.Add(SVE);
-#endif
 #if defined(__ARM_FEATURE_SVE2_BITPERM)
   features.Add(SVEBITPERM);
 #endif
@@ -168,9 +165,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_mops()) {
     runtime.Add(MOPS);
-  }
-  if (cpu.has_sve()) {
-    runtime.Add(SVE);
   }
   if (cpu.has_svebitperm()) {
     runtime.Add(SVEBITPERM);
