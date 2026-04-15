@@ -151,10 +151,6 @@ enum Condition : int {
   kNoOverflow = nooverflow,
   kZero = 17,
   kNotZero = 18,
-  kOverflow32 = overflow32,
-  kNoOverflow32 = nooverflow32,
-  kOverflow64 = overflow64,
-  kNoOverflow64 = nooverflow64,
 };
 
 inline Condition to_condition(Condition cond) {
@@ -189,8 +185,10 @@ inline bool is_signed(Condition cond) {
     case kNoOverflow:
     case kZero:
     case kNotZero:
-    case kOverflow32:
-    case kNoOverflow32:
+    case overflow32:
+    case nooverflow32:
+    case overflow64:
+    case nooverflow64:
       return true;
 
     case kUnsignedLessThan:
@@ -239,14 +237,14 @@ constexpr inline Condition NegateCondition(Condition cond) {
       return kNotZero;
     case kNotZero:
       return kZero;
-    case kOverflow32:
-      return kNoOverflow32;
-    case kNoOverflow32:
-      return kOverflow32;
-    case kOverflow64:
-      return kNoOverflow64;
-    case kNoOverflow64:
-      return kOverflow64;
+    case overflow32:
+      return nooverflow32;
+    case nooverflow32:
+      return overflow32;
+    case overflow64:
+      return nooverflow64;
+    case nooverflow64:
+      return overflow64;
     default:
       DCHECK(false);
   }
