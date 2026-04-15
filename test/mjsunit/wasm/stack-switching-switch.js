@@ -81,8 +81,8 @@ let instance = builder.instantiate();
   let cont_target = builder.addCont(sig_target);
   builder.endRecGroup();
 
-  let tag_to_target = builder.addTag(makeSig(types, [kWasmI32]));
-  let tag_to_switch_func = builder.addTag(makeSig([kWasmI32], [kWasmI32]));
+  let tag_to_target = builder.addTag(makeSig([], [kWasmI32]));
+  let tag_to_switch_func = builder.addTag(makeSig([], [kWasmI32]));
 
   let g_ref = builder.addGlobal(kWasmEqRef, true).exportAs('g_ref');
 

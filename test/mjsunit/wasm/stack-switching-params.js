@@ -256,7 +256,7 @@ let instance = builder.instantiate();
   // Target of switch must take a continuation as its last parameter.
   let sig_target = builder.addType(makeSig([kWasmS128, wasmRefType(cont_s_c)], [kWasmS128]));
   let cont_target = builder.addCont(sig_target);
-  let simd_tag = builder.addTag(makeSig([kWasmS128], [kWasmS128]));
+  let simd_tag = builder.addTag(makeSig([], [kWasmS128]));
 
   let target = builder.addFunction("target", sig_target)
       .addBody([

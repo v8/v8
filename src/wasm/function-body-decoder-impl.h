@@ -4631,6 +4631,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return true;
   }
 
+  bool IsEquivalentTypeVec(base::Vector<const ValueType> left,
+                           base::Vector<const ValueType> right) {
+    if (left.size() != right.size()) return false;
+
+    auto right_it = right.begin();
+    for (ValueType left_el : left) {
+      if (!EquivalentTypes(left_el, *right_it++, this->module_)) return false;
+    }
+    return true;
+  }
+
   DECODE(ContNew) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
@@ -4798,12 +4809,20 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         base::Vector<const ValueType> old_cont_returns =
             this->module_->signature(cont_imm.cont_type->contfun_typeindex())
                 ->returns();
-        if (!VALIDATE(IsSubtypeVec(tag_sig->returns(), old_cont_returns))) {
+        if (!VALIDATE(
+                IsEquivalentTypeVec(tag_sig->returns(), old_cont_returns))) {
           this->DecodeError(
               "Type mismatch between tag returns and cont returns for switch "
               "handler %u",
               handler_iterator.cur_index() - 1);
           return -1;
+        }
+
+        if (!VALIDATE(tag_sig->parameter_count() == 0)) {
+          this->DecodeError(
+              "switch tag %d has %d parameters but should have no parameters",
+              handler.tag.index, tag_sig->parameter_count());
+          return 0;
         }
       } else {
         this->DecodeError("invalid handler kind %d", handler.kind);
@@ -4982,6 +5001,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!VALIDATE(IsSubtypeVec(cont_sig->returns(), tag_sig->returns()))) {
       this->DecodeError("return(s) from continuation %d do not match tag %d",
                         contimm.index.index, tagimm.index);
+      return 0;
+    }
+
+    if (!VALIDATE(tag_sig->parameter_count() == 0)) {
+      this->DecodeError(
+          "switch tag %d has %d parameters but should have no parameters",
+          tagimm.index, tag_sig->parameter_count());
       return 0;
     }
 

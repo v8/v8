@@ -16,7 +16,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let cont_idx = builder.addCont(sig_idx);
   builder.endRecGroup();
 
-  let f64_tag = builder.addTag(makeSig([kWasmF64], [kWasmF64]));
+  let f64_tag = builder.addTag(makeSig([], [kWasmF64]));
 
   let target = builder.addFunction("target", sig_idx)
       .addBody([
@@ -75,7 +75,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let cont_idx = builder.addCont(sig_idx);
   builder.endRecGroup();
 
-  let tag = builder.addTag(makeSig(types, [kWasmF64]));
+  let tag = builder.addTag(makeSig([], [kWasmF64]));
 
   let target = builder.addFunction("target", sig_idx)
       .addBody([
@@ -133,4 +133,56 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(1, instance.exports.main());
+})();
+
+// Negative test: Tag return type does not match the supplied continuation's return type.
+(function TestSwitchTagReturnMismatch() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.startRecGroup();
+  let sig_idx = builder.addType(makeSig([kWasmF64, wasmRefNullType(builder.nextTypeIndex() + 1)], [kWasmF32])); // Cont returns f32
+  let cont_idx = builder.addCont(sig_idx);
+  builder.endRecGroup();
+
+  let f64_tag = builder.addTag(makeSig([], [kWasmF64])); // Tag returns f64
+
+  let target = builder.addFunction("target", sig_idx)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprLocalGet, 1,
+          kExprSwitch, cont_idx, f64_tag,
+          kExprDrop, // drop cont
+          kExprReturn, // return f32
+      ]).exportFunc();
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError, /return\(s\) from continuation .* do not match tag/);
+})();
+
+// Negative test: Tag return type does not match the return continuation's return type.
+(function TestSwitchTagReturnMismatchReturnCont() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  // The return continuation returns f32
+  let return_sig_idx = builder.addType(makeSig([kWasmF32, wasmRefNullType(0)], [kWasmF32]));
+  let return_cont_idx = builder.addCont(return_sig_idx);
+
+  builder.startRecGroup();
+  let sig_idx = builder.addType(makeSig([kWasmF64, wasmRefNullType(return_cont_idx)], [kWasmF64])); // Cont returns f64
+  let cont_idx = builder.addCont(sig_idx);
+  builder.endRecGroup();
+
+  let f64_tag = builder.addTag(makeSig([], [kWasmF64])); // Tag returns f64
+
+  let target = builder.addFunction("target", sig_idx)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprLocalGet, 1,
+          kExprSwitch, cont_idx, f64_tag, // f64_tag returns f64, but return_cont expects f32 (its return type)
+          kExprDrop, // drop cont
+          kExprReturn, // return f64
+      ]).exportFunc();
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError, /tag .*'s return types should be a subtype of return continuation .*'s return types/);
 })();
