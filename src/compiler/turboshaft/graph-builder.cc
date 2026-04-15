@@ -253,16 +253,23 @@ std::optional<BailoutReason> GraphBuilder::Run() {
                        predecessors[j]->rpo_number();
               });
 
+    // Skip loop back-edge predecessors: their final_frame_state hasn't been
+    // computed yet at header-visit time.
     OpIndex dominating_frame_state = OpIndex::Invalid();
-    if (!predecessors.empty()) {
-      dominating_frame_state =
-          block_mapping[predecessors[0]->rpo_number()].final_frame_state;
-      for (size_t i = 1; i < predecessors.size(); ++i) {
-        if (block_mapping[predecessors[i]->rpo_number()].final_frame_state !=
-            dominating_frame_state) {
-          dominating_frame_state = OpIndex::Invalid();
-          break;
-        }
+    bool first_fs = true;
+    for (BasicBlock* pred : predecessors) {
+      if (pred->rpo_number() >= block->rpo_number()) {
+        // Skipping loop backedge.
+        DCHECK(block->IsLoopHeader());
+        continue;
+      }
+      OpIndex pred_fs = block_mapping[pred->rpo_number()].final_frame_state;
+      if (first_fs) {
+        dominating_frame_state = pred_fs;
+        first_fs = false;
+      } else if (pred_fs != dominating_frame_state) {
+        dominating_frame_state = OpIndex::Invalid();
+        break;
       }
     }
 
