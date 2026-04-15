@@ -73,6 +73,7 @@ class MaybeObjectSize final {
   V(InterceptorInfo)                  \
   V(Hole)                             \
   V(Map)                              \
+  V(MegaDomHandler)                   \
   V(NativeContext)                    \
   V(Oddball)                          \
   V(PreparseData)                     \

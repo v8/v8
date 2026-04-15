@@ -18,8 +18,30 @@ namespace internal {
 
 #include "torque-generated/src/objects/megadom-handler-tq-inl.inc"
 
-RELEASE_ACQUIRE_ACCESSORS(MegaDomHandler, accessor, Tagged<MaybeObject>,
-                          kAccessorOffset)
+Tagged<MaybeObject> MegaDomHandler::accessor() const {
+  return accessor_.load();
+}
+
+Tagged<MaybeObject> MegaDomHandler::accessor(AcquireLoadTag) const {
+  return accessor_.Acquire_Load();
+}
+
+void MegaDomHandler::set_accessor(Tagged<MaybeObject> value,
+                                  WriteBarrierMode mode) {
+  accessor_.store(this, value, mode);
+}
+
+void MegaDomHandler::set_accessor(Tagged<MaybeObject> value, ReleaseStoreTag,
+                                  WriteBarrierMode mode) {
+  accessor_.Release_Store(this, value, mode);
+}
+
+Tagged<MaybeObject> MegaDomHandler::context() const { return context_.load(); }
+
+void MegaDomHandler::set_context(Tagged<MaybeObject> value,
+                                 WriteBarrierMode mode) {
+  context_.store(this, value, mode);
+}
 
 }  // namespace internal
 }  // namespace v8

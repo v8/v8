@@ -1718,6 +1718,12 @@ void Cell::CellVerify(Isolate* isolate) {
   Object::VerifyMaybeObjectPointer(isolate, maybe_value());
 }
 
+void MegaDomHandler::MegaDomHandlerVerify(Isolate* isolate) {
+  CHECK(IsMegaDomHandler(this));
+  Object::VerifyMaybeObjectPointer(isolate, accessor());
+  Object::VerifyMaybeObjectPointer(isolate, context());
+}
+
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CHECK(IsPropertyCell(this));
   Object::VerifyPointer(isolate, name_.load());

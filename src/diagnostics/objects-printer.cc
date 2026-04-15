@@ -2741,6 +2741,13 @@ void Cell::CellPrint(std::ostream& os) {
   os << "\n";
 }
 
+void MegaDomHandler::MegaDomHandlerPrint(std::ostream& os) {
+  PrintHeader(os, "MegaDomHandler");
+  os << "\n - accessor: " << Brief(accessor());
+  os << "\n - context: " << Brief(context());
+  os << "\n";
+}
+
 void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";

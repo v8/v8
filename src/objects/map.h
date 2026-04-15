@@ -78,6 +78,7 @@ enum InstanceType : uint16_t;
   V(JSWeakCollection)                 \
   V(JSWeakRef)                        \
   V(Map)                              \
+  V(MegaDomHandler)                   \
   V(NativeContext)                    \
   V(Oddball)                          \
   V(PreparseData)                     \

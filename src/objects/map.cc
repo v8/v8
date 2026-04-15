@@ -173,6 +173,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
+    case MEGA_DOM_HANDLER_TYPE:
+      return kVisitMegaDomHandler;
+
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
 
