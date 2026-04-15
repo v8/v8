@@ -14,7 +14,6 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything else from src/compiler here!
-#include "src/base/small-vector.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/runtime/runtime.h"
@@ -34,12 +33,9 @@ class CFunctionInfo;
 namespace internal {
 enum class AbortReason : uint8_t;
 struct AssemblerOptions;
-enum class BranchHint : uint8_t;
-class TurbofanCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
-class CallDescriptor;
 class TFGraph;
 class MachineGraph;
 class Node;
@@ -47,13 +43,7 @@ class NodeOriginTable;
 class Operator;
 class SourcePositionTable;
 struct WasmCompilationData;
-class WasmDecorator;
 class WasmGraphAssembler;
-enum class TrapId : int32_t;
-struct Int64LoweringSpecialCase;
-template <size_t VarCount>
-class GraphAssemblerLabel;
-struct WasmTypeCheckConfig;
 }  // namespace compiler
 
 namespace wasm {
@@ -194,17 +184,10 @@ class WasmGraphBuilder {
     return effect_and_control;
   }
 
-  Node* SetType(Node* node, wasm::ValueType type);
-
   // Overload for when we want to provide a specific signature, rather than
   // build one using sig_, for example after scalar lowering.
   V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
   V8_EXPORT_PRIVATE void LowerInt64(wasm::CallOrigin origin);
-
-  void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
-
-  Node* IsNull(Node* object, wasm::ValueType type);
-  Node* TypeGuard(Node* value, wasm::ValueType type);
 
   bool has_simd() const { return has_simd_; }
 
@@ -219,25 +202,19 @@ class WasmGraphBuilder {
   Node* UndefinedValue();
 
   Node* BuildCallNode(size_t param_count, base::Vector<Node*> args,
-                      wasm::WasmCodePosition position, Node* instance_node,
-                      const Operator* op, Node* frame_state = nullptr);
+                      Node* instance_node, const Operator* op,
+                      Node* frame_state = nullptr);
   template <typename T>
   Node* BuildWasmCall(const Signature<T>* sig, base::Vector<Node*> args,
-                      base::Vector<Node*> rets, wasm::WasmCodePosition position,
-                      Node* implicit_first_arg, bool indirect,
-                      Node* frame_state = nullptr);
+                      base::Vector<Node*> rets, Node* implicit_first_arg,
+                      bool indirect, Node* frame_state = nullptr);
 
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove
   // to get off the GC heap.
   //-----------------------------------------------------------------------
-  Node* BuildCallToRuntime(Runtime::FunctionId f, Node** parameters,
-                           int parameter_count);
-
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
-
-  Node* BuildChangeInt64ToBigInt(Node* input, StubCallMode stub_mode);
 
   void Assert(Node* condition, AbortReason abort_reason);
 
@@ -260,8 +237,6 @@ class WasmGraphBuilder {
 
   const wasm::FunctionSig* const function_sig_;
   const wasm::CanonicalSig* const wrapper_sig_{nullptr};
-
-  compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
   int inlining_id_ = -1;

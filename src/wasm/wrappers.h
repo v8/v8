@@ -214,6 +214,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   void BuildWasmToJSWrapper(ImportCallKind kind, int expected_arity,
                             Suspend suspend);
 
+  void BuildJSFastApiCallWrapper(DirectHandle<JSReceiver> callable);
+
   void BuildWasmStackEntryWrapper();
 
   void BuildCapiCallWrapper();
@@ -602,7 +604,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     return pos;
   }
 
-  OpIndex LoadSharedFunctionInfo(V<Object> js_function) {
+  V<SharedFunctionInfo> LoadSharedFunctionInfo(V<Object> js_function) {
     return __ Load(js_function, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::TaggedPointer(),
                    JSFunction::kSharedFunctionInfoOffset);

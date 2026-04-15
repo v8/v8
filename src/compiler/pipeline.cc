@@ -1391,7 +1391,6 @@ struct WasmGCOptimizationPhase {
   }
 };
 
-
 struct WasmGCLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
 
@@ -2547,19 +2546,18 @@ Pipeline::NewCSLinkageCodeStubBuiltinCompilationJob(
     CodeAssemblerInstaller installer, const AssemblerOptions& assembler_options,
     CallDescriptors::Key interface_descriptor, const char* name,
     const ProfileDataFromFile* profile_data, int finalize_order) {
-  auto get_call_descriptor =
-      [interface_descriptor](Zone* zone) {
-        CallInterfaceDescriptor descriptor(interface_descriptor);
-        // Ensure descriptor is already initialized.
-        DCHECK_LE(0, descriptor.GetRegisterParameterCount());
-        return Linkage::GetStubCallDescriptor(
-            zone, descriptor, descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, Operator::kNoProperties);
-      };
-    return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
-        isolate, builtin, generator, installer, assembler_options,
-        get_call_descriptor, CodeKind::BUILTIN, name, profile_data,
-        finalize_order);
+  auto get_call_descriptor = [interface_descriptor](Zone* zone) {
+    CallInterfaceDescriptor descriptor(interface_descriptor);
+    // Ensure descriptor is already initialized.
+    DCHECK_LE(0, descriptor.GetRegisterParameterCount());
+    return Linkage::GetStubCallDescriptor(
+        zone, descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoProperties);
+  };
+  return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
+      isolate, builtin, generator, installer, assembler_options,
+      get_call_descriptor, CodeKind::BUILTIN, name, profile_data,
+      finalize_order);
 }
 
 // static
@@ -2573,10 +2571,10 @@ Pipeline::NewJSLinkageCodeStubBuiltinCompilationJob(
     return Linkage::GetJSCallDescriptor(zone, false, argc,
                                         CallDescriptor::kCanUseRoots);
   };
-    return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
-        isolate, builtin, generator, installer, assembler_options,
-        get_call_descriptor, CodeKind::BUILTIN, name, profile_data,
-        finalize_order);
+  return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
+      isolate, builtin, generator, installer, assembler_options,
+      get_call_descriptor, CodeKind::BUILTIN, name, profile_data,
+      finalize_order);
 }
 
 // static
@@ -2586,17 +2584,16 @@ Pipeline::NewBytecodeHandlerCompilationJob(
     CodeAssemblerInstaller installer, const AssemblerOptions& assembler_options,
     const char* name, const ProfileDataFromFile* profile_data,
     int finalize_order) {
-  auto get_call_descriptor =
-      [](Zone* zone) {
-        InterpreterDispatchDescriptor descriptor;
-        return Linkage::GetStubCallDescriptor(
-            zone, descriptor, descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, Operator::kNoProperties);
-      };
-    return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
-        isolate, builtin, generator, installer, assembler_options,
-        get_call_descriptor, CodeKind::BYTECODE_HANDLER, name, profile_data,
-        finalize_order);
+  auto get_call_descriptor = [](Zone* zone) {
+    InterpreterDispatchDescriptor descriptor;
+    return Linkage::GetStubCallDescriptor(
+        zone, descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoProperties);
+  };
+  return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
+      isolate, builtin, generator, installer, assembler_options,
+      get_call_descriptor, CodeKind::BYTECODE_HANDLER, name, profile_data,
+      finalize_order);
 }
 
 // static
@@ -2628,9 +2625,9 @@ CodeAssemblerCompilationJob::NewJobForTesting(
     std::function<compiler::CallDescriptor*(Zone*)> get_call_descriptor,
     CodeKind code_kind, const char* name) {
   AssemblerOptions assembler_options = AssemblerOptions::Default(isolate);
-    return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
-        isolate, builtin, generator, installer, assembler_options,
-        get_call_descriptor, code_kind, name, nullptr, -1);
+  return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
+      isolate, builtin, generator, installer, assembler_options,
+      get_call_descriptor, code_kind, name, nullptr, -1);
 }
 
 MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
@@ -2835,7 +2832,8 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 wasm::WasmCompilationResult
 Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
-    const char* debug_name, const AssemblerOptions& options) {
+    const char* debug_name, const AssemblerOptions& options,
+    DirectHandle<JSReceiver> callable) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
   WasmCallKind call_kind;
@@ -2882,7 +2880,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     turboshaft_data.InitializeGraphComponent(
         nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
     BuildWasmWrapper(&turboshaft_data, turboshaft_data.graph(), sig,
-                     wrapper_info);
+                     wrapper_info, callable);
     CodeTracer* code_tracer = nullptr;
     if (info.trace_turbo_json() || info.trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,

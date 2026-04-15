@@ -12,6 +12,7 @@
 #include "src/wasm/wrappers.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/execution/simulator-base.h"
 #include "src/heap/factory-base-inl.h"
 
 namespace v8::internal::wasm {
@@ -820,6 +821,117 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   __ Bind(catch_block);
   V<Object> exception = __ CatchBlockBegin();
   __ Return(exception);
+}
+
+template <typename Assembler>
+void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
+    DirectHandle<JSReceiver> callable) {
+  __ Bind(__ NewBlock());
+
+  V<WasmImportData> import_data =
+      __ Parameter(0, RegisterRepresentation::Tagged());
+  base::SmallVector<OpIndex, 16> wasm_params;
+  for (size_t i = 0; i < sig_->parameter_count(); ++i) {
+    wasm_params.push_back(__ Parameter(
+        static_cast<int>(i + 1), this->RepresentationFor(sig_->GetParam(i))));
+  }
+
+  V<NativeContext> native_context = __ template LoadTaggedField<NativeContext>(
+      import_data, WasmImportData::kNativeContextOffset);
+
+  __ StoreOffHeap(__ LoadRootRegister(),
+                  __ BitcastHeapObjectToWordPtr(native_context),
+                  MemoryRepresentation::UintPtr(), Isolate::context_offset());
+
+  Tagged<JSFunction> target;
+  V<JSFunction> target_node;
+  V<Object> receiver_node;
+  V<JSReceiver> callable_node = __ template LoadTaggedField<JSReceiver>(
+      import_data, WasmImportData::kCallableOffset);
+
+  if (IsJSBoundFunction(*callable)) {
+    target = Cast<JSFunction>(
+        Cast<JSBoundFunction>(callable)->bound_target_function());
+    target_node = __ template LoadTaggedField<JSFunction>(
+        callable_node, JSBoundFunction::kBoundTargetFunctionOffset);
+    receiver_node =
+        __ LoadTaggedField(callable_node, JSBoundFunction::kBoundThisOffset);
+  } else {
+    target = Cast<JSFunction>(*callable);
+    target_node = V<JSFunction>::Cast(callable_node);
+    receiver_node = __ template LoadRoot<RootIndex::kUndefinedValue>();
+  }
+
+  Tagged<SharedFunctionInfo> shared = target->shared();
+  Tagged<FunctionTemplateInfo> api_func_data = shared->api_func_data();
+  // !!! Warning !!! This relies on the preceding logic to validate that this
+  // overload matches the expected signature, which is generally unsafe in the
+  // sandbox attacker model.
+  const CFunctionWithSignature c_function = api_func_data->GetCFunction(0);
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  Address c_functions[] = {c_function.address};
+  const v8::CFunctionInfo* const c_signatures[] = {c_function.signature};
+  Isolate::Current()->simulator_data()->RegisterFunctionsAndSignatures(
+      c_functions, c_signatures, 1);
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  V<SharedFunctionInfo> shared_function_info =
+      LoadSharedFunctionInfo(target_node);
+  V<FunctionTemplateInfo> function_template_info =
+      __ template LoadTaggedField<FunctionTemplateInfo>(
+          shared_function_info,
+          SharedFunctionInfo::kUntrustedFunctionDataOffset);
+
+  V<Object> api_data_argument = __ LoadTaggedField(
+      function_template_info, FunctionTemplateInfo::kCallbackDataOffset);
+
+  compiler::FastApiCallFunction call_function{c_function.address,
+                                              c_function.signature};
+
+  auto [old_sp, old_limit] = this->BuildSwitchToTheCentralStackIfNeeded();
+
+  base::SmallVector<OpIndex, 16> args;
+  for (unsigned i = 0; i < c_function.signature->ArgumentCount(); ++i) {
+    if (i == 0) {
+      args.push_back(receiver_node);
+    } else {
+      args.push_back(wasm_params[i - 1]);
+    }
+  }
+
+  const compiler::turboshaft::FastApiCallParameters* params =
+      compiler::turboshaft::FastApiCallParameters::Create(call_function,
+                                                          __ graph_zone());
+
+  // It doesn't really matter what we put into {out_reps}, because we have the
+  // FastApiCallLoweringReducer in the assembler stack, and it lowers the node
+  // on the fly while ignoring the {out_reps} parameter.
+  base::SmallVector<RegisterRepresentation, 2> out_reps;
+  out_reps.push_back(RegisterRepresentation::Word32());
+  CTypeInfo return_type = c_function.signature->ReturnInfo();
+  out_reps.push_back(RegisterRepresentation::FromCTypeInfo(
+      return_type, params->c_signature()->GetInt64Representation()));
+
+  V<Tuple<Word32, Any>> fast_call_result =
+      __ FastApiCall(OpIndex::Invalid(), api_data_argument, native_context,
+                     base::VectorOf(args), params, base::VectorOf(out_reps));
+
+  // Projection<0> indicates parameter conversion errors. For Wasm, we only
+  // choose to use Fast API Calls when parameter conversion cannot fail, so
+  // we don't need to check for that here.
+  if (v8_flags.debug_code) {
+    V<Word32> success = __ template Projection<0>(fast_call_result);
+    uint32_t kFailure = compiler::turboshaft::FastApiCallOp::kFailureValue;
+    IF (UNLIKELY(__ Word32Equal(success, kFailure))) {
+      __ Unreachable();
+    }
+  }
+
+  OpIndex value = __ template Projection<1>(fast_call_result, out_reps.back());
+
+  this->BuildSwitchBackFromCentralStack(old_sp, old_limit);
+  __ Return(value);
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

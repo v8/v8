@@ -20,6 +20,7 @@ specific_include_rules = {
     "+src/compiler/turboshaft/define-assembler-macros.inc",
     "+src/compiler/turboshaft/assembler.h",
     "+src/compiler/turboshaft/dataview-lowering-reducer.h",
+    "+src/compiler/turboshaft/fast-api-call-lowering-reducer.h",
     "+src/compiler/turboshaft/select-lowering-reducer.h",
     "+src/compiler/turboshaft/variable-reducer.h",
   ],
