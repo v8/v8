@@ -109,3 +109,8 @@ Such crashes are working as intended.
 Functions that are exposed under fuzzing are specified in [`Runtime::IsEnabledForFuzzing()`](https://source.chromium.org/search?q=Runtime::IsEnabledForFuzzing()&ss=chromium).
 The bottleneck also mentions potential caveats that could still lead to crashes.
 To make this clear V8 will automatically remove any calls to unsupported functions when being invoked with `--fuzzing`.
+
+### Relying on broken snapshots to craft vulnerabilities
+
+V8 uses snapshots that are deserialized at startup.
+These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ around [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
