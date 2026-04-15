@@ -7,13 +7,22 @@
 
 #include <optional>
 
+#include "src/objects/objects.h"
 #include "src/profiler/heap-snapshot-generator.h"
 
 namespace v8::internal {
 
+class Isolate;
+
 const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name);
 bool HasNamedEdge(const HeapEntry& entry, const char* name);
 std::optional<int> GetIntEdge(const HeapEntry* node, const char* name);
+std::optional<bool> GetBoolEdge(const HeapEntry* node, const char* name);
+
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             Tagged<HeapObject> object);
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             Address addr);
 
 }  // namespace v8::internal
 

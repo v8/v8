@@ -7,6 +7,10 @@
 #include <cstring>
 #include <string>
 
+#include "src/execution/isolate.h"
+#include "src/heap/heap.h"
+#include "src/profiler/heap-profiler.h"
+
 namespace v8::internal {
 
 const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name) {
@@ -45,6 +49,35 @@ std::optional<int> GetIntEdge(const HeapEntry* node, const char* name) {
     return std::nullopt;
   }
   return std::stoi(value_edge->to()->name());
+}
+
+std::optional<bool> GetBoolEdge(const HeapEntry* node, const char* name) {
+  const HeapGraphEdge* edge = GetNamedEdge(*node, name);
+  if (!edge || edge->to()->type() != HeapEntry::kHeapNumber ||
+      strcmp("bool", edge->to()->name()) != 0) {
+    return std::nullopt;
+  }
+  const HeapGraphEdge* value_edge = GetNamedEdge(*edge->to(), "value");
+  if (!value_edge || value_edge->to()->type() != HeapEntry::kString) {
+    return std::nullopt;
+  }
+  const char* value_name = value_edge->to()->name();
+  if (strcmp(value_name, "true") == 0) return true;
+  if (strcmp(value_name, "false") == 0) return false;
+  return std::nullopt;
+}
+
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             Tagged<HeapObject> object) {
+  return GetEntryFor(isolate, snapshot, object.address());
+}
+
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             Address addr) {
+  SnapshotObjectId id =
+      isolate->heap()->heap_profiler()->heap_object_map()->FindEntry(addr);
+  if (id == v8::HeapProfiler::kUnknownObjectId) return nullptr;
+  return snapshot->GetEntryById(id);
 }
 
 }  // namespace v8::internal

@@ -330,4 +330,81 @@ TEST_F(HeapSnapshotTest,
             heap_profiler->heap_object_map()->FindEntry(tracked_address));
 }
 
+TEST_F(HeapSnapshotTest, StringProperties) {
+  v8_flags.heap_snapshot_string_limit = 512;
+  // Re-initialize StringsStorage to pick up the new flag value.
+  i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
+
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  Handle<String> one_byte_str = factory->NewStringFromAsciiChecked("abc");
+
+  base::uc16 two_byte_chars[] = {'a', 'b', 'c', 0x1234};
+  Handle<String> two_byte_str =
+      factory
+          ->NewStringFromTwoByte(base::Vector<const base::uc16>(
+              two_byte_chars, arraysize(two_byte_chars)))
+          .ToHandleChecked();
+
+  std::vector<uint8_t> long_chars(600, 'a');
+  Handle<String> truncated_str =
+      factory
+          ->NewStringFromOneByte(
+              base::Vector<const uint8_t>(long_chars.data(), long_chars.size()))
+          .ToHandleChecked();
+
+  std::vector<uint8_t> cons_chars_a(100, 'a');
+  std::vector<uint8_t> cons_chars_b(100, 'b');
+  Handle<String> cons_part_a =
+      factory
+          ->NewStringFromOneByte(base::Vector<const uint8_t>(
+              cons_chars_a.data(), cons_chars_a.size()))
+          .ToHandleChecked();
+  Handle<String> cons_part_b =
+      factory
+          ->NewStringFromOneByte(base::Vector<const uint8_t>(
+              cons_chars_b.data(), cons_chars_b.size()))
+          .ToHandleChecked();
+  Handle<String> cons_str =
+      factory->NewConsString(cons_part_a, cons_part_b).ToHandleChecked();
+
+  Handle<String> sliced_parent =
+      factory->NewStringFromAsciiChecked("abcdefghijklmnopqrstuvwxyz");
+  Handle<String> sliced_str = factory->NewProperSubString(sliced_parent, 2, 17);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* one_byte = GetEntryFor(i_isolate(), snapshot, *one_byte_str);
+  const HeapEntry* two_byte = GetEntryFor(i_isolate(), snapshot, *two_byte_str);
+  const HeapEntry* truncated =
+      GetEntryFor(i_isolate(), snapshot, *truncated_str);
+  const HeapEntry* cons = GetEntryFor(i_isolate(), snapshot, *cons_str);
+  const HeapEntry* sliced = GetEntryFor(i_isolate(), snapshot, *sliced_str);
+
+  ASSERT_NE(nullptr, one_byte);
+  EXPECT_EQ(3, GetIntEdge(one_byte, "length"));
+  EXPECT_FALSE(GetBoolEdge(one_byte, "truncated").has_value());
+  EXPECT_FALSE(GetBoolEdge(one_byte, "two_byte_representation").has_value());
+
+  ASSERT_NE(nullptr, two_byte);
+  EXPECT_EQ(4, GetIntEdge(two_byte, "length"));
+  EXPECT_TRUE(GetBoolEdge(two_byte, "two_byte_representation").value());
+
+  ASSERT_NE(nullptr, truncated);
+  EXPECT_EQ(600, GetIntEdge(truncated, "length"));
+  EXPECT_TRUE(GetBoolEdge(truncated, "truncated").value());
+  EXPECT_EQ(512u, strlen(truncated->name()));
+
+  ASSERT_NE(nullptr, cons);
+  EXPECT_EQ(200, GetIntEdge(cons, "length"));
+  EXPECT_EQ(HeapEntry::kConsString, cons->type());
+  EXPECT_TRUE(HasNamedEdge(*cons, "first"));
+  EXPECT_TRUE(HasNamedEdge(*cons, "second"));
+
+  ASSERT_NE(nullptr, sliced);
+  EXPECT_EQ(15, GetIntEdge(sliced, "length"));
+  EXPECT_EQ(HeapEntry::kSlicedString, sliced->type());
+  EXPECT_TRUE(HasNamedEdge(*sliced, "parent"));
+}
 }  // namespace v8::internal

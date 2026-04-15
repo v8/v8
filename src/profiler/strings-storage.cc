@@ -130,6 +130,10 @@ const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
   return "";
 }
 
+bool StringsStorage::NeedsTruncation(uint32_t length) const {
+  return length > GetTrimmedLength(length);
+}
+
 uint32_t StringsStorage::GetTrimmedLength(uint32_t length) const {
   if (string_limit_ == 0) return length;
   return std::min(string_limit_, length);

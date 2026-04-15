@@ -102,7 +102,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   V8_EXPORT_PRIVATE SnapshotObjectId
   GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
-  void DeleteAllSnapshots();
+  V8_EXPORT_PRIVATE void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
   std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();

@@ -41,6 +41,8 @@ class V8_EXPORT_PRIVATE StringsStorage {
   // Appends string resulting from name to prefix, then returns the stored
   // result.
   const char* GetConsName(const char* prefix, Tagged<Name> name);
+  // Returns true if the string has to be truncated in the store.
+  bool NeedsTruncation(uint32_t length) const;
   // Reduces the refcount of the given string, freeing it if no other
   // references are made to it. Returns true if the string was successfully
   // unref'd, or false if the string was not present in the table.
