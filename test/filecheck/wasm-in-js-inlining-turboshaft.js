@@ -448,6 +448,14 @@ addTestcase('assertNotNullTypecheck', kSig_i_v, [], [
   kGCPrefix, kExprArrayLen,
 ]);
 
+// We statically know that this test will succeed if not null.
+// CHECK: Considering wasm function [{{[0-9]+}}] refTestAlwaysSucceedsButNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining
+addTestcase('refTestAlwaysSucceedsButNull', kSig_i_v, [], [
+  kExprGlobalGet, globalNullArray.index,
+  kGCPrefix, kExprRefTest, array,
+]);
+
 const globalAnyRef = builder.addGlobal(kWasmAnyRef, true, false);
 
 builder.addFunction('initGlobalAnyRefArray', makeSig([], [])).addBody([
