@@ -4821,6 +4821,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       if (handlers[i].kind == kOnSuspend) {
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
+        stack_.EnsureMoreCapacity(1, this->zone_);
         Value* suspend_cont = Push(
             ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont));
         const HandlerCase& handler = handlers[i];
