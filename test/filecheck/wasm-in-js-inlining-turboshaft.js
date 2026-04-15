@@ -6,6 +6,7 @@
 // Flags: --turboshaft-wasm-in-js-inlining
 // Flags: --allow-natives-syntax
 // Flags: --no-always-sparkplug
+// Flags: --turbofan --no-stress-maglev
 // Only tier-up the test functions to get a cleaner and stable trace.
 // Flags: --trace-turbo-inlining --turbo-filter='js_*'
 // Concurrent inlining leads to additional traces.

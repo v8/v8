@@ -6,6 +6,7 @@
 // Flags: --turboshaft-wasm-in-js-inlining
 // Flags: --allow-natives-syntax
 // Flags: --no-always-sparkplug
+// Flags: --turbofan --no-stress-maglev
 // Flags: --trace-turbo-inlining
 // Concurrent inlining leads to additional traces.
 // Flags: --no-stress-concurrent-inlining
