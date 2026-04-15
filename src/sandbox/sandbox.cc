@@ -224,8 +224,20 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK(vas->CanAllocateSubspaces());
 
   size_t reservation_size = size;
+  // As a temporary workaround for crbug.com/40070746 we use larger guard
+  // regions at the end of the sandbox.
+  // TODO(40070746): remove this workaround again once we have a proper fix.
   size_t true_reservation_size = size;
-
+#if defined(V8_TARGET_OS_ANDROID)
+  // On Android, we often won't have sufficient virtual address space available.
+  const size_t kAdditionalTrailingGuardRegionSize = 0;
+#else
+  // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
+  // size) + 32GB (additional bounded size offset for TypedArray access).
+  const size_t kTotalTrailingGuardRegionSize = 288ULL * GB;
+  const size_t kAdditionalTrailingGuardRegionSize =
+      kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
+#endif
   if (use_guard_regions) {
     reservation_size += 2 * kSandboxGuardRegionSize;
     true_reservation_size =

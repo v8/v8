@@ -13712,26 +13712,6 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
   }
 }
 
-TNode<IntPtrT> ComputeTypedArrayStoreOffset(CodeStubAssembler* csa,
-                                            TNode<IntPtrT> offset,
-                                            ElementsKind kind) {
-#if V8_ENABLE_SANDBOX
-  if constexpr (kRequiresTypedArrayAccessMasks) {
-    // If the ElementsKind is concurrently modified between the bound check and
-    // the store, we might write outside of the sandbox. To prevent this
-    // ElementsKind switcheroo, mask the offset such that it is at most
-    // kMaxSafeBufferSizeForSandbox.
-    // For 1-byte elements, the offset is identical to the index and cannot
-    // exceed the checked bounds to cause an out-of-bounds write relative to the
-    // backing store, so we can skip masking.
-    if (ElementsKindToByteSize(kind) != 1) {
-      return csa->WordAnd(offset, csa->IntPtrConstant(kBoundedSizeMask));
-    }
-  }
-#endif  // V8_ENABLE_SANDBOX
-  return offset;
-}
-
 }  // namespace
 
 // TODO(solanes): Since we can't use `if constexpr` until we enable C++17 we
@@ -13746,8 +13726,7 @@ void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
       std::is_same_v<TIndex, UintPtrT> || std::is_same_v<TIndex, IntPtrT>,
       "Only UintPtrT or IntPtrT indices is allowed");
   DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
-      this, ElementOffsetFromIndex(index, kind, 0), kind);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
   TVARIABLE(UintPtrT, var_low);
   // Only used on 32-bit platforms.
   TVARIABLE(UintPtrT, var_high);
@@ -13801,8 +13780,7 @@ void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
   if (kind == UINT8_CLAMPED_ELEMENTS) {
     CSA_DCHECK(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
-      this, ElementOffsetFromIndex(index, kind, 0), kind);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);
@@ -13844,8 +13822,7 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
       "Only Int32T, Float32T, Float64T or object value "
       "types are allowed");
   DCHECK(IsTypedArrayElementsKind(kind));
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
-      this, ElementOffsetFromIndex(index, kind, 0), kind);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);
