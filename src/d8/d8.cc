@@ -6391,7 +6391,7 @@ bool FlagMatches(const char* flag, char** arg, bool keep_flag = false) {
 
 template <size_t N>
 bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
-                        char* argv[], int* i) {
+                        char* argv[], int* i, bool keep_flag = false) {
   char* current_arg = argv[*i];
 
   // Compare the flag up to the last character of the flag name (not including
@@ -6400,16 +6400,16 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
     // Match against --flag=value
     if (current_arg[N - 1] == '=') {
       *flag_value = argv[*i] + N;
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       return true;
     }
     // Match against --flag value
     if (current_arg[N - 1] == '\0') {
       CHECK_LT(*i, argc - 1);
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       (*i)++;
       *flag_value = argv[*i];
-      argv[*i] = nullptr;
+      if (!keep_flag) argv[*i] = nullptr;
       return true;
     }
   }
@@ -6424,6 +6424,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.d8_path = argv[0];
   bool disallow_unsafe_flags = false;
   bool exit_on_flag_contradictions = false;
+  bool flag_processing_mode_explicitly_set = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
     if (FlagMatches("--", &argv[i])) {
@@ -6437,19 +6438,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.include_arguments = false;
     } else if (FlagMatches("--simulate-errors", &argv[i])) {
       options.simulate_errors = true;
-    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true) ||
-               FlagMatches("--no-abort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true) ||
-               FlagMatches("--noabort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = false;
-    } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = true;
-    } else if (FlagMatches("--exit-on-contradictory-flags", &argv[i],
-                           /*keep_flag=*/true)) {
-      check_d8_flag_contradictions = true;
-      exit_on_flag_contradictions = true;
+    } else if (FlagWithArgMatches("--flag-processing-mode", &flag_value, argc,
+                                  argv, &i, /*keep_flag=*/true)) {
+      flag_processing_mode_explicitly_set = true;
+      if (strcmp(flag_value, "exit-on-error") == 0) {
+        check_d8_flag_contradictions = true;
+        exit_on_flag_contradictions = true;
+      } else if (strcmp(flag_value, "ignore-contradictions") == 0) {
+        check_d8_flag_contradictions = false;
+        exit_on_flag_contradictions = false;
+      } else if (strcmp(flag_value, "abort-on-error") == 0) {
+        check_d8_flag_contradictions = true;
+        exit_on_flag_contradictions = false;
+      }
+    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true)) {
+      if (!flag_processing_mode_explicitly_set) {
+        check_d8_flag_contradictions = false;
+      }
     } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
                            /*keep_flag=*/true)) {
       disallow_unsafe_flags = true;
@@ -6708,7 +6713,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --shell   run an interactive JavaScript shell\n"
       "  --module  execute a file as a JavaScript module\n";
   using HelpOptions = i::FlagList::HelpOptions;
-  i::v8_flags.abort_on_contradictory_flags = true;
+  i::v8_flags.flag_processing_mode = "abort-on-error";
   static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
   i::FlagList::SetFlagsFromString(kStandaloneD8ShellFlag,
                                   strlen(kStandaloneD8ShellFlag));

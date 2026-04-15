@@ -279,19 +279,10 @@ DEFINE_BOOL(disallow_developer_only_features, false,
   DEFINE_IMPLICATION(name, developer_only_features)           \
   DEFINE_NEG_IMPLICATION(disallow_developer_only_features, name)
 
-// ATTENTION: This is set to true by default in d8. But for API compatibility,
-// it generally defaults to false.
-DEFINE_BOOL(abort_on_contradictory_flags, false,
-            "Disallow flags or implications overriding each other.")
-// This implication is also hard-coded into the flags processing to make sure it
-// becomes active before we even process subsequent flags.
-DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
-// As abort_on_contradictory_flags, but it will simply exit with return code 0.
-DEFINE_BOOL(exit_on_contradictory_flags, false,
-            "Exit with return code 0 on contradictory flags.")
-// We rely on abort_on_contradictory_flags to turn on the analysis.
-DEFINE_WEAK_IMPLICATION(exit_on_contradictory_flags,
-                        abort_on_contradictory_flags)
+DEFINE_STRING(flag_processing_mode, nullptr,
+              "Control behavior for flag errors. Possible values: "
+              "abort-on-error, exit-on-error, ignore-contradictions.")
+
 // This is not really a flag, it affects the interpretation of the next flag but
 // doesn't become permanently true when specified. This only works for flags
 // defined in this file, but not for d8 flags defined in src/d8/d8.cc.
@@ -4218,7 +4209,6 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
 DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_contradictory_flags)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_far_code_range)

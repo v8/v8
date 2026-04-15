@@ -92,12 +92,12 @@ TEST_MAP = {
 }
 
 DEFAULT_FLAGS = {
-  'standard_runner': [],
-  'num_fuzzer': [
-    '--fuzzing',
-    '--exit-on-contradictory-flags',
-    '--no-fail',
-  ],
+    'standard_runner': [],
+    'num_fuzzer': [
+        '--fuzzing',
+        '--flag-processing-mode=ignore-contradictions',
+        '--no-fail',
+    ],
 }
 
 ModeConfig = namedtuple(

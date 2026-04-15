@@ -265,13 +265,15 @@ class TestCase(object):
       return flags
 
     # Flags can be ignored with respect to contradictions by passing
-    # --fuzzing or --no-abort-on-contradictory-flags, which ignores all
-    # following flags; or by passing --allow-overwriting-for-next-flag,
-    # which ignores just the next flag. Remove these flags from the list.
-    # See Flag::ShouldCheckFlagContradictions.
+    # --flag-processing-mode=ignore-contradictions, which ignores subsequent
+    # flag contradictions; or by passing --allow-overwriting-for-next-flag,
+    # which ignores just the next flag. See FlagList::GetFlagProcessingMode.
     def remove_ignored_flags(flags):
+      # TODO(500181840): remove if/when --fuzzing no longer influences the flag
+      # processing mode.
       flags = remove_flags_after(flags, "--fuzzing")
-      flags = remove_flags_after(flags, "--no-abort-on-contradictory-flags")
+      flags = remove_flags_after(
+          flags, "--flag-processing-mode=ignore-contradictions")
       flag_aofnf = normalize_flag("--allow-overwriting-for-next-flag")
       while flag_aofnf in flags:
         pos = flags.index(flag_aofnf)

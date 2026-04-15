@@ -97,6 +97,36 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
   }
 }
 
+FlagProcessingMode FlagList::GetFlagProcessingMode() {
+  // The default processing mode is "ignore-contradictions" (mostly for
+  // historical reasons). However, certain testing tools like d8 and
+  // inspector-test explicitly set it to "abort-on-error".
+  if (v8_flags.flag_processing_mode != nullptr) {
+    if (strcmp(v8_flags.flag_processing_mode, "exit-on-error") == 0) {
+      return FlagProcessingMode::kExitOnError;
+    } else if (strcmp(v8_flags.flag_processing_mode, "abort-on-error") == 0) {
+      // Legacy behavior: --fuzzing disables flag contradiction checking in the
+      // default configuration.
+      // TODO(500181840): avoid the need for this workaround by having fuzzers
+      // (that pass random flags) explicitly set the flag processing mode.
+      if (v8_flags.fuzzing) {
+        return FlagProcessingMode::kIgnoreContradictions;
+      } else {
+        return FlagProcessingMode::kAbortOnError;
+      }
+    } else if (strcmp(v8_flags.flag_processing_mode, "ignore-contradictions") ==
+               0) {
+      return FlagProcessingMode::kIgnoreContradictions;
+    } else {
+      base::FatalNoSecurityImpact(
+          "Invalid value for --flag-processing-mode: %s\n",
+          v8_flags.flag_processing_mode);
+    }
+  }
+
+  return FlagProcessingMode::kIgnoreContradictions;
+}
+
 bool Flag::ShouldCheckFlagContradictions() {
   if (v8_flags.allow_overwriting_for_next_flag) {
     // Setting the flag manually to false before calling Reset() avoids this
@@ -105,7 +135,8 @@ bool Flag::ShouldCheckFlagContradictions() {
     FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
     return false;
   }
-  return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
+  return FlagList::GetFlagProcessingMode() !=
+         FlagProcessingMode::kIgnoreContradictions;
 }
 
 namespace {
@@ -121,13 +152,11 @@ struct FlagError : public std::ostringstream {
     base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
     base::OS::PrintError("%s\n", kHint);
     base::PrintStackTraceIfAvailable();
-    // TODO(457654443): consider merging exit_on_contradictory_flags and
-    // abort_on_contradictory_flags into a single, more generic flag specifying
-    // how to handle flag processing errors.
-    if (v8_flags.exit_on_contradictory_flags) {
+
+    FlagProcessingMode mode = FlagList::GetFlagProcessingMode();
+    if (mode == FlagProcessingMode::kExitOnError) {
       base::OS::ExitProcess(-1);
     } else {
-      DCHECK(v8_flags.abort_on_contradictory_flags);
       base::OS::Abort();
     }
   }
