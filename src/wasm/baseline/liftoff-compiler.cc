@@ -780,6 +780,7 @@ class LiftoffCompiler {
                   const LiftoffOptions& options,
                   WasmFunctionCoverageData* coverage_data)
       : asm_(zone, std::move(buffer)),
+        return_label_state_(zone),
         descriptor_(GetLoweredCallDescriptor(zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
@@ -915,6 +916,7 @@ class LiftoffCompiler {
     }
     for (auto& ool : out_of_line_code_) Unuse(&ool->label);
     for (auto& ool : out_of_line_code_without_safepoints_) Unuse(&ool->label);
+    Unuse(&return_label_);
 #endif
   }
 
@@ -1387,6 +1389,25 @@ class LiftoffCompiler {
 
   void FinishFunction(FullDecoder* decoder) {
     if (DidAssemblerBailout(decoder)) return;
+
+    DCHECK_EQ(decoder->control_depth(), 0);
+    bool has_returns = !return_label_.is_unused();
+    if (falls_through_to_implicit_return_ && has_returns) {
+      uint32_t num_returns =
+          static_cast<uint32_t>(decoder->sig_->return_count());
+      __ MergeStackWith(return_label_state_, num_returns,
+                        LiftoffAssembler::kForwardJump);
+    }
+
+    if (has_returns) {
+      __ bind(&return_label_);
+      __ cache_state() -> Steal(return_label_state_);
+    }
+
+    if (has_returns || falls_through_to_implicit_return_) {
+      ReturnImpl(decoder);
+    }
+
     __ AlignFrameSize();
 #if DEBUG
     int frame_size = __ GetTotalFrameSize();
@@ -1823,7 +1844,8 @@ class LiftoffCompiler {
                             LiftoffAssembler::kForwardJump);
         } else {
           target->try_info->catch_state = __ MergeIntoNewState(
-              __ num_locals(), 1, target->stack_depth + target->num_exceptions);
+              __ num_locals(), 1, target->stack_depth + target->num_exceptions,
+              LiftoffAssembler::kIncludeLocals);
           target->try_info->catch_reached = true;
         }
         __ emit_jump(&target->try_info->catch_label);
@@ -2150,7 +2172,8 @@ class LiftoffCompiler {
                         LiftoffAssembler::kForwardJump);
     } else {
       c->label_state = __ MergeIntoNewState(__ num_locals(), c->end_merge.arity,
-                                            c->stack_depth + c->num_exceptions);
+                                            c->stack_depth + c->num_exceptions,
+                                            LiftoffAssembler::kIncludeLocals);
     }
     __ emit_jump(c->label.get());
     TraceCacheState(decoder);
@@ -2176,9 +2199,9 @@ class LiftoffCompiler {
       // the both arms of this if. Thus init the merge point from the current
       // state, then merge the else state into that.
       DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
-      c->label_state =
-          __ MergeIntoNewState(__ num_locals(), c->start_merge.arity,
-                               c->stack_depth + c->num_exceptions);
+      c->label_state = __ MergeIntoNewState(
+          __ num_locals(), c->start_merge.arity,
+          c->stack_depth + c->num_exceptions, LiftoffAssembler::kIncludeLocals);
       __ emit_jump(c->label.get());
       // Merge the else state into the end state. Set this state as the current
       // state first so helper functions know which registers are in use.
@@ -3132,7 +3155,14 @@ class LiftoffCompiler {
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t /* drop values */) {
-    ReturnImpl(decoder);
+    // If we are at the end of the function body, we can just fall through to
+    // the epilogue instead of emitting a redundant branch.
+    if (decoder->pc() + 1 == decoder->end()) {
+      DCHECK_EQ(1, decoder->control_depth());
+      falls_through_to_implicit_return_ = true;
+      return;
+    }
+    BrOrRet(decoder, decoder->control_depth() - 1);
   }
 
   void ReturnImpl(FullDecoder* decoder) {
@@ -3512,24 +3542,34 @@ class LiftoffCompiler {
     } else {
       target->label_state =
           __ MergeIntoNewState(__ num_locals(), target->br_merge()->arity,
-                               target->stack_depth + target->num_exceptions);
+                               target->stack_depth + target->num_exceptions,
+                               LiftoffAssembler::kIncludeLocals);
     }
     __ jmp(target->label.get());
   }
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
-    if (depth == decoder->control_depth() - 1) {
-      ReturnImpl(decoder);
-    } else {
+    if (depth != decoder->control_depth() - 1) {
       BrImpl(decoder, decoder->control_at(depth));
+      return;
     }
+    uint32_t num_returns = static_cast<uint32_t>(decoder->sig_->return_count());
+    if (return_label_.is_unused()) {
+      return_label_state_ = __ MergeIntoNewState(
+          __ num_locals(), num_returns, 0, LiftoffAssembler::kIgnoreLocals);
+    } else {
+      __ MergeStackWith(return_label_state_, num_returns,
+                        LiftoffAssembler::kForwardJump);
+    }
+    __ jmp(&return_label_);
   }
 
   void BrIf(FullDecoder* decoder, const Value& /* cond */, uint32_t depth) {
     // Avoid having sequences of branches do duplicate work.
-    if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
-    }
+    bool is_return = depth == decoder->control_depth() - 1;
+    __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {},
+                        is_return ? LiftoffAssembler::kIgnoreLocals
+                                  : LiftoffAssembler::kIncludeLocals);
 
     Label cont_false;
 
@@ -3599,7 +3639,7 @@ class LiftoffCompiler {
           decoder->read_u32v<Decoder::NoValidationTag>(imm.table,
                                                        "first depth");
       __ PrepareForBranch(decoder->control_at(sample_depth)->br_merge()->arity,
-                          pinned);
+                          pinned, LiftoffAssembler::kIncludeLocals);
     }
 
     BranchTableIterator<ValidationTag> table_iterator{decoder, imm};
@@ -3631,7 +3671,8 @@ class LiftoffCompiler {
       } else {
         c->label_state =
             __ MergeIntoNewState(__ num_locals(), c->end_merge.arity,
-                                 c->stack_depth + c->num_exceptions);
+                                 c->stack_depth + c->num_exceptions,
+                                 LiftoffAssembler::kIncludeLocals);
       }
       __ emit_jump(c->label.get());
     }
@@ -4570,7 +4611,8 @@ class LiftoffCompiler {
                 Value* /* result_on_fallthrough */) {
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {},
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label cont_false;
@@ -4598,7 +4640,8 @@ class LiftoffCompiler {
                    bool drop_null_on_fallthrough) {
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {},
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label cont_false;
@@ -5873,7 +5916,8 @@ class LiftoffCompiler {
     } else {
       current_try->try_info->catch_state = __ MergeIntoNewState(
           __ num_locals(), 1,
-          current_try->stack_depth + current_try->num_exceptions);
+          current_try->stack_depth + current_try->num_exceptions,
+          LiftoffAssembler::kIncludeLocals);
       current_try->try_info->catch_reached = true;
     }
     __ emit_jump(&current_try->try_info->catch_label);
@@ -8112,8 +8156,8 @@ class LiftoffCompiler {
               __ cache_state() -> stack_height() - num_locals;
           // The decoder has already dropped start/length and pushed the array.
           DCHECK_EQ(decoder->stack_size(), stack_depth + 1 - num_exceptions_);
-          prototype_setup_end_->state =
-              __ MergeIntoNewState(num_locals, 0, stack_depth);
+          prototype_setup_end_->state = __ MergeIntoNewState(
+              num_locals, 0, stack_depth, LiftoffAssembler::kIncludeLocals);
           __ emit_jump(prototype_setup_end_->label.get());
 
           __ bind(else_state.label.get());
@@ -8645,8 +8689,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity,
-                          pinned);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, pinned,
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label cont_false;
@@ -8693,8 +8737,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity,
-                          pinned);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, pinned,
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label cont_branch, fallthrough;
@@ -8725,7 +8769,8 @@ class LiftoffCompiler {
                                            bool inverted) {
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {},
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     LiftoffRegister null_succeeds_reg = __ GetUnusedRegister(kGpReg, {});
@@ -9034,7 +9079,8 @@ class LiftoffCompiler {
                         uint32_t br_depth, bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {},
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label no_match, match;
@@ -9059,7 +9105,8 @@ class LiftoffCompiler {
                            uint32_t br_depth, bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {},
+                          LiftoffAssembler::kIncludeLocals);
     }
 
     Label no_match, end;
@@ -10829,6 +10876,9 @@ class LiftoffCompiler {
       kWaitQueue};
 
   LiftoffAssembler asm_;
+  Label return_label_;
+  LiftoffAssembler::CacheState return_label_state_;
+  bool falls_through_to_implicit_return_ = false;
 
   // Used for merging code generation of subsequent operations (via look-ahead).
   // Set by the first opcode, reset by the second.

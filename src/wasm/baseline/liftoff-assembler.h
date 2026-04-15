@@ -555,10 +555,15 @@ class LiftoffAssembler : public MacroAssembler {
     return SpillOneRegister(candidates);
   }
 
-  // Performs operations on locals and the top {arity} value stack entries
-  // that would (very likely) have to be done by branches. Doing this up front
-  // avoids making each subsequent (conditional) branch repeat this work.
-  void PrepareForBranch(uint32_t arity, LiftoffRegList pinned);
+  // Performs operations on the top {arity} value stack entries and optionally
+  // on locals that would (very likely) have to be done by branches. Doing this
+  // up front avoids making each subsequent (conditional) branch repeat this
+  // work.
+  // Locals can be ignored when branching to the end of the function to the
+  // implicit return.
+  enum IgnoreLocals : bool { kIncludeLocals = false, kIgnoreLocals = true };
+  void PrepareForBranch(uint32_t arity, LiftoffRegList pinned,
+                        IgnoreLocals ignore_locals);
 
   // These methods handle control-flow merges. {MergeIntoNewState} is used to
   // generate a new {CacheState} for a merge point, and also emits code to
@@ -566,7 +571,8 @@ class LiftoffAssembler : public MacroAssembler {
   // {MergeFullStackWith} and {MergeStackWith} then later generate the code for
   // more merges into an existing state.
   V8_NODISCARD CacheState MergeIntoNewState(uint32_t num_locals, uint32_t arity,
-                                            uint32_t stack_depth);
+                                            uint32_t stack_depth,
+                                            IgnoreLocals ignore_locals);
   void MergeFullStackWith(CacheState& target);
   enum JumpDirection { kForwardJump, kBackwardJump };
   void MergeStackWith(CacheState& target, uint32_t arity, JumpDirection);
