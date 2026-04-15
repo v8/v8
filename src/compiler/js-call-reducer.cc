@@ -1801,6 +1801,9 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
       StoreElement(element_access, temp_array, k, element);
     });
 
+    // Establish a dominating frame state for the deopting ops.
+    Checkpoint(SortNoopEagerFrameState(frame_state_params));
+
     // Outer loop: for (i = 1; i < length; i++).
     auto outer_exit = MakeLabel();
     {
@@ -1843,13 +1846,6 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         TNode<Object> cmp_result =
             JSCall2(comparefn, comparefn_this, pivot, elem,
                     SortNoopLazyFrameState(frame_state_params));
-
-        // Re-establish dominating frame state after JSCall for
-        // SpeculativeToNumber below.  Hoisting this Checkpoint out of the
-        // loop is unsafe: the JSCall's effect chain wipes the dominating
-        // frame state, and Turboshaft's graph builder DCHECKs that a
-        // dominating frame state exists for SpeculativeToNumber.
-        Checkpoint(SortNoopEagerFrameState(frame_state_params));
 
         // Convert comparefn result to a number.
         TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
