@@ -298,16 +298,16 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     base::Vector<const OpIndex> arguments,
     OptionalV<FrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-    OptionalV<FrameState> eager_frame_state) -> V<Any> {
+    OptionalV<FrameState> caller_frame_state) -> V<Any> {
   // These parameters are all set if and only if we are inlining the wrapper.
   DCHECK_EQ(is_inlining_into_js_, js_closure.valid());
   DCHECK_EQ(is_inlining_into_js_, js_context.valid());
   DCHECK_EQ(is_inlining_into_js_, lazy_frame_state.valid());
-  // We only need an `eager_frame_state` if there actually are arguments to
+  // We only need a `caller_frame_state` if there actually are arguments to
   // convert.
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
   DCHECK_EQ(is_inlining_into_js_ && wasm_param_count > 0,
-            eager_frame_state.valid());
+            caller_frame_state.valid());
 
   __ Bind(__ NewBlock());
 
@@ -374,8 +374,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
-    args[i + 1] =
-        FromJS(params[i], js_context, sig_->GetParam(i), eager_frame_state);
+    args[i + 1] = FromJS(params[i], js_context, sig_->GetParam(i),
+                         caller_frame_state, lazy_deopt_on_throw);
   }
 
   // Inline the wasm function, if possible.

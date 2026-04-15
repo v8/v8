@@ -207,7 +207,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       base::Vector<const OpIndex> arguments,
       OptionalV<FrameState> lazy_frame_state,
       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-      OptionalV<FrameState> eager_frame_state);
+      OptionalV<FrameState> caller_frame_state);
 
   void BuildJSToWasmWrapper();
 
@@ -277,10 +277,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     return result;
   }
 
-  V<Float32> BuildChangeTaggedToFloat32(OpIndex value, OpIndex context) {
+  V<Float32> BuildChangeTaggedToFloat32(
+      OpIndex value, OpIndex context,
+      OptionalV<FrameState> caller_frame_state) {
+    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float32> result(this, OpIndex::Invalid());
-    // The builtin below does handle both the Smi and HeapNumber case as
-    // well, but it's good to have a fast path that doesn't require a call.
     IF (__ IsSmi(value)) {
       // TODO(dlehmann,wasm-runtime): If `ChangeInt32ToFloat32(x)` is exactly
       // equivalent to `TruncateFloat64ToFloat32(ChangeInt32ToFloat64(x))`, we
@@ -291,59 +292,100 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     } ELSE {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
-      IF (LIKELY(__ TaggedEqual(
-              __ template LoadRoot<RootIndex::kHeapNumberMap>(), map))) {
+      V<Word32> is_heap_number = __ TaggedEqual(
+          __ template LoadRoot<RootIndex::kHeapNumberMap>(), map);
+      if (caller_frame_state.valid()) {
+        // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
+        // are not Smi or HeapNumber to avoid calling conversion builtins
+        // that may throw (crbug.com/498709150).
+        __ DeoptimizeIfNot(is_heap_number, caller_frame_state.value(),
+                           DeoptimizeReason::kNotANumber,
+                           compiler::FeedbackSource{});
         result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
-      } ELSE {
-        result = __ TruncateFloat64ToFloat32(
-            CallBuiltin<WasmTaggedToFloat64Descriptor>(
-                Builtin::kWasmTaggedToFloat64, Operator::kNoProperties, value,
-                context));
-        // The source position here is needed for asm.js, see the comment on the
-        // source position of the call to JavaScript in the wasm-to-js wrapper.
-        __ output_graph().source_positions()[result] = SourcePosition(1);
+      } else {
+        IF (LIKELY(is_heap_number)) {
+          result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
+        } ELSE {
+          result = __ TruncateFloat64ToFloat32(
+              CallBuiltin<WasmTaggedToFloat64Descriptor>(
+                  Builtin::kWasmTaggedToFloat64, Operator::kNoProperties, value,
+                  context));
+          // The source position here is needed for asm.js, see the comment on
+          // the source position of the call to JavaScript in the wasm-to-js
+          // wrapper.
+          __ output_graph().source_positions()[result] = SourcePosition(1);
+        }
       }
     }
     return result;
   }
 
-  V<Float64> BuildChangeTaggedToFloat64(OpIndex value, OpIndex context) {
+  V<Float64> BuildChangeTaggedToFloat64(
+      OpIndex value, OpIndex context,
+      OptionalV<FrameState> caller_frame_state) {
+    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float64> result(this, OpIndex::Invalid());
-    // The builtin below does handle both the Smi and HeapNumber case as
-    // well, but it's good to have a fast path that doesn't require a call.
     IF (__ IsSmi(value)) {
       result = __ ChangeInt32ToFloat64(__ UntagSmi(value));
     } ELSE {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
-      IF (LIKELY(__ TaggedEqual(
-              __ template LoadRoot<RootIndex::kHeapNumberMap>(), map))) {
+      V<Word32> is_heap_number = __ TaggedEqual(
+          __ template LoadRoot<RootIndex::kHeapNumberMap>(), map);
+      if (caller_frame_state.valid()) {
+        // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
+        // are not Smi or HeapNumber to avoid calling conversion builtins
+        // that may throw (crbug.com/498709150).
+        __ DeoptimizeIfNot(is_heap_number, caller_frame_state.value(),
+                           DeoptimizeReason::kNotANumber,
+                           compiler::FeedbackSource{});
         result = HeapNumberToFloat64(value);
-      } ELSE {
-        result = CallBuiltin<WasmTaggedToFloat64Descriptor>(
-            Builtin::kWasmTaggedToFloat64, Operator::kNoProperties, value,
-            context);
-        // The source position here is needed for asm.js, see the comment on the
-        // source position of the call to JavaScript in the wasm-to-js wrapper.
-        __ output_graph().source_positions()[result] = SourcePosition(1);
+      } else {
+        IF (LIKELY(is_heap_number)) {
+          result = HeapNumberToFloat64(value);
+        } ELSE {
+          result = CallBuiltin<WasmTaggedToFloat64Descriptor>(
+              Builtin::kWasmTaggedToFloat64, Operator::kNoProperties, value,
+              context);
+          // The source position here is needed for asm.js, see the comment on
+          // the source position of the call to JavaScript in the wasm-to-js
+          // wrapper.
+          __ output_graph().source_positions()[result] = SourcePosition(1);
+        }
       }
     }
     return result;
   }
 
-  OpIndex BuildChangeTaggedToInt32(OpIndex value, OpIndex context) {
+  OpIndex BuildChangeTaggedToInt32(OpIndex value, OpIndex context,
+                                   OptionalV<FrameState> caller_frame_state) {
+    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
     ScopedVar<Word32> result(this, OpIndex::Invalid());
     IF (LIKELY(__ IsSmi(value))) {
       result = BuildChangeSmiToInt32(value);
     } ELSE {
-      result = CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
-          Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties, value,
-          context);
-      // The source position here is needed for asm.js, see the comment on the
-      // source position of the call to JavaScript in the wasm-to-js wrapper.
-      __ output_graph().source_positions()[result] = SourcePosition(1);
+      if (caller_frame_state.valid()) {
+        // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
+        // are not Smi or HeapNumber to avoid calling conversion builtins
+        // that may throw (crbug.com/498709150).
+        V<Map> map = LoadMap(value);
+        __ DeoptimizeIfNot(
+            __ TaggedEqual(__ template LoadRoot<RootIndex::kHeapNumberMap>(),
+                           map),
+            caller_frame_state.value(), DeoptimizeReason::kNotANumber,
+            compiler::FeedbackSource{});
+        result = __ JSTruncateFloat64ToWord32(HeapNumberToFloat64(value));
+      } else {
+        result = CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
+            Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties, value,
+            context);
+        // The source position here is needed for asm.js, see the comment on
+        // the source position of the call to JavaScript in the wasm-to-js
+        // wrapper.
+        __ output_graph().source_positions()[result] = SourcePosition(1);
+      }
     }
     return result;
   }
@@ -354,7 +396,20 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         needs_frame_state);
   }
 
-  OpIndex BuildChangeBigIntToInt64(OpIndex input, OpIndex context) {
+  OpIndex BuildChangeBigIntToInt64(
+      OpIndex input, OpIndex context, OptionalV<FrameState> caller_frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
+    DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
+    // When inlining JS-to-Wasm wrappers, propagate the eager frame state
+    // as a lazy deopt frame state for the builtin call, along with the
+    // LazyDeoptOnThrow property. This way if the builtin throws (e.g.,
+    // for wrong types), the deoptimizer can properly handle it
+    // (crbug.com/498709150).
+    const bool needs_frame_state = caller_frame_state.valid();
+    DCHECK_EQ(needs_frame_state, is_inlining_into_js_);
+    DCHECK_IMPLIES(lazy_deopt_on_throw == compiler::LazyDeoptOnThrow::kYes,
+                   is_inlining_into_js_);
+
     OpIndex target;
     if (Is64()) {
       target = GetTargetForBuiltinCall(Builtin::kBigIntToI64);
@@ -366,43 +421,45 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     }
 
     CallDescriptor* call_descriptor =
-        GetBigIntToI64CallDescriptor(/*needs_frame_state=*/false);
+        GetBigIntToI64CallDescriptor(needs_frame_state);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kYes,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
-    return __ Call(target, {input, context}, ts_call_descriptor);
+        needs_frame_state ? lazy_deopt_on_throw
+                          : compiler::LazyDeoptOnThrow::kNo,
+        __ graph_zone());
+    OpIndex call_args[] = {input, context};
+    return __ Call(target, caller_frame_state, base::VectorOf(call_args),
+                   ts_call_descriptor);
   }
 #endif
 
   // Converts a JS value to the appropriate Wasm value.
-  // If {eager_frame_state} is valid and the type is numeric, an eager
-  // deoptimization guard is emitted: JSReceivers are deoptimized because
-  // their valueOf/toString can trigger user JS code, which could cause a
-  // lazy deopt with a JSToWasmBuiltinContinuation frame state that the
-  // deoptimizer cannot handle (crbug.com/493307329). Primitives are safe
-  // and don't need a frame state for the conversion builtins.
+  // If {caller_frame_state} is valid (i.e., when inlining JS-to-Wasm wrappers):
+  // - For i32/f32/f64: Used as an eager deopt guard to ensure the value is Smi
+  //   or HeapNumber, making the conversion trivially inlineable without calling
+  //   any builtin. (crbug.com/493307329)
+  // - For BigInt->i64: Propagated to the BigIntToI64 builtin call as a lazy
+  //   deopt frame state, along with {lazy_deopt_on_throw}, so that if the
+  //   builtin throws, the deoptimizer can properly handle it.
+  //   (crbug.com/498709150)
   OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
-                 OptionalV<FrameState> eager_frame_state = {}) {
+                 OptionalV<FrameState> caller_frame_state = {},
+                 compiler::LazyDeoptOnThrow lazy_deopt_on_throw =
+                     compiler::LazyDeoptOnThrow::kNo) {
     if (type.is_numeric()) {
-      if (eager_frame_state.valid()) {
-        __ DeoptimizeIf(__ ObjectIsReceiver(input), eager_frame_state.value(),
-                        type.numeric_kind() == NumericKind::kI64
-                            ? DeoptimizeReason::kNotABigInt
-                            : DeoptimizeReason::kNotANumber,
-                        compiler::FeedbackSource{});
-      }
       switch (type.numeric_kind()) {
         case NumericKind::kI32:
-          return BuildChangeTaggedToInt32(input, context);
+          return BuildChangeTaggedToInt32(input, context, caller_frame_state);
         case NumericKind::kI64:
 #ifdef V8_ENABLE_TURBOFAN
           // i64 values can only come from BigInt.
-          return BuildChangeBigIntToInt64(input, context);
+          return BuildChangeBigIntToInt64(input, context, caller_frame_state,
+                                          lazy_deopt_on_throw);
 #endif
         case NumericKind::kF32:
-          return BuildChangeTaggedToFloat32(input, context);
+          return BuildChangeTaggedToFloat32(input, context, caller_frame_state);
         case NumericKind::kF64:
-          return BuildChangeTaggedToFloat64(input, context);
+          return BuildChangeTaggedToFloat64(input, context, caller_frame_state);
         case NumericKind::kS128:
         case NumericKind::kI8:
         case NumericKind::kI16:
@@ -412,6 +469,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       }
     }
     if (type.is_abstract_ref()) {
+      // When inlining JS-to-Wasm wrappers, CanInlineJSToWasmCall() only
+      // allows nullable, non-shared externref, so none of the paths below
+      // that call runtime functions (which can throw) are reachable.
+      // If CanInlineJSToWasmCall() is ever extended to allow more reference
+      // types, the throwing paths would need a frame state to support
+      // lazy deopt on throw (similar to BuildChangeBigIntToInt64).
+      DCHECK_IMPLIES(caller_frame_state.valid(), type == wasm::kWasmExternRef);
       switch (type.generic_kind()) {
         // TODO(14034): Add more fast paths?
         case GenericKind::kExtern: {

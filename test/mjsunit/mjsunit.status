@@ -2145,6 +2145,10 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-334687959': [SKIP],
+
+  # These tests require Turbolev (--turbofan) which nooptimization disables.
+  'wasm/wasm-wrapper-inlining-turbolev': [SKIP],
+  'wasm/wrapper-inlining-lazy-deopt-turbolev': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################

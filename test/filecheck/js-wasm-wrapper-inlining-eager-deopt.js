@@ -5,6 +5,7 @@
 // Flags: --turbolev --no-maglev --turbolev-inline-js-wasm-wrappers
 // Flags: --allow-natives-syntax
 // Flags: --trace-deopt
+// Flags: --turbofan --no-stress-maglev
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/mjsunit.js');

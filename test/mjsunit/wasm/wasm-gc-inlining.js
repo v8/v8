@@ -415,7 +415,7 @@ function testOptimized(run, fctToOptimize) {
   testOptimized(
     () => assertTraps(kTrapArrayOutOfBounds, () => get(-1, wasmArray, 3)), get);
   testOptimized(
-    () => assertTraps(kTrapNullDereference, () => get(-1, null)), get);
+    () => assertTraps(kTrapNullDereference, () => get(-1, null, 0)), get);
 })();
 
 (function TestArrayGetPacked() {
@@ -473,7 +473,7 @@ function testOptimized(run, fctToOptimize) {
       () => assertTraps(kTrapArrayOutOfBounds, () => getS(-1, wasmArray, 3)),
       getS);
     testOptimized(
-      () => assertTraps(kTrapNullDereference, () => getS(-1, null)), getS);
+      () => assertTraps(kTrapNullDereference, () => getS(-1, null, 0)), getS);
   }
   {
     print("- test getU");
@@ -490,7 +490,7 @@ function testOptimized(run, fctToOptimize) {
       () => assertTraps(kTrapArrayOutOfBounds, () => getU(-1, wasmArray, 3)),
       getU);
     testOptimized(
-      () => assertTraps(kTrapNullDereference, () => getU(-1, null)), getU);
+      () => assertTraps(kTrapNullDereference, () => getU(-1, null, 0)), getU);
   }
 })();
 
