@@ -2460,45 +2460,48 @@ DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_DEVELOPER_FLAG(trace_gc,
                       "print one trace line following each garbage collection")
-DEFINE_BOOL(trace_gc_nvp, false,
-            "print one detailed trace line in name=value format "
-            "after each garbage collection")
-DEFINE_BOOL(trace_gc_ignore_scavenger, false,
-            "do not print trace line after scavenger collection")
-DEFINE_BOOL(trace_memory_reducer, false, "print memory reducer behavior")
-DEFINE_BOOL(trace_gc_verbose, false,
-            "print more details following each garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_nvp,
+                      "print one detailed trace line in name=value format "
+                      "after each garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_ignore_scavenger,
+                      "do not print trace line after scavenger collection")
+DEFINE_DEVELOPER_FLAG(trace_memory_reducer, "print memory reducer behavior")
+DEFINE_DEVELOPER_FLAG(trace_gc_verbose,
+                      "print more details following each garbage collection")
 DEFINE_IMPLICATION(trace_gc_verbose, trace_gc)
-DEFINE_BOOL(trace_gc_freelists, false,
-            "prints details of each freelist before and after "
-            "each major garbage collection")
-DEFINE_BOOL(trace_gc_freelists_verbose, false,
-            "prints details of freelists of each page before and after "
-            "each major garbage collection")
+DEFINE_DEVELOPER_FLAG(trace_gc_freelists,
+                      "prints details of each freelist before and after "
+                      "each major garbage collection")
+DEFINE_DEVELOPER_FLAG(
+    trace_gc_freelists_verbose,
+    "prints details of freelists of each page before and after "
+    "each major garbage collection")
 DEFINE_IMPLICATION(trace_gc_freelists_verbose, trace_gc_freelists)
-DEFINE_BOOL(trace_gc_heap_layout, false,
-            "print layout of pages in heap before and after gc")
+DEFINE_DEVELOPER_FLAG(trace_gc_heap_layout,
+                      "print layout of pages in heap before and after gc")
 DEFINE_BOOL(trace_gc_heap_layout_ignore_minor_gc, true,
             "do not print trace line before and after minor-gc")
-DEFINE_BOOL(trace_evacuation_candidates, false,
-            "Show statistics about the pages evacuation by the compaction")
+DEFINE_DEVELOPER_FLAG(
+    trace_evacuation_candidates,
+    "Show statistics about the pages evacuation by the compaction")
 
-DEFINE_BOOL(trace_pending_allocations, false,
-            "trace calls to Heap::IsAllocationPending that return true")
+DEFINE_DEVELOPER_FLAG(
+    trace_pending_allocations,
+    "trace calls to Heap::IsAllocationPending that return true")
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
 DEFINE_INT(trace_duplicate_threshold_kb, 0,
            "print duplicate objects in the heap if their size is more than "
            "given threshold")
-DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
-DEFINE_BOOL(trace_fragmentation_verbose, false,
-            "report fragmentation for old space (detailed)")
-DEFINE_BOOL(minor_ms_trace_fragmentation, false,
-            "trace fragmentation after marking")
-DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
-DEFINE_BOOL(trace_mutator_utilization, false,
-            "print mutator utilization, allocation speed, gc speed")
+DEFINE_DEVELOPER_FLAG(trace_fragmentation, "report fragmentation for old space")
+DEFINE_DEVELOPER_FLAG(trace_fragmentation_verbose,
+                      "report fragmentation for old space (detailed)")
+DEFINE_DEVELOPER_FLAG(minor_ms_trace_fragmentation,
+                      "trace fragmentation after marking")
+DEFINE_DEVELOPER_FLAG(trace_evacuation, "report evacuation statistics")
+DEFINE_DEVELOPER_FLAG(trace_mutator_utilization,
+                      "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
 DEFINE_INT(incremental_marking_soft_trigger, 0,
@@ -2510,7 +2513,7 @@ DEFINE_INT(incremental_marking_hard_trigger, 0,
 DEFINE_BOOL(incremental_marking_unified_schedule, false,
             "Use a single schedule for determining a marking schedule between "
             "JS and C++ objects.")
-DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
+DEFINE_DEVELOPER_FLAG(trace_unmapper, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(minor_gc_task, true, "schedule minor GC tasks")
 DEFINE_UINT(minor_gc_task_trigger, 80,
@@ -2571,17 +2574,17 @@ DEFINE_FLOAT(
 DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "Threshold on mutator utilization to trigger out-of-memory "
              "failure near heap limit.")
-DEFINE_BOOL(trace_incremental_marking, false,
-            "trace progress of the incremental marking")
-DEFINE_BOOL(print_gc_clearing_dependency_graph, false,
-            "print clearing dependency graph in dot format")
-DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
-DEFINE_BOOL(trace_stress_scavenge, false, "trace stress scavenge progress")
-DEFINE_BOOL(track_gc_object_stats, false,
-            "track object counts and memory usage")
-DEFINE_BOOL(trace_gc_object_stats, false,
-            "trace object counts and memory usage")
-DEFINE_BOOL(trace_zone_stats, false, "trace zone memory usage")
+DEFINE_DEVELOPER_FLAG(trace_incremental_marking,
+                      "trace progress of the incremental marking")
+DEFINE_DEVELOPER_FLAG(print_gc_clearing_dependency_graph,
+                      "print clearing dependency graph in dot format")
+DEFINE_DEVELOPER_FLAG(trace_stress_marking, "trace stress marking progress")
+DEFINE_DEVELOPER_FLAG(trace_stress_scavenge, "trace stress scavenge progress")
+DEFINE_DEVELOPER_FLAG(track_gc_object_stats,
+                      "track object counts and memory usage")
+DEFINE_DEVELOPER_FLAG(trace_gc_object_stats,
+                      "trace object counts and memory usage")
+DEFINE_DEVELOPER_FLAG(trace_zone_stats, "trace zone memory usage")
 DEFINE_GENERIC_IMPLICATION(
     trace_zone_stats,
     TracingFlags::zone_stats.store(
@@ -2589,7 +2592,7 @@ DEFINE_GENERIC_IMPLICATION(
 DEFINE_SIZE_T(
     zone_stats_tolerance, 1 * MB,
     "report a tick only when allocated zone memory changes by this amount")
-DEFINE_BOOL(trace_zone_type_stats, false, "trace per-type zone memory usage")
+DEFINE_DEVELOPER_FLAG(trace_zone_type_stats, "trace per-type zone memory usage")
 DEFINE_GENERIC_IMPLICATION(
     trace_zone_type_stats,
     TracingFlags::zone_stats.store(
@@ -2618,8 +2621,9 @@ DEFINE_NEG_NEG_IMPLICATION(parallel_marking, concurrent_marking)
 DEFINE_IMPLICATION(concurrent_marking, incremental_marking)
 DEFINE_BOOL(track_detached_contexts, true,
             "track native contexts that are expected to be garbage collected")
-DEFINE_BOOL(trace_detached_contexts, false,
-            "trace native contexts that are expected to be garbage collected")
+DEFINE_DEVELOPER_FLAG(
+    trace_detached_contexts,
+    "trace native contexts that are expected to be garbage collected")
 DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 #ifdef VERIFY_HEAP
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
@@ -2717,7 +2721,7 @@ DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
-DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
+DEFINE_DEVELOPER_FLAG(trace_flush_code, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
@@ -4027,23 +4031,24 @@ DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 #endif
 
 // elements.cc
-DEFINE_BOOL(trace_elements_transitions, false, "trace elements transitions")
+DEFINE_DEVELOPER_FLAG(trace_elements_transitions, "trace elements transitions")
 
-DEFINE_BOOL(trace_creation_allocation_sites, false,
-            "trace the creation of allocation sites")
+DEFINE_DEVELOPER_FLAG(trace_creation_allocation_sites,
+                      "trace the creation of allocation sites")
 
-DEFINE_BOOL(print_code, false, "print generated code")
-DEFINE_BOOL(print_opt_code, false, "print optimized code")
+DEFINE_DEVELOPER_FLAG(print_code, "print generated code")
+DEFINE_DEVELOPER_FLAG(print_opt_code, "print optimized code")
 DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
-DEFINE_BOOL(print_code_verbose, false, "print more information for code")
-DEFINE_BOOL(print_builtin_code, false, "print generated code for builtins")
+DEFINE_DEVELOPER_FLAG(print_code_verbose, "print more information for code")
+DEFINE_DEVELOPER_FLAG(print_builtin_code, "print generated code for builtins")
 DEFINE_STRING(print_builtin_code_filter, "*",
               "filter for printing builtin code")
-DEFINE_BOOL(print_regexp_code, false, "print generated regexp code")
-DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
+DEFINE_DEVELOPER_FLAG(print_regexp_code, "print generated regexp code")
+DEFINE_DEVELOPER_FLAG(print_regexp_bytecode, "print generated regexp bytecode")
 
 #ifdef ENABLE_DISASSEMBLER
-DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
+DEFINE_DEVELOPER_FLAG(print_all_code,
+                      "enable all flags related to printing code")
 DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
