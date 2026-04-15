@@ -192,16 +192,16 @@ const IntCmp kUnsignedCmpInstructions[] = {
       MachineType::Int64()},
      1U},
     {{TSBinop::kWord32Equal, "Word32Equal", kRiscvCmp, MachineType::Int32()},
-     COMPRESS_POINTERS_BOOL ? 3U : 1U},
+     3},
     {{TSBinop::kWord32NotEqual, "Word32NotEqual", kRiscvCmp,
       MachineType::Int32()},
-     COMPRESS_POINTERS_BOOL ? 3U : 1U},
+     3},
     {{TSBinop::kUint32LessThan, "Uint32LessThan", kRiscvCmp,
       MachineType::Uint32()},
-     COMPRESS_POINTERS_BOOL ? 3U : 1U},
+     3},
     {{TSBinop::kUint32LessThanOrEqual, "Uint32LessThanOrEqual", kRiscvCmp,
       MachineType::Uint32()},
-     COMPRESS_POINTERS_BOOL ? 3U : 1U}};
+     3}};
 // ----------------------------------------------------------------------------
 // Conversion instructions.
 // ----------------------------------------------------------------------------

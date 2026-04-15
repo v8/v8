@@ -1835,61 +1835,6 @@ void InstructionSelector::VisitUnalignedStore(OpIndex node) {
 
 namespace {
 
-bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
-  const Operation& op = selector->Get(n);
-  if (op.Is<LoadOp>()) {
-    const LoadOp& load = op.Cast<LoadOp>();
-    return load.machine_type().IsUnsigned() ||
-           load.machine_type().IsCompressed();
-  } else if (op.Is<WordBinopOp>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    switch (binop.kind) {
-      case WordBinopOp::Kind::kUnsignedDiv:
-      case WordBinopOp::Kind::kUnsignedMod:
-      case WordBinopOp::Kind::kUnsignedMulOverflownBits:
-        return true;
-      default:
-        return false;
-    }
-  } else if (op.Is<ChangeOrDeoptOp>()) {
-    const ChangeOrDeoptOp& change = op.Cast<ChangeOrDeoptOp>();
-    return change.kind == ChangeOrDeoptOp::Kind::kFloat64ToUint32;
-  } else if (op.Is<ConvertJSPrimitiveToUntaggedOp>()) {
-    const ConvertJSPrimitiveToUntaggedOp& convert =
-        op.Cast<ConvertJSPrimitiveToUntaggedOp>();
-    return convert.kind ==
-           ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32;
-  } else if (op.Is<ConstantOp>()) {
-    const ConstantOp& constant = op.Cast<ConstantOp>();
-    return constant.kind == ConstantOp::Kind::kCompressedHeapObject;
-  } else {
-    return false;
-  }
-}
-
-bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
-                                  FlagsCondition condition) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return false;
-  }
-  switch (condition) {
-    case kSignedLessThan:
-    case kSignedLessThanOrEqual:
-    case kSignedGreaterThan:
-    case kSignedGreaterThanOrEqual:
-      return false;
-    default:
-      break;
-  }
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  if (IsNodeUnsigned(selector, op.input(0)) ==
-      IsNodeUnsigned(selector, op.input(1))) {
-    return true;
-  }
-  return false;
-}
-
 // Shared routine for multiple word compare operations.
 
 void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
@@ -1908,56 +1853,9 @@ void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
   selector->UpdateSourcePosition(instr, node);
 }
 
-void VisitOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
-                                 InstructionCode opcode,
-                                 FlagsContinuation* cont) {
-  if (v8_flags.debug_code) {
-    RiscvOperandGenerator g(selector);
-    InstructionOperand leftOp = g.TempRegister();
-    InstructionOperand rightOp = g.TempRegister();
-    InstructionOperand optimizedResult = g.TempRegister();
-    InstructionOperand fullResult = g.TempRegister();
-    FlagsCondition condition = cont->condition();
-    InstructionCode testOpcode = opcode |
-                                 FlagsConditionField::encode(condition) |
-                                 FlagsModeField::encode(kFlags_set);
-
-    const Operation& op = selector->Get(node);
-    DCHECK_EQ(op.input_count, 2);
-    selector->Emit(testOpcode, optimizedResult, g.UseRegister(op.input(0)),
-                   g.UseRegister(op.input(1)));
-    selector->Emit(kRiscvShl64, leftOp, g.UseRegister(op.input(0)),
-                   g.TempImmediate(32));
-    selector->Emit(kRiscvShl64, rightOp, g.UseRegister(op.input(1)),
-                   g.TempImmediate(32));
-    selector->Emit(testOpcode, fullResult, leftOp, rightOp);
-
-    selector->Emit(kRiscvAssertEqual, g.NoOutput(), optimizedResult, fullResult,
-                   g.TempImmediate(static_cast<int>(
-                       AbortReason::kUnsupportedNonPrimitiveCompare)));
-  }
-
-  Instruction* instr = VisitWordCompare(selector, node, opcode, cont, false);
-  selector->UpdateSourcePosition(instr, node);
-}
-
 void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                         FlagsContinuation* cont) {
-#ifdef USE_SIMULATOR
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  const Operation& lhs = selector->Get(op.input(0));
-  const Operation& rhs = selector->Get(op.input(1));
-  if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
-#else
-  if (!CanUseOptimizedWord32Compare(selector, node, cont->condition())) {
-#endif
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else {
-    VisitOptimizedWord32Compare(selector, node, kRiscvCmp, cont);
-  }
+  VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
 }
 
 void VisitWord64Compare(InstructionSelector* selector, OpIndex node,
