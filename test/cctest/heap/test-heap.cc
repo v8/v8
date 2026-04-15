@@ -1253,6 +1253,76 @@ TEST(TestMultiReferencedBytecodeFlushingWithSparkplug) {
   TestMultiReferencedBytecodeFlushing(/*sparkplug_compile=*/true);
 }
 
+TEST(TestMultiReferencedBytecodeFlushingBothOld) {
+#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+  v8_flags.turbofan = false;
+  i::v8_flags.optimize_for_size = false;
+#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+#ifdef V8_ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+  v8_flags.flush_baseline_code = true;
+#endif  // V8_ENABLE_SPARKPLUG
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  Factory* factory = i_isolate->factory();
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    IndirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+    // This compile will add the code to the compilation cache.
+    {
+      v8::HandleScope new_scope(isolate);
+      CompileRun(source);
+    }
+
+    // Check function is compiled.
+    IndirectHandle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(IsJSFunction(*func_value));
+    IndirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+    IndirectHandle<SharedFunctionInfo> shared(function->shared(), i_isolate);
+    CHECK(shared->is_compiled());
+
+    // Make a copy of the SharedFunctionInfo which points to the same bytecode.
+    IndirectHandle<SharedFunctionInfo> copy =
+        i_isolate->factory()->CloneSharedFunctionInfo(shared);
+
+    // Verify that both SFIs share the same BytecodeArray.
+    CHECK_EQ(shared->GetBytecodeArray(i_isolate),
+             copy->GetBytecodeArray(i_isolate));
+
+    i::SharedFunctionInfo::EnsureOldForTesting(*shared);
+    i::SharedFunctionInfo::EnsureOldForTesting(*copy);
+
+    {
+      // We need to invoke GC without stack, otherwise some objects may not be
+      // reclaimed because of conservative stack scanning.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      heap::InvokeMajorGC(heap);
+    }
+
+    // Both should be decompiled (flushed) because both were old.
+    CHECK(!shared->is_compiled());
+    CHECK(!copy->is_compiled());
+  }
+}
+
 HEAP_TEST(Regress10560) {
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;

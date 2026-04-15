@@ -3660,13 +3660,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!HeapLayout::InWritableSharedSpace(shared_info));
-  // Zap the old entry in the trusted pointer table.
-  TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
-  IndirectPointerSlot self_indirect_pointer_slot =
-      bytecode_array->RawIndirectPointerField(
-          BytecodeArray::kSelfIndirectPointerOffset,
-          kBytecodeArrayIndirectPointerTag);
-  table.Zap(self_indirect_pointer_slot.Relaxed_LoadHandle());
+  // Make the old handle unusable. We don't zap it eagerly since other SFI might
+  // point to the same bytecode array.
+  bytecode_array->Unpublish(heap_->isolate());
 #endif
 
   Tagged<HeapObject> compiled_data = bytecode_array;
@@ -3711,6 +3707,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   Tagged<UncompiledData> uncompiled_data =
       TrustedCast<UncompiledData>(compiled_data);
 
+  // We allocate the new handle here.
   uncompiled_data->InitAfterBytecodeFlush(
       heap_->isolate(), inferred_name, start_position, end_position,
       [](Tagged<HeapObject> object, ObjectSlot slot,
@@ -3727,7 +3724,13 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
 #ifdef V8_ENABLE_SANDBOX
   // Mark the new entry in the trusted pointer table as alive.
+  TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
+  IndirectPointerSlot self_indirect_pointer_slot =
+      Cast<ExposedTrustedObject>(uncompiled_data)
+          ->RawIndirectPointerField(
+              ExposedTrustedObject::kSelfIndirectPointerOffset,
+              kUncompiledDataIndirectPointerTag);
   table.Mark(space, self_indirect_pointer_slot.Relaxed_LoadHandle());
 #endif
 
@@ -3740,8 +3743,56 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
          weak_objects_.code_flushing_candidates.IsEmpty());
   Tagged<SharedFunctionInfo> flushing_candidate;
   int number_of_flushed_sfis = 0;
+  Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
+#ifdef V8_ENABLE_SANDBOX
+    // If the data is unpublished, it means another SFI sharing the same
+    // BytecodeArray has already flushed it and unpublished the handle.
+    //
+    // Before flushing:
+    // +------+      +------------+      +---------------+
+    // | SFI1 | ---> | old_handle | <--> | BytecodeArray |
+    // +------+      +------------+      +---------------+
+    //                     ^
+    // +------+            |
+    // | SFI2 | -----------+
+    // +------+
+    //
+    // After flushing SFI1:
+    // +------+      +------------+      +----------------+
+    // | SFI1 | ---> | new_handle | <--> | UncompiledData |
+    // +------+      +------------+      +----------------+
+    //                                           ^
+    // +------+      +------------+              |
+    // | SFI2 | ---> | old_handle | -------------+
+    // +------+      +------------+ (unpublished)
+    //
+    // In that case, we must not try to resolve the handle normally but instead
+    // manually update to the new canonical handle.
+    bool is_unpublished =
+        flushing_candidate->HasUnpublishedTrustedData(isolate);
+    if (is_unpublished) {
+      IndirectPointerHandle handle =
+          flushing_candidate->Relaxed_ReadField<IndirectPointerHandle>(
+              SharedFunctionInfo::kTrustedFunctionDataOffset);
+
+      // Read the object from the table. It is now an UncompiledData.
+      Address obj_addr = isolate->trusted_pointer_table().GetMaybeUnpublished(
+          handle, kBytecodeArrayIndirectPointerTag);
+      Tagged<TrustedObject> trusted_obj =
+          UncheckedCast<TrustedObject>(Tagged<Object>(obj_addr));
+      Tagged<UncompiledData> uncompiled_data =
+          SbxCast<UncompiledData>(trusted_obj);
+
+      // Update the SFI UncompiledData. This effectively updates us from
+      // old_handle to new_handle.
+      flushing_candidate->set_uncompiled_data(uncompiled_data);
+      // We want to continue here on purpose to trigger DiscardCompiledMetadata
+      // eventually.
+    }
+#endif  // V8_ENABLE_SANDBOX
+
     bool is_bytecode_live;
     if (v8_flags.flush_baseline_code && flushing_candidate->HasBaselineCode()) {
       is_bytecode_live = ProcessOldBaselineSFI(flushing_candidate);
@@ -3766,7 +3817,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   }
 
   if (v8_flags.trace_flush_code) {
-    PrintIsolate(heap_->isolate(), "%d flushed SharedFunctionInfo(s)\n",
+    PrintIsolate(isolate, "%d flushed SharedFunctionInfo(s)\n",
                  number_of_flushed_sfis);
   }
 }
