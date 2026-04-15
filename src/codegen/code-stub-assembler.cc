@@ -7186,10 +7186,11 @@ TNode<AdditiveSafeIntegerT> CodeStubAssembler::TryFloat64ToAdditiveSafeInteger(
          if_failed);
 
   BIND(&if_int64);
-  // Check if AdditiveSafeInteger: (value - kMinAdditiveSafeInteger) >> 53 == 0
-  TNode<Int64T> shifted_value =
-      Word64Shr(Int64Sub(value_int64, Int64Constant(kMinAdditiveSafeInteger)),
-                Uint64Constant(kAdditiveSafeIntegerBitLength));
+  // Check if AdditiveSafeIntegerFeedback: (value -
+  // kMinAdditiveSafeIntegerFeedback) >> 51 == 0
+  TNode<Int64T> shifted_value = Word64Shr(
+      Int64Sub(value_int64, Int64Constant(kMinAdditiveSafeIntegerFeedback)),
+      Uint64Constant(kAdditiveSafeIntegerFeedbackBitLength));
   GotoIfNot(Word64Equal(shifted_value, Int64Constant(0)), if_failed);
   return UncheckedCast<AdditiveSafeIntegerT>(value_int64);
 }

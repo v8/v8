@@ -1235,8 +1235,8 @@ class RepresentationSelector {
       // double uses. For tagging that just means some potentially expensive
       // allocation code; we might want to do the same for -0 as well?
       return MachineRepresentation::kTagged;
-    } else if (type.Is(TypeCache::Get()->kAdditiveSafeInteger) && Is64() &&
-               use.check_safe_integer()) {
+    } else if (type.Is(TypeCache::Get()->kAdditiveSafeIntegerFeedback) &&
+               Is64() && use.check_safe_integer()) {
       return MachineRepresentation::kWord64;
     } else if (type.Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
@@ -1838,24 +1838,16 @@ class RepresentationSelector {
 
   bool CanSpeculateAdditiveSafeInteger(Node* node) {
     if (!v8_flags.additive_safe_int_feedback) return false;
-    if (NumberOperationHintOf(node->op()) !=
-        NumberOperationHint::kAdditiveSafeInteger) {
-      return false;
-    }
-    DCHECK_EQ(2, node->op()->ValueInputCount());
-    // Only speculate AdditiveSafeInteger if one of the sides are already known
-    // to be in the AdditiveSafeInteger range, since the check is relatively
-    // expensive.
-    Type lhs_type = TypeOf(node->InputAt(0));
-    Type rhs_type = TypeOf(node->InputAt(1));
-    return lhs_type.Is(type_cache_->kAdditiveSafeInteger) ||
-           rhs_type.Is(type_cache_->kAdditiveSafeInteger);
+    return NumberOperationHintOf(node->op()) ==
+           NumberOperationHint::kAdditiveSafeInteger;
   }
 
   template <Phase T>
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    if (BothInputsAre(node, Type::Integral32OrMinusZero())) {
+    if (BothInputsAre(node, Type::Integral32()) ||
+        (BothInputsAre(node, Type::Integral32OrMinusZero()) &&
+         truncation.IdentifiesZeroAndMinusZero())) {
       if (GetUpperBound(node).Is(Type::Signed32()) ||
           GetUpperBound(node).Is(Type::Unsigned32()) ||
           truncation.IsUsedAsWord32()) {
@@ -1863,19 +1855,6 @@ class RepresentationSelector {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
         if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
-        return;
-      }
-
-      // TODO(victorgomes): Simplify this to a Word64Add. We don't need the
-      // additive safe integer range check, since we know inputs are Integral32.
-      if (v8_flags.additive_safe_int_feedback &&
-          NumberOperationHintOf(node->op()) ==
-              NumberOperationHint::kAdditiveSafeInteger) {
-        // => AdditiveSafeIntegerAdd/Sub
-        VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
-                      MachineRepresentation::kWord64,
-                      type_cache_->kAdditiveSafeInteger);
-        if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
         return;
       }
     }
@@ -1910,7 +1889,7 @@ class RepresentationSelector {
       // => AdditiveSafeIntegerAdd/Sub
       VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
                     MachineRepresentation::kWord64,
-                    type_cache_->kAdditiveSafeInteger);
+                    type_cache_->kAdditiveSafeIntegerFeedback);
       if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
       return;
     }

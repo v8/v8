@@ -91,13 +91,13 @@ class MachineLoweringReducer : public Next {
       }
       case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger: {
         V<Word64> i64_input = V<Word64>::Cast(input);
-        // Check the value actually fits in AdditiveSafeInteger.
-        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
-        V<Word32> check_is_zero =
-            __ Word64Equal(__ Word64ShiftRightArithmetic(
-                               __ Word64Sub(i64_input, kMinAdditiveSafeInteger),
-                               kAdditiveSafeIntegerBitLength),
-                           0);
+        // Check the value actually fits in AdditiveSafeIntegerFeedback.
+        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
+        V<Word32> check_is_zero = __ Word64Equal(
+            __ Word64ShiftRightArithmetic(
+                __ Word64Sub(i64_input, kMinAdditiveSafeIntegerFeedback),
+                kAdditiveSafeIntegerFeedbackBitLength),
+            0);
         __ DeoptimizeIfNot(check_is_zero, frame_state,
                            DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
         return i64_input;
@@ -177,13 +177,13 @@ class MachineLoweringReducer : public Next {
           }
         }
 
-        // Check the value actually fits in AdditiveSafeInteger.
-        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
-        V<Word32> check_is_zero =
-            __ Word64Equal(__ Word64ShiftRightArithmetic(
-                               __ Word64Sub(i64, kMinAdditiveSafeInteger),
-                               kAdditiveSafeIntegerBitLength),
-                           0);
+        // Check the value actually fits in AdditiveSafeIntegerFeedback.
+        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
+        V<Word32> check_is_zero = __ Word64Equal(
+            __ Word64ShiftRightArithmetic(
+                __ Word64Sub(i64, kMinAdditiveSafeIntegerFeedback),
+                kAdditiveSafeIntegerFeedbackBitLength),
+            0);
         __ DeoptimizeIfNot(check_is_zero, frame_state,
                            DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
 

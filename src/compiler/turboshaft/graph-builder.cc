@@ -1797,26 +1797,26 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCheckedAdditiveSafeIntegerAdd: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedAddDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedAdditiveSafeIntegerSub: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      auto shifted_lhs =
-          __ Word64ShiftLeft(Map(node->InputAt(0)), kAdditiveSafeIntegerShift);
-      auto shifted_rhs =
-          __ Word64ShiftLeft(Map(node->InputAt(1)), kAdditiveSafeIntegerShift);
+      auto shifted_lhs = __ Word64ShiftLeft(Map(node->InputAt(0)),
+                                            kAdditiveSafeIntegerFeedbackShift);
+      auto shifted_rhs = __ Word64ShiftLeft(Map(node->InputAt(1)),
+                                            kAdditiveSafeIntegerFeedbackShift);
       auto shifted_result = __ Word64SignedSubDeoptOnOverflow(
           shifted_lhs, shifted_rhs, dominating_frame_state, FeedbackSource{});
       return __ Word64ShiftRightArithmetic(shifted_result,
-                                           kAdditiveSafeIntegerShift);
+                                           kAdditiveSafeIntegerFeedbackShift);
     }
     case IrOpcode::kCheckedInt64Add:
       DCHECK(Is64());

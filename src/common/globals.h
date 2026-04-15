@@ -2133,28 +2133,29 @@ inline constexpr double HoleNan() {
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
-constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1
-static_assert(kMaxSafeIntegerUint64 == (uint64_t{1} << 53) - 1);
+constexpr uint64_t kMaxSafeIntegerUint64 = (uint64_t{1} << 53) - 1;  // 2^53-1
 constexpr double kMaxSafeInteger = static_cast<double>(kMaxSafeIntegerUint64);
 // ES6 section 21.1.2.8 Number.MIN_SAFE_INTEGER
 constexpr double kMinSafeInteger = -kMaxSafeInteger;
 
 constexpr double kMaxUInt32Double = double{kMaxUInt32};
 
-constexpr int64_t kMaxAdditiveSafeInteger = 4503599627370495;  // 2^52 - 1
-static_assert(kMaxAdditiveSafeInteger == (int64_t{1} << 52) - 1);
-constexpr int64_t kMinAdditiveSafeInteger = -4503599627370496;  // - 2^52
-static_assert(kMinAdditiveSafeInteger == -(int64_t{1} << 52));
-constexpr int kAdditiveSafeIntegerBitLength = 53;
-// Number of bits to shift left before addition to detect potential overflow.
-constexpr int kAdditiveSafeIntegerShift = 64 - kAdditiveSafeIntegerBitLength;
-
+constexpr int64_t kMaxAdditiveSafeInteger = (int64_t{1} << 52) - 1;  // 2^52 - 1
+constexpr int64_t kMinAdditiveSafeInteger =
+    -(int64_t{1} << 52) + 1;  // - (2^52 - 1)
 static_assert(kMaxAdditiveSafeInteger + kMaxAdditiveSafeInteger <=
               kMaxSafeInteger);
-// kMinAdditiveSafeInteger + kMinAdditiveSafeInteger would overflow the integer
-// safe addition.
-static_assert(kMinAdditiveSafeInteger + (kMinAdditiveSafeInteger + 1) >=
+static_assert(kMinAdditiveSafeInteger + kMinAdditiveSafeInteger >=
               kMinSafeInteger);
+
+constexpr int64_t kMaxAdditiveSafeIntegerFeedback =
+    (int64_t{1} << 51) - 1;  // 2^51 - 1
+constexpr int64_t kMinAdditiveSafeIntegerFeedback =
+    -(int64_t{1} << 51);  // - 2^51
+constexpr int kAdditiveSafeIntegerFeedbackBitLength = 52;
+// Number of bits to shift left before addition to detect potential overflow.
+constexpr int kAdditiveSafeIntegerFeedbackShift =
+    64 - kAdditiveSafeIntegerFeedbackBitLength;
 
 // The order of this enum has to be kept in sync with the predicates below.
 enum class VariableMode : uint8_t {
