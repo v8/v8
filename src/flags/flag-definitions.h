@@ -1005,6 +1005,7 @@ DEFINE_BOOL(
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
 #if V8_ENABLE_WEBASSEMBLY
 // Disable optimizing Wasm compilers. Wasm code must execute with Liftoff.
 DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
@@ -1732,7 +1733,12 @@ DEFINE_EXPERIMENTAL_FEATURE(
 // pipeline. Note however, that this feature is independent of the Turboshaft
 // Wasm pipeline (since the inlinee gets compiled with the JS pipeline).
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
-DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
+// The Wasm-in-JS body inlining also depends on the Turbolev-based JS-to-Wasm
+// wrapper inlining.
+DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining,
+                   turbolev_inline_js_wasm_wrappers)
+// Both are staged behind --turbolev-future.
+DEFINE_IMPLICATION(turbolev_future, turboshaft_wasm_in_js_inlining)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_inline_js_wasm_wrappers,

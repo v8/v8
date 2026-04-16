@@ -210,6 +210,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--turbofan",
         "--turboshaft",
         "--turboshaft-wasm-in-js-inlining",
+        "--turbolev",
+        "--turbolev-future",
         "--maglev",
         "--no-liftoff",
         "--wasm-tier-up",

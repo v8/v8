@@ -1449,13 +1449,17 @@ OpIndex GraphBuilder::Process(
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsAnyWasmFunctionCall() &&
-          v8_flags.turboshaft_wasm_in_js_inlining) {
+          v8_flags.turboshaft_wasm_in_js_inlining && js_wasm_calls_sidetable) {
         // A JS-to-Wasm call where the wrapper got inlined in TurboFan but the
         // actual Wasm body inlining was either not possible or is going to
         // happen later in Turboshaft. See https://crbug.com/353475584.
         // Make sure that for each not-yet-body-inlined call node, there is an
         // entry in the sidetable.
-        DCHECK_NOT_NULL(js_wasm_calls_sidetable);
+        // In some cctests, we build a Wasm call manually (i.e., it was not
+        // created by JS-to-Wasm wrapper inlining in Turbofan) and are thus
+        // missing the `js_wasm_calls_sidetable`. Handle that gracefully.
+        // TODO(dlehmann): Remove all this once we decide to only keep the
+        // Turbolev-based Wasm-in-JS body inlining.
         auto it = js_wasm_calls_sidetable->find(node->id());
         CHECK_NE(it, js_wasm_calls_sidetable->end());
         wasm_call_parameters = it->second;
