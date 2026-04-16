@@ -3071,7 +3071,6 @@ IGNITION_HANDLER(Abort, InterpreterAssembler) {
 //
 // Return the value in the accumulator.
 IGNITION_HANDLER(Return, InterpreterAssembler) {
-  UpdateInterruptBudgetOnReturn();
   TNode<Object> accumulator = GetAccumulator();
   Return(accumulator);
 }
