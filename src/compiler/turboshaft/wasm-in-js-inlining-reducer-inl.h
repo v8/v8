@@ -1510,11 +1510,6 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
                              inlining_id};
   }
 
-  TRACE("Inlining JS-to-Wasm wrapper for Wasm function ["
-        << func_idx << "] "
-        << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
-        << " of module " << module);
-
   constexpr bool kInliningIntoJs = true;
   using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<assembler_t>;
   GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
@@ -1545,7 +1540,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   CHECK_EQ(__ data()->wasm_module(), module);
   const wasm::WasmFunction& func = module->functions[func_idx];
 
-  TRACE("Considering wasm function ["
+  TRACE("Considering Wasm function ["
         << func_idx << "] "
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module << " for inlining");
@@ -1668,7 +1663,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
   DCHECK(emitting_decoder.interface().Result().IsSuccess());
-  TRACE("- inlining");
+  TRACE("- inlining Wasm function");
   return emitting_decoder.interface().Result();
 }
 

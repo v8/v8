@@ -24,6 +24,7 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-inlining.h"
 #include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -1346,13 +1347,81 @@ class GraphBuildingNodeProcessor {
 
     return maglev::ProcessResult::kContinue;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Returns nullptr if not inlining the wrapper. Also outputs trace
+  // information.
+  JSWasmCallParameters* TryInlineWasmWrapper(
+      maglev::CallKnownJSFunction* node,
+      Tagged<WasmExportedFunctionData> function_data,
+      wasm::NativeModule* native_module) {
+#define TRACE_WASM_INLINING(...)                  \
+  do {                                            \
+    if (v8_flags.trace_turbo_inlining) {          \
+      StdoutStream() << __VA_ARGS__ << std::endl; \
+    }                                             \
+  } while (false)
+
+    int wasm_function_index = function_data->function_index();
+    TRACE_WASM_INLINING("Considering JS-to-Wasm wrapper for Wasm function ["
+                        << wasm_function_index << "] "
+                        << compiler::JSInliner::WasmFunctionNameForTrace(
+                               native_module, wasm_function_index)
+                        << " of module " << native_module->module()
+                        << " for inlining");
+
+    FeedbackSource feedback = node->feedback_source();
+    SpeculationMode speculation_mode =
+        maglev::MaglevGraphBuilder::GetSpeculationMode(broker_, feedback);
+    if (speculation_mode != SpeculationMode::kAllowSpeculation) {
+      TRACE_WASM_INLINING(
+          "- not inlining: feedback says we should be conservative");
+      return nullptr;
+    }
+
+    const wasm::CanonicalSig* wasm_signature = function_data->internal()->sig();
+    if (!CanInlineJSToWasmCall(wasm_signature)) {
+      TRACE_WASM_INLINING(
+          "- not inlining: unsupported types in Wasm signature");
+      return nullptr;
+    }
+
+    int wasm_arity = static_cast<int>(wasm_signature->parameter_count());
+    int js_arity = node->num_args();
+    // TODO(353475584): The old Turbofan-based inlining also handled
+    // mismatched arity by creating the appropriate undefined values.
+    // For now, we conservatively inline only if the arguments match.
+    if (js_arity != wasm_arity) {
+      TRACE_WASM_INLINING(
+          "- not inlining: mismatched JS argument vs. "
+          "Wasm parameter arity");
+      return nullptr;
+    }
+
+    if (!__ data()->try_set_wasm_module_for_inlining(native_module->module())) {
+      TRACE_WASM_INLINING(
+          "- not inlining: already inlining from "
+          "another Wasm module");
+      return nullptr;
+    }
+
+    SharedFunctionInfoRef shared = node->shared_function_info();
+    JSWasmCallParameters* wasm_call_params =
+        graph_zone()->New<JSWasmCallParameters>(
+            native_module, wasm_function_index, shared, feedback);
+    __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
+    TRACE_WASM_INLINING("- inlining wrapper");
+    return wasm_call_params;
+#undef TRACE_WASM_INLINING
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   maglev::ProcessResult Process(maglev::CallKnownJSFunction* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
 
     JSWasmCallParameters* wasm_call_params = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
-    const wasm::CanonicalSig* wasm_signature = nullptr;
     SharedFunctionInfoRef shared = node->shared_function_info();
     Tagged<Code> code = shared.object()->GetCode(isolate_);
     Tagged<Object> data = shared.object()->GetTrustedData(isolate_);
@@ -1362,35 +1431,15 @@ class GraphBuildingNodeProcessor {
         (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
     if (v8_flags.turbolev_inline_js_wasm_wrappers &&
-        is_calling_js_to_wasm_wrapper_builtin &&
-        IsWasmExportedFunctionData(data)) {
-      FeedbackSource feedback = node->feedback_source();
-      SpeculationMode speculation_mode =
-          maglev::MaglevGraphBuilder::GetSpeculationMode(broker_, feedback);
-      // Avoid deoptimization loops if feedback says we should be conservative.
-      if (speculation_mode == SpeculationMode::kAllowSpeculation) {
-        Tagged<WasmExportedFunctionData> function_data =
-            TrustedCast<WasmExportedFunctionData>(data);
-        wasm_signature = function_data->internal()->sig();
-        if (CanInlineJSToWasmCall(wasm_signature)) {
-          int wasm_arity = static_cast<int>(wasm_signature->parameter_count());
-          int js_arity = node->num_args();
-          // TODO(353475584): The old Turbofan-based inlining also handled
-          // mismatched arity by creating the appropriate undefined values.
-          // For now, we conservatively inline only if the arguments match.
-          if (js_arity == wasm_arity) {
-            Tagged<WasmTrustedInstanceData> instance_data =
-                function_data->instance_data();
-            wasm::NativeModule* native_module = instance_data->native_module();
-            if (__ data()->try_set_wasm_module_for_inlining(
-                    native_module->module())) {
-              int wasm_function_index = function_data->function_index();
-              wasm_call_params = graph_zone()->New<JSWasmCallParameters>(
-                  native_module, wasm_function_index, shared, feedback);
-              __ data() -> set_turbolev_graph_has_inlineable_wasm_calls();
-            }
-          }
-        }
+        is_calling_js_to_wasm_wrapper_builtin) {
+      Tagged<WasmExportedFunctionData> function_data;
+      if (TryCast(TrustedCast<TrustedObject>(data), &function_data)) {
+        Tagged<WasmTrustedInstanceData> instance_data =
+            function_data->instance_data();
+        wasm::NativeModule* native_module = instance_data->native_module();
+
+        wasm_call_params =
+            TryInlineWasmWrapper(node, function_data, native_module);
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

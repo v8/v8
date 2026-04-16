@@ -189,7 +189,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
       source_position_table_, inlining_id);
   TRACE((
       result
-          ? "- inlining"
+          ? "- inlining Wasm function"
           : "- not inlining: function body contains unsupported instructions"));
   return result;
 #undef TRACE

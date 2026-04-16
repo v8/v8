@@ -7,6 +7,9 @@
 // Flags: --allow-natives-syntax
 // Flags: --trace-turbo-inlining
 // Flags: --turbofan --no-stress-maglev
+// Concurrent inlining leads to additional traces.
+// Flags: --no-concurrent-inlining
+// Flags: --no-stress-concurrent-inlining
 
 // Comprehensive test for JS-to-Wasm wrapper inlining with all combinations of:
 // - Wasm parameter types: i32, i64, f32, f64
@@ -43,7 +46,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI32Direct");
   let instance = createIdentityModule(kSig_i_i);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) { return instance.exports.f(x); }
   warmUpAndOptimize(call, [1, 2, 3]);
 
@@ -60,7 +64,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   assertThrows(() => call(Symbol("s")), TypeError);
 
   // JSReceiver — eager deopt, then interpreter calls valueOf.
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testI64Direct
@@ -68,7 +74,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI64Direct");
   let instance = createIdentityModule(kSig_l_l);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) { return instance.exports.f(x); }
   warmUpAndOptimize(call, [0n, 1n, 2n]);
 
@@ -88,7 +95,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   assertThrows(() => call(Symbol("s")), TypeError);
 
   // JSReceiver — ToBigInt calls valueOf, succeeds if it returns a BigInt.
-  assertEquals(1n, call({ valueOf() { return 1n; } }));
+  let count = 0;
+  assertEquals(1n, call({ valueOf() { ++count; return 1n; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testF32Direct
@@ -96,7 +105,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testF32Direct");
   let instance = createIdentityModule(kSig_f_f);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) { return instance.exports.f(x); }
   warmUpAndOptimize(call, [1.0, 2.0, 3.0]);
 
@@ -113,7 +123,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   assertThrows(() => call(Symbol("s")), TypeError);
 
   // JSReceiver — eager deopt, then interpreter calls valueOf.
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testF64Direct
@@ -121,7 +133,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testF64Direct");
   let instance = createIdentityModule(kSig_d_d);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) { return instance.exports.f(x); }
   warmUpAndOptimize(call, [1.0, 2.0, 3.0]);
 
@@ -138,7 +151,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   assertThrows(() => call(Symbol("s")), TypeError);
 
   // JSReceiver — eager deopt, interpreter calls valueOf.
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 ///////////////////////////////////////////////////////////////////
@@ -150,7 +165,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI32TryCatch");
   let instance = createIdentityModule(kSig_i_i);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
         return instance.exports.f(x);
@@ -170,7 +186,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   let e2 = call(Symbol("s"));
   assertTrue(e2 instanceof TypeError);
 
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testI64TryCatch
@@ -178,7 +196,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI64TryCatch");
   let instance = createIdentityModule(kSig_l_l);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
         return instance.exports.f(x);
@@ -201,7 +220,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   assertTrue(e3 instanceof TypeError);
 
   // JSReceiver — ToBigInt calls valueOf, succeeds.
-  assertEquals(1n, call({ valueOf() { return 1n; } }));
+  let count = 0;
+  assertEquals(1n, call({ valueOf() { ++count; return 1n; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testF32TryCatch
@@ -209,7 +230,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testF32TryCatch");
   let instance = createIdentityModule(kSig_f_f);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
         return instance.exports.f(x);
@@ -229,7 +251,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   let e2 = call(Symbol("s"));
   assertTrue(e2 instanceof TypeError);
 
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 // CHECK-LABEL: testF64TryCatch
@@ -237,7 +261,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testF64TryCatch");
   let instance = createIdentityModule(kSig_d_d);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
         return instance.exports.f(x);
@@ -257,7 +282,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   let e2 = call(Symbol("s"));
   assertTrue(e2 instanceof TypeError);
 
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
 })();
 
 /////////////////////////////////////////////////////////////////////////////
@@ -270,7 +297,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI32FromCatchBlock");
   let instance = createIdentityModule(kSig_i_i);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
       throw "trigger";
@@ -282,7 +310,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
   warmUpAndOptimize(call, [1, 2, 3]);
 
   assertEquals(42, call(42));
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
   assertThrows(() => call(1n), TypeError);
 })();
 
@@ -291,7 +321,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI64FromCatchBlock");
   let instance = createIdentityModule(kSig_l_l);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
       throw "trigger";
@@ -311,7 +342,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testF64FromCatchBlock");
   let instance = createIdentityModule(kSig_d_d);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
       throw "trigger";
@@ -323,7 +355,9 @@ function warmUpAndOptimize(fn, warmUpValues) {
 
   assertEquals(42, call(42));
   assertEquals(3.14, call(3.14));
-  assertEquals(7, call({ valueOf() { return 7; } }));
+  let count = 0;
+  assertEquals(7, call({ valueOf() { ++count; return 7; } }));
+  assertEquals(1, count);
   assertThrows(() => call(1n), TypeError);
 })();
 
@@ -336,7 +370,8 @@ function warmUpAndOptimize(fn, warmUpValues) {
   print("testI64CatchInsideCatch");
   let instance = createIdentityModule(kSig_l_l);
 
-  // CHECK: Inlining JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK: Considering JS-to-Wasm wrapper for Wasm function [0] f of module
+  // CHECK-NEXT: - inlining wrapper
   function call(x) {
     try {
       throw "outer";
