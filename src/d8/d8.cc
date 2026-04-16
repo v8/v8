@@ -6028,7 +6028,13 @@ std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   while (!out_queue_.Dequeue(&result)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
-    if (!is_running()) break;
+    if (!is_running()) {
+      // Do try to read one more message from the queue though, in case a
+      // message was posted between the previous Dequeue and the is_running()
+      // check.
+      out_queue_.Dequeue(&result);
+      break;
+    }
     out_semaphore_.ParkedWait(
         reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
   }
