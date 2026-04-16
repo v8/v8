@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --wasm-fast-api
-// Flags: --wasm-lazy-compilation
+// Flags: --wasm-lazy-compilation --wasm-unsafe-fast-api-wrapper
 // Flags: --fast-api-allow-float-in-sim --allow-natives-syntax
 
 

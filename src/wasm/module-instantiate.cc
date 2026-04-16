@@ -319,7 +319,8 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
   // The fast API call wrapper currently does not support function overloading.
   // Therefore, if the matching function is not function 0, the fast API cannot
   // be used.
-  return FindSupportedWasmFastApiFunction(
+  return v8_flags.wasm_unsafe_fast_api_wrapper &&
+         FindSupportedWasmFastApiFunction(
              isolate, expected_sig, shared, shared->api_func_data(),
              ReceiverKind::kAnyReceiver,
              /*only_first_allowed=*/true) != std::nullopt;

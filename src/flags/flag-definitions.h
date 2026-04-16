@@ -1897,6 +1897,8 @@ DEFINE_IMPLICATION(enable_slow_asserts, verify_get_js_builtin_state)
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
+DEFINE_BOOL(wasm_unsafe_fast_api_wrapper, false, "allow use of the unsafe fast "
+            "API wrapper")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)

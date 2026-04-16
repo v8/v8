@@ -867,6 +867,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
   // !!! Warning !!! This relies on the preceding logic to validate that this
   // overload matches the expected signature, which is generally unsafe in the
   // sandbox attacker model.
+  CHECK(v8_flags.wasm_unsafe_fast_api_wrapper);
   const CFunctionWithSignature c_function = api_func_data->GetCFunction(0);
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
