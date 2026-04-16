@@ -210,6 +210,27 @@ class CompilerTracer : public AllStatic {
     PrintTraceSuffix(scope);
   }
 
+  static void TraceFlushedMaglevCompile(Isolate* isolate,
+                                        DirectHandle<JSFunction> function,
+                                        bool osr) {
+    if (!v8_flags.trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "flushed compiling", function, CodeKind::MAGLEV);
+    if (osr) PrintF(scope.file(), " OSR");
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceFlushedTurbofanCompile(Isolate* isolate,
+                                          DirectHandle<JSFunction> function,
+                                          bool osr) {
+    if (!v8_flags.trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "flushed compiling", function,
+                     CodeKind::TURBOFAN_JS);
+    if (osr) PrintF(scope.file(), " OSR");
+    PrintTraceSuffix(scope);
+  }
+
   static void TraceCompletedJob(Isolate* isolate,
                                 OptimizedCompilationInfo* info) {
     if (!v8_flags.trace_opt) return;
@@ -4464,6 +4485,8 @@ void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
   DirectHandle<JSFunction> function = job->compilation_info()->closure();
   function->SetTieringInProgress(isolate, false,
                                  job->compilation_info()->osr_offset());
+  CompilerTracer::TraceFlushedTurbofanCompile(
+      isolate, function, job->compilation_info()->is_osr());
 }
 
 // static
@@ -4484,7 +4507,10 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   const bool use_result = !compilation_info->discard_result_for_testing();
   const BytecodeOffset osr_offset = compilation_info->osr_offset();
 
-  DCHECK(!shared->HasBreakInfo(isolate));
+  if (shared->HasBreakInfo(isolate)) {
+    DisposeTurbofanCompilationJob(isolate, job);
+    return;
+  }
 
   // 1) Optimization on the concurrent thread may have failed.
   // 2) The function may have already been optimized by OSR.  Simply continue.
@@ -4539,6 +4565,7 @@ void Compiler::DisposeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                            Isolate* isolate) {
 #ifdef V8_ENABLE_MAGLEV
   DirectHandle<JSFunction> function = job->function();
+  CompilerTracer::TraceFlushedMaglevCompile(isolate, function, job->is_osr());
   function->SetTieringInProgress(isolate, false, job->osr_offset());
 #endif  // V8_ENABLE_MAGLEV
 }
@@ -4573,7 +4600,10 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   if (status == CompilationJob::SUCCEEDED) {
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
-    DCHECK(!shared->HasBreakInfo(isolate));
+    if (shared->HasBreakInfo(isolate)) {
+      DisposeMaglevCompilationJob(job, isolate);
+      return;
+    }
 
     // Note the finalized InstructionStream object has already been installed on
     // the function by MaglevCompilationJob::FinalizeJobImpl.

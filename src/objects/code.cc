@@ -162,6 +162,8 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
 
 void Code::SetMarkedForDeoptimization(Isolate* isolate,
                                       LazyDeoptimizeReason reason) {
+  // We've already marked for deoptimization, return.
+  if (marked_for_deoptimization()) return;
   set_marked_for_deoptimization(true);
   // Eager deopts are already logged by the deoptimizer.
   if (reason != LazyDeoptimizeReason::kEagerDeopt &&
