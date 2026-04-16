@@ -3041,12 +3041,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       int64_t ra_val = get_register(ra);
       int64_t rb_val = get_register(rb);
-      int64_t alu_out = ra_val * rb_val;
+      int64_t alu_out;
+      bool is_overflow = __builtin_mul_overflow(ra_val, rb_val, &alu_out);
       set_register(rt, alu_out);
-      if (instr->Bit(0)) {  // RC bit set
-        SetCR0(alu_out);
+      if (instr->Bit(10)) {  // OE bit set
+        SetOV(is_overflow);
+        SetOV32(is_overflow);
       }
-      // todo - handle OE bit
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out, special_reg_xer_.fields.SO);
+      }
       break;
     }
     case DIVW: {

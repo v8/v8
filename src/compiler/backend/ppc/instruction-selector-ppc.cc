@@ -1139,21 +1139,11 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, OpIndex node,
 void EmitInt64MulWithOverflow(InstructionSelector* selector, OpIndex node,
                               FlagsContinuation* cont) {
   PPCOperandGenerator g(selector);
-  const OverflowCheckedBinopOp& op =
-      selector->Cast<OverflowCheckedBinopOp>(node);
-  OpIndex lhs = op.input(0);
-  OpIndex rhs = op.input(1);
-  InstructionOperand result = g.DefineAsRegister(node);
-  InstructionOperand left = g.UseRegister(lhs);
-  InstructionOperand high = g.TempRegister();
-  InstructionOperand result_sign = g.TempRegister();
-  InstructionOperand right = g.UseRegister(rhs);
-  selector->Emit(kPPC_Mul64, result, left, right);
-  selector->Emit(kPPC_MulHighS64, high, left, right);
-  selector->Emit(kPPC_ShiftRightAlg64, result_sign, result,
-                 g.TempImmediate(63));
-  // Test whether {high} is a sign-extension of {result}.
-  selector->EmitWithContinuation(kPPC_Cmp64, high, result_sign, cont);
+  const Operation& op = selector->Get(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0)),
+                                 g.UseRegister(op.input(1))};
+  selector->EmitWithContinuation(kPPC_Mul64, 1, outputs, 2, inputs, cont);
 }
 
 }  // namespace
@@ -1616,7 +1606,7 @@ void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
 void InstructionSelector::VisitInt64MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf.value());
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     return EmitInt64MulWithOverflow(this, node, &cont);
   }
     FlagsContinuation cont;
@@ -1788,7 +1778,7 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
             }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               if (is64) {
-                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
                 return EmitInt64MulWithOverflow(this, node, cont);
               } else {
                 cont->OverwriteAndNegateIfEqual(kOverflow);
