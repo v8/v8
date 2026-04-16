@@ -2658,13 +2658,13 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
 
   if (module_->types[target_type.index].is_final) {
     // In this case, simply check for map equality.
-    if (*obj_map != *rtt) {
+    if (obj_map != *rtt) {
       return false;
     }
   } else {
     // Check for rtt equality, and if not, check if the rtt is a struct/array
     // rtt.
-    if (*obj_map == *rtt) {
+    if (obj_map == *rtt) {
       return true;
     }
 
