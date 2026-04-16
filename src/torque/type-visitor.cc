@@ -298,12 +298,6 @@ const ClassType* TypeVisitor::ComputeType(
             "instantiated.");
     }
   }
-  if ((flags & ClassFlag::kGenerateFactoryFunction) &&
-      (flags & ClassFlag::kAbstract)) {
-    Error(ANNOTATION_ABSTRACT, " and ", ANNOTATION_GENERATE_FACTORY_FUNCTION,
-          " shouldn't be used together, because abstract classes are never "
-          "instantiated.");
-  }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;

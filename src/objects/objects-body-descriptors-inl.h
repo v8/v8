@@ -343,6 +343,45 @@ class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
   }
 };
 
+#define TURBOSHAFT_FIXED_DATA_BODY_DESCRIPTOR(T)                   \
+  class T::BodyDescriptor final : public DataOnlyBodyDescriptor {  \
+   public:                                                         \
+    static constexpr int SizeOf(Tagged<Map>, Tagged<HeapObject>) { \
+      return sizeof(T);                                            \
+    }                                                              \
+  }
+TURBOSHAFT_FIXED_DATA_BODY_DESCRIPTOR(TurboshaftWord32RangeType);
+TURBOSHAFT_FIXED_DATA_BODY_DESCRIPTOR(TurboshaftWord64RangeType);
+TURBOSHAFT_FIXED_DATA_BODY_DESCRIPTOR(TurboshaftFloat64RangeType);
+#undef TURBOSHAFT_FIXED_DATA_BODY_DESCRIPTOR
+
+class TurboshaftWord32SetType::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return TurboshaftWord32SetType::SizeFor(
+        UncheckedCast<TurboshaftWord32SetType>(obj)->set_size());
+  }
+};
+
+class TurboshaftWord64SetType::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return TurboshaftWord64SetType::SizeFor(
+        UncheckedCast<TurboshaftWord64SetType>(obj)->set_size());
+  }
+};
+
+class TurboshaftFloat64SetType::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
+    return TurboshaftFloat64SetType::SizeFor(
+        UncheckedCast<TurboshaftFloat64SetType>(obj)->set_size());
+  }
+};
+
 // This is a descriptor for one/two pointer fillers.
 class FreeSpaceFillerBodyDescriptor final : public DataOnlyBodyDescriptor {
  public:

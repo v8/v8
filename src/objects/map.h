@@ -41,6 +41,12 @@ enum InstanceType : uint16_t;
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
+  V(TurboshaftFloat64RangeType)      \
+  V(TurboshaftFloat64SetType)        \
+  V(TurboshaftWord32RangeType)       \
+  V(TurboshaftWord32SetType)         \
+  V(TurboshaftWord64RangeType)       \
+  V(TurboshaftWord64SetType)         \
   IF_WASM(V, WasmNull)
 
 #define POINTER_VISITOR_ID_LIST(V)    \

@@ -520,6 +520,82 @@ DirectHandle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   return direct_handle(array, isolate());
 }
 
+Handle<TurboshaftWord32RangeType> Factory::NewTurboshaftWord32RangeType(
+    uint32_t from, uint32_t to, AllocationType allocation) {
+  Handle<TurboshaftWord32RangeType> result(
+      Cast<TurboshaftWord32RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftWord32RangeType), allocation,
+          *turboshaft_word32range_type_map())),
+      isolate());
+  result->set_from(from);
+  result->set_to(to);
+  return result;
+}
+
+Handle<TurboshaftWord32SetType> Factory::NewTurboshaftWord32SetType(
+    uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftWord32SetType> result(
+      Cast<TurboshaftWord32SetType>(AllocateRawWithImmortalMap(
+          TurboshaftWord32SetType::SizeFor(set_size), allocation,
+          *turboshaft_word32set_type_map())),
+      isolate());
+  result->set_set_size(set_size);
+  return result;
+}
+
+Handle<TurboshaftWord64RangeType> Factory::NewTurboshaftWord64RangeType(
+    uint32_t from_high, uint32_t from_low, uint32_t to_high, uint32_t to_low,
+    AllocationType allocation) {
+  Handle<TurboshaftWord64RangeType> result(
+      Cast<TurboshaftWord64RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftWord64RangeType), allocation,
+          *turboshaft_word64range_type_map())),
+      isolate());
+  result->set_from_high(from_high);
+  result->set_from_low(from_low);
+  result->set_to_high(to_high);
+  result->set_to_low(to_low);
+  return result;
+}
+
+Handle<TurboshaftWord64SetType> Factory::NewTurboshaftWord64SetType(
+    uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftWord64SetType> result(
+      Cast<TurboshaftWord64SetType>(AllocateRawWithImmortalMap(
+          TurboshaftWord64SetType::SizeFor(set_size), allocation,
+          *turboshaft_word64set_type_map())),
+      isolate());
+  result->set_set_size(set_size);
+  return result;
+}
+
+Handle<TurboshaftFloat64RangeType> Factory::NewTurboshaftFloat64RangeType(
+    uint32_t special_values, uint32_t padding, double min, double max,
+    AllocationType allocation) {
+  USE(padding);
+  Handle<TurboshaftFloat64RangeType> result(
+      Cast<TurboshaftFloat64RangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurboshaftFloat64RangeType), allocation,
+          *turboshaft_float64range_type_map())),
+      isolate());
+  result->set_special_values(special_values);
+  result->set_min(min);
+  result->set_max(max);
+  return result;
+}
+
+Handle<TurboshaftFloat64SetType> Factory::NewTurboshaftFloat64SetType(
+    uint32_t special_values, uint32_t set_size, AllocationType allocation) {
+  Handle<TurboshaftFloat64SetType> result(
+      Cast<TurboshaftFloat64SetType>(AllocateRawWithImmortalMap(
+          TurboshaftFloat64SetType::SizeFor(set_size), allocation,
+          *turboshaft_float64set_type_map())),
+      isolate());
+  result->set_special_values(special_values);
+  result->set_set_size(set_size);
+  return result;
+}
+
 DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);

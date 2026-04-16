@@ -165,6 +165,21 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocates a clean embedder data array with given capacity.
   DirectHandle<EmbedderDataArray> NewEmbedderDataArray(int length);
 
+  Handle<TurboshaftWord32RangeType> NewTurboshaftWord32RangeType(
+      uint32_t from, uint32_t to, AllocationType allocation);
+  Handle<TurboshaftWord32SetType> NewTurboshaftWord32SetType(
+      uint32_t set_size, AllocationType allocation);
+  Handle<TurboshaftWord64RangeType> NewTurboshaftWord64RangeType(
+      uint32_t from_high, uint32_t from_low, uint32_t to_high, uint32_t to_low,
+      AllocationType allocation);
+  Handle<TurboshaftWord64SetType> NewTurboshaftWord64SetType(
+      uint32_t set_size, AllocationType allocation);
+  Handle<TurboshaftFloat64RangeType> NewTurboshaftFloat64RangeType(
+      uint32_t special_values, uint32_t padding, double min, double max,
+      AllocationType allocation);
+  Handle<TurboshaftFloat64SetType> NewTurboshaftFloat64SetType(
+      uint32_t special_values, uint32_t set_size, AllocationType allocation);
+
   // Allocate a new fixed double array with hole values.
   DirectHandle<FixedArrayBase> NewFixedDoubleArrayWithHoles(uint32_t size);
 

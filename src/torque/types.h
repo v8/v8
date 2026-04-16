@@ -729,8 +729,7 @@ class ClassType final : public AggregateType {
            (!IsExtern() && !IsAbstract());
   }
   bool ShouldGenerateFactoryFunction() const {
-    return (flags_ & ClassFlag::kGenerateFactoryFunction) ||
-           (ShouldExport() && !IsAbstract());
+    return ShouldExport() && !IsAbstract();
   }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }

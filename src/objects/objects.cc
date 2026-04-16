@@ -82,6 +82,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 #include "src/parsing/preparse-data.h"
 #include "src/regexp/regexp.h"
 #include "src/roots/roots.h"
@@ -2159,6 +2160,18 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == HOLE_TYPE) {
     return sizeof(Hole);
+  }
+  if (instance_type == TURBOSHAFT_WORD32_SET_TYPE_TYPE) {
+    return TurboshaftWord32SetType::SizeFor(
+        UncheckedCast<TurboshaftWord32SetType>(*this)->set_size());
+  }
+  if (instance_type == TURBOSHAFT_WORD64_SET_TYPE_TYPE) {
+    return TurboshaftWord64SetType::SizeFor(
+        UncheckedCast<TurboshaftWord64SetType>(*this)->set_size());
+  }
+  if (instance_type == TURBOSHAFT_FLOAT64_SET_TYPE_TYPE) {
+    return TurboshaftFloat64SetType::SizeFor(
+        UncheckedCast<TurboshaftFloat64SetType>(*this)->set_size());
   }
   UNREACHABLE();
 }

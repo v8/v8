@@ -1041,7 +1041,7 @@ std::optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
        ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
        ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK,
-       ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
+       ANNOTATION_GENERATE_UNIQUE_MAP,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_CPP_OBJECT_DEFINITION,
@@ -1063,9 +1063,8 @@ std::optional<ParseResult> MakeClassDeclaration(
   if (annotations.Contains(ANNOTATION_CUSTOM_CPP_CLASS)) {
     Error(
         "@customCppClass is deprecated. Use 'extern' instead. "
-        "@generateBodyDescriptor, @generateUniqueMap, and "
-        "@generateFactoryFunction accomplish most of what '@export "
-        "@customCppClass' used to.");
+        "@generateBodyDescriptor and @generateUniqueMap accomplish most of "
+        "what '@export @customCppClass' used to.");
   }
   if (annotations.Contains(ANNOTATION_CUSTOM_MAP)) {
     Error(
@@ -1080,9 +1079,6 @@ std::optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_GENERATE_UNIQUE_MAP)) {
     flags |= ClassFlag::kGenerateUniqueMap;
-  }
-  if (annotations.Contains(ANNOTATION_GENERATE_FACTORY_FUNCTION)) {
-    flags |= ClassFlag::kGenerateFactoryFunction;
   }
   if (annotations.Contains(ANNOTATION_EXPORT)) {
     flags |= ClassFlag::kExport;

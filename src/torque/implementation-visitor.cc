@@ -4440,14 +4440,23 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
                               type_->GetSuperClass(),
                               /*use_templates=*/false,
                               /*for_cpp_object_layout=*/true);
+  bool first_indexed_field_emitted = false;
   for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
+    // For cpp-layout classes a single FLEXIBLE_ARRAY_MEMBER represents the
+    // first variable-length tail. Subsequent variable-length fields share
+    // that tail (with dynamic offsets), so don't attempt to generate their
+    // constexpr offsets or verifier static_asserts.
+    if (f.index.has_value() && !f.index_is_constant) {
+      if (first_indexed_field_emitted) continue;
+      first_indexed_field_emitted = true;
+    }
     g.RecordOffsetFor(f);
   }
   g.Finish();
   impl_ << "\n";
 
-  bool first_indexed_field_emitted = false;
+  first_indexed_field_emitted = false;
   for (const auto& f : type_->fields()) {
     // Fields with conditional (runtime-computed) offsets have no Torque-
     // generated kFooOffset constant, so there's nothing to assert against

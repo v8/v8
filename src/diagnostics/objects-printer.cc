@@ -2948,6 +2948,47 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+void TurboshaftWord32RangeType::TurboshaftWord32RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord32RangeType");
+  os << "\n - from: " << from();
+  os << "\n - to: " << to();
+  os << "\n";
+}
+void TurboshaftWord32SetType::TurboshaftWord32SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord32SetType");
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+void TurboshaftWord64RangeType::TurboshaftWord64RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord64RangeType");
+  os << "\n - from_high: " << from_high();
+  os << "\n - from_low: " << from_low();
+  os << "\n - to_high: " << to_high();
+  os << "\n - to_low: " << to_low();
+  os << "\n";
+}
+void TurboshaftWord64SetType::TurboshaftWord64SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftWord64SetType");
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+void TurboshaftFloat64RangeType::TurboshaftFloat64RangeTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurboshaftFloat64RangeType");
+  os << "\n - special_values: " << special_values();
+  os << "\n - min: " << min();
+  os << "\n - max: " << max();
+  os << "\n";
+}
+void TurboshaftFloat64SetType::TurboshaftFloat64SetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurboshaftFloat64SetType");
+  os << "\n - special_values: " << special_values();
+  os << "\n - set_size: " << set_size();
+  os << "\n";
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");

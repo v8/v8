@@ -179,6 +179,19 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case MEGA_DOM_HANDLER_TYPE:
       return kVisitMegaDomHandler;
 
+    case TURBOSHAFT_WORD32_RANGE_TYPE_TYPE:
+      return kVisitTurboshaftWord32RangeType;
+    case TURBOSHAFT_WORD32_SET_TYPE_TYPE:
+      return kVisitTurboshaftWord32SetType;
+    case TURBOSHAFT_WORD64_RANGE_TYPE_TYPE:
+      return kVisitTurboshaftWord64RangeType;
+    case TURBOSHAFT_WORD64_SET_TYPE_TYPE:
+      return kVisitTurboshaftWord64SetType;
+    case TURBOSHAFT_FLOAT64_RANGE_TYPE_TYPE:
+      return kVisitTurboshaftFloat64RangeType;
+    case TURBOSHAFT_FLOAT64_SET_TYPE_TYPE:
+      return kVisitTurboshaftFloat64SetType;
+
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
 

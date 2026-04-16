@@ -3032,6 +3032,47 @@ void AsmWasmData::AsmWasmDataVerify(Isolate* isolate) {
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void TurboshaftWord32Type::TurboshaftWord32TypeVerify(Isolate* isolate) {
+  CHECK(IsTurboshaftType(this));
+  CHECK(IsTurboshaftWord32Type(this));
+}
+void TurboshaftWord32RangeType::TurboshaftWord32RangeTypeVerify(
+    Isolate* isolate) {
+  TurboshaftWord32TypeVerify(isolate);
+  CHECK(IsTurboshaftWord32RangeType(this));
+}
+void TurboshaftWord32SetType::TurboshaftWord32SetTypeVerify(Isolate* isolate) {
+  TurboshaftWord32TypeVerify(isolate);
+  CHECK(IsTurboshaftWord32SetType(this));
+}
+void TurboshaftWord64Type::TurboshaftWord64TypeVerify(Isolate* isolate) {
+  CHECK(IsTurboshaftType(this));
+  CHECK(IsTurboshaftWord64Type(this));
+}
+void TurboshaftWord64RangeType::TurboshaftWord64RangeTypeVerify(
+    Isolate* isolate) {
+  TurboshaftWord64TypeVerify(isolate);
+  CHECK(IsTurboshaftWord64RangeType(this));
+}
+void TurboshaftWord64SetType::TurboshaftWord64SetTypeVerify(Isolate* isolate) {
+  TurboshaftWord64TypeVerify(isolate);
+  CHECK(IsTurboshaftWord64SetType(this));
+}
+void TurboshaftFloat64Type::TurboshaftFloat64TypeVerify(Isolate* isolate) {
+  CHECK(IsTurboshaftType(this));
+  CHECK(IsTurboshaftFloat64Type(this));
+}
+void TurboshaftFloat64RangeType::TurboshaftFloat64RangeTypeVerify(
+    Isolate* isolate) {
+  TurboshaftFloat64TypeVerify(isolate);
+  CHECK(IsTurboshaftFloat64RangeType(this));
+}
+void TurboshaftFloat64SetType::TurboshaftFloat64SetTypeVerify(
+    Isolate* isolate) {
+  TurboshaftFloat64TypeVerify(isolate);
+  CHECK(IsTurboshaftFloat64SetType(this));
+}
+
 void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
     Isolate* isolate) {
   CHECK(IsStruct(this));

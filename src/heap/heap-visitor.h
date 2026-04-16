@@ -108,6 +108,12 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmStackObject)         \
   IF_WASM(V, WasmTypeInfo)            \
+  V(TurboshaftFloat64RangeType)       \
+  V(TurboshaftFloat64SetType)         \
+  V(TurboshaftWord32RangeType)        \
+  V(TurboshaftWord32SetType)          \
+  V(TurboshaftWord64RangeType)        \
+  V(TurboshaftWord64SetType)          \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 // Visitation in here will refer to BodyDescriptors with the used size of the
