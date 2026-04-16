@@ -4653,7 +4653,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                RefTypeKind::kFunction));
 
     // Push a continuation type.
-    Value* value = Push(ValueType::Ref(imm.heap_type()));
+    Value* value =
+        Push(ValueType::Ref(imm.heap_type()).AsExactIfEnabled(this->enabled_));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, imm, func_ref, value);
     return 1 + imm.length;
   }
@@ -4703,7 +4704,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     Value orig_cont = Pop(ValueType::RefNull(orig_cont_imm.heap_type()));
     PoppedArgVector args = PopSomeArgs(orig_cont_sig, delta);
-    Value* new_cont = Push(ValueType::Ref(new_cont_imm.heap_type()));
+    Value* new_cont = Push(ValueType::Ref(new_cont_imm.heap_type())
+                               .AsExactIfEnabled(this->enabled_));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ContBind, orig_cont_imm, orig_cont,
                                        args.data(), new_cont_imm, new_cont);
     return 1 + orig_cont_imm.length + new_cont_imm.length;
@@ -4841,8 +4843,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
         stack_.EnsureMoreCapacity(1, this->zone_);
-        Value* suspend_cont = Push(
-            ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont));
+        Value* suspend_cont =
+            Push(ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont)
+                     .AsExactIfEnabled(this->enabled_));
         const HandlerCase& handler = handlers[i];
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
