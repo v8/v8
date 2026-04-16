@@ -812,7 +812,7 @@ Tagged<ScopeInfo> FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
   // technically the EVAL_SCOPE must have an outer_scope_info. But, the GC can
   // clean up some ScopeInfos it thinks are no longer needed. Abort the check
   // in that case.
-  if (!other_scope_info->HasOuterScopeInfo()) return ScopeInfo();
+  if (!other_scope_info->HasOuterScopeInfo()) return {};
 
   DCHECK_EQ(other_scope_info->scope_type(), EVAL_SCOPE);
   other_scope_info = other_scope_info->OuterScopeInfo();

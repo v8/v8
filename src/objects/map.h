@@ -89,6 +89,7 @@ enum InstanceType : uint16_t;
   V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \
   V(RegExpDataWrapper)                \
+  V(ScopeInfo)                        \
   V(SharedFunctionInfo)               \
   V(ShortcutCandidate)                \
   V(SlicedString)                     \

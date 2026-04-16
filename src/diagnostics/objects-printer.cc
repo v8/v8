@@ -3948,7 +3948,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
   os << "\n - length: " << length();
   if (length() > 0) {
-    PrintScopeInfoList(*this, os, "context slots", ContextLocalCount());
+    PrintScopeInfoList(this, os, "context slots", ContextLocalCount());
     // TODO(neis): Print module stuff if present.
   }
   os << "\n";

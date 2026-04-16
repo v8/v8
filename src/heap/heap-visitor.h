@@ -83,6 +83,7 @@ class MaybeObjectSize final {
   V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \
   V(RegExpDataWrapper)                \
+  V(ScopeInfo)                        \
   V(SeqOneByteString)                 \
   V(SeqTwoByteString)                 \
   V(SharedFunctionInfo)               \

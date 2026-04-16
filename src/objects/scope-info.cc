@@ -50,13 +50,26 @@ bool NameToIndexHashTableEquals(Tagged<NameToIndexHashTable> a,
 bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
                        int* out_last_checked_field) const {
   if (length() != other->length()) return false;
+  // Fixed header fields.
   if (Flags() != other->Flags()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kFlags;
+  if (parameter_count() != other->parameter_count()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kParameterCount;
+  if (context_local_count() != other->context_local_count()) return false;
+  if (out_last_checked_field) *out_last_checked_field = kContextLocalCount;
+  if (!is_live_edit_compare) {
+    if (position_info_start() != other->position_info_start()) return false;
+    if (out_last_checked_field) *out_last_checked_field = kPositionInfoStart;
+    if (position_info_end() != other->position_info_end()) return false;
+    if (out_last_checked_field) *out_last_checked_field = kPositionInfoEnd;
+  }
+  // Variable-part tail.
+  const int inferred_function_name_index = InferredFunctionNameIndex();
   for (int index = 0; index < length(); ++index) {
-    if (out_last_checked_field) *out_last_checked_field = index;
-    if (index == kFlags) continue;
-    if (is_live_edit_compare &&
-        ((index >= kPositionInfoStart && index <= kPositionInfoEnd) ||
-         index == InferredFunctionNameIndex())) {
+    if (out_last_checked_field) {
+      *out_last_checked_field = kVariablePartStart + index;
+    }
+    if (is_live_edit_compare && index == inferred_function_name_index) {
       continue;
     }
     Tagged<Object> entry = get(index);
@@ -213,12 +226,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                             scope->AsModuleScope()->module());
   }
 
-  // Make sure the Fields enum agrees with Torque-generated offsets.
-  static_assert(OffsetOfElementAt(kFlags) == kFlagsOffset);
-  static_assert(OffsetOfElementAt(kParameterCount) == kParameterCountOffset);
-  static_assert(OffsetOfElementAt(kContextLocalCount) ==
-                kContextLocalCountOffset);
-
   bool sloppy_eval_can_extend_vars = false;
   if (scope->is_declaration_scope()) {
     sloppy_eval_can_extend_vars =
@@ -231,7 +238,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
   const int has_dependent_code = sloppy_eval_can_extend_vars;
   const int length =
-      kVariablePartIndex + local_names_container_size + context_local_count +
+      local_names_container_size + context_local_count +
       (should_save_class_variable ? 1 : 0) +
       (has_function_name ? kFunctionNameEntries : 0) +
       (has_inferred_function_name ? 1 : 0) + (has_outer_scope_info ? 1 : 0) +
@@ -249,7 +256,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
   Handle<ScopeInfo> scope_info_handle =
       isolate->factory()->NewScopeInfo(length);
-  int index = kVariablePartIndex;
+  int index = 0;
   {
     DisallowGarbageCollection no_gc;
     Tagged<ScopeInfo> scope_info = *scope_info_handle;
@@ -513,7 +520,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
     Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope) {
   const bool has_outer_scope_info = !outer_scope.is_null();
-  const int length = kVariablePartIndex + (has_outer_scope_info ? 1 : 0);
+  const int length = (has_outer_scope_info ? 1 : 0);
 
   Factory* factory = isolate->factory();
   DirectHandle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -546,7 +553,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
   scope_info->set_position_info_start(0);
   scope_info->set_position_info_end(0);
 
-  int index = kVariablePartIndex;
+  int index = 0;
   DCHECK_EQ(index, scope_info->FunctionVariableInfoIndex());
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
   DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
@@ -608,10 +615,9 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   const bool has_inferred_function_name = is_empty_function;
   // NOTE: Local names are always inlined here, since context_local_count < 2.
   DCHECK_LT(context_local_count, kScopeInfoMaxInlinedLocalNamesSize);
-  const int length = kVariablePartIndex + 2 * context_local_count +
-                     (is_empty_function ? kFunctionNameEntries : 0) +
-                     (has_inferred_function_name ? 1 : 0) +
-                     (is_empty_function ? 1 : 0);
+  const int length =
+      2 * context_local_count + (is_empty_function ? kFunctionNameEntries : 0) +
+      (has_inferred_function_name ? 1 : 0) + (is_empty_function ? 1 : 0);
 
   Factory* factory = isolate->factory();
   DirectHandle<ScopeInfo> scope_info =
@@ -654,7 +660,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
   raw_scope_info->set_position_info_start(0);
   raw_scope_info->set_position_info_end(0);
 
-  int index = kVariablePartIndex;
+  int index = 0;
 
   // Here we add info for context-allocated "this".
   DCHECK_EQ(index, raw_scope_info->ContextLocalNamesIndex());
@@ -704,28 +710,19 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
 }
 
 Tagged<Object> ScopeInfo::get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
-
-Tagged<Object> ScopeInfo::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
-                                           OffsetOfElementAt(index));
+  return data()[index].Relaxed_Load();
 }
 
 void ScopeInfo::set(int index, Tagged<Smi> value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(IsSmi(Tagged<Object>(value)));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
+  data()[index].Relaxed_Store(this, value, SKIP_WRITE_BARRIER);
 }
 
 void ScopeInfo::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  data()[index].Relaxed_Store(this, value, mode);
 }
 
 void ScopeInfo::CopyElements(Isolate* isolate, int dst_index,
@@ -737,18 +734,19 @@ void ScopeInfo::CopyElements(Isolate* isolate, int dst_index,
 
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
   ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+  isolate->heap()->CopyRange(this, dst_slot, src_slot, len, mode);
 }
 
 ObjectSlot ScopeInfo::RawFieldOfElementAt(int index) {
-  return RawField(OffsetOfElementAt(index));
+  return ObjectSlot(reinterpret_cast<Address>(this) + OffsetOfElementAt(index));
 }
 
 int ScopeInfo::length() const {
-  // AllocatedSize() is generated by Torque and represents the size in bytes of
-  // the object, as computed from flags, context_local_count, and possibly
-  // module_variable_count. Convert that size into a number of slots.
-  return (AllocatedSize() - HeapObject::kHeaderSize) / kTaggedSize;
+  // AllocatedSize() represents the total size in bytes of the object, as
+  // computed from flags, context_local_count, and possibly
+  // module_variable_count. Subtract the fixed header and convert the
+  // remaining bytes into variable-part slots.
+  return (AllocatedSize() - OFFSET_OF_DATA_START(ScopeInfo)) / kTaggedSize;
 }
 
 Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
@@ -756,7 +754,7 @@ Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
 }
 
 bool ScopeInfo::IsEmpty() const {
-  return *this == EarlyGetReadOnlyRoots().empty_scope_info();
+  return this == &*EarlyGetReadOnlyRoots().empty_scope_info();
 }
 
 ScopeType ScopeInfo::scope_type() const {
@@ -1008,11 +1006,6 @@ Tagged<String> ScopeInfo::ContextInlinedLocalName(int var) const {
   return context_local_names(var);
 }
 
-Tagged<String> ScopeInfo::ContextInlinedLocalName(PtrComprCageBase cage_base,
-                                                  int var) const {
-  DCHECK(HasInlinedLocalNames());
-  return context_local_names(cage_base, var);
-}
 
 VariableMode ScopeInfo::ContextLocalMode(int var) const {
   int value = context_local_infos(var);
@@ -1097,10 +1090,9 @@ int ScopeInfo::ModuleIndex(Tagged<String> name, VariableMode* mode,
 
 int ScopeInfo::InlinedLocalNamesLookup(Tagged<String> name) {
   DisallowGarbageCollection no_gc;
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   int local_count = context_local_count();
   for (int i = 0; i < local_count; ++i) {
-    if (name == ContextInlinedLocalName(cage_base, i)) {
+    if (name == ContextInlinedLocalName(i)) {
       return i;
     }
   }

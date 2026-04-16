@@ -2098,9 +2098,9 @@ class ConstantPoolPointerForwarder {
         // Once we find an already recorded scope info, it need to match the one
         // on the chain.
         if (V8_UNLIKELY(*it->second != scope_info)) {
-          info->Print();
-          (*it->second)->Print();
-          scope_info->Print();
+          Print(info);
+          Print(*it->second);
+          Print(scope_info);
           UNREACHABLE();
         }
         return;
@@ -2378,8 +2378,8 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
     while (true) {
       auto it = scope_infos.find(scope_info->UniqueIdInScript());
       if (it != scope_infos.end()) {
-        if (*it->second != scope_info) {
-          isolate->PushParamsAndDie(reinterpret_cast<void*>(it->second->ptr()),
+        if (it->second != scope_info) {
+          isolate->PushParamsAndDie(reinterpret_cast<void*>(it->second.ptr()),
                                     reinterpret_cast<void*>(scope_info.ptr()));
           UNREACHABLE();
         }

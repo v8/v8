@@ -987,8 +987,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(ScopeInfo::SizeFor(ScopeInfo::kVariablePartIndex),
-                    AllocationType::kReadOnly);
+        AllocateRaw(ScopeInfo::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
                                   SKIP_WRITE_BARRIER);

@@ -2098,6 +2098,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return PropertyArray::SizeFor(
         UncheckedCast<PropertyArray>(*this)->length(kAcquireLoad).value());
   }
+  if (instance_type == SCOPE_INFO_TYPE) {
+    return UncheckedCast<ScopeInfo>(*this)->AllocatedSize();
+  }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
         UncheckedCast<FeedbackVector>(*this)->length());

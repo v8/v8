@@ -44,8 +44,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                               HashSeed(isolate()));
   DeclarationScope scope(zone(), &ast_factory);
 
-  Handle<ScopeInfo> scope_info =
-      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(0);
   int flags = ScopeInfo::HasContextCellsBit::encode(true);
   scope_info->set_flags(flags, kRelaxedStore);
   scope_info->set_context_local_count(0);
@@ -193,8 +192,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(Register::current_context(), &fun_var3, 0)
       .PopContext(reg);
 
-  Handle<ScopeInfo> scope_info2 =
-      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  Handle<ScopeInfo> scope_info2 = factory->NewScopeInfo(0);
   int flags2 = ScopeInfo::HasContextCellsBit::encode(false);
   scope_info2->set_flags(flags2, kRelaxedStore);
   scope_info2->set_context_local_count(0);
@@ -216,8 +214,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadContextSlot(Register::current_context(), &fun2_var1, 0)
       .PopContext(reg);
 
-  Handle<ScopeInfo> scope_info3 =
-      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  Handle<ScopeInfo> scope_info3 = factory->NewScopeInfo(0);
   int flags3 = ScopeInfo::IsHoistedInContextBit::encode(true);
   scope_info3->set_flags(flags3, kRelaxedStore);
   scope_info3->set_context_local_count(0);

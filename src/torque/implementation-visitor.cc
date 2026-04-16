@@ -4057,12 +4057,14 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
  public:
   ClassFieldOffsetGenerator(std::ostream& header, std::ostream& inline_header,
                             const ClassType* type, std::string gen_name,
-                            const ClassType* parent, bool use_templates = true)
+                            const ClassType* parent, bool use_templates = true,
+                            bool for_cpp_object_layout = false)
       : FieldOffsetsGenerator(type),
         hdr_(header),
         inl_(inline_header),
         previous_field_end_(FirstFieldStart(type, parent, use_templates)),
-        gen_name_(gen_name) {}
+        gen_name_(gen_name),
+        for_cpp_object_layout_(for_cpp_object_layout) {}
 
   void WriteField(const Field& f, const std::string& size_string) override {
     hdr_ << "  // " << f.pos << "\n";
@@ -4079,6 +4081,17 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
     // A static constexpr int is more convenient than a getter if the offset is
     // known.
     DCHECK(!f.offset.has_value());
+
+    // Only reached for fields with runtime-computed (conditional-slice)
+    // offsets -- e.g. ScopeInfo's `module_variable_count?` or indexed
+    // fields whose length is a flag-controlled Smi.
+    //
+    // For a cpp-layout class the getter Torque would emit here is a
+    // method on `TorqueGeneratedFoo<D, P>`, which @cppObjectLayoutDefinition
+    // strips. The hand-rolled C++ side provides its own Foo...Offset()
+    // accessors (see e.g. ModuleVariableCountOffset in scope-info.cc), so
+    // we simply skip emission.
+    if (for_cpp_object_layout_) return;
 
     std::string function_name = CamelifyString(f.name_and_type.name) + "Offset";
 
@@ -4128,6 +4141,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
   std::ostream& inl_;
   std::string previous_field_end_;
   std::string gen_name_;
+  bool for_cpp_object_layout_ = false;
 };
 
 class CppClassGenerator {
@@ -4423,7 +4437,9 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
         << "class " << gen_name_ << "Asserts {\n";
 
   ClassFieldOffsetGenerator g(impl_, impl_, type_, gen_name_,
-                              type_->GetSuperClass(), false);
+                              type_->GetSuperClass(),
+                              /*use_templates=*/false,
+                              /*for_cpp_object_layout=*/true);
   for (const auto& f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
@@ -4431,13 +4447,28 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
   g.Finish();
   impl_ << "\n";
 
+  bool first_indexed_field_emitted = false;
   for (const auto& f : type_->fields()) {
+    // Fields with conditional (runtime-computed) offsets have no Torque-
+    // generated kFooOffset constant, so there's nothing to assert against
+    // the C++ layout. They are asserted at runtime via DCHECKs in the
+    // hand-rolled conditional-slice accessors.
+    if (!f.offset.has_value()) continue;
+    // Struct-typed fields are split into their component members in C++
+    // (for example PositionInfo -> position_info_start_,
+    // position_info_end_), so there's no single member to take offsetof
+    // of.
+    if (f.name_and_type.type->IsStructType()) continue;
+    bool is_indexed = f.index.has_value() && !f.index_is_constant;
+    if (is_indexed) {
+      if (first_indexed_field_emitted) continue;
+      first_indexed_field_emitted = true;
+    }
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string cpp_field_offset =
-        (f.index.has_value() && !f.index_is_constant)
-            ? "OFFSET_OF_DATA_START(" + name_ + ")"
-            : "offsetof(" + name_ + ", " + f.name_and_type.name + "_)";
+        is_indexed ? "OFFSET_OF_DATA_START(" + name_ + ")"
+                   : "offsetof(" + name_ + ", " + f.name_and_type.name + "_)";
     impl_ << "  static_assert(" << field_offset << " == " << cpp_field_offset
           << ",\n"
           << "                \"Value of " << name_ << "::" << field_offset

@@ -1064,6 +1064,76 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   }
 }
 
+void ScopeInfo::ScopeInfoVerify(Isolate* isolate) {
+  CHECK(IsScopeInfo(this, isolate));
+  CHECK(parameter_count_.load().IsSmi());
+  CHECK(context_local_count_.load().IsSmi());
+  CHECK(position_info_start_.load().IsSmi());
+  CHECK(position_info_end_.load().IsSmi());
+
+  const uint32_t flags = Flags();
+  const bool is_module =
+      ScopeTypeBits::decode(flags) == ScopeType::MODULE_SCOPE;
+  const int local_count = context_local_count();
+  const bool has_hashtable = local_count >= kScopeInfoMaxInlinedLocalNamesSize;
+
+  if (is_module) {
+    CHECK_LE(0, module_variable_count());
+  }
+
+  if (has_hashtable) {
+    CHECK(IsNameToIndexHashTable(context_local_names_hashtable()));
+  } else {
+    for (int i = 0; i < local_count; ++i) {
+      CHECK(IsString(context_local_names(i)));
+    }
+  }
+
+  for (int i = 0; i < local_count; ++i) {
+    // context_local_infos is stored as a Smi (SmiTagged<VariableProperties>);
+    // the accessor returns the decoded int.
+    USE(context_local_infos(i));
+  }
+
+  if (HasSavedClassVariableBit::decode(flags)) {
+    Tagged<Union<Name, Smi>> v = saved_class_variable_info();
+    CHECK(IsSmi(v) || IsName(v));
+  }
+
+  if (FunctionVariableBits::decode(flags) != VariableAllocationInfo::NONE) {
+    Tagged<Union<Smi, String>> name = function_variable_info_name();
+    CHECK(IsString(name) || IsZero(name));
+    USE(function_variable_info_context_or_stack_slot_index());
+  }
+
+  if (HasInferredFunctionNameBit::decode(flags)) {
+    Tagged<Union<String, Undefined>> n = inferred_function_name();
+    CHECK(IsString(n) || IsUndefined(n));
+  }
+
+  if (HasOuterScopeInfoBit::decode(flags)) {
+    CHECK(IsScopeInfo(outer_scope_info()));
+  }
+
+  if (is_module) {
+    CHECK(IsSourceTextModuleInfo(module_info()));
+    const int mod_var_count = module_variable_count();
+    for (int i = 0; i < mod_var_count; ++i) {
+      CHECK(IsString(module_variables_name(i)));
+      USE(module_variables_index(i));
+      USE(module_variables_properties(i));
+    }
+  }
+
+  if (SloppyEvalCanExtendVarsBit::decode(flags)) {
+    CHECK(IsDependentCode(dependent_code()));
+  }
+
+  if (ScopeTypeBits::decode(flags) == ScopeType::FUNCTION_SCOPE) {
+    USE(unused_parameter_bits());
+  }
+}
+
 void ByteArray::ByteArrayVerify(Isolate* isolate) {}
 
 void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {

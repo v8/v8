@@ -39,6 +39,7 @@
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor-object.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module.h"
@@ -498,6 +499,17 @@ class RegExpDataWrapper::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return sizeof(RegExpDataWrapper);
+  }
+};
+
+// ScopeInfo's GC-visible tagged region starts at kFirstTaggedSlotOffset
+// (after the non-tagged flags + optional padding header) and runs to
+// the end of the variable-length tail.
+class ScopeInfo::BodyDescriptor final
+    : public SuffixRangeBodyDescriptor<ScopeInfo::kFirstTaggedSlotOffset> {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<ScopeInfo>(raw_object)->AllocatedSize();
   }
 };
 
