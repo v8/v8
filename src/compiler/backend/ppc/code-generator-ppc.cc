@@ -1891,21 +1891,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_DoubleToUint64: {
-      bool check_conversion = (i.OutputCount() > 1);
-      if (check_conversion) {
         __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      }
       __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
                                       i.OutputRegister(0), kScratchDoubleReg);
-      if (check_conversion) {
-        // Set 2nd output to zero if conversion fails.
         CRegister cr = cr0;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
-        __ li(i.OutputRegister(1), Operand(1));
-        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
-      }
+        // Handle conversion failures (such as overflow).
+        if (i.OutputCount() > 1) {
+          __ li(i.OutputRegister(1), Operand(1));
+          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+        } else {
+          __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
+        }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
