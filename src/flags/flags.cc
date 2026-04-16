@@ -1251,6 +1251,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
       CONTRADICTION(jitless, turbolev_future),
+      CONTRADICTION(jitless, turbolev_inline_js_wasm_wrappers),
       CONTRADICTION(jitless, turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jitless, verify_turboshaft),
       CONTRADICTION(lite_mode, maglev_as_top_tier),
