@@ -1125,29 +1125,15 @@ namespace {
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont);
+
 void EmitInt32MulWithOverflow(InstructionSelector* selector, OpIndex node,
                               FlagsContinuation* cont) {
   PPCOperandGenerator g(selector);
-  const OverflowCheckedBinopOp& op =
-      selector->Get(node).Cast<OverflowCheckedBinopOp>();
-  OpIndex lhs = op.input(0);
-  OpIndex rhs = op.input(1);
-  InstructionOperand result_operand = g.DefineAsRegister(node);
-  InstructionOperand high32_operand = g.TempRegister();
-  InstructionOperand temp_operand = g.TempRegister();
-  {
-    InstructionOperand outputs[] = {result_operand, high32_operand};
-    InstructionOperand inputs[] = {g.UseRegister(lhs), g.UseRegister(rhs)};
-    selector->Emit(kPPC_Mul32WithHigh32, 2, outputs, 2, inputs);
-  }
-  {
-    InstructionOperand shift_31 = g.UseImmediate(31);
-    InstructionOperand outputs[] = {temp_operand};
-    InstructionOperand inputs[] = {result_operand, shift_31};
-    selector->Emit(kPPC_ShiftRightAlg32, 1, outputs, 2, inputs);
-  }
-
-  VisitCompare(selector, kPPC_Cmp32, high32_operand, temp_operand, cont);
+  const Operation& op = selector->Get(node);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0)),
+                                 g.UseRegister(op.input(1))};
+  selector->EmitWithContinuation(kPPC_Mul32, 1, outputs, 2, inputs, cont);
 }
 
 void EmitInt64MulWithOverflow(InstructionSelector* selector, OpIndex node,
@@ -1805,7 +1791,7 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
                 cont->OverwriteAndNegateIfEqual(kNotEqual);
                 return EmitInt64MulWithOverflow(this, node, cont);
               } else {
-                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
                 return EmitInt32MulWithOverflow(this, node, cont);
               }
           }
@@ -1926,7 +1912,7 @@ void InstructionSelector::VisitUint64LessThanOrEqual(OpIndex node) {
 void InstructionSelector::VisitInt32MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf.value());
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     return EmitInt32MulWithOverflow(this, node, &cont);
   }
   FlagsContinuation cont;

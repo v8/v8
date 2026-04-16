@@ -339,6 +339,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kPPC_Add32:
         case kPPC_Sub32:
         case kPPC_Neg32:
+        case kPPC_Mul32:
           return overflow32;
         default:
           break;
@@ -353,6 +354,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kPPC_Add32:
         case kPPC_Sub32:
         case kPPC_Neg32:
+        case kPPC_Mul32:
           return nooverflow32;
         default:
           break;
@@ -1452,8 +1454,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_BINOP_RC(fsub, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mul32:
-      __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-               LeaveOE, i.OutputRCBit());
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 SetOE);
+        __ MoveToCrFromXer(cr0);
+      } else {
+        __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 LeaveOE, i.OutputRCBit());
+      }
+      __ extsw(i.OutputRegister(), i.OutputRegister());
       break;
     case kPPC_Mul64:
       __ mulld(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
