@@ -12598,9 +12598,10 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   // lazily-deoptimize with a JSReceiver triggering valueOf
   // (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
   // signature); the reducer only uses the frame state for numeric params.
+  // LINT.IfChange(WasmWrapperInliningConditions)
   bool wrap_args_for_wasm = false;
   if (is_turbolev() && v8_flags.turbolev_inline_js_wasm_wrappers &&
-      !shared.HasBuiltinId()) {
+      shared.object()->HasWasmExportedFunctionData(local_isolate_)) {
     // The SharedFunctionInfo of a Wasm exported function does not carry a
     // builtin ID, so the check above filters out regular JS builtins.
     // However, the Code installed in the dispatch table can be either:
@@ -12613,6 +12614,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
                          (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
   }
+  // LINT.ThenChange(src/compiler/turboshaft/turbolev-graph-builder.cc:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   return AddNewNode<CallKnownJSFunction>(

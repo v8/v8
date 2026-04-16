@@ -425,7 +425,7 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
-  bool try_set_wasm_module_for_inlining(const wasm::WasmModule* module) {
+  bool TrySetWasmModuleForInlining(const wasm::WasmModule* module) {
     // This is used during Wasm-in-JS body inlining in the JavaScript (!)
     // pipeline.
     DCHECK_EQ(pipeline_kind(), TurboshaftPipelineKind::kJS);

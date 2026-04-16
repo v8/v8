@@ -1355,6 +1355,7 @@ class GraphBuildingNodeProcessor {
       maglev::CallKnownJSFunction* node,
       Tagged<WasmExportedFunctionData> function_data,
       wasm::NativeModule* native_module) {
+    // LINT.IfChange(WasmWrapperInliningConditions)
 #define TRACE_WASM_INLINING(...)                  \
   do {                                            \
     if (v8_flags.trace_turbo_inlining) {          \
@@ -1398,7 +1399,7 @@ class GraphBuildingNodeProcessor {
       return nullptr;
     }
 
-    if (!__ data()->try_set_wasm_module_for_inlining(native_module->module())) {
+    if (!__ data()->TrySetWasmModuleForInlining(native_module->module())) {
       TRACE_WASM_INLINING(
           "- not inlining: already inlining from "
           "another Wasm module");
@@ -1442,6 +1443,7 @@ class GraphBuildingNodeProcessor {
             TryInlineWasmWrapper(node, function_data, native_module);
       }
     }
+    // LINT.ThenChange(src/maglev/maglev-graph-builder.cc:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     V<Object> callee = Map(node->TargetInput());
