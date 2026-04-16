@@ -1104,7 +1104,7 @@ void InstructionSelector::VisitInt32Sub(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
   if (this->MatchIntegralZero(sub.left())) {
-    Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+    Emit(kPPC_Neg32, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
     VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate);
   }
@@ -1114,7 +1114,7 @@ void InstructionSelector::VisitInt64Sub(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& sub = this->Get(node).template Cast<WordBinopOp>();
   if (this->MatchIntegralZero(sub.left())) {
-    Emit(kPPC_Neg, g.DefineAsRegister(node), g.UseRegister(sub.right()));
+    Emit(kPPC_Neg64, g.DefineAsRegister(node), g.UseRegister(sub.right()));
   } else {
     VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate);
   }
@@ -1582,9 +1582,17 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
+  PPCOperandGenerator g(this);
+  const Operation& op = Get(node);
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
+    if (MatchIntegralZero(op.input(0))) {
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+      EmitWithContinuation(kPPC_Neg32, 1, outputs, 1, inputs, &cont);
+      return;
+    }
     return VisitBinop(this, node, kPPC_Sub32, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
@@ -1602,9 +1610,17 @@ void InstructionSelector::VisitInt64AddWithOverflow(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt64SubWithOverflow(OpIndex node) {
+  PPCOperandGenerator g(this);
+  const Operation& op = Get(node);
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
+    if (MatchIntegralZero(op.input(0))) {
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+      EmitWithContinuation(kPPC_Neg64, 1, outputs, 1, inputs, &cont);
+      return;
+    }
     return VisitBinop(this, node, kPPC_Sub64, kInt16Imm_Negate, &cont);
   }
     FlagsContinuation cont;
@@ -1770,10 +1786,20 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
               cont->OverwriteAndNegateIfEqual(kOverflow);
               return VisitBinop(this, node, is64 ? kPPC_Add64 : kPPC_Add32,
                                 kInt16Imm, cont);
-            case OverflowCheckedBinopOp::Kind::kSignedSub:
+            case OverflowCheckedBinopOp::Kind::kSignedSub: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
+              PPCOperandGenerator g(this);
+              const Operation& op = Get(node);
+              if (MatchIntegralZero(op.input(0))) {
+                InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+                InstructionOperand inputs[] = {g.UseRegister(op.input(1))};
+                EmitWithContinuation(is64 ? kPPC_Neg64 : kPPC_Neg32, 1, outputs,
+                                     1, inputs, cont);
+                return;
+              }
               return VisitBinop(this, node, is64 ? kPPC_Sub64 : kPPC_Sub32,
                                 kInt16Imm_Negate, cont);
+            }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               if (is64) {
                 cont->OverwriteAndNegateIfEqual(kNotEqual);

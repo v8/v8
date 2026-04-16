@@ -334,9 +334,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       switch (op) {
         case kPPC_Add64:
         case kPPC_Sub64:
+        case kPPC_Neg64:
           return overflow64;
         case kPPC_Add32:
         case kPPC_Sub32:
+        case kPPC_Neg32:
           return overflow32;
         default:
           break;
@@ -346,9 +348,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       switch (op) {
         case kPPC_Add64:
         case kPPC_Sub64:
+        case kPPC_Neg64:
           return nooverflow64;
         case kPPC_Add32:
         case kPPC_Sub32:
+        case kPPC_Neg32:
           return nooverflow32;
         default:
           break;
@@ -1593,8 +1597,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Pow:
       ASSEMBLE_IEEE754_BINOP(pow);
       break;
-    case kPPC_Neg:
-      __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
+    case kPPC_Neg32:
+    case kPPC_Neg64:
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        __ neg(i.OutputRegister(), i.InputRegister(0), SetOE);
+        __ MoveToCrFromXer(cr0);
+      } else {
+        __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE,
+               i.OutputRCBit());
+      }
+      if (instr->arch_opcode() == kPPC_Neg32) {
+        __ extsw(i.OutputRegister(), i.OutputRegister());
+      }
       break;
     case kPPC_MaxDouble:
       __ MaxF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),

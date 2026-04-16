@@ -63,7 +63,8 @@ namespace compiler {
   V(PPC_ModU32)                      \
   V(PPC_ModU64)                      \
   V(PPC_ModDouble)                   \
-  V(PPC_Neg)                         \
+  V(PPC_Neg32)                       \
+  V(PPC_Neg64)                       \
   V(PPC_NegDouble)                   \
   V(PPC_SqrtDouble)                  \
   V(PPC_FloorDouble)                 \
