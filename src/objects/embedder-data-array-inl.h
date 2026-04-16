@@ -29,7 +29,7 @@ void EmbedderDataArray::set_length(int value) {
 }
 
 Address EmbedderDataArray::slots_start() {
-  return reinterpret_cast<Address>(&slots()[0]);
+  return reinterpret_cast<Address>(this) + SizeFor(0);
 }
 
 Address EmbedderDataArray::slots_end() {
