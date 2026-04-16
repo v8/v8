@@ -1107,7 +1107,9 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
       break;
     }
 
-    // The caller frame is the WASM frame that contains the handler table.
+    // The caller frame is the WASM frame that contains the handler table, or
+    // a WASM_SEGMENT_START frame if this happens to be the first frame of a new
+    // growable stack segment.
     target_pc = StackFrame::ReadPC(reinterpret_cast<Address*>(
         target_fp + CommonFrameConstants::kCallerPCOffset));
     target_sp = target_fp + CommonFrameConstants::kCallerSPOffset;
@@ -1115,7 +1117,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
                                       CommonFrameConstants::kCallerFPOffset);
     type = StackFrame::MarkerToType(base::Memory<intptr_t>(
         target_fp + CommonFrameConstants::kContextOrFrameTypeOffset));
-    CHECK_EQ(type, StackFrame::WASM);
+    CHECK(type == StackFrame::WASM || type == StackFrame::WASM_SEGMENT_START);
 
     // Get the handler table and search for a matching tag.
     WasmCode* wasm_code =
