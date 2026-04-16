@@ -79,9 +79,6 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # BUG(chromium:1497251): Probably some data race in the interpreter.
-  'regress/regress-1497251': [SKIP],
-
   # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
@@ -2755,6 +2752,8 @@
 ['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # Tests that rely on turbofan
   'wasm/bigint-opt': [SKIP],
+  # BUG(501108091): Sparkplug code is not correctly merged.
+  'regress/regress-1497251': [SKIP],
 }], # variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit
 
 ##############################################################################

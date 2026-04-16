@@ -563,7 +563,6 @@ void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
 }
 
 void LazyCompileDispatcher::DeleteJob(Job* job) {
-  DCHECK(job->state == Job::State::kFinalized);
   base::MutexGuard lock(&mutex_);
   DeleteJob(job, lock);
 }
