@@ -2873,9 +2873,14 @@ void WebAssemblyMemoryGrowImpl(
     return;
   }
 
-  static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
-  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
-                                          static_cast<uint32_t>(delta_pages));
+  int32_t ret;
+  if (delta_pages > i::wasm::kV8MaxWasmMemory64Pages - old_pages) {
+    ret = -1;
+  } else {
+    static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
+    ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                    static_cast<uint32_t>(delta_pages));
+  }
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory");
     return;
