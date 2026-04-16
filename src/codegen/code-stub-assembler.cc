@@ -13717,6 +13717,35 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
+TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayStoreOffset(
+    TNode<IntPtrT> offset, ElementsKind kind) {
+#if V8_ENABLE_SANDBOX
+  // If the ElementsKind is concurrently modified between the bound check and
+  // the store, we might write outside of the sandbox. To prevent this
+  // ElementsKind switcheroo, mask the offset such that it is at most
+  // kMaxSafeBufferSizeForSandbox.
+  // For 1-byte elements, the offset is identical to the index and cannot
+  // exceed the checked bounds to cause an out-of-bounds write relative to the
+  // backing store, so we can skip masking.
+  if (ElementsKindToByteSize(kind) != 1) {
+    TVARIABLE(IntPtrT, offset_var, offset);
+    Label no_mask(this);
+    // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+    // that the graph structure does not depend on the value of the predicate
+    // (BoolConstant uses cached nodes).
+    GotoIfNot(UniqueInt32Constant(kRequiresTypedArrayAccessMasks), &no_mask);
+    {
+      offset_var =
+          WordAnd(offset_var.value(), IntPtrConstant(kBoundedSizeMask));
+      Goto(&no_mask);
+    }
+    BIND(&no_mask);
+    return offset_var.value();
+  }
+#endif  // V8_ENABLE_SANDBOX
+  return offset;
+}
+
 // TODO(solanes): Since we can't use `if constexpr` until we enable C++17 we
 // have to specialize the BigInt and Word32T cases. Since we can't partly
 // specialize, we have to specialize all used combinations.
@@ -13729,7 +13758,8 @@ void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
       std::is_same_v<TIndex, UintPtrT> || std::is_same_v<TIndex, IntPtrT>,
       "Only UintPtrT or IntPtrT indices is allowed");
   DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   TVARIABLE(UintPtrT, var_low);
   // Only used on 32-bit platforms.
   TVARIABLE(UintPtrT, var_high);
@@ -13783,7 +13813,8 @@ void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
   if (kind == UINT8_CLAMPED_ELEMENTS) {
     CSA_DCHECK(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);
@@ -13825,7 +13856,8 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
       "Only Int32T, Float32T, Float64T or object value "
       "types are allowed");
   DCHECK(IsTypedArrayElementsKind(kind));
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+      ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
   StoreNoWriteBarrier(rep, elements, offset, value);

@@ -42,6 +42,32 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
   inline void DebugCheckAtomicIndex(TNode<JSTypedArray> array,
                                     TNode<UintPtrT> index);
 
+  TNode<UintPtrT> ComputeStoreOffset(TNode<UintPtrT> index_word, int shift) {
+    TNode<WordT> offset = WordShl(index_word, shift);
+#if V8_ENABLE_SANDBOX
+    if (shift != 0) {
+      // If the ElementsKind is concurrently modified between the bound check
+      // and the store, we might write outside of the sandbox. To prevent this
+      // ElementsKind switcheroo, mask the offset such that it is at most
+      // kMaxSafeBufferSizeForSandbox.
+      TVARIABLE(WordT, offset_var, offset);
+      Label no_mask(this);
+      // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+      // that the graph structure does not depend on the value of the predicate
+      // (BoolConstant uses cached nodes).
+      GotoIfNot(UniqueInt32Constant(kRequiresTypedArrayAccessMasks), &no_mask);
+      {
+        offset_var =
+            WordAnd(offset_var.value(), UintPtrConstant(kBoundedSizeMask));
+        Goto(&no_mask);
+      }
+      BIND(&no_mask);
+      offset = offset_var.value();
+    }
+#endif
+    return Unsigned(offset);
+  }
+
   // https://tc39.es/ecma262/#sec-atomicreadmodifywrite
   void AtomicBinopBuiltinCommon(
       TNode<Object> maybe_array, TNode<JSAny> index, TNode<JSAny> value,
@@ -385,17 +411,17 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 
   BIND(&u8);
   AtomicStore(MachineRepresentation::kWord8, AtomicMemoryOrder::kSeqCst,
-              backing_store, index_word, value_word32);
+              backing_store, ComputeStoreOffset(index_word, 0), value_word32);
   Return(value_integer);
 
   BIND(&u16);
   AtomicStore(MachineRepresentation::kWord16, AtomicMemoryOrder::kSeqCst,
-              backing_store, WordShl(index_word, 1), value_word32);
+              backing_store, ComputeStoreOffset(index_word, 1), value_word32);
   Return(value_integer);
 
   BIND(&u32);
   AtomicStore(MachineRepresentation::kWord32, AtomicMemoryOrder::kSeqCst,
-              backing_store, WordShl(index_word, 2), value_word32);
+              backing_store, ComputeStoreOffset(index_word, 2), value_word32);
   Return(value_integer);
 
   BIND(&u64);
@@ -413,7 +439,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   BigIntToRawBytes(value_bigint, &var_low, &var_high);
   TNode<UintPtrT> high = Is64() ? TNode<UintPtrT>() : var_high.value();
   AtomicStore64(AtomicMemoryOrder::kSeqCst, backing_store,
-                WordShl(index_word, 3), var_low.value(), high);
+                ComputeStoreOffset(index_word, 3), var_low.value(), high);
   Return(value_bigint);
 
   // This shouldn't happen, we've already validated the type.
@@ -503,32 +529,34 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(Signed(AtomicExchange(MachineType::Int8(), backing_store,
-                                            index_word, value_word32))));
+  Return(SmiFromInt32(
+      Signed(AtomicExchange(MachineType::Int8(), backing_store,
+                            ComputeStoreOffset(index_word, 0), value_word32))));
 
   BIND(&u8);
-  Return(SmiFromInt32(Signed(AtomicExchange(MachineType::Uint8(), backing_store,
-                                            index_word, value_word32))));
+  Return(SmiFromInt32(
+      Signed(AtomicExchange(MachineType::Uint8(), backing_store,
+                            ComputeStoreOffset(index_word, 0), value_word32))));
 
   BIND(&i16);
-  Return(SmiFromInt32(Signed(
-      AtomicExchange(MachineType::Int16(), backing_store,
-                     WordShl(index_word, UintPtrConstant(1)), value_word32))));
+  Return(SmiFromInt32(
+      Signed(AtomicExchange(MachineType::Int16(), backing_store,
+                            ComputeStoreOffset(index_word, 1), value_word32))));
 
   BIND(&u16);
-  Return(SmiFromInt32(Signed(
-      AtomicExchange(MachineType::Uint16(), backing_store,
-                     WordShl(index_word, UintPtrConstant(1)), value_word32))));
+  Return(SmiFromInt32(
+      Signed(AtomicExchange(MachineType::Uint16(), backing_store,
+                            ComputeStoreOffset(index_word, 1), value_word32))));
 
   BIND(&i32);
-  Return(ChangeInt32ToTagged(Signed(
-      AtomicExchange(MachineType::Int32(), backing_store,
-                     WordShl(index_word, UintPtrConstant(2)), value_word32))));
+  Return(ChangeInt32ToTagged(
+      Signed(AtomicExchange(MachineType::Int32(), backing_store,
+                            ComputeStoreOffset(index_word, 2), value_word32))));
 
   BIND(&u32);
   Return(ChangeUint32ToTagged(Unsigned(
       AtomicExchange(MachineType::Uint32(), backing_store,
-                     WordShl(index_word, UintPtrConstant(2)), value_word32))));
+                     ComputeStoreOffset(index_word, 2), value_word32))));
 
   BIND(&big);
   // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
@@ -549,12 +577,12 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 
   BIND(&i64);
   Return(BigIntFromSigned64(AtomicExchange64<AtomicInt64>(
-      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      backing_store, ComputeStoreOffset(index_word, 3), var_low.value(),
       high)));
 
   BIND(&u64);
   Return(BigIntFromUnsigned64(AtomicExchange64<AtomicUint64>(
-      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      backing_store, ComputeStoreOffset(index_word, 3), var_low.value(),
       high)));
 
   // This shouldn't happen, we've already validated the type.
@@ -650,33 +678,33 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(Signed(
-      AtomicCompareExchange(MachineType::Int8(), backing_store, index_word,
-                            old_value_word32, new_value_word32))));
+  Return(SmiFromInt32(Signed(AtomicCompareExchange(
+      MachineType::Int8(), backing_store, ComputeStoreOffset(index_word, 0),
+      old_value_word32, new_value_word32))));
 
   BIND(&u8);
-  Return(SmiFromInt32(Signed(
-      AtomicCompareExchange(MachineType::Uint8(), backing_store, index_word,
-                            old_value_word32, new_value_word32))));
+  Return(SmiFromInt32(Signed(AtomicCompareExchange(
+      MachineType::Uint8(), backing_store, ComputeStoreOffset(index_word, 0),
+      old_value_word32, new_value_word32))));
 
   BIND(&i16);
   Return(SmiFromInt32(Signed(AtomicCompareExchange(
-      MachineType::Int16(), backing_store, WordShl(index_word, 1),
+      MachineType::Int16(), backing_store, ComputeStoreOffset(index_word, 1),
       old_value_word32, new_value_word32))));
 
   BIND(&u16);
   Return(SmiFromInt32(Signed(AtomicCompareExchange(
-      MachineType::Uint16(), backing_store, WordShl(index_word, 1),
+      MachineType::Uint16(), backing_store, ComputeStoreOffset(index_word, 1),
       old_value_word32, new_value_word32))));
 
   BIND(&i32);
   Return(ChangeInt32ToTagged(Signed(AtomicCompareExchange(
-      MachineType::Int32(), backing_store, WordShl(index_word, 2),
+      MachineType::Int32(), backing_store, ComputeStoreOffset(index_word, 2),
       old_value_word32, new_value_word32))));
 
   BIND(&u32);
   Return(ChangeUint32ToTagged(Unsigned(AtomicCompareExchange(
-      MachineType::Uint32(), backing_store, WordShl(index_word, 2),
+      MachineType::Uint32(), backing_store, ComputeStoreOffset(index_word, 2),
       old_value_word32, new_value_word32))));
 
   BIND(&big);
@@ -708,12 +736,12 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // for Int64(), which is fine because the machine instruction only cares
   // about words.
   Return(BigIntFromSigned64(AtomicCompareExchange64<AtomicInt64>(
-      backing_store, WordShl(index_word, 3), var_old_low.value(),
+      backing_store, ComputeStoreOffset(index_word, 3), var_old_low.value(),
       var_new_low.value(), old_high, new_high)));
 
   BIND(&u64);
   Return(BigIntFromUnsigned64(AtomicCompareExchange64<AtomicUint64>(
-      backing_store, WordShl(index_word, 3), var_old_low.value(),
+      backing_store, ComputeStoreOffset(index_word, 3), var_old_low.value(),
       var_new_low.value(), old_high, new_high)));
 
   // This shouldn't happen, we've already validated the type.
@@ -822,27 +850,29 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(Signed((this->*function)(
-      MachineType::Int8(), backing_store, index_word, value_word32))));
+  Return(SmiFromInt32(Signed(
+      (this->*function)(MachineType::Int8(), backing_store,
+                        ComputeStoreOffset(index_word, 0), value_word32))));
   BIND(&u8);
-  Return(SmiFromInt32(Signed((this->*function)(
-      MachineType::Uint8(), backing_store, index_word, value_word32))));
+  Return(SmiFromInt32(Signed(
+      (this->*function)(MachineType::Uint8(), backing_store,
+                        ComputeStoreOffset(index_word, 0), value_word32))));
   BIND(&i16);
-  Return(SmiFromInt32(Signed((this->*function)(
-      MachineType::Int16(), backing_store,
-      WordShl(index_word, UintPtrConstant(1)), value_word32))));
+  Return(SmiFromInt32(Signed(
+      (this->*function)(MachineType::Int16(), backing_store,
+                        ComputeStoreOffset(index_word, 1), value_word32))));
   BIND(&u16);
-  Return(SmiFromInt32(Signed((this->*function)(
-      MachineType::Uint16(), backing_store,
-      WordShl(index_word, UintPtrConstant(1)), value_word32))));
+  Return(SmiFromInt32(Signed(
+      (this->*function)(MachineType::Uint16(), backing_store,
+                        ComputeStoreOffset(index_word, 1), value_word32))));
   BIND(&i32);
-  Return(ChangeInt32ToTagged(Signed((this->*function)(
-      MachineType::Int32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32))));
+  Return(ChangeInt32ToTagged(Signed(
+      (this->*function)(MachineType::Int32(), backing_store,
+                        ComputeStoreOffset(index_word, 2), value_word32))));
   BIND(&u32);
-  Return(ChangeUint32ToTagged(Unsigned((this->*function)(
-      MachineType::Uint32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32))));
+  Return(ChangeUint32ToTagged(Unsigned(
+      (this->*function)(MachineType::Uint32(), backing_store,
+                        ComputeStoreOffset(index_word, 2), value_word32))));
   BIND(&big);
   // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
@@ -861,12 +891,12 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   Unreachable();
 
   BIND(&i64);
-  Return(BigIntFromSigned64((this->*function_int_64)(
-      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
-      high)));
+  Return(BigIntFromSigned64(
+      (this->*function_int_64)(backing_store, ComputeStoreOffset(index_word, 3),
+                               var_low.value(), high)));
   BIND(&u64);
   Return(BigIntFromUnsigned64((this->*function_uint_64)(
-      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      backing_store, ComputeStoreOffset(index_word, 3), var_low.value(),
       high)));
   // // This shouldn't happen, we've already validated the type.
   BIND(&other);
