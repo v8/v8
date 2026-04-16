@@ -1275,6 +1275,7 @@
   # Too slow.
   'asm/embenchen/zlib': [SKIP],
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-499721612': [SKIP],
   'regress/regress-779407': [SKIP],
   'wasm/embenchen/box2d': [SKIP],
   'wasm/embenchen/lua_binarytrees': [SKIP],
