@@ -108,6 +108,11 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmStackObject)         \
   IF_WASM(V, WasmTypeInfo)            \
+  V(TurbofanBitsetType)               \
+  V(TurbofanHeapConstantType)         \
+  V(TurbofanOtherNumberConstantType)  \
+  V(TurbofanRangeType)                \
+  V(TurbofanUnionType)                \
   V(TurboshaftFloat64RangeType)       \
   V(TurboshaftFloat64SetType)         \
   V(TurboshaftWord32RangeType)        \

@@ -2989,6 +2989,36 @@ void TurboshaftFloat64SetType::TurboshaftFloat64SetTypePrint(std::ostream& os) {
   os << "\n";
 }
 
+void TurbofanBitsetType::TurbofanBitsetTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanBitsetType");
+  os << "\n - bitset_low: " << bitset_low();
+  os << "\n - bitset_high: " << bitset_high();
+  os << "\n";
+}
+void TurbofanUnionType::TurbofanUnionTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanUnionType");
+  os << "\n - type1: " << Brief(type1());
+  os << "\n - type2: " << Brief(type2());
+  os << "\n";
+}
+void TurbofanRangeType::TurbofanRangeTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanRangeType");
+  os << "\n - min: " << min();
+  os << "\n - max: " << max();
+  os << "\n";
+}
+void TurbofanHeapConstantType::TurbofanHeapConstantTypePrint(std::ostream& os) {
+  PrintHeader(os, "TurbofanHeapConstantType");
+  os << "\n - constant: " << Brief(constant());
+  os << "\n";
+}
+void TurbofanOtherNumberConstantType::TurbofanOtherNumberConstantTypePrint(
+    std::ostream& os) {
+  PrintHeader(os, "TurbofanOtherNumberConstantType");
+  os << "\n - constant: " << constant();
+  os << "\n";
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");

@@ -263,6 +263,12 @@ namespace internal {
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
+  V(TurbofanBitsetType)                         \
+  V(TurbofanHeapConstantType)                   \
+  V(TurbofanOtherNumberConstantType)            \
+  V(TurbofanRangeType)                          \
+  V(TurbofanType)                               \
+  V(TurbofanUnionType)                          \
   V(TurboshaftFloat64RangeType)                 \
   V(TurboshaftFloat64SetType)                   \
   V(TurboshaftFloat64Type)                      \

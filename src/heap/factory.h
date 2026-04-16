@@ -180,6 +180,19 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<TurboshaftFloat64SetType> NewTurboshaftFloat64SetType(
       uint32_t special_values, uint32_t set_size, AllocationType allocation);
 
+  Handle<TurbofanBitsetType> NewTurbofanBitsetType(uint32_t bitset_low,
+                                                   uint32_t bitset_high,
+                                                   AllocationType allocation);
+  Handle<TurbofanUnionType> NewTurbofanUnionType(
+      DirectHandle<TurbofanType> type1, DirectHandle<TurbofanType> type2,
+      AllocationType allocation);
+  Handle<TurbofanRangeType> NewTurbofanRangeType(double min, double max,
+                                                 AllocationType allocation);
+  Handle<TurbofanHeapConstantType> NewTurbofanHeapConstantType(
+      DirectHandle<HeapObject> constant, AllocationType allocation);
+  Handle<TurbofanOtherNumberConstantType> NewTurbofanOtherNumberConstantType(
+      double constant, AllocationType allocation);
+
   // Allocate a new fixed double array with hole values.
   DirectHandle<FixedArrayBase> NewFixedDoubleArrayWithHoles(uint32_t size);
 

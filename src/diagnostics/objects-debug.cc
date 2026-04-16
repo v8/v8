@@ -3073,6 +3073,35 @@ void TurboshaftFloat64SetType::TurboshaftFloat64SetTypeVerify(
   CHECK(IsTurboshaftFloat64SetType(this));
 }
 
+void TurbofanBitsetType::TurbofanBitsetTypeVerify(Isolate* isolate) {
+  CHECK(IsTurbofanType(this));
+  CHECK(IsTurbofanBitsetType(this));
+}
+void TurbofanUnionType::TurbofanUnionTypeVerify(Isolate* isolate) {
+  CHECK(IsTurbofanType(this));
+  CHECK(IsTurbofanUnionType(this));
+  Object::VerifyPointer(isolate, type1_.load());
+  CHECK(IsTurbofanType(type1_.load()));
+  Object::VerifyPointer(isolate, type2_.load());
+  CHECK(IsTurbofanType(type2_.load()));
+}
+void TurbofanRangeType::TurbofanRangeTypeVerify(Isolate* isolate) {
+  CHECK(IsTurbofanType(this));
+  CHECK(IsTurbofanRangeType(this));
+}
+void TurbofanHeapConstantType::TurbofanHeapConstantTypeVerify(
+    Isolate* isolate) {
+  CHECK(IsTurbofanType(this));
+  CHECK(IsTurbofanHeapConstantType(this));
+  Object::VerifyPointer(isolate, constant_.load());
+  CHECK(IsHeapObject(constant_.load()));
+}
+void TurbofanOtherNumberConstantType::TurbofanOtherNumberConstantTypeVerify(
+    Isolate* isolate) {
+  CHECK(IsTurbofanType(this));
+  CHECK(IsTurbofanOtherNumberConstantType(this));
+}
+
 void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
     Isolate* isolate) {
   CHECK(IsStruct(this));

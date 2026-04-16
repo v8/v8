@@ -382,6 +382,38 @@ class TurboshaftFloat64SetType::BodyDescriptor final
   }
 };
 
+class TurbofanBitsetType::BodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map>, Tagged<HeapObject>) {
+    return sizeof(TurbofanBitsetType);
+  }
+};
+
+class TurbofanRangeType::BodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map>, Tagged<HeapObject>) {
+    return sizeof(TurbofanRangeType);
+  }
+};
+
+class TurbofanOtherNumberConstantType::BodyDescriptor final
+    : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map>, Tagged<HeapObject>) {
+    return sizeof(TurbofanOtherNumberConstantType);
+  }
+};
+
+class TurbofanUnionType::BodyDescriptor final
+    : public FixedBodyDescriptor<offsetof(TurbofanUnionType, type1_),
+                                 sizeof(TurbofanUnionType),
+                                 sizeof(TurbofanUnionType)> {};
+
+class TurbofanHeapConstantType::BodyDescriptor final
+    : public FixedBodyDescriptor<offsetof(TurbofanHeapConstantType, constant_),
+                                 sizeof(TurbofanHeapConstantType),
+                                 sizeof(TurbofanHeapConstantType)> {};
+
 // This is a descriptor for one/two pointer fillers.
 class FreeSpaceFillerBodyDescriptor final : public DataOnlyBodyDescriptor {
  public:

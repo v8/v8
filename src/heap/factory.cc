@@ -596,6 +596,63 @@ Handle<TurboshaftFloat64SetType> Factory::NewTurboshaftFloat64SetType(
   return result;
 }
 
+Handle<TurbofanBitsetType> Factory::NewTurbofanBitsetType(
+    uint32_t bitset_low, uint32_t bitset_high, AllocationType allocation) {
+  Handle<TurbofanBitsetType> result(
+      Cast<TurbofanBitsetType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanBitsetType), allocation, *turbofan_bitset_type_map())),
+      isolate());
+  result->set_bitset_low(bitset_low);
+  result->set_bitset_high(bitset_high);
+  return result;
+}
+
+Handle<TurbofanUnionType> Factory::NewTurbofanUnionType(
+    DirectHandle<TurbofanType> type1, DirectHandle<TurbofanType> type2,
+    AllocationType allocation) {
+  Handle<TurbofanUnionType> result(
+      Cast<TurbofanUnionType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanUnionType), allocation, *turbofan_union_type_map())),
+      isolate());
+  result->set_type1(*type1);
+  result->set_type2(*type2);
+  return result;
+}
+
+Handle<TurbofanRangeType> Factory::NewTurbofanRangeType(
+    double min, double max, AllocationType allocation) {
+  Handle<TurbofanRangeType> result(
+      Cast<TurbofanRangeType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanRangeType), allocation, *turbofan_range_type_map())),
+      isolate());
+  result->set_min(min);
+  result->set_max(max);
+  return result;
+}
+
+Handle<TurbofanHeapConstantType> Factory::NewTurbofanHeapConstantType(
+    DirectHandle<HeapObject> constant, AllocationType allocation) {
+  Handle<TurbofanHeapConstantType> result(
+      Cast<TurbofanHeapConstantType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanHeapConstantType), allocation,
+          *turbofan_heap_constant_type_map())),
+      isolate());
+  result->set_constant(*constant);
+  return result;
+}
+
+Handle<TurbofanOtherNumberConstantType>
+Factory::NewTurbofanOtherNumberConstantType(double constant,
+                                            AllocationType allocation) {
+  Handle<TurbofanOtherNumberConstantType> result(
+      Cast<TurbofanOtherNumberConstantType>(AllocateRawWithImmortalMap(
+          sizeof(TurbofanOtherNumberConstantType), allocation,
+          *turbofan_other_number_constant_type_map())),
+      isolate());
+  result->set_constant(constant);
+  return result;
+}
+
 DirectHandle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     uint32_t length) {
   DirectHandle<FixedArrayBase> array = NewFixedDoubleArray(length);

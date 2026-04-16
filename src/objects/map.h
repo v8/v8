@@ -41,6 +41,9 @@ enum InstanceType : uint16_t;
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
+  V(TurbofanBitsetType)              \
+  V(TurbofanOtherNumberConstantType) \
+  V(TurbofanRangeType)               \
   V(TurboshaftFloat64RangeType)      \
   V(TurboshaftFloat64SetType)        \
   V(TurboshaftWord32RangeType)       \
@@ -107,6 +110,8 @@ enum InstanceType : uint16_t;
   V(Struct)                           \
   V(SwissNameDictionary)              \
   V(Symbol)                           \
+  V(TurbofanHeapConstantType)         \
+  V(TurbofanUnionType)                \
   V(SyntheticModule)                  \
   V(ThinString)                       \
   V(TransitionArray)                  \
