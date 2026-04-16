@@ -5220,15 +5220,14 @@ inline void InitializeTemplateWithProperties(
 
 DirectHandle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     int length, bool do_not_cache) {
-  const int size = FunctionTemplateInfo::SizeFor();
   Tagged<FunctionTemplateInfo> obj =
       Cast<FunctionTemplateInfo>(AllocateRawWithImmortalMap(
-          size, AllocationType::kOld,
+          sizeof(FunctionTemplateInfo), AllocationType::kOld,
           read_only_roots().function_template_info_map()));
   {
     // Disallow GC until all fields of obj have acceptable types.
     DisallowGarbageCollection no_gc;
-    Tagged<FunctionTemplateInfo> raw = *obj;
+    Tagged<FunctionTemplateInfo> raw = obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
@@ -5257,14 +5256,14 @@ DirectHandle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
 
 DirectHandle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
     DirectHandle<FunctionTemplateInfo> constructor, bool do_not_cache) {
-  const int size = ObjectTemplateInfo::SizeFor();
-  Tagged<ObjectTemplateInfo> obj = Cast<ObjectTemplateInfo>(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld,
-                                 read_only_roots().object_template_info_map()));
+  Tagged<ObjectTemplateInfo> obj =
+      Cast<ObjectTemplateInfo>(AllocateRawWithImmortalMap(
+          sizeof(ObjectTemplateInfo), AllocationType::kOld,
+          read_only_roots().object_template_info_map()));
   {
     // Disallow GC until all fields of obj have acceptable types.
     DisallowGarbageCollection no_gc;
-    Tagged<ObjectTemplateInfo> raw = *obj;
+    Tagged<ObjectTemplateInfo> raw = obj;
     ReadOnlyRoots roots(isolate());
     InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     if (constructor.is_null()) {
@@ -5279,10 +5278,10 @@ DirectHandle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
 
 DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
     DirectHandle<FixedArray> property_names) {
-  const int size = DictionaryTemplateInfo::SizeFor();
   DirectHandle<Map> map = dictionary_template_info_map();
-  Tagged<DictionaryTemplateInfo> obj = Cast<DictionaryTemplateInfo>(
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
+  Tagged<DictionaryTemplateInfo> obj =
+      Cast<DictionaryTemplateInfo>(AllocateRawWithImmortalMap(
+          sizeof(DictionaryTemplateInfo), AllocationType::kOld, *map));
   InitializeTemplate(obj, true);
   obj->set_property_names(*property_names);
   return direct_handle(obj, isolate());

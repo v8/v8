@@ -1388,15 +1388,31 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
 }
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
-  TorqueGeneratedFunctionTemplateInfo<
-      FunctionTemplateInfo,
-      TemplateInfoWithProperties>::FunctionTemplateInfoPrint(os);
+  PrintHeader(os, "FunctionTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - number_of_properties: " << number_of_properties();
+  os << "\n - property_list: " << Brief(property_list());
+  os << "\n - property_accessors: " << Brief(property_accessors());
+  os << "\n - class_name: " << Brief(class_name());
+  os << "\n - interface_name: " << Brief(interface_name());
+  os << "\n - signature: " << Brief(signature());
+  os << "\n - rare_data: " << Brief(rare_data(kAcquireLoad));
+  os << "\n - shared_function_info: " << Brief(shared_function_info());
+  os << "\n - cached_property_name: " << Brief(cached_property_name());
+  os << "\n - callback_data: " << Brief(callback_data(kAcquireLoad));
+  os << "\n - flag: " << flag();
+  os << "\n - length: " << length();
+  os << "\n - instance_type: " << instance_type();
+  os << "\n - exception_context: " << exception_context();
 
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(*this, &isolate)) {
+  if (GetIsolateFromHeapObject(this, &isolate)) {
     os << " - callback: " << AS_PTR(callback(isolate));
     if (USE_SIMULATOR_BOOL) {
-      os << "\n - callback (redirected): " << AS_PTR(callback_raw(isolate));
+      os << "\n - callback (redirected): "
+         << AS_PTR(this->callback_.load_raw(isolate));
     }
   } else {
     os << "\n - callback: " << kUnavailableString;
@@ -1433,6 +1449,28 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
        << allowed_receiver_instance_type_range_end() << "]";
   }
   os << '\n';
+}
+
+void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {
+  PrintHeader(os, "ObjectTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - number_of_properties: " << number_of_properties();
+  os << "\n - property_list: " << Brief(property_list());
+  os << "\n - property_accessors: " << Brief(property_accessors());
+  os << "\n - constructor: " << Brief(constructor());
+  os << "\n - data: " << data();
+  os << "\n";
+}
+
+void DictionaryTemplateInfo::DictionaryTemplateInfoPrint(std::ostream& os) {
+  PrintHeader(os, "DictionaryTemplateInfo");
+  os << "\n - is_cacheable: " << is_cacheable();
+  os << "\n - should_promote_to_read_only: " << should_promote_to_read_only();
+  os << "\n - serial_number: " << serial_number();
+  os << "\n - property_names: " << Brief(property_names());
+  os << "\n";
 }
 
 #undef AS_PTR

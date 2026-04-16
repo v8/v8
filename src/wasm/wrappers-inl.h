@@ -885,7 +885,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSFastApiCallWrapper(
           SharedFunctionInfo::kUntrustedFunctionDataOffset);
 
   V<Object> api_data_argument = __ LoadTaggedField(
-      function_template_info, FunctionTemplateInfo::kCallbackDataOffset);
+      function_template_info, offsetof(FunctionTemplateInfo, callback_data_));
 
   compiler::FastApiCallFunction call_function{c_function.address,
                                               c_function.signature};

@@ -218,8 +218,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case FUNCTION_TEMPLATE_INFO_TYPE:
       return kVisitFunctionTemplateInfo;
-
     case OBJECT_TEMPLATE_INFO_TYPE:
+    case DICTIONARY_TEMPLATE_INFO_TYPE:
       return kVisitStruct;
 
     case SYMBOL_TYPE:

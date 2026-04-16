@@ -768,8 +768,8 @@ class SharedFunctionInfo
   // Initialize a SharedFunctionInfo from a parsed or preparsed function
   // literal.
   template <typename IsolateT>
-  static void InitFromFunctionLiteral(IsolateT* isolate,
-                                      FunctionLiteral* lit, bool is_toplevel);
+  static void InitFromFunctionLiteral(IsolateT* isolate, FunctionLiteral* lit,
+                                      bool is_toplevel);
 
   template <typename IsolateT>
   static void CreateAndSetUncompiledData(IsolateT* isolate,

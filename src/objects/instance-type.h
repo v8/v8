@@ -299,11 +299,16 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, CodeMap, code_map, Code)                                                \
   V(_, CoverageInfoMap, coverage_info_map, CoverageInfo)                       \
   V(_, DebugInfoMap, debug_info_map, DebugInfo)                                \
+  V(_, DictionaryTemplateInfoMap, dictionary_template_info_map,                \
+    DictionaryTemplateInfo)                                                    \
   V(_, FreeSpaceMap, free_space_map, FreeSpace)                                \
   V(_, FeedbackVectorMap, feedback_vector_map, FeedbackVector)                 \
   V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)          \
+  V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
+    FunctionTemplateInfo)                                                      \
   V(_, InterpreterDataMap, interpreter_data_map, InterpreterData)              \
   V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
+  V(_, ObjectTemplateInfoMap, object_template_info_map, ObjectTemplateInfo)    \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
   V(_, PropertyArrayMap, property_array_map, PropertyArray)                    \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \

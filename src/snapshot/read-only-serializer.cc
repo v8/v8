@@ -125,8 +125,7 @@ class ObjectPreProcessor final {
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
-                                   kFunctionTemplateInfoCallbackTag),
+        ExternalPointerSlot(&o->callback_),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
 #if V8_ENABLE_GEARBOX

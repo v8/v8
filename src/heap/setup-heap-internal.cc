@@ -800,6 +800,12 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_dispatch_table_for_imports);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, sizeof(WeakCell), weak_cell)
+    ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, sizeof(DictionaryTemplateInfo),
+                 dictionary_template_info)
+    ALLOCATE_MAP(FUNCTION_TEMPLATE_INFO_TYPE, sizeof(FunctionTemplateInfo),
+                 function_template_info)
+    ALLOCATE_MAP(OBJECT_TEMPLATE_INFO_TYPE, sizeof(ObjectTemplateInfo),
+                 object_template_info)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
 
@@ -818,9 +824,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
                  SharedFunctionInfoWrapper::kSize, shared_function_info_wrapper)
-
-    ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, DictionaryTemplateInfo::kSize,
-                 dictionary_template_info)
   }
 
   return true;

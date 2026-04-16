@@ -3409,8 +3409,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
     api_function_address = ReassignRegister(topmost_script_having_context);
-    __ Ld(api_function_address,
-          FieldMemOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
+    __ Ld(
+        api_function_address,
+        FieldMemOperand(func_templ, offsetof(FunctionTemplateInfo, callback_)));
   }
 
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),

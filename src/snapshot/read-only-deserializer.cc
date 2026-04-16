@@ -350,9 +350,7 @@ class ObjectPostProcessor final {
                {kFirstExternalTypeTag, kLastExternalTypeTag}));
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
-    DecodeExternalPointerSlot(
-        o, o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
-                                      kFunctionTemplateInfoCallbackTag));
+    DecodeExternalPointerSlot(o, ExternalPointerSlot(&o->callback_));
     if (USE_SIMULATOR_BOOL) {
       o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
     }

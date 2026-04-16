@@ -101,7 +101,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // Iterate through the chain of inheriting function templates to
   // see if the required one occurs.
   while (IsFunctionTemplateInfo(type)) {
-    if (type == *this) return true;
+    if (type == this) return true;
     type = Cast<FunctionTemplateInfo>(type)->GetParentTemplate();
   }
   // Didn't find the required type in the inheritance chain.
@@ -121,9 +121,9 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
   Tagged<Object> constructor_obj = map->GetConstructor();
   if (IsJSFunction(constructor_obj)) {
     Tagged<JSFunction> fun = Cast<JSFunction>(constructor_obj);
-    result = (*this == fun->shared()->api_func_data());
+    result = (this == fun->shared()->api_func_data());
   } else if (IsFunctionTemplateInfo(constructor_obj)) {
-    result = (*this == constructor_obj);
+    result = (this == constructor_obj);
   }
   DCHECK_IMPLIES(result, IsTemplateFor(map));
   return result;

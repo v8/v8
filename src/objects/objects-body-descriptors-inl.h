@@ -1696,15 +1696,16 @@ class FunctionTemplateInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    FunctionTemplateInfo::kEndOfStrongFieldsOffset, v);
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
-                                          kFunctionTemplateInfoCallbackTag));
+    IteratePointers(
+        obj, offsetof(TemplateInfo, template_info_flags_),
+        offsetof(FunctionTemplateInfo, callback_data_) + kTaggedSize, v);
+    v->VisitExternalPointer(obj, obj->RawExternalPointerField(
+                                     offsetof(FunctionTemplateInfo, callback_),
+                                     kFunctionTemplateInfoCallbackTag));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
+    return sizeof(FunctionTemplateInfo);
   }
 };
 

@@ -675,7 +675,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       GotoIfNot(IsFunctionTemplateInfoMap(LoadMap(current)), &holder_next);
 
       TNode<HeapObject> current_rare = LoadObjectField<HeapObject>(
-          current, FunctionTemplateInfo::kRareDataOffset);
+          current, offsetof(FunctionTemplateInfo, rare_data_));
       GotoIf(IsUndefined(current_rare), &holder_next);
       var_template = LoadObjectField<HeapObject>(
           current_rare, offsetof(FunctionTemplateRareData, parent_template_));
@@ -737,7 +737,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
                   LoadMapBitField(receiver_map)),
               &receiver_done);
     TNode<Uint32T> function_template_info_flags = LoadObjectField<Uint32T>(
-        function_template_info, FunctionTemplateInfo::kFlagOffset);
+        function_template_info, offsetof(FunctionTemplateInfo, flag_));
     Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
                function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);
@@ -768,7 +768,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       // The {function_template_info} has a signature, so look for a compatible
       // holder in the receiver's hidden prototype chain.
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
-          function_template_info, FunctionTemplateInfo::kSignatureOffset);
+          function_template_info, offsetof(FunctionTemplateInfo, signature_));
       CSA_DCHECK(this, Word32BinaryNot(IsUndefined(signature)));
       // TODO(ishell, http://crbug.com/326505377): rename to
       // CheckCompatibleReceiverOrThrow().
@@ -781,7 +781,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       // we need to look for a compatible holder in the receiver's hidden
       // prototype chain.
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
-          function_template_info, FunctionTemplateInfo::kSignatureOffset);
+          function_template_info, offsetof(FunctionTemplateInfo, signature_));
       holder = Select<JSReceiver>(
           IsUndefined(signature),  // --
           [&]() { return receiver; },
@@ -793,7 +793,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   }
 
   TNode<Object> callback_data = LoadObjectField(
-      function_template_info, FunctionTemplateInfo::kCallbackDataOffset);
+      function_template_info, offsetof(FunctionTemplateInfo, callback_data_));
   // If the function doesn't have an associated C++ code to execute, just
   // return the receiver as would an empty function do (see
   // HandleApiCallHelper).

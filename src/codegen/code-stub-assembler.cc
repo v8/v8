@@ -12440,7 +12440,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
         if (holder.has_value()) {
           Label use_cached_property(this);
           TNode<HeapObject> cached_property_name = LoadObjectField<HeapObject>(
-              getter, FunctionTemplateInfo::kCachedPropertyNameOffset);
+              getter, offsetof(FunctionTemplateInfo, cached_property_name_));
 
           Label* has_cached_property = mode == kCallJSGetterUseCachedName
                                            ? &use_cached_property

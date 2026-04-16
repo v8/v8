@@ -40,8 +40,7 @@ struct CFunctionWithSignature {
       : address(address), signature(signature) {}
 };
 
-class TemplateInfo
-    : public TorqueGeneratedTemplateInfo<TemplateInfo, HeapObject> {
+V8_OBJECT class TemplateInfo : public HeapObjectLayout {
  public:
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -66,7 +65,8 @@ class TemplateInfo
 
   inline uint32_t GetHash() const;
 
-  using BodyDescriptor = StructBodyDescriptor;
+  inline uint32_t template_info_flags() const;
+  inline void set_template_info_flags(uint32_t value);
 
   // Whether or not to cache every instance: when we materialize a getter or
   // setter from an lazy AccessorPair, we rely on this cache to be able to
@@ -101,15 +101,27 @@ class TemplateInfo
   // position.
   DEFINE_TORQUE_GENERATED_TEMPLATE_INFO_FLAGS()
 
-  TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
-};
+  TaggedMember<Smi> template_info_flags_;
+} V8_OBJECT_END;
 
-class TemplateInfoWithProperties
-    : public TorqueGeneratedTemplateInfoWithProperties<
-          TemplateInfoWithProperties, TemplateInfo> {
+V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
  public:
-  TQ_OBJECT_CONSTRUCTORS(TemplateInfoWithProperties)
-};
+  inline int number_of_properties() const;
+  inline void set_number_of_properties(int value);
+
+  inline Tagged<UnionOf<ArrayList, Undefined>> property_list() const;
+  inline void set_property_list(Tagged<UnionOf<ArrayList, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<ArrayList, Undefined>> property_accessors() const;
+  inline void set_property_accessors(
+      Tagged<UnionOf<ArrayList, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  TaggedMember<Smi> number_of_properties_;
+  TaggedMember<UnionOf<ArrayList, Undefined>> property_list_;
+  TaggedMember<UnionOf<ArrayList, Undefined>> property_accessors_;
+} V8_OBJECT_END;
 
 // Contains data members that are rarely set on a FunctionTemplateInfo.
 V8_OBJECT class FunctionTemplateRareData : public Struct {
@@ -184,12 +196,10 @@ V8_OBJECT class FunctionTemplateRareData : public Struct {
 } V8_OBJECT_END;
 
 // See the api-exposed FunctionTemplate for more information.
-class FunctionTemplateInfo
-    : public TorqueGeneratedFunctionTemplateInfo<FunctionTemplateInfo,
-                                                 TemplateInfoWithProperties> {
+V8_OBJECT class FunctionTemplateInfo : public TemplateInfoWithProperties {
  public:
 #define DECL_RARE_ACCESSORS(Name, CamelName, ...)                \
-  DECL_GETTER(Get##CamelName, Tagged<__VA_ARGS__>)               \
+  inline Tagged<__VA_ARGS__> Get##CamelName() const;             \
   static inline void Set##CamelName(                             \
       Isolate* isolate,                                          \
       DirectHandle<FunctionTemplateInfo> function_template_info, \
@@ -238,6 +248,7 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray)
 #undef DECL_RARE_ACCESSORS
 
+  DECL_PRIMITIVE_ACCESSORS(flag, uint32_t)
   DECL_RELAXED_UINT32_ACCESSORS(flag)
 
   // Begin flag bits ---------------------
@@ -323,7 +334,9 @@ class FunctionTemplateInfo
   DEFINE_TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FLAGS()
 
   // C function pointer that can be called from native code.
-  DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(callback, Address)
+  inline Address callback(IsolateForSandbox isolate) const;
+  inline void set_callback(IsolateForSandbox isolate, Address value);
+  inline void init_callback(IsolateForSandbox isolate, Address value);
 
   inline void RemoveCallbackRedirectionForSerialization(
       IsolateForSandbox isolate);
@@ -334,6 +347,7 @@ class FunctionTemplateInfo
   inline bool has_callback(IsolateT* isolate) const;
 
   DECL_PRINTER(FunctionTemplateInfo)
+  DECL_VERIFIER(FunctionTemplateInfo)
 
   class BodyDescriptor;
 
@@ -344,8 +358,7 @@ class FunctionTemplateInfo
 
   // Enforce using SetInstanceType() and SetAllowedReceiverInstanceTypeRange()
   // instead of raw accessors.
-  using TorqueGeneratedFunctionTemplateInfo<
-      FunctionTemplateInfo, TemplateInfoWithProperties>::set_instance_type;
+  void set_instance_type(int value);
   DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_start,
                         InstanceType)
   DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_end, InstanceType)
@@ -359,12 +372,74 @@ class FunctionTemplateInfo
       Isolate* isolate,
       DirectHandle<FunctionTemplateInfo> function_template_info);
 
-  TQ_OBJECT_CONSTRUCTORS(FunctionTemplateInfo)
-};
+ public:
+  inline Tagged<UnionOf<String, Undefined>> class_name() const;
+  inline void set_class_name(Tagged<UnionOf<String, Undefined>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-class ObjectTemplateInfo
-    : public TorqueGeneratedObjectTemplateInfo<ObjectTemplateInfo,
-                                               TemplateInfoWithProperties> {
+  inline Tagged<UnionOf<String, Undefined>> interface_name() const;
+  inline void set_interface_name(Tagged<UnionOf<String, Undefined>> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<FunctionTemplateInfo, Undefined>> signature() const;
+  inline void set_signature(
+      Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<FunctionTemplateRareData, Undefined>> rare_data() const;
+  inline Tagged<UnionOf<FunctionTemplateRareData, Undefined>> rare_data(
+      AcquireLoadTag tag) const;
+  inline void set_rare_data(
+      Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_rare_data(
+      Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+      ReleaseStoreTag tag, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<SharedFunctionInfo, Undefined>> shared_function_info()
+      const;
+  inline void set_shared_function_info(
+      Tagged<UnionOf<SharedFunctionInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> cached_property_name() const;
+  inline void set_cached_property_name(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> callback_data() const;
+  inline Tagged<Object> callback_data(AcquireLoadTag tag) const;
+  inline void set_callback_data(Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_callback_data(Tagged<Object> value, ReleaseStoreTag tag,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int16_t length() const;
+  inline void set_length(int16_t value);
+
+  inline InstanceType instance_type() const;
+  inline void set_instance_type(InstanceType value);
+
+  inline uint32_t exception_context() const;
+  inline void set_exception_context(uint32_t value);
+
+  TaggedMember<UnionOf<String, Undefined>> class_name_;
+  TaggedMember<UnionOf<String, Undefined>> interface_name_;
+  TaggedMember<UnionOf<FunctionTemplateInfo, Undefined>> signature_;
+  TaggedMember<UnionOf<FunctionTemplateRareData, Undefined>> rare_data_;
+  TaggedMember<UnionOf<SharedFunctionInfo, Undefined>> shared_function_info_;
+  TaggedMember<Object> cached_property_name_;
+  TaggedMember<Object> callback_data_;
+  uint32_t flag_;
+  int16_t length_;
+  InstanceType instance_type_;
+  uint32_t exception_context_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  ExternalPointerMember<kFunctionTemplateInfoCallbackTag> callback_;
+} V8_OBJECT_END;
+
+V8_OBJECT class ObjectTemplateInfo : public TemplateInfoWithProperties {
  public:
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
@@ -379,17 +454,27 @@ class ObjectTemplateInfo
 
   using BodyDescriptor = StructBodyDescriptor;
 
+  DECL_PRINTER(ObjectTemplateInfo)
+  DECL_VERIFIER(ObjectTemplateInfo)
+
+  inline Tagged<UnionOf<FunctionTemplateInfo, Undefined>> constructor() const;
+  inline void set_constructor(
+      Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int data() const;
+  inline void set_data(int value);
+
+  TaggedMember<UnionOf<FunctionTemplateInfo, Undefined>> constructor_;
+  TaggedMember<Smi> data_;
+
  private:
   DEFINE_TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FLAGS()
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(ObjectTemplateInfo)
-};
-
-class DictionaryTemplateInfo
-    : public TorqueGeneratedDictionaryTemplateInfo<DictionaryTemplateInfo,
-                                                   TemplateInfo> {
+V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {
  public:
-  class BodyDescriptor;
+  using BodyDescriptor = StructBodyDescriptor;
 
   static DirectHandle<DictionaryTemplateInfo> Create(
       Isolate* isolate, const v8::MemorySpan<const std::string_view>& names);
@@ -399,8 +484,15 @@ class DictionaryTemplateInfo
       DirectHandle<DictionaryTemplateInfo> self,
       const MemorySpan<MaybeLocal<Value>>& property_values);
 
-  TQ_OBJECT_CONSTRUCTORS(DictionaryTemplateInfo)
-};
+  DECL_PRINTER(DictionaryTemplateInfo)
+  DECL_VERIFIER(DictionaryTemplateInfo)
+
+  inline Tagged<FixedArray> property_names() const;
+  inline void set_property_names(Tagged<FixedArray> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  TaggedMember<FixedArray> property_names_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

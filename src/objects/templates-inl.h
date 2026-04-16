@@ -8,6 +8,7 @@
 #include "src/objects/templates.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/codegen/external-reference.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/objects-inl.h"
@@ -130,22 +131,39 @@ bool FunctionTemplateInfo::published() const {
 void FunctionTemplateInfo::set_published(bool value) {
   DCHECK(value);
   if (published()) return;
-  CHECK(!HeapLayout::InReadOnlySpace(*this));
+  CHECK(!HeapLayout::InReadOnlySpace(this));
   set_relaxed_flag(
       BooleanBit::set(relaxed_flag(), PublishedBit::kShift, value));
 }
 
-BIT_FIELD_ACCESSORS(
-    FunctionTemplateInfo, relaxed_flag,
-    allowed_receiver_instance_type_range_start,
-    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits)
-BIT_FIELD_ACCESSORS(
-    FunctionTemplateInfo, relaxed_flag,
-    allowed_receiver_instance_type_range_end,
-    FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits)
+InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_start()
+    const {
+  return AllowedReceiverInstanceTypeRangeStartBits::decode(relaxed_flag());
+}
+void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_start(
+    InstanceType value) {
+  set_relaxed_flag(
+      AllowedReceiverInstanceTypeRangeStartBits::update(relaxed_flag(), value));
+}
 
-RELAXED_UINT32_ACCESSORS(FunctionTemplateInfo, flag,
-                         FunctionTemplateInfo::kFlagOffset)
+InstanceType FunctionTemplateInfo::allowed_receiver_instance_type_range_end()
+    const {
+  return AllowedReceiverInstanceTypeRangeEndBits::decode(relaxed_flag());
+}
+void FunctionTemplateInfo::set_allowed_receiver_instance_type_range_end(
+    InstanceType value) {
+  set_relaxed_flag(
+      AllowedReceiverInstanceTypeRangeEndBits::update(relaxed_flag(), value));
+}
+
+uint32_t FunctionTemplateInfo::flag() const { return flag_; }
+void FunctionTemplateInfo::set_flag(uint32_t value) { flag_ = value; }
+uint32_t FunctionTemplateInfo::flag(RelaxedLoadTag tag) const {
+  return base::AsAtomic32::Relaxed_Load(&flag_);
+}
+void FunctionTemplateInfo::set_flag(uint32_t value, RelaxedStoreTag tag) {
+  base::AsAtomic32::Relaxed_Store(&flag_, value);
+}
 
 int32_t FunctionTemplateInfo::relaxed_flag() const {
   return flag(kRelaxedLoad);
@@ -154,19 +172,28 @@ void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
   return set_flag(flags, kRelaxedStore);
 }
 
-REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
-    FunctionTemplateInfo, callback, Address, kCallbackOffset,
-    kFunctionTemplateInfoCallbackTag, ExternalReference::DIRECT_API_CALL)
+Address FunctionTemplateInfo::callback(IsolateForSandbox isolate) const {
+  return callback_.load(isolate);
+}
+
+void FunctionTemplateInfo::set_callback(IsolateForSandbox isolate,
+                                        Address value) {
+  callback_.store(isolate, value);
+}
+
+void FunctionTemplateInfo::init_callback(IsolateForSandbox isolate,
+                                         Address value) {
+  callback_.Init(address(), isolate, value);
+}
 
 void FunctionTemplateInfo::RemoveCallbackRedirectionForSerialization(
     IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  remove_callback_redirection(isolate);
+  callback_.RemoveCallbackRedirectionForSerialization(isolate);
 }
+
 void FunctionTemplateInfo::RestoreCallbackRedirectionAfterDeserialization(
     IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  init_callback_redirection(isolate);
+  callback_.RestoreCallbackRedirectionAfterDeserialization(isolate);
 }
 
 template <class IsolateT>
@@ -179,8 +206,7 @@ Tagged<FunctionTemplateRareData>
 FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate,
     DirectHandle<FunctionTemplateInfo> function_template_info) {
-  Tagged<HeapObject> extra =
-      function_template_info->rare_data(isolate, kAcquireLoad);
+  Tagged<HeapObject> extra = function_template_info->rare_data(kAcquireLoad);
   if (IsUndefined(extra, isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
@@ -189,8 +215,8 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 }
 
 #define RARE_ACCESSORS(Name, CamelName, Default, ...)                          \
-  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Tagged<__VA_ARGS__>) {      \
-    Tagged<HeapObject> extra = rare_data(cage_base, kAcquireLoad);             \
+  inline Tagged<__VA_ARGS__> FunctionTemplateInfo::Get##CamelName() const {    \
+    Tagged<HeapObject> extra = rare_data(kAcquireLoad);                        \
     Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();        \
     return extra == undefined ? Default                                        \
                               : Cast<FunctionTemplateRareData>(extra)->Name(); \
@@ -262,7 +288,6 @@ void FunctionTemplateInfo::SetAllowedReceiverInstanceTypeRange(
   set_allowed_receiver_instance_type_range_end(static_cast<InstanceType>(
       api_instance_type_end + Internals::kFirstJSApiObjectType));
 }
-
 // Ensure that instance type fields in FunctionTemplateInfo are big enough
 // to fit the whole JSApiObject type range.
 static_assert(
@@ -293,18 +318,18 @@ Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
 
 Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> maybe_ctor = constructor();
-  if (IsUndefined(maybe_ctor, isolate)) return ObjectTemplateInfo();
-  Tagged<FunctionTemplateInfo> constructor =
+  if (IsUndefined(maybe_ctor, isolate)) return {};
+  Tagged<FunctionTemplateInfo> constructor_val =
       Cast<FunctionTemplateInfo>(maybe_ctor);
   while (true) {
-    constructor = constructor->GetParent(isolate);
-    if (constructor.is_null()) return ObjectTemplateInfo();
-    Tagged<Object> maybe_obj = constructor->GetInstanceTemplate();
+    constructor_val = constructor_val->GetParent(isolate);
+    if (constructor_val.is_null()) return {};
+    Tagged<Object> maybe_obj = constructor_val->GetInstanceTemplate();
     if (!IsUndefined(maybe_obj, isolate)) {
       return Cast<ObjectTemplateInfo>(maybe_obj);
     }
   }
-  return Tagged<ObjectTemplateInfo>();
+  return {};
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {
@@ -336,6 +361,13 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 
+uint32_t TemplateInfo::template_info_flags() const {
+  return template_info_flags_.load().value();
+}
+void TemplateInfo::set_template_info_flags(uint32_t value) {
+  template_info_flags_.store(this, Smi::From31BitPattern(value));
+}
+
 bool TemplateInfo::is_cacheable() const {
   return IsCacheableBit::decode(template_info_flags());
 }
@@ -365,7 +397,7 @@ void TemplateInfo::set_serial_number(uint32_t value) {
 uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
   uint32_t serial_number = this->serial_number();
   if (serial_number == kUninitializedSerialNumber) {
-    CHECK(!HeapLayout::InReadOnlySpace(*this));
+    CHECK(!HeapLayout::InReadOnlySpace(this));
     serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     set_serial_number(serial_number);
   }
@@ -467,6 +499,151 @@ void TemplateInfo::UncacheTemplateInstantiation(
   if (!new_cache.is_identical_to(cache)) {
     native_context->set_slow_template_instantiations_cache(*new_cache);
   }
+}
+
+Tagged<UnionOf<String, Undefined>> FunctionTemplateInfo::class_name() const {
+  return class_name_.load();
+}
+void FunctionTemplateInfo::set_class_name(
+    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
+  class_name_.store(this, value, mode);
+}
+
+Tagged<UnionOf<String, Undefined>> FunctionTemplateInfo::interface_name()
+    const {
+  return interface_name_.load();
+}
+void FunctionTemplateInfo::set_interface_name(
+    Tagged<UnionOf<String, Undefined>> value, WriteBarrierMode mode) {
+  interface_name_.store(this, value, mode);
+}
+
+Tagged<UnionOf<FunctionTemplateInfo, Undefined>>
+FunctionTemplateInfo::signature() const {
+  return signature_.load();
+}
+void FunctionTemplateInfo::set_signature(
+    Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  signature_.store(this, value, mode);
+}
+
+Tagged<UnionOf<FunctionTemplateRareData, Undefined>>
+FunctionTemplateInfo::rare_data() const {
+  return rare_data_.load();
+}
+Tagged<UnionOf<FunctionTemplateRareData, Undefined>>
+FunctionTemplateInfo::rare_data(AcquireLoadTag tag) const {
+  return rare_data_.Acquire_Load();
+}
+void FunctionTemplateInfo::set_rare_data(
+    Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+    WriteBarrierMode mode) {
+  rare_data_.store(this, value, mode);
+}
+void FunctionTemplateInfo::set_rare_data(
+    Tagged<UnionOf<FunctionTemplateRareData, Undefined>> value,
+    ReleaseStoreTag tag, WriteBarrierMode mode) {
+  rare_data_.Release_Store(this, value, mode);
+}
+
+Tagged<UnionOf<SharedFunctionInfo, Undefined>>
+FunctionTemplateInfo::shared_function_info() const {
+  return shared_function_info_.load();
+}
+void FunctionTemplateInfo::set_shared_function_info(
+    Tagged<UnionOf<SharedFunctionInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  shared_function_info_.store(this, value, mode);
+}
+
+Tagged<Object> FunctionTemplateInfo::cached_property_name() const {
+  return cached_property_name_.load();
+}
+void FunctionTemplateInfo::set_cached_property_name(Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
+  cached_property_name_.store(this, value, mode);
+}
+
+Tagged<Object> FunctionTemplateInfo::callback_data() const {
+  return callback_data_.load();
+}
+Tagged<Object> FunctionTemplateInfo::callback_data(AcquireLoadTag tag) const {
+  return callback_data_.Acquire_Load();
+}
+void FunctionTemplateInfo::set_callback_data(Tagged<Object> value,
+                                             WriteBarrierMode mode) {
+  callback_data_.store(this, value, mode);
+}
+void FunctionTemplateInfo::set_callback_data(Tagged<Object> value,
+                                             ReleaseStoreTag tag,
+                                             WriteBarrierMode mode) {
+  callback_data_.Release_Store(this, value, mode);
+}
+
+int16_t FunctionTemplateInfo::length() const { return length_; }
+void FunctionTemplateInfo::set_length(int16_t value) { length_ = value; }
+
+InstanceType FunctionTemplateInfo::instance_type() const {
+  return instance_type_;
+}
+void FunctionTemplateInfo::set_instance_type(InstanceType value) {
+  instance_type_ = value;
+}
+
+uint32_t FunctionTemplateInfo::exception_context() const {
+  return exception_context_;
+}
+void FunctionTemplateInfo::set_exception_context(uint32_t value) {
+  exception_context_ = value;
+}
+
+Tagged<UnionOf<FunctionTemplateInfo, Undefined>>
+ObjectTemplateInfo::constructor() const {
+  return constructor_.load();
+}
+void ObjectTemplateInfo::set_constructor(
+    Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
+    WriteBarrierMode mode) {
+  constructor_.store(this, value, mode);
+}
+
+int ObjectTemplateInfo::data() const { return data_.load().value(); }
+void ObjectTemplateInfo::set_data(int value) {
+  data_.store(this, Smi::FromInt(value));
+}
+
+Tagged<FixedArray> DictionaryTemplateInfo::property_names() const {
+  return property_names_.load();
+}
+void DictionaryTemplateInfo::set_property_names(Tagged<FixedArray> value,
+                                                WriteBarrierMode mode) {
+  property_names_.store(this, value, mode);
+}
+
+int TemplateInfoWithProperties::number_of_properties() const {
+  return number_of_properties_.load().value();
+}
+void TemplateInfoWithProperties::set_number_of_properties(int value) {
+  number_of_properties_.store(this, Smi::FromInt(value));
+}
+
+Tagged<UnionOf<ArrayList, Undefined>>
+TemplateInfoWithProperties::property_list() const {
+  return property_list_.load();
+}
+void TemplateInfoWithProperties::set_property_list(
+    Tagged<UnionOf<ArrayList, Undefined>> value, WriteBarrierMode mode) {
+  property_list_.store(this, value, mode);
+}
+
+Tagged<UnionOf<ArrayList, Undefined>>
+TemplateInfoWithProperties::property_accessors() const {
+  return property_accessors_.load();
+}
+void TemplateInfoWithProperties::set_property_accessors(
+    Tagged<UnionOf<ArrayList, Undefined>> value, WriteBarrierMode mode) {
+  property_accessors_.store(this, value, mode);
 }
 
 }  // namespace internal

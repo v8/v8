@@ -4608,7 +4608,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     api_function_address = ReassignRegister(topmost_script_having_context);
 
     __ mov(api_function_address,
-           FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
+           FieldOperand(func_templ, offsetof(FunctionTemplateInfo, callback_)));
   }
 
   __ PushReturnAddressFrom(argc);

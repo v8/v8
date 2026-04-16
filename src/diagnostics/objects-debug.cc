@@ -3180,6 +3180,28 @@ void BreakPoint::BreakPointVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, condition_.load());
 }
 
+void FunctionTemplateInfo::FunctionTemplateInfoVerify(Isolate* isolate) {
+  CHECK(IsFunctionTemplateInfo(this));
+  Object::VerifyPointer(isolate, class_name_.load());
+  Object::VerifyPointer(isolate, interface_name_.load());
+  Object::VerifyPointer(isolate, signature_.load());
+  Object::VerifyPointer(isolate, rare_data_.load());
+  Object::VerifyPointer(isolate, shared_function_info_.load());
+  Object::VerifyPointer(isolate, cached_property_name_.load());
+  Object::VerifyPointer(isolate, callback_data_.load());
+}
+
+void ObjectTemplateInfo::ObjectTemplateInfoVerify(Isolate* isolate) {
+  CHECK(IsObjectTemplateInfo(this));
+  Object::VerifyPointer(isolate, constructor_.load());
+  CHECK(IsSmi(Tagged<Object>(data_.load())));
+}
+
+void DictionaryTemplateInfo::DictionaryTemplateInfoVerify(Isolate* isolate) {
+  CHECK(IsDictionaryTemplateInfo(this));
+  Object::VerifyPointer(isolate, property_names_.load());
+}
+
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   CHECK(IsStruct(this));
   CHECK(IsDataHandler(this));

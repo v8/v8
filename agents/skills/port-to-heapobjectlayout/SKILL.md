@@ -29,6 +29,7 @@ extern class MyObject extends Struct {
   // KEEP these fields here! Torque needs them for layout verification.
   flags: SmiTagged<MyObjectFlags>;
   value: JSAny|TheHole;
+  smi_value: Smi;
   weak_ref: Weak<Map>|Undefined;
 }
 ```
@@ -98,11 +99,14 @@ namespace v8::internal {
 V8_OBJECT class MyObject : public StructLayout {
  public:
   // Accessors
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
 
   inline Tagged<UnionOf<JSAny, Hole>> value() const;
   inline void set_value(Tagged<UnionOf<JSAny, Hole>> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int smi_value() const;
+  inline void set_smi_value(int value);
 
   inline Tagged<UnionOf<Weak<Map>, Undefined>> weak_ref() const;
   inline void set_weak_ref(Tagged<UnionOf<Weak<Map>, Undefined>> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -405,6 +409,15 @@ To solve this, V8 offers the `ObjectTraits<T>` pattern. The rule is as follows:
 1. **Build:** Run `tools/dev/gm.py`.
 2. **Torque Asserts:** If compilation fails in `TorqueGeneratedMyObjectAsserts`, your C++ layout does not match the Torque definition. Fix the ordering or types in your C++ `V8_OBJECT`.
 3. **Tests:** Run all test suites (`tools/run-tests.py ... cctest unittests mjsunit`) to confirm the write barriers and offset calculations are functioning perfectly at runtime.
+
+### Fixing `VisitorId` and `InstanceType` Desyncs
+
+When porting a class to `@cppObjectLayoutDefinition`, Torque might stop automatically generating its `VisitorId` in `TORQUE_POINTER_VISITOR_ID_LIST`, especially if you implement a manual C++ `BodyDescriptor`. This leads to runtime heap corruption or crashes in `HeapVisitor` (e.g., size mismatches like `68 vs 1048620` because the `VisitorId` enum values shifted and your object is being visited as a `FeedbackVector`).
+
+To fix this, you must manually register the visitor:
+1.  **`src/objects/map.h`**: Add `VISITOR_ID_ENUM_DECL(MyObject)` to the end of the `VisitorId` enum definition, right before `kVisitorIdCount`.
+2.  **`src/heap/heap-visitor.h`**: Add `V(MyObject)` to the appropriate visitor list macro (e.g., `POINTER_VISITOR_ID_LIST` or `TRUSTED_VISITOR_ID_LIST`).
+*Note: Do NOT remove the class from C++ type lists like `HEAP_OBJECT_ORDINARY_TYPE_LIST` unless you are absolutely sure, as Torque relies on the generated `InstanceType` enums matching the C++ ones.*
 
 ### Trusted Pointer and Code Pointer Accessors
 
