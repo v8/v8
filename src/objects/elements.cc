@@ -806,15 +806,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                       Tagged<Object> expected,
                                       Tagged<Object> value,
                                       SeqCstAccessTag tag) final {
-    return handle(HeapObject::SeqCst_CompareAndSwapField(
-                      expected, value,
-                      [=](Tagged<Object> expected_value,
-                          Tagged<Object> new_value) {
-                        return Subclass::CompareAndSwapAtomicInternalImpl(
-                            holder->elements(), entry, expected_value,
-                            new_value, tag);
-                      }),
-                  isolate);
+    return handle(
+        HeapObject::SeqCst_CompareAndSwapField(
+            expected, value,
+            [=](Tagged<Object> expected_value, Tagged<Object> new_value) {
+              return Subclass::CompareAndSwapAtomicInternalImpl(
+                  holder->elements(), entry, expected_value, new_value, tag);
+            }),
+        isolate);
   }
 
   static Tagged<Object> CompareAndSwapAtomicInternalImpl(
@@ -3768,17 +3767,17 @@ class TypedElementsAccessor
 
   static bool ToTypedSearchValue(double search_value,
                                  ElementType* typed_search_value) {
-    if (!base::IsValueInRangeForNumericType<ElementType>(search_value) &&
-        std::isfinite(search_value)) {
-      // Return true if value can't be represented in this space.
-      return true;
-    }
     ElementType typed_value;
     if constexpr (IsFloat16TypedArrayElementsKind(Kind)) {
       typed_value = fp16_ieee_from_fp32_value(static_cast<float>(search_value));
       *typed_search_value = typed_value;
       return (static_cast<double>(fp16_ieee_to_fp32_value(typed_value)) !=
               search_value);  // Loss of precision.
+    }
+    if (!base::IsValueInRangeForNumericType<ElementType>(search_value) &&
+        std::isfinite(search_value)) {
+      // Return true if value can't be represented in this space.
+      return true;
     }
     typed_value = static_cast<ElementType>(search_value);
     *typed_search_value = typed_value;
@@ -4237,14 +4236,14 @@ class TypedElementsAccessor
       }
 
       switch (source_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
-  case TYPE##_ELEMENTS: {                                                      \
-    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);            \
-    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data);    \
-    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                                 \
-        source_data_ptr, dest_data_ptr, length,                                \
-        source_shared || destination_shared ? kShared : kUnshared);            \
-    break;                                                                     \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                           \
+  case TYPE##_ELEMENTS: {                                                   \
+    ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);         \
+    ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data); \
+    CopyBetweenBackingStores<TYPE##_ELEMENTS>(                              \
+        source_data_ptr, dest_data_ptr, length,                             \
+        source_shared || destination_shared ? kShared : kUnshared);         \
+    break;                                                                  \
   }
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
