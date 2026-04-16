@@ -473,4 +473,5 @@ PROGRESS_INDICATORS = {
     'color': ColorProgressIndicator,
     'mono': MonochromeProgressIndicator,
     'stream': StreamProgressIndicator,
+    'none': SimpleProgressIndicator,
 }

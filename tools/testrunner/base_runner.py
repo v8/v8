@@ -258,10 +258,13 @@ class BaseTestRunner(object):
                       help="Run this shard from the split up tests.")
 
     # Progress
-    parser.add_option("-p", "--progress",
-                      choices=list(PROGRESS_INDICATORS.keys()), default="mono",
-                      help="The style of progress indicator (verbose, dots, "
-                           "color, mono)")
+    parser.add_option(
+        "-p",
+        "--progress",
+        choices=list(PROGRESS_INDICATORS.keys()),
+        default="mono",
+        help="The style of progress indicator (verbose, dots, "
+        "color, mono, none)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
     parser.add_option("--log-system-memory",
@@ -318,6 +321,12 @@ class BaseTestRunner(object):
     parser.add_option("--buildername", default='',
                       help="Buildername property from infrastructure. Not "
                            "setting this option indicates manual usage.")
+    parser.add_option(
+        "--test-list",
+        help="Path to a file with one test name per line. "
+        "Lines are appended to the positional test args. "
+        "Blank lines and lines starting with '#' are "
+        "ignored.")
 
   def _add_parser_options(self, parser):
     pass # pragma: no cover
@@ -553,6 +562,14 @@ class BaseTestRunner(object):
     return f'external_symbolizer_path={external_symbolizer_path}'
 
   def _parse_test_args(self, args):
+    if self.options.test_list:
+      path = Path(self.options.test_list)
+      with path.open() as f:
+        for line in f:
+          line = line.split('#', 1)[0].strip()
+          if line:
+            args.append(line)
+
     if not args:
       args = self._get_default_suite_names()
 
