@@ -23,7 +23,7 @@ class JSGeneratorObject;
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
-V8_OBJECT class Microtask : public StructLayout {
+V8_OBJECT class Microtask : public Struct {
  public:
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   inline Tagged<Object> continuation_preserved_embedder_data() const;

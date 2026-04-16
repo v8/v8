@@ -32,7 +32,7 @@ class StructBodyDescriptor;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-V8_OBJECT class DebugInfo : public StructLayout {
+V8_OBJECT class DebugInfo : public Struct {
  public:
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
 
@@ -188,7 +188,7 @@ V8_OBJECT class DebugInfo : public StructLayout {
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-V8_OBJECT class BreakPointInfo : public StructLayout {
+V8_OBJECT class BreakPointInfo : public Struct {
  public:
   // Accessors
   inline int source_position() const;
@@ -252,7 +252,7 @@ class CoverageInfo
 };
 
 // Holds breakpoint related information. This object is used by inspector.
-V8_OBJECT class BreakPoint : public StructLayout {
+V8_OBJECT class BreakPoint : public Struct {
  public:
   // Accessors
   inline int id() const;
@@ -271,7 +271,7 @@ V8_OBJECT class BreakPoint : public StructLayout {
   TaggedMember<String> condition_;
 } V8_OBJECT_END;
 
-V8_OBJECT class StackFrameInfo : public StructLayout {
+V8_OBJECT class StackFrameInfo : public Struct {
  public:
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
@@ -311,7 +311,7 @@ V8_OBJECT class StackFrameInfo : public StructLayout {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-V8_OBJECT class StackTraceInfo : public StructLayout {
+V8_OBJECT class StackTraceInfo : public Struct {
  public:
   // Accessors
   inline int id() const;
@@ -335,7 +335,7 @@ V8_OBJECT class StackTraceInfo : public StructLayout {
   TaggedMember<FixedArray> frames_;
 } V8_OBJECT_END;
 
-V8_OBJECT class ErrorStackData : public StructLayout {
+V8_OBJECT class ErrorStackData : public Struct {
  public:
   inline bool HasFormattedStack() const;
   inline Tagged<JSAny> formatted_stack() const;

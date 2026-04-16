@@ -168,7 +168,7 @@ class BytecodeArray : public ExposedTrustedObject {
 // A BytecodeWrapper wraps a BytecodeArray but lives inside the sandbox. This
 // can be useful for example when a reference to a BytecodeArray needs to be
 // stored along other tagged pointers inside an array or similar datastructure.
-V8_OBJECT class BytecodeWrapper : public StructLayout {
+V8_OBJECT class BytecodeWrapper : public Struct {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 

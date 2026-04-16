@@ -152,11 +152,8 @@ constexpr bool is_important_struct(InstanceType type) {
 
 template <typename StructType>
 constexpr int StructSize() {
-  if constexpr (std::is_base_of_v<StructLayout, StructType>) {
-    return sizeof(StructType);
-  } else {
-    return StructType::kSize;
-  }
+  static_assert(std::is_base_of_v<Struct, StructType>);
+  return sizeof(StructType);
 }
 
 using AllocationSiteWithoutWeakNext = AllocationSite;

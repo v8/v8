@@ -1392,31 +1392,53 @@ class WasmScript : public AllStatic {
 // header. They are referenced by the following fields:
 //  - {WasmTagObject::tag}: The tag of the {Tag} object.
 //  - {WasmInstanceObject::tags_table}: List of tags used by an instance.
-class WasmExceptionTag
-    : public TorqueGeneratedWasmExceptionTag<WasmExceptionTag, Struct> {
+V8_OBJECT class WasmExceptionTag : public Struct {
  public:
   V8_EXPORT_PRIVATE static DirectHandle<WasmExceptionTag> New(Isolate* isolate,
                                                               int index);
 
+  inline int index() const;
+  inline void set_index(int value);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
-};
+  DECL_PRINTER(WasmExceptionTag)
+  DECL_VERIFIER(WasmExceptionTag)
+
+ private:
+  friend class TorqueGeneratedWasmExceptionTagAsserts;
+
+  TaggedMember<Smi> index_;
+} V8_OBJECT_END;
 
 // Data annotated to the asm.js Module function. Used for later instantiation of
 // that function.
-class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
+V8_OBJECT class AsmWasmData : public Struct {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       DirectHandle<HeapNumber> uses_bitset);
 
+  inline Tagged<Managed<wasm::NativeModule>> managed_native_module() const;
+  inline void set_managed_native_module(
+      Tagged<Managed<wasm::NativeModule>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<HeapNumber> uses_bitset() const;
+  inline void set_uses_bitset(Tagged<HeapNumber> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(AsmWasmData)
+  DECL_VERIFIER(AsmWasmData)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AsmWasmData)
-};
+ private:
+  friend class TorqueGeneratedAsmWasmDataAsserts;
+
+  TaggedMember<Managed<wasm::NativeModule>> managed_native_module_;
+  TaggedMember<HeapNumber> uses_bitset_;
+} V8_OBJECT_END;
 
 class WasmTypeInfo
     : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {

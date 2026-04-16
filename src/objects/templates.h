@@ -112,7 +112,7 @@ class TemplateInfoWithProperties
 };
 
 // Contains data members that are rarely set on a FunctionTemplateInfo.
-V8_OBJECT class FunctionTemplateRareData : public StructLayout {
+V8_OBJECT class FunctionTemplateRareData : public Struct {
  public:
   inline Tagged<UnionOf<Undefined, ObjectTemplateInfo>> prototype_template()
       const;

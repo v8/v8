@@ -23,7 +23,7 @@ class Undefined;
 // number of closures created for a certain function per native
 // context. There's at most one FeedbackCell for each function in
 // a native context.
-V8_OBJECT class FeedbackCell : public StructLayout {
+V8_OBJECT class FeedbackCell : public Struct {
  public:
   using Value = UnionOf<Undefined, FeedbackVector, ClosureFeedbackCellArray>;
 
@@ -69,7 +69,7 @@ V8_OBJECT class FeedbackCell : public StructLayout {
 } V8_OBJECT_END;
 
 static_assert(sizeof(FeedbackCell) ==
-              sizeof(StructLayout) + kTaggedSize + 2 * kInt32Size);
+              sizeof(Struct) + kTaggedSize + 2 * kInt32Size);
 
 }  // namespace v8::internal
 

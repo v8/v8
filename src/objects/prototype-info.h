@@ -21,7 +21,7 @@ class PrototypeSharedClosureInfo;
 #include "torque-generated/src/objects/prototype-info-tq.inc"
 
 // Container for metadata stored on each prototype map.
-V8_OBJECT class PrototypeInfo : public StructLayout {
+V8_OBJECT class PrototypeInfo : public Struct {
  public:
   // Accessors
   inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace() const;

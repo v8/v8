@@ -64,7 +64,7 @@ class JSStrictArgumentsObject
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-V8_OBJECT class AliasedArgumentsEntry : public StructLayout {
+V8_OBJECT class AliasedArgumentsEntry : public Struct {
  public:
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int value);

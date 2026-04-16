@@ -23,7 +23,7 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/call-site-info-tq.inc"
 
-V8_OBJECT class CallSiteInfo : public StructLayout {
+V8_OBJECT class CallSiteInfo : public Struct {
  public:
   DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
 

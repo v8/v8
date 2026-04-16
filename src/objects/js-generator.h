@@ -66,7 +66,7 @@ class JSAsyncGeneratorObject
   TQ_OBJECT_CONSTRUCTORS(JSAsyncGeneratorObject)
 };
 
-V8_OBJECT class AsyncGeneratorRequest : public StructLayout {
+V8_OBJECT class AsyncGeneratorRequest : public Struct {
  public:
   inline Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> next() const;
   inline void set_next(Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> value,

@@ -185,6 +185,7 @@ extern class WasmStackObject extends HeapObject {
   stack: ExternalPointer;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmExceptionTag extends Struct {
   // Note that this index is only useful for debugging purposes and it is not
   // unique across modules. The GC however does not allow objects without at
@@ -295,6 +296,7 @@ extern class WasmTagObject extends JSObject {
 
 type WasmExportedFunction extends JSFunction;
 
+@cppObjectLayoutDefinition
 extern class AsmWasmData extends Struct {
   managed_native_module: ManagedWasmNativeModule;
   uses_bitset: HeapNumber;

@@ -2956,6 +2956,12 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {
+  PrintHeader(os, "WasmExceptionTag");
+  os << "\n - index: " << index();
+  os << "\n";
+}
+
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - canonical type: " << type().name();

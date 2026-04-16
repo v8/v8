@@ -2607,7 +2607,7 @@ void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
 }
 
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsAsyncGeneratorRequest(this));
   Object::VerifyPointer(isolate, next());
   Object::VerifyPointer(isolate, value());
@@ -2623,7 +2623,7 @@ void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
 
 void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
     Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsSourceTextModuleInfoEntry(this));
   Object::VerifyPointer(isolate, export_name());
   Object::VerifyPointer(isolate, local_name());
@@ -2657,7 +2657,7 @@ void Module::ModuleVerify(Isolate* isolate) {
 }
 
 void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsModuleRequest(this));
   Object::VerifyPointer(isolate, specifier());
   Object::VerifyPointer(isolate, import_attributes());
@@ -2945,15 +2945,26 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
         wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
 }
 
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-void StructLayout::StructVerify(Isolate* isolate) {
-  Cast<Struct>(this)->StructVerify(isolate);
+void WasmExceptionTag::WasmExceptionTagVerify(Isolate* isolate) {
+  CHECK(IsStruct(this));
+  CHECK(IsWasmExceptionTag(this));
+  CHECK(IsSmi(Tagged<Object>(index_.load())));
 }
+
+void AsmWasmData::AsmWasmDataVerify(Isolate* isolate) {
+  CHECK(IsStruct(this));
+  CHECK(IsAsmWasmData(this));
+  Object::VerifyPointer(isolate, managed_native_module_.load());
+  CHECK(IsForeign(managed_native_module_.load()));
+  Object::VerifyPointer(isolate, uses_bitset_.load());
+  CHECK(IsHeapNumber(uses_bitset_.load()));
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
     Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsFunctionTemplateRareData(this));
   Object::VerifyPointer(isolate, prototype_template());
   Object::VerifyPointer(isolate, prototype_provider_template());
@@ -2970,7 +2981,7 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
 
 void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
     Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsPrototypeSharedClosureInfo(this));
   Object::VerifyPointer(isolate, boilerplate_description());
   Object::VerifyPointer(isolate, closure_feedback_cell_array());
@@ -2978,33 +2989,33 @@ void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
 }
 
 void Tuple2::Tuple2Verify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsTuple2(this));
   Object::VerifyPointer(isolate, value1_.load());
   Object::VerifyPointer(isolate, value2_.load());
 }
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsAliasedArgumentsEntry(this));
 }
 
 void AccessorPair::AccessorPairVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsAccessorPair(this));
   Object::VerifyPointer(isolate, getter_.load());
   Object::VerifyPointer(isolate, setter_.load());
 }
 
 void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsClassPositions(this));
   CHECK(IsSmi(Tagged<Object>(start_.load())));
   CHECK(IsSmi(Tagged<Object>(end_.load())));
 }
 
 void DebugInfo::DebugInfoVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsDebugInfo(this));
   Object::VerifyPointer(isolate, shared());
   Object::VerifyPointer(isolate, break_points());
@@ -3016,21 +3027,21 @@ void DebugInfo::DebugInfoVerify(Isolate* isolate) {
 }
 
 void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsBreakPointInfo(this));
   CHECK(IsSmi(Tagged<Object>(source_position_.load())));
   Object::VerifyPointer(isolate, break_points_.load());
 }
 
 void BreakPoint::BreakPointVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsBreakPoint(this));
   CHECK(IsSmi(Tagged<Object>(id_.load())));
   Object::VerifyPointer(isolate, condition_.load());
 }
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsDataHandler(this));
   Object::VerifyPointer(isolate, smi_handler());
   CHECK_IMPLIES(!IsSmi(smi_handler()),
@@ -3064,7 +3075,7 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 }
 
 void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsAllocationMemento(this));
   CHECK(IsAllocationSite(allocation_site_.load()));
 }
@@ -3195,7 +3206,7 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
 }
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsStackFrameInfo(this));
   Object::VerifyPointer(isolate, shared_or_script_.load());
   Object::VerifyPointer(isolate, function_name_.load());
@@ -3203,14 +3214,14 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
 }
 
 void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsStackTraceInfo(this));
   CHECK(IsSmi(Tagged<Object>(id_.load())));
   Object::VerifyPointer(isolate, frames_.load());
 }
 
 void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
-  StructVerify(isolate);
+  CHECK(IsStruct(this));
   CHECK(IsErrorStackData(this));
   Object::VerifyPointer(
       isolate, raw_data_for_call_site_infos_or_formatted_stack_.load());

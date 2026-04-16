@@ -207,7 +207,7 @@ V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
   uint32_t quick_check_value_;
 } V8_OBJECT_END;
 
-V8_OBJECT class RegExpDataWrapper : public StructLayout {
+V8_OBJECT class RegExpDataWrapper : public Struct {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 

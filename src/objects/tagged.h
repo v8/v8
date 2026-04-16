@@ -188,12 +188,10 @@ using WeakTaggedBase = TaggedImpl<HeapObjectReferenceType::WEAK, Address>;
 // Types which provide both a legacy Foo as well as a new-style FooLayout class.
 #define LAYOUT_TYPES(V)   \
   V(HeapObject)           \
-  V(Struct)               \
   V(ExposedTrustedObject) \
   V(TrustedObject)
 
 // Forward declarations for is_subtype.
-class StructLayout;
 class Struct;
 class FixedArrayBase;
 class FixedArray;
@@ -477,14 +475,6 @@ struct is_complex_subtype<
     std::enable_if_t<std::disjunction_v<
         std::is_base_of<ExposedTrustedObject, Derived>,
         std::is_base_of<ExposedTrustedObjectLayout, Derived>>>>
-    : public std::true_type {};
-
-class StructLayout;
-template <typename Derived>
-struct is_complex_subtype<Derived, Struct,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<Struct, Derived>,
-                              std::is_base_of<StructLayout, Derived>>>>
     : public std::true_type {};
 
 template <typename Derived, typename... BaseTs>

@@ -83,7 +83,7 @@ class AccessorInfo
   TQ_OBJECT_CONSTRUCTORS(AccessorInfo)
 };
 
-V8_OBJECT class AccessCheckInfo : public StructLayout {
+V8_OBJECT class AccessCheckInfo : public Struct {
  public:
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);

@@ -228,7 +228,7 @@ class JSDeferredModuleNamespace
   TQ_OBJECT_CONSTRUCTORS(JSDeferredModuleNamespace)
 };
 
-V8_OBJECT class ScriptOrModule : public StructLayout {
+V8_OBJECT class ScriptOrModule : public Struct {
  public:
   inline Tagged<Object> resource_name() const;
   inline void set_resource_name(Tagged<Object> value,

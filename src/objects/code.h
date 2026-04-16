@@ -575,7 +575,7 @@ class GcSafeCode : public HeapObject {
 // A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
 // for example when a reference to a Code needs to be stored along other tagged
 // pointers inside an array or similar container datastructure.
-V8_OBJECT class CodeWrapper : public StructLayout {
+V8_OBJECT class CodeWrapper : public Struct {
  public:
   DECL_CODE_POINTER_ACCESSORS(code)
 

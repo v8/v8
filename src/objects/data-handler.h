@@ -17,7 +17,7 @@ namespace internal {
 
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
-V8_OBJECT class DataHandler : public StructLayout {
+V8_OBJECT class DataHandler : public Struct {
  public:
   static constexpr int OffsetOf(int index);
   static constexpr int SizeFor(int count);

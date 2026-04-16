@@ -36,7 +36,7 @@ class NativeModule;
 #include "torque-generated/src/objects/script-tq.inc"
 
 // Script describes a script which has been added to the VM.
-V8_OBJECT class Script : public StructLayout {
+V8_OBJECT class Script : public Struct {
  public:
   // Script ID used for temporary scripts, which shouldn't be added to the
   // script list.

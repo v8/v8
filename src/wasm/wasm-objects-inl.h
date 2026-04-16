@@ -782,6 +782,27 @@ TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,
                           kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
 
+int WasmExceptionTag::index() const { return index_.load().value(); }
+void WasmExceptionTag::set_index(int value) {
+  index_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Managed<wasm::NativeModule>> AsmWasmData::managed_native_module() const {
+  return managed_native_module_.load();
+}
+void AsmWasmData::set_managed_native_module(
+    Tagged<Managed<wasm::NativeModule>> value, WriteBarrierMode mode) {
+  managed_native_module_.store(this, value, mode);
+}
+
+Tagged<HeapNumber> AsmWasmData::uses_bitset() const {
+  return uses_bitset_.load();
+}
+void AsmWasmData::set_uses_bitset(Tagged<HeapNumber> value,
+                                  WriteBarrierMode mode) {
+  uses_bitset_.store(this, value, mode);
+}
+
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace v8::internal
