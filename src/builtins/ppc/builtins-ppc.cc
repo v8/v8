@@ -1363,7 +1363,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   Label push_stack_frame;
   Register feedback_vector = r5;
-  __ LoadFeedbackVector(feedback_vector, closure, r7, &push_stack_frame);
+  Register feedback_cell = r7;
+
+  __ LoadFeedbackCell(feedback_cell, closure);
+
+  Label budget_interrupt;
+  Label after_budget_check;
+
+  __ LoadFeedbackVectorFromCell(feedback_vector, feedback_cell, r8,
+                                &push_stack_frame);
 
 #ifndef V8_JITLESS
 
@@ -1400,8 +1408,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
   // Push bytecode array and Smi tagged bytecode array offset.
-  __ SmiTag(r7, kInterpreterBytecodeOffsetRegister);
-  __ Push(kInterpreterBytecodeArrayRegister, r7, feedback_vector);
+  __ SmiTag(r0, kInterpreterBytecodeOffsetRegister);
+  __ Push(kInterpreterBytecodeArrayRegister, r0, feedback_vector);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -1442,6 +1450,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ ShiftLeftU64(r8, r8, Operand(kSystemPointerSizeLog2));
   __ StoreU64(r6, MemOperand(fp, r8));
   __ bind(&no_incoming_new_target_or_generator_register);
+
+  // Reduce interrupt budget.
+  __ LoadS32(
+      ip,
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
+  __ SmiUntagField(r8, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                       BytecodeArray::kLengthOffset));
+  __ sub(ip, ip, r8, LeaveOE, SetRC);
+  __ StoreU32(
+      ip,
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
+  __ blt(&budget_interrupt);
+  __ bind(&after_budget_check);
 
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
@@ -1503,6 +1526,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The return value is in r3.
   LeaveInterpreterFrame(masm, r5, r7);
   __ blr();
+
+  __ bind(&budget_interrupt);
+  __ LoadU64(r3, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Push(r3);
+  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
+
+  // After the call, restore the bytecode array, bytecode offset and accumulator
+  // registers again.
+  __ LoadU64(kInterpreterBytecodeArrayRegister,
+             MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+
+  __ b(&after_budget_check);
 
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
