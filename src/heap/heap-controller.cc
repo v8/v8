@@ -167,6 +167,8 @@ size_t GlobalMemoryTrait::BoundAllocationLimit(
     uint64_t current_size, uint64_t limit, size_t min_size, size_t max_size,
     size_t new_space_capacity, Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
+  limit = std::max(limit, current_size + kMinimumAllocationLimitGrowingStep) +
+          new_space_capacity;
   const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
   const uint64_t result =
       std::clamp<uint64_t>(limit, min_size, halfway_to_the_max);
@@ -277,8 +279,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
           preliminary_old_generation_allocation_limit);
   const size_t next_global_allocation_limit =
       boundaries.bounded_global_allocation_limit(
-          std::max(preliminary_global_allocation_limit,
-                   preliminary_old_generation_allocation_limit));
+          preliminary_global_allocation_limit);
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 
