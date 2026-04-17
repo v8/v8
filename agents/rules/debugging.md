@@ -25,6 +25,7 @@ Upon receiving a debugging task, you MUST immediately initialize the following t
 ### Track B: Conceptual Triage
 - **JS Source Reading**: Analyze the reproducing JS script to identify language features (e.g., closures, `eval`, TDZ) and runtime flags/hints.
 - **Environment Preservation**: The original reproducing script **MUST NOT** be modified. Create scratch copies for minimization or testing.
+- **Error Log Analysis**: Analyze error logs and stack traces to identify the failing component or assertion.
 
 ### Track C: Static Research & Eager Delegation
 - **V8/Spec Exploration**: Use your internal knowledge to start reading relevant V8 C++ code (via `code_search`) and consulting ECMAScript spec requirements simultaneously.

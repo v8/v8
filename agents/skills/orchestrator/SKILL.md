@@ -79,3 +79,4 @@ This skill defines the behavior of the Main Agent acting as an Orchestrator and 
 -   **Task = Process/Thread**: A discrete unit of work.
 -   **Dependencies = Synchronization Primitives**: Tasks wait on other tasks to complete (join).
 -   **Orchestrator = Kernel Scheduler**: Decides what runs when and on which "CPU" (subagent).
+- **Workspace and Branch Management**: Always base new branches on a clean upstream (e.g., `origin/main`). Avoid creating spurious CLs or polluting existing CLs with unrelated changes. Use isolated worktrees for tasks that modify the workspace state.
