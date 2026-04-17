@@ -152,14 +152,15 @@ QUIET = sys.argv[0] == "quietgm"  # Overridden by "quiet" keyword.
 build_dir_prefix = os.getenv("V8_GM_BUILD_DIR_PREFIX")
 
 V8_DIR = Path(__file__).resolve().parent.parent.parent
-GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
 if (V8_DIR.parent / "chrome").exists():
   CHROMIUM_DIR = V8_DIR.parent
-  GCLIENT_FILE_PATH = CHROMIUM_DIR / ".gclient"
 else:
   CHROMIUM_DIR = None
+
+GCLIENT_FILE_PATH = (CHROMIUM_DIR.parent
+                     if CHROMIUM_DIR else V8_DIR.parent) / ".gclient"
 
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
@@ -183,10 +184,11 @@ class Reclient(IntEnum):
   CUSTOM = 2
 
 
-def get_v8_solution(solutions):
+def get_gclient_solution(solutions):
   for solution in solutions:
-    if (solution["name"] == "v8" or
-        solution["url"] == "https://chromium.googlesource.com/v8/v8.git"):
+    if (solution["name"] in ("v8", "src") or solution["url"]
+        in ("https://chromium.googlesource.com/v8/v8.git",
+            "https://chromium.googlesource.com/chromium/src.git")):
       return solution
   return None
 
@@ -203,11 +205,11 @@ def detect_reclient():
   except SyntaxError as e:
     print("# Can't detect reclient due to .gclient syntax errors.")
     return Reclient.NONE
-  v8_solution = get_v8_solution(config_dict["solutions"])
-  if not v8_solution:
+  gclient_solution = get_gclient_solution(config_dict["solutions"])
+  if not gclient_solution:
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
-  custom_vars = v8_solution.get("custom_vars", {})
+  custom_vars = gclient_solution.get("custom_vars", {})
   if "rbe_instance" in custom_vars:
     return Reclient.CUSTOM
   if "download_remoteexec_cfg" in custom_vars:
@@ -318,10 +320,11 @@ def print_completions_and_exit():
   sys.exit(0)
 
 
-def _call(cmd, silent=False):
+def _call(cmd, silent=False, cwd=None):
   if not silent and not QUIET:
-    print(f"# {cmd}")
-  return subprocess.call(cmd, shell=True)
+    cwd_print = f"cd {cwd} && " if cwd else ""
+    print(f"# {cwd_print}{cmd}")
+  return subprocess.call(cmd, shell=True, cwd=cwd)
 
 
 # Quiet mode means: only print in case of error.
@@ -470,13 +473,24 @@ class RawConfig:
         printable_path = self.path
     else:
       printable_path = self.path
+
+    printable_path_gn = printable_path
+    change_cwd = None
+    if CHROMIUM_DIR:
+      change_cwd = CHROMIUM_DIR
+      try:
+        printable_path_gn = self.path.relative_to(CHROMIUM_DIR)
+      except ValueError:
+        pass
+
     build_ninja = self.path / "build.ninja"
+
     if not build_ninja.exists():
-      code = _call(f"gn gen {printable_path}")
+      code = _call(f"gn gen {printable_path_gn}", cwd=change_cwd)
       if code != 0:
         return code
     elif self.clean:
-      code = _call(f"gn clean {printable_path}")
+      code = _call(f"gn clean {printable_path_gn}", cwd=change_cwd)
       if code != 0:
         return code
     targets = " ".join(self.targets)
