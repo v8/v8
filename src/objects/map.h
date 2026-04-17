@@ -102,7 +102,6 @@ enum InstanceType : uint16_t;
   V(SharedFunctionInfo)               \
   V(ShortcutCandidate)                \
   V(SlicedString)                     \
-  V(SloppyArgumentsElements)          \
   V(SmallOrderedHashMap)              \
   V(SmallOrderedHashSet)              \
   V(SmallOrderedNameDictionary)       \

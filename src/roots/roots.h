@@ -141,6 +141,7 @@ class RootVisitor;
   V(Map, registered_symbol_table_map, RegisteredSymbolTableMap)                \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \

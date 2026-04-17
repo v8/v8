@@ -208,21 +208,21 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kAbstractInternalClassSubclass2Map = 0x1919;
   static constexpr Tagged_t kExportedSubClass2Map = 0x1941;
   static constexpr Tagged_t kSortStateMap = 0x1969;
-  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1991;
-  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x19b9;
-  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x19e1;
-  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x1a09;
-  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1a31;
-  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1a59;
-  static constexpr Tagged_t kOrderedHashMapMap = 0x1a81;
-  static constexpr Tagged_t kOrderedHashSetMap = 0x1aa9;
-  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1ad1;
-  static constexpr Tagged_t kSimpleNameDictionaryMap = 0x1af9;
-  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1b21;
-  static constexpr Tagged_t kDoubleStringCacheMap = 0x1b49;
-  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1b71;
-  static constexpr Tagged_t kEphemeronHashTableMap = 0x1b99;
-  static constexpr Tagged_t kScriptContextTableMap = 0x1bc1;
+  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x1991;
+  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x19b9;
+  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x19e1;
+  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1a09;
+  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1a31;
+  static constexpr Tagged_t kOrderedHashMapMap = 0x1a59;
+  static constexpr Tagged_t kOrderedHashSetMap = 0x1a81;
+  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1aa9;
+  static constexpr Tagged_t kSimpleNameDictionaryMap = 0x1ad1;
+  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1af9;
+  static constexpr Tagged_t kDoubleStringCacheMap = 0x1b21;
+  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1b49;
+  static constexpr Tagged_t kEphemeronHashTableMap = 0x1b71;
+  static constexpr Tagged_t kScriptContextTableMap = 0x1b99;
+  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1bc1;
   static constexpr Tagged_t kObjectBoilerplateDescriptionMap = 0x1be9;
   static constexpr Tagged_t kCoverageInfoMap = 0x1c11;
   static constexpr Tagged_t kRegExpMatchInfoMap = 0x1c39;
@@ -1151,6 +1151,7 @@ static constexpr std::array<Tagged_t, 1029> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kRegisteredSymbolTableMap,
     StaticReadOnlyRoot::kScopeInfoMap,
     StaticReadOnlyRoot::kScriptContextTableMap,
+    StaticReadOnlyRoot::kSloppyArgumentsElementsMap,
     StaticReadOnlyRoot::kSimpleNameDictionaryMap,
     StaticReadOnlyRoot::kSimpleNumberDictionaryMap,
     StaticReadOnlyRoot::kSmallOrderedHashMapMap,
@@ -2047,7 +2048,6 @@ static constexpr std::array<Tagged_t, 1029> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStackTraceInfoMap,
     StaticReadOnlyRoot::kTemplateObjectDescriptionMap,
     StaticReadOnlyRoot::kTuple2Map,
-    StaticReadOnlyRoot::kSloppyArgumentsElementsMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kStrongDescriptorArrayMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,

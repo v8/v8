@@ -88,7 +88,6 @@ class MaybeObjectSize final {
   V(SeqTwoByteString)                 \
   V(SharedFunctionInfo)               \
   V(SlicedString)                     \
-  V(SloppyArgumentsElements)          \
   V(SmallOrderedHashMap)              \
   V(SmallOrderedHashSet)              \
   V(SmallOrderedNameDictionary)       \
@@ -186,7 +185,6 @@ class MaybeObjectSize final {
   V(SharedFunctionInfo)                                   \
   V(ShortcutCandidate)                                    \
   V(SlicedString)                                         \
-  V(SloppyArgumentsElements)                              \
   V(Symbol)                                               \
   V(ThinString)                                           \
   V(TransitionArray)                                      \

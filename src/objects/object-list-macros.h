@@ -43,6 +43,7 @@ namespace internal {
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
   APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)                     \
+  APPLY(V, SloppyArgumentsElements, SLOPPY_ARGUMENTS_ELEMENTS)           \
   APPLY(V, WeakArrayList, WEAK_ARRAY_LIST)                               \
   APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)                             \
   APPLY(V, WeakHomomorphicFixedArray, WEAK_HOMOMORPHIC_FIXED_ARRAY)

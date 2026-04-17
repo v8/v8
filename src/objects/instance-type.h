@@ -340,6 +340,8 @@ V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
   V(_, WeakHomomorphicFixedArrayMap, weak_homomorphic_fixed_array_map, \
     WeakHomomorphicFixedArray)                                         \
   V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                        \
+  V(_, SloppyArgumentsElementsMap, sloppy_arguments_elements_map,      \
+    SloppyArgumentsElements)                                           \
   V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)           \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 

@@ -752,6 +752,9 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
+    ALLOCATE_VARSIZE_MAP(SLOPPY_ARGUMENTS_ELEMENTS_TYPE,
+                         sloppy_arguments_elements)
+
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
 

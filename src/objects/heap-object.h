@@ -619,6 +619,7 @@ constexpr HeapObject Tagged<HeapObject>::ToRawPtr() const {
                           PtrComprCageBase cage_base);
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
+IS_TYPE_FUNCTION_DECL(SloppyArgumentsElements)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 IS_TYPE_FUNCTION_DECL(AnyHole)
