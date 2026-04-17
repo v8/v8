@@ -1322,7 +1322,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   Label push_stack_frame;
   DEFINE_PINNED(feedback_vector, a2);
-  __ LoadFeedbackVector(feedback_vector, closure, scratch, &push_stack_frame);
+  DEFINE_REG(feedback_cell);
+
+  __ LoadFeedbackCell(feedback_cell, closure);
+
+  Label budget_interrupt;
+  Label after_budget_check;
+
+  __ LoadFeedbackVectorFromCell(feedback_vector, feedback_cell, scratch,
+                                &push_stack_frame);
 
 #ifndef V8_JITLESS
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, a4);
@@ -1357,6 +1365,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ SmiTag(scratch, bytecode_offset);
   __ Push(bytecode_array, scratch, feedback_vector);
   FREE_REG(feedback_vector);
+  DEFINE_PINNED(call_code_start, kJavaScriptCallCodeStartRegister);
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
   {
@@ -1392,13 +1401,25 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Label no_incoming_new_target_or_generator_register;
   __ Lw(scratch,
         FieldMemOperand(
-            kInterpreterBytecodeArrayRegister,
+            bytecode_array,
             BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
   __ Branch(&no_incoming_new_target_or_generator_register, eq, scratch,
             Operand(zero_reg), Label::Distance::kNear);
   __ CalcScaledAddress(scratch, fp, scratch, kSystemPointerSizeLog2);
   __ StoreWord(target, MemOperand(scratch));
   __ bind(&no_incoming_new_target_or_generator_register);
+
+  // Reduce interrupt budget.
+  ASSIGN_REG(scratch2);
+  __ Lw(scratch, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
+  __ SmiUntagField(
+      scratch2, FieldMemOperand(bytecode_array, BytecodeArray::kLengthOffset));
+  __ Sub32(scratch, scratch, Operand(scratch2));
+  __ Sw(scratch, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
+  __ Branch(&budget_interrupt, lt, scratch, Operand(zero_reg));
+  __ bind(&after_budget_check);
 
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
@@ -1418,7 +1439,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Lbu(scratch, MemOperand(closure));
   __ CalcScaledAddress(kScratchReg, dispatch_table, scratch,
                        kSystemPointerSizeLog2);
-  DEFINE_PINNED(call_code_start, kJavaScriptCallCodeStartRegister);
   __ LoadWord(kJavaScriptCallCodeStartRegister, MemOperand(kScratchReg));
   __ Call(kJavaScriptCallCodeStartRegister);
 
@@ -1449,7 +1469,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Label do_return;
   __ AddWord(scratch, bytecode_array, bytecode_offset);
   __ Lbu(scratch, MemOperand(scratch));
-  ASSIGN_REG(scratch2);
   DEFINE_REG(scratch3);
   DEFINE_REG(scratch4);
   AdvanceBytecodeOffsetOrReturn(masm, bytecode_array, bytecode_offset, scratch,
@@ -1463,6 +1482,19 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   FREE_REG(scratch2);
   FREE_REG(scratch3);
   __ Jump(ra);
+
+  __ bind(&budget_interrupt);
+  __ LoadWord(a0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Push(a0);
+  __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Ignition, 1);
+  // After the call, restore the bytecode array, bytecode offset and accumulator
+  // registers again.
+  __ LoadWord(kInterpreterBytecodeArrayRegister,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ li(kInterpreterBytecodeOffsetRegister,
+        Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Branch(&after_budget_check);
 
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
