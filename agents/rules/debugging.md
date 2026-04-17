@@ -13,6 +13,7 @@ When tasked with debugging a crash or investigating unexpected behavior, the mai
 - **DO NOT** perform extensive searches or read large C++ files yourself.
 - Your sole job is to **Orchestrate**, **Delegate**, and **Synthesize**.
 - **Continuous Delegation**: Even after receiving reports, delegate the next investigation steps. Do not take over.
+- **Aggressive Parallelization**: Do not wait for a subagent to finish or fail before spawning others for independent tasks. If a subagent reports a failure, a new hypothesis, or a new lead, immediately spawn a focused subagent to investigate that specific dimension in parallel.
 - **User Interface**: Act strictly as the interface to the user. Keep them informed of high-level certainties. You may provide brief status updates on running agents.
 - **Naming**: Do not refer to subagents by specific titles (e.g., "Spec Expert") in user communications. Use generic descriptions of the inquiry instead.
 
