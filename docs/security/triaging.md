@@ -99,6 +99,12 @@ Rationale: Crashes are either bogus and do not happen in production builds or ar
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
 
+### Sandbox: Read-only bypasses
+
+Fields: **Type=Bug**, **Security_Impact-None**
+
+Rationale: Sandbox bypasses that only lead to read access outside of the sandbox are not considered security vulnerabilities for now.
+
 ### Breakage through directly invoking internal runtime functions with `%`-syntax
 
 Runtime functions like `%IterableForEach()` are directly visible to JavaScript programs via `--allow-natives-syntax`.
