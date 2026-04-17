@@ -584,6 +584,11 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         bool string_keys = key_type == wasm::kWasmExternRef;
         return ElementAccessInfo(map, trap_value, target, string_keys, zone());
       }
+      if (proto_map.IsWasmObjectMap()) {
+        // Wasm objects are opaque and frozen, so we can safely skip over them.
+        prototype = proto_map.prototype(broker());
+        continue;
+      }
       // Nothing else can occur on prototype chains.
       UNREACHABLE();
     }
