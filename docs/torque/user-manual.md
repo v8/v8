@@ -10,7 +10,7 @@ Torque provides language constructs to represent high-level, semantically-rich t
 
 ## Getting started
 
-Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://crsrc.org/c/v8/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classes are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://crsrc.org/c/v8/src/torque). Tests for Torque functionality are checked in under [`test/torque`](https://crsrc.org/c/v8/test/torque), [`test/cctest/torque`](https://crsrc.org/c/v8/test/cctest/torque), and [`test/unittests/torque`](https://crsrc.org/c/v8/test/unittests/torque).
+Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://crsrc.org/c/v8/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classes are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://crsrc.org/c/v8/src/torque). For details on how the compiler works, see [Torque Architecture](architecture.md). Tests for Torque functionality are checked in under [`test/torque`](https://crsrc.org/c/v8/test/torque), [`test/cctest/torque`](https://crsrc.org/c/v8/test/cctest/torque), and [`test/unittests/torque`](https://crsrc.org/c/v8/test/unittests/torque).
 
 To give you a taste of the language, let’s write a V8 builtin that prints “Hello World!”. To do this, we’ll add a Torque `macro` in a test case and call it from the `cctest` test framework.
 

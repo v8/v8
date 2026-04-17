@@ -231,3 +231,6 @@ m2 = 42;  // heh.
 ## Where to go from here
 
 Many options. Map migration. Dictionary mode (aka "slow mode"). Lots to explore in this area and I hope you enjoy yourself as much as I do -- thanks for reading!
+
+## See Also
+- [Hidden Classes and Inline Caches](hidden-classes-and-ics.md)

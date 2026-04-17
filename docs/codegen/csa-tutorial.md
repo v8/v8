@@ -1,7 +1,8 @@
 ---
-title: 'CodeStubAssembler builtins'
+title: 'CodeStubAssembler Tutorial'
 description: 'This document is intended as an introduction to writing CodeStubAssembler builtins, and is targeted towards V8 developers.'
 ---
+
 This document is intended as an introduction to writing CodeStubAssembler builtins, and is targeted towards V8 developers.
 
 :::note
@@ -16,10 +17,11 @@ V8’s builtins can be implemented using a number of different methods (each wit
 
 - **Platform-dependent assembly language**: can be highly efficient, but need manual ports to all platforms and are difficult to maintain.
 - **C++**: very similar in style to runtime functions and have access to V8’s powerful runtime functionality, but usually not suited to performance-sensitive areas.
-- **JavaScript**: concise and readable code, access to fast intrinsics, but frequent usage of slow runtime calls, subject to unpredictable performance through type pollution, and subtle issues around (complicated and non-obvious) JS semantics.
+- **JavaScript**: concise and readable code, access to fast intrinsics, but frequent usage of slow runtime calls, subject to unpredictable performance through type pollution, and subtle issues around JS semantics. *(Mostly deprecated now for new builtins, replaced by Torque).*
 - **CodeStubAssembler**: provides efficient low-level functionality that is very close to assembly language while remaining platform-independent and preserving readability.
+- **Torque**: The recommended high-level language that generates CSA code.
 
-The remaining document focuses on the latter and give a brief tutorial for developing a simple CodeStubAssembler (CSA) builtin exposed to JavaScript.
+The remaining document focuses on CodeStubAssembler and gives a brief tutorial for developing a simple CodeStubAssembler (CSA) builtin exposed to JavaScript.
 
 ## CodeStubAssembler
 
@@ -28,14 +30,15 @@ V8’s CodeStubAssembler is a custom, platform-agnostic assembler that provides 
 ```cpp
 // Low-level:
 // Loads the pointer-sized data at addr into value.
-Node* addr = /* ... */;
-Node* value = Load(MachineType::IntPtr(), addr);
+TNode<IntPtrT> addr = /* ... */;
+TNode<Object> value = Load<Object>(addr);
 
 // And high-level:
 // Performs the JS operation ToString(object).
 // ToString semantics are specified at https://tc39.es/ecma262/#sec-tostring.
-Node* object = /* ... */;
-Node* string = ToString(context, object);
+TNode<Context> context = /* ... */;
+TNode<Object> object = /* ... */;
+TNode<String> string = ToString(context, object);
 ```
 
 CSA builtins run through part of the TurboFan compilation pipeline (including block scheduling and register allocation, but notably not through optimization passes) which then emits the final executable code.
@@ -48,14 +51,12 @@ This example demonstrates:
 
 - Creating a CSA builtin with JavaScript linkage, which can be called like a JS function.
 - Using CSA to implement simple logic: Smi and heap-number handling, conditionals, and calls to TFS builtins.
-- Using CSA Variables.
+- Using CSA Variables (`TVARIABLE`).
 - Installation of the CSA builtin on the `Math` object.
-
-In case you’d like to follow along locally, the following code is based off revision [7a8d20a7](https://chromium.googlesource.com/v8/v8/+/7a8d20a79f9d5ce6fe589477b09327f3e90bf0e0).
 
 ## Declaring `MathIs42`
 
-Builtins are declared in the `BUILTIN_LIST_BASE` macro in [`src/builtins/builtins-definitions.h`](https://crsrc.org/c/v8/src/builtins/builtins-definitions.h). To create a new CSA builtin with JS linkage and one parameter named `X`:
+Builtins are declared in the `BUILTIN_LIST_BASE` macro in `src/builtins/builtins-definitions.h`. To create a new CSA builtin with JS linkage and one parameter named `X`:
 
 ```cpp
 #define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)              \
@@ -73,7 +74,7 @@ Note that `BUILTIN_LIST_BASE` takes several different macros that denote differe
 
 ## Defining `MathIs42`
 
-Builtin definitions are located in `src/builtins/builtins-*-gen.cc` files, roughly organized by topic. Since we will be writing a `Math` builtin, we’ll put our definition into [`src/builtins/builtins-math-gen.cc`](https://cs.chromium.org/chromium/src/v8/src/builtins/builtins-math-gen.cc?q=builtins-math-gen.cc+package:%5Echromium$&l=1).
+Builtin definitions are located in `src/builtins/builtins-*-gen.cc` files, roughly organized by topic. Since we will be writing a `Math` builtin, we’ll put our definition into `src/builtins/builtins-math-gen.cc`.
 
 ```cpp
 // TF_BUILTIN is a convenience macro that creates a new subclass of the given
@@ -82,18 +83,17 @@ TF_BUILTIN(MathIs42, MathBuiltinsAssembler) {
   // Load the current function context (an implicit argument for every stub)
   // and the X argument. Note that we can refer to parameters by the names
   // defined in the builtin declaration.
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const x = Parameter(Descriptor::kX);
+  TNode<Context> const context = Parameter<Context>(Descriptor::kContext);
+  TNode<Object> const x = Parameter<Object>(Descriptor::kX);
 
   // At this point, x can be basically anything - a Smi, a HeapNumber,
   // undefined, or any other arbitrary JS object. Let’s call the ToNumber
   // builtin to convert x to a number we can use.
   // CallBuiltin can be used to conveniently call any CSA builtin.
-  Node* const number = CallBuiltin(Builtins::kToNumber, context, x);
+  TNode<Number> const number = CAST(CallBuiltin(Builtins::kToNumber, context, x));
 
-  // Create a CSA variable to store the resulting value. The type of the
-  // variable is kTagged since we will only be storing tagged pointers in it.
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  // Create a CSA variable to store the resulting value.
+  TVARIABLE(Object, var_result);
 
   // We need to define a couple of labels which will be used as jump targets.
   Label if_issmi(this), if_isheapnumber(this), out(this);
@@ -109,7 +109,8 @@ TF_BUILTIN(MathIs42, MathBuiltinsAssembler) {
     // SelectBooleanConstant returns the JS true/false values depending on
     // whether the passed condition is true/false. The result is bound to our
     // var_result variable, and we then unconditionally jump to the out label.
-    var_result.Bind(SelectBooleanConstant(SmiEqual(number, SmiConstant(42))));
+    TNode<Smi> smi_number = CAST(number);
+    var_result.Bind(SelectBooleanConstant(SmiEqual(smi_number, SmiConstant(42))));
     Goto(&out);
   }
 
@@ -118,18 +119,20 @@ TF_BUILTIN(MathIs42, MathBuiltinsAssembler) {
     // ToNumber can only return either a Smi or a heap number. Just to make sure
     // we add an assertion here that verifies number is actually a heap number.
     CSA_ASSERT(this, IsHeapNumber(number));
+    
     // Heap numbers wrap a floating point value. We need to explicitly extract
     // this value, perform a floating point comparison, and again bind
     // var_result based on the outcome.
-    Node* const value = LoadHeapNumberValue(number);
-    Node* const is_42 = Float64Equal(value, Float64Constant(42));
+    TNode<HeapNumber> hn_number = CAST(number);
+    TNode<Float64T> const value = LoadHeapNumberValue(hn_number);
+    TNode<BoolT> const is_42 = Float64Equal(value, Float64Constant(42));
     var_result.Bind(SelectBooleanConstant(is_42));
     Goto(&out);
   }
 
   BIND(&out);
   {
-    Node* const result = var_result.value();
+    TNode<Object> const result = var_result.value();
     CSA_ASSERT(this, IsBoolean(result));
     Return(result);
   }
@@ -138,7 +141,7 @@ TF_BUILTIN(MathIs42, MathBuiltinsAssembler) {
 
 ## Attaching `Math.Is42`
 
-Builtin objects such as `Math` are set up mostly in [`src/init/bootstrapper.cc`](https://crsrc.org/c/v8/src/init/bootstrapper.cc) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
+Builtin objects such as `Math` are set up mostly in `src/init/bootstrapper.cc`. Attaching our new builtin is simple:
 
 ```cpp
 // Existing code to set up Math, included here for clarity.
@@ -166,7 +169,7 @@ true
 
 CSA builtins can also be created with stub linkage (instead of JS linkage as we used above in `MathIs42`). Such builtins can be useful to extract commonly-used code into a separate code object that can be used by multiple callers, while the code is only produced once. Let’s extract the code that handles heap numbers into a separate builtin called `MathIsHeapNumber42`, and call it from `MathIs42`.
 
-Defining and using TFS stubs is easy; declaration are again placed in [`src/builtins/builtins-definitions.h`](https://cs.chromium.org/chromium/src/v8/src/builtins/builtins-definitions.h?q=builtins-definitions.h+package:%5Echromium$&l=1):
+Defining and using TFS stubs is easy; declaration are again placed in `src/builtins/builtins-definitions.h`:
 
 ```cpp
 #define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM, DBG)              \
@@ -176,17 +179,18 @@ Defining and using TFS stubs is easy; declaration are again placed in [`src/buil
   // […snip…]
 ```
 
-Note that currently, order within `BUILTIN_LIST_BASE` does matter. Since `MathIs42` calls `MathIsHeapNumber42`, the former needs to be listed after the latter (this requirement should be lifted at some point).
+Note that currently, order within `BUILTIN_LIST_BASE` does matter. Since `MathIs42` calls `MathIsHeapNumber42`, the former needs to be listed after the latter.
 
-The definition is also straightforward. In [`src/builtins/builtins-math-gen.cc`](https://cs.chromium.org/chromium/src/v8/src/builtins/builtins-math-gen.cc?q=builtins-math-gen.cc+package:%5Echromium$&l=1):
+The definition is also straightforward. In `src/builtins/builtins-math-gen.cc`:
 
 ```cpp
 // Defining a TFS builtin works exactly the same way as TFJ builtins.
 TF_BUILTIN(MathIsHeapNumber42, MathBuiltinsAssembler) {
-  Node* const x = Parameter(Descriptor::kX);
+  TNode<Object> const x = Parameter<Object>(Descriptor::kX);
   CSA_ASSERT(this, IsHeapNumber(x));
-  Node* const value = LoadHeapNumberValue(x);
-  Node* const is_42 = Float64Equal(value, Float64Constant(42));
+  TNode<HeapNumber> hn_x = CAST(x);
+  TNode<Float64T> const value = LoadHeapNumberValue(hn_x);
+  TNode<BoolT> const is_42 = Float64Equal(value, Float64Constant(42));
   Return(SelectBooleanConstant(is_42));
 }
 ```
@@ -212,7 +216,7 @@ An important reason is code space: builtins are generated at compile-time and in
 
 ## Testing stub-linkage builtins
 
-Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to [`test/cctest/compiler/test-run-stubs.cc`](https://cs.chromium.org/chromium/src/v8/test/cctest/compiler/test-run-stubs.cc?l=1&rcl=4cab16db27808cf66ab883e7904f1891f9fd0717) to test the builtin on all platforms:
+Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to `test/cctest/compiler/test-run-stubs.cc` to test the builtin on all platforms:
 
 ```cpp
 TEST(MathIsHeapNumber42) {

@@ -1,22 +1,9 @@
 ---
-title: 'V8 Torque builtins'
+title: 'Torque Tutorial'
 description: 'This document is intended as an introduction to writing Torque builtins, and is targeted towards V8 developers.'
 ---
-This document is intended as an introduction to writing Torque builtins, and is targeted towards V8 developers. Torque replaces CodeStubAssembler as the recommended way to implement new builtins. See [CodeStubAssembler builtins](/docs/csa-builtins) for the CSA version of this guide.
 
-## Builtins
-
-In V8, builtins can be seen as chunks of code that are executable by the VM at runtime. A common use case is to implement the functions of builtin objects (such as `RegExp` or `Promise`), but builtins can also be used to provide other internal functionality (e.g. as part of the IC system).
-
-V8’s builtins can be implemented using a number of different methods (each with different trade-offs):
-
-- **Platform-dependent assembly language**: can be highly efficient, but need manual ports to all platforms and are difficult to maintain.
-- **C++**: very similar in style to runtime functions and have access to V8’s powerful runtime functionality, but usually not suited to performance-sensitive areas.
-- **JavaScript**: concise and readable code, access to fast intrinsics, but frequent usage of slow runtime calls, subject to unpredictable performance through type pollution, and subtle issues around (complicated and non-obvious) JS semantics. Javascript builtins are deprecated and should not be added anymore.
-- **CodeStubAssembler**: provides efficient low-level functionality that is very close to assembly language while remaining platform-independent and preserving readability.
-- **[V8 Torque](/docs/torque)**: is a V8-specific domain-specific language that is translated to CodeStubAssembler. As such, it extends upon CodeStubAssembler and offers static typing as well as readable and expressive syntax.
-
-The remaining document focuses on the latter and give a brief tutorial for developing a simple Torque builtin exposed to JavaScript. For more complete information about Torque, see the [V8 Torque user manual](/docs/torque).
+This document is intended as an introduction to writing Torque builtins, and is targeted towards V8 developers. Torque replaces CodeStubAssembler as the recommended way to implement new builtins. See [CodeStubAssembler Tutorial](../codegen/csa-tutorial.md) for the CSA version of this guide.
 
 ## Writing a Torque builtin
 
@@ -64,7 +51,7 @@ We put the definition in the Torque namespace `math`, which already contains oth
 
 ## Attaching `Math.is42`
 
-Builtin objects such as `Math` are set up mostly in [`src/init/bootstrapper.cc`](https://crsrc.org/c/v8/src/init/bootstrapper.cc) (with some setup occurring in `.js` files). Attaching our new builtin is simple:
+Builtin objects such as `Math` are set up mostly in `src/init/bootstrapper.cc` (with some setup occurring in `.js` files). Attaching our new builtin is simple:
 
 ```cpp
 // Existing code to set up Math, included here for clarity.
@@ -123,7 +110,7 @@ An important reason is code space: builtins are generated at compile-time and in
 
 ## Testing stub-linkage builtins
 
-Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to [`test/cctest/compiler/test-run-stubs.cc`](https://crsrc.org/c/v8/test/cctest/compiler/test-run-stubs.cc) to test the builtin on all platforms:
+Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to `test/cctest/compiler/test-run-stubs.cc` to test the builtin on all platforms:
 
 ```cpp
 TEST(MathIsHeapNumber42) {
