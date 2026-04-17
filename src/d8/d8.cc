@@ -2782,18 +2782,21 @@ void Shell::TestVerifySourcePositions(
 
   auto callable =
       i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(arg_handle);
-  while (IsJSBoundFunction(*callable)) {
+  while (IsJSBoundFunction(*callable) || IsJSWrappedFunction(*callable)) {
     internal::DisallowGarbageCollection no_gc;
-    auto bound_function = i::Cast<i::JSBoundFunction>(callable);
-    auto bound_target = bound_function->bound_target_function();
-    if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(bound_target)) {
+    auto target =
+        IsJSBoundFunction(*callable)
+            ? i::Cast<i::JSBoundFunction>(callable)->bound_target_function()
+            : i::Cast<i::JSWrappedFunction>(callable)
+                  ->wrapped_target_function();
+    if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(target)) {
       internal::AllowGarbageCollection allow_gc;
-      ThrowError(isolate, "Expected function as bound target.");
+      ThrowError(isolate, "Expected function as target.");
       return;
     }
-    callable = handle(
-        i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(bound_target),
-        i_isolate);
+    callable =
+        handle(i::Cast<i::JSFunctionOrBoundFunctionOrWrappedFunction>(target),
+               i_isolate);
   }
 
   i::DirectHandle<i::JSFunction> function = i::Cast<i::JSFunction>(callable);
