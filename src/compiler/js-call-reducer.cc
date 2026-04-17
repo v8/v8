@@ -37,7 +37,6 @@
 #include "src/ic/call-optimization.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
@@ -124,9 +123,6 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                       TNode<Object> arg2, TNode<Object> arg3);
 
   // Javascript operators.
-  TNode<Object> JSCall2(TNode<Object> function, TNode<Object> this_arg,
-                        TNode<Object> arg0, TNode<Object> arg1,
-                        FrameState frame_state);
   TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
                         TNode<Object> arg0, TNode<Object> arg1,
                         TNode<Object> arg2, FrameState frame_state);
@@ -453,10 +449,6 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                             const bool has_stability_dependency,
                                             ElementsKind kind,
                                             SharedFunctionInfoRef shared);
-  TNode<Object> ReduceArrayPrototypeSort(MapInference* inference,
-                                         const bool has_stability_dependency,
-                                         ElementsKind kind,
-                                         SharedFunctionInfoRef shared);
   TNode<Object> ReduceArrayPrototypeReduce(MapInference* inference,
                                            const bool has_stability_dependency,
                                            ElementsKind kind,
@@ -864,24 +856,6 @@ TNode<Object> JSCallReducerAssembler::Call4(
 
   return TNode<Object>::UncheckedCast(Call(desc, HeapConstant(callable.code()),
                                            arg0, arg1, arg2, arg3, context));
-}
-
-TNode<Object> JSCallReducerAssembler::JSCall2(TNode<Object> function,
-                                              TNode<Object> this_arg,
-                                              TNode<Object> arg0,
-                                              TNode<Object> arg1,
-                                              FrameState frame_state) {
-  JSCallNode n(node_ptr());
-  CallParameters const& p = n.Parameters();
-  return MayThrow(_ {
-    return AddNode<Object>(graph()->NewNode(
-        javascript()->Call(JSCallNode::ArityForArgc(2), p.frequency(),
-                           p.feedback(), ConvertReceiverMode::kAny,
-                           p.speculation_mode(),
-                           CallFeedbackRelation::kUnrelated),
-        function, this_arg, arg0, arg1, n.feedback_vector(), ContextInput(),
-        frame_state, effect(), control()));
-  });
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
@@ -1619,42 +1593,6 @@ TNode<Number> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypePush(
 
 namespace {
 
-// ---- Array.prototype.sort inline insertion sort
-// --------------------------------
-
-struct SortFrameStateParams {
-  JSGraph* jsgraph;
-  SharedFunctionInfoRef shared;
-  TNode<Context> context;
-  TNode<Object> target;
-  FrameState outer_frame_state;
-  TNode<Object> receiver;
-  TNode<Object> comparefn;
-};
-
-// Deopt frame states for the inlined sort.  The sort operates on a temp
-// array copy so the receiver is unmodified — just restart the generic sort.
-FrameState SortNoopEagerFrameState(const SortFrameStateParams& params) {
-  Node* checkpoint_params[] = {params.receiver, params.comparefn};
-  return CreateJavaScriptBuiltinContinuationFrameState(
-      params.jsgraph, params.shared,
-      Builtin::kArraySortNoopEagerDeoptContinuation, params.target,
-      params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
-}
-
-FrameState SortNoopLazyFrameState(const SortFrameStateParams& params) {
-  Node* checkpoint_params[] = {params.receiver, params.comparefn};
-  return CreateJavaScriptBuiltinContinuationFrameState(
-      params.jsgraph, params.shared,
-      Builtin::kArraySortNoopLazyDeoptContinuation, params.target,
-      params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
-}
-
-// ---- Array.prototype.forEach
-// --------------------------------------------------
-
 struct ForEachFrameStateParams {
   JSGraph* jsgraph;
   SharedFunctionInfoRef shared;
@@ -1732,191 +1670,6 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
   });
 
   return UndefinedConstant();
-}
-
-TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
-    MapInference* inference, const bool has_stability_dependency,
-    ElementsKind kind, SharedFunctionInfoRef shared) {
-  // Inline a small insertion sort directly into the Turbofan graph.
-  //
-  // Fast path (length <= kMaxInlineSortLength):
-  //   1. Copy receiver's elements into a temporary FixedArray.
-  //   2. Insertion-sort the temp array, calling comparefn for each comparison.
-  //   3. Copy sorted elements back into the receiver.
-  //   Using a temp array matches the spec's SortIndexedProperties snapshot
-  //   semantics: comparefn side effects on the receiver do not affect the
-  //   sort order and are overwritten by the copy-back.
-  //
-  // Slow path (length > kMaxInlineSortLength):
-  //   Call Array.prototype.sort with kDisallowSpeculation to prevent
-  //   re-reduction.
-  //
-  // On any deopt the kArraySortNoopLazy/EagerDeoptContinuation builtins
-  // restart the generic sort (the receiver is unmodified since the sort
-  // operates on a temp copy).
-  static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
-
-  FrameState outer_frame_state = FrameStateInput();
-  TNode<Context> context = ContextInput();
-  TNode<Object> target = TargetInput();
-  TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
-  TNode<Object> comparefn = ArgumentOrUndefined(0);
-
-  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
-
-  SortFrameStateParams frame_state_params{
-      jsgraph(),         shared,   context,  target,
-      outer_frame_state, receiver, comparefn};
-
-  // Branch: fast path vs slow path.
-  auto slow_label = MakeDeferredLabel();
-  auto done_label = MakeLabel();
-
-  // length > kMaxInlineSortSize → slow path.
-  GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
-         &slow_label);
-
-  // Fast path: inline insertion sort on a temporary FixedArray.
-  {
-    // Allocate a temporary FixedArray of kMaxInlineSortSize.  We always
-    // allocate the max size so that the allocation is constant-sized.
-    MapRef fixed_array_map = broker()->fixed_array_map();
-    AllocationBuilder ab(jsgraph(), broker(), effect(), control());
-    CHECK(ab.CanAllocateArray(kMaxInlineSortSize, fixed_array_map));
-    ab.AllocateArray(kMaxInlineSortSize, fixed_array_map);
-    for (int k = 0; k < kMaxInlineSortSize; k++) {
-      ab.Store(AccessBuilder::ForFixedArraySlot(k), jsgraph()->ZeroConstant());
-    }
-    TNode<FixedArray> temp_array =
-        TNode<FixedArray>::UncheckedCast(ab.Finish());
-    InitializeEffectControl(temp_array, control());
-
-    // Copy-in: temp_array[k] = elements[k] for k in [0, length).
-    // No CheckBounds needed: k in [0, length) and the receiver's length is
-    // original_length (no callbacks have run yet).
-    auto element_access = AccessBuilder::ForFixedArrayElement(kind);
-    TNode<FixedArrayBase> elements = LoadElements(receiver);
-    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
-      TNode<Object> element = LoadElement<Object>(element_access, elements, k);
-      StoreElement(element_access, temp_array, k, element);
-    });
-
-    // Establish a dominating frame state for the deopting ops.
-    Checkpoint(SortNoopEagerFrameState(frame_state_params));
-
-    // Outer loop: for (i = 1; i < length; i++).
-    auto outer_exit = MakeLabel();
-    {
-      GraphAssembler::LoopScope<MachineRepresentation::kTagged> outer_scope(
-          this);
-      auto* outer_header = outer_scope.loop_header_label();
-      auto outer_body = MakeLabel();
-
-      Goto(outer_header, OneConstant());
-      Bind(outer_header);
-      TNode<Number> i = outer_header->PhiAt<Number>(0);
-
-      BranchWithHint(NumberLessThan(i, original_length), &outer_body,
-                     &outer_exit, BranchHint::kNone);
-      Bind(&outer_body);
-
-      // Load pivot = temp_array[i].
-      TNode<Object> pivot = LoadElement<Object>(element_access, temp_array, i);
-
-      // Inner loop: j = i-1 downto 0.
-      auto inner_exit = MakeDeferredLabel(MachineRepresentation::kTagged);
-      {
-        GraphAssembler::LoopScope<MachineRepresentation::kTagged> inner_scope(
-            this);
-        auto* inner_header = inner_scope.loop_header_label();
-
-        TNode<Number> j_init = NumberAdd(i, NumberConstant(-1));
-        Goto(inner_header, j_init);
-        Bind(inner_header);
-        TNode<Number> j = inner_header->PhiAt<Number>(0);
-
-        // Exit when j < 0 (pivot belongs at index 0).
-        GotoIf(NumberLessThan(j, ZeroConstant()), &inner_exit,
-               BranchHint::kNone, j);
-
-        // Load elem = temp_array[j].
-        TNode<Object> elem = LoadElement<Object>(element_access, temp_array, j);
-
-        TNode<Object> comparefn_this = UndefinedConstant();
-        TNode<Object> cmp_result =
-            JSCall2(comparefn, comparefn_this, pivot, elem,
-                    SortNoopLazyFrameState(frame_state_params));
-
-        // Convert comparefn result to a number.
-        TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
-
-        // If cmp >= 0: insertion point found; exit.
-        GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit, j);
-
-        // cmp < 0: shift elem right: temp_array[j+1] = elem.
-        TNode<Number> gap = NumberAdd(j, OneConstant());
-        StoreElement(element_access, temp_array, gap, elem);
-
-        // j--
-        Goto(inner_header, NumberAdd(j, NumberConstant(-1)));
-      }  // ~inner LoopScope
-
-      Bind(&inner_exit);
-      TNode<Number> final_j = inner_exit.PhiAt<Number>(0);
-      TNode<Number> insertion_point = NumberAdd(final_j, OneConstant());
-
-      // temp_array[insertion_point] = pivot.
-      StoreElement(element_access, temp_array, insertion_point, pivot);
-
-      // i++
-      Goto(outer_header, NumberAdd(i, OneConstant()));
-    }  // ~outer LoopScope
-
-    Bind(&outer_exit);
-
-    // Guard: comparefn side effects may have changed the receiver's map or
-    // length.  Check once here before the copy-back (the sort loop only
-    // touches the temp array, so in-loop checks are unnecessary).
-    Checkpoint(SortNoopEagerFrameState(frame_state_params));
-    MaybeInsertMapChecks(inference, has_stability_dependency);
-    TNode<Number> current_length = LoadJSArrayLength(receiver, kind);
-    CheckIf(NumberEqual(current_length, original_length),
-            DeoptimizeReason::kArrayLengthChanged);
-
-    // Copy-back: elements[k] = temp_array[k] for k in [0, length).
-    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
-      TNode<Object> val = LoadElement<Object>(element_access, temp_array, k);
-      StoreFixedArrayBaseElement(elements, k, val, kind);
-    });
-
-    Goto(&done_label);
-  }
-
-  // Slow path: call the generic sort builtin.
-  Bind(&slow_label);
-  {
-    JSCallNode n(node_ptr());
-    CallParameters const& p = n.Parameters();
-
-    // Use kDisallowSpeculation so JSCallReducer does not re-reduce this
-    // call, avoiding infinite recursion.
-    const Operator* op = javascript()->Call(
-        JSCallNode::ArityForArgc(1), p.frequency(), p.feedback(),
-        ConvertReceiverMode::kNotNullOrUndefined,
-        SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
-    Node* sort_builtin = node_ptr()->InputAt(0);
-
-    MayThrow(_ {
-      return AddNode<Object>(graph()->NewNode(
-          op, sort_builtin, receiver, comparefn, n.feedback_vector(),
-          ContextInput(), outer_frame_state, effect(), control()));
-    });
-
-    Goto(&done_label);
-  }
-
-  Bind(&done_label);
-  return receiver;
 }
 
 namespace {
@@ -4021,33 +3774,6 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-Reduction JSCallReducer::ReduceArraySort(Node* node,
-                                         SharedFunctionInfoRef shared) {
-  JSCallNode n(node);
-  if (n.ArgumentCount() < 1) return NoChange();
-
-  // Only reduce when comparefn is statically known to be callable.
-  HeapObjectMatcher m(n.Argument(0));
-  bool comparefn_is_callable =
-      (m.HasResolvedValue() && m.Ref(broker()).map(broker()).is_callable()) ||
-      m.IsJSCreateClosure() || m.IsCheckClosure();
-  if (!comparefn_is_callable) return NoChange();
-
-  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
-  if (!h.can_reduce()) return h.inference()->NoChange();
-
-  // Only non-holey, non-double PACKED kinds are supported.  Holey arrays need
-  // hole handling; double arrays need a FixedDoubleArray temp copy.
-  if (IsHoleyElementsKind(h.elements_kind())) return h.inference()->NoChange();
-  if (IsDoubleElementsKind(h.elements_kind())) return h.inference()->NoChange();
-
-  IteratingArrayBuiltinReducerAssembler a(this, node);
-  a.InitializeEffectControl(h.effect(), h.control());
-  TNode<Object> subgraph = a.ReduceArrayPrototypeSort(
-      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
-  return ReplaceWithSubgraph(&a, subgraph);
-}
-
 Reduction JSCallReducer::ReduceArrayReduce(Node* node,
                                            SharedFunctionInfoRef shared) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
@@ -5305,8 +5031,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceReflectHas(node);
     case Builtin::kArrayForEach:
       return ReduceArrayForEach(node, shared);
-    case Builtin::kArrayPrototypeSort:
-      return ReduceArraySort(node, shared);
     case Builtin::kArrayMap:
       return ReduceArrayMap(node, shared);
     case Builtin::kArrayFilter:

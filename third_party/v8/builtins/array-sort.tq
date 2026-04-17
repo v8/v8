@@ -194,11 +194,6 @@ const kMaxMergePending: constexpr int31 = 85;
 // often then kMinGallop consecutive times. See listsort.txt for more info.
 const kMinGallopWins: constexpr int31 = 7;
 
-// Maximum array length for which BinaryInsertionSort is used directly instead
-// of the full TimSort.  Must match JSArray::kMaxInlineSortLength.
-const kMaxBinaryInsertionSortLength:
-    constexpr int31 generates 'JSArray::kMaxInlineSortLength';
-
 // Default size of the temporary array. The temporary array is allocated when
 // it is first requested, but it has always at least this size.
 const kSortStateTempSize: Smi = 32;
@@ -1460,7 +1455,7 @@ transitioning builtin ArrayTimSort(context: Context, sortState: SortState):
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
 
-  if (numberOfNonUndefined < kMaxBinaryInsertionSortLength) {
+  if (numberOfNonUndefined < kMinTimSortLen) {
     // Faster for small arrays.
     BinaryInsertionSort(0, 0, numberOfNonUndefined);
   } else {
