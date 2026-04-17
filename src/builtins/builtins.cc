@@ -726,7 +726,7 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
 #if V8_ENABLE_DRUMBRAKE
-    case Builtin::kGenericJSToWasmInterpreterWrapper:
+    case Builtin::kJSToWasmInterpreterWrapper:
 #endif
     case Builtin::kWasmStressSwitch:
       return JSBuiltinStateFlag::kJSTrampoline;

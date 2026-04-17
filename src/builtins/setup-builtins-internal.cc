@@ -107,6 +107,10 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
       builtin == Builtin::kJSToWasmWrapper ||
       builtin == Builtin::kJSToWasmHandleReturns ||
+#ifdef V8_ENABLE_DRUMBRAKE
+      builtin == Builtin::kJSToWasmInterpreterHandleReturns ||
+      builtin == Builtin::kJSToWasmInterpreterWrapper ||
+#endif  // V8_ENABLE_DRUMBRAKE
       builtin == Builtin::kWasmToJsWrapperCSA) {
     options.is_wasm = true;
   }

@@ -239,7 +239,7 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate_->builtins()->code_handle(
-        Builtin::kGenericJSToWasmInterpreterWrapper);
+        Builtin::kJSToWasmInterpreterWrapper);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 

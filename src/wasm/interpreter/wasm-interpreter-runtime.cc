@@ -71,13 +71,14 @@ Address FindInterpreterEntryFramePointer(Isolate* isolate) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   DirectHandle<WasmTrustedInstanceData> trusted_data(
       instance->trusted_data(isolate), isolate);
   int32_t func_index = NumberToInt32(args[1]);
   DirectHandle<Object> arg_buffer_obj = args.at(2);
+  DirectHandle<Object> return_buffer_obj = args.at(3);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
@@ -125,7 +126,10 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     // Copy the arguments for the {arg_buffer} into a vector of {WasmValue}.
     // This also boxes reference types into handles, which needs to happen
     // before any methods that could trigger a GC are being called.
+    // kTqStackSlotSize is sizeof(intptr), see  LocationAllocator::GetStackSlot
+    size_t kTqStackSlotSize = sizeof(intptr_t);
     Address arg_buf_ptr = arg_buffer;
+    std::queue<int> ref_indices;
     for (int i = 0; i < num_params; ++i) {
 #define CASE_ARG_TYPE(type, ctype)                                     \
   case wasm::type:                                                     \
@@ -133,7 +137,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
               sizeof(ctype));                                          \
     wasm_args[i] =                                                     \
         wasm::WasmValue(base::ReadUnalignedValue<ctype>(arg_buf_ptr)); \
-    arg_buf_ptr += sizeof(ctype);                                      \
+    arg_buf_ptr += kTqStackSlotSize;                                   \
     break;
 
       wasm::ValueType value_type = sig->GetParam(i);
@@ -148,35 +152,26 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
         case wasm::kRefNull: {
           DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                     kSystemPointerSize);
-          // MarkCompactCollector::RootMarkingVisitor requires ref slots to be
-          // 64-bit aligned.
-          arg_buf_ptr += (arg_buf_ptr & 0x04);
-
-          DirectHandle<Object> ref(
-              base::ReadUnalignedValue<Tagged<Object>>(arg_buf_ptr), isolate);
-
-          const wasm::WasmInterpreterRuntime* wasm_runtime =
-              interpreter_handle->interpreter()->GetWasmRuntime();
-          ref = wasm_runtime->JSToWasmObject(ref, value_type);
-          if (isolate->has_exception()) {
-            interpreter_handle->SetTrapFunctionIndex(func_index);
-            return ReadOnlyRoots(isolate).exception();
-          }
-
-          if ((value_type != wasm::kWasmExternRef &&
-               value_type != wasm::kWasmNullExternRef) &&
-              IsNull(*ref, isolate)) {
-            ref = isolate->factory()->wasm_null();
-          }
-
-          wasm_args[i] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
-          arg_buf_ptr += kSystemPointerSize;
+          ref_indices.push(i);
           break;
         }
         case wasm::kWasmS128.kind():
         default:
           UNREACHABLE();
       }
+    }
+
+    while (!ref_indices.empty()) {
+      DirectHandle<Object> ref(
+          base::ReadUnalignedValue<Tagged<Object>>(arg_buf_ptr), isolate);
+      if (isolate->has_exception()) {
+        interpreter_handle->SetTrapFunctionIndex(func_index);
+        return ReadOnlyRoots(isolate).exception();
+      }
+
+      wasm_args[ref_indices.front()] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
+      arg_buf_ptr += kSystemPointerSize;
+      ref_indices.pop();
     }
 
     // Run the function in the interpreter. Note that neither the
@@ -194,15 +189,14 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
     // Copy return values from the vector of {WasmValue} into {arg_buffer}. This
     // also un-boxes reference types from handles into raw pointers.
-    arg_buf_ptr = arg_buffer;
-
+    arg_buf_ptr = (*return_buffer_obj).ptr();
     for (int i = 0; i < num_returns; ++i) {
 #define CASE_RET_TYPE(type, ctype)                                           \
   case wasm::type:                                                           \
     DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),       \
               sizeof(ctype));                                                \
     base::WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
-    arg_buf_ptr += sizeof(ctype);                                            \
+    arg_buf_ptr += kTqStackSlotSize;                                         \
     break;
 
       switch (sig->GetReturn(i).kind()) {
@@ -219,8 +213,6 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
           // Note: WasmToJSObject(ref) already called in ContinueExecution or
           // CallExternalJSFunction.
 
-          // Make sure ref slots are 64-bit aligned.
-          arg_buf_ptr += (arg_buf_ptr & 0x04);
           base::WriteUnalignedValue<Tagged<Object>>(arg_buf_ptr, *ref);
           arg_buf_ptr += kSystemPointerSize;
           break;

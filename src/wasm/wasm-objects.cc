@@ -2016,7 +2016,7 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate->builtins()->code_handle(
-        Builtin::kGenericJSToWasmInterpreterWrapper);
+        Builtin::kJSToWasmInterpreterWrapper);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
   Tagged<CodeWrapper> entry =
@@ -2909,7 +2909,7 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
   Tagged<Code> code = js_function->code(GetCurrentIsolateForSandbox());
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
 #if V8_ENABLE_DRUMBRAKE
-      code->builtin_id() != Builtin::kGenericJSToWasmInterpreterWrapper &&
+      code->builtin_id() != Builtin::kJSToWasmInterpreterWrapper &&
 #endif  // V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
       code->builtin_id() != Builtin::kWasmPromising &&
@@ -2965,15 +2965,15 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper) {
-  DCHECK(CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-         (export_wrapper->is_builtin() &&
-          (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  DCHECK(
+      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      (export_wrapper->is_builtin() &&
+       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-           export_wrapper->builtin_id() ==
-               Builtin::kGenericJSToWasmInterpreterWrapper ||
+        export_wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
 #endif  // V8_ENABLE_DRUMBRAKE
-           export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-           export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
+        export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
   int func_index = internal_function->function_index();
   wasm::Promise promise =
       export_wrapper->builtin_id() == Builtin::kWasmPromising

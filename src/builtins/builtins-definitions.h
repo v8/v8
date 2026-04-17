@@ -1175,7 +1175,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
-  IF_WASM_DRUMBRAKE(ASM, GenericJSToWasmInterpreterWrapper, JSTrampoline)      \
+  IF_WASM_DRUMBRAKE(ASM, JSToWasmInterpreterWrapperAsm, WasmJSToWasmWrapper)   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \
   IF_WASM_DRUMBRAKE(ASM, GenericWasmToJSInterpreterWrapper, WasmDummy)         \
                                                                                \

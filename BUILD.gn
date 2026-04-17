@@ -2311,6 +2311,9 @@ if (v8_enable_webassembly) {
     "src/debug/debug-wasm-objects.tq",
     "src/wasm/wasm-objects.tq",
   ]
+  if (v8_enable_drumbrake) {
+    torque_files += [ "src/builtins/wasm-interpreter-wrappers.tq" ]
+  }
 }
 
 if (v8_enable_experimental_tq_to_tsa) {

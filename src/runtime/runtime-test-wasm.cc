@@ -393,11 +393,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
                        (code->builtin_id() == Builtin::kJSToWasmWrapper);
 #if V8_ENABLE_DRUMBRAKE
   // TODO(paolosev@microsoft.com) - Implement an empty
-  // GenericJSToWasmInterpreterWrapper also when V8_ENABLE_DRUMBRAKE is not
+  // kJSToWasmInterpreterWrapper also when V8_ENABLE_DRUMBRAKE is not
   // defined to get rid of these #ifdefs.
-  is_js_to_wasm =
-      is_js_to_wasm ||
-      (code->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper);
+  is_js_to_wasm = is_js_to_wasm ||
+                  (code->builtin_id() == Builtin::kJSToWasmInterpreterWrapper);
 #endif  // V8_ENABLE_DRUMBRAKE
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }

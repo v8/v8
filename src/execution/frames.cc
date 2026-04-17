@@ -993,8 +993,10 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::JS_TO_WASM;
       }
 #if V8_ENABLE_DRUMBRAKE
-      if (lookup_result.value()->builtin_id() ==
-          Builtin::kGenericJSToWasmInterpreterWrapper) {
+      if ((lookup_result.value()->builtin_id() ==
+           Builtin::kJSToWasmInterpreterWrapperAsm) ||
+          (lookup_result.value()->builtin_id() ==
+           Builtin::kJSToWasmInterpreterWrapper)) {
         return StackFrame::JS_TO_WASM;
       }
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3765,119 +3767,24 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   // So there is no need to visit them.
 
 #if V8_ENABLE_DRUMBRAKE
-  // Please reference GenericJSToWasmInterpreterWrapper for stack layout.
   if (v8_flags.wasm_jitless) {
+    // Please reference JSToWasmInterpreterWrapperAsm for stack layout.
     DCHECK(GetContainingCode(isolate(), pc()).value()->builtin_id() ==
-           Builtin::kGenericJSToWasmInterpreterWrapper);
-
-    // In a GenericJSToWasmInterpreterWrapper stack layout
-    //  ------+-----------------+----------------------
-    //        |  return addr    |
-    //    fp  |- - - - - - - - -|  -------------------|
-    //        |     old fp      |                     |
-    //   fp-p |- - - - - - - - -|                     |
-    //        |  frame marker   |                     | no GC scan
-    //  fp-2p |- - - - - - - - -|                     |
-    //        |   scan_count    |                     |
-    //  fp-3p |- - - - - - - - -|  -------------------|
-    //        |      ....       |                     |
-    //        |      ....       | <- spill_slot_limit |
-    //        |   spill slots   |                     | GC scan scan_count slots
-    //    sp  |      ....       | <- spill_slot_base--|
-    //        |                 |                     |
-    // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a
-    // value indicating how many values should be scanned from the top.
+           Builtin::kJSToWasmInterpreterWrapperAsm);
     intptr_t scan_count = *reinterpret_cast<intptr_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset);
-
+        fp() + WasmInterpreterWrapperConstants::kGCScanSlotCountOffset);
     FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
     FullObjectSlot spill_slot_limit(
         &Memory<Address>(sp() + scan_count * kSystemPointerSize));
     v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                          spill_slot_limit);
-
-    // We should scan the arg/return values array which may hold heap pointers
-    // for reference type of parameter/return values.
-    uint32_t signature_data = *reinterpret_cast<uint32_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kSignatureDataOffset);
-    bool has_ref_args =
-        signature_data & wasm::WasmInterpreterRuntime::HasRefArgsField::kMask;
-    bool has_ref_rets =
-        signature_data & wasm::WasmInterpreterRuntime::HasRefRetsField::kMask;
-
-    // This value indicates the array is currently used as args array. If false,
-    // it's an array for return values.
-    bool is_args = *reinterpret_cast<intptr_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kArgRetsIsArgsOffset);
-    if ((is_args && !has_ref_args) || (!is_args && !has_ref_rets)) return;
-
-    // Retrieve function signature.
-    size_t return_count = *reinterpret_cast<size_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kReturnCountOffset);
-    size_t param_count = *reinterpret_cast<size_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kParamCountOffset);
-    const wasm::ValueType* reps = *reinterpret_cast<const wasm::ValueType**>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kSigRepsOffset);
-    wasm::FunctionSig sig(return_count, param_count, reps);
-
-    intptr_t slot_ptr = *reinterpret_cast<intptr_t*>(
-        fp() + BuiltinWasmInterpreterWrapperConstants::kArgRetsAddressOffset);
-
-    if (is_args) {
-      size_t current_index = *reinterpret_cast<size_t*>(
-          fp() + BuiltinWasmInterpreterWrapperConstants::kCurrentIndexOffset);
-      DCHECK_LE(current_index, param_count);
-      for (size_t i = 0; i < current_index; i++) {
-        wasm::ValueType type = sig.GetParam(i);
-        if (type.is_ref()) {
-          // Make sure slot for ref args are 64-bit aligned.
-          slot_ptr += (slot_ptr & 0x04);  // Branchless.
-          FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
-          v->VisitRootPointer(Root::kStackRoots, nullptr, array_slot);
-          slot_ptr += kSystemPointerSize;
-        } else {
-          switch (type.kind()) {
-            case wasm::kI32:
-            case wasm::kF32:
-              slot_ptr += sizeof(int32_t);
-              break;
-            case wasm::kI64:
-            case wasm::kF64:
-              slot_ptr += sizeof(int64_t);
-              break;
-            case wasm::kS128:
-            default:
-              UNREACHABLE();
-          }
-        }
-      }
-    } else {
-      // When converting return values, all results are already in the array.
-      for (size_t i = 0; i < return_count; i++) {
-        wasm::ValueType type = sig.GetReturn(i);
-        if (type.is_ref()) {
-          // Make sure slot for ref args are 64-bit aligned.
-          slot_ptr += (slot_ptr & 0x04);  // Branchless.
-          FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
-          v->VisitRootPointer(Root::kStackRoots, nullptr, array_slot);
-          slot_ptr += kSystemPointerSize;
-        } else {
-          switch (type.kind()) {
-            case wasm::kI32:
-            case wasm::kF32:
-              slot_ptr += sizeof(int32_t);
-              break;
-            case wasm::kI64:
-            case wasm::kF64:
-              slot_ptr += sizeof(int64_t);
-              break;
-            case wasm::kS128:
-            default:
-              UNREACHABLE();
-          }
-        }
-      }
-    }
+    // Also visit fixed spill slots that contain references.
+    FullObjectSlot instance_slot(&Memory<Address>(
+        fp() + WasmInterpreterWrapperConstants::kImplicitArgOffset));
+    v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
+    FullObjectSlot result_array_slot(&Memory<Address>(
+        fp() + WasmInterpreterWrapperConstants::kResultArrayOffset));
+    v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 }

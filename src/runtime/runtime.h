@@ -702,7 +702,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TypedArraySortFast, 1, 1)
 
 #if V8_ENABLE_DRUMBRAKE
-#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I) F(WasmRunInterpreter, 3, 1)
+#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I) F(WasmRunInterpreter, 4, 1)
 #else
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)
 #endif  // V8_ENABLE_DRUMBRAKE

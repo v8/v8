@@ -1306,6 +1306,9 @@ filegroup(
             "src/debug/debug-wasm-objects.tq",
             "src/wasm/wasm-objects.tq",
         ],
+        ":is_v8_enable_drumbrake": [
+            "src/wasm/wasm-interpreter-objects.tq"
+        ],
         "//conditions:default": [],
     }),
 )

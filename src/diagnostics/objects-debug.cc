@@ -3003,16 +3003,16 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
   Tagged<Code> wrapper = wrapper_code(isolate);
-  CHECK(
-      wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-      wrapper->kind() == CodeKind::C_WASM_ENTRY ||
-      (wrapper->is_builtin() &&
-       (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  CHECK(wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+        wrapper->kind() == CodeKind::C_WASM_ENTRY ||
+        (wrapper->is_builtin() &&
+         (wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-        wrapper->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper ||
+          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapper ||
+          wrapper->builtin_id() == Builtin::kJSToWasmInterpreterWrapperAsm ||
 #endif  // V8_ENABLE_DRUMBRAKE
-        wrapper->builtin_id() == Builtin::kWasmPromising ||
-        wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+          wrapper->builtin_id() == Builtin::kWasmPromising ||
+          wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
 }
 
 void WasmExceptionTag::WasmExceptionTagVerify(Isolate* isolate) {
