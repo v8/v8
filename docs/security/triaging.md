@@ -6,14 +6,16 @@ Google-only: The internal version of this document is available at [go/v8-securi
 
 ## Labels and classifications
 
+These classifications refer to Buganizer which is the issue tracker used by Chromium.
+
 - **Type=Vulnerability**: Designates a security vulnerability that impacts users.
 - **Severity**: Same as [Chromium's severities](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/severity-guidelines.md).
 - **Priority**: A priority that in general is at least the severity.
-In certain circumstances, e.g. in-the-wild exploitation, we may raise the priority further.
-- **Security_Impact-{Head, Beta, Stable, Extended, None}** hotlists: Derived from milestones set in the **Found In** field, this hotlist specifies the earliest affected release channel.
+In certain circumstances, e.g., in-the-wild exploitation, we may raise the priority further.
+- **Security_Impact-{Head, Beta, Stable, Extended, None}** hotlists: Derived from the milestones set in the **Found In** field, this hotlist specifies the earliest affected release channel.
 Should not normally be set by humans, except in the case of **Security_Impact-None** (hotlistid: 5433277) which means that the bug is in a disabled feature, or otherwise doesn't impact Chrome: see the section below for more details.
 
-In addition, the following fields are set as part of triaging
+In addition, the following fields are set as part of triaging:
 - **Found In**: Should point to the milestone this was discovered to be broken.
 It is okay to just set to the current stable or extended stable milestone if unknown.
 - **Introduced In**: Should point to the milestone this was introduced.
@@ -39,13 +41,15 @@ V8 currently still accepts bugs without a POC with the caveat that such bugs hav
 
 ### Regular security bugs
 
-Bugs should reproduce on `d8` with `--fuzzing` and `--disallow-unsafe-flags`.
-Bugs that only reproduce with other flag combinations have a much higher chance of not being considered security bugs in first place.
+Bugs should reproduce on `d8` by providing `--run-as-security-poc` in addition to possibly other flags.
+Additional stress flags may be passed and can be useful to trigger compiler tiering and garbage collection.
+Bugs that only reproduce without `--run-as-security-poc` have a much higher chance of not being considered security bugs in the first place.
 See the section below for common scenarios that lead to reclassifications.
 
 ### Sandbox security bugs
 
-Bugs should reproduce in the [sandbox testing environment](../src/sandbox/README.md#testing).
+The same general principles apply to sandbox security bugs.
+To ease classification, bugs should reproduce on `d8` by providing `--run-as-sandbox-security-poc` in addition to possibly other flags in the [sandbox testing environment](../../src/sandbox/README.md#testing).
 
 ## Common cases for conditional features and code
 
@@ -71,21 +75,21 @@ Note that **Severity** should still be set to the appropriate Severity (S0-S3) f
 Fields: **Type=Bug**, **Security_Impact-None**
 
 Rationale: The flags and setups guard unfinished features that are explicitly not considered ready for fuzzing yet.
-Flags are often following the naming of `--experimental-*` and imply the `--experimental` flag.
-Sometimes these flags also have some experimental annotation on the flag descriptions.
+Flags often follow the naming of `--experimental-*` and imply the `--experimental` flag.
+Sometimes these flags also have some experimental annotation in the flag descriptions.
 
-Note: If the flag is part of  e.g. `--future` or `--wasm-staging` then this signals that the flags are ready for fuzzing.
-We don’t change the flag names in this case to avoid further churn on the code base.
+Note: If the flag is part of, e.g., `--future` or `--wasm-staging` then this signals that the flags are ready for fuzzing.
+We don’t change the flag names in this case to avoid further churn in the codebase.
 
 ### Bugs in developer flags such as `--trace-*` or flags that are clearly marked as unsafe
 
 Fields: **Type=Bug**, **Security_Impact-None**
 
-Rationale: Not reachable in production as these flags are only used by developers.
+Rationale: Not reachable in production, as these flags are only used by developers.
 
 ## Other common cases
 
-### `nullptr` (or close to `0`) deref
+### `nullptr` (or close to `0`) dereference
 
 Fields: **Type=Bug**, **Security_Impact-None**
 
@@ -95,7 +99,7 @@ V8 relies on `nullptr` dereferences to deterministically crash.
 
 Fields: **Type=Bug**, **Security_Impact-None**
 
-Rationale: Crashes are either bogus and do not happen in production builds or are deterministically crashing the process.
+Rationale: Crashes either cannot happen in production builds (e.g., `DCHECK` failures) or they deterministically crash the process (e.g., `CHECK` failures).
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
 
@@ -109,14 +113,14 @@ Rationale: Sandbox bypasses that only lead to read access outside of the sandbox
 
 Runtime functions like `%IterableForEach()` are directly visible to JavaScript programs via `--allow-natives-syntax`.
 The functions are not supposed to be tested this way, as they generally have pre- and post-conditions.
-This can lead to crashes (e.g. [484110302](crbug.com/484110302)) when they are incorrectly used.
+This can lead to crashes (e.g., [484110302](https://crbug.com/484110302)) when they are incorrectly used.
 Such crashes are working as intended.
 
 Functions that are exposed under fuzzing are specified in [`Runtime::IsEnabledForFuzzing()`](https://source.chromium.org/search?q=Runtime::IsEnabledForFuzzing()&ss=chromium).
-The bottleneck also mentions potential caveats that could still lead to crashes.
-To make this clear V8 will automatically remove any calls to unsupported functions when being invoked with `--fuzzing`.
+This function also mentions potential caveats that could still lead to crashes.
+To make this clear, V8 will automatically remove any calls to unsupported functions when being invoked with `--fuzzing`.
 
 ### Relying on broken snapshots to craft vulnerabilities
 
 V8 uses snapshots that are deserialized at startup.
-These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ around [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
+These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ regarding [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
