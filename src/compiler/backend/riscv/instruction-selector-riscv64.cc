@@ -1299,7 +1299,12 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kRiscvTruncUlD, node);
+  InstructionCode opcode = kRiscvTruncUlD;
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+  VisitRR(this, opcode, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {

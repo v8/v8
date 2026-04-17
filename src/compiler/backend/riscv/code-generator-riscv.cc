@@ -2116,6 +2116,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvTruncUlD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), result);
+      bool set_overflow_to_min_u64 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u64) {
+        Label done;
+        __ AddWord(kScratchReg, i.OutputRegister(), 1);
+        __ Branch(&done, ult, i.OutputRegister(), Operand(kScratchReg));
+        __ Move(i.OutputRegister(), zero_reg);
+        __ bind(&done);
+      }
       break;
     }
     case kRiscvBitcastDL:
