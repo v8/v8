@@ -46,11 +46,34 @@ crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "M
 crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-22.04", "x86-64")
 crossbench_cbb_builder("Crossbench End2End Windows x64 Try", "perf/crossbench", "Windows-10", "x86-64")
 crossbench_cbb_builder(
-    "Crossbench End2End Android x64 Try",
+    "Crossbench End2End-Loadline Android x64 Try",
     "perf/crossbench_android",
     "Ubuntu-22.04",
     "x86-64",
-    properties = {"android_sdk": 35},
+    properties = {
+        "android_sdk": 35,
+        "test_driver": "crossbench/tests/end2end/android/loadline/runner.py",
+    },
+)
+crossbench_cbb_builder(
+    "Crossbench End2End-Speedometer Android x64 Try",
+    "perf/crossbench_android",
+    "Ubuntu-22.04",
+    "x86-64",
+    properties = {
+        "android_sdk": 35,
+        "test_driver": "crossbench/tests/end2end/android/speedometer/runner.py",
+    },
+)
+crossbench_cbb_builder(
+    "Crossbench End2End-Others Android x64 Try",
+    "perf/crossbench_android",
+    "Ubuntu-22.04",
+    "x86-64",
+    properties = {
+        "android_sdk": 35,
+        "test_driver": "crossbench/tests/end2end/android/others/runner.py",
+    },
 )
 
 luci.cq_group(
@@ -82,7 +105,13 @@ luci.cq_group(
             builder = "Crossbench End2End Windows x64 Try",
         ),
         luci.cq_tryjob_verifier(
-            builder = "Crossbench End2End Android x64 Try",
+            builder = "Crossbench End2End-Loadline Android x64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench End2End-Speedometer Android x64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench End2End-Others Android x64 Try",
         ),
     ],
 )
