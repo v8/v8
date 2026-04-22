@@ -1812,34 +1812,27 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
     }
   }
 
-  // Allocate the exports object, to be store in the instance object.
-  DirectHandle<JSObject> exports_object =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  DirectHandle<WasmInstanceObject> instance_object;
-
   if (!shared) {
     // Allocate the WasmInstanceObject (JS wrapper).
     DirectHandle<JSFunction> instance_cons(
         isolate->native_context()->wasm_instance_constructor(), isolate);
-    instance_object = Cast<WasmInstanceObject>(
+    DirectHandle<WasmInstanceObject> instance_object = Cast<WasmInstanceObject>(
         isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
     instance_object->set_trusted_data(*trusted_data);
     instance_object->set_module_object(*module_object);
-    instance_object->set_exports_object(*exports_object);
     trusted_data->set_instance_object(*instance_object);
-  }
 
-  // Insert the new instance into the scripts weak list of instances. This list
-  // is used for breakpoints affecting all instances belonging to the script.
-  if (module_object->script()->type() == Script::Type::kWasm &&
-      !instance_object.is_null()) {
-    DirectHandle<WeakArrayList> weak_instance_list(
-        module_object->script()->wasm_weak_instance_list(), isolate);
-    weak_instance_list =
-        WeakArrayList::Append(isolate, weak_instance_list,
-                              MaybeObjectDirectHandle::Weak(instance_object));
-    module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
+    // Insert the new instance into the scripts weak list of instances. This
+    // list is used for breakpoints affecting all instances belonging to the
+    // script.
+    if (module_object->script()->type() == Script::Type::kWasm) {
+      DirectHandle<WeakArrayList> weak_instance_list(
+          module_object->script()->wasm_weak_instance_list(), isolate);
+      weak_instance_list =
+          WeakArrayList::Append(isolate, weak_instance_list,
+                                MaybeObjectDirectHandle::Weak(instance_object));
+      module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
+    }
   }
 
   return trusted_data;
@@ -2838,7 +2831,8 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     }
   }
 
-  // Clear old table to avoid dangling uses via in-sandbox corruption.
+  // As an additional layer of defense against stale pointers from other
+  // trusted objects, we also clear the old table.
   old_table->set_protected_uses(
       *isolate->factory()->empty_protected_weak_fixed_array());
   for (uint32_t i = 0; i < old_length; ++i) {
