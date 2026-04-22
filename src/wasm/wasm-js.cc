@@ -2608,8 +2608,8 @@ void WebAssemblyInstanceGetExportsImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Instance.exports()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmInstanceObject);
-  i::DirectHandle<i::JSObject> exports_object(receiver->exports_object(),
-                                              i_isolate);
+  i::DirectHandle<i::JSObject> exports_object(
+      Cast<i::JSObject>(receiver->exports_object()), i_isolate);
 
   info.GetReturnValue().Set(Utils::ToLocal(exports_object));
 }

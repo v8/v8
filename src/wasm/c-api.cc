@@ -2453,8 +2453,8 @@ WASM_EXPORT auto Instance::exports() const -> ownvec<Extern> {
   i::DirectHandle<i::WasmInstanceObject> instance_obj = instance->v8_object();
   i::DirectHandle<i::WasmModuleObject> module_obj(instance_obj->module_object(),
                                                   isolate);
-  i::DirectHandle<i::JSObject> exports_obj(instance_obj->exports_object(),
-                                           isolate);
+  i::DirectHandle<i::JSObject> exports_obj(
+      Cast<i::JSObject>(instance_obj->exports_object()), isolate);
 
   ownvec<ExportType> export_types = ExportsImpl(module_obj);
   ownvec<Extern> exports =

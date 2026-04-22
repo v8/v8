@@ -39,7 +39,7 @@ extern class WasmTrustedInstanceData extends ExposedTrustedObject;
 extern class WasmInstanceObject extends JSObject {
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   module_object: WasmModuleObject;
-  exports_object: JSObject;
+  exports_object: JSObject|Undefined;  // Populated during instantiation.
 }
 
 // The WasmImportData is passed to non-wasm imports in place of the

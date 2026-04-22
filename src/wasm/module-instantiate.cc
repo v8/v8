@@ -1409,12 +1409,6 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   }
 
   //--------------------------------------------------------------------------
-  // Set up the exports object for the new instance.
-  //--------------------------------------------------------------------------
-  ProcessExports();
-  if (thrower_->error()) return {};
-
-  //--------------------------------------------------------------------------
   // Set up uninitialized element segments.
   //--------------------------------------------------------------------------
   if (!module_->elem_segments.empty()) {
@@ -1524,6 +1518,12 @@ void InstanceBuilder::Build_Phase1_Infallible() {
 }
 
 Maybe<bool> InstanceBuilder::Build_Phase2() {
+  //--------------------------------------------------------------------------
+  // Set up the exports object for the new instance.
+  //--------------------------------------------------------------------------
+  ProcessExports();
+  if (thrower_->error()) return {};
+
   //--------------------------------------------------------------------------
   // Load element segments into tables.
   //--------------------------------------------------------------------------
@@ -2538,15 +2538,16 @@ void InstanceBuilder::ProcessExports() {
 
   DirectHandle<WasmInstanceObject> instance_object{
       trusted_data_->instance_object(), isolate_};
-  DirectHandle<JSObject> exports_object =
-      direct_handle(instance_object->exports_object(), isolate_);
+  DirectHandle<JSObject> exports_object;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
     DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
-    instance_object->set_exports_object(*exports_object);
+  } else {
+    exports_object = isolate_->factory()->NewJSObjectWithNullProto();
   }
+  instance_object->set_exports_object(*exports_object);
 
   // Switch the exports object to dictionary mode and allocate enough storage
   // for the expected number of exports.
@@ -2691,6 +2692,9 @@ void InstanceBuilder::ProcessExports() {
   JSObject::MigrateSlowToFast(exports_object, 0, "WasmExportsObjectFinished");
 
   if (module_->origin == kWasmOrigin) {
+    // A well-timed concurrent mutation attack might manage to achieve
+    // execution of user code here; that's why ProcessExports() runs as
+    // part of Build_Phase2().
     CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
                                         kDontThrow)
               .FromMaybe(false));
