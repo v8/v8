@@ -515,6 +515,10 @@
   'test-jump-table-assembler/*': [SKIP],
 
   'test-wasm-breakpoints/*' : [SKIP],
+
+  # Flush to zero is not supported yet.
+  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP]
+
 }],  # 'arch == ppc64 or arch == s390x'
 
 ##############################################################################
