@@ -11969,8 +11969,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
         compiler::HolderLookupResult{CallOptimization::kHolderIsReceiver};
   } else if (args.receiver()) {
     // Try to infer API holder from the known aspects of the {receiver}.
-    api_holder =
+    // TryInferApiHolderValue may emit map checks that abort graph building; in
+    // that case we must not emit further nodes.
+    auto maybe_holder =
         TryInferApiHolderValue(function_template_info, args.receiver());
+    if (!maybe_holder) return ReduceResult::DoneWithAbort();
+    api_holder = *maybe_holder;
   }
 
   switch (api_holder.lookup) {
@@ -12325,7 +12329,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForConstant(
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
 
-compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
+std::optional<compiler::HolderLookupResult>
+MaglevGraphBuilder::TryInferApiHolderValue(
     compiler::FunctionTemplateInfoRef function_template_info,
     ValueNode* receiver) {
   const compiler::HolderLookupResult not_found;
@@ -12383,9 +12388,10 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
           function_template_info.accept_any_receiver());
   }
 
-  // If we infer the holder, we rely on the map.
+  // If we infer the holder, we rely on the map. InsertMapChecks can abort, in
+  // which case we must not continue building nodes -- signal abort via nullopt.
   if (inference.InsertMapChecks(zone()).IsDoneWithAbort()) {
-    return not_found;
+    return std::nullopt;
   }
 
   return api_holder;
