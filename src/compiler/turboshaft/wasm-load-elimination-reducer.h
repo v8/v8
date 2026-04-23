@@ -995,6 +995,8 @@ void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
     }
     if (same_inputs) {
       replacements_[op_idx] = first;
+    } else {
+      replacements_[op_idx] = OpIndex::Invalid();
     }
   }
 }
