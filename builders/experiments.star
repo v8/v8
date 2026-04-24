@@ -51,7 +51,7 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
-        name = "V8 Linux64 - disable runtime call stats",
+        name = "V8 Linux64 - runtime call stats",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notify_owners = ["cbruni@chromium.org"],

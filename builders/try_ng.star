@@ -173,7 +173,7 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_linux64_disable_runtime_call_stats_rel",
+    name = "v8_linux64_runtime_call_stats_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
 )
