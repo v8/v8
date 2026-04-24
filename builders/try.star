@@ -87,9 +87,9 @@ try_builder(
     name = "v8_linux64_coverage_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.COVERAGE],
     properties = {
         "enable_swarming": False,
-        "gclient_vars": {"checkout_clang_coverage_tools": "True"},
         "coverage": "llvm",
     },
     execution_timeout = 7200,
@@ -99,9 +99,9 @@ try_builder(
     name = "v8_linux64_coverage_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.COVERAGE],
     properties = {
         "enable_swarming": False,
-        "gclient_vars": {"checkout_clang_coverage_tools": "True"},
         "coverage": "llvm",
     },
 )

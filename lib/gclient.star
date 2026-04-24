@@ -6,6 +6,7 @@
 GCLIENT_VARS = struct(
     BENCHMARKS = {"checkout_benchmarks": "True"},
     CENTIPEDE = {"checkout_centipede_deps": "True"},
+    COVERAGE = {"checkout_clang_coverage_tools": "True"},
     GCMOLE = {"download_gcmole": "True"},
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
     ITTAPI = {"checkout_ittapi": "True"},

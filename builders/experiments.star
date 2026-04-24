@@ -90,9 +90,9 @@ in_category(
         name = "V8 Linux64 - coverage",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        gclient_vars = [GCLIENT_VARS.COVERAGE],
         properties = {
             "enable_swarming": False,
-            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
             "coverage": "llvm",
         },
         notify_owners = ["machenbach@chromium.org"],
@@ -101,9 +101,9 @@ in_category(
         name = "V8 Linux64 - coverage - debug",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        gclient_vars = [GCLIENT_VARS.COVERAGE],
         properties = {
             "enable_swarming": False,
-            "gclient_vars": {"checkout_clang_coverage_tools": "True"},
             "coverage": "llvm",
         },
         execution_timeout = 7200,
