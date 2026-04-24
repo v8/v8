@@ -1496,12 +1496,13 @@ class Internals {
     Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
     ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
         (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
+    volatile Address safe_entry;
     if (V8_LIKELY(tag_range.Contains(actual_tag))) {
-      return entry & kExternalPointerPayloadMask;
+      safe_entry = entry & kExternalPointerPayloadMask;
     } else {
-      return 0;
+      safe_entry = 0;
     }
-    return entry;
+    return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -1524,12 +1525,14 @@ class Internals {
     Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
     ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
         (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
+    // Avoid DCE of the entry logic using volatile.
+    volatile Address safe_entry;
     if (V8_LIKELY(tag_range.Contains(actual_tag))) {
-      return entry & kExternalPointerPayloadMask;
+      safe_entry = entry & kExternalPointerPayloadMask;
     } else {
-      return 0;
+      safe_entry = 0;
     }
-    return entry;
+    return safe_entry;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
 #endif  // V8_ENABLE_SANDBOX
