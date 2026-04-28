@@ -193,6 +193,7 @@ class CompileTimeImports {
   }
 
   void Add(CompileTimeImport imp) { bits_.Add(imp); }
+  void Remove(CompileTimeImport imp) { bits_.Remove(imp); }
 
   std::string& constants_module() { return constants_module_; }
   const std::string& constants_module() const { return constants_module_; }

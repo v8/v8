@@ -666,7 +666,8 @@ DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::OwnedVector<const uint8_t> bytes) {
+    base::OwnedVector<const uint8_t> bytes,
+    base::Vector<const char> source_url) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -718,9 +719,8 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 #endif
 
-  constexpr base::Vector<const char> kNoSourceUrl;
   DirectHandle<Script> script =
-      GetOrCreateScript(isolate, native_module, kNoSourceUrl);
+      GetOrCreateScript(isolate, native_module, source_url);
 
   native_module->LogWasmCodes(isolate, *script);
 
@@ -1055,10 +1055,25 @@ DirectHandle<Script> CreateWasmScript(
 }
 }  // namespace
 
-DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
+MaybeDirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
     base::Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
+  CompileTimeImports target_imports = native_module->compile_imports();
+  if (isolate->flush_denormals()) {
+    target_imports.Add(CompileTimeImport::kDisableDenormalFloats);
+  } else {
+    target_imports.Remove(CompileTimeImport::kDisableDenormalFloats);
+  }
+
+  // On denormals mismatch, we recompile the module with the correct
+  // flags. SyncCompile will check the cache first to avoid redundant work.
+  if (target_imports.compare(native_module->compile_imports()) != 0) {
+    ErrorThrower thrower(isolate, "WasmEngine::ImportNativeModule");
+    return SyncCompile(
+        isolate, native_module->enabled_features(), target_imports, &thrower,
+        base::OwnedCopyOf(native_module->wire_bytes()), source_url);
+  }
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);

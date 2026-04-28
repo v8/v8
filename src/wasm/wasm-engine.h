@@ -192,7 +192,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeDirectHandle<WasmModuleObject> SyncCompile(
       Isolate* isolate, WasmEnabledFeatures enabled,
       CompileTimeImports compile_imports, ErrorThrower* thrower,
-      base::OwnedVector<const uint8_t> bytes);
+      base::OwnedVector<const uint8_t> bytes,
+      // Optional source URL; needed when recompiling on flags mismatch
+      // to preserve the original URL.
+      base::Vector<const char> source_url = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
@@ -234,7 +237,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Imports the shared part of a module from a different Context/Isolate using
   // the the same engine, recreating a full module object in the given Isolate.
-  DirectHandle<WasmModuleObject> ImportNativeModule(
+  MaybeDirectHandle<WasmModuleObject> ImportNativeModule(
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
       base::Vector<const char> source_url);
 
