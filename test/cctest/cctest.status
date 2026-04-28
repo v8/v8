@@ -428,6 +428,9 @@
 
   # Some Wasm functionality is not implemented yet.
   'test-run-wasm-f16/*': [SKIP],
+
+  # Flush to zero is not supported yet.
+  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 
 ['arch == riscv32', {
