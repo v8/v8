@@ -117,17 +117,17 @@ in_category(
         notifies = ["V8 Flake Sheriff"],
         disable_resultdb_exports = True,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux64 - arm64",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
+        properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
         barrier = BARRIER.TREE_CLOSER,
         first_branch_version = "14.9",
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux64 - arm64 - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
+        properties = {"builder_group": "client.v8", "target_arch": "arm", "target_bits": 64},
         barrier = BARRIER.TREE_CLOSER,
         first_branch_version = "14.9",
     ),
