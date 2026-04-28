@@ -17,6 +17,14 @@ in_category(
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
+        name = "V8 Linux64 - arm64 - ASAN",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"target_arch": "arm", "target_bits": 64},
+        gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
+        barrier = BARRIER.TREE_CLOSER,
+        first_branch_version = "14.9",
+    ),
+    main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac", "cpu": "x86-64"},

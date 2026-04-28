@@ -113,28 +113,6 @@ in_category(
 
 in_category(
     "FYI",
-    experiment_builder_pair(
-        name = "V8 Linux64 - arm64",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
-        triggered_by = ["v8-trigger"],
-        notify_owners = ["clemensb@chromium.org"],
-    ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - arm64 - debug",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
-        triggered_by = ["v8-trigger"],
-        notify_owners = ["clemensb@chromium.org"],
-    ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - arm64 - ASAN",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
-        gclient_vars = [GCLIENT_VARS.LINUX_ARM64_SYMBOLIZER],
-        triggered_by = ["v8-trigger"],
-        notify_owners = ["machenbach@chromium.org"],
-    ),
     experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",

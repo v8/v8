@@ -115,8 +115,21 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         barrier = BARRIER.NONE,
         notifies = ["V8 Flake Sheriff"],
-        first_branch_version = "13.2",
         disable_resultdb_exports = True,
+    ),
+    multibranch_builder(
+        name = "V8 Linux64 - arm64",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"target_arch": "arm", "target_bits": 64},
+        barrier = BARRIER.TREE_CLOSER,
+        first_branch_version = "14.9",
+    ),
+    multibranch_builder(
+        name = "V8 Linux64 - arm64 - debug",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"target_arch": "arm", "target_bits": 64},
+        barrier = BARRIER.TREE_CLOSER,
+        first_branch_version = "14.9",
     ),
     multibranch_builder(
         name = "V8 Linux64 - arm64 - no wasm - debug builder",
