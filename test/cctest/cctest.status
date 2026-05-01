@@ -517,7 +517,7 @@
   'test-wasm-breakpoints/*' : [SKIP],
 
   # Flush to zero is not supported yet.
-  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP]
+  'test-wasm-shared-engine/SharedEngineRunImportedWithDenormalsMismatchAndSourceUrl': [SKIP]
 
 }],  # 'arch == ppc64 or arch == s390x'
 
