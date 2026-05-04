@@ -561,6 +561,7 @@
   'maglev/regress-355256380': [SKIP],
 
   'turbolev/has-in-prototype-chain-wasm': [SKIP],
+  'turbolev/regress-505610970': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/regress/regress-349502157': [SKIP],

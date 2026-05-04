@@ -167,6 +167,9 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
   DCHECK(!node->Is<Identity>());
+  if (current_node()->properties().can_throw()) {
+    kna_processor_.ProcessThrowingNode(current_node());
+  }
   ValueNode* current_value = current_node()->Cast<ValueNode>();
   TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)
                                << " with " << PrintNodeLabel(node) << ": "
