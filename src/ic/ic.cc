@@ -1244,6 +1244,10 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       DirectHandle<JSReceiver> holder = lookup->GetHolder<JSReceiver>();
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       Handle<Smi> smi_handler;
+      if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+      }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder, isolate())) {
           // TODO(verwaest): Also supporting the global object as receiver is a
@@ -1264,9 +1268,6 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
 
-      } else if (lookup->IsElement(*holder)) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
-        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       } else {
         DCHECK_EQ(PropertyLocation::kField,
                   lookup->property_details().location());
@@ -2431,6 +2432,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsAnyPrivate());
 
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
+      // -------------- Elements (for TypedArrays) -------------
+      if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+      }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder)) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
@@ -2444,12 +2450,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
         Handle<Smi> handler = StoreHandler::StoreNormal(isolate());
         return MaybeObjectHandle(handler);
-      }
-
-      // -------------- Elements (for TypedArrays) -------------
-      if (lookup->IsElement(*holder)) {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
       // -------------- Fields --------------
