@@ -3710,6 +3710,7 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
   InternalIndex descriptor = new_map->LastAdded();
   new_map = Map::PrepareForDataProperty(isolate, new_map, descriptor,
                                         PropertyConstness::kConst, value);
+  if (new_map->is_dictionary_map()) return false;
   JSObject::MigrateToMap(isolate, object, new_map);
   // TODO(leszeks): Avoid re-loading the property details, which we already
   // loaded in PrepareForDataProperty.
