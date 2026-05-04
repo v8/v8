@@ -414,27 +414,6 @@ BUILTIN(ArrayPrototypeFill) {
                        end_index)) {
     return *receiver;
   }
-
-  // Diagnostic for crbug.com/508110100: a turbolev-only OOM in the generic
-  // path of Array.p.fill that aborts in NumberDictionary growth with
-  // "invalid table size". If the requested fill range exceeds the maximum
-  // NumberDictionary capacity, the generic path is guaranteed to abort with
-  // that message; capture inputs and a JS stack trace at the call site
-  // instead, so the next wild crash carries enough context to localize the
-  // miscompile.
-  if (V8_UNLIKELY(v8_flags.turbolev)) {
-    constexpr uint64_t kMaxFillRange = NumberDictionary::kMaxCapacity * 2 / 3;
-    if (end_index - start_index > kMaxFillRange) {
-      isolate->PushStackTraceAndDie(
-          reinterpret_cast<void*>((*receiver).ptr()),
-          reinterpret_cast<void*>((*receiver)->map(isolate).ptr()),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(length)),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(start_index)),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(end_index)),
-          reinterpret_cast<void*>((*value).ptr()));
-    }
-  }
-
   return GenericArrayFill(isolate, receiver, value, start_index, end_index);
 }
 
