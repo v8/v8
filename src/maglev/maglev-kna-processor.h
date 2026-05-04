@@ -109,13 +109,11 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
-  template <typename NodeT>
-  void ProcessThrowingNode(NodeT* node) {
-    static_assert(NodeT::kProperties.can_throw());
+  void ProcessThrowingNode(NodeBase* node) {
+    DCHECK(node->properties().can_throw());
     ExceptionHandlerInfo* info = node->exception_handler_info();
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
-      BasicBlock* exception_handler =
-          node->exception_handler_info()->catch_block();
+      BasicBlock* exception_handler = info->catch_block();
       reachable_exception_handlers_.insert(exception_handler);
       Merge(exception_handler);
     }
