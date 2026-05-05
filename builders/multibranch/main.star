@@ -162,6 +162,12 @@ in_category(
         first_branch_version = "13.8",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - dumpling - builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        barrier = BARRIER.TREE_CLOSER,
+        first_branch_version = "15.0",
+    ),
 )
 
 in_category(
