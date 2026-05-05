@@ -12330,20 +12330,18 @@ v8::Intercepted InvokeNamedInterceptorGetterCallback(
   return intercepted;
 }
 
-// TODO(https://crbug.com/348660658): migrate setter callbacks to a new
-// signature with const v8::PropertyCallbackInfo<v8::Boolean>& info.
 v8::Intercepted InvokeNamedInterceptorSetterCallback(
     v8::Local<v8::Name> property, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   // Leaving JavaScript.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedSetterCallback);
 
-  v8::NamedPropertySetterCallback setter;
+  v8::NamedPropertySetterCallbackV2 setter;
   {
     DirectHandle<InterceptorInfo> interceptor_info =
         PropertyCallbackArguments::GetInterceptorInfo(info);
-    setter = reinterpret_cast<v8::NamedPropertySetterCallback>(
+    setter = reinterpret_cast<v8::NamedPropertySetterCallbackV2>(
         interceptor_info->named_setter(i_isolate));
 
     if (i_isolate->should_check_side_effects() &&
