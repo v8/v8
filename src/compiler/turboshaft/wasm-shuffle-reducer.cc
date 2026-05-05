@@ -35,7 +35,7 @@ void DemandedByteAnalysis::AddOp(const Simd128UnaryOp& unop,
   visited_.insert(&unop);
 
   if (IsUnaryLowHalfOp(unop.kind)) {
-    demanded.Halve();
+    demanded.HalveWithLimit(GetInputElementSizeInBytes(unop.kind));
     Add(unop.input(), demanded);
   }
 }
@@ -46,7 +46,7 @@ void DemandedByteAnalysis::AddOp(const Simd128BinopOp& binop,
   visited_.insert(&binop);
 
   if (IsBinaryLowHalfOp(binop.kind)) {
-    demanded.Halve();
+    demanded.HalveWithLimit(GetInputElementSizeInBytes(binop.kind));
     Add(binop.left(), demanded);
     Add(binop.right(), demanded);
   }
@@ -151,7 +151,7 @@ void DemandedByteAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
     // operand.
     if (auto maybe_demanded = AddUserAndCheckFoundAll(unop, demanded)) {
       demanded = maybe_demanded.value();
-      demanded.Halve();
+      demanded.HalveWithLimit(GetInputElementSizeInBytes(unop.kind));
       Add(unop.input(), demanded);
     }
   }
@@ -164,7 +164,7 @@ void DemandedByteAnalysis::RecordPartialOp(const Simd128BinopOp& binop,
     // operands.
     if (auto maybe_demanded = AddUserAndCheckFoundAll(binop, demanded)) {
       demanded = maybe_demanded.value();
-      demanded.Halve();
+      demanded.HalveWithLimit(GetInputElementSizeInBytes(binop.kind));
       Add(binop.left(), demanded);
       Add(binop.right(), demanded);
     }

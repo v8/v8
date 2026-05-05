@@ -86,9 +86,11 @@ class DemandedBytes {
     return Low(std::bit_ceil(static_cast<uint8_t>(1 + (index % kSimd128Size))));
   }
 
-  // Halve the number of demanded low bytes, to a minimum of one.
-  void Halve() {
-    if (bytes() == 1) return;
+  // Halve the number of demanded low bytes, to a limit.
+  void HalveWithLimit(uint8_t min_bytes) {
+    DCHECK_GE(min_bytes, 1);
+    DCHECK(base::bits::IsPowerOfTwo(min_bytes));
+    if (bytes() <= min_bytes) return;
     bytes_ >>= 1;
   }
 
@@ -156,6 +158,37 @@ class DemandedByteAnalysis {
   static bool IsBinaryLowHalfOp(Simd128BinopOp::Kind kind) {
     return std::find(binary_low_half_ops.begin(), binary_low_half_ops.end(),
                      kind) != binary_low_half_ops.end();
+  }
+
+  static uint8_t GetInputElementSizeInBytes(Simd128UnaryOp::Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
+      case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
+        return 1;
+      case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
+      case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
+        return 2;
+      case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
+      case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
+        return 4;
+    }
+  }
+  static uint8_t GetInputElementSizeInBytes(Simd128BinopOp::Kind kind) {
+    switch (kind) {
+      default:
+        UNREACHABLE();
+      case Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S:
+      case Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U:
+        return 1;
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S:
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U:
+        return 2;
+      case Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4S:
+      case Simd128BinopOp::Kind::kI64x2ExtMulLowI32x4U:
+        return 4;
+    }
   }
 
   using DemandedByteMap =
