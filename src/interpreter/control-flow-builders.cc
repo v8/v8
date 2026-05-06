@@ -160,15 +160,21 @@ void TryCatchBuilder::BeginTry(Register context) {
   builder()->MarkTryBegin(handler_id_, context);
 }
 
-
-void TryCatchBuilder::EndTry() {
+void TryCatchBuilder::EndTry(bool emit_catch) {
   builder()->MarkTryEnd(handler_id_);
-  builder()->Jump(&exit_);
-  builder()->MarkHandler(handler_id_, catch_prediction_);
-
-  if (block_coverage_builder_ != nullptr) {
-    block_coverage_builder_->IncrementBlockCounter(statement_,
-                                                   SourceRangeKind::kCatch);
+  if (emit_catch) {
+    builder()->Jump(&exit_);
+    builder()->MarkHandler(handler_id_, catch_prediction_);
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_builder_->IncrementBlockCounter(statement_,
+                                                     SourceRangeKind::kCatch);
+    }
+  } else {
+    builder()->DropHandlerEntry(handler_id_);
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_builder_->AllocateBlockCoverageSlot(
+          statement_, SourceRangeKind::kCatch);
+    }
   }
 }
 

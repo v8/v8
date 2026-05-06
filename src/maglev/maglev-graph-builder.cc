@@ -18026,7 +18026,8 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
   DCHECK_NULL(current_block());
   if (is_resumable_function_) {
     int current_offset = iterator_.current_offset();
-    if (merge_states_[current_offset] != nullptr) {
+    if (merge_states_[current_offset] != nullptr &&
+        merge_states_[current_offset]->has_context_scope_info()) {
       SetCurrentScopeInfo(merge_states_[current_offset]->context_scope_info());
     } else {
       auto it = dead_scope_infos_.find(current_offset);

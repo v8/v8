@@ -74,6 +74,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     return local_register_count_;
   }
 
+  int potentially_throwing_bytecode_count() const {
+    return potentially_throwing_bytecode_count_;
+  }
+
   // Returns the number of fixed (non-temporary) registers.
   int fixed_register_count() const { return locals_count(); }
 
@@ -450,6 +454,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                     HandlerTable::CatchPrediction will_catch);
   BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
   BytecodeArrayBuilder& MarkTryEnd(int handler_id);
+  BytecodeArrayBuilder& DropHandlerEntry(int handler_id);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
@@ -699,6 +704,21 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
   BytecodeSourceInfo deferred_source_info_;
+  int potentially_throwing_bytecode_count_;
+};
+
+class V8_NODISCARD ThrowTrackingScope {
+ public:
+  explicit ThrowTrackingScope(BytecodeArrayBuilder* builder)
+      : builder_(builder),
+        start_count_(builder->potentially_throwing_bytecode_count()) {}
+  bool HasEmittedThrowingBytecode() const {
+    return builder_->potentially_throwing_bytecode_count() > start_count_;
+  }
+
+ private:
+  BytecodeArrayBuilder* builder_;
+  int start_count_;
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(

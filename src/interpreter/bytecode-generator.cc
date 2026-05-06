@@ -2944,6 +2944,8 @@ void BytecodeGenerator::BuildTryCatch(
   // that is intercepting 'throw' control commands.
   try_control_builder.BeginTry(context);
 
+  ThrowTrackingScope throw_tracker(builder());
+
   HoleCheckElisionMergeScope merge_elider(this);
 
   {
@@ -2963,16 +2965,18 @@ void BytecodeGenerator::BuildTryCatch(
     HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
     try_body_func();
   }
-  try_control_builder.EndTry();
 
-  {
+  bool emit_catch = throw_tracker.HasEmittedThrowingBytecode() ||
+                    block_coverage_builder_ != nullptr;
+  try_control_builder.EndTry(emit_catch);
+
+  if (emit_catch) {
     HoleCheckElisionMergeScope::Branch branch_elider(merge_elider);
     catch_body_func(context);
+    try_control_builder.EndCatch();
   }
 
   merge_elider.Merge();
-
-  try_control_builder.EndCatch();
 }
 
 template <typename TryBodyFunc, typename FinallyBodyFunc>
