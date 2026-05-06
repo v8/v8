@@ -546,6 +546,14 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
   memory_.InvalidateMaybeAliasing();
+
+  // This call could transition objects, thus invalidating their maps.
+  // TODO(dmercadier): we should only wipe unstable maps here, except that we
+  // don't know which maps are stable or not because we compact maps in
+  // MapMaskAndOr. I'm really not sure how much benefits this MapMaskAndOr
+  // structure brings, so we could instead consider to record exact maps, in
+  // which case we'd be able to only invalidate unstable ones.
+  WipeAllMaps();
 }
 
 // The only time an Allocate should flow into a WordBinop is for Smi checks
