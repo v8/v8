@@ -1263,28 +1263,35 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
+  UseScratchRegisterScope temps(this);
   AtomicCompareExchange(
       dst_addr, offset_reg, offset_imm, expected, new_value, result,
       COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
       trapping_load_pc, false);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
+    Bstrpick_d(result.gp(), result.gp(), 31, 0);
     add_d(result.gp(), result.gp(), kPtrComprCageBaseRegister);
   }
 
   if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
+  // We only need a write barrier if the CAS was successful.
+  // For LOONG64, if the expected and result are different, it is assumed that
+  // cmpxchg has not updated the value.
   Label exit;
+  Register scratch = temps.Acquire();
+  Sub_w(scratch, result.gp(), Operand(expected.gp()));
+  Branch(&exit, ne, scratch, Operand(zero_reg));
+
+  // Emit the write barrier.
   JumpIfSmi(new_value.gp(), &exit);
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
   CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
                 kZero, &exit);
 
-  UseScratchRegisterScope temps(this);
   Operand offset_op = Operand(offset_imm);
   if (offset_reg.is_valid()) {
-    Register scratch = temps.Acquire();
     bstrpick_d(scratch, offset_reg, 31, 0);
     if (offset_imm) {
       Add_d(scratch, scratch, offset_op);

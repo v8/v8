@@ -588,22 +588,19 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
   } while (0)
 
 // TODO(LOONG_dev): remove second dbar?
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,                  \
-                                                 store_conditional)            \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(                              \
+    load_linked, store_conditional, expect_value, new_value, result_value)     \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
-    __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
-                   &trap_pc);                                                  \
+    __ load_linked(result_value, MemOperand(i.TempRegister(0), 0), &trap_pc);  \
     RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);              \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
-                   Operand(i.OutputRegister(0)));                              \
-    __ mov(i.TempRegister(2), i.InputRegister(3));                             \
-    __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+    __ BranchShort(&exit, ne, expect_value, Operand(result_value));            \
+    __ mov(i.TempRegister(1), new_value);                                      \
+    __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(1),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
     __ dbar(0);                                                                \
@@ -2277,8 +2274,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32:
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
-          __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
+          // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+          __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+          __ slli_w(i.TempRegister(2), i.InputRegister(2), 0);
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(
+              Ll_w, Sc_w, i.TempRegister(2), i.InputRegister(3),
+              i.OutputRegister(0));
           break;
         case AtomicWidth::kWord64:
           ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, false, 32,
@@ -2287,20 +2288,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kLoong64Word64AtomicCompareExchangeUint64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
+      // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+      __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d, i.InputRegister(2),
+                                               i.InputRegister(3),
+                                               i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeWithWriteBarrier: {
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
+      Register expect_reg = no_reg;
+      Register result_reg = no_reg;
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
+        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ slli_w(i.TempRegister(2), i.InputRegister(2), 0);
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w, i.TempRegister(2),
+                                                 i.InputRegister(3), temp);
         // Contrary to x64, the instruction sequence we emit on loong64 always
         // writes an uncompressed value into the output register, so we can
         // unconditionally decompress it.
-        __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
-        __ add_d(i.OutputRegister(), i.OutputRegister(),
+        __ Bstrpick_d(i.OutputRegister(), temp, 31, 0);
+        __ add_d(i.OutputRegister(), i.OutputRegister(0),
                  kPtrComprCageBaseRegister);
+        expect_reg = i.TempRegister(2);
+        result_reg = temp;
       } else {
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
+        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d, i.InputRegister(2),
+                                                 i.InputRegister(3),
+                                                 i.OutputRegister(0));
+        expect_reg = i.InputRegister(2);
+        result_reg = i.OutputRegister(0);
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
@@ -2310,7 +2330,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), new_value,
           RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ BranchShort(ool->exit(), ne, expect_reg, Operand(result_reg));
       __ JumpIfSmi(new_value, ool->exit());
+
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());

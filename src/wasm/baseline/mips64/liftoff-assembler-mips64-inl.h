@@ -1163,10 +1163,15 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   }
 
   if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
+  // We only need a write barrier if the CAS was successful.
+  // For MIPS64, if the expected and result are different, it is assumed that
+  // cmpxchg has not updated the value.
   Label exit;
+  Branch(&exit, ne, result.gp(), Operand(expected.gp()));
+
+  // Emit the write barrier.
   JumpIfSmi(new_value.gp(), &exit);
   CheckPageFlag(dst_addr, scratch,
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
