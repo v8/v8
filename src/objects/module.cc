@@ -296,8 +296,14 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
   CHECK(module_status == kLinked || module_status == kEvaluatingAsync ||
         module_status == kEvaluated);
 
-  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, set module
-  //    to module.[[CycleRoot]].
+  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, then
+  //    a. If module.[[CycleRoot]] is not empty, then
+  //       i. Set module to module.[[CycleRoot]].
+  //    b. Else,
+  //       i. Assert: module.[[Status]] is EVALUATED and
+  //          module.[[EvaluationError]] is a throw completion.
+  // (The early return for kErrored above handles the case where CycleRoot is
+  // empty.)
   // A Synthetic Module has no children so it is its own cycle root.
   if (module_status >= kEvaluatingAsync && IsSourceTextModule(*module)) {
     module = Cast<SourceTextModule>(module)->GetCycleRoot(isolate);

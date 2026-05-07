@@ -551,12 +551,15 @@ bool SourceTextModule::MaybeTransitionComponent(
     //     i. Let requiredModule be the last element of stack.
     //    ii. Remove the last element of stack.
     //   iii. Assert: requiredModule is a Cyclic Module Record.
-    //    iv. If requiredModule.[[AsyncEvaluation]] is false, set
+    //    iv. Assert: requiredModule.[[AsyncEvaluationOrder]] is either an
+    //        integer or unset.
+    //     v. If requiredModule.[[AsyncEvaluation]] is false, set
     //        requiredModule.[[Status]] to EVALUATED.
-    //     v. Otherwise, set requiredModule.[[Status]] to EVALUATING-ASYNC.
-    //    vi. If requiredModule and module are the same Module Record, set done
+    //    vi. Else, set requiredModule.[[Status]] to EVALUATING-ASYNC.
+    //   vii. If requiredModule and module are the same Module Record, set done
     //        to true.
-    //   vii. Set requiredModule.[[CycleRoot]] to module.
+    //  viii. Assert: requiredModule.[[CycleRoot]] is empty.
+    //    ix. Set requiredModule.[[CycleRoot]] to module.
     //
     // InnerModuleLinking
     //
@@ -579,6 +582,8 @@ bool SourceTextModule::MaybeTransitionComponent(
         }
         ancestor->SetStatus(kLinked);
       } else {
+        DCHECK(ancestor->async_evaluation_ordinal() == kNotAsyncEvaluated ||
+               ancestor->HasAsyncEvaluationOrdinal());
         DCHECK(IsTheHole(ancestor->cycle_root(), isolate));
         ancestor->set_cycle_root(*cycle_root);
         ancestor->SetStatus(ancestor->HasAsyncEvaluationOrdinal()
@@ -796,46 +801,35 @@ void SourceTextModule::GatherAvailableAncestors(
     DirectHandle<SourceTextModule> module = worklist.top();
     worklist.pop();
 
-    // 1. For each Module m of module.[[AsyncParentModules]], do
+    // 1. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
     const uint32_t module_count = module->AsyncParentModuleCount();
     DCHECK_LE(module_count, kMaxInt);
     for (int i = static_cast<int>(module_count); i-- > 0;) {
       Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
-
-      // a. If execList does not contain m and
-      //    m.[[CycleRoot]].[[EvaluationError]] is empty, then
-      // There may be a bug in the spec here. If an async parent module depends
-      // on an async child but also fails synchronously, it is not getting its
-      // cycle_root property set. If the child module later completes, this
-      // function will be called. The first condition (missing from the spec)
-      // prevents a type confusion here. See https://crbug.com/439986081.
-      DCHECK_IMPLIES(IsTheHole(m->cycle_root(), isolate),
-                     m->status() == kErrored);
-      if (!IsTheHole(m->cycle_root(), isolate) &&
-          m->GetCycleRoot(isolate)->status() != kErrored &&
-          exec_list->find(m) == exec_list->end()) {
+      // a. If execList does not contain m and m.[[EvaluationError]] is empty,
+      //    then
+      if (exec_list->find(m) == exec_list->end() && m->status() != kErrored) {
         // i. Assert: m.[[Status]] is EVALUATING-ASYNC.
-        // ii. Assert: m.[[EvaluationError]] is empty.
         DCHECK_EQ(m->status(), kEvaluatingAsync);
-
-        // iii. Assert: m.[[AsyncEvaluation]] is true.
-        DCHECK(m->HasAsyncEvaluationOrdinal());
-
-        // iv. Assert: m.[[PendingAsyncDependencies]] > 0.
-        DCHECK(m->HasPendingAsyncDependencies());
-
-        // v. Set m.[[PendingAsyncDependencies]] to
-        //    m.[[PendingAsyncDependencies]] - 1.
-        m->DecrementPendingAsyncDependencies();
-
-        // vi. If m.[[PendingAsyncDependencies]] = 0, then
-        if (!m->HasPendingAsyncDependencies()) {
-          // 1. Append m to execList.
-          exec_list->insert(m);
-
-          // 2. If m.[[HasTLA]] is false,
-          //    perform ! GatherAvailableAncestors(m, execList).
-          if (!m->has_toplevel_await()) worklist.push(m);
+        // ii. Assert: m.[[CycleRoot]] is not empty.
+        DCHECK(!IsTheHole(m->cycle_root(), isolate));
+        // iii. If m.[[CycleRoot]].[[EvaluationError]] is empty, then
+        if (m->GetCycleRoot(isolate)->status() != kErrored) {
+          // 1. Assert: m.[[AsyncEvaluation]] is true.
+          DCHECK(m->HasAsyncEvaluationOrdinal());
+          // 2. Assert: m.[[PendingAsyncDependencies]] > 0.
+          DCHECK(m->HasPendingAsyncDependencies());
+          // 3. Set m.[[PendingAsyncDependencies]] to
+          //    m.[[PendingAsyncDependencies]] - 1.
+          m->DecrementPendingAsyncDependencies();
+          // 4. If m.[[PendingAsyncDependencies]] = 0, then
+          if (!m->HasPendingAsyncDependencies()) {
+            // a. Append m to execList.
+            exec_list->insert(m);
+            // b. If m.[[HasTLA]] is false,
+            //    perform ! GatherAvailableAncestors(m, execList).
+            if (!m->has_toplevel_await()) worklist.push(m);
+          }
         }
       }
     }
@@ -1291,7 +1285,7 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   // There's an evaluation set to perform optimized check if a module is already
-  // in eveluation_list. It's encessary to keep evaluation order as it's seen to
+  // in evaluation_list. It's necessary to keep evaluation order as it's seen to
   // be spec compliant.
   UnorderedModuleSet evaluation_set(&zone);
   ZoneVector<Handle<Module>> evaluation_list(&zone);
@@ -1359,15 +1353,18 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
             std::min(module->dfs_ancestor_index(),
                      required_module->dfs_ancestor_index()));
       } else {  // iv. Else,
-        // 1. Set requiredModule to requiredModule.[[CycleRoot]].
+        // 1. Assert: requiredModule.[[CycleRoot]] is not empty.
+        DCHECK(!IsTheHole(required_module->cycle_root(), isolate));
+
+        // 2. Set requiredModule to requiredModule.[[CycleRoot]].
         required_module = required_module->GetCycleRoot(isolate);
         required_module_status = required_module->status();
 
-        // 2. Assert: requiredModule.[[Status]] is either EVALUATING-ASYNC or
+        // 3. Assert: requiredModule.[[Status]] is either EVALUATING-ASYNC or
         //    EVALUATED.
         CHECK_GE(required_module_status, kEvaluatingAsync);
 
-        // 3. If requiredModule.[[EvaluationError]] is not EMPTY,
+        // 4. If requiredModule.[[EvaluationError]] is not EMPTY,
         //    return ? module.[[EvaluationError]].
 
         // (If there was an exception on the original required module we would
