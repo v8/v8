@@ -1835,27 +1835,27 @@ DEFINE_UINT64(turboshaft_opt_bisect_break, std::numeric_limits<uint64_t>::max(),
 DEFINE_BOOL(turboshaft_verify_reductions, false,
             "check that turboshaft reductions are correct with respect to "
             "inferred types")
-DEFINE_BOOL(turboshaft_trace_typing, false,
-            "print typing steps of turboshaft type inference")
-DEFINE_BOOL(turboshaft_trace_reduction, false,
-            "trace individual Turboshaft reduction steps")
-DEFINE_BOOL(turboshaft_trace_intermediate_reductions, false,
-            "trace intermediate Turboshaft reduction steps")
-DEFINE_BOOL(turboshaft_trace_emitted, false,
-            "trace emitted Turboshaft instructions")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_typing,
+                      "print typing steps of turboshaft type inference")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_reduction,
+                      "trace individual Turboshaft reduction steps")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_intermediate_reductions,
+                      "trace intermediate Turboshaft reduction steps")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_emitted,
+                      "trace emitted Turboshaft instructions")
 DEFINE_WEAK_IMPLICATION(turboshaft_trace_intermediate_reductions,
                         turboshaft_trace_reduction)
-DEFINE_BOOL(turboshaft_trace_unrolling, false,
-            "trace Turboshaft's loop unrolling reducer")
-DEFINE_BOOL(turboshaft_trace_peeling, false,
-            "trace Turboshaft's loop peeling reducer")
-DEFINE_BOOL(turboshaft_trace_load_elimination, false,
-            "trace Turboshaft's late load elimination")
-DEFINE_BOOL(turboshaft_trace_store_store_elimination, false,
-            "trace Turboshaft's store store elimination")
-DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
-            "trace Turboshaft's if-else to switch reducer")
-DEFINE_BOOL(turboshaft_trace_gvn, false, "trace Turboshaft's GVN reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_unrolling,
+                      "trace Turboshaft's loop unrolling reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_peeling,
+                      "trace Turboshaft's loop peeling reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_load_elimination,
+                      "trace Turboshaft's late load elimination")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_store_store_elimination,
+                      "trace Turboshaft's store store elimination")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_if_else_to_switch,
+                      "trace Turboshaft's if-else to switch reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_gvn, "trace Turboshaft's GVN reducer")
 
 DEFINE_DEVELOPER_FLAG(
     trace_turbolev_graph_building,
