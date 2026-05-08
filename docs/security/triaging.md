@@ -90,6 +90,13 @@ Fields: **Type=Bug**, **Security_Impact-None**
 
 Rationale: Not reachable in production, as these flags are only used by developers.
 
+### Bugs in the `d8` shell wrapper or requiring `d8`-only flags
+
+Fields: **Type=Bug**, **Security_Impact-None**
+
+Rationale: The `d8` shell is a developer tool and not embedded in the Chromium renderer.
+Bugs in the shell's own implementation (e.g. in `src/d8/`) or bugs that only reproduce with flags that are not supported by the V8 engine itself (e.g. `--isolate`, `--shell`, `--flag-processing-mode`) do not violate a security boundary reachable by untrusted web content.
+
 ## Other common cases
 
 ### `nullptr` (or close to `0`) dereference
