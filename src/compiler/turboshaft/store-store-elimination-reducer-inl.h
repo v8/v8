@@ -360,6 +360,7 @@ class RedundantStoreAnalysis {
       --it;
       OpIndex index = *it;
       const Operation& op = graph_.Get(index);
+      if (ShouldSkipOperation(op)) continue;
 
       switch (op.opcode) {
         case Opcode::kStore: {
