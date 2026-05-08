@@ -1489,7 +1489,7 @@ struct SimplifiedOperatorGlobalCache final {
     StringToLowerCaseIntlOperator()
         : Operator(IrOpcode::kStringToLowerCaseIntl,
                    Operator::kFoldable | Operator::kIdempotent,
-                   "StringToLowerCaseIntl", 3, 1, 1, 1, 1, 1) {}
+                   "StringToLowerCaseIntl", 3, 1, 1, 1, 1, 2) {}
   };
   StringToLowerCaseIntlOperator kStringToLowerCaseIntl;
 
@@ -1497,7 +1497,7 @@ struct SimplifiedOperatorGlobalCache final {
     StringToUpperCaseIntlOperator()
         : Operator(IrOpcode::kStringToUpperCaseIntl,
                    Operator::kFoldable | Operator::kIdempotent,
-                   "StringToUpperCaseIntl", 3, 1, 1, 1, 1, 1) {}
+                   "StringToUpperCaseIntl", 3, 1, 1, 1, 1, 2) {}
   };
   StringToUpperCaseIntlOperator kStringToUpperCaseIntl;
 

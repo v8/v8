@@ -1987,12 +1987,16 @@ OpIndex GraphBuilder::Process(
       return __ StringCodePointAt(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
 #ifdef V8_INTL_SUPPORT
-    case IrOpcode::kStringToLowerCaseIntl:
+    case IrOpcode::kStringToLowerCaseIntl: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringToLowerCaseIntl(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
-    case IrOpcode::kStringToUpperCaseIntl:
+    }
+    case IrOpcode::kStringToUpperCaseIntl: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringToUpperCaseIntl(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+    }
     case IrOpcode::kStringLocaleCompareIntl: {
       V<JSFunction> locale_compare_fn = Map<JSFunction>(node->InputAt(0));
       V<Object> left = Map<Object>(node->InputAt(1));
