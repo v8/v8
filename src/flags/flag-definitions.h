@@ -2949,8 +2949,6 @@ DEFINE_STRING(riscv_debug_file_path, nullptr, "path to riscv_debug_file")
 
 DEFINE_BOOL(riscv_constant_pool, true, "enable constant pool (RISCV only)")
 
-DEFINE_BOOL(riscv_c_extension, false,
-            "enable compressed extension isa variant (RISCV only)")
 DEFINE_BOOL(riscv_b_extension, false,
             "enable B extension isa variant (RISCV only)")
 DEFINE_BOOL(

@@ -608,7 +608,7 @@ TEST_F(DisasmRiscvTest, PSEUDO) {
 }
 #ifdef V8_TARGET_ARCH_RISCV64
 TEST_F(DisasmRiscvTest, RV64C) {
-  i::v8_flags.riscv_c_extension = true;
+  if (!CpuFeatures::IsSupported(RVC)) return;
   SET_UP();
 
   COMPARE(c_nop(), "00000001       nop");
@@ -733,7 +733,7 @@ TEST_F(DisasmRiscvTest, RVZFA) {
 }
 
 TEST_F(DisasmRiscvTest, RVV) {
-  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
+  if (!CpuFeatures::IsSupported(RVV)) return;
   SET_UP();
   COMPARE(VU.set(2, E64, m1),
           "c5817057       vsetivli  zero_reg, 0x2, E64, m1");

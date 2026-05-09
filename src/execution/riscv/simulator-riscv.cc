@@ -3120,7 +3120,7 @@ T Simulator::ReadMem(sreg_t addr, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!CpuFeatures::IsSupported(RVC) && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned read at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -3143,7 +3143,7 @@ void Simulator::WriteMem(sreg_t addr, T value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!CpuFeatures::IsSupported(RVC) && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -3169,7 +3169,7 @@ void Simulator::WriteMem(sreg_t addr, Float32 value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!CpuFeatures::IsSupported(RVC) && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -3191,7 +3191,7 @@ void Simulator::WriteMem(sreg_t addr, Float64 value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!CpuFeatures::IsSupported(RVC) && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();

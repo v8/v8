@@ -62,7 +62,7 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #endif  // def __riscv_f
 
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
-  features.Add(RISCV_SIMD);
+  features.Add(RVV);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
 
 #ifdef CAN_USE_RVA23U64_INSTRUCTIONS
@@ -88,13 +88,14 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_zfa)
   features.Add(ZFA);
 #endif  // def __riscv_zfa
+
   return features;
 }
 
 #ifdef RISCV_TARGET_SIMULATOR
 static CpuFeatureSet SimulatorFeatures() {
   CpuFeatureSet features;
-  features.Add(RISCV_SIMD);
+  features.Add(RVV);
   features.Add(ZBA);
   features.Add(ZBB);
   features.Add(ZBS);
@@ -109,7 +110,7 @@ static CpuFeatureSet SimulatorFeatures() {
 
 bool CpuFeatures::SupportsSimd128() {
 #if V8_ENABLE_SIMD128
-  return IsSupported(RISCV_SIMD);
+  return IsSupported(RVV);
 #else
   return false;
 #endif  // V8_ENABLE_SIMD128
@@ -130,7 +131,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   if (cpu.has_fpu()) supported_.Add(FPU);
   if (cpu.has_rvv()) {
-    supported_.Add(RISCV_SIMD);
+    supported_.Add(RVV);
     vlen_ = cpu.vlen();
     DCHECK_NE(vlen_, base::CPU::kUnknownVlen);
   }
@@ -802,7 +803,7 @@ int32_t Assembler::branch_long_offset(Label* L) {
     }
   }
   intptr_t offset = target_pos - pc_offset();
-  if (v8_flags.riscv_c_extension) {
+  if (CpuFeatures::IsSupported(RVC)) {
     DCHECK_EQ(offset & 1, 0);
   } else {
     DCHECK_EQ(offset & 3, 0);
@@ -825,7 +826,7 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
 // Definitions for using compressed vs non compressed
 
 void Assembler::NOP() {
-  if (v8_flags.riscv_c_extension) {
+  if (CpuFeatures::IsSupported(RVC)) {
     c_nop();
   } else {
     nop();
@@ -833,7 +834,7 @@ void Assembler::NOP() {
 }
 
 void Assembler::EBREAK() {
-  if (v8_flags.riscv_c_extension) {
+  if (CpuFeatures::IsSupported(RVC)) {
     c_ebreak();
   } else {
     ebreak();

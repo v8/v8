@@ -754,14 +754,12 @@ class InstructionBase {
   bool IsShortInstruction() const;
 
   inline uint8_t InstructionSize() const {
-    return (v8_flags.riscv_c_extension && this->IsShortInstruction())
-               ? kShortInstrSize
-               : kInstrSize;
+    return (this->IsShortInstruction()) ? kShortInstrSize : kInstrSize;
   }
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
-    if (v8_flags.riscv_c_extension && this->IsShortInstruction()) {
+    if (this->IsShortInstruction()) {
       return 0x0000FFFF & (*reinterpret_cast<const ShortInstr*>(this));
     }
     return *reinterpret_cast<const Instr*>(this);

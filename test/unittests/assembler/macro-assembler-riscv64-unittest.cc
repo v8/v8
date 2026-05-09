@@ -184,8 +184,12 @@ TEST_F(MacroAssemblerTest, LoadAddress) {
   __ nop();
   __ bind(&skip);
   __ LoadAddress(a4, &to_jump);
-  int check_size = masm.InstructionsGeneratedSince(&skip);
-  CHECK_EQ(2, check_size);  // auipc, addi
+  int check_size = masm.SizeOfCodeGeneratedSince(&skip);
+  if (CpuFeatures::IsSupported(RVC)) {
+    CHECK_EQ(6, check_size);  // auipc, c.addi
+  } else {
+    CHECK_EQ(8, check_size);  // auipc, addi
+  }
   __ jr(a4);
   __ nop();
   __ stop();

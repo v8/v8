@@ -101,7 +101,7 @@ enum CpuFeature {
 #elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   FPU,
   FP64FPU,
-  RISCV_SIMD,
+  RVV,
   ZBA,
   ZBB,
   ZBS,
@@ -109,6 +109,7 @@ enum CpuFeature {
   ZFH,
   ZICOND,
   ZICFISS,
+  RVC,
 #endif
 
   NUMBER_OF_CPU_FEATURES

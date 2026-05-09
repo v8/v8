@@ -905,7 +905,7 @@ void MacroAssembler::StoreSandboxedPointerField(
 
 void MacroAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_addw(rd, rt.rm());
@@ -913,7 +913,7 @@ void MacroAssembler::Add32(Register rd, Register rs, const Operand& rt) {
       addw(rd, rs, rt.rm());
     }
   } else {
-    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
+    if (CpuFeatures::IsSupported(RVC) && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) &&
         !MustUseReg(rt.rmode())) {
       c_addiw(rd, static_cast<int8_t>(rt.immediate()));
@@ -935,7 +935,7 @@ void MacroAssembler::Add32(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_subw(rd, rt.rm());
@@ -944,7 +944,7 @@ void MacroAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
     }
   } else {
     DCHECK(is_int32(rt.immediate()));
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         (rd != zero_reg) && is_int6(-rt.immediate()) &&
         !MustUseReg(rt.rmode())) {
       c_addiw(
@@ -985,21 +985,21 @@ void MacroAssembler::SubWord(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_sub(rd, rt.rm());
     } else {
       sub(rd, rs, rt.rm());
     }
-  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
              (rd != zero_reg) && is_int6(-rt.immediate()) &&
              (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
     c_addi(rd,
            static_cast<int8_t>(
                -rt.immediate()));  // No c_subi instr, use c_addi(x, y, -imm).
 
-  } else if (v8_flags.riscv_c_extension && is_int10(-rt.immediate()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && is_int10(-rt.immediate()) &&
              (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
              (rd.code() == rs.code()) && (rd == sp) &&
              !MustUseReg(rt.rmode())) {
@@ -1034,23 +1034,23 @@ void MacroAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Add64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         (rt.rm() != zero_reg) && (rs != zero_reg)) {
       c_add(rd, rt.rm());
     } else {
       add(rd, rs, rt.rm());
     }
   } else {
-    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
+    if (CpuFeatures::IsSupported(RVC) && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) && (rt.immediate() != 0) &&
         !MustUseReg(rt.rmode())) {
       c_addi(rd, static_cast<int8_t>(rt.immediate()));
-    } else if (v8_flags.riscv_c_extension && is_int10(rt.immediate()) &&
+    } else if (CpuFeatures::IsSupported(RVC) && is_int10(rt.immediate()) &&
                (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
                (rd.code() == rs.code()) && (rd == sp) &&
                !MustUseReg(rt.rmode())) {
       c_addi16sp(static_cast<int16_t>(rt.immediate()));
-    } else if (v8_flags.riscv_c_extension &&
+    } else if (CpuFeatures::IsSupported(RVC) &&
                ((rd.code() & 0b11000) == 0b01000) && (rs == sp) &&
                is_uint10(rt.immediate()) && (rt.immediate() != 0) &&
                !MustUseReg(rt.rmode())) {
@@ -1247,23 +1247,23 @@ void MacroAssembler::AddWord(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         (rt.rm() != zero_reg) && (rs != zero_reg)) {
       c_add(rd, rt.rm());
     } else {
       add(rd, rs, rt.rm());
     }
   } else {
-    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
+    if (CpuFeatures::IsSupported(RVC) && is_int6(rt.immediate()) &&
         (rd.code() == rs.code()) && (rd != zero_reg) && (rt.immediate() != 0) &&
         !MustUseReg(rt.rmode())) {
       c_addi(rd, static_cast<int8_t>(rt.immediate()));
-    } else if (v8_flags.riscv_c_extension && is_int10(rt.immediate()) &&
+    } else if (CpuFeatures::IsSupported(RVC) && is_int10(rt.immediate()) &&
                (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
                (rd.code() == rs.code()) && (rd == sp) &&
                !MustUseReg(rt.rmode())) {
       c_addi16sp(static_cast<int16_t>(rt.immediate()));
-    } else if (v8_flags.riscv_c_extension &&
+    } else if (CpuFeatures::IsSupported(RVC) &&
                ((rd.code() & 0b11000) == 0b01000) && (rs == sp) &&
                is_uint10(rt.immediate()) && (rt.immediate() != 0) &&
                !MustUseReg(rt.rmode())) {
@@ -1291,21 +1291,21 @@ void MacroAssembler::SubWord(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Sub32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_sub(rd, rt.rm());
     } else {
       sub(rd, rs, rt.rm());
     }
-  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
              (rd != zero_reg) && is_int6(-rt.immediate()) &&
              (rt.immediate() != 0) && !MustUseReg(rt.rmode())) {
     c_addi(rd,
            static_cast<int8_t>(
                -rt.immediate()));  // No c_subi instr, use c_addi(x, y, -imm).
 
-  } else if (v8_flags.riscv_c_extension && is_int10(-rt.immediate()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && is_int10(-rt.immediate()) &&
              (rt.immediate() != 0) && ((rt.immediate() & 0xf) == 0) &&
              (rd.code() == rs.code()) && (rd == sp) &&
              !MustUseReg(rt.rmode())) {
@@ -1432,7 +1432,7 @@ void MacroAssembler::Divu(Register res, Register rs, const Operand& rt) {
 
 void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_and(rd, rt.rm());
@@ -1440,7 +1440,7 @@ void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
       and_(rd, rs, rt.rm());
     }
   } else {
-    if (v8_flags.riscv_c_extension && is_int6(rt.immediate()) &&
+    if (CpuFeatures::IsSupported(RVC) && is_int6(rt.immediate()) &&
         !MustUseReg(rt.rmode()) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000)) {
       c_andi(rd, static_cast<int8_t>(rt.immediate()));
@@ -1458,7 +1458,7 @@ void MacroAssembler::And(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_or(rd, rt.rm());
@@ -1480,7 +1480,7 @@ void MacroAssembler::Or(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         ((rd.code() & 0b11000) == 0b01000) &&
         ((rt.rm().code() & 0b11000) == 0b01000)) {
       c_xor(rd, rt.rm());
@@ -1686,7 +1686,7 @@ void MacroAssembler::SraWord(Register rd, Register rs, const Operand& rt) {
 void MacroAssembler::Sra64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sra(rd, rs, rt.rm());
-  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
              ((rd.code() & 0b11000) == 0b01000) && is_int6(rt.immediate())) {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     c_srai(rd, shamt);
@@ -1703,7 +1703,7 @@ void MacroAssembler::SrlWord(Register rd, Register rs, const Operand& rt) {
 void MacroAssembler::Srl64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     srl(rd, rs, rt.rm());
-  } else if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+  } else if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
              ((rd.code() & 0b11000) == 0b01000) && is_int6(rt.immediate())) {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     c_srli(rd, shamt);
@@ -1722,7 +1722,7 @@ void MacroAssembler::Sll64(Register rd, Register rs, const Operand& rt) {
     sll(rd, rs, rt.rm());
   } else {
     uint8_t shamt = static_cast<uint8_t>(rt.immediate());
-    if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
+    if (CpuFeatures::IsSupported(RVC) && (rd.code() == rs.code()) &&
         (rd != zero_reg) && (shamt != 0) && is_uint6(shamt)) {
       c_slli(rd, shamt);
     } else {
@@ -1879,7 +1879,7 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
 #endif
 
 void MacroAssembler::Li(Register rd, intptr_t imm) {
-  if (v8_flags.riscv_c_extension && (rd != zero_reg) && is_int6(imm)) {
+  if (CpuFeatures::IsSupported(RVC) && (rd != zero_reg) && is_int6(imm)) {
     c_li(rd, imm);
   } else {
     RV_li(rd, imm);
@@ -1887,7 +1887,8 @@ void MacroAssembler::Li(Register rd, intptr_t imm) {
 }
 
 void MacroAssembler::Mv(Register rd, const Operand& rt) {
-  if (v8_flags.riscv_c_extension && (rd != zero_reg) && (rt.rm() != zero_reg)) {
+  if (CpuFeatures::IsSupported(RVC) && (rd != zero_reg) &&
+      (rt.rm() != zero_reg)) {
     c_mv(rd, rt.rm());
   } else {
     mv(rd, rt.rm());
@@ -2370,11 +2371,12 @@ void MacroAssembler::Sh(Register rd, const MemOperand& rs, Trapper&& trapper) {
 void MacroAssembler::Lw(Register rd, const MemOperand& rs, Trapper&& trapper) {
   auto fn = [&](Register target, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
       c_lw(target, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (target != zero_reg) &&
                is_uint8(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x3) == 0)) {
       c_lwsp(target, source.offset());
@@ -2398,11 +2400,12 @@ void MacroAssembler::Lwu(Register rd, const MemOperand& rs, Trapper&& trapper) {
 void MacroAssembler::Sw(Register rd, const MemOperand& rs, Trapper&& trapper) {
   auto fn = [&](Register value, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
       c_sw(value, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (source.rm() == sp) &&
                is_uint8(source.offset()) && (((source.offset() & 0x3) == 0))) {
       c_swsp(value, source.offset());
     } else {
@@ -2416,11 +2419,12 @@ void MacroAssembler::Sw(Register rd, const MemOperand& rs, Trapper&& trapper) {
 void MacroAssembler::Ld(Register rd, const MemOperand& rs, Trapper&& trapper) {
   auto fn = [&](Register target, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_ld(target, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (target != zero_reg) &&
                is_uint9(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x7) == 0)) {
       c_ldsp(target, source.offset());
@@ -2434,11 +2438,12 @@ void MacroAssembler::Ld(Register rd, const MemOperand& rs, Trapper&& trapper) {
 void MacroAssembler::Sd(Register rd, const MemOperand& rs, Trapper&& trapper) {
   auto fn = [&](Register value, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_sd(value, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_sdsp(value, source.offset());
     } else {
@@ -2471,11 +2476,12 @@ void MacroAssembler::LoadDouble(FPURegister fd, const MemOperand& src,
                                 Trapper&& trapper) {
   auto fn = [&](FPURegister target, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_fld(target, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_fldsp(target, source.offset());
     } else {
@@ -2489,11 +2495,12 @@ void MacroAssembler::StoreDouble(FPURegister fs, const MemOperand& src,
                                  Trapper&& trapper) {
   auto fn = [&](FPURegister value, const MemOperand& source) {
     trapper(pc_offset());
-    if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
+    if (CpuFeatures::IsSupported(RVC) &&
+        ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_fsd(value, source.rm(), source.offset());
-    } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
+    } else if (CpuFeatures::IsSupported(RVC) && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
       c_fsdsp(value, source.offset());
     } else {
