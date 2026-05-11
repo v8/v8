@@ -1015,7 +1015,9 @@ class TryTableIterator {
   const uint32_t table_count_;  // the count of entries, not including default.
 };
 
-using EffectHandlerTableImmediate = BranchTableImmediate;
+struct EffectHandlerTableImmediate : BranchTableImmediate {
+  using BranchTableImmediate::BranchTableImmediate;
+};
 
 struct HandlerCase {
   SwitchKind kind;        // Regular handler or a switch site.
@@ -2175,6 +2177,15 @@ class WasmDecoder : public Decoder {
   bool Validate(const uint8_t* pc, BranchTableImmediate& imm) {
     if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
       DecodeError(pc, "invalid table count (> max br_table size): %u",
+                  imm.table_count);
+      return false;
+    }
+    return checkAvailable(imm.table_count);
+  }
+
+  bool Validate(const uint8_t* pc, EffectHandlerTableImmediate& imm) {
+    if (!VALIDATE(imm.table_count <= kV8MaxWasmEffectHandlers)) {
+      DecodeError(pc, "invalid handler count (> max WasmFX handlers): %u",
                   imm.table_count);
       return false;
     }

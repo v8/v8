@@ -51,6 +51,7 @@ constexpr size_t kV8MaxWasmFunctionLocals = 50'000;
 constexpr size_t kV8MaxWasmFunctionParams = 1'000;
 constexpr size_t kV8MaxWasmFunctionReturns = 1'000;
 constexpr size_t kV8MaxWasmFunctionBrTableSize = 65'520;
+constexpr size_t kV8MaxWasmEffectHandlers = 1'000;
 // Don't use this limit directly, but use the value of
 // v8_flags.wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10'000'000;
