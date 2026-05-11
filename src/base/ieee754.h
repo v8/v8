@@ -107,7 +107,7 @@ V8_BASE_EXPORT double cosh(double x);
 V8_BASE_EXPORT double sinh(double x);
 
 // Returns the hyperbolic tangent of |x|, where |x| is given radians.
-V8_INLINE double tanh(double x) { return std::tanh(x); }
+V8_BASE_EXPORT double tanh(double x);
 
 }  // namespace ieee754
 }  // namespace base

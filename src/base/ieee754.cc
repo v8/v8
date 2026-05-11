@@ -1480,6 +1480,8 @@ double sinh(double x) {
 #undef SET_HIGH_WORD
 #undef SET_LOW_WORD
 
+double tanh(double x) { return std::tanh(x); }
+
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && defined(BUILDING_V8_BASE_SHARED)
 double libm_sin(double x) { return glibc_sin(x); }
 double libm_cos(double x) { return glibc_cos(x); }
