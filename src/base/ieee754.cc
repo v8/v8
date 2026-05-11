@@ -21,20 +21,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/base/overflowing-math.h"
-
-// TODO(thakis): Remove diagnostic pragmas once these are merged and upstream
-// builds with -Wshadow:
-// * https://github.com/llvm/llvm-project/pull/196337
-// * https://github.com/llvm/llvm-project/pull/196342
-// * https://github.com/llvm/llvm-project/pull/196346
-#pragma GCC diagnostic push
-#if defined(__has_warning)
-#if __has_warning("-Wshadow")
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
-#endif
 #include "third_party/llvm-libc/src/shared/math.h"
-#pragma GCC diagnostic pop
 
 namespace v8 {
 namespace base {
