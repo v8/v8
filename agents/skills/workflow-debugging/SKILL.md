@@ -69,6 +69,10 @@ general debugging approach for tracked issues.
 
 ### 3. Investigation & Escalation
 
+- **Reproduction Verification (MANDATORY)**: Before launching GDB or doing any
+  deep debugging, you MUST first execute the reproduction script normally
+  (without GDB) using your compiled `d8` binary to verify that the crash indeed
+  reproduces locally. This establishes the baseline.
 - Use GDB to inspect crash state.
 - Escalate unfamiliar concepts immediately.
 

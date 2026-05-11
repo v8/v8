@@ -18,9 +18,9 @@ utilizing Swarm intelligence principles.
   for each test case beforehand. Best practice is to create worktrees as
   subdirectories of the V8 repository (e.g., in a `worktrees/` directory within
   the V8 root). Report where the worktrees were created to the user. Inside
-  worktrees builds MUST use the tools/dev/gm.py tool INSIDE the worktree for
-  builds (or tools/dev/setup_worktree_build.py to prepare the worktree for
-  builds).
+  worktrees, builds MUST use the `tools/dev/gm.py` tool INSIDE the worktree.
+  `gm.py` will automatically run `setup_worktree_build.py` to prepare the
+  symlinks; manual execution of `setup_worktree_build.py` is not required.
 - **Test Injection**: Copy the target test case into the worktree (e.g.,
   `test/mjsunit/repro.js`).
 - **Remote Compilation**: Ensure worktrees are set up to compile remotely
