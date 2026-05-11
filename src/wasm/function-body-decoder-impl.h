@@ -5103,6 +5103,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Switch, tagimm, contimm, cont_ref,
                                        args.data(), returns);
+    if (V8_LIKELY(this->current_code_reachable_and_ok_)) {
+      this->MarkMightThrow();
+    }
 
     return 1 + contimm.length + tagimm.length;
   }
