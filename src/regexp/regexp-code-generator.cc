@@ -520,6 +520,7 @@ void CodeGenerator::PreVisitBytecodes() {
     auto ensure_label = [&]<auto operand>() {
       const uint8_t* pc = iter_.current_address();
       uint32_t offset = Operands::template Get<operand>(pc, no_gc);
+      CHECK_LT(offset, bytecode_->ulength().value());
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
         if constexpr (bc == Bytecode::kPushBacktrack) {

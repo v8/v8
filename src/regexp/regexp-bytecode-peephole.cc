@@ -994,6 +994,9 @@ void BytecodePeephole::EmitOptimization(int start_pc, const uint8_t* bytecode,
   for (uint32_t offset : after_sequence_offsets) {
     DCHECK_EQ(dst_writer_->buffer()[offset], 0);
     dst_writer_->OverwriteValue<uint32_t>(pc(), offset);
+    // Register the offset in jump_edges_ so that subsequent peephole passes
+    // adjust it when bytecodes shift.
+    dst_writer_->jump_edges().emplace(offset, start_pc + sequence_length);
   }
 }
 

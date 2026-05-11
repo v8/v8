@@ -2449,6 +2449,114 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
   }
 }
 
+// Regression test for crbug.com/511290389. The peephole optimizer writes
+// kSkipUntilOneOfMasked.on_match2 (and the corresponding kSkipUntilOneOfMasked3
+// operand) via OverwriteValue, which used to bypass jump_edges_ tracking. When
+// a later peephole pass shrunk bytecode ahead of such an instruction and the
+// instruction itself was forwarded verbatim via EmitRawBytecodeStream, FixJumps
+// had no record of the operand and left it pointing past the end of the final
+// bytecode array. CodeGenerator::PreVisitBytecodes then indexed labels_[] and
+// jump_targets_ with that stale offset.
+//
+// The bytecode below takes three optimizing passes to reach a fixed point:
+//   pass 1: AdvanceCurrentPosition+GoTo  -> AdvanceCpAndGoto
+//   pass 2: header (LCC+CBIT+ACAG)       -> SkipUntilBitInTable   (region A)
+//           CP+L4CU+AC4C+ACAG+AC4C+ACN4C -> SkipUntilOneOfMasked  (region B)
+//   pass 3: SkipUntilBitInTable+...      -> SkipUntilOneOfMasked3 (region A)
+// Two region-A copies before region B make pass 3 shrink 80 bytes total, which
+// is enough to push a stale on_match2 past the end of the buffer.
+namespace {
+
+void EmitMasked3PrecursorRegion(regexp::RegExpMacroAssembler* m,
+                                Handle<ByteArray> bit_table) {
+  // Region A precursor for SkipUntilOneOfMasked3. The SkipUntilBitInTable
+  // header is itself peephole-derived (LCC+CBIT+ACAG) so that the Masked3 fold
+  // is delayed to pass 3.
+  Label start, after_loop, bc4, bc5;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, &after_loop, true);
+  m->CheckBitInTable(bit_table, nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+  m->Bind(&after_loop);
+  m->CheckPosition(4, nullptr);
+  m->LoadCurrentCharacter(0, nullptr, false, 4);
+  m->CheckCharacterAfterAnd(0x61626364, 0xffffffff, &bc5);
+  m->Bind(&bc4);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+  m->Bind(&bc5);
+  m->LoadCurrentCharacter(0, &bc4, true, 4);
+  m->CheckCharacterAfterAnd(0x65666768, 0xffffffff, nullptr);
+  m->CheckCharacterAfterAnd(0x696a6b6c, 0xffffffff, nullptr);
+  m->CheckNotCharacterAfterAnd(0x6d6e6f70, 0xffffffff, &bc4);
+}
+
+void EmitMaskedPrecursorRegion(regexp::RegExpMacroAssembler* m) {
+  // Region B precursor for SkipUntilOneOfMasked. Folds in pass 2 and emits
+  // on_match2 via kOffsetAfterSequence.
+  Label start, second, adv;
+  m->Bind(&start);
+  m->CheckPosition(4, nullptr);
+  m->LoadCurrentCharacter(0, nullptr, false, 4);
+  m->CheckCharacterAfterAnd(0x61616161, 0xffffffff, &second);
+  m->Bind(&adv);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+  m->Bind(&second);
+  m->CheckCharacterAfterAnd(0x62626262, 0xffffffff, nullptr);
+  m->CheckNotCharacterAfterAnd(0x63636363, 0xffffffff, &adv);
+}
+
+}  // namespace
+
+TEST_F(RegExpTest, PeepholeOffsetAfterSequenceTrackedAcrossPasses) {
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  regexp::BytecodeGenerator opt(i_isolate(), &zone,
+                                regexp::RegExpMacroAssembler::LATIN1);
+  Handle<ByteArray> bit_table = factory->NewByteArray(
+      regexp::RegExpMacroAssembler::kTableSize, AllocationType::kOld);
+  for (uint32_t i = 0; i < regexp::RegExpMacroAssembler::kTableSize; i++) {
+    bit_table->set(i, 0);
+  }
+  EmitMasked3PrecursorRegion(&opt, bit_table);
+  EmitMasked3PrecursorRegion(&opt, bit_table);
+  EmitMaskedPrecursorRegion(&opt);
+
+  DirectHandle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  v8_flags.regexp_peephole_optimization = true;
+  DirectHandle<TrustedByteArray> array_optimized =
+      TrustedCast<TrustedByteArray>(
+          opt.GetCode(CreateRegExpData(i_isolate(), source), {}));
+  const uint32_t length_optimized = array_optimized->length().value();
+
+  // Find the SkipUntilOneOfMasked emitted by pass 2 and verify its on_match2
+  // operand was properly remapped through the pass-3 shrink. A stale offset
+  // would point past the end of the buffer and trigger an OOB write in
+  // CodeGenerator::PreVisitBytecodes during tier-up.
+  uint32_t pc = 0;
+  bool found = false;
+  while (pc < length_optimized) {
+    REB bc = GetBytecode(array_optimized, pc);
+    if (bc == REB::kSkipUntilOneOfMasked) {
+      using Ops = regexp::BytecodeOperands<REB::kSkipUntilOneOfMasked>;
+      constexpr int kOnMatch2Off = Ops::Offset(Ops::Operand::on_match2);
+      uint32_t on_match2 = *reinterpret_cast<uint32_t*>(
+          array_optimized->begin() + pc + kOnMatch2Off);
+      CHECK_LT(on_match2, length_optimized);
+      CHECK(regexp::Bytecodes::IsValidJumpTarget(
+          array_optimized->begin()[on_match2]));
+      found = true;
+    }
+    pc += regexp::Bytecodes::Size(bc);
+  }
+  CHECK(found);
+}
+
 TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
   FlagScope<bool> f(&v8_flags.regexp_tier_up, false);
 
