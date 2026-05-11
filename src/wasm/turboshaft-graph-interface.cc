@@ -926,7 +926,8 @@ class TurboshaftGraphBuildingInterface
   void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& al,
                const Value& ah, const Value& bl, const Value& bh,
                Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_S390X
     // Possible future ops that might want to reuse the wide op stack buffer
     // might need other sizes.
     static_assert(4 * kInt64Size <= kWideOpsStackBufferSize);

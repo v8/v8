@@ -3070,7 +3070,8 @@ class LiftoffCompiler {
 
     __ PushRegister(kI64, dest_low);
     __ PushRegister(kI64, dest_high);
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_S390X
     __ SpillAllRegisters();
 
     // Compute the lowest address of the four 64bit inputs.
@@ -3093,7 +3094,7 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-    GenerateCCall(kVoid, {VarState{kI32, addr_reg, 0}}, ext_ref);
+    GenerateCCall(kVoid, {VarState{kIntPtrKind, addr_reg, 0}}, ext_ref);
 
     __ DropValues(2);
 
