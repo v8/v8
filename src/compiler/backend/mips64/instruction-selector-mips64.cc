@@ -1826,7 +1826,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
     inputs[2] = g.UseUniqueRegister(value);
   }
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -1855,7 +1855,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   inputs[input_count++] = g.UseUniqueRegister(old_value);
   inputs[input_count++] = g.UseUniqueRegister(new_value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temp[3];
   temp[0] = g.TempRegister();
   temp[1] = g.TempRegister();
@@ -1877,11 +1877,11 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[4];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
