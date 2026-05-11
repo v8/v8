@@ -632,6 +632,71 @@ TEST_F(BytecodeVerifierTest, ExtraWideJumpLoopToOverflowedOffset) {
   ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc), "Invalid jump offset");
 }
 
+TEST_F(BytecodeVerifierTest, ExtraWideCallRuntimeRegCountOverflow) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint16_t runtime_id = static_cast<uint16_t>(Runtime::kIsSmi);
+
+  // CallRuntime bytecode with RegCount overflowing signed int range.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kExtraWide),
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id & 0xFF),
+      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      0x00,
+      0x00,
+      0x00,
+      0x40,  // RegList operand (0x40000000)
+      0x00,
+      0x00,
+      0x00,
+      0x80,  // RegCount operand (0x80000000)
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Parameter index out of bounds");
+}
+
+TEST_F(BytecodeVerifierTest, ExtraWideCallRuntimeRegCountRangeEndOverflow) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint16_t runtime_id = static_cast<uint16_t>(Runtime::kIsSmi);
+  int32_t reg_operand = interpreter::Register(0).ToOperand();
+
+  // CallRuntime bytecode with RegCount range end overflowing signed int range.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kExtraWide),
+      static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
+      static_cast<uint8_t>(runtime_id & 0xFF),
+      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      static_cast<uint8_t>(reg_operand & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 8) & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 16) & 0xFF),
+      static_cast<uint8_t>((reg_operand >> 24) & 0xFF),
+      0x01,
+      0x00,
+      0x00,
+      0x80,  // RegCount operand (0x80000001)
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Register range end overflows");
+}
+
 }  // namespace internal
 }  // namespace v8
 

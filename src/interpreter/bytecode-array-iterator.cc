@@ -266,7 +266,8 @@ RegisterList BytecodeArrayIterator::GetRegisterListOperand(
   return RegisterList(first.index(), count);
 }
 
-int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
+uint32_t BytecodeArrayIterator::GetRegisterOperandRange(
+    int operand_index) const {
   DCHECK_LE(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   const OperandType* operand_types =
       Bytecodes::GetOperandTypes(current_bytecode());

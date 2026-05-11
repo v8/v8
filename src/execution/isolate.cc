@@ -3898,7 +3898,7 @@ bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
   for (int i = 0; i < num_operands; ++i) {
     if (Bytecodes::IsRegisterOperandType(operand_types[i])) {
       int base_index = iterator.GetRegisterOperand(i).index();
-      int num_registers;
+      uint32_t num_registers;
       if (Bytecodes::IsRegisterListOperandType(operand_types[i])) {
         num_registers = iterator.GetRegisterCountOperand(++i);
       } else {
@@ -3906,7 +3906,8 @@ bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
             Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
       }
 
-      if (base_index <= index && index < base_index + num_registers) {
+      if (base_index <= index &&
+          index < base_index + base::checked_cast<int>(num_registers)) {
         return true;
       }
     }

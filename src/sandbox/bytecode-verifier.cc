@@ -4,6 +4,7 @@
 
 #include "src/sandbox/bytecode-verifier.h"
 
+#include "src/base/numerics/checked_math.h"
 #include "src/codegen/handler-table.h"
 #include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -175,12 +176,15 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         case interpreter::OperandType::kRegOutList: {
           bool is_output =
               interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
-          int count = iterator.GetRegisterOperandRange(i);
+          uint32_t count = iterator.GetRegisterOperandRange(i);
           if (count > 0) {
             interpreter::Register start = iterator.GetRegisterOperand(i);
             VerifyRegister(start, is_output);
             if (count > 1) {
-              interpreter::Register end(start.index() + count - 1);
+              base::internal::CheckedNumeric<int> end_index = start.index();
+              end_index += count - 1;
+              Check(end_index.IsValid(), "Register range end overflows");
+              interpreter::Register end(end_index.ValueOrDie());
               VerifyRegister(end, is_output);
               Check(start.is_parameter() == end.is_parameter(),
                     "Register range crosses parameter/local boundary");

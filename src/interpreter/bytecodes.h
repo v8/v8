@@ -1085,7 +1085,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // instance, a RegPair represents two registers. Should not be called for
   // kRegList which has a variable number of registers based on the following
   // kRegCount operand.
-  static int GetNumberOfRegistersRepresentedBy(OperandType operand_type) {
+  static uint32_t GetNumberOfRegistersRepresentedBy(OperandType operand_type) {
     switch (operand_type) {
       case OperandType::kReg:
       case OperandType::kRegOut:

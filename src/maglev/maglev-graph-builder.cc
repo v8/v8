@@ -1377,7 +1377,8 @@ bool MaglevGraphBuilder::HasOutputRegister(interpreter::Register reg) const {
     if (interpreter::Bytecodes::IsRegisterOutputOperandType(
             interpreter::Bytecodes::GetOperandType(bytecode, i))) {
       interpreter::Register operand_reg = iterator_.GetRegisterOperand(i);
-      int operand_range = iterator_.GetRegisterOperandRange(i);
+      int operand_range =
+          base::checked_cast<int>(iterator_.GetRegisterOperandRange(i));
       if (base::IsInRange(reg.index(), operand_reg.index(),
                           operand_reg.index() + operand_range)) {
         return true;
