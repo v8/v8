@@ -2621,7 +2621,7 @@ class AssemblerOpInterface : public Next {
       return TruncateWord64ToWord32(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<Word32>::Cast(resolve(input));
+      return V<Word32>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeInt32ToIntPtr(ConstOrV<Word32> input) {
@@ -2629,7 +2629,7 @@ class AssemblerOpInterface : public Next {
       return ChangeInt32ToInt64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(resolve(input));
+      return V<WordPtr>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
@@ -2637,14 +2637,14 @@ class AssemblerOpInterface : public Next {
       return ChangeUint32ToUint64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(input);
+      return V<WordPtr>::CastIfNeeded(input);
     }
   }
 
   V<Word64> ChangeIntPtrToInt64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeInt32ToInt64(input);
     }
@@ -2653,7 +2653,7 @@ class AssemblerOpInterface : public Next {
   V<Word64> ChangeUintPtrToUint64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeUint32ToUint64(input);
     }
@@ -3190,14 +3190,14 @@ class AssemblerOpInterface : public Next {
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = V<Rep>::Cast(LoadExternalPointer(V<Word32>::Cast(value),
-                                               access.external_pointer_tag));
+      value = V<Rep>::CastIfNeeded(LoadExternalPointer(
+          V<Word32>::CastIfNeeded(value), access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
-      value = V<Rep>::Cast(ShiftRightLogical(V<WordPtr>::Cast(value),
-                                             kBoundedSizeShift,
-                                             WordRepresentation::WordPtr()));
+      value = V<Rep>::CastIfNeeded(
+          ShiftRightLogical(V<WordPtr>::CastIfNeeded(value), kBoundedSizeShift,
+                            WordRepresentation::WordPtr()));
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -3902,7 +3902,7 @@ class AssemblerOpInterface : public Next {
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    return result_t::Cast(CallBuiltinImpl(
+    return result_t::CastIfNeeded(CallBuiltinImpl(
         isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
         Desc::Create(StubCallMode::kCallCodeObject,
                      Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
@@ -3930,7 +3930,7 @@ class AssemblerOpInterface : public Next {
                           Asm().output_graph().graph_zone()),
              Desc::kEffects);
     if constexpr (requires { result_t::Cast(result); }) {
-      return result_t::Cast(result);
+      return result_t::CastIfNeeded(result);
     } else {
       return result;
     }
@@ -3949,12 +3949,12 @@ class AssemblerOpInterface : public Next {
     auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::Cast(Call(call_target,
-                               OptionalV<turboshaft::FrameState>::Nullopt(),
-                               base::VectorOf(arguments),
-                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                            Asm().output_graph().graph_zone()),
-                               Desc::kEffects));
+    return result_t::CastIfNeeded(
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects));
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3989,8 +3989,9 @@ class AssemblerOpInterface : public Next {
     const TSCallDescriptor* desc =
         Desc::Create(actual_argument_count, Asm().output_graph().graph_zone(),
                      lazy_deopt_on_throw, !compiling_builtins);
-    return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
-                                frame_state, base::VectorOf(arguments), desc));
+    return returns_t::CastIfNeeded(
+        Call(CEntryStubConstant(isolate, result_size), frame_state,
+             base::VectorOf(arguments), desc));
   }
 
   template <typename Desc>
@@ -4275,7 +4276,7 @@ class AssemblerOpInterface : public Next {
   }
   template <typename... Ts>
   V<turboshaft::Tuple<Ts...>> MakeTuple(V<Ts>... indices) {
-    std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
+    std::initializer_list<V<Any>> inputs{V<Any>::CastIfNeeded(indices)...};
     return V<turboshaft::Tuple<Ts...>>::Cast(MakeTuple(base::VectorOf(inputs)));
   }
   // TODO(chromium:331100916): Remove this overload once everything is properly
@@ -4294,14 +4295,15 @@ class AssemblerOpInterface : public Next {
     static_assert(v_traits<element_t>::rep != nullrep,
                   "Representation for Projection cannot be inferred. Use "
                   "overload with explicit Representation argument.");
-    return V<element_t>::Cast(Projection(tuple, Index, V<element_t>::rep));
+    return V<element_t>::CastIfNeeded(
+        Projection(tuple, Index, V<element_t>::rep));
   }
   template <uint16_t Index, typename... Ts>
   auto Projection(V<turboshaft::Tuple<Ts...>> tuple,
                   RegisterRepresentation rep) {
     using element_t = base::nth_type_t<Index, Ts...>;
     DCHECK(V<element_t>::allows_representation(rep));
-    return V<element_t>::Cast(Projection(tuple, Index, rep));
+    return V<element_t>::CastIfNeeded(Projection(tuple, Index, rep));
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {

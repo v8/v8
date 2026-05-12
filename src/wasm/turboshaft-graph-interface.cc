@@ -1790,7 +1790,7 @@ class TurboshaftGraphBuildingInterface
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
       GOTO(done_label,
-           V<WordPtr>::Cast(
+           V<WordPtr>::CastIfNeeded(
                __ TruncateFloat64ToInt64OverflowUndefined(float_value)));
     } else {
       GOTO(done_label,
@@ -5119,8 +5119,8 @@ class TurboshaftGraphBuildingInterface
       GOTO_IF(UNLIKELY(__ TruncateWord64ToWord32(
                   __ Word64ShiftRightLogical(delta.get<Word64>(), 32))),
               end, __ Word32Constant(-1));
-      delta_wordptr =
-          V<WordPtr>::Cast(__ TruncateWord64ToWord32(delta.get<Word64>()));
+      delta_wordptr = V<WordPtr>::CastIfNeeded(
+          __ TruncateWord64ToWord32(delta.get<Word64>()));
     }
 
     bool extract_shared_data =
@@ -8183,7 +8183,8 @@ class TurboshaftGraphBuildingInterface
       converted_index = __ ChangeUint32ToUintPtr(index);
     } else if (kSystemPointerSize == kInt32Size) {
       // Truncate index to 32-bit.
-      converted_index = V<WordPtr>::Cast(__ TruncateWord64ToWord32(index));
+      converted_index =
+          V<WordPtr>::CastIfNeeded(__ TruncateWord64ToWord32(index));
     }
 
     const uintptr_t align_mask = repr.SizeInBytes() - 1;
@@ -8258,8 +8259,9 @@ class TurboshaftGraphBuildingInterface
         }
 #endif  // V8_TARGET_ARCH_ARM64
 
-        V<Word32> cond = __ Uint64LessThan(V<Word64>::Cast(converted_index),
-                                           __ Word64Constant(effective_size));
+        V<Word32> cond =
+            __ Uint64LessThan(V<Word64>::CastIfNeeded(converted_index),
+                              __ Word64Constant(effective_size));
         __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
@@ -8896,7 +8898,8 @@ class TurboshaftGraphBuildingInterface
     __ TrapIf(__ TruncateWord64ToWord32(
                   __ Word64ShiftRightLogical(V<Word64>::Cast(index), 32)),
               OpIndex::Invalid(), trap_reason);
-    return V<WordPtr>::Cast(__ TruncateWord64ToWord32(V<Word64>::Cast(index)));
+    return V<WordPtr>::CastIfNeeded(
+        __ TruncateWord64ToWord32(V<Word64>::Cast(index)));
   }
 
   V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(

@@ -685,9 +685,22 @@ class V : public OpIndex {
 
   template <typename U>
   static V<T> Cast(V<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit V<> cast.");
     return V<T>(OpIndex{index});
   }
   static V<T> Cast(OpIndex index) { return V<T>(index); }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static V<T> CastIfNeeded(V<U> index) {
+    return V<T>(OpIndex{index});
+  }
+  static V<T> CastIfNeeded(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(
       RegisterRepresentation maybe_allowed_rep) {
@@ -739,9 +752,24 @@ class OptionalV : public OptionalOpIndex {
 
   template <typename U>
   static OptionalV<T> Cast(OptionalV<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit OptionalV<> cast.");
     return OptionalV<T>(OptionalOpIndex{index});
   }
   static OptionalV<T> Cast(OptionalOpIndex index) {
+    return OptionalV<T>(index);
+  }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static OptionalV<T> CastIfNeeded(OptionalV<U> index) {
+    return OptionalV<T>(OptionalOpIndex{index});
+  }
+  static OptionalV<T> CastIfNeeded(OptionalOpIndex index) {
     return OptionalV<T>(index);
   }
 

@@ -2693,11 +2693,11 @@ class MachineLoweringReducer : public Next {
         }
 
         if (BIND(runtime)) {
-          V<Word32> value = __ UntagSmi(
-              V<Smi>::Cast(__ template CallRuntime<runtime::StringCharCodeAt>(
+          V<Word32> value =
+              __ UntagSmi(__ template CallRuntime<runtime::StringCharCodeAt>(
                   __ NoContextConstant(),
                   {.string = receiver,
-                   .index = __ TagSmi(__ TruncateWordPtrToWord32(position))})));
+                   .index = __ TagSmi(__ TruncateWordPtrToWord32(position))}));
           GOTO(done, value);
         }
       }

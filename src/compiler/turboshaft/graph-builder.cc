@@ -593,14 +593,16 @@ OpIndex GraphBuilder::Process(
                                   V<Object>::Cast(right));
           } else if (left_is_tagged) {
             DCHECK((std::is_same_v<WordPtr, Word64>));
-            return __ Word64Equal(V<Word64>::Cast(__ BitcastTaggedToWordPtr(
-                                      V<Object>::Cast(left))),
-                                  V<Word64>::Cast(right));
+            return __ Word64Equal(
+                V<Word64>::CastIfNeeded(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(left))),
+                V<Word64>::Cast(right));
           } else if (right_is_tagged) {
             DCHECK((std::is_same_v<WordPtr, Word64>));
-            return __ Word64Equal(V<Word64>::Cast(left),
-                                  V<Word64>::Cast(__ BitcastTaggedToWordPtr(
-                                      V<Object>::Cast(right))));
+            return __ Word64Equal(
+                V<Word64>::Cast(left),
+                V<Word64>::CastIfNeeded(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(right))));
           }
         }
       }
