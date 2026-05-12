@@ -2853,6 +2853,10 @@ class NodeTMixin : public BaseNode {
   // Enable concise base access in derived nodes.
   using Base = NodeTMixin;
 
+  // Checking that the opcodes of ValueNodes are indeed declared as ValueNodes.
+  static_assert(!std::is_same_v<BaseNode, ValueNode> ||
+                IsValueNode(NodeBase::opcode_of<Derived>));
+
   // Shadowing for static knowledge.
   constexpr Opcode opcode() const { return NodeBase::opcode_of<Derived>; }
   constexpr const OpProperties& properties() const {
