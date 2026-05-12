@@ -3047,8 +3047,15 @@ class LiftoffCompiler {
     LiftoffRegister ah = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister al = pinned.set(__ PopToRegister(pinned));
 
+    // If al (low input) aliases with any pinned registers for dest_low
+    // ({ah, bh, bl}), we must not specify it as a `try_first` register.
+    // GetUnusedRegister reuses `try_first` registers without checking the
+    // pinned mask, which would cause a register collision if the physical
+    // register is in both lists.
     LiftoffRegister dest_low =
-        __ GetUnusedRegister(rc, {al}, LiftoffRegList{ah, bh, bl});
+        LiftoffRegList{ah, bh, bl}.has(al)
+            ? __ GetUnusedRegister(rc, {}, LiftoffRegList{ah, bh, bl})
+            : __ GetUnusedRegister(rc, {al}, LiftoffRegList{ah, bh, bl});
     LiftoffRegister dest_high =
         __ GetUnusedRegister(rc, {ah}, LiftoffRegList{dest_low, bh});
     switch (opcode) {
