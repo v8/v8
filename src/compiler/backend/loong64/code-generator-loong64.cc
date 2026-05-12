@@ -16,6 +16,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/mutable-page.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
@@ -766,12 +767,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   int trap_pc;
   switch (arch_opcode) {
     case kArchCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Call().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -833,12 +838,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Jump().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
