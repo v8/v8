@@ -389,7 +389,20 @@ void NativeContextStats::IncrementExternalSize(Address context, Tagged<Map> map,
   InstanceType instance_type = map->instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = Cast<JSArrayBuffer>(object)->GetByteLength();
+    auto js_array_buffer = Cast<JSArrayBuffer>(object);
+    if (js_array_buffer->is_resizable_by_js() &&
+        !js_array_buffer->is_shared()) {
+      // Reading the JS-visible byte length of a RAB during concurrent marking
+      // could cause a data race, because the main thread can update it
+      // concurrently. Instead, we use the atomically updated accounting length
+      // from the extension, which is the correct metric for GC memory
+      // measurement.
+      if (auto ext = js_array_buffer->extension()) {
+        external_size = ext->accounting_length();
+      }
+    } else {
+      external_size = js_array_buffer->GetByteLength();
+    }
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
     external_size = Cast<ExternalString>(object)->ExternalPayloadSize();

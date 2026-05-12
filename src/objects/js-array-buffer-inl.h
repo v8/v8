@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/local-heap.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/memcopy.h"
@@ -93,6 +94,18 @@ size_t JSArrayBuffer::GetByteLength() const {
 
     return backing_store->byte_length(std::memory_order_seq_cst);
   }
+
+  // We should not be reading the JS-visible byte length of a RAB from a
+  // background thread, unless the mutator is guaranteed to be paused. This
+  // happens during a GC pause, during teardown, or when the main thread is
+  // parked.
+  DCHECK_IMPLIES(
+      is_resizable_by_js() && !is_shared() && LocalHeap::Current() != nullptr &&
+          !LocalHeap::Current()->is_main_thread(),
+      LocalHeap::Current()->heap()->IsInGC() ||
+          LocalHeap::Current()->heap()->IsTearingDown() ||
+          LocalHeap::Current()->heap()->main_thread_local_heap()->IsParked());
+
   return byte_length();
 }
 
