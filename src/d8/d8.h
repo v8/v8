@@ -566,10 +566,34 @@ class Shell : public i::AllStatic {
   };
   enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
+  class Source {
+   public:
+    enum class Type { kString, kFile };
+    static Source FromString(Local<String> string) {
+      return Source(Type::kString, string, nullptr);
+    }
+    static Source FromFile(const char* filename) {
+      return Source(Type::kFile, Local<String>(), filename);
+    }
+
+    Type type() const { return type_; }
+    Local<String> string() const { return string_; }
+    const char* filename() const { return filename_; }
+    MaybeLocal<String> ConvertToString(Isolate* isolate) const;
+
+   private:
+    Source(Type type, Local<String> string, const char* filename)
+        : type_(type), string_(string), filename_(filename) {}
+
+    Type type_;
+    Local<String> string_;
+    const char* filename_;
+  };
+
   // Boolean return values (for any method below) typically denote "success".
   // We return `false` on uncaught exceptions, except for termination
   // exceptions.
-  static bool ExecuteString(Isolate* isolate, Local<String> source,
+  static bool ExecuteSource(Isolate* isolate, const Source& source,
                             Local<String> name,
                             ReportExceptions report_exceptions,
                             Global<Value>* out_result = nullptr);
@@ -914,8 +938,8 @@ class Shell : public i::AllStatic {
                                                      Local<Module> module);
 
   template <class T>
-  static MaybeLocal<T> CompileString(Isolate* isolate, Local<Context> context,
-                                     Local<String> source,
+  static MaybeLocal<T> CompileSource(Isolate* isolate, Local<Context> context,
+                                     const Source& source,
                                      const ScriptOrigin& origin);
 
   static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
