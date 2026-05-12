@@ -2948,6 +2948,10 @@
   # Maglev doesn't lower CallWithSpread.
   'compiler/regress-385386138': [SKIP],
 
+  # Maglev doesn't unroll constant arrays in apply.
+  'compiler/function-apply-constant-array': [SKIP],
+  'compiler/function-apply-constant-slow-array': [SKIP],
+
   # Various missing lowerings/specializations in Maglev.
   'compiler/deopt-pretenure': [SKIP],
   'compiler/opt-higher-order-functions': [SKIP],
