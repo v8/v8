@@ -36,6 +36,13 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **Updating Description**: If the changes in a new patchset make the existing
     CL description **out-of-date** or inaccurate, you **MUST** explicitly update
     it by passing `--commit-description="New cohesive description content"`.
+    **Note**: Before passing `--commit-description` on a subsequent upload, you
+    must first inspect the live remote description on Gerrit (using either
+    `git cl desc` or the `gerrit_get_change_details` MCP tool) to verify whether
+    the user has manually edited it. If manual user edits or refinements are
+    detected, you must carefully evaluate them: preserve any human-authored
+    background context, rationale, or formatting, while surgically updating only
+    the outdated technical statements resulting from the new patchset.
   - Verify `git diff` is not empty before uploading.
 - **Safeguards & Code Quality**:
   - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
