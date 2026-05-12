@@ -3358,9 +3358,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   // exit, and the 'done' value in a dedicated register so that it can be
   // changed and accessed independently of the iteration result.
   IteratorRecord iterator = BuildGetIteratorRecord(stmt->type());
-  RegisterList output = register_allocator()->NewRegisterList(2);
-  Register next_result = output[0];
-  Register done = output[1];
+  Register next_result = register_allocator()->NewRegister();
+  Register done = register_allocator()->NewRegister();
   builder()->LoadFalse();
   builder()->StoreAccumulatorInRegister(done);
 
@@ -3391,12 +3390,13 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
             feedback_spec()->AddLoadICSlot();  // done_slot
 
             builder()
-                ->ForOfNext(iterator.object(), iterator.next(), output,
+                ->ForOfNext(iterator.object(), iterator.next(),
                             feedback_index(call_slot))
-                .LoadAccumulatorWithRegister(done);
-            // TODO(rezvan): Perform ToBoolean conversion inside ForOfNext.
-            loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+                .StoreAccumulatorInRegister(next_result);
 
+            // TODO(marja): Consider adding a BreakIfHole helper.
+            builder()->LoadTheHole().CompareReference(next_result);
+            loop_builder.BreakIfTrue(ToBooleanMode::kAlreadyBoolean);
           } else {
             BuildIteratorNext(iterator, next_result);
             builder()->LoadNamedProperty(
@@ -3409,13 +3409,15 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
                 ->LoadNamedProperty(
                     next_result, ast_string_constants()->value_string(),
                     feedback_index(feedback_spec()->AddLoadICSlot()));
-            // done = false, before the assignment to each happens, so that done
-            // is false if the assignment throws.
-            builder()
-                ->StoreAccumulatorInRegister(next_result)
-                .LoadFalse()
-                .StoreAccumulatorInRegister(done);
+            builder()->StoreAccumulatorInRegister(next_result);
           }
+
+          // done = false, before the assignment to each happens, so that done
+          // is false if the assignment throws.
+
+          // TODO(marja): consider removing "done" completely and passing
+          // next_result directly to BuildFinalizeIteration.
+          builder()->LoadFalse().StoreAccumulatorInRegister(done);
 
           // Assign to the 'each' target.
           builder()->SetExpressionAsStatementPosition(stmt->each());

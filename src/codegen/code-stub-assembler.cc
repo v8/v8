@@ -18175,7 +18175,7 @@ TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
       [&] { return value; });
 }
 
-std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
+TNode<Object> CodeStubAssembler::CallIteratorNext(
     TNode<Context> context, TNode<Object> iterator, TNode<Object> next_method,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
@@ -18258,7 +18258,7 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
 
   BIND(&if_done_true);
   {
-    var_value = UndefinedConstant();
+    var_value = LoadRoot(RootIndex::kTheHoleValue);
     Goto(&return_properties);
   }
 
@@ -18290,17 +18290,14 @@ std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
   }
 
   BIND(&return_properties);
-  return {var_value.value(), var_done.value()};
+  return var_value.value();
 }
 
-using ForOfNextResult = TorqueStructForOfNextResult_0;
-
-ForOfNextResult CodeStubAssembler::ForOfNextHelper(
+TNode<Object> CodeStubAssembler::ForOfNextHelper(
     TNode<Context> context, TNode<Object> object, TNode<Object> next,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
   TVARIABLE(Object, var_value);
-  TVARIABLE(Object, var_done);
 
   Label slow_path(this), reach_end(this), return_result(this);
 
@@ -18380,29 +18377,25 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(
                                      offsetof(JSArrayIterator, next_index_),
                                      SmiAdd(smi_index, SmiConstant(1)));
       var_value = GetResultValueForHole(var_element_value.value());
-      var_done = FalseConstant();
       Goto(&return_result);
     }
 
     BIND(&reach_end);
     {
-      var_value = UndefinedConstant();
-      var_done = TrueConstant();
+      var_value = LoadRoot(RootIndex::kTheHoleValue);
       Goto(&return_result);
     }
   }
 
   BIND(&slow_path);
   {
-    auto [value, done] =
+    var_value =
         CallIteratorNext(context, object, next, feedback_vector, call_slot);
-    var_value = value;
-    var_done = done;
     Goto(&return_result);
   }
 
   BIND(&return_result);
-  return ForOfNextResult{var_value.value(), var_done.value()};
+  return var_value.value();
 }
 
 TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(

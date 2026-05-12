@@ -902,7 +902,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
 
     case IrOpcode::kJSForOfNext:
-      CheckTypeIs(node, Type::Tuple(Type::Any(), Type::Any(), zone));
+      CheckTypeIs(node, Type::Any());
       break;
 
     case IrOpcode::kJSLoadMessage:

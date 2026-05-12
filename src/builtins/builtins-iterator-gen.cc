@@ -524,62 +524,31 @@ TF_BUILTIN(CallIteratorWithFeedbackLazyDeoptContinuation,
   Return(iterator);
 }
 
-void IteratorBuiltinsAssembler::StoreValueAndDoneInRegisterPair(
-    TNode<Context> context, TNode<Object> value, TNode<Object> done,
-    TNode<Smi> value_done_reg) {
-  // ForOfNext writes to a register pair. Since this is an eager deopt
-  // continuation, we need to manually update the registers in the parent
-  // interpreted frame.
-  TNode<IntPtrT> reg_index = SmiToIntPtr(value_done_reg);
-  TNode<IntPtrT> base_offset =
-      IntPtrConstant(InterpreterFrameConstants::kRegisterFileFromFp);
-  TNode<IntPtrT> value_offset =
-      IntPtrSub(base_offset, TimesSystemPointerSize(reg_index));
-  TNode<IntPtrT> done_offset = IntPtrSub(
-      base_offset,
-      TimesSystemPointerSize(IntPtrAdd(reg_index, IntPtrConstant(1))));
-
-  auto parent_frame_pointer = LoadParentFramePointer();
-  StoreFullTaggedNoWriteBarrier(parent_frame_pointer, value_offset, value);
-  StoreFullTaggedNoWriteBarrier(parent_frame_pointer, done_offset, done);
-}
-
-// ForOfNextResultDeoptContinuation is used for the lazy deoptimization on
-// next() call and the eager deoptimization of loading done value.
 TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
   auto result_object = Parameter<Object>(Descriptor::kResultObject);
 
   Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
   BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
   BIND(&is_jsreceiver);
 
-  TVARIABLE(Object, var_value);
-  TVARIABLE(Object, var_done);
-
-  Label if_done(this), if_not_done(this), end(this, &var_value);
-  var_done =
+  TNode<Object> var_done =
       GetProperty(context, CAST(result_object), factory()->done_string());
-  BranchIfToBooleanIsTrue(var_done.value(), &if_done, &if_not_done);
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(var_done, &if_done, &if_not_done);
 
   BIND(&if_done);
   {
-    var_value = UndefinedConstant();
-    Goto(&end);
+    Return(TheHoleConstant());
   }
 
   BIND(&if_not_done);
   {
-    var_value =
+    TNode<Object> value =
         GetProperty(context, CAST(result_object), factory()->value_string());
-    Goto(&end);
+    Return(value);
   }
-
-  BIND(&end);
-  StoreValueAndDoneInRegisterPair(context, var_value.value(), var_done.value(),
-                                  value_done_reg);
-  Return(var_value.value());
 
   BIND(&if_notjsreceiver);
   CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
@@ -590,51 +559,36 @@ TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto result_object = Parameter<Object>(Descriptor::kResultObject);
   auto done = Parameter<Object>(Descriptor::kDone);
-  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
 
-  TVARIABLE(Object, var_value);
-  Label if_done(this), if_not_done(this), end(this, &var_value);
+  Label if_done(this), if_not_done(this);
   BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
 
   BIND(&if_done);
   {
-    var_value = UndefinedConstant();
-    Goto(&end);
+    Return(TheHoleConstant());
   }
 
   BIND(&if_not_done);
   {
-    var_value =
+    TNode<Object> value =
         GetProperty(context, CAST(result_object), factory()->value_string());
-    Goto(&end);
+    Return(value);
   }
-
-  BIND(&end);
-  StoreValueAndDoneInRegisterPair(context, var_value.value(), done,
-                                  value_done_reg);
-  Return(var_value.value());
 }
 
 TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
            IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto result_object = Parameter<Object>(Descriptor::kResultObject);
-  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
 
   TNode<Object> value =
       GetProperty(context, CAST(result_object), factory()->value_string());
 
-  StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
-                                  value_done_reg);
   Return(value);
 }
 
 TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto value_done_reg = Parameter<Smi>(Descriptor::kValueDoneReg);
-  StoreValueAndDoneInRegisterPair(context, value, FalseConstant(),
-                                  value_done_reg);
   Return(value);
 }
 

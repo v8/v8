@@ -3975,15 +3975,13 @@ void BytecodeGraphBuilder::VisitForOfNext() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* next_method =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  auto value_done = bytecode_iterator().GetRegisterPairOperand(2);
   FeedbackSource call_feedback =
-      CreateFeedbackSource(bytecode_iterator().GetFeedbackSlotOperand(3));
+      CreateFeedbackSource(bytecode_iterator().GetFeedbackSlotOperand(2));
   Node* feedback_vector = feedback_vector_node();
-  Node* result_pair = NewNode(javascript()->ForOfNext(call_feedback), iterator,
-                              next_method, feedback_vector);
+  Node* result = NewNode(javascript()->ForOfNext(call_feedback), iterator,
+                         next_method, feedback_vector);
 
-  environment()->BindRegistersToProjections(value_done.first, result_pair,
-                                            Environment::kAttachFrameState);
+  environment()->BindAccumulator(result, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitGetIterator() {

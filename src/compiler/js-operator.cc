@@ -1218,7 +1218,7 @@ const Operator* JSOperatorBuilder::ForOfNext(
   return zone()->New<Operator1<ForOfNextParameters>>(   // --
       IrOpcode::kJSForOfNext, Operator::kNoProperties,  // opcode
       "JSForOfNext",                                    // name
-      3, 1, 1, 2, 1, 2,                                 // counts
+      3, 1, 1, 1, 1, 2,                                 // counts
       access);                                          // parameter
 }
 

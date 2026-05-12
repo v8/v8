@@ -97,9 +97,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSArray> FastIterableToList(TNode<Context> context,
                                     TNode<JSAny> iterable, Label* slow);
 
-  void StoreValueAndDoneInRegisterPair(TNode<Context> context,
-                                       TNode<Object> value, TNode<Object> done,
-                                       TNode<Smi> value_done_reg);
+  void StoreRegister(TNode<Smi> reg, TNode<Object> value);
 };
 
 }  // namespace internal

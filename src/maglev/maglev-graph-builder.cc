@@ -17363,10 +17363,9 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
                                                 call_slot, feedback()));
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
-    ValueNode* iterator, ValueNode* next_method,
-    std::pair<interpreter::Register, interpreter::Register> result_pair,
-    int call_slot) {
+MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(ValueNode* iterator,
+                                                         ValueNode* next_method,
+                                                         int call_slot) {
   compiler::FeedbackSource feedback_source{feedback(),
                                            FeedbackVector::ToSlot(call_slot)};
 
@@ -17374,9 +17373,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
   CallArguments args(ConvertReceiverMode::kAny, {iterator});
   {
     LazyDeoptFrameScope lazy_call_scope(
-        this, Builtin::kForOfNextResultDeoptContinuation, {},
-        base::VectorOf<ValueNode*>(
-            {GetSmiConstant(result_pair.first.index())}));
+        this, Builtin::kForOfNextResultDeoptContinuation, {}, {});
 
     GET_VALUE_OR_ABORT(result_object,
                        ReduceCall(next_method, args, feedback_source));
@@ -17400,16 +17397,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
   {
     EagerDeoptFrameScope eager_done_scope(
         this, Builtin::kForOfNextResultDeoptContinuation, {},
-        base::VectorOf<ValueNode*>(
-            {GetSmiConstant(result_pair.first.index()), result_object}));
+        base::VectorOf<ValueNode*>({result_object}));
 
     // Check if result is a JSReceiver.
     RETURN_IF_ABORT(BuildCheckJSReceiver(result_object));
 
     LazyDeoptFrameScope lazy_done_scope(
         this, Builtin::kForOfNextLoadDoneLazyDeoptContinuation, {},
-        base::VectorOf<ValueNode*>(
-            {result_object, GetSmiConstant(result_pair.first.index())}));
+        base::VectorOf<ValueNode*>({result_object}));
 
     // Load 'done' property.
     MaybeReduceResult done_result = TryBuildLoadNamedProperty(
@@ -17433,18 +17428,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
             return BuildBranchIfToBooleanTrue(builder, done);
           },
           [&]() -> ReduceResult {
-            return GetRootConstant(RootIndex::kUndefinedValue);
+            return GetRootConstant(RootIndex::kTheHoleValue);
           },
           [&]() -> ReduceResult {
             EagerDeoptFrameScope eager_value_scope(
                 this, Builtin::kForOfNextLoadValueEagerDeoptContinuation, {},
-                base::VectorOf<ValueNode*>(
-                    {result_object,
-                     GetSmiConstant(result_pair.first.index())}));
+                base::VectorOf<ValueNode*>({result_object}));
             LazyDeoptFrameScope lazy_value_scope(
                 this, Builtin::kForOfNextLoadValueLazyDeoptContinuation, {},
-                base::VectorOf<ValueNode*>(
-                    {GetSmiConstant(result_pair.first.index())}));
+                {});
             RETURN_IF_DONE(TryBuildLoadNamedProperty(
                 result_object, broker()->value_string(), value_feedback));
             return AddNewNode<LoadNamedGeneric>({GetContext(), result_object},
@@ -17452,33 +17444,24 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
                                                 value_feedback);
           }));
 
-  StoreRegister(result_pair.first, value);
-  StoreRegister(result_pair.second, done);
+  SetAccumulator(value);
 
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitForOfNext() {
-  // ForOfNext <iterator> <next> <value_done_out> <call_slot>
+  // ForOfNext <iterator> <next> <call_slot>
 
   ValueNode* iterator = LoadRegister(0);
   ValueNode* next_method = LoadRegister(1);
 
-  auto register_pair = iterator_.GetRegisterPairOperand(2);
-  int call_slot = iterator_.GetFeedbackSlotOperand(3);
+  int call_slot = iterator_.GetFeedbackSlotOperand(2);
 
-  RETURN_IF_DONE(
-      TryReduceForOfNext(iterator, next_method, register_pair, call_slot));
+  RETURN_IF_DONE(TryReduceForOfNext(iterator, next_method, call_slot));
 
-  CallBuiltin* result_struct;
-  GET_VALUE_OR_ABORT(result_struct,
-                     BuildCallBuiltinWithTaggedInputs<Builtin::kForOfNext>(
-                         {iterator, next_method, GetConstant(feedback()),
-                          GetSmiConstant(call_slot)}));
-
-  StoreRegisterPair(register_pair, result_struct);
-
-  return ReduceResult::Done();
+  return SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kForOfNext>(
+      {iterator, next_method, GetConstant(feedback()),
+       GetSmiConstant(call_slot)}));
 }
 
 ReduceResult MaglevGraphBuilder::VisitDebugger() {

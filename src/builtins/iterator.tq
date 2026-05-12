@@ -129,40 +129,22 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
   return CreateAsyncFromSyncIterator(context, syncIterator);
 }
 
-struct ForOfNextResult {
-  value: Object;
-  done: Object;
-}
-
 extern transitioning macro ForOfNextHelper(
-    Context, Object, Object, Undefined|FeedbackVector,
-    uintptr): ForOfNextResult;
+    Context, Object, Object, Undefined|FeedbackVector, uintptr): Object;
 
 transitioning builtin ForOfNext(
     context: Context, iterator: JSAny, next: JSFunction,
-    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): ForOfNextResult {
+    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): Object {
   return ForOfNextHelper(
       context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 }
 
 transitioning builtin ForOfNextBaseline(
-    context: Context, iterator: JSAny, next: JSFunction, resultSlot: RawPtr,
-    callSlot: Smi): Undefined {
+    context: Context, iterator: JSAny, next: JSFunction,
+    callSlot: Smi): Object {
   const feedbackVector = LoadFeedbackVectorFromBaseline();
-  const result: ForOfNextResult = ForOfNextHelper(
+  return ForOfNextHelper(
       context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
-
-  // The result slot address points to the first interpreter register slot.
-  const firstResultSlot = resultSlot;
-  // The second interpreter register slot is one word before, since stacks grow
-  // toward zero.
-  const secondResultSlot =
-      resultSlot + torque_internal::TimesSizeOf<intptr>(-1);
-
-  StoreFullTaggedNoWriteBarrier(firstResultSlot, result.value);
-  StoreFullTaggedNoWriteBarrier(secondResultSlot, result.done);
-
-  return Undefined;
 }
 
 @export

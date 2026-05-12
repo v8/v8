@@ -2201,9 +2201,7 @@ Type Typer::Visitor::TypeJSForInPrepare(Node* node) {
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
 }
 
-Type Typer::Visitor::TypeJSForOfNext(Node* node) {
-  return Type::Tuple(Type::Any(), Type::Any(), zone());
-}
+Type Typer::Visitor::TypeJSForOfNext(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSLoadMessage(Node* node) { return Type::Any(); }
 

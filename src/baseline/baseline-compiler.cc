@@ -2661,14 +2661,10 @@ void BaselineCompiler::VisitForOfNext() {
   Register next = scratch_scope.AcquireScratch();
   __ LoadRegister(object, RegisterOperand(0));
   __ LoadRegister(next, RegisterOperand(1));
-  // Pass the output register slot as an argument, so that the builtin
-  // is responsible for writing into the slots.
-  Register out_reg_address = scratch_scope.AcquireScratch();
-  basm_.RegisterFrameAddress(RegisterOperand(2), out_reg_address);
+
   CallBuiltin<Builtin::kForOfNextBaseline>(object,                 // object
                                            next,                   // next
-                                           out_reg_address,        // out_reg
-                                           FeedbackSlotAsSmi(3));  // call_slot
+                                           FeedbackSlotAsSmi(2));  // call_slot
 }
 
 void BaselineCompiler::VisitGetIterator() {
