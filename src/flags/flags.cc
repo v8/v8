@@ -1274,6 +1274,8 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code),
 #if V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(single_threaded, experimental_wasm_pgo_to_file),
+      CONTRADICTION(single_threaded, wasm_generate_compilation_hints),
+      CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints),
 #endif  // V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(stress_concurrent_inlining, turboshaft_assert_types),
       CONTRADICTION(stress_concurrent_inlining_attach_code,
