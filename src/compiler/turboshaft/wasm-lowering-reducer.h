@@ -696,6 +696,7 @@ class WasmLoweringReducer : public Next {
       case wasm::kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<Word32> ObjectIsUnshared(V<HeapObject> object) {

@@ -173,7 +173,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
       case kUImm8:
         return is_uint8(value);
     }
-    return false;
+    UNREACHABLE();
   }
 
   bool CanBeLoadStoreShiftImmediate(OpIndex node, MemoryRepresentation rep) {

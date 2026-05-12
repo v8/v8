@@ -92,6 +92,7 @@ const char* Module::StatusString(Module::Status status) {
     case Module::kErrored:
       return "Errored";
   }
+  UNREACHABLE();
 }
 #endif  // DEBUG
 

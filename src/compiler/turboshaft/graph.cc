@@ -104,6 +104,7 @@ std::ostream& operator<<(std::ostream& os, const Block::Kind& kind) {
     case Block::Kind::kBranchTarget:
       return os << "BLOCK";
   }
+  UNREACHABLE();
 }
 
 }  // namespace v8::internal::compiler::turboshaft

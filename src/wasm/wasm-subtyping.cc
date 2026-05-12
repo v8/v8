@@ -394,6 +394,7 @@ bool ValidSubtypeDefinition(ModuleTypeIndex subtype_index,
       return ValidContinuationSubtypeDefinition(subtype_index, supertype_index,
                                                 module);
   }
+  UNREACHABLE();
 }
 
 namespace {

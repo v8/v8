@@ -107,6 +107,7 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
     case maglev::ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace

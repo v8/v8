@@ -79,6 +79,7 @@ const char* ToString(GCTracer::Event::State state) {
     case GCTracer::Event::State::NOT_RUNNING:
       return nullptr;
   }
+  UNREACHABLE();
 }
 
 const char* ToString(v8::Isolate::Priority priority) {
@@ -90,6 +91,7 @@ const char* ToString(v8::Isolate::Priority priority) {
     case v8::Isolate::Priority::kBestEffort:
       return "BestEffort";
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -119,6 +121,7 @@ const char* ToString(GCTracer::Event::Type type, bool short_name) {
     case GCTracer::Event::Type::START:
       return (short_name) ? "st" : "Start";
   }
+  UNREACHABLE();
 }
 
 GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(

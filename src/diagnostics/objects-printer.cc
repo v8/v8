@@ -84,6 +84,7 @@ const char* JSIteratorHelperStateToString(JSIteratorHelperState state) {
     case JSIteratorHelperState::kCompleted:
       return "COMPLETED";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, JSIteratorHelperState state) {
@@ -99,6 +100,7 @@ const char* JSIteratorZipHelperModeToString(JSIteratorZipHelperMode mode) {
     case JSIteratorZipHelperMode::kStrict:
       return "STRICT";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, JSIteratorZipHelperMode mode) {

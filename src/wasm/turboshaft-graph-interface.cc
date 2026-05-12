@@ -108,6 +108,7 @@ ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
     case DataViewOp::kByteLength:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 size_t GetTypeSize(DataViewOp op_type) {
@@ -120,6 +121,7 @@ size_t GetTypeSize(DataViewOp op_type) {
     TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
 #undef ELEMENTS_KIND_TO_ELEMENT_SIZE
   }
+  UNREACHABLE();
 }
 
 bool IsDataViewSetOp(DataViewOp op) {
@@ -134,6 +136,7 @@ bool IsDataViewSetOp(DataViewOp op) {
     case DataViewOp::kByteLength:
       return false;
   }
+  UNREACHABLE();
 }
 
 bool ReverseBytesSupported(size_t size_in_bytes) {

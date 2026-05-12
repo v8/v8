@@ -689,6 +689,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
       // are potentially needed until the end of the deoptimising code.
       return g->UseAnyAtEnd(input);
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -725,6 +726,7 @@ class TurboshaftStateObjectDeduplicator {
       case ObjectType::kStringConcat:
         return string_ids_mapping_;
     }
+    UNREACHABLE();
   }
   uint32_t next_id_ = 0;
 

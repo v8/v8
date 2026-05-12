@@ -77,6 +77,7 @@ std::string Type::GetHandleTypeName(HandleKind kind,
     case HandleKind::kDirect:
       return "DirectHandle<" + type_name + ">";
   }
+  UNREACHABLE();
 }
 
 // TODO(danno): HandlifiedCppTypeName should be used universally in Torque

@@ -823,6 +823,7 @@ class ParserBase {
       case ClassLiteralProperty::Kind::AUTO_ACCESSOR:
         return VariableMode::kPrivateGetterAndSetter;
     }
+    UNREACHABLE();
   }
 
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,

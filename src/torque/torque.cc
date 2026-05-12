@@ -16,6 +16,7 @@ std::string ErrorPrefixFor(TorqueMessage::Kind kind) {
     case TorqueMessage::Kind::kLint:
       return "Lint error";
   }
+  UNREACHABLE();
 }
 
 int WrappedMain(int argc, const char** argv) {

@@ -103,6 +103,7 @@ inline std::ostream& operator<<(std::ostream& os,
     case StoreObservability::kObservable:
       return os << "Observable";
   }
+  UNREACHABLE();
 }
 
 struct MaybeRedundantStoresKeyData {
@@ -528,6 +529,7 @@ class RedundantStoreAnalysis {
       case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
         return {};
     }
+    UNREACHABLE();
   }
 
   const Graph& graph_;

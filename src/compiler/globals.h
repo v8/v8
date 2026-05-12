@@ -34,6 +34,7 @@ inline std::ostream& operator<<(std::ostream& os,
     case LazyDeoptOnThrow::kNo:
       return os << "DoNOTLazyDeoptOnThrow";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {

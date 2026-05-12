@@ -1323,6 +1323,7 @@ DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
     case wasm::kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // static

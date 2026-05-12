@@ -46,6 +46,7 @@ bool Type::Equals(const Type& other) const {
     case Kind::kAny:
       return true;
   }
+  UNREACHABLE();
 }
 
 bool Type::IsSubtypeOf(const Type& other) const {
@@ -72,6 +73,7 @@ bool Type::IsSubtypeOf(const Type& other) const {
     case Kind::kAny:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 void Type::PrintTo(std::ostream& stream) const {
@@ -142,6 +144,7 @@ Type Type::LeastUpperBound(const Type& lhs, const Type& rhs, Zone* zone) {
     case Type::Kind::kTuple:
       return TupleType::LeastUpperBound(lhs.AsTuple(), rhs.AsTuple(), zone);
   }
+  UNREACHABLE();
 }
 
 std::optional<Type> Type::ParseFromString(const std::string_view& str,
@@ -170,6 +173,7 @@ Handle<TurboshaftType> Type::AllocateOnHeap(Factory* factory) const {
     case Kind::kAny:
       UNIMPLEMENTED();
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>
@@ -186,6 +190,7 @@ bool WordType<Bits>::Contains(word_t value) const {
       return false;
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>
@@ -204,6 +209,7 @@ bool WordType<Bits>::Equals(const WordType<Bits>& other) const {
       return true;
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>
@@ -228,6 +234,7 @@ bool WordType<Bits>::IsSubtypeOf(const WordType<Bits>& other) const {
       return true;
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits, typename word_t = typename WordType<Bits>::word_t>
@@ -504,6 +511,7 @@ bool FloatType<Bits>::Equals(const FloatType<Bits>& other) const {
       return true;
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>
@@ -532,8 +540,10 @@ bool FloatType<Bits>::IsSubtypeOf(const FloatType<Bits>& other) const {
           }
           return true;
       }
+      UNREACHABLE();
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>

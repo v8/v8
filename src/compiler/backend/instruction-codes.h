@@ -313,6 +313,7 @@ inline int32_t LaneSizeBits(LaneSize size) {
     case LaneSize::kL64:
       return 64;
   }
+  UNREACHABLE();
 }
 
 inline LaneSize LaneSizeFromBits(uint8_t width) {

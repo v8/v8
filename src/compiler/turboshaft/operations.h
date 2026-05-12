@@ -1594,6 +1594,7 @@ struct TypeHintOp : FixedArityOperationT<1, TypeHintOp> {
       case Type::kHoleyFloat64:
         return RepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -1606,6 +1607,7 @@ struct TypeHintOp : FixedArityOperationT<1, TypeHintOp> {
       case Type::kHoleyFloat64:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   V<Float64OrWord32> input() const { return Base::input<Float64OrWord32>(0); }
@@ -1678,6 +1680,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
       case Kind::kUnsignedMod:
         return false;
     }
+    UNREACHABLE();
   }
 
   static bool IsAssociative(Kind kind) {
@@ -1697,6 +1700,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
       case Kind::kUnsignedMod:
         return false;
     }
+    UNREACHABLE();
   }
   // The Word32 and Word64 versions of the operator compute the same result when
   // truncated to 32 bit.
@@ -1717,6 +1721,7 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
       case Kind::kUnsignedMod:
         return false;
     }
+    UNREACHABLE();
   }
 
   WordBinopOp(V<Word> left, V<Word> right, Kind kind, WordRepresentation rep)
@@ -1768,6 +1773,7 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
       case Kind::kAtan2:
         return false;
     }
+    UNREACHABLE();
   }
 
   FloatBinopOp(V<Float> left, V<Float> right, Kind kind,
@@ -1909,6 +1915,7 @@ struct WordBinopDeoptOnOverflowOp
       case Kind::kUnsignedMod:
         return false;
     }
+    UNREACHABLE();
   }
 
   static constexpr OpEffects effects = OpEffects().CanDeopt();
@@ -1972,6 +1979,7 @@ struct OverflowCheckedBinopOp
         return RepVector<RegisterRepresentation::Word64(),
                          RegisterRepresentation::Word32()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -1990,6 +1998,7 @@ struct OverflowCheckedBinopOp
       case Kind::kSignedSub:
         return false;
     }
+    UNREACHABLE();
   }
 
   OverflowCheckedBinopOp(V<Word> left, V<Word> right, Kind kind,
@@ -2051,6 +2060,7 @@ struct OverflowCheckedUnaryOp
         return RepVector<RegisterRepresentation::Word64(),
                          RegisterRepresentation::Word32()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -2169,6 +2179,7 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
       case Kind::kRotateLeft:
         return false;
     }
+    UNREACHABLE();
   }
   // The Word32 and Word64 versions of the operator compute the same result when
   // truncated to 32 bit.
@@ -2183,6 +2194,7 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
       case Kind::kRotateLeft:
         return false;
     }
+    UNREACHABLE();
   }
 
   ShiftOp(V<Word> left, V<Word32> right, Kind kind, WordRepresentation rep)
@@ -2377,6 +2389,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       case Kind::kBitcast:
         return reverse_kind == Kind::kBitcast;
     }
+    UNREACHABLE();
   }
 
   bool IsReversibleBy(Kind reverse_kind, bool signalling_nan_possible) const {
@@ -2461,6 +2474,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64NotHole:
         return RepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -2483,6 +2497,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   V<Untagged> input() const { return Base::input<Untagged>(0); }
@@ -2529,6 +2544,7 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
         return RepVector<RegisterRepresentation::Word64(),
                          RegisterRepresentation::Word32()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -2592,6 +2608,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
         // GC.
         return OpEffects().CanDoRawHeapAccess();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -2827,6 +2844,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kCompressedHeapObject:
         return RegisterRepresentation::Compressed();
     }
+    UNREACHABLE();
   }
 
   ConstantOp(Kind kind, Storage storage)
@@ -3058,6 +3076,7 @@ struct LoadOp : OperationT<LoadOp> {
         case BaseTaggedness::kUntaggedBase:
           return RawAligned();
       }
+      UNREACHABLE();
     }
     static constexpr Kind TaggedBase() {
       return {.tagged_base = true,
@@ -3413,6 +3432,7 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
       case AtomicRMWOp::BinOp::kCompareExchange:
         return Kind::kCompareExchange;
     }
+    UNREACHABLE();
   }
 
   OpEffects Effects() const {
@@ -3840,6 +3860,7 @@ struct JSStackCheckOp : OperationT<JSStackCheckOp> {
             .CanReadHeapMemory()
             .CanAllocate();
     }
+    UNREACHABLE();
   }
 
   V<Context> native_context() const { return Base::input<Context>(0); }
@@ -3972,6 +3993,7 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
       case Kind::kParentFramePointer:
         return RepVector<RegisterRepresentation::WordPtr()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -4120,6 +4142,7 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
       case Kind::kBuiltinEntry:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
@@ -7087,6 +7110,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
         // to prevent any validation.
         return MaybeRegisterRepresentation::None();
     }
+    UNREACHABLE();
   }
 
   V<FrameState> frame_state() const { return input<FrameState>(0); }
@@ -7286,6 +7310,7 @@ struct FindOrderedHashEntryOp
       case Kind::kFindOrderedHashMapEntryForInt32Key:
         return RepVector<RegisterRepresentation::WordPtr()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -8981,6 +9006,7 @@ struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
       case Kind::kF64x2:
         return MaybeRepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   Simd128SplatOp(V<Any> input, Kind kind) : Base(input), kind(kind) {}
@@ -9088,6 +9114,7 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
       case Kind::kF64x2:
         return MachineRepresentation::kFloat64;
     }
+    UNREACHABLE();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9106,6 +9133,7 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
       case Kind::kF64x2:
         return RepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -9180,6 +9208,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
       case Kind::kF64x2:
         return MachineRepresentation::kFloat64;
     }
+    UNREACHABLE();
   }
 
   static uint8_t lane_count(Kind kind) {
@@ -9196,6 +9225,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
       case Kind::kF64x2:
         return 2;
     }
+    UNREACHABLE();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -9238,6 +9268,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
       case Kind::kF64x2:
         return RegisterRepresentation::Float64();
     }
+    UNREACHABLE();
   }
 };
 
@@ -10056,6 +10087,7 @@ struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
       case Kind::kF64x4:
         return MaybeRepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   Simd256SplatOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}

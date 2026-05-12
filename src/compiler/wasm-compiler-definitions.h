@@ -49,6 +49,7 @@ V8_INLINE std::ostream& operator<<(std::ostream& os,
     case kExactMatchLastSupertype:
       return os << "kExactMatchLastSupertype";
   }
+  UNREACHABLE();
 }
 
 SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,

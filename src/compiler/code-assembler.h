@@ -89,6 +89,7 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
     case CheckBounds::kDebugOnly:
       return DEBUG_BOOL;
   }
+  UNREACHABLE();
 }
 
 enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };

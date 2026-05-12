@@ -296,6 +296,7 @@ std::ostream& operator<<(std::ostream& os, const CmpOp& cmp) {
     case CmpOp::kUnsignedGreaterThanOrEqual:
       return os << ">=ᵘ";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, const BinOp& binop) {
@@ -319,6 +320,7 @@ std::ostream& operator<<(std::ostream& os, const BinOp& binop) {
     case BinOp::kOverflowCheckedSub:
       return os << "-ᵒ";
   }
+  UNREACHABLE();
 }
 
 namespace {

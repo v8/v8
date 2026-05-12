@@ -1406,6 +1406,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
           case v8::internal::PropertyKind::kAccessor:
             return ACCESSOR;
         }
+        UNREACHABLE();
       }
       [[fallthrough]];
     case MODULE_NAMESPACE:

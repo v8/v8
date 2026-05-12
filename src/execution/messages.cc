@@ -931,6 +931,7 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
     case CallPrinter::ErrorHint::kNone:
       return default_id;
   }
+  UNREACHABLE();
 }
 
 }  // namespace

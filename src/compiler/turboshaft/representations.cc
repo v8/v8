@@ -27,6 +27,7 @@ std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep) {
     case MaybeRegisterRepresentation::None():
       return os << "None";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
@@ -76,5 +77,6 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
     case MemoryRepresentation::Simd256():
       return os << "Simd256";
   }
+  UNREACHABLE();
 }
 }  // namespace v8::internal::compiler::turboshaft

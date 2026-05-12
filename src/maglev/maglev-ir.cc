@@ -199,6 +199,7 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
     case UseRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, NumberConversionMode mode) {
@@ -208,6 +209,7 @@ std::ostream& operator<<(std::ostream& os, NumberConversionMode mode) {
     case NumberConversionMode::kCanonicalizeSmi:
       return os << "kCanonicalizeSmi";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
@@ -217,6 +219,7 @@ std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
     case StringEqualInputMode::kStringsOrOddballs:
       return os << "kStringsOrOddballs";
   }
+  UNREACHABLE();
 }
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }

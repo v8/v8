@@ -960,6 +960,7 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
           MessageTemplate::kWasmTrapStringInvalidWtf8);
 #endif
   }
+  UNREACHABLE();
 }
 
 }  // namespace

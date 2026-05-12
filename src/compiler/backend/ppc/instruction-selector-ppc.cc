@@ -64,7 +64,7 @@ class PPCOperandGenerator final : public OperandGenerator {
       case kNoImmediate:
         return false;
     }
-    return false;
+    UNREACHABLE();
   }
 };
 

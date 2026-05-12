@@ -494,6 +494,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
                            type.is_shared);
     }
   }
+  UNREACHABLE();
 }
 
 // Returns the index of the canonical representative of the first type in this

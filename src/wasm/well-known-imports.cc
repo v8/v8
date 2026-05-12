@@ -161,6 +161,7 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kFastAPICall:
       return "fast API call";
   }
+  UNREACHABLE();
 }
 
 WellKnownImportsList::UpdateResult WellKnownImportsList::Update(

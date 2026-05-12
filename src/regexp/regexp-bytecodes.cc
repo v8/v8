@@ -25,6 +25,7 @@ std::ostream& operator<<(std::ostream& os,
     case RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit:
       return os << "Check";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, StandardCharacterSet val) {
@@ -48,6 +49,7 @@ std::ostream& operator<<(std::ostream& os, StandardCharacterSet val) {
     case StandardCharacterSet::kEverything:
       return os << "Everything";
   }
+  UNREACHABLE();
 }
 
 }  // namespace

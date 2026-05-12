@@ -2178,6 +2178,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     case wasm::kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
@@ -2208,6 +2209,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,

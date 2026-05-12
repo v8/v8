@@ -94,6 +94,7 @@ const char* GetModifier(KeyedAccessLoadMode mode) {
     case KeyedAccessLoadMode::kInBounds:
       return "";
   }
+  UNREACHABLE();
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {

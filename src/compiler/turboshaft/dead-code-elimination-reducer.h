@@ -114,6 +114,7 @@ struct ControlState {
       case Kind::kNotEliminatable:
         return lhs;
     }
+    UNREACHABLE();
   }
 
   Kind kind;
@@ -130,6 +131,7 @@ inline std::ostream& operator<<(std::ostream& stream,
     case ControlState::kUnreachable:
       return stream << "Unreachable";
   }
+  UNREACHABLE();
 }
 
 inline bool operator==(const ControlState& lhs, const ControlState& rhs) {

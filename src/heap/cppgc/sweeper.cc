@@ -74,6 +74,7 @@ constexpr const char* ToString(MutatorThreadSweepingMode sweeping_mode) {
     case MutatorThreadSweepingMode::kOnlyFinalizers:
       return "only-finalizers";
   }
+  UNREACHABLE();
 }
 
 class ObjectStartBitmapVerifier final

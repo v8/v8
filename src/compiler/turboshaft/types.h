@@ -905,6 +905,7 @@ inline std::ostream& operator<<(std::ostream& stream, Type::Kind kind) {
     case Type::Kind::kAny:
       return stream << "Any";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& stream, const Type& type) {

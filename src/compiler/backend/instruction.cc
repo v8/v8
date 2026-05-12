@@ -196,6 +196,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
           return os << "(*)";
       }
+      UNREACHABLE();
     }
     case InstructionOperand::CONSTANT:
       return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
@@ -212,6 +213,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case ImmediateOperand::INDEXED_IMM:
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
+      UNREACHABLE();
     }
     case InstructionOperand::PENDING:
       return os << "[pending: " << PendingOperand::cast(op).next() << "]";
@@ -1384,6 +1386,7 @@ std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
     case StateValueKind::kStringConcat:
       return os << "StringConcat";
   }
+  UNREACHABLE();
 }
 
 void StateValueDescriptor::Print(std::ostream& os) const {

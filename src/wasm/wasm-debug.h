@@ -69,6 +69,7 @@ class DebugSideTable {
           case kStack:
             return stack_offset == other.stack_offset;
         }
+        UNREACHABLE();
       }
 
       bool is_constant() const { return storage == kConstant; }

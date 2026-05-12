@@ -385,6 +385,7 @@ class TypeCanonicalizer {
           return type2.kind == CanonicalType::kCont &&
                  EqualContType(*type1.cont_type, *type2.cont_type);
       }
+      UNREACHABLE();
     }
 
     bool EqualTypes(base::Vector<const CanonicalType> types1,

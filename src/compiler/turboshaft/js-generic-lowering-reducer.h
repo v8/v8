@@ -46,6 +46,7 @@ class JSGenericLoweringReducer : public Next {
       GENERIC_BINOP_LIST(BINOP_CASE)
 #undef BINOP_CASE
     }
+    UNREACHABLE();
   }
 
   V<Object> REDUCE(GenericUnop)(V<Object> input, V<FrameState> frame_state,
@@ -59,6 +60,7 @@ class JSGenericLoweringReducer : public Next {
       GENERIC_UNOP_LIST(UNOP_CASE)
 #undef UNOP_CASE
     }
+    UNREACHABLE();
   }
 
   OpIndex REDUCE(ToNumberOrNumeric)(V<Object> input, V<FrameState> frame_state,

@@ -295,6 +295,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, ShiftKind kind) {
     case ShiftKind::kShiftOutZeros:
       return os << "ShiftOutZeros";
   }
+  UNREACHABLE();
 }
 
 ShiftKind ShiftKindOf(Operator const* op) {
@@ -312,6 +313,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
     case TruncateKind::kSetOverflowToMin:
       return os << "kSetOverflowToMin";
   }
+  UNREACHABLE();
 }
 
 // The format is:
@@ -1909,6 +1911,7 @@ const Operator* MachineOperatorBuilder::Word32Sar(ShiftKind kind) {
     case ShiftKind::kShiftOutZeros:
       return &cache_.kShiftOutZerosWord32Sar;
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::Word64Sar(ShiftKind kind) {
@@ -1918,6 +1921,7 @@ const Operator* MachineOperatorBuilder::Word64Sar(ShiftKind kind) {
     case ShiftKind::kShiftOutZeros:
       return &cache_.kShiftOutZerosWord64Sar;
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::TruncateFloat32ToUint32(
@@ -1928,6 +1932,7 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToUint32(
     case TruncateKind::kSetOverflowToMin:
       return &cache_.kSetOverflowToMinTruncateFloat32ToUint32;
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::TruncateFloat64ToInt64(
@@ -1938,6 +1943,7 @@ const Operator* MachineOperatorBuilder::TruncateFloat64ToInt64(
     case TruncateKind::kSetOverflowToMin:
       return &cache_.kSetOverflowToMinTruncateFloat64ToInt64;
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
@@ -1948,6 +1954,7 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
     case TruncateKind::kSetOverflowToMin:
       return &cache_.kSetOverflowToMinTruncateFloat32ToInt32;
   }
+  UNREACHABLE();
 }
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
