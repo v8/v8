@@ -18309,6 +18309,9 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
   // Check that the array iterator prototype chain is intact.
   GotoIf(IsArrayIteratorProtectorCellInvalid(), &slow_path);
 
+  // Check that there are no elements on the prototype chain.
+  GotoIf(IsNoElementsProtectorCellInvalid(), &slow_path);
+
   // Fast path for JSArrayIterator.
   {
     TNode<JSArrayIterator> array_iterator = CAST(object);
