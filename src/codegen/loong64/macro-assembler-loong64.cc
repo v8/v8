@@ -3502,9 +3502,9 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         if (rk.is_reg() && rj.code() == rk.rm().code()) {
           // No code needs to be emitted.
         } else if (IsZero(rk)) {
-          if (L->is_bound() && !is_near(L, OffsetSize::kOffset26)) return false;
+          if (L->is_bound() && !is_near(L, OffsetSize::kOffset21)) return false;
           if (need_link) pcaddi(ra, 2);
-          offset = GetOffset(L, OffsetSize::kOffset26);
+          offset = GetOffset(L, OffsetSize::kOffset21);
           bnez(rj, offset);
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
