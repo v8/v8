@@ -159,9 +159,8 @@ ALL_VARIANT_FLAGS = {
     "stress_instruction_scheduling": [
         "--turbo-stress-instruction-scheduling", "--no-liftoff"
     ],
-    # Google3 variants.
-    "google3_icu": [],
-    "google3_noicu": [],
+    # Google3 variant.
+    "google3": [],
 }
 
 # Note these are specifically for the case when Turbofan is either fully
