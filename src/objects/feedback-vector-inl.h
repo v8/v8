@@ -600,7 +600,7 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
     DirectHandle<Map> map = config()->NewHandle(it.map());
     Tagged<MaybeObject> handler_obj = it.handler();
     if (!handler_obj.IsCleared()) {
-      function(map, handler_obj);
+      function(map, config()->NewHandle(handler_obj));
     }
   }
 }

@@ -15,6 +15,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/handles/handles-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -485,7 +486,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   bool has_deprecated_map_without_migration_target = false;
   nexus.IterateMapsWithUnclearedHandler(
       [this, &maps, &handlers, &has_deprecated_map_without_migration_target](
-          DirectHandle<Map> map_handle, Tagged<MaybeObject> handler_obj) {
+          DirectHandle<Map> map_handle, MaybeObjectDirectHandle handler_obj) {
         OptionalMapRef maybe_map_ref = TryMakeRef(this, *map_handle);
         if (!maybe_map_ref.has_value()) return;
         MapRef map = maybe_map_ref.value();
@@ -515,8 +516,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
         maps.push_back(map);
 
         OptionalObjectRef handler;
-        if (handler_obj.IsSmi()) {
-          handler = TryMakeRef(this, handler_obj.cast<Smi>());
+        if (!handler_obj.is_null()) {
+          handler = TryMakeRef(this, *handler_obj.object());
         }
         handlers.push_back(handler);
       });
