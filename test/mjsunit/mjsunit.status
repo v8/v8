@@ -1092,6 +1092,7 @@
   'regress/regress-1447383': [SKIP],
   'regress/regress-crbug-335592010': [SKIP],
   'regress/regress-352402863': [SKIP],
+  'string-localecompare-inline': [SKIP],
 
   # Non-BMP characters currently aren't considered identifiers without i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
@@ -2794,6 +2795,7 @@
   'tzoffset-transition-apia': [FAIL],
   'tzoffset-transition-lord-howe': [FAIL],
   'tzoffset-transition-moscow': [FAIL],
+  'string-localecompare-inline': [SKIP],
 }], # variant == google3_nociu
 
 # Tests that cannot run without JS shared memory
