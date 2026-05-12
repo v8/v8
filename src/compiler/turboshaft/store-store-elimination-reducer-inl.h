@@ -263,7 +263,10 @@ class MaybeRedundantStoresTable
       StartNewSnapshot(
           base::VectorOf({snapshot.value(), new_snapshot}),
           [&](Key key, base::Vector<const StoreObservability> successors) {
-            DCHECK_LE(successors[0], successors[1]);
+            // Since we start loops (at the backedge) with conservative
+            // assumptions (we assume kObservable for everything), revisiting
+            // loops should only narrow observability, and never widen it.
+            DCHECK_GE(successors[0], successors[1]);
             if (successors[0] != successors[1]) *snapshot_has_changed = true;
             return static_cast<StoreObservability>(
                 *std::max_element(successors.begin(), successors.end()));
