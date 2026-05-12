@@ -477,6 +477,84 @@ def _RunTestsWithVPythonSpec(input_api, output_api):
     input_api.canned_checks.CheckVPythonSpec(input_api, output_api))
 
 
+def _CheckMultiLineIfBraces(input_api, output_api):
+  """Checks that multi-line if statements are enclosed in curly braces."""
+
+  def FilterFile(affected_file):
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(r'src[\\\/].*\.cc', r'src[\\\/].*\.h',
+                        r'test[\\\/].*\.cc', r'test[\\\/].*\.h'),
+        files_to_skip=files_to_skip)
+
+  # Strip C++ comments, preprocessor directives, and string/char literals,
+  # replacing them with whitespace while preserving newlines so line numbers remain exact.
+  clean_pattern = input_api.re.compile(
+      r'//[^\n]*|/\*[\s\S]*?\*\/|#(?:[^\n\\]|\\[\s\S])*|"(?:\\.|[^"\\])*"|(?<!\d)\'(?:\\.|[^\'\\])*\''
+  )
+
+  def replacer(m):
+    return ''.join('\n' if c == '\n' else ' ' for c in m.group(0))
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    original_text = '\n'.join(f.NewContents())
+    changed_line_nums = set(line_num for line_num, _ in f.ChangedContents())
+
+    text = clean_pattern.sub(replacer, original_text)
+
+    # Find all occurrences of 'if'
+    for match in input_api.re.finditer(r'(?<!#)\bif\s*(?:constexpr\s*)?\(',
+                                       text):
+      start_idx = match.end() - 1
+      # Find matching closing ')'
+      paren_count = 0
+      end_idx = -1
+      for i in range(start_idx, len(text)):
+        if text[i] == '(':
+          paren_count += 1
+        elif text[i] == ')':
+          paren_count -= 1
+          if paren_count == 0:
+            end_idx = i
+            break
+
+      if end_idx != -1:
+        # Match intervening whitespace and C++20 attributes (like [[likely]])
+        after_paren = text[end_idx + 1:]
+        gap_match = input_api.re.match(r'^(?:[ \t\r\n]|\[\[[\s\S]*?\]\])*',
+                                       after_paren)
+        j = end_idx + 1 + gap_match.end()
+        newline_seen = '\n' in gap_match.group(0)
+
+        # It is a multi-line if statement if either the condition spanned multiple lines
+        # or there was a newline before the body.
+        cond_text = text[match.start():end_idx + 1]
+        is_multiline = ('\n' in cond_text) or newline_seen
+
+        if is_multiline and j < len(text) and text[j] != '{':
+          # Compute line numbers
+          start_line = text.count('\n', 0, match.start()) + 1
+          body_line = text.count('\n', 0, j) + 1
+          # Find the statement text on body_line
+          line_end = original_text.find('\n', j)
+          if line_end == -1:
+            line_end = len(original_text)
+          stmt_text = original_text[j:line_end].strip()
+
+          if start_line in changed_line_nums or body_line in changed_line_nums:
+            errors.append(f'  {f.LocalPath()}:{body_line} {stmt_text}')
+
+  if errors:
+    return [
+        output_api.PresubmitPromptOrNotify(
+            'V8 C++ style requires curly braces around the body of multi-line if statements.\n'
+            'Please add braces around the following statements:', errors)
+    ]
+  return []
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
@@ -499,6 +577,7 @@ def _CommonChecks(input_api, output_api):
       _CheckBannedCpp,
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
+      _CheckMultiLineIfBraces,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])
