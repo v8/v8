@@ -5526,5 +5526,23 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   return function_handle;
 }
 
+JSDispatchHandle Factory::NewJSDispatchHandle(uint16_t parameter_count,
+                                              DirectHandle<Code> code,
+                                              JSDispatchTable::Space* space) {
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  if (v8_flags.dispatch_table_gc_interval > 0) [[unlikely]] {
+    if (isolate()->heap()->increment_dispatch_table_allocations() %
+            v8_flags.dispatch_table_gc_interval ==
+        0) {
+      isolate()->heap()->CollectAllGarbage(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+    }
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+  return FactoryBase<Factory>::NewJSDispatchHandle(parameter_count, code,
+                                                   space);
+}
+
 }  // namespace internal
 }  // namespace v8

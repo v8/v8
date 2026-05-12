@@ -144,6 +144,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<Hole> NewHole();
 
+  JSDispatchHandle NewJSDispatchHandle(uint16_t parameter_count,
+                                       DirectHandle<Code> code,
+                                       JSDispatchTable::Space* space);
+
   // Allocates a property array initialized with undefined values.
   DirectHandle<PropertyArray> NewPropertyArray(
       uint32_t length, AllocationType allocation = AllocationType::kYoung);

@@ -2482,6 +2482,11 @@ DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_INT(cppgc_random_gc_interval, 0,
            "Collect garbage after random(0, X) cppgc allocations.")
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+DEFINE_INT(dispatch_table_gc_interval, -1,
+           "garbage collect after <n> dispatch table allocations")
+#endif
+
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_DEVELOPER_FLAG(trace_gc,

@@ -278,6 +278,12 @@ class Heap final {
     TEAR_DOWN
   };
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  int increment_dispatch_table_allocations() {
+    return ++dispatch_table_allocations_;
+  }
+#endif
+
   // Emits GC events for DevTools timeline.
   class V8_NODISCARD DevToolsTraceEventScope {
    public:
@@ -2380,6 +2386,10 @@ class Heap final {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  int dispatch_table_allocations_ = 0;
+#endif
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
