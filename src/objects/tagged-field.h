@@ -103,6 +103,8 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 // JSDispatchHandleMember stores a 32-bit JSDispatchHandle as a member of a
 // HeapObject subclass. Explicit padding must be added to the containing
 // class on builds with kTaggedSize == 8.
+//
+// Use HeapObject::AllocateAndInstallJSDispatchHandle() to install the handle.
 class JSDispatchHandleMember {
  public:
   constexpr JSDispatchHandleMember() = default;
@@ -120,14 +122,6 @@ class JSDispatchHandleMember {
   // Stores a new handle and emits the JSDispatchHandle write barrier.
   inline void Relaxed_Store(HeapObject* host, JSDispatchHandle handle,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  // Allocates a new dispatch-table entry, release-stores it into this member
-  // and emits the write barrier anchored on |host|. Mirrors
-  // HeapObject::AllocateAndInstallJSDispatchHandle.
-  template <typename ObjectType>
-  inline JSDispatchHandle AllocateAndInstall(
-      DirectHandle<ObjectType> host, Isolate* isolate, uint16_t parameter_count,
-      DirectHandle<Code> code, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  private:
   std::atomic<uint32_t> storage_{0};

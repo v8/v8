@@ -288,12 +288,6 @@ V8_OBJECT class HeapObject {
       uint16_t parameter_count, DirectHandle<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
-  template <typename ObjectType>
-  static inline JSDispatchHandle AllocateAndInstallJSDispatchHandle(
-      DirectHandle<ObjectType> host, JSDispatchHandle* location,
-      Isolate* isolate, uint16_t parameter_count, DirectHandle<Code> code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
