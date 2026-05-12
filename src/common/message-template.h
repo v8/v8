@@ -71,8 +71,8 @@ namespace internal {
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
-  T(CallSiteMethodUnsupportedInShadowRealm,                                    \
-    "CallSite method % is unsupported inside ShadowRealms")                    \
+  T(CallSiteMethodCrossedShadowRealmBoundary,                                  \
+    "CallSite method % cannot access objects across ShadowRealm boundary")     \
   T(CallWrappedFunctionThrew, "WrappedFunction threw (%)")                     \
   T(CannotBeShared, "% cannot be shared")                                      \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
