@@ -18,6 +18,18 @@ namespace v8::internal {
 
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
+#ifdef DEBUG
+  TNode<Object> marker_or_context =
+      LoadFromParentFrame(CommonFrameConstants::kContextOrFrameTypeOffset);
+  // We can only load the instance from Wasm frames, which is not the case for
+  // builtins called from a Wasm-in-JS inlined function.
+  TNode<IntPtrT> marker = BitcastTaggedToWord(marker_or_context);
+  CSA_DCHECK(this,
+             Word32Or(WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                            StackFrame::WASM))),
+                      WordEqual(marker, IntPtrConstant(StackFrame::TypeToMarker(
+                                            StackFrame::WASM_SEGMENT_START)))));
+#endif
   return TrustedCast<WasmTrustedInstanceData>(
       LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset),
       "from trusted stack slot");

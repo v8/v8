@@ -435,9 +435,11 @@ builtin WasmTableSetFuncRef(
   }
 }
 
-builtin WasmRefFunc(index: uint32, extractSharedData: bool): Object {
+builtin WasmRefFunc(
+    instance: WasmTrustedInstanceData, index: uint32,
+    extractSharedData: bool): Object {
   const trustedData: WasmTrustedInstanceData =
-      LoadMaybeSharedInstanceDataFromFrame(extractSharedData);
+      extractSharedData ? LoadSharedPartFromInstanceData(instance) : instance;
   try {
     const funcRefs: FixedArray = LoadFuncRefsFromInstanceData(trustedData);
     const funcref: Object = funcRefs.objects[index];

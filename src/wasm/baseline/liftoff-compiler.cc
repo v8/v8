@@ -3147,9 +3147,16 @@ class LiftoffCompiler {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = __ GetUnusedRegister(kGpReg, {}).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
+    }
     CallBuiltin(Builtin::kWasmRefFunc,
-                MakeSig::Returns(kRef).Params(kI32, kI32),
-                {VarState{kI32, static_cast<int>(function_index), 0},
+                MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                {VarState{kRef, LiftoffRegister{instance_data}, 0},
+                 VarState{kI32, static_cast<int>(function_index), 0},
+                 // TODO(42204563): Support shared-everything proposal.
                  VarState{kI32, 0, 0}},
                 decoder->position());
     __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));

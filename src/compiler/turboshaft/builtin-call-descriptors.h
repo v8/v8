@@ -1050,7 +1050,8 @@ struct BuiltinCallDescriptor {
 
   struct WasmRefFunc : public Descriptor<WasmRefFunc> {
     static constexpr auto kFunction = Builtin::kWasmRefFunc;
-    using arguments_t = std::tuple<V<Word32>, V<Word32>>;
+    using arguments_t =
+        std::tuple<V<WasmTrustedInstanceData>, V<Word32>, V<Word32>>;
     using results_t = std::tuple<V<WasmFuncRef>>;
 
     static constexpr bool kNeedsFrameState = false;

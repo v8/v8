@@ -521,7 +521,7 @@ class WasmLoweringReducer : public Next {
       V<WasmFuncRef> from_builtin;
       from_builtin = __ template CallWasmBuiltin<
           deprecated::BuiltinCallDescriptor::WasmRefFunc>(
-          {__ Word32Constant(function_index),
+          {wasm_instance, __ Word32Constant(function_index),
            __ Word32Constant(extract_shared_data ? 1 : 0)});
 
       GOTO(done, from_builtin);
