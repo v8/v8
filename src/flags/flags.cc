@@ -1320,9 +1320,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      // https://crbug.com/508799454
-      RESET_WHEN_CORRECTNESS_FUZZING(for_of_optimization),
-
       // Not useful for differential fuzzing: https://crbug.com/496356383
       RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),
 
