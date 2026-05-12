@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 # Shared state
 total_reserved = 0
@@ -20,7 +21,7 @@ lock = threading.Lock()
 stop_fuzzing = False
 
 
-def run_test(test_info, args, d8_abs):
+def run_test(test_info, args, d8_abs, crash_dir):
   global total_generated, total_crashes, stop_fuzzing
 
   if stop_fuzzing:
@@ -32,8 +33,8 @@ def run_test(test_info, args, d8_abs):
   if args.extra_flags:
     d8_args.extend(args.extra_flags.split())
 
-  if os.path.exists(flags_path):
-    with open(flags_path, "r") as ff:
+  if flags_path.exists():
+    with flags_path.open("r") as ff:
       flags_content = ff.read().strip()
       if flags_content:
         d8_args.extend(flags_content.split())
@@ -63,20 +64,17 @@ def run_test(test_info, args, d8_abs):
           stop_fuzzing = True
 
         crash_name = f"crash_{crash_id}_{f_name}"
-        shutil.copy(test_path, os.path.join(args.crash_dir, crash_name))
-        if os.path.exists(flags_path):
+        shutil.copy(test_path, crash_dir / crash_name)
+        if flags_path.exists():
           shutil.copy(
               flags_path,
-              os.path.join(
-                  args.crash_dir,
-                  f"crash_{crash_id}_{os.path.basename(flags_path)}",
-              ),
+              crash_dir / f"crash_{crash_id}_{flags_path.name}",
           )
 
         print(f"\n[!] CRASH FOUND: {f_name}")
         print(f"    Reason: {crash_reason}")
         print(f"    Exit code: {result.returncode}")
-        print(f"    Saved to: {os.path.join(args.crash_dir, crash_name)}")
+        print(f"    Saved to: {crash_dir / crash_name}")
         # Print a small snippet of stderr for context
         stderr_snippet = result.stderr.strip().splitlines()
         if stderr_snippet:
@@ -112,6 +110,7 @@ def fuzz_batch(
     fuzzer_dir,
     input_abs,
     output_abs,
+    crash_dir_abs,
     app_dir_abs,
 ):
   global stop_fuzzing
@@ -121,13 +120,13 @@ def fuzz_batch(
 
   # Create a unique batch directory to avoid collisions between parallel jobs.
   batch_id = threading.get_ident() + int(time.time() * 1000)
-  batch_output_dir = os.path.join(output_abs, f"batch_{batch_id}")
-  os.makedirs(batch_output_dir, exist_ok=True)
+  batch_output_dir = output_abs / f"batch_{batch_id}"
+  batch_output_dir.mkdir(parents=True, exist_ok=True)
 
   try:
     env = os.environ.copy()
     env["APP_NAME"] = "d8"
-    env["APP_DIR"] = app_dir_abs
+    env["APP_DIR"] = str(app_dir_abs)
 
     # Run fuzzer to generate a batch of test cases.
     subprocess.run(
@@ -149,18 +148,19 @@ def fuzz_batch(
 
     # Collect generated files.
     generated_files = [
-        f for f in os.listdir(batch_output_dir)
-        if f.startswith("fuzz-") and f.endswith(".js")
+        f.name
+        for f in batch_output_dir.iterdir()
+        if f.name.startswith("fuzz-") and f.name.endswith(".js")
     ]
 
     for f in sorted(generated_files):
       if stop_fuzzing:
         break
-      test_path = os.path.join(batch_output_dir, f)
+      test_path = batch_output_dir / f
       # Extract index to find corresponding flags file.
       idx = f[5:-3]
-      flags_path = os.path.join(batch_output_dir, f"flags-{idx}.js")
-      run_test((f, test_path, flags_path), args, d8_abs)
+      flags_path = batch_output_dir / f"flags-{idx}.js"
+      run_test((f, test_path, flags_path), args, d8_abs, crash_dir_abs)
 
   except subprocess.CalledProcessError as e:
     with lock:
@@ -177,10 +177,9 @@ def main():
   global total_reserved, stop_fuzzing
 
   # Script is in tools/, js_fuzzer is one level up.
-  js_fuzzer_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+  js_fuzzer_dir = Path(__file__).resolve().parent.parent
   # V8 root is four levels up from the script's directory.
-  v8_root = os.path.abspath(
-      os.path.join(os.path.dirname(__file__), "../../../.."))
+  v8_root = Path(__file__).resolve().parents[4]
 
   parser = argparse.ArgumentParser(
       description="Simulate Clusterfuzz with JS fuzzer.",
@@ -188,32 +187,32 @@ def main():
   )
   parser.add_argument(
       "--fuzzer",
-      default=os.path.join(js_fuzzer_dir, "workdir/fuzzer/ochang_js_fuzzer"),
+      default=js_fuzzer_dir / "workdir/fuzzer/ochang_js_fuzzer",
       help="Path to fuzzer binary",
   )
   parser.add_argument(
       "--input",
-      default=os.path.join(js_fuzzer_dir, "workdir/input"),
+      default=js_fuzzer_dir / "workdir/input",
       help="Input corpus directory",
   )
   parser.add_argument(
       "--app-dir",
-      default=os.path.join(js_fuzzer_dir, "workdir/app_dir"),
+      default=js_fuzzer_dir / "workdir/app_dir",
       help="App directory containing v8_build_config.json",
   )
   parser.add_argument(
       "--d8",
-      default=os.path.join(v8_root, "out/x64.release/d8"),
+      default=v8_root / "out/x64.release/d8",
       help="Path to d8 binary",
   )
   parser.add_argument(
       "--output-dir",
-      default=os.path.join(js_fuzzer_dir, "workdir/output/generated"),
+      default=js_fuzzer_dir / "workdir/output/generated",
       help="Directory for generated test cases",
   )
   parser.add_argument(
       "--crash-dir",
-      default=os.path.join(js_fuzzer_dir, "workdir/crash"),
+      default=js_fuzzer_dir / "workdir/crash",
       help="Directory to save crashing test cases",
   )
   parser.add_argument(
@@ -237,26 +236,27 @@ def main():
 
   args = parser.parse_args()
 
-  # Ensure directories exist.
-  os.makedirs(args.output_dir, exist_ok=True)
-  os.makedirs(args.crash_dir, exist_ok=True)
+  fuzzer_abs = Path(args.fuzzer).resolve()
+  fuzzer_dir = fuzzer_abs.parent
+  input_abs = Path(args.input).resolve()
+  output_abs = Path(args.output_dir).resolve()
+  crash_dir_abs = Path(args.crash_dir).resolve()
+  app_dir_abs = Path(args.app_dir).resolve()
+  d8_abs = Path(args.d8).resolve()
 
-  fuzzer_abs = os.path.abspath(args.fuzzer)
-  fuzzer_dir = os.path.dirname(fuzzer_abs)
-  input_abs = os.path.abspath(args.input)
-  output_abs = os.path.abspath(args.output_dir)
-  app_dir_abs = os.path.abspath(args.app_dir)
-  d8_abs = os.path.abspath(args.d8)
+  # Ensure directories exist.
+  output_abs.mkdir(parents=True, exist_ok=True)
+  crash_dir_abs.mkdir(parents=True, exist_ok=True)
 
   # Validation.
-  if not os.path.exists(d8_abs):
+  if not d8_abs.exists():
     print(f"Error: d8 binary not found at {d8_abs}")
     sys.exit(1)
   if not os.access(d8_abs, os.X_OK):
     print(f"Error: d8 binary at {d8_abs} is not executable")
     sys.exit(1)
 
-  if not os.path.exists(fuzzer_abs):
+  if not fuzzer_abs.exists():
     print(f"Error: fuzzer binary not found at {fuzzer_abs}")
     sys.exit(1)
   if not os.access(fuzzer_abs, os.X_OK):
@@ -294,6 +294,7 @@ def main():
                   fuzzer_dir,
                   input_abs,
                   output_abs,
+                  crash_dir_abs,
                   app_dir_abs,
               ))
 
@@ -308,7 +309,7 @@ def main():
     print(f"Total test cases generated: {total_generated}")
     print(f"Total crashes found: {total_crashes}")
     if total_crashes > 0:
-      print(f"Crashes saved to {args.crash_dir}/")
+      print(f"Crashes saved to {crash_dir_abs}/")
 
   except KeyboardInterrupt:
     print("\nAborted by user.")
