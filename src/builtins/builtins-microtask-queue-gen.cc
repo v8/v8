@@ -650,6 +650,8 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   auto microtask = Parameter<Microtask>(Descriptor::kMicrotask);
   auto context = Parameter<Context>(Descriptor::kContext);
 
+  // TODO(https://crbug.com/508092629): fix the issue and reenable fast path.
+#if 0
   // Fast path: if the NativeContext matches the one cached on IsolateData,
   // reuse the cached MicrotaskQueue pointer to avoid the expensive
   // NativeContext → ExternalPointerTable → MicrotaskQueue chain.
@@ -678,6 +680,10 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
 
   BIND(&have_queue);
   TNode<RawPtrT> microtask_queue = var_microtask_queue.value();
+#else
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
+#endif  // https://crbug.com/508092629
 
   // Do not store the microtask if MicrotaskQueue is not available, that may
   // happen when the context shutdown.
