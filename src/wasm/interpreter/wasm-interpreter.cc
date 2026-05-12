@@ -8312,7 +8312,10 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   case kExpr##name: {                                                          \
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, is_rmw, Decoder::kNoValidation);          \
+                              false,                                           \
+                              is_rmw ? MemoryAccessImmediate::kAtomicRMW       \
+                                     : MemoryAccessImmediate::kNonAtomic,      \
+                              Decoder::kNoValidation);                         \
     len = 1 + imm.length;                                                      \
     optional.memory_access.offset = imm.offset;                                \
     optional.memory_access.memory_index = imm.mem_index;                       \
@@ -8338,7 +8341,10 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   case kExpr##name: {                                                          \
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, is_rmw, Decoder::kNoValidation);          \
+                              false,                                           \
+                              is_rmw ? MemoryAccessImmediate::kAtomicRMW       \
+                                     : MemoryAccessImmediate::kNonAtomic,      \
+                              Decoder::kNoValidation);                         \
     len = 1 + imm.length;                                                      \
     optional.memory_access.offset = imm.offset;                                \
     optional.memory_access.memory_index = imm.mem_index;                       \
@@ -8741,7 +8747,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, is_rmw, Decoder::kNoValidation);
+                                false,
+                                is_rmw ? MemoryAccessImmediate::kAtomicRMW
+                                       : MemoryAccessImmediate::kNonAtomic,
+                                Decoder::kNoValidation);
       optional->memory_access.offset = imm.offset;
       optional->memory_access.memory_index = imm.mem_index;
       *len += imm.length;
@@ -8752,7 +8761,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, is_rmw, Decoder::kNoValidation);
+                                false,
+                                is_rmw ? MemoryAccessImmediate::kAtomicRMW
+                                       : MemoryAccessImmediate::kNonAtomic,
+                                Decoder::kNoValidation);
       optional->memory_access.offset = imm.offset;
       optional->memory_access.memory_index = imm.mem_index;
       *len += imm.length;
@@ -8768,7 +8780,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                   \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              false, is_rmw, Decoder::kNoValidation);       \
+                              false,                                        \
+                              is_rmw ? MemoryAccessImmediate::kAtomicRMW    \
+                                     : MemoryAccessImmediate::kNonAtomic,   \
+                              Decoder::kNoValidation);                      \
     optional->memory_access.offset = imm.offset;                            \
     optional->memory_access.memory_index = imm.mem_index;                   \
     *len += imm.length;                                                     \
@@ -8783,7 +8798,10 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                  \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              false, is_rmw, Decoder::kNoValidation);      \
+                              false,                                       \
+                              is_rmw ? MemoryAccessImmediate::kAtomicRMW   \
+                                     : MemoryAccessImmediate::kNonAtomic,  \
+                              Decoder::kNoValidation);                     \
     optional->memory_access.offset = imm.offset;                           \
     optional->memory_access.memory_index = imm.mem_index;                  \
     *len += imm.length;                                                    \

@@ -577,6 +577,7 @@ struct TagRange {
   V(WasmFuncDataTag)                 \
   V(WasmManagedDataTag)              \
   V(WasmNativeModuleTag)             \
+  V(WasmInterpreterHandleTag)        \
   V(BackingStoreTag)                 \
   V(IcuBreakIteratorTag)             \
   V(IcuListFormatterTag)             \

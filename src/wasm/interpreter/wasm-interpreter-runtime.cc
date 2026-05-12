@@ -85,9 +85,20 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
   // cast it back to the raw pointer.
-  CHECK(!IsHeapObject(*arg_buffer_obj));
-  CHECK(IsSmi(*arg_buffer_obj));
+  SBXCHECK(IsSmi(*arg_buffer_obj));
   Address arg_buffer = (*arg_buffer_obj).ptr();
+  SBXCHECK_EQ(arg_buffer & (kSystemPointerSize - 1), 0);
+
+  // The return buffer follows the same raw-pointer-through-Smi contract as the
+  // argument buffer.
+  SBXCHECK(IsSmi(*return_buffer_obj));
+  Address return_buffer = (*return_buffer_obj).ptr();
+  SBXCHECK_EQ(return_buffer & (kSystemPointerSize - 1), 0);
+
+  // Reference parameters are either absent (Undefined) or provided as a
+  // GC-visible FixedArray.
+  SBXCHECK(IsUndefined(*ref_param_array_obj, isolate) ||
+           IsFixedArray(*ref_param_array_obj));
 
   // Reserve buffers for argument and return values.
   DCHECK_GT(trusted_data->module()->functions.size(), func_index);
@@ -172,11 +183,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
         // Read reference parameters from the GC-visible FixedArray rather than
         // from the GC-unsafe arg_buffer. The FixedArray was passed as a runtime
         // argument and is properly tracked by the GC across safepoints.
-        CHECK(IsFixedArray(*ref_param_array_obj));
+        SBXCHECK(IsFixedArray(*ref_param_array_obj));
         DirectHandle<FixedArray> ref_array =
             Cast<FixedArray>(ref_param_array_obj);
         while (!ref_indices.empty()) {
           int idx = ref_indices.front();
+          SBXCHECK_LT(static_cast<uint32_t>(idx),
+                      static_cast<uint32_t>(ref_array->length()));
           DirectHandle<Object> ref(ref_array->get(idx), isolate);
           wasm_args[idx] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
           ref_indices.pop();
@@ -198,7 +211,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
     // Copy return values from the vector of {WasmValue} into {arg_buffer}. This
     // also un-boxes reference types from handles into raw pointers.
-    arg_buf_ptr = (*return_buffer_obj).ptr();
+    arg_buf_ptr = return_buffer;
     for (int i = 0; i < num_returns; ++i) {
 #define CASE_RET_TYPE(type, ctype)                                           \
   case wasm::type:                                                           \

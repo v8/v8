@@ -916,6 +916,7 @@
   'regress/wasm/regress-490183533': [SKIP],
   'regress/wasm/regress-493099941': [SKIP],
   'regress/wasm/regress-509674461': [SKIP],
+  'regress/wasm/regress-511772679': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],

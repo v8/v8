@@ -10,7 +10,10 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/interpreter/wasm-interpreter.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles-inl.h"
+#include "src/sandbox/check.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
 #include "src/wasm/wasm-module.h"
 
@@ -20,7 +23,12 @@ namespace wasm {
 
 inline InterpreterCode* WasmInterpreter::CodeMap::GetCode(
     uint32_t function_index) {
-  DCHECK_LT(function_index, interpreter_code_.size());
+  // Defense in depth: enforce the bound check so a future refactor that
+  // accidentally introduces a less-trusted source cannot escape the sandbox
+  // by reading past `interpreter_code_` (which lives on the C++ heap, outside
+  // the sandbox).
+  SBXCHECK_LT(function_index, interpreter_code_.size());
+
   InterpreterCode* code = &interpreter_code_[function_index];
   if (V8_UNLIKELY(!code->bytecode && code->start)) {
     Preprocess(function_index);
@@ -30,7 +38,8 @@ inline InterpreterCode* WasmInterpreter::CodeMap::GetCode(
 
 inline WasmBytecode* WasmInterpreter::CodeMap::GetFunctionBytecode(
     uint32_t func_index) {
-  DCHECK_LT(func_index, interpreter_code_.size());
+  // See comment on `GetCode` above for the rationale of using SBXCHECK_LT.
+  SBXCHECK_LT(func_index, interpreter_code_.size());
 
   // This precompiles the target function.
   InterpreterCode* code = GetCode(func_index);

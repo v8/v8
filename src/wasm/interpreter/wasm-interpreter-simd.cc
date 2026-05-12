@@ -282,7 +282,9 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
   if ((opcode >= kExprS128LoadMem && opcode <= kExprS128StoreMem) ||
       opcode == kExprS128Load32Zero || opcode == kExprS128Load64Zero) {
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
-    MemoryAccessImmediate imm(decoder, code->at(pc + *len), 64, false, is_rmw,
+    MemoryAccessImmediate imm(decoder, code->at(pc + *len), 64, false,
+                              is_rmw ? MemoryAccessImmediate::kAtomicRMW
+                                     : MemoryAccessImmediate::kNonAtomic,
                               Decoder::kNoValidation);
     optional->memory_access.offset = imm.offset;
     optional->memory_access.memory_index = imm.mem_index;
@@ -308,7 +310,9 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
              (opcode <= kExprS128Store64Lane)) {
     bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
     MemoryAccessImmediate mem_imm(decoder, code->at(pc + *len), 64, false,
-                                  is_rmw, Decoder::kNoValidation);
+                                  is_rmw ? MemoryAccessImmediate::kAtomicRMW
+                                         : MemoryAccessImmediate::kNonAtomic,
+                                  Decoder::kNoValidation);
     if (mem_imm.offset >= ((uint64_t)1 << 48)) {
       return false;
     }

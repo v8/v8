@@ -279,7 +279,7 @@ Handle<JSObject> CreateImportObjectInternal(
         DirectHandle<WasmTrustedInstanceData> trusted_data =
             WasmTrustedInstanceData::New(
                 isolate, module_object,
-                smodule_object->native_module().as_shared_ptr(),
+                module_object->native_module().as_shared_ptr(),
                 SharedFlag::kNo);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
