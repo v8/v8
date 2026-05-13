@@ -1361,6 +1361,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
               << " due to conflicting flags" << std::endl;
     flag1->Reset();
   }
+  if (!base::bits::IsPowerOfTwo(v8_flags.homomorphic_ic_count.value())) {
+    if (Flag* f = FindFlagByPointer(&v8_flags.homomorphic_ic_count)) {
+      std::cerr << "Warning: resetting flag --homomorphic-ic-count due to "
+                   "invalid value\n";
+      f->Reset();
+    }
+  }
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph) &&
       v8_flags.fuzzing_and_concurrent_recompilation) {
     std::cerr
