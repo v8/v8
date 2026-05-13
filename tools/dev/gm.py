@@ -47,7 +47,11 @@ import time
 
 USE_PTY = "linux" in sys.platform
 if USE_PTY:
+  import fcntl
   import pty
+  import termios
+  import struct
+
 
 BUILD_TARGETS_TEST = [
     "d8", "bigint_shell", "cctest", "inspector-test", "v8_unittests",
@@ -488,6 +492,15 @@ def _call_with_output(cmd):
   # The following trickery is required so that the 'cmd' thinks it's running
   # in a real terminal, while this script gets to intercept its output.
   parent, child = pty.openpty()
+  # Set terminal size on the PTY
+  try:
+
+    size = shutil.get_terminal_size()
+    winsize = struct.pack("HHHH", size.lines, size.columns, 0, 0)
+    fcntl.ioctl(child, termios.TIOCSWINSZ, winsize)
+  except Exception as e:
+    # Fallback or ignore if not supported
+    pass
   p = subprocess.Popen(cmd, shell=True, stdin=child, stdout=child, stderr=child)
   os.close(child)
   output = []
