@@ -844,8 +844,9 @@ class ModuleEmbedderData {
   explicit ModuleEmbedderData(Isolate* isolate)
       : isolate_(isolate),
         module_to_specifier_map(10, ModuleGlobalHash(isolate)),
-        json_module_to_parsed_json_map(
-            10, module_to_specifier_map.hash_function()) {}
+        json_module_to_parsed_json_map(10,
+                                       module_to_specifier_map.hash_function()),
+        text_module_to_text_map(10, module_to_specifier_map.hash_function()) {}
 
   std::string GetModuleSpecifier(Local<Module> module) {
     Global<Module> global_module(isolate_, module);
@@ -875,6 +876,13 @@ class ModuleEmbedderData {
     return json_value_it->second.Get(isolate_);
   }
 
+  Local<Value> GetTextModuleValue(Local<Module> module) {
+    auto text_value_it =
+        text_module_to_text_map.find(Global<Module>(isolate_, module));
+    CHECK(text_value_it != text_module_to_text_map.end());
+    return text_value_it->second.Get(isolate_);
+  }
+
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
       const std::string& specifier, Local<FixedArray> import_attributes,
       bool hasPositions) {
@@ -892,8 +900,11 @@ class ModuleEmbedderData {
         std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
         if (assertion_value == "json") {
           return ModuleType::kJSON;
+        } else if (assertion_value == "text" && i::v8_flags.js_import_text) {
+          return ModuleType::kText;
         } else {
-          // JSON and WebAssembly are currently the only supported non-JS types
+          // JSON, text, and WebAssembly are currently the only supported non-JS
+          // types
           return ModuleType::kInvalid;
         }
       }
@@ -919,6 +930,10 @@ class ModuleEmbedderData {
   // JSONModuleEvaluationSteps
   std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
       json_module_to_parsed_json_map;
+  // Map from text Module to its string content, for use in module
+  // TextModuleEvaluationSteps
+  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
+      text_module_to_text_map;
 
   // Origin location used for resolving modules when referrer is null.
   std::string origin;
@@ -1481,6 +1496,20 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
               .insert(std::make_pair(Global<Module>(isolate, module),
                                      Global<Value>(isolate, parsed_json)))
               .second);
+  } else if (module_type == ModuleType::kText) {
+    auto export_names = v8::to_array<Local<String>>(
+        {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
+
+    module = v8::Module::CreateSyntheticModule(
+        isolate,
+        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
+        export_names, Shell::TextModuleEvaluationSteps);
+
+    CHECK(module_data->text_module_to_text_map
+              .insert(std::make_pair(
+                  Global<Module>(isolate, module),
+                  Global<Value>(isolate, source_text.ToLocalChecked())))
+              .second);
   } else {
     UNREACHABLE();
   }
@@ -1568,6 +1597,31 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
       String::NewFromUtf8Literal(isolate, "default",
                                  NewStringType::kInternalized),
       json_value);
+
+  // Setting the default export should never fail.
+  CHECK(!try_catch.HasCaught());
+  CHECK(!result.IsNothing() && result.FromJust());
+
+  Local<Promise::Resolver> resolver =
+      Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, Undefined(isolate)).ToChecked();
+  return resolver->GetPromise();
+}
+
+MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
+                                                   Local<Module> module) {
+  Isolate* isolate = Isolate::GetCurrent();
+
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
+      GetModuleDataFromContext(context);
+  Local<Value> text_value = module_data->GetTextModuleValue(module);
+
+  TryCatch try_catch(isolate);
+  Maybe<bool> result = module->SetSyntheticModuleExport(
+      isolate,
+      String::NewFromUtf8Literal(isolate, "default",
+                                 NewStringType::kInternalized),
+      text_value);
 
   // Setting the default export should never fail.
   CHECK(!try_catch.HasCaught());

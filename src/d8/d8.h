@@ -39,7 +39,7 @@ class D8Console;
 class Message;
 class TryCatch;
 
-enum class ModuleType { kJavaScript, kJSON, kWebAssembly, kInvalid };
+enum class ModuleType { kJavaScript, kJSON, kWebAssembly, kText, kInvalid };
 
 namespace internal {
 class CancelableTaskManager;
@@ -935,6 +935,8 @@ class Shell : public i::AllStatic {
                                             ModuleType module_type);
 
   static MaybeLocal<Value> JSONModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module);
+  static MaybeLocal<Value> TextModuleEvaluationSteps(Local<Context> context,
                                                      Local<Module> module);
 
   template <class T>
