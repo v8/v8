@@ -1660,8 +1660,7 @@ void EmitI64MulWide(LiftoffAssembler* assm) {
   assm->PopToFixedRegister(lrdx);
   assm->PopToFixedRegister(lrax);
   // PopToFixedRegister can return without spilling the register.
-  if (assm->cache_state()->is_used(lrax)) assm->SpillRegister(lrax);
-  if (assm->cache_state()->is_used(lrdx)) assm->SpillRegister(lrdx);
+  assm->SpillRegisters(rax, rdx);
   // lhs = rax is implicit. Result is in [rdx:rax].
   (assm->*op)(rdx);
   assm->PushRegister(kI64, lrax);

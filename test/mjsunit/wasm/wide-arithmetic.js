@@ -266,6 +266,18 @@ function testMulWideS() {
       kNumericPrefix, kExprI64MulWideS,
     ]);
 
+  builder.addFunction("mulWideSVolatileCache", makeSig([], []))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprI32LoadMem, 0, 0,
+      kExprDrop,
+      kExprI64Const, 0,
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64MulWideS,
+      kExprDrop, kExprDrop
+    ]);
+
   let instance;
   try {
     instance = builder.instantiate();
@@ -300,6 +312,9 @@ function testMulWideS() {
 
   let mulWideSLoad = instance.exports.mulWideSLoad;
   assertEquals([20n, 0n], mulWideSLoad(-4n, 0));
+
+  let mulWideSVolatileCache = instance.exports.mulWideSVolatileCache;
+  mulWideSVolatileCache();
 }
 
 function testMulWideU() {
@@ -326,6 +341,18 @@ function testMulWideU() {
       kExprLocalGet, 1,
       kExprI64LoadMem, 3, 1,
       kNumericPrefix, kExprI64MulWideU,
+    ]);
+
+  builder.addFunction("mulWideUVolatileCache", makeSig([], []))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprI32LoadMem, 0, 0,
+      kExprDrop,
+      kExprI64Const, 0,
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64MulWideU,
+      kExprDrop, kExprDrop
     ]);
 
   let instance;
@@ -357,6 +384,9 @@ function testMulWideU() {
 
   let mulWideULoad = instance.exports.mulWideULoad;
   assertEquals([20n, -9n], mulWideULoad(-4n, 0));
+
+  let mulWideUVolatileCache = instance.exports.mulWideUVolatileCache;
+  mulWideUVolatileCache();
 }
 
 testAdd128();

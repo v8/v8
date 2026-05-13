@@ -595,14 +595,8 @@ class LiftoffAssembler : public MacroAssembler {
   void SpillRegisters(Regs... regs) {
     for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
       if (cache_state_.is_free(r)) continue;
-      if (r.is_gp() && cache_state_.cached_instance_data == r.gp()) {
-        cache_state_.ClearCachedInstanceRegister();
-      } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
-        V8_ASSUME(cache_state_.cached_mem_index >= 0);
-        cache_state_.ClearCachedMemStartRegister();
-      } else {
-        SpillRegister(r);
-      }
+      SpillRegister(r);
+      DCHECK(cache_state_.is_free(r));
     }
   }
 
