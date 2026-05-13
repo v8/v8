@@ -91,8 +91,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
                        intptr_t offset) {
-  __ AddS64(ip, entry_address, Operand(offset), r0);
-  __ mtlr(ip);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ AddS64(scratch, entry_address, Operand(offset), r0);
+  __ mtlr(scratch);
 
   // "return" to the OSR entry point of the function.
   __ Ret();
@@ -216,7 +218,8 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
 
   // Load the feedback cell and vector.
   Register feedback_cell = r5;
-  Register feedback_vector = ip;
+  UseScratchRegisterScope temps(masm);
+  Register feedback_vector = temps.Acquire();
   __ LoadTaggedField(
       feedback_cell,
       FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)), r0);
@@ -267,7 +270,9 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     __ mr(kCArgRegs[1], kInterpreterBytecodeOffsetRegister);
     __ mr(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ PrepareCallCFunction(4, 0, ip);
+    UseScratchRegisterScope cfunction_temps(masm);
+    Register scratch = cfunction_temps.Acquire();
+    __ PrepareCallCFunction(4, 0, scratch);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
   __ Pop(code_obj);
@@ -308,6 +313,8 @@ void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
                             Register scratch,
                             ArgumentsElementType element_type) {
   DCHECK(!AreAliased(array, argc, scratch));
+  UseScratchRegisterScope temps(masm);
+  Register scratch2 = temps.Acquire();
   Label loop, done;
   __ subi(scratch, argc, Operand(kJSArgcReceiverSlots));
   __ cmpi(scratch, Operand::Zero());
@@ -317,11 +324,11 @@ void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
   __ add(scratch, array, scratch);
 
   __ bind(&loop);
-  __ LoadU64WithUpdate(ip, MemOperand(scratch, -kSystemPointerSize));
+  __ LoadU64WithUpdate(scratch2, MemOperand(scratch, -kSystemPointerSize));
   if (element_type == ArgumentsElementType::kHandle) {
-    __ LoadU64(ip, MemOperand(ip));
+    __ LoadU64(scratch2, MemOperand(scratch2));
   }
-  __ push(ip);
+  __ push(scratch2);
   __ bdnz(&loop);
   __ bind(&done);
 }
@@ -463,7 +470,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
 
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
-      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3, r0, ip);
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3, r0, scratch);
     }
 
     __ LoadCodeInstructionStart(r3, r3);
@@ -743,7 +752,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ LoadTaggedField(
         r6, FieldMemOperand(r7, offsetof(JSFunction, shared_function_info_)),
         r0);
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, r6, r6, ip, &is_baseline,
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, r6, r6, scratch, &is_baseline,
                                             &is_unavailable);
     __ b(&ok);
 
@@ -1218,14 +1229,14 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       BaselineOutOfLinePrologueDescriptor::kClosure);
   // Load the feedback cell and vector from the closure.
   Register feedback_cell = r7;
-  Register feedback_vector = ip;
+  UseScratchRegisterScope temps(masm);
+  Register feedback_vector = temps.Acquire();
   __ LoadTaggedField(
       feedback_cell,
       FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)), r0);
   __ LoadTaggedField(
       feedback_vector,
       FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)), r0);
-  UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   __ AssertFeedbackVector(feedback_vector, scratch);
 
@@ -1361,20 +1372,21 @@ void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterEntryTrampoline(
     MacroAssembler* masm, InterpreterEntryTrampolineMode mode) {
   Register closure = r4;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
   __ LoadTaggedField(
       r7, FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)),
       r0);
-  ResetSharedFunctionInfoAge(masm, r7, ip);
-
+  ResetSharedFunctionInfoAge(masm, r7, scratch);
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label is_baseline, compile_lazy;
   GetSharedFunctionInfoBytecodeOrBaseline(masm, r7,
-                                          kInterpreterBytecodeArrayRegister, ip,
-                                          &is_baseline, &compile_lazy);
+                                          kInterpreterBytecodeArrayRegister,
+                                          scratch, &is_baseline, &compile_lazy);
 
   Label push_stack_frame;
   Register feedback_vector = r5;
@@ -1390,7 +1402,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
 #ifndef V8_JITLESS
 
-  ResetFeedbackVectorOsrUrgency(masm, feedback_vector, ip, r0);
+  ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch, r0);
 
   // Increment invocation count for the function.
   __ LoadU32(r8,
@@ -1435,8 +1447,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Do a stack check to ensure we don't go over the limit.
     __ sub(r8, sp, r5);
-    __ LoadStackLimit(ip, StackLimitKind::kRealStackLimit, r0);
-    __ CmpU64(r8, ip);
+    __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, r0);
+    __ CmpU64(r8, scratch);
     __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1469,14 +1481,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Reduce interrupt budget.
   __ LoadS32(
-      ip,
+      scratch,
       FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
       r0);
   __ SmiUntagField(r8, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                        offsetof(BytecodeArray, length_)));
-  __ sub(ip, ip, r8, LeaveOE, SetRC);
+  __ sub(scratch, scratch, r8, LeaveOE, SetRC);
   __ StoreU32(
-      ip,
+      scratch,
       FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
       r0);
   __ blt(&budget_interrupt);
@@ -1485,8 +1497,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  __ LoadStackLimit(ip, StackLimitKind::kInterruptStackLimit, r0);
-  __ CmpU64(sp, ip);
+  __ LoadStackLimit(scratch, StackLimitKind::kInterruptStackLimit, r0);
+  __ CmpU64(sp, scratch);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -1636,7 +1648,11 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ mr(r6, r3);
   }
 
-  __ StackOverflowCheck(r6, ip, &stack_overflow);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ StackOverflowCheck(r6, scratch, &stack_overflow);
+  }
 
   // Push the arguments.
   GenerateInterpreterPushArgs(masm, r6, r5, r7);
@@ -1678,14 +1694,16 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // -- r7 : address of the first argument
   // -----------------------------------
   Label stack_overflow;
-  __ StackOverflowCheck(r3, ip, &stack_overflow);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ StackOverflowCheck(r3, scratch, &stack_overflow);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // The spread argument should not be pushed.
     __ subi(r3, r3, Operand(1));
   }
 
-  Register argc_without_receiver = ip;
+  Register argc_without_receiver = scratch;
   __ subi(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
 
   // Push the arguments.
@@ -1736,6 +1754,8 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
   // -- r4 : constructor to call
   // -----------------------------------
   Label stack_overflow;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   // Load the frame pointer into r7.
   switch (which_frame) {
@@ -1750,7 +1770,7 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
 
   // Load the argument count into r3.
   __ LoadU64(r3, MemOperand(r7, StandardFrameConstants::kArgCOffset), r0);
-  __ StackOverflowCheck(r3, ip, &stack_overflow);
+  __ StackOverflowCheck(r3, scratch, &stack_overflow);
 
   // Point r7 to the base of the argument list to forward, excluding the
   // receiver.
@@ -1759,7 +1779,7 @@ void Builtins::Generate_ConstructForwardAllArgsImpl(
                   kSystemPointerSize));
 
   // Copy arguments on the stack. r8 is a scratch register.
-  Register argc_without_receiver = ip;
+  Register argc_without_receiver = scratch;
   __ subi(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
   __ PushArray(r7, argc_without_receiver, r8, r0);
 
@@ -1863,8 +1883,12 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)), r0);
   __ lwz(r5, FieldMemOperand(r5, offsetof(SharedFunctionInfo, flags_)));
-  __ mov(ip, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-  __ and_(r0, r5, ip, SetRC);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ mov(scratch, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+    __ and_(r0, r5, scratch, SetRC);
+  }
   __ bne(&builtin_call, cr0);
 
   // Check if we need to create an implicit receiver.
@@ -2095,7 +2119,8 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
-  Register scratch = ip;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   if (with_result) {
     if (javascript_builtin) {
       __ mr(scratch, r3);
@@ -2134,8 +2159,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       MemOperand(sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   // Load builtin index (stored as a Smi) and use it to get the builtin start
   // address from the builtins table.
-  UseScratchRegisterScope temps(masm);
-  Register builtin = temps.Acquire();
+  Register builtin = scratch;
   __ Pop(builtin);
   __ addi(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
@@ -2499,7 +2523,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- r6 : new.target (for [[Construct]])
   // -----------------------------------
 
-  Register scratch = ip;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
 
   if (v8_flags.debug_code) {
     // Allow r5 to be a FixedArray, or a FixedDoubleArray if r7 == 0.
@@ -2531,7 +2556,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // r7: Number of arguments to make room for.
   // r3: Number of arguments already on the stack.
   // r8: Points to first free slot on the stack after arguments were shifted.
-  Generate_AllocateSpaceAndShiftExistingArguments(masm, r7, r3, r8, ip, r9);
+  Generate_AllocateSpaceAndShiftExistingArguments(masm, r7, r3, r8, scratch,
+                                                  r9);
 
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
@@ -2641,8 +2667,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // r8: Number of arguments to make room for.
     // r3: Number of arguments already on the stack.
     // r5: Points to first free slot on the stack after arguments were shifted.
+    UseScratchRegisterScope temps(masm);
+    Register scratch2 = temps.Acquire();
     Generate_AllocateSpaceAndShiftExistingArguments(masm, r8, r3, r5, scratch,
-                                                    ip);
+                                                    scratch2);
 
     // Copy arguments from the caller frame.
     // TODO(victorgomes): Consider using forward order as potentially more cache
@@ -2793,7 +2821,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
       {
-        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, ip);
+        UseScratchRegisterScope temps(masm);
+        Register scratch2 = temps.Acquire();
+        __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, scratch2);
         __ CmpU64(r0, scratch);
       }
       __ bgt(&done);  // Signed comparison.
@@ -2882,14 +2912,16 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // r5 to contain either an AllocationSite or undefined.
   __ LoadRoot(r5, RootIndex::kUndefinedValue);
 
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   Label call_generic_stub;
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
   __ LoadTaggedField(
       r7, FieldMemOperand(r4, offsetof(JSFunction, shared_function_info_)), r0);
   __ lwz(r7, FieldMemOperand(r7, offsetof(SharedFunctionInfo, flags_)));
-  __ mov(ip, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-  __ and_(r7, r7, ip, SetRC);
+  __ mov(scratch, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ and_(r7, r7, scratch, SetRC);
   __ beq(&call_generic_stub, cr0);
 
   __ TailCallBuiltin(Builtin::kJSBuiltinsConstructStub);
@@ -3039,10 +3071,14 @@ struct SaveWasmParamsScope {
              simd128_regs.Count());
 
     __ MultiPush(gp_regs);
-    __ MultiPushF64AndV128(fp_regs, simd128_regs, ip, r0);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ MultiPushF64AndV128(fp_regs, simd128_regs, scratch, r0);
   }
   ~SaveWasmParamsScope() {
-    __ MultiPopF64AndV128(fp_regs, simd128_regs, ip, r0);
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ MultiPopF64AndV128(fp_regs, simd128_regs, scratch, r0);
     __ MultiPop(gp_regs);
   }
 
@@ -3054,30 +3090,35 @@ struct SaveWasmParamsScope {
 
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
+  // TODO(miladfarca): Unify scratch register usage and remove extra scopes
+  // once `MultiPushF64AndV128` is refactored, check http://crrev.com/c/7844576.
   UseScratchRegisterScope temps(masm);
   Register vector = temps.Acquire();
-  Register scratch = ip;
   Label allocate_vector, done;
 
-  __ LoadTaggedField(
-      vector,
-      FieldMemOperand(kWasmImplicitArgRegister,
-                      WasmTrustedInstanceData::kFeedbackVectorsOffset),
-      scratch);
-  __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
-  __ AddS64(vector, vector, scratch);
-  __ LoadTaggedField(vector,
-                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)),
-                     scratch);
-  __ JumpIfSmi(vector, &allocate_vector);
-  __ bind(&done);
-  // Increment the total invocation count of the function.
-  __ LoadTaggedField(
-      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)), r0);
-  __ Move(r0, Smi::FromInt(1));
-  __ AddS64(scratch, scratch, r0);
-  __ StoreTaggedField(
-      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  {
+    UseScratchRegisterScope inner_temps(masm);
+    Register scratch = inner_temps.Acquire();
+    __ LoadTaggedField(
+        vector,
+        FieldMemOperand(kWasmImplicitArgRegister,
+                        WasmTrustedInstanceData::kFeedbackVectorsOffset),
+        scratch);
+    __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
+    __ AddS64(vector, vector, scratch);
+    __ LoadTaggedField(
+        vector, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)),
+        scratch);
+    __ JumpIfSmi(vector, &allocate_vector);
+    __ bind(&done);
+    // Increment the total invocation count of the function.
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)), r0);
+    __ Move(r0, Smi::FromInt(1));
+    __ AddS64(scratch, scratch, r0);
+    __ StoreTaggedField(
+        scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  }
   __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();
@@ -3087,15 +3128,19 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // Feedback vector doesn't exist yet. Call the runtime to allocate it.
   // We temporarily change the frame type for this, because we need special
   // handling by the stack walker in case of GC.
-  __ mov(scratch,
-         Operand(StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP)));
-  __ StoreU64(scratch, MemOperand(sp));
-
-  // Save current return address as it will get clobbered during CallRuntime.
-  __ mflr(scratch);
-  __ push(scratch);
   {
-    SaveWasmParamsScope save_params(masm);  // Will use r0 and ip as scratch.
+    UseScratchRegisterScope inner_temps(masm);
+    Register scratch = inner_temps.Acquire();
+    __ mov(scratch,
+           Operand(StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP)));
+    __ StoreU64(scratch, MemOperand(sp));
+
+    // Save current return address as it will get clobbered during CallRuntime.
+    __ mflr(scratch);
+    __ push(scratch);
+  }
+  {
+    SaveWasmParamsScope save_params(masm);
     // Arguments to the runtime function: instance data, func_index.
     __ push(kWasmImplicitArgRegister);
     __ SmiTag(func_index);
@@ -3108,11 +3153,15 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
     __ mr(vector, kReturnRegister0);
     // Saved parameters are restored at the end of this block.
   }
-  __ pop(scratch);
-  __ mtlr(scratch);
+  {
+    UseScratchRegisterScope inner_temps(masm);
+    Register scratch = inner_temps.Acquire();
+    __ pop(scratch);
+    __ mtlr(scratch);
 
-  __ mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
-  __ StoreU64(scratch, MemOperand(sp));
+    __ mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
+    __ StoreU64(scratch, MemOperand(sp));
+  }
   __ b(&done);
 }
 
@@ -3133,7 +3182,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       // code later. The spilled parameters are *not* visited by GC, but the
       // `WasmCompileLazy` runtime function does not trigger GC except for
       // exceptions (and then we unwind before using the spilled values).
-      SaveWasmParamsScope save_params(masm);  // Will use r0 and ip as scratch.
+      SaveWasmParamsScope save_params(masm);
 
       // Push the instance data as an explicit argument to the runtime function.
       __ push(kWasmImplicitArgRegister);
@@ -3153,11 +3202,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     // After the instance data register has been restored, we can add the jump
     // table start to the jump table offset already stored in the target.
-    __ LoadU64(ip,
+    Register scratch = temps.Acquire();
+    __ LoadU64(scratch,
                FieldMemOperand(kWasmImplicitArgRegister,
                                WasmTrustedInstanceData::kJumpTableStartOffset),
                r0);
-    __ AddS64(target, target, ip);
+    __ AddS64(target, target, scratch);
   }
 
   // Finally, jump to the jump table slot for the function.
@@ -3171,10 +3221,12 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                           WasmDebugBreakFrameConstants::kPushedSimd128Regs, ip,
-                           r0);
+                           WasmDebugBreakFrameConstants::kPushedSimd128Regs,
+                           scratch, r0);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3183,8 +3235,8 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Restore registers.
     __ MultiPopF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                          WasmDebugBreakFrameConstants::kPushedSimd128Regs, ip,
-                          r0);
+                          WasmDebugBreakFrameConstants::kPushedSimd128Regs,
+                          scratch, r0);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
@@ -3770,8 +3822,10 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
-  DCHECK(!AreAliased(ip, arg_buffer, target_stack));
-  LoadJumpBuffer(masm, target_stack, true, ip);
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
+  LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
   __ bind(&resume);
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
@@ -4249,10 +4303,12 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   // Using r5 & r6 as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
 
-  __ LoadU8(ip, __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadU8(scratch, __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
 
   Label do_not_need_to_switch;
-  __ CmpU32(ip, Operand(0), r0);
+  __ CmpU32(scratch, Operand(0), r0);
   __ bne(&do_not_need_to_switch);
 
   // Switch to central stack.
@@ -4341,7 +4397,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static constexpr Register argc_input = r3;
   static constexpr Register target_fun = r15;  // C callee-saved
   static constexpr Register argv = r4;
-  static constexpr Register scratch = ip;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
   static constexpr Register argc_sav = r14;  // C callee-saved
 
   __ mr(target_fun, argv);
