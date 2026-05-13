@@ -168,11 +168,12 @@ void ObjectStartBitmap::store(size_t cell_index, uint8_t value) {
     object_start_bit_map_[cell_index] = value;
     return;
   }
-  // Use seq cst here to avoid a situation when a pointer write may be reordered
-  // before the setting of the mark bit, which may lead to the concurrent marker
-  // missing the right object (because the bit is not yet propagated).
+  // Use acq rel rmw here to avoid a situation when a pointer write may be
+  // reordered before the setting of the mark bit, which may lead to the
+  // concurrent marker missing the right object (because the bit is not yet
+  // propagated).
   std::atomic_ref<uint8_t>(object_start_bit_map_[cell_index])
-      .store(value, std::memory_order_seq_cst);
+      .exchange(value, std::memory_order_acq_rel);
 }
 
 template <AccessMode mode>
