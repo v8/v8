@@ -18,7 +18,10 @@ TEST_DIR ?= ./test
 FIXTURES_DIR ?= $(TEST_DIR)/fixtures
 BACKTRACE_SCRIPT ?= $(FIXTURES_DIR)/throw.js
 CORRUPTION_SCRIPT ?= $(FIXTURES_DIR)/invalid-script-source.js
-D8_ARGS ?= --abort-on-uncaught-exception
+# d8 enables --sandbox-prohibit-insecure-mode on macOS/Linux, which makes
+# sandbox initialization abort with a fatal OOM when launched under a debugger
+# that disable ASLR by default. Disable it to make it load in debuggers.
+D8_ARGS ?= --abort-on-uncaught-exception --no-sandbox-prohibit-insecure-mode
 GDBINIT ?= ../../gdbinit
 GDB_PLUGIN ?= ./gdb_plugin.py
 LLDB_PLUGIN ?= ./lldb_plugin.py
