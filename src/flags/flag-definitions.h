@@ -224,6 +224,13 @@
 #define DEFINE_ALIAS_STRING(alias, nam) \
   FLAG_ALIAS(STRING, const char*, alias, nam)
 
+#define DEFINE_SMI(nam, def, cmt) \
+  DEFINE_INT(nam, def, cmt)       \
+  DEFINE_REQUIREMENT(Internals::IsValidSmi(v8_flags.nam.value()))
+#define DEFINE_POSITIVE_SMI(nam, def, cmt) \
+  DEFINE_UINT(nam, def, cmt)               \
+  DEFINE_REQUIREMENT(Internals::IsValidSmi(v8_flags.nam.value()))
+
 #ifdef DEBUG
 #define DEFINE_DEBUG_BOOL DEFINE_BOOL
 #else
@@ -1955,7 +1962,7 @@ DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
 DEFINE_BOOL(wasm_sync_tier_up, false, "run Wasm tier up jobs synchronously")
 DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
-DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
+DEFINE_SMI(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
            "budget for wrapper tierup (number of calls until tier-up)")
 DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmDefinedFunctions,
            "maximum number of wasm functions defined in a module")
@@ -2481,7 +2488,7 @@ DEFINE_INT(dispatch_table_gc_interval, -1,
            "garbage collect after <n> dispatch table allocations")
 #endif
 
-DEFINE_INT(retain_maps_for_n_gc, 2,
+DEFINE_SMI(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_DEVELOPER_FLAG(trace_gc,
                       "print one trace line following each garbage collection")
@@ -2986,7 +2993,7 @@ DEFINE_BOOL(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_BOOL(expose_statistics, false, "expose statistics extension")
 DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
-DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
+DEFINE_SMI(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
 DEFINE_BOOL(experimental_stack_trace_frames, false,
@@ -3414,7 +3421,7 @@ DEFINE_BOOL(regexp_tier_up, true,
             "enable regexp interpreter and tier up to the compiler after the "
             "number of executions set by the tier up ticks flag")
 DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
-DEFINE_INT(regexp_tier_up_ticks, 1,
+DEFINE_SMI(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
 DEFINE_BOOL(
@@ -3507,10 +3514,11 @@ DEFINE_EXPERIMENTAL_FEATURE(
     enable_experimental_regexp_engine_on_excessive_backtracks,
     "fall back to a breadth-first regexp engine on excessive "
     "backtracking")
-DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
-            "number of backtracks during regexp execution before fall back "
-            "to experimental engine if "
-            "enable_experimental_regexp_engine_on_excessive_backtracks is set")
+DEFINE_POSITIVE_SMI(
+    regexp_backtracks_before_fallback, 50000,
+    "number of backtracks during regexp execution before fall back "
+    "to experimental engine if "
+    "enable_experimental_regexp_engine_on_excessive_backtracks is set")
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV32 || \
     V8_TARGET_ARCH_RISCV64
