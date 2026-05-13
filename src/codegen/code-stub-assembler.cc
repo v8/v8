@@ -18324,6 +18324,16 @@ TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::ForOfNextHelper(
     TNode<Int32T> elements_kind = LoadMapElementsKind(map);
     GotoIfNot(IsFastElementsKind(elements_kind), &slow_path);
 
+    Label if_holey(this), if_packed(this);
+    Branch(IsHoleyFastElementsKind(elements_kind), &if_holey, &if_packed);
+    BIND(&if_holey);
+    {
+      TNode<NativeContext> native_context = LoadNativeContext(context);
+      Branch(IsPrototypeInitialArrayPrototype(native_context, map), &if_packed,
+             &slow_path);
+    }
+    BIND(&if_packed);
+
     TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
     TNode<Number> current_index = LoadObjectField<Number>(
         array_iterator, offsetof(JSArrayIterator, next_index_));
