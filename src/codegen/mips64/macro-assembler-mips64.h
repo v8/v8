@@ -461,6 +461,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Daddu(sp, sp, 3 * kPointerSize);
   }
 
+  // Pop four registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3, Register src4) {
+    Ld(src4, MemOperand(sp, 0 * kPointerSize));
+    Ld(src3, MemOperand(sp, 1 * kPointerSize));
+    Ld(src2, MemOperand(sp, 2 * kPointerSize));
+    Ld(src1, MemOperand(sp, 3 * kPointerSize));
+    Daddu(sp, sp, 4 * kPointerSize);
+  }
+
   void Pop(uint32_t count = 1) { Daddu(sp, sp, Operand(count * kPointerSize)); }
 
   // Pops multiple values from the stack and load them in the
@@ -1250,9 +1259,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register scratch2);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   template <typename Field>
   void DecodeField(Register dst, Register src) {

@@ -5090,12 +5090,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   bind(&regular_invoke);
 }
 
-void MacroAssembler::CheckDebugHook(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
-  DCHECK(!AreAliased(t0, fun, new_target,
-                     expected_parameter_count_or_dispatch_handle,
+void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
+                                    Register dispatch_handle,
+                                    Register actual_parameter_count) {
+  DCHECK(!AreAliased(t0, fun, new_target, dispatch_handle,
                      actual_parameter_count));
   Label skip_hook;
 
@@ -5107,23 +5105,28 @@ void MacroAssembler::CheckDebugHook(
     LoadReceiver(t0);
     FrameScope frame(
         this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
-    SmiTag(expected_parameter_count_or_dispatch_handle);
+    // We don't need to Smi-tag the dispatch handle, because its low bits are
+    // zero.
+    static_assert(kJSDispatchHandleShift >= 1);
     SmiTag(actual_parameter_count);
-    Push(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
+
     if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun, fun, t0);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
+      Push(dispatch_handle, actual_parameter_count, new_target, fun);
+    } else {
+      Push(dispatch_handle, actual_parameter_count, fun);
     }
 
-    Pop(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
+    Push(fun, t0);
+    CallRuntime(Runtime::kDebugOnFunctionCall);
+
+    if (new_target.is_valid()) {
+      Pop(dispatch_handle, actual_parameter_count, new_target, fun);
+    } else {
+      Pop(dispatch_handle, actual_parameter_count, fun);
+    }
+
     SmiUntag(actual_parameter_count);
 
-    SmiUntag(expected_parameter_count_or_dispatch_handle);
   }
   bind(&skip_hook);
 }
@@ -6458,15 +6461,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   }
 }
 #endif  // V8_ENABLE_DEBUG_CODE
-
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register scratch1,
-    Register scratch2) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(optimized_code, closure, scratch1, scratch2));
-
-  UNREACHABLE();
-}
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {

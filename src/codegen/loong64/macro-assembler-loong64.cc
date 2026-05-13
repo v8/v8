@@ -4353,35 +4353,37 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
-  DCHECK(!AreAliased(t0, fun, new_target,
-                     expected_parameter_count_or_dispatch_handle,
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
+  DCHECK(!AreAliased(t0, fun, new_target, dispatch_handle,
                      actual_parameter_count));
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   LoadReceiver(t0);
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
-  SmiTag(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
   SmiTag(actual_parameter_count);
-  Push(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
 
   if (new_target.is_valid()) {
-    Push(new_target);
+    Push(dispatch_handle, actual_parameter_count, new_target, fun);
+  } else {
+    Push(dispatch_handle, actual_parameter_count, fun);
   }
-  Push(fun, fun, t0);
+
+  Push(fun, t0);
   CallRuntime(Runtime::kDebugOnFunctionCall);
-  Pop(fun);
+
   if (new_target.is_valid()) {
-    Pop(new_target);
+    Pop(dispatch_handle, actual_parameter_count, new_target, fun);
+  } else {
+    Pop(dispatch_handle, actual_parameter_count, fun);
   }
 
-  Pop(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
   SmiUntag(actual_parameter_count);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
 }
 
 void MacroAssembler::InvokeFunction(

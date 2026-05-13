@@ -464,6 +464,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Add_d(sp, sp, 3 * kSystemPointerSize);
   }
 
+  // Pop four registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3, Register src4) {
+    Ld_d(src4, MemOperand(sp, 0 * kSystemPointerSize));
+    Ld_d(src3, MemOperand(sp, 1 * kSystemPointerSize));
+    Ld_d(src2, MemOperand(sp, 2 * kSystemPointerSize));
+    Ld_d(src1, MemOperand(sp, 3 * kSystemPointerSize));
+    Add_d(sp, sp, 4 * kSystemPointerSize);
+  }
+
   // Pops multiple values from the stack and load them in the
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
