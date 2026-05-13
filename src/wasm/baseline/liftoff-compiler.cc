@@ -1476,17 +1476,91 @@ class LiftoffCompiler {
 
   // Rule of thumb: an instruction is "heavy" when its runtime is linear in
   // some random variable that the fuzzer generates.
-#define FUZZER_HEAVY_INSTRUCTION                      \
-  do {                                                \
-    if (V8_UNLIKELY(max_steps_ != nullptr)) {         \
-      CheckMaxSteps(decoder, kHeavyInstructionSteps); \
-    }                                                 \
-  } while (false)
+  V8_INLINE void FuzzerChargeHeavyInstruction(FullDecoder* decoder) {
+    if (V8_UNLIKELY(max_steps_ != nullptr)) {
+      CheckMaxSteps(decoder, kHeavyInstructionSteps);
+    }
+  }
 
-  V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1) {
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
+                                   LiftoffRegList pinned = {}) {
+    FuzzerChargeSteps(decoder, stack_idx, nullptr, pinned);
+  }
+
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
+                                   LiftoffRegList pinned = {}) {
+    FuzzerChargeSteps(decoder, input, nullptr, pinned);
+  }
+
+  V8_INLINE void FuzzerChargeStringLength(FullDecoder* decoder,
+                                          LiftoffRegister input,
+                                          LiftoffRegList pinned = {}) {
+    FuzzerChargeSteps(
+        decoder, input,
+        [this, decoder](LiftoffRegister input, LiftoffRegList& pinned) {
+          LiftoffRegister length_reg =
+              pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+          LoadObjectField(decoder, length_reg, input.gp(), no_reg,
+                          offsetof(String, length_) - kHeapObjectTag,
+                          ValueKind::kI32, false /* is_signed */,
+                          false /* trapping */, pinned);
+          return length_reg;
+        },
+        pinned);
+  }
+
+  template <typename LoadFn>
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
+                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
+    if (V8_UNLIKELY(max_steps_ != nullptr)) {
+      LiftoffRegister input = pinned.set(__ PeekToRegister(stack_idx, pinned));
+      FuzzerChargeSteps(decoder, input, load_fn, pinned);
+    }
+  }
+
+  template <typename LoadFn>
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
+                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
+    if (V8_UNLIKELY(max_steps_ != nullptr)) {
+      pinned.set(input);
+      LiftoffRegister steps_reg = input;
+      if constexpr (!std::is_same_v<nullptr_t, LoadFn>) {
+        steps_reg = load_fn(input, pinned);
+      }
+      CheckMaxSteps(decoder, steps_reg, pinned);
+    }
+  }
+
+  V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder,
+                                 LiftoffRegister steps_done,
+                                 LiftoffRegList pinned = {}) {
+    SCOPED_CODE_COMMENT("check max steps (reg)");
+    pinned.set(steps_done);
+    LiftoffRegister max_steps =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister max_steps_addr =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    {
+      FREEZE_STATE(frozen);
+      __ LoadConstant(
+          max_steps_addr,
+          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
+      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
+      __ emit_i32_sub(max_steps.gp(), max_steps.gp(), steps_done.gp());
+      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
+               pinned);
+      // Abort if max steps have been executed.
+      OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
+      DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
+      Label* trap_label = &ool->label;
+      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
+    }
+  }
+
+  V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1,
+                                 LiftoffRegList pinned = {}) {
     DCHECK_LE(1, steps_done);
     SCOPED_CODE_COMMENT("check max steps");
-    LiftoffRegList pinned;
     LiftoffRegister max_steps = pinned.set(__ GetUnusedRegister(kGpReg, {}));
     LiftoffRegister max_steps_addr =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -4476,10 +4550,10 @@ class LiftoffCompiler {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result_val) {
-    FUZZER_HEAVY_INSTRUCTION;
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
+    FuzzerChargeSteps(decoder, num_pages, pinned);
     __ SpillAllRegisters();
 
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -6026,7 +6100,7 @@ class LiftoffCompiler {
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value* /* args */) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeHeavyInstruction(decoder);
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
@@ -6314,7 +6388,7 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueKind kind,
                   const MemoryAccessImmediate& imm) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeHeavyInstruction(decoder);
     ValueKind index_kind;
     {
       LiftoffRegList pinned;
@@ -7272,7 +7346,7 @@ class LiftoffCompiler {
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
     VarState size = __ PopVarState();
@@ -7337,7 +7411,7 @@ class LiftoffCompiler {
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
 
@@ -7386,7 +7460,7 @@ class LiftoffCompiler {
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory));
@@ -7446,7 +7520,7 @@ class LiftoffCompiler {
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
                  const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     VarState table_index = LoadSmiConstant(imm.table.index, &pinned);
@@ -7498,7 +7572,7 @@ class LiftoffCompiler {
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
                  const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     Register index_high_word = no_reg;
     LiftoffRegList pinned;
 
@@ -7525,7 +7599,7 @@ class LiftoffCompiler {
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
                  const Value&, const Value&, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     LiftoffRegister table_index_reg =
@@ -7597,7 +7671,7 @@ class LiftoffCompiler {
 
   void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
                  const Value&, const Value&, const Value&) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     Register high_words = no_reg;
     LiftoffRegList pinned;
 
@@ -7831,7 +7905,7 @@ class LiftoffCompiler {
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 bool initial_value_on_stack) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     // Max length check.
     {
       LiftoffRegister length =
@@ -7906,7 +7980,7 @@ class LiftoffCompiler {
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
                  const Value& array, const Value& /* index */,
                  const Value& /* value */, const Value& /* length */) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     {
       // Null check.
       LiftoffRegList pinned;
@@ -8080,6 +8154,7 @@ class LiftoffCompiler {
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const ArrayIndexImmediate& src_imm, const Value& length) {
+    FuzzerChargeSteps(decoder, 0);
     // TODO(14034): Unify implementation with TF: Implement this with
     // GenerateCCallWithStackBuffer. Remove runtime function and builtin in
     // wasm.tq.
@@ -8142,7 +8217,7 @@ class LiftoffCompiler {
                        const IndexImmediate& segment_imm,
                        const Value& /* offset */, const Value& /* length */,
                        Value* /* result */) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
 
     if (prototype_setup_end_ == nullptr &&
         decoder->enabled_.has_custom_descriptors() &&
@@ -8289,7 +8364,7 @@ class LiftoffCompiler {
                         const Value& /* array_index */,
                         const Value& /* segment_offset*/,
                         const Value& /* length */) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     LiftoffRegister segment_index_reg =
@@ -9218,7 +9293,7 @@ class LiftoffCompiler {
   void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                      const unibrow::Utf8Variant variant, const Value& offset,
                      const Value& size, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     VarState memory_var{kI32, static_cast<int>(imm.index), 0};
@@ -9248,7 +9323,7 @@ class LiftoffCompiler {
                           const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     LiftoffRegister array_reg = pinned.set(
@@ -9278,7 +9353,7 @@ class LiftoffCompiler {
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
 
     VarState& size_var = __ cache_state()->stack_state.end()[-1];
@@ -9300,7 +9375,7 @@ class LiftoffCompiler {
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     LiftoffRegister array_reg = pinned.set(
@@ -9325,7 +9400,7 @@ class LiftoffCompiler {
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeHeavyInstruction(decoder);
     VarState index_var{kI32, static_cast<int32_t>(imm.index), 0};
 
     CallBuiltin(Builtin::kWasmStringConst, MakeSig::Returns(kRef).Params(kI32),
@@ -9339,10 +9414,10 @@ class LiftoffCompiler {
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
     LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     Builtin builtin;
@@ -9373,6 +9448,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
     LoadObjectField(decoder, value, string_reg.gp(), no_reg,
                     offsetof(String, length_) - kHeapObjectTag, ValueKind::kI32,
@@ -9383,7 +9459,6 @@ class LiftoffCompiler {
   void StringEncodeWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     DCHECK(MatchingMemType(imm.memory, 0));
@@ -9392,6 +9467,7 @@ class LiftoffCompiler {
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
@@ -9412,7 +9488,6 @@ class LiftoffCompiler {
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     LiftoffRegister array_reg = pinned.set(
@@ -9423,6 +9498,7 @@ class LiftoffCompiler {
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     VarState& start_var = __ cache_state()->stack_state.end()[-1];
@@ -9450,7 +9526,6 @@ class LiftoffCompiler {
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     DCHECK(MatchingMemType(imm.memory, 0));
@@ -9459,6 +9534,7 @@ class LiftoffCompiler {
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     VarState memory_var{kI32, static_cast<int32_t>(imm.index), 0};
@@ -9476,7 +9552,6 @@ class LiftoffCompiler {
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     LiftoffRegister array_reg = pinned.set(
@@ -9487,6 +9562,7 @@ class LiftoffCompiler {
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     VarState& start_var = __ cache_state()->stack_state.end()[-1];
@@ -9508,7 +9584,7 @@ class LiftoffCompiler {
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;  // Fast, but may create very long strings.
+    FuzzerChargeHeavyInstruction(decoder);  // Fast but may create long strings.
     LiftoffRegList pinned;
 
     LiftoffRegister tail_reg = pinned.set(__ PopToRegister(pinned));
@@ -9534,12 +9610,10 @@ class LiftoffCompiler {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;  // Slow path is linear in string length.
     LiftoffRegister result_reg(kReturnRegister0);
     LiftoffRegList pinned{result_reg};
     LiftoffRegister b_reg = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister a_reg = pinned.set(__ PopToModifiableRegister(pinned));
-
     __ SpillAllRegisters();
 
     Label done;
@@ -9578,6 +9652,11 @@ class LiftoffCompiler {
 
     // Operands are pointer-distinct and neither is null; call out to the
     // runtime.
+
+    // Slow path is linear in string length.
+    FuzzerChargeStringLength(decoder, a_reg, pinned);
+    FuzzerChargeStringLength(decoder, b_reg, pinned);
+
     VarState a_var(kRef, a_reg, 0);
     VarState b_var(kRef, b_reg, 0);
     CallBuiltin(Builtin::kWasmStringEqual,
@@ -9596,11 +9675,11 @@ class LiftoffCompiler {
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     LiftoffRegister str_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, str_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, str_reg, pinned);
     VarState str_var(kRef, str_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringIsUSVSequence,
@@ -9616,11 +9695,11 @@ class LiftoffCompiler {
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     LiftoffRegister str_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, str_reg.gp(), pinned, str.type);
+    FuzzerChargeStringLength(decoder, str_reg, pinned);
     VarState str_var(kRef, str_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringAsWtf8, MakeSig::Returns(kRef).Params(kRef),
@@ -9637,7 +9716,6 @@ class LiftoffCompiler {
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     VarState& bytes_var = __ cache_state()->stack_state.end()[-1];
@@ -9646,6 +9724,7 @@ class LiftoffCompiler {
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    FuzzerChargeSteps(decoder, 0, pinned);
     VarState view_var(kRef, view_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringViewWtf8Advance,
@@ -9669,7 +9748,7 @@ class LiftoffCompiler {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     VarState& bytes_var = __ cache_state()->stack_state.end()[-1];
@@ -9713,7 +9792,6 @@ class LiftoffCompiler {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     VarState& end_var = __ cache_state()->stack_state.end()[-1];
@@ -9722,6 +9800,7 @@ class LiftoffCompiler {
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    FuzzerChargeSteps(decoder, 0, pinned);
     VarState view_var(kRef, view_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringViewWtf8Slice,
@@ -9780,7 +9859,7 @@ class LiftoffCompiler {
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
+    FuzzerChargeSteps(decoder, 0);
     LiftoffRegList pinned;
 
     VarState& codeunits_var = __ cache_state()->stack_state.end()[-1];
@@ -9814,12 +9893,12 @@ class LiftoffCompiler {
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
     LiftoffRegister end_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister start_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister view_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    FuzzerChargeSteps(decoder, end_reg, pinned);
     VarState view_var(kRef, view_reg, 0);
     VarState start_var(kI32, start_reg, 0);
     VarState end_var(kI32, end_reg, 0);
@@ -9928,7 +10007,6 @@ class LiftoffCompiler {
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     VarState& codepoints_var = __ cache_state()->stack_state.end()[-1];
@@ -9936,6 +10014,7 @@ class LiftoffCompiler {
     LiftoffRegister view_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    FuzzerChargeSteps(decoder, 0, pinned);
     VarState view_var(kRef, view_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringViewIterSlice,
@@ -9954,16 +10033,17 @@ class LiftoffCompiler {
 
   void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
                      Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
     LiftoffRegister rhs_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-1], pinned));
     MaybeEmitNullCheck(decoder, rhs_reg.gp(), pinned, rhs.type);
+    FuzzerChargeStringLength(decoder, rhs_reg, pinned);
     VarState rhs_var(kRef, rhs_reg, 0);
 
     LiftoffRegister lhs_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
     MaybeEmitNullCheck(decoder, lhs_reg.gp(), pinned, lhs.type);
+    FuzzerChargeStringLength(decoder, lhs_reg, pinned);
     VarState lhs_var(kRef, lhs_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringCompare,
@@ -9993,11 +10073,11 @@ class LiftoffCompiler {
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
-    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
     LiftoffRegister string_reg = pinned.set(
         __ LoadToRegister(__ cache_state()->stack_state.end()[-1], pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, string.type);
+    FuzzerChargeStringLength(decoder, string_reg, pinned);
     VarState string_var(kRef, string_reg, 0);
 
     CallBuiltin(Builtin::kWasmStringHash, MakeSig::Returns(kI32).Params(kRef),
@@ -10036,7 +10116,7 @@ class LiftoffCompiler {
 
     if (needs_indirect_call) {
       // A direct call to an imported function.
-      FUZZER_HEAVY_INSTRUCTION;
+      FuzzerChargeHeavyInstruction(decoder);
       LiftoffRegList pinned;
       Register implicit_arg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -11230,7 +11310,6 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
 #undef __
 #undef CODE_COMMENT
 #undef FREEZE_STATE
-#undef FUZZER_HEAVY_INSTRUCTION
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_PROTECTED_PTR_INSTANCE_FIELD
 #undef LOAD_TAGGED_PTR_FROM_INSTANCE
