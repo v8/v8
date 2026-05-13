@@ -48,13 +48,12 @@ void FeedbackCell::set_interrupt_budget(int32_t value) {
 }
 
 JSDispatchHandle FeedbackCell::dispatch_handle() const {
-  return dispatch_handle_;
+  return dispatch_handle_.Relaxed_Load();
 }
 
 void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
   DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  dispatch_handle_ = new_handle;
-  JS_DISPATCH_HANDLE_WRITE_BARRIER(this, new_handle);
+  dispatch_handle_.Relaxed_Store(this, new_handle);
 }
 
 void FeedbackCell::clear_padding() {}
@@ -83,9 +82,7 @@ void FeedbackCell::clear_interrupt_budget() {
   set_interrupt_budget(0);
 }
 
-void FeedbackCell::clear_dispatch_handle() {
-  dispatch_handle_ = kNullJSDispatchHandle;
-}
+void FeedbackCell::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 
 FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
     Isolate* isolate) {

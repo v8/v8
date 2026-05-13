@@ -64,7 +64,7 @@ V8_OBJECT class FeedbackCell : public Struct {
 
  public:
   TaggedMember<Value> value_;
-  JSDispatchHandle dispatch_handle_;
+  JSDispatchHandleMember dispatch_handle_;
   int32_t interrupt_budget_;
 } V8_OBJECT_END;
 
