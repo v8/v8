@@ -61,6 +61,11 @@ struct HardwareWatchpointSupport {
     std::atomic<bool> has_changed_watchpoints{false};
     WatchpointInfo watchpoints[kNumWatchpoints];
 
+    // Written by the "d8" process to signal the "debugger" process that it
+    // should ignore any hit watchpoints for a while (e.g. while the d8 process
+    // executes "trusted" code such as `object->Size()`).
+    std::atomic<bool> ignore_watchpoints{false};
+
     // For coordinating initial setup between the two processes.
     std::atomic<int> initialization_step{0};
   }* shared = nullptr;
@@ -73,6 +78,23 @@ struct HardwareWatchpointSupport {
 // tracing to debug non-working watchpoints.
 #define TRACE(...) \
   if (g_support.tracing_enabled) i::PrintF(__VA_ARGS__);
+
+// RAII class to signal the debugger process to ignore watchpoint hits.
+// This is not reentrant.
+class IgnoreWatchpointsScope {
+ public:
+  V8_NODISCARD IgnoreWatchpointsScope() {
+    DCHECK(
+        !g_support.shared->ignore_watchpoints.load(std::memory_order_relaxed));
+    g_support.shared->ignore_watchpoints.store(true, std::memory_order_relaxed);
+  }
+  ~IgnoreWatchpointsScope() {
+    DCHECK(
+        g_support.shared->ignore_watchpoints.load(std::memory_order_relaxed));
+    g_support.shared->ignore_watchpoints.store(false,
+                                               std::memory_order_relaxed);
+  }
+};
 
 void SetNewWatchpoints() {
   WatchpointInfo* watchpoints = g_support.shared->watchpoints;
@@ -384,6 +406,11 @@ bool HandleWatchpoint(struct user_regs_struct& regs) {
   CHECK_EQ(0, ptrace(PTRACE_POKEUSER, g_support.d8_pid,
                      offsetof(struct user, u_debugreg[6]), dr6 & ~0xf));
 
+  if (g_support.shared->ignore_watchpoints.load(std::memory_order_relaxed)) {
+    TRACE("[debugger] Ignoring watchpoint as ignore_watchpoints is set.\n");
+    return true;
+  }
+
   // Disassemble the instruction that read the value (the instruction which ends
   // at the current RIP).
   MemoryAccessInformation access_info =
@@ -648,7 +675,11 @@ void SetHardwareWatchpointCallback(
     }
   }
 
-  int object_size = object->Size();
+  int object_size;
+  {
+    IgnoreWatchpointsScope ignore_watchpoints;
+    object_size = object->Size();
+  }
   DCHECK_EQ(0, object_size % i::kTaggedSize);
   if (offset < 0 || offset >= object_size) {
     std::ostringstream error;
