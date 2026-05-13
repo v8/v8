@@ -161,22 +161,25 @@ void AccessorAssembler::TryHomomorphicCase(TNode<Object> lookup_start_object,
 
   // Look up in map cache.
   // TODO(leszeks): Could avoid this lookup by fixing the length at build time.
-  TNode<IntPtrT> length =
-      LoadWeakFixedArrayLength(ReinterpretCast<WeakFixedArray>(array));
+  TNode<Uint32T> length =
+      LoadWeakFixedArrayLengthAsUint32(ReinterpretCast<WeakFixedArray>(array));
 
   // Hash: (map_ptr >> kTaggedSizeLog2) % length
   // We assume length is power of 2.
   TNode<IntPtrT> map_intptr = BitcastTaggedToWord(lookup_start_object_map);
-  TNode<IntPtrT> hash = WordSar(map_intptr, IntPtrConstant(kTaggedSizeLog2));
+  TNode<Uint32T> hash = Unsigned(TruncateIntPtrToInt32(
+      WordSar(map_intptr, IntPtrConstant(kTaggedSizeLog2))));
   // TODO(leszeks): Could avoid this subtraction by fixing the length at build
   // time.
-  TNode<IntPtrT> cache_index =
-      WordAnd(hash, IntPtrSub(length, IntPtrConstant(1)));
+  TNode<Word32T> cache_index =
+      Word32And(hash, Int32Sub(length, Int32Constant(1)));
+
+  TNode<IntPtrT> cache_index_intptr = Signed(ChangeUint32ToWord(cache_index));
 
   // Check if the cached map matches, and if it does, go immediately to handler
   // execution.
   TNode<MaybeObject> element = LoadWeakFixedArrayElement(
-      ReinterpretCast<WeakFixedArray>(array), cache_index);
+      ReinterpretCast<WeakFixedArray>(array), cache_index_intptr);
   GotoIf(TaggedEqual(element, MakeWeak(lookup_start_object_map)),
          &execute_handler);
 
@@ -268,7 +271,8 @@ void AccessorAssembler::TryHomomorphicCase(TNode<Object> lookup_start_object,
 
     // Update Cache: Overwrite at hash.
     StoreWeakFixedArrayElement(ReinterpretCast<WeakFixedArray>(array),
-                               cache_index, MakeWeak(lookup_start_object_map));
+                               cache_index_intptr,
+                               MakeWeak(lookup_start_object_map));
     Goto(&execute_handler);
   }
 

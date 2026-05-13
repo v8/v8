@@ -15,6 +15,8 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/templates.h"
@@ -1337,6 +1339,9 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
     types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
     types["FEEDBACK_CELL_TYPE"] = FEEDBACK_CELL_TYPE;
+    types["FEEDBACK_VECTOR_TYPE"] = FEEDBACK_VECTOR_TYPE;
+    types["WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE"] =
+        WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
@@ -1404,6 +1409,11 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
     fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
+    fields[FEEDBACK_VECTOR_TYPE]["length"] = offsetof(FeedbackVector, length_);
+    fields[FEEDBACK_VECTOR_TYPE]["data"] =
+        FeedbackVector::kRawFeedbackSlotsOffset;
+    fields[WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE]["length"] =
+        offsetof(WeakFixedArray, length_);
 #ifdef V8_INTL_SUPPORT
     fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
         offsetof(JSSegments, icu_iterator_with_text_);
