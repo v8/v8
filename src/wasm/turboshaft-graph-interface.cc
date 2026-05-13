@@ -4157,19 +4157,16 @@ class TurboshaftGraphBuildingInterface
         // resume_throw_ref, switch or cont.bind), we check the expected
         // signature index against the one saved in the target continuation's
         // stack. Continuations aren't castable so the types must match exactly.
-        // For simplicity, use module-relative indices in the handler table
-        // and translate them to canonical indices on suspend. Storing the
-        // canonical indices would avoid this extra step at runtime, but we
-        // would need to relocate the indices.
         Control* target = decoder->control_at(handlers[i].maybe_depth.br.depth);
         Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
         HeapType ht = val.type.heap_type();
         DCHECK(ht.has_index());
         const ContType* cont_type = decoder->module_->cont_type(ht.ref_index());
-        ModuleTypeIndex sig_index = cont_type->contfun_typeindex();
+        CanonicalTypeIndex sig_index =
+            decoder->module_->canonical_type_id(cont_type->contfun_typeindex());
         asm_handlers[i].sig = sig_index;
       } else {
-        asm_handlers[i].sig = ModuleTypeIndex::Invalid();
+        asm_handlers[i].sig = CanonicalTypeIndex::Invalid();
       }
     }
     return {stack, asm_handlers};

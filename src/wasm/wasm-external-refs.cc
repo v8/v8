@@ -1172,7 +1172,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
           LEBHelper::read_u32v(&effect_handlers_ptr)};
       if (!tag_index.is_switch()) {
         uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
-        ModuleTypeIndex module_sig_index{
+        CanonicalTypeIndex sig_index{
             LEBHelper::read_u32v(&effect_handlers_ptr)};
         auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
         if (wasm_code->instruction_start() + call_offset == target_pc &&
@@ -1180,8 +1180,7 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
           to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
           to->jmpbuf()->sp = target_sp;
           to->jmpbuf()->fp = target_fp;
-          *sig = wasm_code->native_module()->module()->canonical_sig_id(
-              module_sig_index);
+          *sig = sig_index;
           return to;
         }
       } else if (tag_index.is_switch() && is_switch) {

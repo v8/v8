@@ -4555,7 +4555,7 @@ struct EffectHandler {
   Block* block;
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(thibaudm): Move the whole struct behind the guard.
-  wasm::ModuleTypeIndex sig;
+  wasm::CanonicalTypeIndex sig;
 #endif
 
   bool is_switch() const { return tag_and_kind.is_switch(); }

@@ -1200,7 +1200,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
           i.ToConstant(instr->InputAt(handler_idx + 2)).ToInt32());
 
       if (!tag_index.is_switch()) {
-        wasm::ModuleTypeIndex sig{static_cast<uint32_t>(
+        wasm::CanonicalTypeIndex sig{static_cast<uint32_t>(
             i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32())};
         RpoNumber handler_rpo =
             i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
@@ -1208,7 +1208,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
                                       masm()->pc_offset(), sig);
       } else {
         effect_handlers_.emplace_back(tag_index, nullptr, masm()->pc_offset(),
-                                      wasm::ModuleTypeIndex::Invalid());
+                                      wasm::CanonicalTypeIndex::Invalid());
       }
     }
     index = index - 3 * num_handlers - 1;
