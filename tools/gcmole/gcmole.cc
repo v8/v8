@@ -666,6 +666,9 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* tagged_index_decl,
                    clang::CXXRecordDecl* cleared_weak_value_decl,
                    clang::ClassTemplateDecl* tagged_decl,
+                   clang::CXXRecordDecl* js_dispatch_handle_decl,
+                   clang::CXXRecordDecl* js_dispatch_handle_member_decl,
+                   clang::ClassTemplateDecl* tagged_member_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::CXXRecordDecl* conservative_pinning_scope_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
@@ -675,6 +678,9 @@ class FunctionAnalyzer {
         tagged_index_decl_(tagged_index_decl),
         cleared_weak_value_decl_(cleared_weak_value_decl),
         tagged_decl_(tagged_decl),
+        js_dispatch_handle_decl_(js_dispatch_handle_decl),
+        js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
+        tagged_member_decl_(tagged_member_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
         conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
         d_(d),
@@ -951,12 +957,8 @@ class FunctionAnalyzer {
                  const Environment& env) {
     if (!g_dead_vars_analysis) return ExprEffect::None();
     if (!RepresentsRawPointerType(var_type)) return ExprEffect::None();
-    // We currently care only about our internal pointer types and not about
-    // raw C++ pointers, because normally special care is taken when storing
-    // raw pointers to the managed heap. Furthermore, checking for raw
-    // pointers produces too many false positives in the dead variable
-    // analysis.
-    if (!IsInternalPointerType(var_type)) return ExprEffect::None();
+    // Raw pointer tracking is enabled for HeapObject subclasses and internal
+    // pointer/handle/member types to catch stale pointers across GC calls.
     if (env.IsAlive(var_name)) return ExprEffect::None();
     if (HasActiveGuard()) return ExprEffect::None();
     if (HasActiveConservativePinning(var_location)) return ExprEffect::None();
@@ -1336,9 +1338,35 @@ class FunctionAnalyzer {
     return false;
   }
 
+  bool IsOnHeapValue(const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return false;
+    if (IsDerivedFromInternalPointer(record)) return true;
+
+    if (js_dispatch_handle_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
+      return true;
+    }
+    if (js_dispatch_handle_member_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_member_decl_) {
+      return true;
+    }
+
+    auto* specialization =
+        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
+    if (specialization) {
+      auto* template_decl =
+          specialization->getSpecializedTemplate()->getCanonicalDecl();
+      if (tagged_member_decl_ && template_decl == tagged_member_decl_) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   bool IsRawPointerType(const clang::PointerType* type) {
     const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
-    bool result = IsDerivedFromInternalPointer(record);
+    bool result = IsOnHeapValue(record);
     TRACE("is raw " << result << " "
                     << (record ? record->getNameAsString() : "nullptr"));
     return result;
@@ -1346,7 +1374,11 @@ class FunctionAnalyzer {
 
   bool IsInternalPointerType(clang::QualType qtype) {
     const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    bool result = IsDerivedFromInternalPointer(record);
+    if (record && js_dispatch_handle_decl_ &&
+        record->getCanonicalDecl() == js_dispatch_handle_decl_) {
+      return false;
+    }
+    bool result = IsOnHeapValue(record);
     TRACE_LLVM_TYPE("is internal " << result, qtype);
     return result;
   }
@@ -1527,6 +1559,9 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* tagged_index_decl_;
   clang::CXXRecordDecl* cleared_weak_value_decl_;
   clang::ClassTemplateDecl* tagged_decl_;
+  clang::CXXRecordDecl* js_dispatch_handle_decl_;
+  clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
+  clang::ClassTemplateDecl* tagged_member_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
@@ -1638,6 +1673,15 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::ClassTemplateDecl* tagged_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
 
+    clang::CXXRecordDecl* js_dispatch_handle_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandle");
+
+    clang::CXXRecordDecl* js_dispatch_handle_member_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("JSDispatchHandleMember");
+
+    clang::ClassTemplateDecl* tagged_member_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
+
     if (heap_object_decl != nullptr) {
       heap_object_decl = heap_object_decl->getDefinition();
     }
@@ -1654,12 +1698,27 @@ class ProblemsFinder : public clang::ASTConsumer,
       tagged_decl = tagged_decl->getCanonicalDecl();
     }
 
+    if (js_dispatch_handle_decl != nullptr) {
+      js_dispatch_handle_decl = js_dispatch_handle_decl->getCanonicalDecl();
+    }
+
+    if (js_dispatch_handle_member_decl != nullptr) {
+      js_dispatch_handle_member_decl =
+          js_dispatch_handle_member_decl->getCanonicalDecl();
+    }
+
+    if (tagged_member_decl != nullptr) {
+      tagged_member_decl = tagged_member_decl->getCanonicalDecl();
+    }
+
     if (heap_object_decl != nullptr && smi_decl != nullptr &&
         tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
           smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
-          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
+          js_dispatch_handle_decl, js_dispatch_handle_member_decl,
+          tagged_member_decl, no_gc_mole_decl, conservative_pinning_scope_decl,
+          d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {
