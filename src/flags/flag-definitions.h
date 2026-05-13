@@ -4218,10 +4218,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
-DEFINE_BOOL(track_array_buffer_views, false,
+DEFINE_BOOL(track_array_buffer_views, true,
             "Track TypedArrays and DataViews attached to array buffers and "
             "update them in-place when the buffer detaches")
-DEFINE_WEAK_IMPLICATION(future, track_array_buffer_views)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     superspreading,
