@@ -1620,12 +1620,14 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   for (std::pair<Call*, Scope*> call : eval_calls_) {
     Tagged<ScopeInfo> current;
     int index = call.first->eval_scope_info_index();
-    if (script->infos()->get(index).GetHeapObjectIfWeak(&current) &&
+    if (script->infos()
+            ->get(index, kAcquireLoad)
+            .GetHeapObjectIfWeak(&current) &&
         v8_flags.reuse_scope_infos) {
       CHECK_EQ(current, *call.second->scope_info());
     } else {
       script->infos()->set(call.first->eval_scope_info_index(),
-                           MakeWeak(*call.second->scope_info()));
+                           MakeWeak(*call.second->scope_info()), kReleaseStore);
     }
   }
 

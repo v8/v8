@@ -951,12 +951,15 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     std::vector<uint32_t> target_infos =
         new_eval_calls[sfi->function_literal_id(kRelaxedLoad)];
     new_script->infos()->set(mapping.second->function_literal_id(),
-                             MakeWeak(*sfi));
+                             MakeWeak(*sfi), kReleaseStore);
     if (sfi->HasBytecodeArray()) {
       for (size_t i = 0; i < source_infos.size(); i++) {
-        Tagged<ScopeInfo> scope_info = Cast<ScopeInfo>(
-            script->infos()->get(source_infos[i]).GetHeapObjectAssumeWeak());
-        new_script->infos()->set(target_infos[i], MakeWeak(scope_info));
+        Tagged<ScopeInfo> scope_info =
+            Cast<ScopeInfo>(script->infos()
+                                ->get(source_infos[i], kAcquireLoad)
+                                .GetHeapObjectAssumeWeak());
+        new_script->infos()->set(target_infos[i], MakeWeak(scope_info),
+                                 kReleaseStore);
       }
     }
     DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),

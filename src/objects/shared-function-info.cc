@@ -217,7 +217,11 @@ void SharedFunctionInfo::SetScript(IsolateForSandbox isolate,
       DCHECK_EQ(heap_object, this);
     }
 #endif
-    list->set(function_literal_id, MakeWeak(Tagged<SharedFunctionInfo>(this)));
+    // Release-store: this SFI was just allocated and initialised; the infos()
+    // array is read concurrently by
+    // BackgroundMergeTask::BeginMergeInBackground.
+    list->set(function_literal_id, MakeWeak(Tagged<SharedFunctionInfo>(this)),
+              kReleaseStore);
   } else {
     DCHECK(IsScript(script()));
 

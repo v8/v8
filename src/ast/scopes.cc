@@ -3068,7 +3068,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
     // scope info if it exists.
     for (int i = parse_info->literal()->function_literal_id();
          i <= parse_info->max_info_id(); ++i) {
-      Tagged<MaybeObject> maybe_info = infos->get(i);
+      Tagged<MaybeObject> maybe_info = infos->get(i, kAcquireLoad);
       if (maybe_info.IsWeak()) {
         Tagged<Object> info = maybe_info.GetHeapObjectAssumeWeak();
         Tagged<ScopeInfo> scope_info;

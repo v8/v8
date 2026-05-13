@@ -2470,7 +2470,11 @@ void BackgroundMergeTask::BeginMergeInBackground(
   for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
-    Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
+    // Acquire-load: pairs with the release-store in
+    // SharedFunctionInfo::SetScript so that a freshly-published SFI's field
+    // initialisation is visible before we dereference it below.
+    Tagged<MaybeObject> maybe_old_info =
+        old_script->infos()->get(i, kAcquireLoad);
     // We might have scope infos in the table if it's deserialized from a code
     // cache.
     if (maybe_new_sfi.IsWeak() &&
@@ -2662,7 +2666,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         compiled_data_it++;
       }
     } else if (!maybe_old_info.IsWeak()) {
-      old_script->infos()->set(i, maybe_new_info);
+      old_script->infos()->set(i, maybe_new_info, kReleaseStore);
     }
   }
 

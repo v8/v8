@@ -44,7 +44,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // triggers the mismatch.
   CHECK_LT(static_cast<uint32_t>(function_literal_id),
            script->infos()->ulength().value());
-  Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
+  Tagged<MaybeObject> shared =
+      script->infos()->get(function_literal_id, kAcquireLoad);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||
       IsUndefined(heap_object, isolate)) {
