@@ -1744,10 +1744,9 @@ DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_in_js_inlining,
-    "inline Wasm code into JS functions via Turboshaft (instead of via "
-    "TurboFan). Only the Wasm code is inlined in Turboshaft, the JS-to-Wasm "
-    "wrappers are still inlined in TurboFan. For controlling whether to inline "
-    "at all, see --turbo-inline-js-wasm-calls.")
+    "inline Wasm code into JS functions via Turboshaft. For controlling "
+    "the inlining in the old Turbofan pipeline, see "
+    "--turbo-inline-js-wasm-calls.")
 // The Wasm-in-JS body inlining depends on the Turbolev-based JS-to-Wasm wrapper
 // inlining. Thus both require Turbolev and don't do anything without that.
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining,

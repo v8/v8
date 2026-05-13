@@ -546,8 +546,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // given JavaScript function (due to the WasmGCLowering being dependent on
   // module-specific type indices).
   Node* wasm_fct_call = nullptr;
-  if (inline_result.can_inline_body ||
-      v8_flags.turboshaft_wasm_in_js_inlining) {
+  if (inline_result.can_inline_body) {
     AllNodes inlined_nodes(local_zone_, wrapper_end_node, graph());
     for (Node* subnode : inlined_nodes.reachable) {
       // Ignore nodes that are not part of the inlinee.
@@ -559,16 +558,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         break;
       }
     }
-    DCHECK_IMPLIES(inline_result.can_inline_body, wasm_fct_call != nullptr);
-
-    // Attach information about Wasm call target for Turboshaft Wasm-in-JS-
-    // inlining (see https://crbug.com/353475584) in sidetable.
-    if (v8_flags.turboshaft_wasm_in_js_inlining && wasm_fct_call) {
-      auto [it, inserted] = js_wasm_calls_sidetable_->insert(
-          {wasm_fct_call->id(), &wasm_call_params});
-      USE(it);
-      DCHECK(inserted);
-    }
+    DCHECK(wasm_fct_call != nullptr);
   }
 
   Node* context = NodeProperties::GetContextInput(node);
