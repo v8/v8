@@ -3213,6 +3213,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), src2);
       break;
     }
+    case kArm64IShll: {
+      int lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
+      VectorFormat dst_f = VectorFormatFillQ(lane_size);
+      VectorFormat src_f = VectorFormatHalfWidth(dst_f);
+      int shift_value = lane_size / 2;
+      __ Shll(i.OutputSimd128Register().Format(dst_f),
+              i.InputSimd128Register(0).Format(src_f), shift_value);
+      break;
+    }
     case kArm64IShl: {
       // If shift value is an immediate, we can call Shl, taking the shift
       // value modulo 2^width. Otherwise, emit code to perform the modulus
@@ -3288,65 +3297,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAdd, Add);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISub, Sub);
-    case kArm64I64x2Mul: {
-      UseScratchRegisterScope scope(masm());
-      VRegister dst = i.OutputSimd128Register();
-      VRegister src1 = i.InputSimd128Register(0);
-      VRegister src2 = i.InputSimd128Register(1);
-      VRegister tmp1 = scope.AcquireSameSizeAs(dst);
-      VRegister tmp2 = scope.AcquireSameSizeAs(dst);
-      VRegister tmp3 = i.ToSimd128Register(instr->TempAt(0));
-
-      // This 2x64-bit multiplication is performed with several 32-bit
-      // multiplications.
-
-      // 64-bit numbers x and y, can be represented as:
-      //   x = a + 2^32(b)
-      //   y = c + 2^32(d)
-
-      // A 64-bit multiplication is:
-      //   x * y = ac + 2^32(ad + bc) + 2^64(bd)
-      // note: `2^64(bd)` can be ignored, the value is too large to fit in
-      // 64-bits.
-
-      // This sequence implements a 2x64bit multiply, where the registers
-      // `src1` and `src2` are split up into 32-bit components:
-      //   src1 = |d|c|b|a|
-      //   src2 = |h|g|f|e|
-      //
-      //   src1 * src2 = |cg + 2^32(ch + dg)|ae + 2^32(af + be)|
-
-      // Reverse the 32-bit elements in the 64-bit words.
-      //   tmp2 = |g|h|e|f|
-      __ Rev64(tmp2.V4S(), src2.V4S());
-
-      // Calculate the high half components.
-      //   tmp2 = |dg|ch|be|af|
-      __ Mul(tmp2.V4S(), tmp2.V4S(), src1.V4S());
-
-      // Extract the low half components of src1.
-      //   tmp1 = |c|a|
-      __ Xtn(tmp1.V2S(), src1.V2D());
-
-      // Sum the respective high half components.
-      //   tmp2 = |dg+ch|be+af||dg+ch|be+af|
-      __ Addp(tmp2.V4S(), tmp2.V4S(), tmp2.V4S());
-
-      // Extract the low half components of src2.
-      //   tmp3 = |g|e|
-      __ Xtn(tmp3.V2S(), src2.V2D());
-
-      // Shift the high half components, into the high half.
-      //   dst = |dg+ch << 32|be+af << 32|
-      __ Shll(dst.V2D(), tmp2.V2S(), 32);
-
-      // Multiply the low components together, and accumulate with the high
-      // half.
-      //   dst = |dst[1] + cg|dst[0] + ae|
-      __ Umlal(dst.V2D(), tmp3.V2S(), tmp1.V2S());
-
-      break;
-    }
       SIMD_CM_G_CASE(kArm64IEq, eq);
     case kArm64INe: {
       VectorFormat f =
@@ -3370,12 +3320,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_UNOP_CASE(kArm64I32x4SConvertF32x4, Fcvtzs, 4S);
-      SIMD_BINOP_CASE(kArm64I32x4Mul, Mul, 4S);
       SIMD_UNOP_CASE(kArm64I32x4UConvertF32x4, Fcvtzu, 4S);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGtU, Cmhi);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGeU, Cmhs);
     case kArm64I32x4BitMask: {
       __ I32x4BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArm64IMul: {
+      uint32_t lane_size = LaneSizeBits(LaneSizeField::decode(opcode));
+      DCHECK_NE(lane_size, 64);
+      VectorFormat format = VectorFormatFillQ(lane_size);
+      __ Mul(i.OutputSimd128Register().Format(format),
+             i.InputSimd128Register(0).Format(format),
+             i.InputSimd128Register(1).Format(format));
       break;
     }
     case kArm64IAddv: {
@@ -3459,7 +3417,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatS, Sqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatS, Sqsub);
-      SIMD_BINOP_CASE(kArm64I16x8Mul, Mul, 8H);
     case kArm64I16x8UConvertI32x4: {
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
@@ -3774,6 +3731,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev16, Rev16);
       SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev32, Rev32);
       SIMD_UNOP_LANE_SIZE_CASE(kArm64S128Rev64, Rev64);
+    case kArm64S128ExtractNarrow: {
+      VectorFormat dst_f =
+          VectorFormatFillQ(LaneSizeBits(LaneSizeField::decode(opcode)));
+      DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV64);
+      dst_f = VectorFormatHalfLanes(dst_f);
+      VectorFormat src_f = VectorFormatDoubleWidth(dst_f);
+      __ Xtn(i.OutputSimd128Register().Format(dst_f),
+             i.InputSimd128Register(0).Format(src_f));
+      break;
+    }
     case kArm64LoadSplat: {
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       VectorFormat f =

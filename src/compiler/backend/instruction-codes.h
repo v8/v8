@@ -331,6 +331,21 @@ inline LaneSize LaneSizeFromBits(uint8_t width) {
   }
 }
 
+enum class VectorLength : uint8_t { kV64 = 0, kV128 = 1, kV256 = 2, kV512 = 3 };
+
+inline int32_t VectorLengthBits(VectorLength length) {
+  switch (length) {
+    case VectorLength::kV64:
+      return 64;
+    case VectorLength::kV128:
+      return 128;
+    case VectorLength::kV256:
+      return 256;
+    case VectorLength::kV512:
+      return 512;
+  }
+}
+
 static constexpr int kLazyDeoptOnThrowSentinel = -1;
 
 // The InstructionCode is an opaque, target-specific integer that encodes what
@@ -413,7 +428,6 @@ using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
-enum VectorLength { kV128 = 0, kV256 = 1, kV512 = 3 };
 using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
 using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
 

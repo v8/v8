@@ -3144,7 +3144,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FAbs: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Abs
@@ -3168,7 +3168,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Abs
@@ -3220,7 +3220,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FNeg: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Neg
@@ -3244,7 +3244,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Neg
@@ -3724,7 +3724,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FSplat: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             CpuFeatureScope f16c_scope(masm(), F16C);
@@ -3754,7 +3754,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             UNREACHABLE();
         }
 
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x16Splat
@@ -3787,7 +3787,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FExtractLane: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8ExtractLane
@@ -3823,7 +3823,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FReplaceLane: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8ReplaceLane
@@ -3867,7 +3867,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FSqrt: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(0);
         switch (lane_size) {
@@ -3894,7 +3894,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(0);
         CpuFeatureScope avx_scope(masm(), AVX);
@@ -3920,7 +3920,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FAdd: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Add
@@ -3939,7 +3939,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Add
@@ -3962,7 +3962,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FSub: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Sub
@@ -3981,7 +3981,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Sub
@@ -4004,7 +4004,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FMul: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Mul
@@ -4023,7 +4023,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL64: {
             // F64x4Mul
@@ -4047,7 +4047,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FDiv: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16:
             // F16x8Div
@@ -4066,7 +4066,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Div
@@ -4089,7 +4089,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FMin: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Min
@@ -4119,7 +4119,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Min
@@ -4145,7 +4145,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FMax: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Max
@@ -4175,7 +4175,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Max
@@ -4201,7 +4201,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FEq: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Eq
@@ -4221,7 +4221,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Eq
@@ -4244,7 +4244,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FNe: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Ne
@@ -4264,7 +4264,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Ne
@@ -4287,7 +4287,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FLt: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Lt
@@ -4307,7 +4307,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Lt
@@ -4330,7 +4330,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64FLe: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // F16x8Le
@@ -4350,7 +4350,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // F32x8Le
@@ -4592,9 +4592,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Minps: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         ASSEMBLE_SIMD_BINOP(minps);
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         ASSEMBLE_SIMD256_BINOP(minps, AVX);
       } else {
         UNREACHABLE();
@@ -4603,9 +4603,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Maxps: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         ASSEMBLE_SIMD_BINOP(maxps);
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         ASSEMBLE_SIMD256_BINOP(maxps, AVX);
       } else {
         UNREACHABLE();
@@ -4613,12 +4613,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Minph: {
-      DCHECK_EQ(VectorLengthField::decode(opcode), kV128);
+      DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
       ASSEMBLE_SIMD_F16x8_BINOP(vminps);
       break;
     }
     case kX64Maxph: {
-      DCHECK_EQ(VectorLengthField::decode(opcode), kV128);
+      DCHECK_EQ(VectorLengthField::decode(opcode), VectorLength::kV128);
       ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
       break;
     }
@@ -4677,9 +4677,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Minpd: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         ASSEMBLE_SIMD_BINOP(minpd);
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         ASSEMBLE_SIMD256_BINOP(minpd, AVX);
       } else {
         UNREACHABLE();
@@ -4688,9 +4688,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Maxpd: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         ASSEMBLE_SIMD_BINOP(maxpd);
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         ASSEMBLE_SIMD256_BINOP(maxpd, AVX);
       } else {
         UNREACHABLE();
@@ -4700,7 +4700,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64ISplat: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16Splat
@@ -4750,7 +4750,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             UNREACHABLE();
         }
 
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32Splat
@@ -4803,7 +4803,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IExtractLane: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL32: {
             // I32x4ExtractLane
@@ -4829,7 +4829,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IAbs: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(0);
         switch (lane_size) {
@@ -4856,7 +4856,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(0);
         CpuFeatureScope avx_scope(masm(), AVX2);
@@ -4892,7 +4892,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64INeg: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(0);
         switch (lane_size) {
@@ -4937,7 +4937,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(0);
         CpuFeatureScope avx_scope(masm(), AVX2);
@@ -4993,7 +4993,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IBitMask: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16BitMask
@@ -5029,7 +5029,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IShl: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16Shl
@@ -5066,7 +5066,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32Shl
@@ -5101,7 +5101,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IShrS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16ShrS
@@ -5144,7 +5144,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32ShrS
@@ -5177,7 +5177,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IAdd: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16Add
@@ -5202,7 +5202,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL64: {
             // I64x4Add
@@ -5235,7 +5235,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64ISub: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16Sub
@@ -5260,7 +5260,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL64: {
             // I64x4Sub
@@ -5293,7 +5293,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IMul: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // I16x8Mul
@@ -5316,7 +5316,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL16: {
             // I16x16Mul
@@ -5346,7 +5346,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IEq: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16Eq
@@ -5372,7 +5372,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32Eq
@@ -5405,7 +5405,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64INe: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             XMMRegister dst = i.OutputSimd128Register();
@@ -5440,7 +5440,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
         YMMRegister dst = i.OutputSimd256Register();
         CpuFeatureScope avx2_scope(masm(), AVX2);
@@ -5488,7 +5488,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IGtS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16GtS
@@ -5514,7 +5514,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32GtS
@@ -5547,7 +5547,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IGeS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16GeS
@@ -5582,7 +5582,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(1);
         CpuFeatureScope avx2_scope(masm(), AVX2);
@@ -5628,7 +5628,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IShrU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16ShrU
@@ -5665,7 +5665,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32ShrU
@@ -5780,7 +5780,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IMinS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16MinS
@@ -5802,7 +5802,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32MinS
@@ -5830,7 +5830,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IMaxS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16MaxS
@@ -5852,7 +5852,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32MaxS
@@ -5932,7 +5932,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IMinU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16MinU
@@ -5954,7 +5954,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32MinU
@@ -5982,7 +5982,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IMaxU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16MaxU
@@ -6004,7 +6004,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32MaxU
@@ -6032,7 +6032,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IGtU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(1);
         switch (lane_size) {
@@ -6062,7 +6062,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(1);
@@ -6106,7 +6106,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IGeU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(1);
         switch (lane_size) {
@@ -6131,7 +6131,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(1);
@@ -6244,10 +6244,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SZero: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128Zero
+      if (vec_len == VectorLength::kV128) {  // S128Zero
         XMMRegister dst = i.OutputSimd128Register();
         __ Pxor(dst, dst);
-      } else if (vec_len == kV256) {  // S256Zero
+      } else if (vec_len == VectorLength::kV256) {  // S256Zero
         YMMRegister dst = i.OutputSimd256Register();
         CpuFeatureScope avx2_scope(masm(), AVX2);
         __ vpxor(dst, dst, dst);
@@ -6258,10 +6258,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SAllOnes: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128AllOnes
+      if (vec_len == VectorLength::kV128) {  // S128AllOnes
         XMMRegister dst = i.OutputSimd128Register();
         __ Pcmpeqd(dst, dst);
-      } else if (vec_len == kV256) {  // S256AllOnes
+      } else if (vec_len == VectorLength::kV256) {  // S256AllOnes
         YMMRegister dst = i.OutputSimd256Register();
         CpuFeatureScope avx2_scope(masm(), AVX2);
         __ vpcmpeqd(dst, dst, dst);
@@ -6274,7 +6274,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IExtractLaneS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16ExtractLaneS
@@ -6320,7 +6320,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IAddSatS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16AddSatS
@@ -6335,7 +6335,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32AddSatS
@@ -6358,7 +6358,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64ISubSatS: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16SubSatS
@@ -6373,7 +6373,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32SubSatS
@@ -6415,7 +6415,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IAddSatU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16AddSatU
@@ -6430,7 +6430,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32AddSatU
@@ -6453,7 +6453,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64ISubSatU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16SubSatU
@@ -6468,7 +6468,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32SubSatU
@@ -6491,7 +6491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IRoundingAverageU: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16RoundingAverageU
@@ -6506,7 +6506,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
+      } else if (vec_len == VectorLength::kV256) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x32RoundingAverageU
@@ -6673,9 +6673,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SAnd: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128And
+      if (vec_len == VectorLength::kV128) {  // S128And
         ASSEMBLE_SIMD_BINOP(pand);
-      } else if (vec_len == kV256) {  // S256And
+      } else if (vec_len == VectorLength::kV256) {  // S256And
         ASSEMBLE_SIMD256_BINOP(pand, AVX2);
       } else {
         UNREACHABLE();
@@ -6684,9 +6684,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SOr: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128Or
+      if (vec_len == VectorLength::kV128) {  // S128Or
         ASSEMBLE_SIMD_BINOP(por);
-      } else if (vec_len == kV256) {  // S256Or
+      } else if (vec_len == VectorLength::kV256) {  // S256Or
         ASSEMBLE_SIMD256_BINOP(por, AVX2);
       } else {
         UNREACHABLE();
@@ -6695,9 +6695,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SXor: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128Xor
+      if (vec_len == VectorLength::kV128) {  // S128Xor
         ASSEMBLE_SIMD_BINOP(pxor);
-      } else if (vec_len == kV256) {  // S256Xor
+      } else if (vec_len == VectorLength::kV256) {  // S256Xor
         ASSEMBLE_SIMD256_BINOP(pxor, AVX2);
       } else {
         UNREACHABLE();
@@ -6706,10 +6706,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SNot: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128Not
+      if (vec_len == VectorLength::kV128) {  // S128Not
         __ S128Not(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    kScratchDoubleReg);
-      } else if (vec_len == kV256) {  // S256Not
+      } else if (vec_len == VectorLength::kV256) {  // S256Not
         __ S256Not(i.OutputSimd256Register(), i.InputSimd256Register(0),
                    kScratchSimd256Reg);
       } else {
@@ -6719,11 +6719,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SSelect: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128Select
+      if (vec_len == VectorLength::kV128) {  // S128Select
         __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
                       i.InputSimd128Register(1), i.InputSimd128Register(2),
                       kScratchDoubleReg);
-      } else if (vec_len == kV256) {  // S256Select
+      } else if (vec_len == VectorLength::kV256) {  // S256Select
         __ S256Select(i.OutputSimd256Register(), i.InputSimd256Register(0),
                       i.InputSimd256Register(1), i.InputSimd256Register(2),
                       kScratchSimd256Reg);
@@ -6734,11 +6734,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64SAndNot: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {  // S128AndNot
+      if (vec_len == VectorLength::kV128) {  // S128AndNot
         // The inputs have been inverted by instruction selector, so we can call
         // andnps here without any modifications.
         ASSEMBLE_SIMD_BINOP(andnps);
-      } else if (vec_len == kV256) {  // S256AndNot
+      } else if (vec_len == VectorLength::kV256) {  // S256AndNot
         // The inputs have been inverted by instruction selector, so we can call
         // andnps here without any modifications.
         ASSEMBLE_SIMD256_BINOP(andnps, AVX);
@@ -7151,7 +7151,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64IAllTrue: {
       LaneSize lane_size = LaneSizeField::decode(opcode);
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         switch (lane_size) {
           case LaneSize::kL8: {
             // I8x16AllTrue
@@ -7183,11 +7183,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Blendvpd: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         __ Blendvpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), i.InputSimd128Register(2));
       } else {
-        DCHECK_EQ(vec_len, kV256);
+        DCHECK_EQ(vec_len, VectorLength::kV256);
         CpuFeatureScope avx_scope(masm(), AVX);
         __ vblendvpd(i.OutputSimd256Register(), i.InputSimd256Register(0),
                      i.InputSimd256Register(1), i.InputSimd256Register(2));
@@ -7196,11 +7196,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Blendvps: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         __ Blendvps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), i.InputSimd128Register(2));
       } else {
-        DCHECK_EQ(vec_len, kV256);
+        DCHECK_EQ(vec_len, VectorLength::kV256);
         CpuFeatureScope avx_scope(masm(), AVX);
         __ vblendvps(i.OutputSimd256Register(), i.InputSimd256Register(0),
                      i.InputSimd256Register(1), i.InputSimd256Register(2));
@@ -7209,11 +7209,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Pblendvb: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), i.InputSimd128Register(2));
       } else {
-        DCHECK_EQ(vec_len, kV256);
+        DCHECK_EQ(vec_len, VectorLength::kV256);
         CpuFeatureScope avx_scope(masm(), AVX2);
         __ vpblendvb(i.OutputSimd256Register(), i.InputSimd256Register(0),
                      i.InputSimd256Register(1), i.InputSimd256Register(2));
@@ -7238,10 +7238,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Cvttps2dq: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
-      if (vec_len == kV128) {
+      if (vec_len == VectorLength::kV128) {
         __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
       } else {
-        DCHECK_EQ(vec_len, kV256);
+        DCHECK_EQ(vec_len, VectorLength::kV256);
         CpuFeatureScope avx_scope(masm(), AVX);
         __ vcvttps2dq(i.OutputSimd256Register(), i.InputSimd256Register(0));
       }
