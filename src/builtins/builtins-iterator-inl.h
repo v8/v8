@@ -16,6 +16,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/js-regexp-string-iterator-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 
@@ -122,6 +123,34 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
   } else if (has_inner_exception) {
     // 6. If innerResult is a throw completion, return ? innerResult.
     isolate->set_exception(*inner_exception);
+  }
+}
+
+inline void CloseAndMarkIteratorDone(Isolate* isolate,
+                                     DirectHandle<JSReceiver> iterator) {
+  // 7.4.11 IteratorClose ( iteratorRecord, completion )
+  // Ordinary iterators, generators, and iterator helpers implement a .return()
+  // method in JS/bytecode. IteratorClose successfully invokes their .return()
+  // method to finalize them. However, V8's core native built-in iterators
+  // (Array, Map, Set, String, RegExp) are implemented purely in C++ and lack a
+  // JS .return() method. For them, IteratorClose is a no-op, so we must
+  // manually exhaust them by wiping their C++ backing fields.
+  IteratorClose(isolate, iterator);
+  if (IsJSArrayIterator(*iterator)) {
+    auto num = isolate->factory()->NewNumberFromUint(kMaxUInt32);
+    Cast<JSArrayIterator>(iterator)->set_next_index(*num);
+  } else if (IsJSMapIterator(*iterator)) {
+    Cast<JSMapIterator>(iterator)->set_table(
+        ReadOnlyRoots(isolate).empty_ordered_hash_map());
+  } else if (IsJSSetIterator(*iterator)) {
+    Cast<JSSetIterator>(iterator)->set_table(
+        ReadOnlyRoots(isolate).empty_ordered_hash_set());
+  } else if (IsJSStringIterator(*iterator)) {
+    DirectHandle<JSStringIterator> str_iterator =
+        Cast<JSStringIterator>(iterator);
+    str_iterator->set_index(str_iterator->string()->length());
+  } else if (IsJSRegExpStringIterator(*iterator)) {
+    Cast<JSRegExpStringIterator>(iterator)->set_done(true);
   }
 }
 
@@ -469,13 +498,13 @@ MaybeDirectHandle<Object> IterableForEach(
               }
             }
             if (switch_to_protocol || current_index < len) {
+              if (!switch_to_protocol) {
+                CloseAndMarkIteratorDone(isolate, iterator);
+                return MaybeDirectHandle<Object>();
+              }
               auto num =
                   isolate->factory()->NewNumberFromUint(current_index + 1);
               array_iterator->set_next_index(*num);
-              if (!switch_to_protocol) {
-                IteratorClose(isolate, iterator);
-                return MaybeDirectHandle<Object>();
-              }
               // We had to abandon optimized iteration. Fall through and
               // continue normal iteration.
             } else {
@@ -514,12 +543,12 @@ MaybeDirectHandle<Object> IterableForEach(
             }
           }
         }
-        set_iterator->set_table(
-            ReadOnlyRoots(isolate).empty_ordered_hash_set());
         if (current_index < capacity) {
-          IteratorClose(isolate, iterator);
+          CloseAndMarkIteratorDone(isolate, iterator);
           return MaybeDirectHandle<Object>();
         }
+        set_iterator->set_table(
+            ReadOnlyRoots(isolate).empty_ordered_hash_set());
         return isolate->root_handle(RootIndex::kUndefinedValue);
       }
     }
@@ -568,7 +597,7 @@ MaybeDirectHandle<Object> IterableForEach(
         if (max_count_out) *max_count_out = count;
         isolate->Throw(*isolate->factory()->NewRangeError(
             MessageTemplate::kStackOverflow));
-        IteratorClose(isolate, iterator);
+        CloseAndMarkIteratorDone(isolate, iterator);
         return MaybeDirectHandle<Object>();
       }
     }
@@ -576,7 +605,7 @@ MaybeDirectHandle<Object> IterableForEach(
     if (!dispatch(next_value_handle)) {
       // 7.4.13 IfAbruptCloseIterator (value, iteratorRecord)
       // The dispatch failed (visitor threw). We must close the iterator.
-      IteratorClose(isolate, iterator);
+      CloseAndMarkIteratorDone(isolate, iterator);
       return MaybeDirectHandle<Object>();
     }
   }
