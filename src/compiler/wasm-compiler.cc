@@ -222,8 +222,8 @@ void WasmGraphBuilder::Start(unsigned params) {
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadProtectedPointerFromObject(
-          param,
-          offsetof(WasmImportData, protected_instance_data_) - kHeapObjectTag);
+          param, offsetof(WasmImportData, protected_importing_instance_data_) -
+                     kHeapObjectTag);
       break;
     }
     case kJSFunctionAbiMode: {

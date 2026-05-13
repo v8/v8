@@ -49,10 +49,10 @@ extern class WasmInstanceObject extends JSObject {
 // call site to patch (see the `call_origin` field).
 @cppObjectLayoutDefinition
 extern class WasmImportData extends TrustedObject {
-  // The instance data is used to load memory start/size for fast API calls, and
-  // for tier-up of wasm-to-js wrappers.
-  // Use the '.instance_data' macro to read this from torque code.
-  protected_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
+  // The instance data of the importing instance. It is used to load memory
+  // start/size for fast API calls, and for tier-up of wasm-to-js wrappers.
+  // Use the '.importing_instance_data' macro to read this from torque code.
+  protected_importing_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
   // `call_origin` records which place to patch on wrapper tier-up:
   // - WasmInternalFunction: a func ref
   // - WasmDispatchTable: a table; the slot is in the {bit_field}.
@@ -69,8 +69,9 @@ extern class WasmImportData extends TrustedObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
-extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
-    WasmImportData): WasmTrustedInstanceData|Smi;
+extern operator '.importing_instance_data' macro
+    LoadImportingInstanceDataFromWasmImportData(WasmImportData):
+        WasmTrustedInstanceData|Smi;
 
 @cppObjectLayoutDefinition
 extern class WasmFastApiCallData extends HeapObject {
@@ -93,11 +94,12 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
       ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
-  // For exported Wasm functions: the function index in the defining module;
-  // {protected_implicit_arg} is the {WasmTrustedInstanceData} corresponding
-  // to this module.
+  // For Wasm functions: the function index in the defining
+  // module; {protected_implicit_arg} is the {WasmTrustedInstanceData} of that
+  // defining module.
   // For imported JS functions: the function index in the importing module;
-  // {protected_implicit_arg} is a {WasmImportData} describing this module.
+  // {protected_implicit_arg} is a {WasmImportData} describing that importing
+  // module.
   // For WasmCapiFunctions: -1.
   function_index: Smi;
   // The call target, stored as a WasmCodePointer in this trusted object.

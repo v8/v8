@@ -1402,7 +1402,7 @@ class WasmImportData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateProtectedPointer(
-        obj, offsetof(WasmImportData, protected_instance_data_), v);
+        obj, offsetof(WasmImportData, protected_importing_instance_data_), v);
     IterateProtectedPointer(
         obj, offsetof(WasmImportData, protected_call_origin_), v);
     IteratePointer(obj, offsetof(WasmImportData, native_context_), v);

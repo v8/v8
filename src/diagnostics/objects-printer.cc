@@ -3544,9 +3544,9 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmImportData");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
-  os << "\n - instance_data: ";
-  if (has_instance_data()) {
-    os << Brief(instance_data());
+  os << "\n - importing_instance_data: ";
+  if (has_importing_instance_data()) {
+    os << Brief(importing_instance_data());
   } else {
     os << "<empty>";
   }

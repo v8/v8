@@ -523,10 +523,10 @@ const wasm::WasmModule* WasmInstanceObject::module() const {
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    DirectHandle<WasmTrustedInstanceData> instance_data, int index)
-    : instance_data_(instance_data), index_(index) {
+    DirectHandle<WasmTrustedInstanceData> importing_instance_data, int index)
+    : importing_instance_data_(importing_instance_data), index_(index) {
   DCHECK_GE(index, 0);
-  DCHECK_LT(index, instance_data->module()->num_imported_functions);
+  DCHECK_LT(index, importing_instance_data->module()->num_imported_functions);
 }
 
 // WasmDispatchTable
@@ -691,19 +691,20 @@ struct CastTraits<WasmExportedFunction> {
 
 // WasmImportData
 
-Tagged<WasmTrustedInstanceData> WasmImportData::instance_data() const {
-  DCHECK(has_instance_data());
-  return protected_instance_data_.load();
+Tagged<WasmTrustedInstanceData> WasmImportData::importing_instance_data()
+    const {
+  DCHECK(has_importing_instance_data());
+  return protected_importing_instance_data_.load();
 }
-void WasmImportData::set_instance_data(Tagged<WasmTrustedInstanceData> value,
-                                       WriteBarrierMode mode) {
-  protected_instance_data_.store(this, value, mode);
+void WasmImportData::set_importing_instance_data(
+    Tagged<WasmTrustedInstanceData> value, WriteBarrierMode mode) {
+  protected_importing_instance_data_.store(this, value, mode);
 }
-bool WasmImportData::has_instance_data() const {
-  return !protected_instance_data_.load().is_null();
+bool WasmImportData::has_importing_instance_data() const {
+  return !protected_importing_instance_data_.load().is_null();
 }
-void WasmImportData::clear_instance_data() {
-  protected_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
+void WasmImportData::clear_importing_instance_data() {
+  protected_importing_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
 Tagged<TrustedObject> WasmImportData::call_origin() const {
@@ -784,6 +785,15 @@ Tagged<TrustedObject> WasmInternalFunction::implicit_arg() const {
   DCHECK(has_implicit_arg());
   return protected_implicit_arg_.load();
 }
+
+Tagged<WasmTrustedInstanceData> WasmInternalFunction::instance_data() const {
+  Tagged<TrustedObject> arg = implicit_arg();
+  if (IsWasmTrustedInstanceData(arg)) {
+    return TrustedCast<WasmTrustedInstanceData>(arg);
+  }
+  return TrustedCast<WasmImportData>(arg)->importing_instance_data();
+}
+
 void WasmInternalFunction::set_implicit_arg(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
   protected_implicit_arg_.store(this, value, mode);

@@ -134,7 +134,7 @@ class ImportedFunctionEntry {
 #endif  // V8_ENABLE_DRUMBRAKE
 
  private:
-  DirectHandle<WasmTrustedInstanceData> const instance_data_;
+  DirectHandle<WasmTrustedInstanceData> const importing_instance_data_;
   int const index_;
 };
 
@@ -1085,15 +1085,14 @@ V8_OBJECT class WasmDispatchTable : public ExposedTrustedObject {
 
   // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
   // Wrappers are special since we own the CPT entries for the wrappers.
-  // {implicit_arg} has to be a WasmTrustedInstanceData, or Smi::zero() for
-  // clearing the slot.
-  void V8_EXPORT_PRIVATE SetForNonWrapper(
-      int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
-      WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
+  // {implicit_arg} has to be a WasmTrustedInstanceData.
+  void V8_EXPORT_PRIVATE
+  SetForNonWrapper(int index, Tagged<WasmTrustedInstanceData> implicit_arg,
+                   WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-      uint32_t function_index,
+                   uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-      NewOrExistingEntry new_or_existing);
+                   NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
   void V8_EXPORT_PRIVATE
@@ -1195,15 +1194,14 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
 
   // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
   // Wrappers are special since we own the CPT entries for the wrappers.
-  // {implicit_arg} has to be a WasmTrustedInstanceData, or Smi::zero() for
-  // clearing the slot.
-  void V8_EXPORT_PRIVATE SetForNonWrapper(
-      int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
-      WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
+  // {implicit_arg} has to be a WasmTrustedInstanceData.
+  void V8_EXPORT_PRIVATE
+  SetForNonWrapper(int index, Tagged<WasmTrustedInstanceData> implicit_arg,
+                   WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-      uint32_t function_index,
+                   uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-      WasmDispatchTable::NewOrExistingEntry new_or_existing);
+                   WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
   void SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
@@ -1416,13 +1414,24 @@ inline constexpr int WasmExportedFunctionData::kHeaderSize =
 inline constexpr int WasmExportedFunctionData::kSize =
     sizeof(WasmExportedFunctionData);
 
+// The WasmImportData is passed to non-wasm imports in place of the
+// WasmTrustedInstanceData. It is used in import wrappers (wasm-to-*) to load
+// needed information, and is used during wrapper tiering to know which
+// call site to patch (see the `call_origin` field).
 V8_OBJECT class WasmImportData : public TrustedObject {
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmImportData)
   DECL_VERIFIER(WasmImportData)
 
-  DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
+  // The instance data of the importing module. It is used to load memory
+  // start/size for fast API calls, and for tier-up of wasm-to-js wrappers.
+  // This field is null for C-API functions (WasmCapiFunctionData).
+  DECL_PROTECTED_POINTER_ACCESSORS(importing_instance_data,
+                                   WasmTrustedInstanceData)
+  // `call_origin` records which place to patch on wrapper tier-up:
+  // - WasmInternalFunction: a func ref
+  // - WasmDispatchTable: a table; the slot is in the {bit_field}.
   DECL_PROTECTED_POINTER_ACCESSORS(call_origin, TrustedObject)
 
   inline Tagged<NativeContext> native_context() const;
@@ -1471,7 +1480,8 @@ V8_OBJECT class WasmImportData : public TrustedObject {
   static const int kSize;
 
  public:
-  ProtectedTaggedMember<WasmTrustedInstanceData> protected_instance_data_;
+  ProtectedTaggedMember<WasmTrustedInstanceData>
+      protected_importing_instance_data_;
   ProtectedTaggedMember<TrustedObject> protected_call_origin_;
   TaggedMember<NativeContext> native_context_;
   TaggedMember<UnionOf<JSReceiver, Undefined>> callable_;
@@ -1495,12 +1505,27 @@ V8_OBJECT class WasmInternalFunction : public ExposedTrustedObject {
   V8_EXPORT_PRIVATE static DirectHandle<JSFunction> GetOrCreateExternal(
       DirectHandle<WasmInternalFunction> internal);
 
+  // This is the implicit first argument that must be passed along in the
+  // "instance" register when calling the given function. It is either the
+  // target instance data (for wasm functions), or a WasmImportData object (for
+  // non-wasm imports). For imported functions, this value equals the respective
+  // entry in the module's dispatch_table_for_imports.
   DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
+
+  // Returns the instance data associated with the implicit_arg.
+  // If the implicit_arg is a WasmTrustedInstanceData, it is returned directly.
+  // If it is a WasmImportData, its importing_instance_data is returned.
+  inline Tagged<WasmTrustedInstanceData> instance_data() const;
 
   inline Tagged<UnionOf<JSFunction, Undefined>> external() const;
   inline void set_external(Tagged<UnionOf<JSFunction, Undefined>> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // For exported Wasm functions: the function index in the defining module;
+  // {implicit_arg} is the {WasmTrustedInstanceData} of that defining module.
+  // For imported JS functions: the function index in the importing module;
+  // {implicit_arg} is a {WasmImportData} describing that importing module.
+  // For WasmCapiFunctions: -1.
   inline int function_index() const;
   inline void set_function_index(int value);
 

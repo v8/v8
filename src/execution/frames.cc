@@ -3747,8 +3747,8 @@ Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
       TrustedCast<WasmImportData>(Tagged<Object>{
           Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset)});
   // TODO(42204563): Avoid crashing if the instance object is not available.
-  CHECK(import_data->instance_data()->has_instance_object());
-  return import_data->instance_data()->instance_object();
+  CHECK(import_data->importing_instance_data()->has_instance_object());
+  return import_data->importing_instance_data()->instance_object();
 }
 
 Tagged<WasmTrustedInstanceData> WasmToJsFrame::trusted_instance_data() const {

@@ -1131,10 +1131,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #if V8_ENABLE_WEBASSEMBLY
   // Returns WasmTrustedInstanceData|Smi.
-  TNode<Union<Smi, WasmTrustedInstanceData>> LoadInstanceDataFromWasmImportData(
+  TNode<Union<Smi, WasmTrustedInstanceData>>
+  LoadImportingInstanceDataFromWasmImportData(
       TNode<WasmImportData> import_data) {
     return LoadProtectedPointerField<Union<Smi, WasmTrustedInstanceData>>(
-        import_data, offsetof(WasmImportData, protected_instance_data_));
+        import_data,
+        offsetof(WasmImportData, protected_importing_instance_data_));
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
