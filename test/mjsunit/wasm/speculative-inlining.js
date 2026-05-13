@@ -195,9 +195,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
 })();
 
-// Check that we handle WasmJSFunctions properly and do not inline them, both
-// in the monomorphic and polymorphic case.
-(function CallRefWasmJsFunction() {
+// Check that we handle JS functions imported into Wasm properly and do not
+// inline them, both in the monomorphic and polymorphic case.
+(function CallRefJSFunction() {
   print(arguments.callee.name);
 
   let f1 = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
@@ -276,7 +276,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, instance2.exports.main(0));
 })();
 
-(function CallIndirectWasmJsFunction() {
+(function CallIndirectJSFunction() {
   print(arguments.callee.name);
 
   let f_js = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},

@@ -98,7 +98,7 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // to this module.
   // For imported JS functions: the function index in the importing module;
   // {protected_implicit_arg} is a {WasmImportData} describing this module.
-  // For WasmJSFunctions and WasmCapiFunctions: -1.
+  // For WasmCapiFunctions: -1.
   function_index: Smi;
   // The call target, stored as a WasmCodePointer in this trusted object.
   raw_call_target: WasmCodePointer;

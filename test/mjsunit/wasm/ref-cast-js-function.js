@@ -4,7 +4,7 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-(function RefCastWasmJSFunction() {
+(function RefCastJSFunction() {
   const paramsTypes = [kWasmI32];
   const retTypes = [];
   const sig = makeSig(paramsTypes, retTypes);

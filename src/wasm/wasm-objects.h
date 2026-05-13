@@ -61,7 +61,6 @@ class WasmExceptionTag;
 class WasmExportedFunction;
 class WasmExternalFunction;
 class WasmTrustedInstanceData;
-class WasmJSFunction;
 class WasmModuleObject;
 
 template <typename CppType>

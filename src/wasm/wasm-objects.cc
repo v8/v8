@@ -3359,16 +3359,14 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
 
   switch (expected.generic_kind()) {
     case GenericKind::kFunc: {
-      if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
-            WasmCapiFunction::IsWasmCapiFunction(*value))) {
+      if (!WasmExternalFunction::IsWasmExternalFunction(*value)) {
         *error_message =
             "function-typed object must be null (if nullable) or a Wasm "
             "function object";
         return {};
       }
-      return direct_handle(
-          Cast<JSFunction>(*value)->shared()->wasm_function_data()->func_ref(),
-          isolate);
+      return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
+                           isolate);
     }
     case GenericKind::kExtern: {
       if (!ConvertToSharedIfExpected(isolate, &value, expected,
