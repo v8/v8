@@ -891,6 +891,8 @@ V8_OBJECT class WasmInstanceObject : public JSObject {
   using Super = JSObject;
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
+  inline Tagged<WasmTrustedInstanceData> trusted_data_allow_unpublished(
+      IsolateForSandbox isolate) const;
 
   inline Tagged<WasmModuleObject> module_object() const;
   inline void set_module_object(Tagged<WasmModuleObject> value,

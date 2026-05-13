@@ -485,6 +485,20 @@ bool WasmInstanceObject::has_trusted_data_unpublished(
 }
 void WasmInstanceObject::clear_trusted_data() { trusted_data_.clear(this); }
 
+Tagged<WasmTrustedInstanceData>
+WasmInstanceObject::trusted_data_allow_unpublished(
+    IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  Tagged<Object> obj =
+      RawIndirectPointerField(offsetof(WasmInstanceObject, trusted_data_),
+                              kWasmTrustedInstanceDataIndirectPointerTag)
+          .Relaxed_Load_AllowUnpublished(isolate);
+  return TrustedCast<WasmTrustedInstanceData>(obj);
+#else
+  return trusted_data(isolate);
+#endif
+}
+
 Tagged<WasmModuleObject> WasmInstanceObject::module_object() const {
   return module_object_.load();
 }

@@ -2621,9 +2621,10 @@ void V8HeapExplorer::ExtractWasmTrustedInstanceDataReferences(
 
 void V8HeapExplorer::ExtractWasmInstanceObjectReferences(
     Tagged<WasmInstanceObject> instance_object, HeapEntry* entry) {
-  SetInternalReference(entry, "trusted_data",
-                       instance_object->trusted_data(heap_->isolate()),
-                       offsetof(WasmInstanceObject, trusted_data_));
+  SetInternalReference(
+      entry, "trusted_data",
+      instance_object->trusted_data_allow_unpublished(heap_->isolate()),
+      offsetof(WasmInstanceObject, trusted_data_));
   SetInternalReference(entry, "module_object", instance_object->module_object(),
                        offsetof(WasmInstanceObject, module_object_));
   SetInternalReference(entry, "exports", instance_object->exports_object(),
