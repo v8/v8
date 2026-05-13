@@ -2322,15 +2322,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,
                                                    TNode<Object> value);
-  TNode<Object> GetResultValueForHole(TNode<Object> value);
+  TNode<JSAny> GetResultValueForHole(TNode<JSAny> value);
   // Calls the next method of an iterator and returns the value property
   // of the result, or TheHole if done.
-  TNode<Object> CallIteratorNext(
+  TNode<UnionOf<JSAny, TheHole>> CallIteratorNext(
       TNode<Context> context, TNode<Object> iterator, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);
 
-  TNode<Object> ForOfNextHelper(
+  TNode<UnionOf<JSAny, TheHole>> ForOfNextHelper(
       TNode<Context> context, TNode<Object> object, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);

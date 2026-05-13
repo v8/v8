@@ -18169,13 +18169,13 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
-TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
-  return Select<Object>(
+TNode<JSAny> CodeStubAssembler::GetResultValueForHole(TNode<JSAny> value) {
+  return Select<JSAny>(
       IsTheHole(value), [this] { return UndefinedConstant(); },
       [&] { return value; });
 }
 
-TNode<Object> CodeStubAssembler::CallIteratorNext(
+TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::CallIteratorNext(
     TNode<Context> context, TNode<Object> iterator, TNode<Object> next_method,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
@@ -18226,7 +18226,7 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
   TNode<JSReceiver> result_receiver = CAST(result);
 
   TVARIABLE(Object, var_done);
-  TVARIABLE(Object, var_value);
+  TVARIABLE((UnionOf<JSAny, TheHole>), var_value);
 
   Label return_properties(this);
 
@@ -18258,7 +18258,7 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
 
   BIND(&if_done_true);
   {
-    var_value = LoadRoot(RootIndex::kTheHoleValue);
+    var_value = TheHoleConstant();
     Goto(&return_properties);
   }
 
@@ -18272,10 +18272,10 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
 
     BIND(&use_load_ic_for_value);
     {
-      var_value =
-          CallBuiltin(Builtin::kLoadIC, context, result_receiver,
-                      HeapConstantNoHole(factory()->value_string()),
-                      IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector);
+      var_value = CAST(CallBuiltin(
+          Builtin::kLoadIC, context, result_receiver,
+          HeapConstantNoHole(factory()->value_string()),
+          IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector));
       Goto(&value_loaded);
     }
 
@@ -18293,11 +18293,11 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
   return var_value.value();
 }
 
-TNode<Object> CodeStubAssembler::ForOfNextHelper(
+TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::ForOfNextHelper(
     TNode<Context> context, TNode<Object> object, TNode<Object> next,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
-  TVARIABLE(Object, var_value);
+  TVARIABLE((UnionOf<JSAny, TheHole>), var_value);
 
   Label slow_path(this), reach_end(this), return_result(this);
 
@@ -18335,7 +18335,7 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
     TNode<Smi> iteration_kind =
         LoadObjectField<Smi>(array_iterator, offsetof(JSArrayIterator, kind_));
 
-    TVARIABLE(Object, var_element_value);
+    TVARIABLE(JSAny, var_element_value);
     TNode<FixedArrayBase> elements = LoadElements(iterated_array);
 
     Label load_key(this), load_entry(this), element_value_resolved(this);
@@ -18346,7 +18346,8 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
     Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_smi_or_object);
     BIND(&if_smi_or_object);
     {
-      var_element_value = LoadFixedArrayElement(CAST(elements), smi_index);
+      var_element_value =
+          CAST(LoadFixedArrayElement(CAST(elements), smi_index));
       GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
              &load_entry);
       Goto(&element_value_resolved);
@@ -18385,7 +18386,7 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
 
     BIND(&reach_end);
     {
-      var_value = LoadRoot(RootIndex::kTheHoleValue);
+      var_value = TheHoleConstant();
       Goto(&return_result);
     }
   }

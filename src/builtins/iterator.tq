@@ -130,7 +130,7 @@ transitioning builtin CreateAsyncFromSyncIteratorBaseline(syncIterator: JSAny):
 }
 
 extern transitioning macro ForOfNextHelper(
-    Context, Object, Object, Undefined|FeedbackVector, uintptr): Object;
+    Context, Object, Object, Undefined|FeedbackVector, uintptr): JSAny|Hole;
 
 transitioning builtin ForOfNext(
     context: Context, iterator: JSAny, next: JSFunction,
