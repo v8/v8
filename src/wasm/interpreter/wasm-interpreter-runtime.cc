@@ -1807,10 +1807,10 @@ WasmInterpreterRuntime::CheckIndirectCallSignature(uint32_t table_index,
         return IndirectCallCheck::kNull;
       }
 
-      Tagged<Map> rtt = Cast<Map>(isolate_->heap()
-                                      ->wasm_canonical_rtts()
-                                      ->get(real_sig_id.index)
-                                      .GetHeapObjectAssumeWeak());
+      Tagged<MaybeObject> maybe_rtt =
+          isolate_->heap()->wasm_canonical_rtts()->get(real_sig_id.index);
+      if (maybe_rtt.IsCleared()) return IndirectCallCheck::kInvalid;
+      Tagged<Map> rtt = Cast<Map>(maybe_rtt.GetHeapObjectAssumeWeak());
       DirectHandle<Map> formal_rtt = RttCanon(sig_index);
       return SubtypeCheck(rtt, *formal_rtt, sig_index)
                  ? IndirectCallCheck::kValid

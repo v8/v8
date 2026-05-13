@@ -683,6 +683,8 @@
   'wasm/regress-497667917': [SKIP],
   'wasm/regress-498482620': [SKIP],
   'wasm/regress-499719427': [SKIP],
+  'wasm/regress-507134091': [SKIP],
+  'wasm/regress-510084068': [SKIP],
   'wasm/regress-wasmfx-exact-types': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],

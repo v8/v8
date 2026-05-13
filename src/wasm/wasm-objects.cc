@@ -554,6 +554,31 @@ bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
       sig_id, table_type);
 }
 
+#if V8_ENABLE_DRUMBRAKE
+void InvalidateInterpreterIndirectCallCaches(
+    Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table) {
+  Tagged<ProtectedWeakFixedArray> uses_raw = dispatch_table->protected_uses();
+  // SANDBOX SAFETY: see comment in `WasmTableObject::Grow` (above).
+  // `protected_uses` is a `ProtectedWeakFixedArray` in trusted space, which
+  // is an evacuation candidate during mark-compact; the call to
+  // `UpdateIndirectCallTable` may allocate and trigger GC. Without
+  // conservative stack scanning (the V8 default), a raw `Tagged<>` on
+  // the C++ stack would become stale, so we wrap it in a `DirectHandle`.
+  DirectHandle<ProtectedWeakFixedArray> uses(uses_raw, isolate);
+  int used_length = GetUsedLength(*uses);
+  for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+    if (uses->get(i).IsCleared()) continue;
+    Tagged<WasmTrustedInstanceData> instance = GetInstance(*uses, i);
+    if (instance->has_interpreter_object()) {
+      int table_index = GetTableIndex(*uses, i);
+      wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
+          isolate, direct_handle(instance->instance_object(), isolate),
+          table_index);
+    }
+  }
+}
+#endif  // V8_ENABLE_DRUMBRAKE
+
 // static
 void WasmTableObject::UpdateDispatchTable(
     Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -611,6 +636,7 @@ void WasmTableObject::UpdateDispatchTable(
 #endif
                                   WasmDispatchTable::kExistingEntry);
 #if V8_ENABLE_DRUMBRAKE
+    InvalidateInterpreterIndirectCallCaches(isolate, dispatch_table);
   } else if (v8_flags.wasm_jitless) {
     DCHECK(v8_flags.wasm_jitless);
     if (Tagged<WasmImportData> import_data;
@@ -624,25 +650,7 @@ void WasmTableObject::UpdateDispatchTable(
           sig_id, target_func_index, WasmDispatchTable::kExistingEntry);
     }
 
-    Tagged<ProtectedWeakFixedArray> uses_raw = dispatch_table->protected_uses();
-    // SANDBOX SAFETY: see comment in `WasmTableObject::Grow` (above).
-    // `protected_uses` is a `ProtectedWeakFixedArray` in trusted space, which
-    // is an evacuation candidate during mark-compact; the call to
-    // `UpdateIndirectCallTable` may allocate and trigger GC. Without
-    // conservative stack scanning (the V8 default), a raw `Tagged<>` on
-    // the C++ stack would become stale, so we wrap it in a `DirectHandle`.
-    DirectHandle<ProtectedWeakFixedArray> uses(uses_raw, isolate);
-    int used_length = GetUsedLength(*uses);
-    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
-      if (uses->get(i).IsCleared()) continue;
-      Tagged<WasmTrustedInstanceData> instance = GetInstance(*uses, i);
-      if (instance->has_interpreter_object()) {
-        int table_index = GetTableIndex(*uses, i);
-        wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
-            isolate, direct_handle(instance->instance_object(), isolate),
-            table_index);
-      }
-    }
+    InvalidateInterpreterIndirectCallCaches(isolate, dispatch_table);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
     dispatch_table->SetForNonWrapper(
@@ -681,6 +689,14 @@ void WasmTableObject::UpdateDispatchTable(
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kExistingEntry);
+#if V8_ENABLE_DRUMBRAKE
+  // The WasmCapiFunction path requires compiled import wrappers (wasm JIT),
+  // which are unavailable when the interpreter is active. If the interpreter
+  // is ever made to work independently of --jitless, cache invalidation for
+  // dependent interpreter instances must happen here.
+  InvalidateInterpreterIndirectCallCaches(isolate, dispatch_table);
+#endif  // V8_ENABLE_DRUMBRAKE
+  DCHECK(!v8_flags.wasm_jitless);
 }
 
 // static
