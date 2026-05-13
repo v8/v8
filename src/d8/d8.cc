@@ -5641,7 +5641,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
       Local<Value> args[] = {message};
       USE(callback.As<Function>()->Call(context, Undefined(isolate_), 1, args));
 #ifdef DEBUG
-      if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      if (try_catch.HasCaught() && !try_catch.HasTerminated() &&
+          !i::v8_flags.fuzzing) {
         Local<Object> exception = try_catch.Exception().As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
             isolate_, "message", NewStringType::kInternalized);
