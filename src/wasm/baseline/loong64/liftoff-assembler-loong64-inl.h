@@ -1348,7 +1348,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       break;
     case kS128:
       Vld(kSimd128ScratchReg, liftoff::GetStackSlot(src_offset));
-      Vst(kSimd128ScratchReg, liftoff::GetStackSlot(src_offset));
+      Vst(kSimd128ScratchReg, liftoff::GetStackSlot(dst_offset));
       break;
     default:
       UNREACHABLE();
