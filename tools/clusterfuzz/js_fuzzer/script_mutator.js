@@ -49,6 +49,7 @@ function defaultSettings() {
   return {
     ADD_VAR_OR_OBJ_MUTATIONS: 0.1,
     CORRUPT_MEMORY: 0.1,
+    CORRUPT_MEMORY_VIA_WATCHPOINTS: 0.01,
     DIFF_FUZZ_BLOCK_PRINT: 0.1,
     DIFF_FUZZ_EXTRA_PRINT: 0.2,
     DIFF_FUZZ_TRACK_CAUGHT: 0.5,
@@ -76,6 +77,7 @@ function defaultSettings() {
     // Sandbox fuzzing is enabled automatically when the memory-corruption
     // api is available.
     is_sandbox_fuzzing: false,
+    is_x64_linux: false,
   };
 }
 
@@ -381,10 +383,20 @@ class ScriptMutator {
     const dependencies = this.resolveDependencies(inputs);
     const combinedSource = this.mutateInputs(inputs, dependencies);
     const code = sourceHelpers.generateCode(combinedSource, dependencies);
+
+    const requiredFlags = [];
+    if (this.memory.usedWatchpoints) {
+      requiredFlags.push('--memory-corruption-via-watchpoints');
+    }
+
     const allFlags = common.concatFlags(dependencies.concat([combinedSource]));
     const filteredFlags = exceptions.resolveContradictoryFlags(
         exceptions.filterFlags(allFlags));
-    return new Result(code, filteredFlags);
+
+    const finalFlags = requiredFlags.concat(
+        filteredFlags.filter(f => !requiredFlags.includes(f)));
+
+    return new Result(code, finalFlags);
   }
 }
 

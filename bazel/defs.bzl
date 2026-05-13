@@ -576,6 +576,7 @@ def build_config_content(cpu, icu):
         ("i18n", icu),
         ("is_android", "false"),
         ("is_ios", "false"),
+        ("is_linux", "true"),
         ("js_shared_memory", "false"),
         ("leaptiering", "true"),
         ("lite_mode", "false"),

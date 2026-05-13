@@ -88,6 +88,8 @@ function main() {
     const buildConfig = scriptMutator.loadJSONFromBuild(
         'v8_build_config.json');
     settings.is_sandbox_fuzzing = buildConfig.memory_corruption_api;
+    settings.is_x64_linux =
+        buildConfig.arch === 'x64' && buildConfig.is_linux;
   } else if (app_name === 'ch') {
     settings.engine = 'chakra';
   } else if (app_name === 'js') {

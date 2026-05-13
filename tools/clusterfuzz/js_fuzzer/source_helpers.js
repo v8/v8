@@ -114,8 +114,14 @@ function _findPath(path, caseSensitive=true) {
     const curListing = fs.readdirSync(realPath);
     let realComponent = null;
     for (const component of curListing) {
-      if (i < pathComponents.length - 1 &&
-          !fs.statSync(fsPath.join(realPath, component)).isDirectory()) {
+      let isDirectory = false;
+      try {
+        isDirectory = fs.statSync(fsPath.join(realPath, component)).isDirectory();
+      } catch (e) {
+        continue;
+      }
+
+      if (i < pathComponents.length - 1 && !isDirectory) {
         continue;
       }
 

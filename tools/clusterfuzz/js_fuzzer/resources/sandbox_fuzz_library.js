@@ -264,7 +264,7 @@ function getSandboxCorruptionHelpers() {
     }
 
     return {
-        builtins, getBaseAddress, evaluateTraversalPath, prepareDataCorruptionContext
+        builtins, getBaseAddress, evaluateTraversalPath, prepareDataCorruptionContext, getRandomAlignedOffset
     };
 }
 
@@ -321,4 +321,19 @@ function corruptFunction(obj, path, builtinSeed) {
             print("  Hijacked JSFunction code pointer! Swapped with builtin: " + builtins[builtinId]);
         } catch(e) {}
     }
+}
+
+function markForCorruptionOnAccess(obj, path, offsetSeed) {
+    let { getBaseAddress, evaluateTraversalPath, getRandomAlignedOffset } = getSandboxCorruptionHelpers();
+    let baseAddr = getBaseAddress(obj);
+    if (!baseAddr) return;
+    let addr = evaluateTraversalPath(baseAddr, path);
+    if (!addr) return;
+
+    let targetObj = Sandbox.getObjectAt(addr);
+    let offset = getRandomAlignedOffset(addr, offsetSeed);
+    try {
+        Sandbox.markForCorruptionOnAccess(targetObj, offset);
+        print("  Marked object for corruption on access at offset " + offset);
+    } catch(e) {}
 }

@@ -18,6 +18,16 @@ const MAX_CORRUPTIONS_PER_VAR = 3;
 const MAX_UINT32 = 2 ** 32 - 1;
 
 class MemoryCorruptionMutator extends mutator.Mutator {
+  constructor(settings) {
+    super(settings);
+    this.usedWatchpoints = false;
+  }
+
+  mutate(source, context) {
+    this.usedWatchpoints = false;
+    super.mutate(source, context);
+  }
+
   get visitor() {
     const thisMutator = this;
 
@@ -41,6 +51,13 @@ class MemoryCorruptionMutator extends mutator.Mutator {
   #generateCorruptCall(variable) {
     const pathArray = this.#generateRandomPath();
     const offsetSeed = babelTypes.numericLiteral(random.randInt(0, MAX_UINT32));
+
+    if (this.settings.is_x64_linux &&
+        random.choose(this.settings.CORRUPT_MEMORY_VIA_WATCHPOINTS)) {
+      this.usedWatchpoints = true;
+      return this.#call('markForCorruptionOnAccess', [variable, pathArray, offsetSeed]);
+    }
+
     const size = babelTypes.numericLiteral(random.single([8, 16, 32]));
 
     const subFieldOffset = this.#calculateSubFieldOffset(size.value);
