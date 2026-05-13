@@ -636,8 +636,12 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
-  // 2. Perform ? ValidateUint8Array(into).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  // 2. Perform ? ValidateUint8Array(into, write).
+  DirectHandle<JSTypedArray> uint8array;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uint8array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name,
+                             TypedArrayAccessMode::kWrite));
   ElementsKind elements_kind = uint8array->GetElementsKind();
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
@@ -966,8 +970,12 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
-  // 2. Perform ? ValidateUint8Array(into).
-  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  // 2. Perform ? ValidateUint8Array(into, write).
+  DirectHandle<JSTypedArray> uint8array;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uint8array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name,
+                             TypedArrayAccessMode::kWrite));
   ElementsKind elements_kind = uint8array->GetElementsKind();
   if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
       elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {

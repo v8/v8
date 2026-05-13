@@ -1155,8 +1155,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'built-ins/ArrayBuffer/prototype/sliceToImmutable/argument-coercion': [SKIP],
-  'built-ins/Uint8Array/prototype/setFromBase64/throws-when-target-is-backed-by-immutable-arraybuffer': [SKIP],
-  'built-ins/Uint8Array/prototype/setFromHex/throws-when-target-is-backed-by-immutable-arraybuffer': [SKIP],
 }],
 # End roll-watcher patch
 ####
