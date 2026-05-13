@@ -56,6 +56,10 @@ Initialize the following tracks concurrently:
 - **Track C: JS Source Analysis**:
   - Study the JavaScript benchmark to understand the core operations and
     potential hotspots.
+  - **Benchmark Source Access**: If benchmark sources (such as JetStream 3) are
+    not locally available under `test/benchmarks/`, enable
+    `"checkout_benchmarks": True` in your `../.gclient` configuration
+    (`custom_vars`) and run `gclient sync`.
 - **Track D: Static V8 Research**:
   - Search for known optimization patterns or issues related to the observed JS
     patterns in the V8 codebase.
