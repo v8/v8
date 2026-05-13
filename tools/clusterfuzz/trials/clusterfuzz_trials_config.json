@@ -34,6 +34,7 @@
     {"app_args": "--no-lazy", "app_name": "d8", "probability": 0.05},
     {"app_args": "--no-baseline-batch-compilation", "app_name": "d8", "probability": 0.8},
     {"app_args": "--no-lazy-feedback-allocation", "app_name": "d8", "probability": 0.8},
+    {"app_args": "--stress-lazy", "app_name": "d8", "probability": 0.9},
     {"app_args": "--stress-lazy-source-positions", "app_name": "d8", "probability": 0.5},
     {"app_args": "--no-use-ic", "app_name": "d8", "probability": 0.25},
     {"app_args": "--no-wasm-generic-wrapper", "app_name": "d8", "probability": 0.1},

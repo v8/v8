@@ -32,6 +32,7 @@
   [0.02, "--no-lazy"],
   [0.8, "--no-baseline-batch-compilation"],
   [0.8, "--no-lazy-feedback-allocation"],
+  [0.9, "--stress-lazy"],
   [0.5, "--stress-lazy-source-positions"],
   [0.1, "--no-wasm-generic-wrapper"],
   [0.02, "--no-maglev"],

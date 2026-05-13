@@ -1282,11 +1282,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
       CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
-      // This stress enables additional CHECKs that are classified as non-issues
-      // by the sandbox fuzzer crash filters, and hence may result in masking
-      // real issues from the fuzzer.
+      // These stresses enable additional CHECKs that are classified as
+      // non-issues by the sandbox fuzzer crash filters, and hence may result in
+      // masking real issues from the fuzzer.
       CONTRADICTION(stress_lazy_source_positions, sandbox_fuzzing),
       CONTRADICTION(stress_lazy_source_positions, sandbox_testing),
+      CONTRADICTION(stress_lazy, sandbox_fuzzing),
+      CONTRADICTION(stress_lazy, sandbox_testing),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset

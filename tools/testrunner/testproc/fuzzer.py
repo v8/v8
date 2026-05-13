@@ -64,6 +64,7 @@ EXTRA_FLAGS = [
     (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
     (0.2, '--stress-flush-code'),
+    (0.9, '--stress-lazy'),
     (0.5, '--stress-lazy-source-positions'),
     (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
