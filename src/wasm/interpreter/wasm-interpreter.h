@@ -1392,7 +1392,6 @@ struct WasmInstruction {
       uint32_t length;
     } gc_memory_immediate;
     struct GC_HeapTypeImmediate {
-      uint32_t length;
       uint32_t heap_type_bit_field;
       constexpr HeapType type() const {
         return HeapType::FromBits(heap_type_bit_field);

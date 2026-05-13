@@ -8255,6 +8255,9 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprSelectWithType: {
       SelectTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                               wasm_code_->at(pc + 1), Decoder::kNoValidation);
+      value_type_reader::Populate(&imm.type, module_);
+      optional.gc_heap_type_immediate.heap_type_bit_field =
+          imm.type.raw_bit_field();
       len = 1 + imm.length;
       break;
     }
@@ -8598,7 +8601,6 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
       HeapTypeImmediate imm(WasmEnabledFeatures::All(), &detected, decoder,
                             code->at(pc + *len), Decoder::kNoValidation);
       value_type_reader::Populate(&imm.type, module_);
-      optional->gc_heap_type_immediate.length = imm.length;
       optional->gc_heap_type_immediate.heap_type_bit_field =
           imm.type.raw_bit_field();
       *len += imm.length;
@@ -10655,16 +10657,28 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
             case kR2S: {
               EMIT_INSTR_HANDLER(r2s_RefSelect);
               RefPop();                   // val2
-              ValueType type = RefPop();  // val1
-              RefPush(type);              // result
+              ValueType val1_type = RefPop();
+              ValueType result_type =
+                  instr.opcode == kExprSelectWithType
+                      ? ValueType::FromRawBitField(
+                            instr.optional.gc_heap_type_immediate
+                                .heap_type_bit_field)
+                      : val1_type;
+              RefPush(result_type);  // result
               return RegMode::kNoReg;
             }
             case kS2S: {
               EMIT_INSTR_HANDLER(s2s_RefSelect);
               I32Pop();  // condition
               RefPop();
-              ValueType type = RefPop();
-              RefPush(type);
+              ValueType val1_type = RefPop();
+              ValueType result_type =
+                  instr.opcode == kExprSelectWithType
+                      ? ValueType::FromRawBitField(
+                            instr.optional.gc_heap_type_immediate
+                                .heap_type_bit_field)
+                      : val1_type;
+              RefPush(result_type);
               return RegMode::kNoReg;
             }
           }

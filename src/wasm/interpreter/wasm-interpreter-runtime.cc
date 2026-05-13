@@ -1399,29 +1399,38 @@ void WasmInterpreterRuntime::ExecuteImportedFunction(
       current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
       ref_stack_fp_offset);
 
+  if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
+
   ExternalCallResult result = CallImportedFunction(
       code, func_index,
       reinterpret_cast<uint32_t*>(current_frame_.current_sp_ + slot_offset),
       current_stack_size, ref_stack_fp_offset, slot_offset);
 
   if (result == ExternalCallResult::EXTERNAL_EXCEPTION) {
-    WasmInterpreterThread::ExceptionHandlingResult exception_handling_result =
-        HandleException(reinterpret_cast<uint32_t*>(current_frame_.current_sp_),
-                        code);
-    if (exception_handling_result ==
-        WasmInterpreterThread::ExceptionHandlingResult::HANDLED) {
-      // The exception was caught by Wasm EH. Resume execution,
-      // {HandleException} has already updated {code} to point to the first
-      // instruction in the catch handler.
-      thread->Run();
-    } else {
-      DCHECK_EQ(exception_handling_result,
-                WasmInterpreterThread::ExceptionHandlingResult::UNWOUND);
-      if (thread->state() != WasmInterpreterThread::State::EH_UNWINDING) {
-        thread->Stop();
-      }
-      // Resume execution from s2s_Unwind, which unwinds the Wasm stack frames.
+    if (is_tail_call) {
+      current_frame_.DisposeCaughtExceptionsArray(isolate_);
+      thread->Unwinding();
       RedirectCodeToUnwindHandler(code);
+    } else {
+      WasmInterpreterThread::ExceptionHandlingResult exception_handling_result =
+          HandleException(
+              reinterpret_cast<uint32_t*>(current_frame_.current_sp_), code);
+      if (exception_handling_result ==
+          WasmInterpreterThread::ExceptionHandlingResult::HANDLED) {
+        // The exception was caught by Wasm EH. Resume execution,
+        // {HandleException} has already updated {code} to point to the first
+        // instruction in the catch handler.
+        thread->Run();
+      } else {
+        DCHECK_EQ(exception_handling_result,
+                  WasmInterpreterThread::ExceptionHandlingResult::UNWOUND);
+        if (thread->state() != WasmInterpreterThread::State::EH_UNWINDING) {
+          thread->Stop();
+        }
+        // Resume execution from s2s_Unwind, which unwinds the Wasm stack
+        // frames.
+        RedirectCodeToUnwindHandler(code);
+      }
     }
   }
 
@@ -1922,6 +1931,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     IndirectFunctionTableEntry entry(instance_object_, table_index,
                                      entry_index);
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
+    if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
 
     if (IsWasmTrustedInstanceData(*object_implicit_arg)) {
       // Call Wasm function in a different instance.
@@ -1950,14 +1960,20 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
         StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset,
                                     indirect_call.signature);
       } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
-        AllowHeapAllocation allow_gc;
-
-        if (HandleException(sp, current_code) ==
-            WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
-          thread->Stop();
+        if (is_tail_call) {
+          current_frame_.DisposeCaughtExceptionsArray(isolate_);
+          thread->Unwinding();
           RedirectCodeToUnwindHandler(current_code);
         } else {
-          thread->Run();
+          AllowHeapAllocation allow_gc;
+
+          if (HandleException(sp, current_code) ==
+              WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
+            thread->Stop();
+            RedirectCodeToUnwindHandler(current_code);
+          } else {
+            thread->Run();
+          }
         }
       }
     }
@@ -1979,6 +1995,18 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   DirectHandle<Object> object_implicit_arg{internal->implicit_arg(), isolate_};
 
   const FunctionSig* signature = module_->signature({sig_index});
+  CanonicalTypeIndex expected_sig_index =
+      module_->canonical_sig_id(ModuleTypeIndex({sig_index}));
+  CanonicalValueType expected_type = CanonicalValueType::Ref(
+      expected_sig_index, module_->type(ModuleTypeIndex({sig_index})).is_shared,
+      RefTypeKind::kFunction);
+  CanonicalTypeIndex actual_sig_index = internal->sig()->index();
+  if (V8_UNLIKELY(actual_sig_index != expected_sig_index &&
+                  !GetTypeCanonicalizer()->IsCanonicalSubtype(actual_sig_index,
+                                                              expected_type))) {
+    SetTrap(MessageTemplate::kWasmTrapFuncSigMismatch, current_code);
+    return;
+  }
   bool hasWasmInstance = IsWasmTrustedInstanceData(*object_implicit_arg);
   if (hasWasmInstance) {
     if (TrustedCast<WasmTrustedInstanceData>(object_implicit_arg)
@@ -2035,6 +2063,7 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     // Note that tail calls to host functions do not have to guarantee tail
     // behaviour, so it is ok to recursively allocate C++ stack frames here.
     uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
+    if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
     StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset, signature);
     ExternalCallResult result = CallExternalJSFunction(
         current_code, module_, func_ref, signature,
@@ -2042,14 +2071,20 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     if (result == ExternalCallResult::EXTERNAL_RETURNED) {
       StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset, signature);
     } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
-      AllowHeapAllocation allow_gc;
-
-      if (HandleException(sp, current_code) ==
-          WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
-        thread->Stop();
+      if (is_tail_call) {
+        current_frame_.DisposeCaughtExceptionsArray(isolate_);
+        thread->Unwinding();
         RedirectCodeToUnwindHandler(current_code);
       } else {
-        thread->Run();
+        AllowHeapAllocation allow_gc;
+
+        if (HandleException(sp, current_code) ==
+            WasmInterpreterThread::ExceptionHandlingResult::UNWOUND) {
+          thread->Stop();
+          RedirectCodeToUnwindHandler(current_code);
+        } else {
+          thread->Run();
+        }
       }
     }
   }
