@@ -27,6 +27,7 @@
 #include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/trace-id.h"
+#include "v8-object.h"
 
 namespace v8_inspector {
 
@@ -966,23 +967,25 @@ static bool isCommandLineAPIGetter(const String16& name) {
 
 void V8Console::CommandLineAPIScope::accessorGetterCallback(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CommandLineAPIScope* scope = *static_cast<CommandLineAPIScope**>(
-      info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  if (scope == nullptr) {
+  v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+  v8::Local<v8::Value> data0;
+  if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
+      !data0->IsObject()) {
     USE(info.Holder()->Delete(context, name).FromMaybe(false));
     return;
   }
+  v8::Local<v8::Object> commandLineAPI = data0.As<v8::Object>();
 
   v8::Local<v8::Value> value;
-  if (!scope->commandLineAPI()->Get(context, name).ToLocal(&value)) return;
+  if (!commandLineAPI->Get(context, name).ToLocal(&value)) return;
   if (isCommandLineAPIGetter(
           toProtocolStringWithTypeCheck(info.GetIsolate(), name))) {
     DCHECK(value->IsFunction());
     v8::MicrotasksScope microtasks(context,
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     if (value.As<v8::Function>()
-            ->Call(context, scope->commandLineAPI(), 0, nullptr)
+            ->Call(context, commandLineAPI, 0, nullptr)
             .ToLocal(&value)) {
       info.GetReturnValue().Set(value);
     }
@@ -994,10 +997,14 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
 void V8Console::CommandLineAPIScope::accessorSetterCallback(
     v8::Local<v8::Name> name, v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  CommandLineAPIScope* scope = *static_cast<CommandLineAPIScope**>(
-      info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
-  if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+  v8::Local<v8::Value> data0;
+  if (!data->Get(context, kCommandLineAPIIndex).ToLocal(&data0) ||
+      !data0->IsObject()) {
+    return;
+  }
+
   if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
   if (!info.Holder()
            ->CreateDataProperty(context, name, value)
@@ -1005,12 +1012,11 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
     return;
   }
 
-  v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();
-  for (int i = 0; i < methods->Length(); ++i) {
-    v8::Local<v8::Value> methodName = methods->Get(scope->m_isolate, i);
-    if (methodName.IsEmpty() || !methodName->IsName()) continue;
+  for (uint32_t i = kFirstInstalledMethodIndex; i < data->Length(); ++i) {
+    v8::Local<v8::Value> methodName;
+    if (!data->Get(context, i).ToLocal(&methodName)) continue;
     if (!name->StrictEquals(methodName)) continue;
-    methods->Set(scope->m_isolate, i, v8::Undefined(scope->m_isolate));
+    data->Set(context, i, v8::Undefined(info.GetIsolate())).Check();
     break;
   }
 }
@@ -1038,40 +1044,33 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Object> global)
     : m_isolate(v8::Isolate::GetCurrent()),
       m_context(m_isolate, context),
-      m_commandLineAPI(m_isolate, commandLineAPI),
+      m_data(m_isolate, v8::Array::New(isolate(), kHeaderLength)),
       m_global(m_isolate, global) {
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
-  m_installedMethods.Reset(m_isolate,
-                           v8::PrimitiveArray::New(m_isolate, names->Length()));
+  data()->Set(context, kCommandLineAPIIndex, commandLineAPI).Check();
 
-  m_thisReference = v8::Global<v8::ArrayBuffer>(
-      m_isolate, v8::ArrayBuffer::New(v8::Isolate::GetCurrent(),
-                                      sizeof(CommandLineAPIScope*)));
-  *static_cast<CommandLineAPIScope**>(
-      thisReference()->GetBackingStore()->Data()) = this;
-  v8::Local<v8::PrimitiveArray> methods = installedMethods();
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (!names->Get(context, i).ToLocal(&name) || !name->IsName()) continue;
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        IsUnsafeCommandLineAPIFn(name, v8::Isolate::GetCurrent())
+        IsUnsafeCommandLineAPIFn(name, isolate())
             ? v8::SideEffectType::kHasSideEffect
             : v8::SideEffectType::kHasNoSideEffect;
     if (!global
              ->SetNativeDataProperty(
                  context, name.As<v8::Name>(),
                  CommandLineAPIScope::accessorGetterCallback,
-                 CommandLineAPIScope::accessorSetterCallback, thisReference(),
+                 CommandLineAPIScope::accessorSetterCallback, data(),
                  v8::DontEnum, get_accessor_side_effect_type)
              .FromMaybe(false)) {
       continue;
     }
-    methods->Set(m_isolate, i, name.As<v8::Name>());
+    data()->Set(context, data()->Length(), name).Check();
   }
 }
 
@@ -1079,13 +1078,10 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
   if (m_isolate->IsExecutionTerminating()) return;
   v8::MicrotasksScope microtasksScope(context(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  *static_cast<CommandLineAPIScope**>(
-      thisReference()->GetBackingStore()->Data()) = nullptr;
-  v8::Local<v8::PrimitiveArray> names = installedMethods();
-  for (int i = 0; i < names->Length(); ++i) {
-    v8::Local<v8::Value> name = names->Get(m_isolate, i);
-    if (name.IsEmpty() || !name->IsName()) continue;
-    if (name->IsString()) {
+  data()->Set(context(), kCommandLineAPIIndex, v8::Null(isolate())).Check();
+  for (uint32_t i = kFirstInstalledMethodIndex; i < data()->Length(); ++i) {
+    v8::Local<v8::Value> name;
+    if (data()->Get(context(), i).ToLocal(&name) && name->IsString()) {
       v8::Local<v8::Value> descriptor;
       bool success =
           global()
