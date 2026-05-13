@@ -4891,24 +4891,24 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return handler_iterator.length();
   }
 
-  void HandleEffects(base::Vector<HandlerCase> handlers,
-                     ContIndexImmediate imm) {
+  void HandleEffects(base::Vector<HandlerCase> handlers) {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(BeginEffectHandlers);
     for (int i = 0; i < handlers.length(); ++i) {
       if (handlers[i].kind == kOnSuspend) {
+        Control* target = control_at(handlers[i].maybe_depth.br.depth);
+        Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
+        ValueType type = val.type;
+
         int push_count =
             static_cast<int>(handlers[i].tag.tag->sig->parameter_count()) + 1;
         stack_.EnsureMoreCapacity(push_count, this->zone_);
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
-        Value* suspend_cont =
-            Push(ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont)
-                     .AsExactIfEnabled(this->enabled_));
+        Value* suspend_cont = Push(type);
         const HandlerCase& handler = handlers[i];
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
         Drop(push_count);
-        Control* target = control_at(handlers[i].maybe_depth.br.depth);
         target->br_merge()->reached = true;
       }
     }
@@ -4946,7 +4946,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, imm);
+      HandleEffects(handlers);
     }
     return 1 + imm.length + table_length;
   }
@@ -4990,7 +4990,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        cont, args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, cont_imm);
+      HandleEffects(handlers);
     }
     return 1 + exc_imm.length + cont_imm.length + table_length;
   }
@@ -5027,7 +5027,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, cont_imm);
+      HandleEffects(handlers);
     }
     return 1 + cont_imm.length + table_length;
   }

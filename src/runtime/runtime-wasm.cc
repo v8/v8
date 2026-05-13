@@ -2914,16 +2914,18 @@ RUNTIME_FUNCTION(Runtime_WasmStringAdd_CheckNone_Shared) {
 // given function reference, such that calling "resume" on it will call the
 // function on the new stack.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   DirectHandle<WasmFuncRef> func_ref(Cast<WasmFuncRef>(args[1]), isolate);
+  wasm::CanonicalTypeIndex sig_id{static_cast<uint32_t>(args.smi_value_at(2))};
   std::unique_ptr<wasm::StackMemory> stack =
       isolate->stack_pool().GetOrAllocate();
   DirectHandle<WasmStackObject> stack_obj =
       isolate->factory()->NewWasmStackObject(stack.get());
-  const wasm::CanonicalSig* sig = func_ref->internal(isolate)->sig();
+  const wasm::CanonicalSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   auto [arg_buffer_size, alignment] =
       GetBufferSizeAndAlignmentFor(sig->parameters());
 #if V8_TARGET_ARCH_ARM64
@@ -2947,8 +2949,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   trusted_instance_data->native_module()->RegisterStackEntryWrapper(
       std::move(wrapper));
   stack->set_func_ref(*func_ref);
-  stack->set_param_types(func_ref->internal(isolate)->sig()->parameters());
-  stack->set_signature_hash(wasm::SignatureHasher::Hash(sig));
+  stack->set_param_types(sig->parameters());
+  stack->set_signature_id(sig->index());
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
@@ -2961,21 +2963,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
 // For cont.bind: invalidate the given continuation and create a new one for the
 // same stack.
 RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmContinuationObject> old_cont(
       Cast<WasmContinuationObject>(args[0]), isolate);
   int num_bound_args = args.smi_value_at(1);
+  uint32_t sig_id = args.smi_value_at(2);
   wasm::StackMemory* stack = old_cont->stack_obj()->stack();
   DirectHandle<WasmStackObject> old_stack_obj(old_cont->stack_obj(), isolate);
   // Order matters: bound arguments must be adjusted first so that they are
   // visible to the GC potentially triggered by the allocation below.
   stack->bind_arguments(num_bound_args);
-  const wasm::CanonicalSig* original_sig =
-      stack->func_ref()->internal(isolate)->sig();
-  wasm::VectorSignature bound_sig(
-      original_sig->returns(), stack->param_types() + stack->num_bound_args());
-  stack->set_signature_hash(wasm::SignatureHasher::Hash(&bound_sig));
+  stack->set_signature_id(wasm::CanonicalTypeIndex{sig_id});
+
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(old_stack_obj);
   stack->set_current_continuation(*cont);

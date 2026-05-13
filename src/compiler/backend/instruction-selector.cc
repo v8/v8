@@ -2272,11 +2272,14 @@ void InstructionSelector::VisitCall(
         g.UseImmediate(kLazyDeoptOnThrowSentinel));
   }
   if (!effect_handlers.empty()) {
+#if V8_ENABLE_WEBASSEMBLY
     flags |= CallDescriptor::kHasEffectHandler;
     for (auto& handler : effect_handlers) {
       if (!handler.is_switch()) {
         buffer.instruction_args.push_back(g.Label(handler.block));
+        buffer.instruction_args.push_back(g.UseImmediate(handler.sig.index));
       } else {
+        buffer.instruction_args.push_back(g.UseImmediate(0));
         buffer.instruction_args.push_back(g.UseImmediate(0));
       }
 
@@ -2285,6 +2288,7 @@ void InstructionSelector::VisitCall(
     }
     buffer.instruction_args.push_back(
         g.UseImmediate(static_cast<int>(effect_handlers.size())));
+#endif
   } else {
     // This bit had a different meaning before isel, so ensure that it is
     // cleared:

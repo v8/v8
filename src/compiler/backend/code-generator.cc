@@ -78,7 +78,6 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
-      effect_handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
       protected_deoptimization_literals_(codegen_zone),
       deoptimization_literals_(codegen_zone),
@@ -94,6 +93,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
 #if V8_ENABLE_WEBASSEMBLY
       trapping_instructions_(codegen_zone),
+      effect_handlers_(codegen_zone),
 #endif  // V8_ENABLE_WEBASSEMBLY
       result_(kSuccess),
       block_starts_(codegen_zone),
@@ -1153,6 +1153,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
         effect_handlers_[i].tag_and_kind.raw_value());
     if (!effect_handlers_[i].tag_and_kind.is_switch()) {
       size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].handler->pos());
+      size += wasm::LEBHelper::sizeof_u32v(effect_handlers_[i].sig.index);
     }
   }
   auto bytes = base::OwnedVector<uint8_t>::New(size);
@@ -1163,6 +1164,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmEffectHandlers() {
                                 effect_handlers_[i].tag_and_kind.raw_value());
     if (!effect_handlers_[i].tag_and_kind.is_switch()) {
       wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].handler->pos());
+      wasm::LEBHelper::write_u32v(&ptr, effect_handlers_[i].sig.index);
     }
   }
   DCHECK_EQ(ptr, bytes.end());
@@ -1188,25 +1190,30 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   InstructionOperandConverter i(this, instr);
   int index = static_cast<int>(instr->InputCount()) - 1;
+#if V8_ENABLE_WEBASSEMBLY
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler)) {
     int num_handlers = i.ToConstant(instr->InputAt(index)).ToInt32();
     // Start from the first handler, order matters.
-    for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
-         handler_idx += 2) {
+    for (int handler_idx = index - 3 * num_handlers; handler_idx < index;
+         handler_idx += 3) {
       wasm::EffectHandlerTagIndex tag_index = wasm::EffectHandlerTagIndex(
-          i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32());
+          i.ToConstant(instr->InputAt(handler_idx + 2)).ToInt32());
 
       if (!tag_index.is_switch()) {
+        wasm::ModuleTypeIndex sig{static_cast<uint32_t>(
+            i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32())};
         RpoNumber handler_rpo =
             i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
         effect_handlers_.emplace_back(tag_index, GetLabel(handler_rpo),
-                                      masm()->pc_offset());
+                                      masm()->pc_offset(), sig);
       } else {
-        effect_handlers_.emplace_back(tag_index, nullptr, masm()->pc_offset());
+        effect_handlers_.emplace_back(tag_index, nullptr, masm()->pc_offset(),
+                                      wasm::ModuleTypeIndex::Invalid());
       }
     }
-    index = index - 2 * num_handlers - 1;
+    index = index - 3 * num_handlers - 1;
   }
+#endif
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     Constant handler_input = i.ToConstant(instr->InputAt(index--));
     if (handler_input.type() == Constant::Type::kRpoNumber) {

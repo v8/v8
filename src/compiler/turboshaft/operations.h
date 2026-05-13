@@ -4553,6 +4553,10 @@ struct CallOp : OperationT<CallOp> {
 struct EffectHandler {
   wasm::EffectHandlerTagIndex tag_and_kind;
   Block* block;
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(thibaudm): Move the whole struct behind the guard.
+  wasm::ModuleTypeIndex sig;
+#endif
 
   bool is_switch() const { return tag_and_kind.is_switch(); }
   uint32_t tag_index() const { return tag_and_kind.index(); }

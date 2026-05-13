@@ -9,16 +9,21 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let builder = new WasmModuleBuilder();
 
-let sigA = builder.addType(makeSig([kWasmI64], []));
+let boxC = builder.addStruct([makeField(kWasmI32, true)]);
+
+let sigA = builder.addType(makeSig([kWasmI64, wasmRefType(boxC)], [kWasmI32]));
 let contA = builder.addCont(sigA);
 let boxA = builder.addStruct([makeField(wasmRefType(contA), true)]);
 
-let boxC = builder.addStruct([makeField(kWasmI32, true)]);
-let sigB = builder.addType(makeSig([wasmRefType(boxC)], [kWasmI32]));
+let sigB = builder.addType(makeSig([wasmRefType(boxC), kWasmI64], [kWasmI32]));
 let contB = builder.addCont(sigB);
 let boxB = builder.addStruct([makeField(wasmRefType(contB), true)]);
 
-let funcA = builder.addFunction("funcA", sigA).addBody([]).exportFunc();
+let funcA = builder.addFunction("funcA", sigA)
+  .addBody([
+    kExprI32Const, 0,
+  ]).exportFunc();
+
 let funcB = builder.addFunction("funcB", sigB)
   .addBody([
     kExprLocalGet, 0,
@@ -39,18 +44,27 @@ builder.addFunction("make_contB", makeSig([], [wasmRefType(boxB)]))
     kGCPrefix, kExprStructNew, boxB,
   ]).exportFunc();
 
-builder.addFunction("resume_contA", makeSig([wasmRefType(boxA), kWasmI64], []))
+builder.addFunction("make_boxC", makeSig([], [wasmRefType(boxC)]))
+  .addBody([
+    kExprI32Const, 42,
+    kGCPrefix, kExprStructNew, boxC,
+  ]).exportFunc();
+
+builder.addFunction("resume_contA", makeSig([wasmRefType(boxA), kWasmI64, wasmRefType(boxC)], []))
   .addBody([
     kExprLocalGet, 1,
+    kExprLocalGet, 2,
     kExprLocalGet, 0,
     kGCPrefix, kExprStructGet, boxA, 0,
     kExprResume, contA, 0,
+    kExprDrop,
   ]).exportFunc();
 
 let instance = builder.instantiate();
 
 let objA = instance.exports.make_contA();
 let objB = instance.exports.make_contB();
+let boxC_obj = instance.exports.make_boxC();
 
 const kHeapObjectTag = 1;
 const kTaggedSize = 4;
@@ -77,7 +91,7 @@ setField(addrA, 2 * kTaggedSize, contB_ptr);
 
 // Now resuming contA should trigger the signature check trap.
 assertThrows(
-    () => { instance.exports.resume_contA(objA, 0x414141414141n); },
+    () => { instance.exports.resume_contA(objA, 0x414141414141n, boxC_obj); },
     WebAssembly.RuntimeError,
     /function signature mismatch/
 );

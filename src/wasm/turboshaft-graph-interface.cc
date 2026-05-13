@@ -4046,9 +4046,13 @@ class TurboshaftGraphBuildingInterface
                const Value& func_ref, Value* result) {
     __ TrapIf(__ IsNull(func_ref.get<Object>(), func_ref.type),
               TrapId::kTrapNullDereference);
+    CanonicalTypeIndex canonical_sig_id =
+        decoder->module_->canonical_type_id(imm.cont_type->contfun_typeindex());
     result->op = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateContinuation,
-        {trusted_instance_data(SharedFlag::kNo), func_ref.op},
+        {trusted_instance_data(SharedFlag::kNo), func_ref.op,
+         __ TagSmi(
+             __ RelocatableWasmCanonicalSignatureId(canonical_sig_id.index))},
         __ NoContextConstant());
   }
 
@@ -4077,15 +4081,14 @@ class TurboshaftGraphBuildingInterface
     // signature.
     CanonicalTypeIndex expected_csig_index =
         env_->module->canonical_type_id(imm.cont_type->contfun_typeindex());
-    const CanonicalSig* expected_csig =
-        GetTypeCanonicalizer()->LookupFunctionSignature(expected_csig_index);
-    uint64_t expected_hash = expected_csig->signature_hash();
-    V<Word64> signature_hash = __ Load(stack, LoadOp::Kind::RawAligned(),
-                                       MemoryRepresentation::Uint64(),
-                                       StackMemory::signature_hash_offset());
-    __ TrapIfNot(__ Equal(signature_hash, __ Word64Constant(expected_hash),
-                          RegisterRepresentation::Word64()),
-                 TrapId::kTrapFuncSigMismatch);
+    V<Word32> expected_id =
+        __ RelocatableWasmCanonicalSignatureId(expected_csig_index.index);
+    V<Word32> signature_id = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                     MemoryRepresentation::Uint32(),
+                                     StackMemory::signature_id_offset());
+    __ TrapIfNot(
+        __ Equal(signature_id, expected_id, RegisterRepresentation::Word32()),
+        TrapId::kTrapFuncSigMismatch);
     return stack;
   }
 
@@ -4118,18 +4121,22 @@ class TurboshaftGraphBuildingInterface
           }
         });
     V<Context> native_context = instance_cache_.native_context();
+    CanonicalTypeIndex new_csig_index = decoder->module_->canonical_type_id(
+        new_imm.cont_type->contfun_typeindex());
     // Allocate a new continuation for this stack, and invalidate the old one by
     // pointing {StackMemory::current_cont_} to the new one.
     V<WasmContinuationObject> cont = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateBoundContinuation,
-        {input_cont.op, __ SmiConstant(Smi::FromInt(static_cast<int>(delta)))},
+        {input_cont.op, __ SmiConstant(Smi::FromInt(static_cast<int>(delta))),
+         __ TagSmi(
+             __ RelocatableWasmCanonicalSignatureId(new_csig_index.index))},
         native_context);
     result->op = cont;
   }
 
   std::pair<V<WordPtr>, base::Vector<compiler::turboshaft::EffectHandler>>
-  PrepareResume(base::Vector<HandlerCase> handlers, const Value& cont_ref,
-                const ContIndexImmediate& imm) {
+  PrepareResume(FullDecoder* decoder, base::Vector<HandlerCase> handlers,
+                const Value& cont_ref, const ContIndexImmediate& imm) {
     V<WordPtr> stack = CheckContAndGetStack(cont_ref, imm);
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
         __ output_graph().graph_zone()
@@ -4141,6 +4148,29 @@ class TurboshaftGraphBuildingInterface
       asm_handlers[i].tag_and_kind.encode(
           handlers[i].kind == wasm::SwitchKind::kSwitch, handlers[i].tag.index);
       asm_handlers[i].block = __ NewBlock();
+      if (handlers[i].kind == kOnSuspend) {
+        // For each handler, save the signature index of the suspended
+        // continuation in the handler table.
+        // On suspend, we load the signature index from the table and save it in
+        // the suspended stack's metadata.
+        // When consuming a continuation (resume, resume_throw,
+        // resume_throw_ref, switch or cont.bind), we check the expected
+        // signature index against the one saved in the target continuation's
+        // stack. Continuations aren't castable so the types must match exactly.
+        // For simplicity, use module-relative indices in the handler table
+        // and translate them to canonical indices on suspend. Storing the
+        // canonical indices would avoid this extra step at runtime, but we
+        // would need to relocate the indices.
+        Control* target = decoder->control_at(handlers[i].maybe_depth.br.depth);
+        Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
+        HeapType ht = val.type.heap_type();
+        DCHECK(ht.has_index());
+        const ContType* cont_type = decoder->module_->cont_type(ht.ref_index());
+        ModuleTypeIndex sig_index = cont_type->contfun_typeindex();
+        asm_handlers[i].sig = sig_index;
+      } else {
+        asm_handlers[i].sig = ModuleTypeIndex::Invalid();
+      }
     }
     return {stack, asm_handlers};
   }
@@ -4160,7 +4190,8 @@ class TurboshaftGraphBuildingInterface
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, imm);
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
@@ -4214,7 +4245,8 @@ class TurboshaftGraphBuildingInterface
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers,
                    const Value& cont_ref, const Value args[], Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, cont_imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, cont_imm);
     V<FixedArray> array = EncodeExceptionArray(decoder, exc_imm, args);
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
         trusted_instance_data(SharedFlag::kNo), TagsTable,
@@ -4238,7 +4270,8 @@ class TurboshaftGraphBuildingInterface
                       base::Vector<wasm::HandlerCase> handlers,
                       const Value& cont_ref, const Value& exn,
                       Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, cont_imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, cont_imm);
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrowRef,

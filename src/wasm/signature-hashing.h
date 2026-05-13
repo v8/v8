@@ -116,22 +116,6 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
   *total_return_slots = rets.NumStackSlots();
 }
 
-class VectorSignature {
- public:
-  VectorSignature(base::Vector<const CanonicalValueType> returns,
-                  base::Vector<const CanonicalValueType> params)
-      : returns_(returns), params_(params) {}
-
-  size_t return_count() const { return returns_.size(); }
-  size_t parameter_count() const { return params_.size(); }
-  CanonicalValueType GetReturn(size_t i) const { return returns_[i]; }
-  CanonicalValueType GetParam(size_t i) const { return params_[i]; }
-
- private:
-  base::Vector<const CanonicalValueType> returns_;
-  base::Vector<const CanonicalValueType> params_;
-};
-
 #if V8_ENABLE_SANDBOX
 
 // Computes a "signature hash" for sandbox hardening: two functions should have

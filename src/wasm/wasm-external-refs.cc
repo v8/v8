@@ -26,6 +26,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
@@ -1120,7 +1121,8 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
                                              Address wanted_tag_raw,
                                              bool is_switch, Address& target_sp,
                                              Address& target_fp,
-                                             Address& target_pc) {
+                                             Address& target_pc,
+                                             CanonicalTypeIndex* sig) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
@@ -1170,12 +1172,16 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
           LEBHelper::read_u32v(&effect_handlers_ptr)};
       if (!tag_index.is_switch()) {
         uint32_t handler_offset = LEBHelper::read_u32v(&effect_handlers_ptr);
+        ModuleTypeIndex module_sig_index{
+            LEBHelper::read_u32v(&effect_handlers_ptr)};
         auto tag = trusted_instance_data->tags_table()->get(tag_index.index());
         if (wasm_code->instruction_start() + call_offset == target_pc &&
             tag == wanted_tag && !is_switch) {
           to->jmpbuf()->pc = wasm_code->instruction_start() + handler_offset;
           to->jmpbuf()->sp = target_sp;
           to->jmpbuf()->fp = target_fp;
+          *sig = wasm_code->native_module()->module()->canonical_sig_id(
+              module_sig_index);
           return to;
         }
       } else if (tag_index.is_switch() && is_switch) {
@@ -1199,28 +1205,36 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
                              Address cont_raw, Address arg_buffer,
-                             const uint32_t sig_index) {
+                             const uint32_t tag_sig_index) {
   Address target_sp, target_fp, target_pc;
   Tagged<Object> cont_obj(cont_raw);
   auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   cont->set_stack_obj(from->stack_obj());
-  wasm::StackMemory* to = find_wasmfx_handler_stack(
-      isolate, wanted_tag_raw, false, target_sp, target_fp, target_pc);
+  CanonicalTypeIndex cont_sig_index;
+  wasm::StackMemory* to =
+      find_wasmfx_handler_stack(isolate, wanted_tag_raw, false, target_sp,
+                                target_fp, target_pc, &cont_sig_index);
   if (to == nullptr) return kNullAddress;
 
   DCHECK(from->Contains(arg_buffer));
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
 
-  const CanonicalSig* sig = GetTypeCanonicalizer()->LookupFunctionSignature(
-      CanonicalTypeIndex{sig_index});
+  const CanonicalSig* tag_sig = GetTypeCanonicalizer()->LookupFunctionSignature(
+      CanonicalTypeIndex{tag_sig_index});
 
-  from->set_param_types(sig->returns());
-
-  const CanonicalSig* original_sig = from->func_ref()->internal(isolate)->sig();
-  VectorSignature suspended_sig(original_sig->returns(), sig->returns());
-  from->set_signature_hash(SignatureHasher::Hash(&suspended_sig));
+  from->set_param_types(tag_sig->returns());
+#ifdef DEBUG
+  const CanonicalSig* cont_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(
+          CanonicalTypeIndex{cont_sig_index});
+  DCHECK_EQ(tag_sig->return_count(), cont_sig->parameter_count());
+  for (size_t i = 0; i < tag_sig->return_count(); ++i) {
+    DCHECK(IsSubtypeOf(cont_sig->GetParam(i), tag_sig->GetReturn(i)));
+  }
+#endif
+  from->set_signature_id(cont_sig_index);
 
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
@@ -1240,7 +1254,7 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
 
   cont->set_stack_obj(from->stack_obj());
   wasm::StackMemory* parent = find_wasmfx_handler_stack(
-      isolate, wanted_tag_raw, true, target_sp, target_fp, target_pc);
+      isolate, wanted_tag_raw, true, target_sp, target_fp, target_pc, nullptr);
   if (!parent) return kNullAddress;
 
   if (v8_flags.trace_wasm_stack_switching) {
@@ -1258,7 +1272,7 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
   from->set_param_types(return_sig->parameters());
-  from->set_signature_hash(SignatureHasher::Hash(return_sig));
+  from->set_signature_id(return_sig->index());
   SuspendStack(isolate, from, parent, sp, fp, pc);
   ResumeStack(isolate, parent, target_stack, parent->jmpbuf()->sp,
               parent->jmpbuf()->fp, parent->jmpbuf()->pc);

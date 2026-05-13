@@ -399,17 +399,23 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
     int pc_offset;
   };
 
+#if V8_ENABLE_WEBASSEMBLY
   struct EffectHandlerInfo {
     wasm::EffectHandlerTagIndex tag_and_kind;
     Label* handler;
     int pc_offset;
+    wasm::ModuleTypeIndex sig;
 
     bool is_switch() const { return tag_and_kind.is_switch(); }
 
     EffectHandlerInfo(wasm::EffectHandlerTagIndex tag_index, Label* handler,
-                      int pc_offset)
-        : tag_and_kind(tag_index), handler(handler), pc_offset(pc_offset) {}
+                      int pc_offset, wasm::ModuleTypeIndex sig)
+        : tag_and_kind(tag_index),
+          handler(handler),
+          pc_offset(pc_offset),
+          sig(sig) {}
   };
+#endif
 
   friend class OutOfLineCode;
   friend class CodeGeneratorTester;
@@ -430,7 +436,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
-  ZoneVector<EffectHandlerInfo> effect_handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
   int eager_deopt_count_ = 0;
@@ -479,6 +484,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   SourcePositionTableBuilder source_position_table_builder_;
 #if V8_ENABLE_WEBASSEMBLY
   ZoneVector<trap_handler::TrappingInstructionData> trapping_instructions_;
+  ZoneVector<EffectHandlerInfo> effect_handlers_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   CodeGenResult result_;
   ZoneVector<int> block_starts_;

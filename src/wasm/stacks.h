@@ -219,10 +219,11 @@ class StackMemory {
   constexpr static uint32_t current_continuation_offset() {
     return OFFSET_OF(StackMemory, current_cont_);
   }
-  constexpr static uint32_t signature_hash_offset() {
-    return OFFSET_OF(StackMemory, signature_hash_);
+  constexpr static uint32_t signature_id_offset() {
+    return OFFSET_OF(StackMemory, signature_id_);
   }
-  void set_signature_hash(uint64_t hash) { signature_hash_ = hash; }
+  CanonicalTypeIndex signature_id() { return signature_id_; }
+  void set_signature_id(CanonicalTypeIndex id) { signature_id_ = id; }
   constexpr static uint32_t arg_buffer_offset() {
     return OFFSET_OF(StackMemory, arg_buffer_);
   }
@@ -274,6 +275,8 @@ class StackMemory {
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
   // WasmFX specific fields below.
+  // Last continuation object created from this stack. The code traps if we
+  // attempt to resume it with any other continuation object.
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
   Tagged<WasmStackObject> stack_obj_ = {};
@@ -282,7 +285,12 @@ class StackMemory {
   base::Vector<const CanonicalValueType> param_types_;
   Address arg_buffer_ = kNullAddress;
   int num_bound_args_ = 0;
-  uint64_t signature_hash_ = 0;
+  // Signature of {current_cont_}. This field is set when the stack is suspended
+  // or switched out of, and compared to the continuation type immediate when
+  // the continuation is consumed, in order to enforce type safety if
+  // continuation objects are corrupted inside the sandbox. Continuations are
+  // not castable so the canonical signature index must match exactly.
+  CanonicalTypeIndex signature_id_{kInvalidCanonicalIndex};
   // When adding fields here, also check if it needs to be cleared in
   // StackMemory::Reset() when the stack is moved to the stack pool after
   // retiring.

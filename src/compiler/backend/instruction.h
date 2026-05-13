@@ -1093,7 +1093,7 @@ class V8_EXPORT_PRIVATE Instruction final {
       case kArchCallWasmFunctionIndirect:
         return InputCount() - 1 -
                HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
-               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
+               3 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallWasmIndirect:
         return InputCount() - 3;
       default:
@@ -1109,7 +1109,7 @@ class V8_EXPORT_PRIVATE Instruction final {
       case kArchCallCodeObject:
         return InputCount() - 1 -
                HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
-               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
+               3 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallCodeObject:
         return InputCount() - 3;
       default:
@@ -1122,7 +1122,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     return InputCount() - 1 -
            HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
-           2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
+           3 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
   }
 
   enum GapPosition {
