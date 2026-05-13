@@ -8442,7 +8442,8 @@ struct StringPrepareForGetCodeUnitOp
   static constexpr OpEffects effects =
       OpEffects()
           // This should not float above a protective null/length check.
-          .CanDependOnChecks();
+          .CanDependOnChecks()
+          .CanReadMemory();
 
   explicit StringPrepareForGetCodeUnitOp(V<Object> string) : Base(string) {}
 

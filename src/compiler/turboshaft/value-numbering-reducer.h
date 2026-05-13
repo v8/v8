@@ -146,6 +146,13 @@ class ValueNumberingReducer : public Next {
       /* We don't want to GVN comments. */
       return false;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    if constexpr (opcode == Opcode::kStringPrepareForGetCodeUnit) {
+      // StringPrepareForGetCodeUnit depends on string shapes, which can be
+      // changed by the GC. Let LoadElimination deal with that, not GVN.
+      return false;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
     return true;
   }
 
