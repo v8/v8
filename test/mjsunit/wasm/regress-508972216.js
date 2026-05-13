@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --turbolev --maglev
-// Flags: --turbolev-inline-js-wasm-wrappers --turboshaft-wasm-in-js-inlining
+// Flags: --wasm-in-js-inlining-wrapper --wasm-in-js-inlining-body
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

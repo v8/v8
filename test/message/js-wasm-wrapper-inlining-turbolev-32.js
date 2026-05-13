@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbolev-inline-js-wasm-wrappers --turboshaft-wasm-in-js-inlining
+// Flags: --wasm-in-js-inlining-wrapper --wasm-in-js-inlining-body
 // Flags: --turbolev --no-maglev
 // Flags: --trace-turbo-inlining --trace-deopt
 // Flags: --no-log-colour --no-trace-with-compilation-id

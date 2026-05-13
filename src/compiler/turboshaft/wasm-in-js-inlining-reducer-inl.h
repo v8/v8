@@ -87,7 +87,7 @@ class WasmInJSInliningReducer : public Next {
       // TODO(353475584): Wrapper and body inlining in Turboshaft is only
       // implemented for the Turbolev frontend right now.
       CHECK(v8_flags.turbolev);
-      CHECK(v8_flags.turbolev_inline_js_wasm_wrappers);
+      CHECK(v8_flags.wasm_in_js_inlining_wrapper);
 
       // We need a `FrameState` for building correct stack traces when inlining
       // potentially trapping Wasm operations.
@@ -108,7 +108,7 @@ class WasmInJSInliningReducer : public Next {
 
       // Prepare data for the Wasm-in-JS body inlining, if enabled.
       std::optional<WasmInlinedFunctionData> inlined_function_data;
-      if (v8_flags.turboshaft_wasm_in_js_inlining) {
+      if (v8_flags.wasm_in_js_inlining_body) {
         V<AnyOrNone> origin = __ current_operation_origin();
         CHECK(origin.valid());
         SourcePosition call_pos = __ input_graph().source_positions()[origin];

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbolev --turbolev-inline-js-wasm-wrappers
-// Flags: --turboshaft-wasm-in-js-inlining
+// Flags: --turbolev --wasm-in-js-inlining-wrapper
+// Flags: --wasm-in-js-inlining-body
 // Flags: --allow-natives-syntax
 
 // When a JS-to-Wasm wrapper call is inside a try/catch, Maglev emits

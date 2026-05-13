@@ -999,8 +999,8 @@ DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif  // V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, turbolev)
 DEFINE_NEG_IMPLICATION(jitless, turbolev_future)
-DEFINE_NEG_IMPLICATION(jitless, turboshaft_wasm_in_js_inlining)
-DEFINE_NEG_IMPLICATION(jitless, turbolev_inline_js_wasm_wrappers)
+DEFINE_NEG_IMPLICATION(jitless, wasm_in_js_inlining_body)
+DEFINE_NEG_IMPLICATION(jitless, wasm_in_js_inlining_wrapper)
 // Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
@@ -1014,10 +1014,9 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev_future)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, wasm_in_js_inlining_body)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
-                       turboshaft_wasm_in_js_inlining)
-DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
-                       turbolev_inline_js_wasm_wrappers)
+                       wasm_in_js_inlining_wrapper)
 #if V8_ENABLE_WEBASSEMBLY
 // Disable optimizing Wasm compilers. Wasm code must execute with Liftoff.
 DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
@@ -1744,21 +1743,21 @@ DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
 
 DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_wasm_in_js_inlining,
-    "inline Wasm code into JS functions via Turboshaft. For controlling "
+    wasm_in_js_inlining_body,
+    "inline Wasm code into JS functions via Turboshaft. This requires "
+    "inlining the wrapper, see --wasm-in-js-inlining-wrapper. For controlling "
     "the inlining in the old Turbofan pipeline, see "
     "--turbo-inline-js-wasm-calls.")
 // The Wasm-in-JS body inlining depends on the Turbolev-based JS-to-Wasm wrapper
 // inlining. Thus both require Turbolev and don't do anything without that.
-DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining,
-                   turbolev_inline_js_wasm_wrappers)
+DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
 // Both are staged behind --turbolev-future.
-DEFINE_IMPLICATION(turbolev_future, turboshaft_wasm_in_js_inlining)
+DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_body)
 
 DEFINE_EXPERIMENTAL_FEATURE(
-    turbolev_inline_js_wasm_wrappers,
+    wasm_in_js_inlining_wrapper,
     "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
-DEFINE_IMPLICATION(turbolev_future, turbolev_inline_js_wasm_wrappers)
+DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_wrapper)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")

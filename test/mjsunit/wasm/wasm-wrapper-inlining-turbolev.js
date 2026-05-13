@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbolev --turbolev-inline-js-wasm-wrappers
+// Flags: --allow-natives-syntax --turbolev --wasm-in-js-inlining-wrapper
 // Flags: --turbofan --no-stress-maglev
 
 // Reuse the existing TurboFan (Sea-of-Nodes) JS-to-Wasm wrapper inlining tests

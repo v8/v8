@@ -324,7 +324,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   compiler::turboshaft::WasmBodyInliningResult inlining_result;
   if constexpr (requires { &Assembler::TryInlineWasmBody; }) {
     if (inlined_function_data_.has_value()) {
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
+      CHECK(v8_flags.wasm_in_js_inlining_body);
       inlining_result = __ TryInlineWasmBody(
           inlined_function_data_.value(), VectorOf(args), lazy_deopt_on_throw);
       // If the body inlining traps unconditionally (e.g., due to an

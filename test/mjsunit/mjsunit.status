@@ -941,7 +941,7 @@
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
 
-  # --turboshaft-wasm-in-js-inlining
+  # --wasm-in-js-inlining-body
   'regress/wasm/regress-382564224': [SKIP],
   'regress/wasm/regress-422639603': [SKIP],
   'regress/wasm/regress-449028728': [SKIP],

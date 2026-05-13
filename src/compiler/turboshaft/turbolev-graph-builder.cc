@@ -1472,7 +1472,7 @@ class GraphBuildingNodeProcessor {
     bool is_calling_js_to_wasm_wrapper_builtin =
         (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
-    if (v8_flags.turbolev_inline_js_wasm_wrappers &&
+    if (v8_flags.wasm_in_js_inlining_wrapper &&
         is_calling_js_to_wasm_wrapper_builtin) {
       Tagged<WasmExportedFunctionData> function_data;
       if (TryCast(TrustedCast<TrustedObject>(data), &function_data)) {
@@ -2491,7 +2491,7 @@ class GraphBuildingNodeProcessor {
     // wasm-in-js-inlining reducer uses for conversion builtins.
     V<Object> value = Map(node->ValueInput());
 #if V8_ENABLE_WEBASSEMBLY
-    DCHECK(v8_flags.turbolev_inline_js_wasm_wrappers);
+    DCHECK(v8_flags.wasm_in_js_inlining_wrapper);
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node, __ ProcessWasmArgument(value, frame_state));
     // Ensure WasmInJSInliningPhase runs to strip ProcessWasmArgumentOp

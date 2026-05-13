@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --expose-memory-corruption-api --allow-natives-syntax
-// Flags: --turbolev --turbolev-inline-js-wasm-wrappers
+// Flags: --turbolev --wasm-in-js-inlining-wrapper
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

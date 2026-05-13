@@ -12535,7 +12535,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   // signature); the reducer only uses the frame state for numeric params.
   // LINT.IfChange(WasmWrapperInliningConditions)
   bool wrap_args_for_wasm = false;
-  if (is_turbolev() && v8_flags.turbolev_inline_js_wasm_wrappers &&
+  if (is_turbolev() && v8_flags.wasm_in_js_inlining_wrapper &&
       shared.object()->HasWasmExportedFunctionData(local_isolate_)) {
     // The SharedFunctionInfo of a Wasm exported function does not carry a
     // builtin ID, so the check above filters out regular JS builtins.
