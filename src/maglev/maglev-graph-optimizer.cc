@@ -1206,6 +1206,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   CallKnownJSFunction* new_call_node =
       new_call.value()->Cast<CallKnownJSFunction>();
 
+  compiler::FeedbackCellRef feedback_cell =
+      target_function->raw_feedback_cell(broker());
+  if (!feedback_cell.feedback_vector(broker())) {
+    return ReplaceWith(new_call_node);
+  }
+
   // TODO(victorgomes): Should we propagate call frequency from feedback?
   float call_frequency = 1.0f;
   const MaglevCompilationUnit* current_unit = nullptr;
@@ -1246,8 +1252,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   MaglevCallSiteInfo* call_site = reducer_.zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           base::VectorOf(arguments),
-          &new_call_node->lazy_deopt_info()->top_frame(),
-          call_aspects,
+          &new_call_node->lazy_deopt_info()->top_frame(), call_aspects,
           nullptr,  // loop_effects
           ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
               reducer_.zone()),  // unobserved_context_slot_stores
@@ -1258,8 +1263,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
           nullptr  // TOD(victorgomes): Propagate
                    // parent_inlining_tree_debug_info?
       },
-      new_call_node, target_function->raw_feedback_cell(broker()), score,
-      bytecode_length);
+      new_call_node, feedback_cell, score, bytecode_length);
 
   reducer_.PushInlineCandidate(call_site);
 
