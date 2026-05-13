@@ -203,6 +203,18 @@ class CppGraphBuilderImpl final {
     }
   }
 
+  void AddWeakEdge(const ParentScope& parent, const HeapObjectHeader& header,
+                   std::string_view edge_name) {
+    EmbedderNode* child_node = GetOrCreateNode(header);
+
+    if (!edge_name.empty()) {
+      graph_.AddWeakEdge(parent.node(), child_node,
+                         parent.node()->InternalizeEdgeName(edge_name));
+    } else {
+      graph_.AddWeakEdge(parent.node(), child_node);
+    }
+  }
+
   void AddEdge(const ParentScope& parent, const TracedReferenceBase& ref,
                std::string_view edge_name) {
     v8::Local<v8::Data> v8_data =
@@ -292,6 +304,13 @@ class GraphBuildingVisitor final : public JSVisitor {
   // C++ handling.
   void Visit(const void*, cppgc::TraceDescriptor desc) final {
     graph_builder_.AddEdge(
+        parent_scope_, HeapObjectHeader::FromObject(desc.base_object_payload),
+        edge_name_);
+  }
+
+  void VisitWeak(const void*, cppgc::TraceDescriptor desc, cppgc::WeakCallback,
+                 const void*) final {
+    graph_builder_.AddWeakEdge(
         parent_scope_, HeapObjectHeader::FromObject(desc.base_object_payload),
         edge_name_);
   }

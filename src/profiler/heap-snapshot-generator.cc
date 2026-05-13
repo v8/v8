@@ -3209,6 +3209,7 @@ class EmbedderGraphImpl : public EmbedderGraph {
     Node* from;
     Node* to;
     const char* name;
+    bool is_weak = false;
   };
 
   class V8NodeImpl : public Node {
@@ -3249,7 +3250,11 @@ class EmbedderGraphImpl : public EmbedderGraph {
   }
 
   void AddEdge(Node* from, Node* to, const char* name) final {
-    edges_.push_back({from, to, name});
+    edges_.push_back({from, to, name, false});
+  }
+
+  void AddWeakEdge(Node* from, Node* to, const char* name = nullptr) final {
+    edges_.push_back({from, to, name, true});
   }
 
   void AddNativeSize(size_t size) final { native_size_ += size; }
@@ -3446,14 +3451,28 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
       if (!from) continue;
       HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       if (!to) continue;
-      if (edge.name == nullptr) {
-        from->SetIndexedAutoIndexReference(HeapGraphEdge::kElement, to,
-                                           generator_,
+      if (edge.is_weak) {
+        if (edge.name == nullptr) {
+          // Unlike kElement the edge type kWeak requires a name, so we use
+          // SetNamedAutoIndexReference here to create a name for the index.
+          from->SetNamedAutoIndexReference(HeapGraphEdge::kWeak, nullptr, to,
+                                           names_, generator_,
                                            HeapEntry::kOffHeapPointer);
+        } else {
+          from->SetNamedReference(HeapGraphEdge::kWeak,
+                                  names_->GetCopy(edge.name), to, generator_,
+                                  HeapEntry::kOffHeapPointer);
+        }
       } else {
-        from->SetNamedReference(HeapGraphEdge::kInternal,
-                                names_->GetCopy(edge.name), to, generator_,
-                                HeapEntry::kOffHeapPointer);
+        if (edge.name == nullptr) {
+          from->SetIndexedAutoIndexReference(HeapGraphEdge::kElement, to,
+                                             generator_,
+                                             HeapEntry::kOffHeapPointer);
+        } else {
+          from->SetNamedReference(HeapGraphEdge::kInternal,
+                                  names_->GetCopy(edge.name), to, generator_,
+                                  HeapEntry::kOffHeapPointer);
+        }
       }
     }
     snapshot_->set_extra_native_bytes(graph.native_size());

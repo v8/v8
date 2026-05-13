@@ -1313,5 +1313,50 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
        "system / CppHeapExternal", GetExpectedName<ExternalData>()}));
 }
 
+class GCedWithWeakMember final
+    : public cppgc::GarbageCollected<GCedWithWeakMember>,
+      public cppgc::NameProvider {
+ public:
+  static constexpr const char kExpectedName[] = "GCedWithWeakMember";
+
+  explicit GCedWithWeakMember(cppgc::AllocationHandle& allocation_handle) {}
+
+  void Trace(cppgc::Visitor* v) const { v->Trace(weak_member); }
+  const char* GetHumanReadableName() const final {
+    return "GCedWithWeakMember";
+  }
+
+  cppgc::WeakMember<GCed> weak_member;
+};
+
+TEST_F(UnifiedHeapSnapshotTest, WeakMember) {
+  cppgc::Persistent<GCedWithWeakMember> holder =
+      cppgc::MakeGarbageCollected<GCedWithWeakMember>(allocation_handle(),
+                                                      allocation_handle());
+  cppgc::Persistent<GCed> target =
+      cppgc::MakeGarbageCollected<GCed>(allocation_handle());
+
+  holder->weak_member = target.Get();
+
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+
+  const HeapEntry* holder_entry =
+      GetEntryFor(isolate(), heap_snapshot, holder.Get());
+  const HeapEntry* target_entry =
+      GetEntryFor(isolate(), heap_snapshot, target.Get());
+
+  ASSERT_NE(nullptr, holder_entry);
+  ASSERT_NE(nullptr, target_entry);
+
+  const HeapGraphEdge* edge = GetNamedEdge(*holder_entry, "1");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(HeapGraphEdge::kWeak, edge->type());
+  EXPECT_EQ(target_entry, edge->to());
+}
+
 }  // namespace internal
 }  // namespace v8
