@@ -3093,7 +3093,7 @@ class LiftoffCompiler {
 
   void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
                const Value& rhs_val, Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
     switch (opcode) {
       case kExprI64MulWideS:
         __ emit_i64_mul_wide_s();

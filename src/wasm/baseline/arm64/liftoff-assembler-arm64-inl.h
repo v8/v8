@@ -1753,9 +1753,39 @@ void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
   Mul(dst.gp().X(), lhs.gp().X(), scratch);
 }
 
-void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+void LiftoffAssembler::emit_i64_mul_wide_s() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
 
-void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
+  LiftoffRegister high_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister low_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{high_result});
+
+  Smulh(high_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+  Mul(low_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_u() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
+
+  LiftoffRegister high_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister low_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{high_result});
+
+  Umulh(high_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+  Mul(low_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
