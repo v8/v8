@@ -269,6 +269,7 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kWasmInternalFunctionCreateExternal:
     case Runtime::kWasmArrayCopy:
     case Runtime::kWasmAllocateFeedbackVector:
+    case Runtime::kWasmStringNewWtf8:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
