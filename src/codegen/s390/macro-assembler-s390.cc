@@ -3711,6 +3711,20 @@ void MacroAssembler::LoadU64(Register dst, const MemOperand& mem,
   lg(dst, src);
 }
 
+void MacroAssembler::LoadReversedU64(Register dst, const MemOperand& mem,
+                                     Register scratch) {
+  int offset = mem.offset();
+
+  MemOperand src = mem;
+  if (!is_int20(offset)) {
+    DCHECK(scratch != no_reg && scratch != r0 && mem.rx() == r0);
+    DCHECK(scratch != mem.rb());
+    mov(scratch, Operand(offset));
+    src = MemOperand(mem.rb(), scratch);
+  }
+  lrvg(dst, src);
+}
+
 // Store a "pointer" sized value to the memory location
 void MacroAssembler::StoreU64(Register src, const MemOperand& mem,
                               Register scratch) {
@@ -3721,6 +3735,18 @@ void MacroAssembler::StoreU64(Register src, const MemOperand& mem,
     stg(src, MemOperand(mem.rb(), scratch));
   } else {
     stg(src, mem);
+  }
+}
+
+void MacroAssembler::StoreReversedU64(Register src, const MemOperand& mem,
+                                      Register scratch) {
+  if (!is_int20(mem.offset())) {
+    DCHECK(scratch != no_reg);
+    DCHECK(scratch != r0);
+    mov(scratch, Operand(mem.offset()));
+    strvg(src, MemOperand(mem.rb(), scratch));
+  } else {
+    strvg(src, mem);
   }
 }
 
@@ -3844,7 +3870,7 @@ void MacroAssembler::LoadU8(Register dst, Register src) {
 #ifdef V8_TARGET_BIG_ENDIAN
 void MacroAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
-  lrvg(dst, mem);
+  LoadReversedU64(dst, mem, scratch);
 }
 
 void MacroAssembler::LoadS32LE(Register dst, const MemOperand& opnd,
@@ -3876,9 +3902,9 @@ void MacroAssembler::LoadV128LE(DoubleRegister dst, const MemOperand& opnd,
   if (use_vlbr) {
     vlbr(dst, opnd, Condition(4));
   } else {
-    lrvg(scratch0, opnd);
-    lrvg(scratch1,
-         MemOperand(opnd.rx(), opnd.rb(), opnd.offset() + kSystemPointerSize));
+    LoadReversedU64(scratch0, opnd);
+    LoadReversedU64(scratch1, MemOperand(opnd.rx(), opnd.rb(),
+                                         opnd.offset() + kSystemPointerSize));
     vlvgp(dst, scratch1, scratch0);
   }
 }
@@ -3898,14 +3924,7 @@ void MacroAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& opnd,
 
 void MacroAssembler::StoreU64LE(Register src, const MemOperand& mem,
                                 Register scratch) {
-  if (!is_int20(mem.offset())) {
-    DCHECK(scratch != no_reg);
-    DCHECK(scratch != r0);
-    mov(scratch, Operand(mem.offset()));
-    strvg(src, MemOperand(mem.rb(), scratch));
-  } else {
-    strvg(src, mem);
-  }
+  StoreReversedU64(src, mem, scratch);
 }
 
 void MacroAssembler::StoreU32LE(Register src, const MemOperand& mem,
@@ -3956,9 +3975,9 @@ void MacroAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
   } else {
     vlgv(scratch1, src, MemOperand(r0, 1), Condition(3));
     vlgv(scratch2, src, MemOperand(r0, 0), Condition(3));
-    strvg(scratch1, mem);
-    strvg(scratch2,
-          MemOperand(mem.rx(), mem.rb(), mem.offset() + kSystemPointerSize));
+    StoreReversedU64(scratch1, mem);
+    StoreReversedU64(scratch2, MemOperand(mem.rx(), mem.rb(),
+                                          mem.offset() + kSystemPointerSize));
   }
 }
 

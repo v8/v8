@@ -434,6 +434,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Load
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadReversedU64(Register dst, const MemOperand& mem,
+                       Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadS32(Register dst, Register src);
   void LoadU32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
@@ -515,6 +517,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreU64(const MemOperand& mem, const Operand& opnd,
                 Register scratch = no_reg);
   void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreReversedU64(Register src, const MemOperand& mem,
+                        Register scratch = no_reg);
   void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
 
   void StoreU16(Register src, const MemOperand& mem, Register scratch = r0);
