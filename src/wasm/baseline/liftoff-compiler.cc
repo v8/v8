@@ -1524,7 +1524,7 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(max_steps_ != nullptr)) {
       pinned.set(input);
       LiftoffRegister steps_reg = input;
-      if constexpr (!std::is_same_v<nullptr_t, LoadFn>) {
+      if constexpr (!std::is_same_v<std::nullptr_t, LoadFn>) {
         steps_reg = load_fn(input, pinned);
       }
       CheckMaxSteps(decoder, steps_reg, pinned);
