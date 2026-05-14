@@ -326,7 +326,7 @@ void RegExpMacroAssemblerPPC::CheckNotBackReferenceIgnoreCase(
   } else {
     DCHECK(mode() == UC16);
     int argument_count = 4;
-    __ PrepareCallCFunction(argument_count, r5);
+    __ PrepareCallCFunction(argument_count);
 
     // r3 - offset of start of capture
     // r4 - length of capture
@@ -505,7 +505,7 @@ void RegExpMacroAssemblerPPC::CheckCharacterNotInRange(base::uc16 from,
 void RegExpMacroAssemblerPPC::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
   static const int kNumArguments = 2;
-  __ PrepareCallCFunction(kNumArguments, r0);
+  __ PrepareCallCFunction(kNumArguments);
 
   __ mr(r3, current_character());
   __ mov(r4, Operand(GetOrAddRangeArray(ranges)));
@@ -1036,7 +1036,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
       StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
 
       static constexpr int kNumArguments = 1;
-      __ PrepareCallCFunction(kNumArguments, r3);
+      __ PrepareCallCFunction(kNumArguments);
       __ mov(r3, Operand(ExternalReference::isolate_address(isolate())));
       ExternalReference grow_stack = ExternalReference::re_grow_stack();
       CallCFunctionFromIrregexpCode(grow_stack, kNumArguments);

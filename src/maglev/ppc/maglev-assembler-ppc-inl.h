@@ -1002,10 +1002,7 @@ inline void MaglevAssembler::CompareFloat64AndBranch(
 
 inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
                                                   int num_double_registers) {
-  TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  MacroAssembler::PrepareCallCFunction(num_reg_arguments, num_double_registers,
-                                       scratch);
+  MacroAssembler::PrepareCallCFunction(num_reg_arguments, num_double_registers);
 }
 
 inline void MaglevAssembler::CallSelf() {

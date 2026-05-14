@@ -454,9 +454,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define ASSEMBLE_FLOAT_MODULO()                                             \
   do {                                                                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                           \
-    UseScratchRegisterScope temps(masm());                                  \
-    Register scratch = temps.Acquire();                                     \
-    __ PrepareCallCFunction(0, 2, scratch);                                 \
+    __ PrepareCallCFunction(0, 2);                                          \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
                             i.InputDoubleRegister(1));                      \
     __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2); \
@@ -469,9 +467,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    UseScratchRegisterScope temps(masm());                                     \
-    Register scratch = temps.Acquire();                                        \
-    __ PrepareCallCFunction(0, 1, scratch);                                    \
+    __ PrepareCallCFunction(0, 1);                                             \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
     /* Move the result in the double result register. */                       \
@@ -484,9 +480,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    UseScratchRegisterScope temps(masm());                                     \
-    Register scratch = temps.Acquire();                                        \
-    __ PrepareCallCFunction(0, 2, scratch);                                    \
+    __ PrepareCallCFunction(0, 2);                                             \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2);    \
@@ -1009,9 +1003,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ PrepareCallCFunction(num_parameters, scratch);
+      __ PrepareCallCFunction(num_parameters);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
       break;
@@ -3466,7 +3458,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Register scratch = temps.Acquire();
     __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch, r0);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
-    __ PrepareCallCFunction(1, r0);
+    __ PrepareCallCFunction(1);
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     // Restore old FP. We don't need to restore old SP explicitly, because
     // it will be restored from FP in LeaveFrame before return.

@@ -647,11 +647,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // correct alignment of the double values is not guaranteed.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
-  // Needs a scratch register to do some arithmetic. This register will be
-  // trashed.
-  void PrepareCallCFunction(int num_reg_arguments, int num_double_registers,
-                            Register scratch);
-  void PrepareCallCFunction(int num_reg_arguments, Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments,
+                            int num_double_registers = 0);
 
   // There are two ways of passing double arguments on ARM, depending on
   // whether soft or hard floating point ABI is used. These functions

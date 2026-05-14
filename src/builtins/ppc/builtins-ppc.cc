@@ -270,9 +270,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     __ mr(kCArgRegs[1], kInterpreterBytecodeOffsetRegister);
     __ mr(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     FrameScope scope(masm, StackFrame::INTERNAL);
-    UseScratchRegisterScope cfunction_temps(masm);
-    Register scratch = cfunction_temps.Acquire();
-    __ PrepareCallCFunction(4, 0, scratch);
+    __ PrepareCallCFunction(4);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
   __ Pop(code_obj);
@@ -3279,7 +3277,7 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     bool is_return = fn == ExternalReference::wasm_return_jspi_stack() ||
                      fn == ExternalReference::wasm_return_wasmfx_stack();
     int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
-    __ PrepareCallCFunction(num_args, r0);
+    __ PrepareCallCFunction(num_args);
     FrameScope scope(masm, StackFrame::MANUAL);
     if (maybe_suspender.is_valid()) {
       __ Move(kCArgRegs[num_args - 1], maybe_suspender);
@@ -3715,7 +3713,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   __ Push(trusted_instance_data);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(2, r0);
+    __ PrepareCallCFunction(2);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], target_stack);
     __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
@@ -3763,7 +3761,7 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   __ Push(exnref);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(2, r0);
+    __ PrepareCallCFunction(2);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], target_stack);
     __ CallCFunction(ExternalReference::wasm_retire_stack(), 2);
@@ -3796,7 +3794,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(!AreAliased(kCArgRegs[4], cont, arg_buffer));
     DCHECK(!AreAliased(kCArgRegs[5], arg_buffer));
-    __ PrepareCallCFunction(8, r0);
+    __ PrepareCallCFunction(8);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
     __ Move(kCArgRegs[6], arg_buffer);
@@ -3853,7 +3851,7 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
     DCHECK(!AreAliased(kCArgRegs[4], cont, target_stack_reg));
     DCHECK(!AreAliased(kCArgRegs[5], target_stack_reg));
     DCHECK(!AreAliased(kCArgRegs[7], tag, cont, target_stack_reg));
-    __ PrepareCallCFunction(9, r0);
+    __ PrepareCallCFunction(9);
     __ Move(kCArgRegs[7], arg_buffer_reg);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
@@ -4303,12 +4301,14 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   // Using r5 & r6 as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
 
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ LoadU8(scratch, __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ LoadU8(scratch, __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
+    __ CmpU32(scratch, Operand(0), r0);
+  }
 
   Label do_not_need_to_switch;
-  __ CmpU32(scratch, Operand(0), r0);
   __ bne(&do_not_need_to_switch);
 
   // Switch to central stack.
@@ -4321,7 +4321,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
     __ Push(argc_input);
     __ Push(target_input);
     __ Push(argv_input);
-    __ PrepareCallCFunction(2, r0);
+    __ PrepareCallCFunction(2);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ Move(kCArgRegs[1], kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2,
@@ -4364,7 +4364,7 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
   {
     __ Push(kReturnRegister0, kReturnRegister1);
-    __ PrepareCallCFunction(1, r0);
+    __ PrepareCallCFunction(1);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1,
                      SetIsolateDataSlots::kNo);
@@ -4525,7 +4525,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // contain the current exception, don't clobber it.
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(3, 0, r3);
+    __ PrepareCallCFunction(3);
     __ li(kCArgRegs[0], Operand::Zero());
     __ li(kCArgRegs[1], Operand::Zero());
     __ Move(kCArgRegs[2], ER::isolate_address());
@@ -4575,7 +4575,7 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     __ mr(kCArgRegs[4], fp);
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ push(kCArgRegs[3]);
-    __ PrepareCallCFunction(5, r0);
+    __ PrepareCallCFunction(5);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::wasm_grow_stack(), 5);
     __ pop(gap);
@@ -5075,7 +5075,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Allocate a new deoptimizer object.
   // Pass six arguments in r3 to r8.
-  __ PrepareCallCFunction(5, r8);
+  __ PrepareCallCFunction(5);
   __ li(r3, Operand::Zero());
   Label context_check;
   __ LoadU64(r4,
@@ -5155,7 +5155,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Compute the output frame in the deoptimizer.
   __ push(r3);  // Preserve deoptimizer object across call.
   // r3: deoptimizer object; r4: scratch.
-  __ PrepareCallCFunction(1, r4);
+  __ PrepareCallCFunction(1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
     AllowExternalCallThatCantCauseGC scope(masm);

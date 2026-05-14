@@ -967,7 +967,7 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
   push(object);
   pop(kCArgRegs[0]);
   pop(kCArgRegs[1]);
-  PrepareCallCFunction(2, r0);
+  PrepareCallCFunction(2);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
 }
 
@@ -1921,7 +1921,7 @@ void MacroAssembler::Abort(AbortReason reason) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     mov(r3, Operand(static_cast<int>(reason)));
-    PrepareCallCFunction(1, 0, r4);
+    PrepareCallCFunction(1);
     Register dst = ip;
     if (!ABI_CALL_VIA_IP) {
       dst = r4;
@@ -2221,14 +2221,15 @@ int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          int num_double_arguments,
-                                          Register scratch) {
+                                          int num_double_arguments) {
   int frame_alignment = ActivationFrameAlignment();
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots;
 
   if (frame_alignment > kSystemPointerSize) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
     mr(scratch, sp);
@@ -2247,11 +2248,6 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   // Allocate frame with required slots to make ABI work.
   li(r0, Operand::Zero());
   StoreU64WithUpdate(r0, MemOperand(sp, -stack_space * kSystemPointerSize));
-}
-
-void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          Register scratch) {
-  PrepareCallCFunction(num_reg_arguments, 0, scratch);
 }
 
 void MacroAssembler::MovToFloatParameter(DoubleRegister src) { Move(d1, src); }
@@ -5236,7 +5232,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     // Save the return value in a callee-save register.
     Register saved_result = prev_limit_reg;
     __ mr(saved_result, return_value);
-    __ PrepareCallCFunction(1, scratch);
+    __ PrepareCallCFunction(1);
     __ Move(kCArgRegs[0], ER::isolate_address());
     __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
     __ mr(return_value, saved_result);

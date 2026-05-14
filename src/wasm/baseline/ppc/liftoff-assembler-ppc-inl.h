@@ -351,7 +351,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   LiftoffRegList regs_to_save = cache_state()->used_registers;
   PushRegisters(regs_to_save);
   MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, r0);
+  PrepareCallCFunction(1);
   CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
   if (old_fp.gp() != kReturnRegister0) {
     mr(old_fp.gp(), kReturnRegister0);
@@ -379,7 +379,7 @@ void LiftoffAssembler::CheckStackShrink() {
   for (auto reg : kSimd128ReturnRegisters) regs_to_save.set(reg);
   PushRegisters(regs_to_save);
   MacroAssembler::Move(kCArgRegs[0], ExternalReference::isolate_address());
-  PrepareCallCFunction(1, r0);
+  PrepareCallCFunction(1);
   CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
   // Restore old FP. We don't need to restore old SP explicitly, because
   // it will be restored from FP in LeaveFrame before return.
@@ -3006,7 +3006,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
 
   // Now call the C function.
   constexpr int kNumCCallArgs = 1;
-  PrepareCallCFunction(kNumCCallArgs, r0);
+  PrepareCallCFunction(kNumCCallArgs);
   CallCFunction(ext_ref, kNumCCallArgs);
 
   // Move return value to the right register.
@@ -3053,7 +3053,7 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
                              ExternalReference ext_ref) {
   // First, prepare the stack for the C call.
   int num_args = static_cast<int>(args.size());
-  PrepareCallCFunction(num_args, r0);
+  PrepareCallCFunction(num_args);
 
   // Then execute the parallel register move and also move values to parameter
   // stack slots.
