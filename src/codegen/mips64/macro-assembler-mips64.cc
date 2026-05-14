@@ -4660,10 +4660,13 @@ void MacroAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
     BranchShortHelperR6(offset, nullptr);
   } else {
     BlockTrampolinePoolScope block_trampoline_pool(this);
+    CHECK(is_int30(offset));
+    // In Branch, offset refers to word offset (instruction count).
+    int32_t imm32 = static_cast<int32_t>(offset << 2);
     or_(t8, ra, zero_reg);
     nal();                                         // Read PC into ra register.
-    lui(t9, (offset & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
-    ori(t9, t9, (offset & kImm16Mask));
+    lui(t9, (imm32 & kHiMaskOf32) >> kLuiShift);   // Branch delay slot.
+    ori(t9, t9, (imm32 & kImm16Mask));
     daddu(t9, ra, t9);
     if (bdslot == USE_DELAY_SLOT) {
       or_(ra, t8, zero_reg);

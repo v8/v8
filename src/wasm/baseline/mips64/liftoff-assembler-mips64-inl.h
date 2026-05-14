@@ -383,7 +383,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // {pc_offset()}).
 
   int imm32 = pc_offset() - offset - 3 * kInstrSize;
-  patching_assembler.BranchLong(imm32);
+  patching_assembler.BranchLong(imm32 >> 2);
 
   // If the frame is bigger than the stack, we throw the stack overflow
   // exception unconditionally. Thereby we can avoid the integer overflow
@@ -414,7 +414,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // (which is a Branch now).
   int func_start_offset = offset + 7 * kInstrSize;
   imm32 = func_start_offset - pc_offset() - 3 * kInstrSize;
-  BranchLong(imm32);
+  BranchLong(imm32 >> 2);
 }
 
 void LiftoffAssembler::FinishCode() {}
