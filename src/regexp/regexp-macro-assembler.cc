@@ -201,13 +201,13 @@ Handle<ByteArray> NativeRegExpMacroAssembler::GetOrAddRangeArray(
     const ZoneList<CharacterRange>* ranges) {
   const uint32_t hash = Hash(ranges);
 
-  if (range_array_cache_.count(hash) != 0) {
-    Handle<FixedUInt16Array> range_array = range_array_cache_[hash];
+  if (auto it = range_array_cache_.find(hash); it != range_array_cache_.end()) {
+    Handle<FixedUInt16Array> range_array = it->second;
     if (Equals(ranges, range_array)) return range_array;
   }
 
   Handle<FixedUInt16Array> range_array = MakeRangeArray(isolate(), ranges);
-  range_array_cache_[hash] = range_array;
+  range_array_cache_.insert_or_assign(hash, range_array);
   return range_array;
 }
 
