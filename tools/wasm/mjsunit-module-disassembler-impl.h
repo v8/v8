@@ -974,14 +974,35 @@ class MjsunitImmediatesPrinter {
   }
 
   void MemoryAccess(MemoryAccessImmediate& imm) {
-    uint32_t align = imm.alignment;
-    if (imm.mem_index != 0) {
-      align |= 0x40;
-      WriteUnsignedLEB(align);
+    bool is_prefixed = WasmOpcodes::ExtractPrefix(owner_->current_opcode_) != 0;
+    const uint8_t* imm_pc = owner_->pc() + (is_prefixed ? 2 : 1);
+
+    uint32_t raw_flags = owner_->read_u32v<ValidationTag>(imm_pc).first;
+
+    WriteUnsignedLEB(raw_flags);
+
+    if (raw_flags & 0x40) {
       WriteUnsignedLEB(imm.mem_index);
-    } else {
-      WriteUnsignedLEB(align);
     }
+
+    if (raw_flags & 0x20) {
+      if (imm.memory_order == AtomicMemoryOrder::kAcqRel) {
+        if (WasmOpcodes::IsAtomicRmwOpcode(owner_->current_opcode_)) {
+          out_ << " kAtomicAcqRel + (kAtomicAcqRel << 4),";
+        } else {
+          out_ << " kAtomicAcqRel,";
+        }
+      } else if (imm.memory_order == AtomicMemoryOrder::kSeqCst) {
+        if (WasmOpcodes::IsAtomicRmwOpcode(owner_->current_opcode_)) {
+          out_ << " kAtomicSeqCst + (kAtomicSeqCst << 4),";
+        } else {
+          out_ << " kAtomicSeqCst,";
+        }
+      } else {
+        out_ << " /* INVALID */ " << static_cast<int>(imm.memory_order) << ",";
+      }
+    }
+
     if (imm.mem_index < owner_->module_->memories.size() &&
         owner_->module_->memories[imm.mem_index].is_memory64()) {
       WriteLEB64(imm.offset);
