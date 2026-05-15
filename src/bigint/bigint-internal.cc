@@ -134,6 +134,7 @@ void ProcessorImpl::CachedMod_MakeInverse(Digits& B) {
   // Use the cached copy of B now, just to prevent any confusion arising
   // from concurrent mutation.
   Digits& cached_B = GetCachedDivisor();
+  CHECK(cached_B.msd() != 0);  // {B} must have been canonicalized.
   // We can't use {GetSmallScratch()} here, because {DivideSchoolbook} already
   // does that (usually). It's fine because we don't expect to call this
   // function very often.
