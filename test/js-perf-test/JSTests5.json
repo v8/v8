@@ -652,6 +652,14 @@
             {"name": "JSLoop"},
             {"name": "PureJSLoop"}
           ]
+        },
+        {
+          "name": "AdditiveSafeIntFeedback",
+          "main": "run.js",
+          "flags": [],
+          "resources": ["additiveSafeIntFeedback.js"],
+          "test_flags": ["additiveSafeIntFeedback"],
+          "results_regexp": "^AdditiveSafeIntFeedback\\-TurboFan\\(Score\\): (.+)$"
         }
       ]
     },

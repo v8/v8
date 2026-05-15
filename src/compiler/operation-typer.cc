@@ -66,6 +66,8 @@ Type OperationTyper::WeakenRange(Type previous_range, Type current_range) {
                                             -140737488355328.0,
                                             -281474976710656.0,
                                             -562949953421312.0,
+                                            -1125899906842624.0,
+                                            kMinAdditiveSafeIntegerFeedback,
                                             kMinAdditiveSafeInteger};
   static const double kWeakenMaxLimits[] = {0.0,
                                             1073741823.0,
@@ -88,6 +90,8 @@ Type OperationTyper::WeakenRange(Type previous_range, Type current_range) {
                                             140737488355327.0,
                                             281474976710655.0,
                                             562949953421311.0,
+                                            1125899906842623.0,
+                                            kMaxAdditiveSafeIntegerFeedback,
                                             kMaxAdditiveSafeInteger};
   static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
