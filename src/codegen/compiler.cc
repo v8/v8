@@ -2203,6 +2203,26 @@ class ConstantPoolPointerForwarder {
     }
   }
 
+  void UpdateStandaloneScopeInfo(Tagged<ScopeInfo> scope_info) {
+    if (!v8_flags.reuse_scope_infos) return;
+    if (!scope_info->HasOuterScopeInfo()) return;
+
+    Tagged<ScopeInfo> parent = scope_info;
+    Tagged<ScopeInfo> outer_info = scope_info->OuterScopeInfo();
+
+    auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
+    while (it == scope_infos_to_update_.end()) {
+      if (!outer_info->HasOuterScopeInfo()) return;
+      parent = outer_info;
+      outer_info = outer_info->OuterScopeInfo();
+      it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
+    }
+    if (outer_info == *it->second) return;
+
+    VerifyScopeInfo(outer_info, *it->second);
+    parent->set_outer_scope_info(*it->second);
+  }
+
  private:
   void VerifyScopeInfo(Tagged<ScopeInfo> scope_info,
                        Tagged<ScopeInfo> replacement) {
@@ -2521,6 +2541,12 @@ void BackgroundMergeTask::BeginMergeInBackground(
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }
       }
+    } else if (maybe_new_sfi.IsWeak() &&
+               Is<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
+      if (!maybe_old_info.IsWeak()) {
+        used_new_scope_infos_.push_back(local_heap->NewPersistentHandle(
+            Cast<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())));
+      }
     }
 
     if (maybe_old_info.IsWeak()) {
@@ -2614,6 +2640,9 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       if (new_sfi->HasBytecodeArray()) {
         forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
       }
+    }
+    for (DirectHandle<ScopeInfo> new_scope : used_new_scope_infos_) {
+      forwarder.UpdateStandaloneScopeInfo(*new_scope);
     }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
       // Unconditionally track the new_compiled_data for updating, even if we
