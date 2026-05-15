@@ -2538,12 +2538,16 @@ group("v8_abseil") {
     "//third_party/abseil-cpp:absl_define_config",
     "//third_party/abseil-cpp:absl_include_config",
   ]
+
+  visibility = [ "./*" ]
 }
 
 group("zoslib") {
   if (current_os == "zos") {
     deps = [ "//third_party/zoslib" ]
   }
+
+  visibility = [ "./*" ]
 }
 
 v8_header_set("torque_runtime_support") {
