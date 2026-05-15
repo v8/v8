@@ -1234,9 +1234,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
 
   CatchBlockDetails catch_details;
   if (node->exception_handler_info()->HasExceptionHandler()) {
+    int depth = node->exception_handler_info()->ShouldLazyDeopt()
+                    ? 0
+                    : node->exception_handler_info()->depth() + 1;
     catch_details = {node->exception_handler_info()->catch_block_ref_address(),
                      !node->exception_handler_info()->ShouldLazyDeopt(), true,
-                     0};
+                     depth};
   }
 
   int bytecode_length = shared.GetBytecodeArray(broker()).length();
