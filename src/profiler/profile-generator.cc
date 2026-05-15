@@ -5,6 +5,7 @@
 #include "src/profiler/profile-generator.h"
 
 #include <algorithm>
+#include <atomic>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -270,7 +271,15 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
 
 CodeEntry::RareData* CodeEntry::EnsureRareData() {
   if (!rare_data_) {
-    rare_data_.reset(new RareData());
+    // On platforms with store-store reordering, we need to ensure that the
+    // field initializations in RareData complete before the pointer (in the
+    // std::unique_ptr) becomes visible. Using an std::atomic for rare_data_
+    // would also work, but would penalize every read, also on platforms with
+    // no store-store reordering (like x64).
+    // See http://crbug.com/513435594 for additional details.
+    RareData* rare_data = new RareData();
+    std::atomic_thread_fence(std::memory_order_release);
+    rare_data_.reset(rare_data);
   }
   return rare_data_.get();
 }
