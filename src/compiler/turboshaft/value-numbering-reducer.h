@@ -146,6 +146,11 @@ class ValueNumberingReducer : public Next {
       /* We don't want to GVN comments. */
       return false;
     }
+    if constexpr (std::is_same_v<Op, PendingLoopPhiOp>) {
+      // Cannot GVN PendingLoopPhis because we are missing the backedge input.
+      return false;
+    }
+    if constexpr (IsBlockTerminator(opcode)) return false;
 #if V8_ENABLE_WEBASSEMBLY
     if constexpr (opcode == Opcode::kStringPrepareForGetCodeUnit) {
       // StringPrepareForGetCodeUnit depends on string shapes, which can be
@@ -282,7 +287,7 @@ class ValueNumberingReducer : public Next {
     bool IsEmpty() const { return hash == 0; }
   };
 
-  bool CanGVN(OpEffects effects) {
+  bool EffectsAllowGVN(OpEffects effects) {
     return effects.IsSubsetOf(OpEffects()
                                   .CanDependOnChecks()
                                   .CanChangeControlFlow()
@@ -291,12 +296,7 @@ class ValueNumberingReducer : public Next {
   }
 
   template <class Op>
-  bool CanGVN(const Op& op) {
-    if constexpr (std::is_same_v<Op, PendingLoopPhiOp>) {
-      // Cannot GVN PendingLoopPhis because we are missing the backedge input.
-      return false;
-    }
-    if (op.IsBlockTerminator()) return false;
+  bool EffectsAllowGVN(const Op& op) {
     if constexpr (std::is_same_v<Op, DeoptimizeIfOp>) {
       // GVNing DeoptimizeIf even though its effect would otherwise prevent it.
       return true;
@@ -312,7 +312,7 @@ class ValueNumberingReducer : public Next {
         return false;
       }
     }
-    return CanGVN(op.Effects());
+    return EffectsAllowGVN(op.Effects());
   }
 
   template <class Op>
@@ -320,7 +320,7 @@ class ValueNumberingReducer : public Next {
     if (is_disabled()) return op_idx;
 
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
-    if (!CanGVN(op)) {
+    if (!EffectsAllowGVN(op)) {
       // GVNing DeoptimizeIf is safe, despite the fact that it has the CanDeopt
       // property, which implies CanLeaveCurrentFunction, which is generally not
       // safe to GVN.
