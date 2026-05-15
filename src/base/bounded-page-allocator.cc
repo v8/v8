@@ -213,6 +213,9 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
     // When we are required to return zero-initialized pages, we decommit the
     // pages here, which will cause any wired pages to be removed by the OS.
     success = page_allocator_->DecommitPages(raw_address, size);
+    // Since we require zero-initialized pages, we must fail here if we cannot
+    // decomitt the range.
+    CHECK(success);
   } else {
     switch (page_freeing_mode_) {
       case PageFreeingMode::kMakeInaccessible:
