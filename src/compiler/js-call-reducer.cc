@@ -1789,6 +1789,12 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
   GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
          &slow_label);
 
+  if (v8_flags.turbo_typer_hardening) {
+    original_length =
+        CheckBounds(original_length, NumberConstant(kMaxInlineSortSize + 1),
+                    CheckBoundsFlag::kAbortOnOutOfBounds);
+  }
+
   // Fast path: inline insertion sort on a temporary FixedArray.
   {
     // Allocate a temporary FixedArray of kMaxInlineSortSize.  We always
