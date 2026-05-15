@@ -1047,9 +1047,53 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   }
 }
 
-void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+namespace {
 
-void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
+  Loong64OperandGenerator g(selector);
+  const auto& op = selector->Get(node).Cast<Word64AddSub128BinopOp>();
+
+  OptionalV<Word64> out_low = selector->FindProjection(node, 0);
+  OptionalV<Word64> out_high = selector->FindProjection(node, 1);
+
+  InstructionCode opcode = is_add ? kLoong64Add128 : kLoong64Sub128;
+  InstructionCode opcode_no_high = is_add ? kLoong64Add_d : kLoong64Sub_d;
+
+  DCHECK(out_low.valid());
+
+  if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
+    InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
+    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                   g.UseRegister(op.left_low()), b_low_op);
+    return;
+  }
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+
+  inputs[input_count++] = is_add ? g.UseUniqueRegister(op.left_low())
+                                 : g.UseRegister(op.left_low());
+  inputs[input_count++] = g.UseOperand(op.right_low(), kLoong64Add_d);
+
+  inputs[input_count++] = g.UseUniqueRegister(op.left_high());
+  inputs[input_count++] = g.UseUniqueRegister(op.right_high());
+
+  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] = g.DefineAsRegister(out_high.value());
+
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+}
+}  // namespace
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) {
+  VisitWideAddSub(this, node, true);
+}
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) {
+  VisitWideAddSub(this, node, false);
+}
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Loong64OperandGenerator g(this);

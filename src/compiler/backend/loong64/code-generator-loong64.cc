@@ -1384,6 +1384,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputOperand(1), t8);
       break;
     }
+    case kLoong64Add128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      DCHECK(!AreAliased(i.OutputRegister(0), i.OutputRegister(1),
+                         i.InputRegister(0)));
+      __ Add_d(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Add_d(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Sltu(scratch, i.OutputRegister(0), i.InputRegister(0));
+      __ Add_d(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kLoong64Sub_w:
       __ Sub_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1394,6 +1405,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ SubOverflow_d(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
+    case kLoong64Sub128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Sltu(scratch, i.InputRegister(0), i.InputOperand(1));
+      __ Sub_d(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Sub_d(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Sub_d(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kLoong64Mul_w:
       __ Mul_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;

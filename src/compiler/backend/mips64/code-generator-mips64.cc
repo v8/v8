@@ -1021,6 +1021,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DaddOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
+    case kMips64Add128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      CHECK(!AreAliased(i.OutputRegister(0), i.OutputRegister(1),
+                        i.InputRegister(0)));
+      __ Daddu(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Daddu(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Sltu(scratch, i.OutputRegister(0), i.InputRegister(0));
+      __ Daddu(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kMips64Sub:
       __ Subu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1031,6 +1042,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DsubOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
+    case kMips64Sub128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Sltu(scratch, i.InputRegister(0), i.InputOperand(1));
+      __ Dsubu(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Dsubu(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Dsubu(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kMips64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1078,6 +1098,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Dmul:
       __ Dmul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kMips64DmulWide:
+      __ dmult(i.InputRegister(0), i.InputRegister(1));
+      __ mflo(i.OutputRegister(0));
+      if (instr->OutputCount() > 1) __ mfhi(i.OutputRegister(1));
+      break;
+    case kMips64DmuluWide:
+      __ dmultu(i.InputRegister(0), i.InputRegister(1));
+      __ mflo(i.OutputRegister(0));
+      if (instr->OutputCount() > 1) __ mfhi(i.OutputRegister(1));
       break;
     case kMips64Ddiv:
       __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));

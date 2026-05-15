@@ -760,12 +760,78 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionCode opcode = is_signed ? kMips64DmulWide : kMips64DmuluWide;
+
+  inputs[input_count++] = g.UseRegister(op.left());
+  inputs[input_count++] = g.UseRegister(op.right());
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    outputs[output_count++] = g.DefineAsRegister(out_high.value());
+  }
+  Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+namespace {
 
-void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
+  Mips64OperandGenerator g(selector);
+  const auto& op = selector->Get(node).Cast<Word64AddSub128BinopOp>();
+
+  OptionalV<Word64> out_low = selector->FindProjection(node, 0);
+  OptionalV<Word64> out_high = selector->FindProjection(node, 1);
+
+  InstructionCode opcode = is_add ? kMips64Add128 : kMips64Sub128;
+  InstructionCode opcode_no_high = is_add ? kMips64Dadd : kMips64Dsub;
+
+  DCHECK(out_low.valid());
+
+  if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
+    InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
+    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                   g.UseRegister(op.left_low()), b_low_op);
+    return;
+  }
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+
+  inputs[input_count++] = is_add ? g.UseUniqueRegister(op.left_low())
+                                 : g.UseRegister(op.left_low());
+  inputs[input_count++] = g.UseOperand(op.right_low(), kMips64Dadd);
+
+  inputs[input_count++] = g.UseUniqueRegister(op.left_high());
+  inputs[input_count++] = g.UseUniqueRegister(op.right_high());
+
+  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] = g.DefineAsRegister(out_high.value());
+
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+}
+}  // namespace
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) {
+  VisitWideAddSub(this, node, true);
+}
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) {
+  VisitWideAddSub(this, node, false);
+}
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Mips64OperandGenerator g(this);
