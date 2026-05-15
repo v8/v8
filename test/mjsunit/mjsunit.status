@@ -2052,7 +2052,9 @@
 ['simulator_run and arch == ppc64', {
   # Slow tests
   'wasm/wasm-interpreter': [PASS, SLOW],
-  'regress/regress-499721612': [SKIP]
+  'regress/regress-499721612': [SKIP],
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/zlib': [SKIP]
 }],  # 'simulator_run and arch == ppc64'
 
 ##############################################################################
