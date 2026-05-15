@@ -1201,7 +1201,9 @@ class CallSiteBuilder {
   bool AppendDeferredFrame(JavaScriptFrame* frame, int deferred_flag) {
     if (Full()) return false;
     DirectHandle<JSFunction> function(frame->function(), isolate_);
-    if (!IsVisibleInStackTrace(function)) {
+    if (!function->native_context()->HasSameSecurityTokenAs(
+            isolate_->context()) ||
+        !IsVisibleInStackTrace(function)) {
       skipped_prev_frame_ = true;
       return true;
     }
