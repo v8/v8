@@ -76,11 +76,10 @@ class InliningTree : public ZoneObject {
   }
 
   double score() const {
-    // '0' can only happen for imported or invalid functions. Every valid
-    // declared function has to have size at least 2 (locals count, kExprEnd).
+    // '0' can only happen for imported functions. Every valid declared
+    // function has to have size at least 2 (locals count, kExprEnd).
     DCHECK_IMPLIES(wire_byte_size_ == 0,
-                   function_index_ < data_->module->num_imported_functions ||
-                       !data_->module->function_was_validated(function_index_));
+                   function_index_ < data_->module->num_imported_functions);
     return wire_byte_size_ == 0 ? 0.0 : relative_call_count_ / wire_byte_size_;
   }
 

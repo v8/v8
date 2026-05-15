@@ -353,39 +353,26 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
+  int func_index = args.smi_value_at(1);
+  // Note: This runtime function *must not* cause a GC, because the calling
+  // builtin (also called "WasmCompileLazy") spilled all arguments to the call
+  // but those are never visited by GC.
+  DisallowGarbageCollection no_gc;
+  Tagged<WasmTrustedInstanceData> trusted_instance_data =
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
+
+  TRACE_EVENT("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   // A raw pointer is fine here, as the native module is kept alive by the
   // caller implicitly (via the `WasmTrustedInstanceData`).
-  wasm::NativeModule* native_module;
-  int func_index = args.smi_value_at(1);
-  {
-    // Note: When returning normally, this runtime function *must not* cause a
-    // GC, because the calling builtin (also called "WasmCompileLazy") spilled
-    // all arguments to the call but those are never visited by GC.
-    DisallowGarbageCollection no_gc;
-    Tagged<WasmTrustedInstanceData> trusted_instance_data =
-        TrustedCast<WasmTrustedInstanceData>(args[0]);
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
 
-    TRACE_EVENT("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
-    native_module = trusted_instance_data->native_module();
-
-    DCHECK(isolate->context().is_null());
-    DCHECK(trusted_instance_data->has_native_context());
-    isolate->set_context(trusted_instance_data->native_context());
-    bool success = wasm::CompileLazy(isolate, native_module, func_index);
-    native_module->counter_updates()->Publish(isolate);
-    if (success) {
-      return Smi::FromInt(
-          wasm::JumpTableOffset(native_module->module(), func_index));
-    }
-  }
-
-  // Lazy compilation can only fail if lazy validation is enabled.
-  DCHECK(v8_flags.wasm_lazy_validation);
-  // Note: This throws the error via the `ErrorThrower` which comes with its own
-  // HandleScope.
-  wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
-  DCHECK(isolate->has_exception());
-  return ReadOnlyRoots{isolate}.exception();
+  DCHECK(isolate->context().is_null());
+  DCHECK(trusted_instance_data->has_native_context());
+  isolate->set_context(trusted_instance_data->native_context());
+  wasm::CompileLazy(isolate, native_module, func_index);
+  native_module->counter_updates()->Publish(isolate);
+  return Smi::FromInt(
+      wasm::JumpTableOffset(native_module->module(), func_index));
 }
 
 namespace {

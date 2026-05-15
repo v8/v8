@@ -846,12 +846,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // from asm.js.
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
 
-  // {validated_functions} is atomically updated when functions get validated
-  // (during compilation, streaming decoding, or via explicit validation).
-  static_assert(sizeof(std::atomic<uint8_t>) == 1);
-  static_assert(alignof(std::atomic<uint8_t>) == 1);
-  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
-
   // ================ Constructors =============================================
   explicit WasmModule(ModuleOrigin = kWasmOrigin);
   WasmModule(const WasmModule&) = delete;
@@ -1001,44 +995,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   SharedFlag function_is_shared(int func_index) const {
     return type(functions[func_index].sig_index).is_shared;
-  }
-
-  bool function_was_validated(int func_index) const {
-    DCHECK_NOT_NULL(validated_functions);
-    static_assert(sizeof(validated_functions[0]) == 1);
-    DCHECK_LE(num_imported_functions, func_index);
-    int pos = func_index - num_imported_functions;
-    DCHECK_LE(pos, num_declared_functions);
-    uint8_t byte =
-        validated_functions[pos >> 3].load(std::memory_order_relaxed);
-    DCHECK_IMPLIES(origin != kWasmOrigin, byte == 0xff);
-    return byte & (1 << (pos & 7));
-  }
-
-  void set_function_validated(int func_index) const {
-    DCHECK_EQ(kWasmOrigin, origin);
-    DCHECK_NOT_NULL(validated_functions);
-    DCHECK_LE(num_imported_functions, func_index);
-    int pos = func_index - num_imported_functions;
-    DCHECK_LE(pos, num_declared_functions);
-    std::atomic<uint8_t>* atomic_byte = &validated_functions[pos >> 3];
-    uint8_t old_byte = atomic_byte->load(std::memory_order_relaxed);
-    uint8_t new_bit = 1 << (pos & 7);
-    while ((old_byte & new_bit) == 0 &&
-           !atomic_byte->compare_exchange_weak(old_byte, old_byte | new_bit,
-                                               std::memory_order_relaxed)) {
-      // Retry with updated {old_byte}.
-    }
-  }
-
-  void set_all_functions_validated() const {
-    DCHECK_EQ(kWasmOrigin, origin);
-    if (num_declared_functions == 0) return;
-    DCHECK_NOT_NULL(validated_functions);
-    size_t num_words = (num_declared_functions + 7) / 8;
-    for (size_t i = 0; i < num_words; ++i) {
-      validated_functions[i].store(0xff, std::memory_order_relaxed);
-    }
   }
 
   base::Vector<const WasmFunction> declared_functions() const {

@@ -773,7 +773,6 @@
 
   # --wasm-lazy-validation
   'regress/wasm/regress-334687959': [SKIP],
-  'regress/wasm/regress-366350766': [SKIP],
   'regress/wasm/regress-441221187': [SKIP],
   'regress/wasm/regress-505124865': [SKIP],
 
@@ -889,8 +888,6 @@
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
-  'wasm/regress-488803428': [SKIP],
-  'wasm/regress-510650967': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 

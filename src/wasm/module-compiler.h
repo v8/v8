@@ -67,15 +67,8 @@ std::shared_ptr<wasm::WasmWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
     int expected_arity, Suspend suspend);
 
-// Triggered by the WasmCompileLazy builtin. The return value indicates whether
-// compilation was successful. Lazy compilation can fail only if validation is
-// also lazy.
-bool CompileLazy(Isolate*, NativeModule*, int func_index);
-
-// Throws the compilation error after failed lazy compilation.
-void ThrowLazyCompilationError(Isolate* isolate,
-                               const NativeModule* native_module,
-                               int func_index);
+// Triggered by the WasmCompileLazy builtin.
+void CompileLazy(Isolate*, NativeModule*, int func_index);
 
 // Trigger tier-up of a particular function to TurboFan. If tier-up was already
 // triggered, we instead increase the priority with exponential back-off.

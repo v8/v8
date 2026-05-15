@@ -38,30 +38,23 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   base::ElapsedTimer compile_timer;
   if (base::TimeTicks::IsHighResolution()) compile_timer.Start();
 
-  // Before executing compilation, make sure that the function was validated.
-  // Both Liftoff and TurboFan compilation do not perform validation, so can
-  // only run on valid functions.
-  if (V8_UNLIKELY(!env->module->function_was_validated(func_index_))) {
-    // This code path can only be reached in
-    // - eager compilation mode,
-    // - with lazy validation,
-    // - with PGO (which compiles some functions eagerly), or
-    // - with compilation hints (which compiles some functions eagerly).
-    DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
-           v8_flags.experimental_wasm_pgo_from_file ||
-           v8_flags.experimental_wasm_compilation_hints);
+  if (v8_flags.trace_wasm_compiler) {
+    PrintF("Compiling wasm function %d with %s\n", func_index_,
+           ExecutionTierToString(tier_));
+  }
+
+  // When we compile functions while streaming a module, we let the compile
+  // task also take care of validation. See {DecodeWasmModule} for an overview.
+  // In the rare case when we create both a Liftoff and a Turbofan compilation
+  // task up front, we currently validate twice; this is not expected to occur
+  // in production.
+  if (validation_ == Validation::kMustValidate) {
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)
             .failed()) {
       return {};
     }
-    env->module->set_function_validated(func_index_);
-  }
-
-  if (v8_flags.trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d with %s\n", func_index_,
-           ExecutionTierToString(tier_));
   }
 
   WasmCompilationResult result;
@@ -188,7 +181,8 @@ void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
-  WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging);
+  WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging,
+                           Validation::kAlreadyValidated);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::FlushDenormalsScope disable_denormals(
       tier == ExecutionTier::kTurbofan &&

@@ -1335,13 +1335,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
       // OOBs are expected when using --mock-arraybuffer-allocator.
       RESET_WHEN_FUZZING(mock_arraybuffer_allocator),
-
-#if V8_ENABLE_WEBASSEMBLY
-      // https://crbug.com/448681081
-      // Lazy validation does change whether or when exceptions are thrown for
-      // invalid function bodies.
-      RESET_WHEN_CORRECTNESS_FUZZING(wasm_lazy_validation),
-#endif  // V8_ENABLE_WEBASSEMBLY
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

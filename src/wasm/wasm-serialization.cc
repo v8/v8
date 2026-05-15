@@ -448,7 +448,6 @@ size_t NativeModuleSerializer::Measure() {
       // From {NativeModuleSerializer::WriteHeader}:
       sizeof(WasmDetectedFeatures::StorageType) +
       sizeof(size_t) +  // total code size
-      sizeof(bool) +    // all functions validated
       import_statuses_.size() * sizeof(WellKnownImport);
 
   // From {WriteCode}, called repeatedly.
@@ -469,28 +468,13 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
 
   // Serialize the set of detected features; this contains
   // - all features detected during module decoding,
-  // - all features detected during function body decoding (if lazy validation
-  //   is disabled), and
+  // - all features detected during function body decoding, and
   // - some features detected during compilation; some might still be missing
   //   because installing code and publishing detected features is not atomic.
   writer->Write(
       native_module_->compilation_state()->detected_features().ToIntegral());
 
   writer->Write(total_code_size);
-
-  // We do not ship lazy validation, so in most cases all functions will be
-  // validated. Thus only write out a single bit instead of serializing the
-  // information per function.
-  const bool fully_validated = !v8_flags.wasm_lazy_validation;
-  writer->Write(fully_validated);
-#ifdef DEBUG
-  if (fully_validated) {
-    const WasmModule* module = native_module_->module();
-    for (auto& function : module->declared_functions()) {
-      DCHECK(module->function_was_validated(function.func_index));
-    }
-  }
-#endif
 
   writer->WriteVector(base::VectorOf(import_statuses_));
 }
@@ -837,7 +821,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
-  bool all_functions_validated_ = false;
   base::Vector<uint8_t> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
@@ -919,10 +902,6 @@ void NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
 
-  if (all_functions_validated_) {
-    native_module_->module()->set_all_functions_validated();
-  }
-
   WasmCodeRefScope wasm_code_ref_scope;
 
   DeserializationQueue reloc_queue;
@@ -984,8 +963,6 @@ void NativeModuleDeserializer::ReadHeader(Reader* reader) {
 
   remaining_code_size_ = reader->Read<size_t>();
 
-  all_functions_validated_ = reader->Read<bool>();
-
   uint32_t imported = native_module_->module()->num_imported_functions;
   if (imported > 0) {
     base::Vector<const WellKnownImport> well_known_imports =
@@ -1002,10 +979,6 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     lazy_functions_.push_back(fn_index);
     return {};
   }
-
-  // All other cases (kEagerFunction or actual code) mean that the function
-  // was already validated.
-  native_module_->module()->set_function_validated(fn_index);
 
   if (code_kind == kEagerFunction) {
     eager_functions_.push_back(fn_index);

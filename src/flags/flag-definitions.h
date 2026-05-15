@@ -2200,10 +2200,6 @@ DEFINE_BOOL(wasm_lazy_compilation, true,
             "enable lazy compilation for all wasm modules")
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_lazy_validation,
-    "enable lazy validation for lazily compiled wasm functions")
-DEFINE_WEAK_IMPLICATION(wasm_lazy_validation, wasm_lazy_compilation)
 
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_DEVELOPER_FLAG(trace_wasm_code_gc,
@@ -2324,7 +2320,6 @@ DEFINE_NEG_IMPLICATION(wasm_jitless, validate_asm)
 // --wasm-jitless resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_jitless, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_lazy_validation)
 DEFINE_NEG_IMPLICATION(wasm_jitless, wasm_tier_up)
 
 // --wasm-enable-exec-time-histograms works both in jitted and jitless mode

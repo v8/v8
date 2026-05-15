@@ -236,14 +236,6 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
     // structs from moving.
     module_->functions.reserve(kMaxFunctions);
-    DCHECK_NULL(module_->validated_functions);
-    module_->validated_functions =
-        std::make_unique<std::atomic<uint8_t>[]>((kMaxFunctions + 7) / 8);
-    if (is_asmjs_module(module_.get())) {
-      // All asm.js functions are valid by design.
-      std::fill_n(module_->validated_functions.get(), (kMaxFunctions + 7) / 8,
-                  0xff);
-    }
     module_->type_feedback.well_known_imports.Initialize(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(module_->functions.size());
@@ -566,7 +558,6 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
       FATAL("Validation failed: %s",
             validation_result.error().message().c_str());
     }
-    env.module->set_function_validated(function_->func_index);
   }
 
   if (v8_flags.wasm_jitless) return;
@@ -582,7 +573,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
                        .max_steps = builder_->max_steps_ptr()}));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
-                             for_debugging);
+                             for_debugging, Validation::kAlreadyValidated);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
         native_module->counter_updates(), &unused_detected_features));

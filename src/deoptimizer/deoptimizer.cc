@@ -996,24 +996,6 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   wasm::ForDebugging for_debugging = v8_flags.wasm_code_coverage
                                          ? wasm::ForDebugging::kForDebugging
                                          : wasm::ForDebugging::kNotForDebugging;
-  if (V8_UNLIKELY(v8_flags.wasm_lazy_validation &&
-                  !env.module->function_was_validated(function_index))) {
-    // This can only happen for inlined functions whose caller was deserialized
-    // from a code cache. Example: A statically calls B, B dynamically calls C,
-    // B was inlined into A (and had no standalone code), A was restored from
-    // cache, the call to C causes a deopt. In that case, the deserializer will
-    // mark A as validated, but it won't know anything about B. When we deopt,
-    // we need to compile code for B here. B must have been validated before
-    // (in the instance that created the code cache), so this can't fail.
-    wasm::WasmDetectedFeatures unused_detected_features;
-    Zone validation_zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME);
-    wasm::DecodeResult validation_result =
-        ValidateFunctionBody(&validation_zone, env.enabled_features, env.module,
-                             &unused_detected_features, body);
-    CHECK_WITH_MSG(validation_result.ok(),
-                   validation_result.error().message().c_str());
-    env.module->set_function_validated(function_index);
-  }
   wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
       &env, body,
       wasm::LiftoffOptions{.func_index = function_index,

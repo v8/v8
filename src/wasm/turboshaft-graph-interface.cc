@@ -9429,35 +9429,6 @@ class TurboshaftGraphBuildingInterface
         inlinee.sig, inlinee.code.offset(), function_bytes.begin(),
         function_bytes.end(), inlinee_is_shared};
 
-    // If the inlinee was not validated before, do that now.
-    if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
-      if (ValidateFunctionBody(decoder->zone_, decoder->enabled_,
-                               decoder->module_, decoder->detected_,
-                               inlinee_body)
-              .failed()) {
-        // At this point we cannot easily raise a compilation error any more.
-        // Since this situation is highly unlikely though, we just ignore this
-        // inlinee, emit a regular call, and move on. The same validation error
-        // will be triggered again when actually compiling the invalid function.
-        V<WordPtr> callee =
-            __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
-        if (is_tail_call) {
-          BuildWasmMaybeReturnCall(
-              decoder, sig, callee,
-              trusted_instance_data(
-                  decoder->module_->function_is_shared(func_index)),
-              args);
-        } else {
-          BuildWasmCall(decoder, sig, callee,
-                        trusted_instance_data(
-                            decoder->module_->function_is_shared(func_index)),
-                        args, returns);
-        }
-        return;
-      }
-      decoder->module_->set_function_validated(func_index);
-    }
-
     BlockPhis fresh_return_phis(decoder->zone_);
 
     Mode inlinee_mode;
@@ -9543,7 +9514,7 @@ class TurboshaftGraphBuildingInterface
           no_liftoff_inlining_budget_);
     }
     inlinee_decoder.Decode();
-    // The function was already validated above.
+    // The function was already validated, so decoding cannot fail.
     DCHECK(inlinee_decoder.ok());
 
     DCHECK_IMPLIES(!is_tail_call && inlinee_mode == kInlinedWithCatch,
@@ -9646,6 +9617,12 @@ class TurboshaftGraphBuildingInterface
     // TODO(42204563,41480394,335082212): Do not inline if the current function
     // is shared (which also implies the target cannot be shared either).
     if (shared_ == SharedFlag::kYes) return false;
+    // Some of our cctests compile functions eagerly when defining them
+    // (see {WasmFunctionCompiler::Build}); their callees might not exist yet.
+    // All valid functions have size >= 2 (number of locals, kExprEnd).
+    // TODO(jkummerow): Bring testing infrastructure closer to production code
+    // to avoid this special case.
+    if (size == 0) return false;
 
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
       if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
@@ -9867,7 +9844,6 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data) {
-  DCHECK(env->module->function_was_validated(func_index));
   Zone zone(data->allocator(), ZONE_NAME);
   Assembler assembler(data, graph, graph, &zone);
   WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,

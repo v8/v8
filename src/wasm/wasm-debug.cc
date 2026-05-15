@@ -257,19 +257,6 @@ class DebugInfoImpl {
 
     // Debug side tables for stepping are generated lazily.
     bool generate_debug_sidetable = for_debugging == kWithBreakpoints;
-    // If lazy validation is on, we might need to lazily validate here.
-    if (V8_UNLIKELY(!env.module->function_was_validated(func_index))) {
-      WasmDetectedFeatures unused_detected_features;
-      Zone validation_zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME);
-      DecodeResult validation_result =
-          ValidateFunctionBody(&validation_zone, env.enabled_features,
-                               env.module, &unused_detected_features, body);
-      // Handling illegal modules here is tricky. As lazy validation is off by
-      // default anyway and this is for debugging only, we just crash for now.
-      CHECK_WITH_MSG(validation_result.ok(),
-                     validation_result.error().message().c_str());
-      env.module->set_function_validated(func_index);
-    }
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         &env, body,
         LiftoffOptions{.func_index = func_index,
@@ -926,26 +913,6 @@ size_t DebugInfo::EstimateCurrentMemoryConsumption() const {
 
 namespace {
 
-bool EnsureFunctionValidated(const wasm::NativeModule* native_module,
-                             int func_index, Zone* zone) {
-  const wasm::WasmModule* module = native_module->module();
-  if (V8_LIKELY(module->function_was_validated(func_index))) return true;
-
-  const wasm::WasmFunction& func = module->functions[func_index];
-  const uint8_t* module_start = native_module->wire_bytes().begin();
-  wasm::WasmDetectedFeatures unused_detected_features;
-  wasm::FunctionBody body{func.sig, func.code.offset(),
-                          module_start + func.code.offset(),
-                          module_start + func.code.end_offset(),
-                          module->type(func.sig_index).is_shared};
-  wasm::DecodeResult validation_result =
-      wasm::ValidateFunctionBody(zone, native_module->enabled_features(),
-                                 module, &unused_detected_features, body);
-  if (V8_UNLIKELY(validation_result.failed())) return false;
-  module->set_function_validated(func_index);
-  return true;
-}
-
 // Return the next breakable position at or after {offset_in_func} in function
 // {func_index}, or 0 if there is none.
 // Note that 0 is never a breakable position in wasm, since the first byte
@@ -953,10 +920,6 @@ bool EnsureFunctionValidated(const wasm::NativeModule* native_module,
 int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
                               int offset_in_func) {
   Zone zone{wasm::GetWasmEngine()->allocator(), ZONE_NAME};
-  if (V8_UNLIKELY(!EnsureFunctionValidated(native_module, func_index, &zone))) {
-    return 0;
-  }
-
   wasm::BodyLocalDecls locals;
   const uint8_t* module_start = native_module->wire_bytes().begin();
   const wasm::WasmFunction& func =
@@ -1295,10 +1258,6 @@ bool WasmScript::GetPossibleBreakpoints(
        ++func_idx) {
     const wasm::WasmFunction& func = functions[func_idx];
     if (func.code.length() == 0) continue;
-
-    if (V8_UNLIKELY(!EnsureFunctionValidated(native_module, func_idx, &zone))) {
-      return false;
-    }
 
     wasm::BodyLocalDecls locals;
     wasm::BytecodeIterator iterator(module_start + func.code.offset(),

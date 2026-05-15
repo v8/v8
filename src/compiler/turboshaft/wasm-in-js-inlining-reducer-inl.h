@@ -1102,18 +1102,6 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   auto env = wasm::CompilationEnv::ForModule(native_module);
   wasm::WasmDetectedFeatures detected{};
 
-  // Before executing compilation, make sure that the function was validated.
-  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
-    CHECK(v8_flags.wasm_lazy_validation);
-    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
-                             env.module, &detected, func_body)
-            .failed()) {
-      TRACE("- not inlining: validation failed");
-      return WasmBodyInliningResult::Failed();
-    }
-    env.module->set_function_validated(func_idx);
-  }
-
   // JS-to-Wasm wrapper inlining doesn't support multi-value at the moment,
   // so we should never reach here with more than 1 return value.
   DCHECK_LE(func.sig->return_count(), 1);

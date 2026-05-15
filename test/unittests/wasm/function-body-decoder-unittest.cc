@@ -84,9 +84,6 @@ class TestModuleBuilder {
  public:
   explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) : mod(origin) {
     mod.num_declared_functions = 1;
-    mod.validated_functions = std::make_unique<std::atomic<uint8_t>[]>(1);
-    // Asm.js functions are valid by design.
-    if (is_asmjs_module(&mod)) mod.validated_functions[0] = 0xff;
   }
   uint8_t AddGlobal(ValueType type, bool mutability = true) {
     // TODO(14616): Extend this to shared globals.

@@ -455,9 +455,6 @@ MaybeDirectHandle<WasmModuleObject> CompileReferenceModule(
       isolate, enabled_features, detected_features,
       CompileTimeImportsForFuzzing(), module, code_size_estimate);
   native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
-  // The module is known to be valid as this point (it was compiled by the
-  // caller before).
-  module->set_all_functions_validated();
 
   // The value is -3 so that it is different than the compilation ID of actual
   // compilations, different than the sentinel value of the CompilationState

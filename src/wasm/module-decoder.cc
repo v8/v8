@@ -514,13 +514,11 @@ class ValidateFunctionsTask : public JobTask {
  public:
   explicit ValidateFunctionsTask(
       base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
-      WasmEnabledFeatures enabled_features, std::function<bool(int)> filter,
-      WasmError* error_out,
+      WasmEnabledFeatures enabled_features, WasmError* error_out,
       std::atomic<WasmDetectedFeatures>* detected_features)
       : wire_bytes_(wire_bytes),
         module_(module),
         enabled_features_(enabled_features),
-        filter_(std::move(filter)),
         next_function_(module->num_imported_functions),
         after_last_function_(next_function_ + module->num_declared_functions),
         error_out_(error_out),
@@ -538,18 +536,14 @@ class ValidateFunctionsTask : public JobTask {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
       // number of functions is limited to a value much smaller than the
-      // integer range, this is near impossible to happen.
+      // integer range, overflow is near impossible to happen.
       static_assert(kV8MaxWasmTotalFunctions < kMaxInt / 2);
-      int func_index;
-      do {
-        func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
-        if (V8_UNLIKELY(func_index >= after_last_function_)) {
-          UpdateDetectedFeatures(detected_features);
-          return;
-        }
-        DCHECK_LE(0, func_index);
-      } while ((filter_ && !filter_(func_index)) ||
-               module_->function_was_validated(func_index));
+      int func_index = next_function_.fetch_add(1, std::memory_order_relaxed);
+      if (V8_UNLIKELY(func_index >= after_last_function_)) {
+        UpdateDetectedFeatures(detected_features);
+        return;
+      }
+      DCHECK_LE(0, func_index);
 
       zone.Reset();
       if (!ValidateFunction(func_index, &zone, &detected_features)) {
@@ -582,7 +576,6 @@ class ValidateFunctionsTask : public JobTask {
       SetError(func_index, std::move(validation_result).error());
       return false;
     }
-    module_->set_function_validated(func_index);
     return true;
   }
 
@@ -621,11 +614,10 @@ class ValidateFunctionsTask : public JobTask {
 WasmError ValidateFunctions(const WasmModule* module,
                             WasmEnabledFeatures enabled_features,
                             base::Vector<const uint8_t> wire_bytes,
-                            std::function<bool(int)> filter,
                             WasmDetectedFeatures* detected_features_out) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
               "wasm.ValidateFunctions", "num_declared_functions",
-              module->num_declared_functions, "has_filter", filter != nullptr);
+              module->num_declared_functions);
   DCHECK_EQ(kWasmOrigin, module->origin);
 
   class NeverYieldDelegate final : public JobDelegate {
@@ -643,8 +635,8 @@ WasmError ValidateFunctions(const WasmModule* module,
   std::atomic<WasmDetectedFeatures> detected_features;
   std::unique_ptr<JobTask> validate_job =
       std::make_unique<ValidateFunctionsTask>(
-          wire_bytes, module, enabled_features, std::move(filter),
-          &validation_error, &detected_features);
+          wire_bytes, module, enabled_features, &validation_error,
+          &detected_features);
 
   if (v8_flags.single_threaded) {
     // In single-threaded mode, run the {ValidateFunctionsTask} synchronously.

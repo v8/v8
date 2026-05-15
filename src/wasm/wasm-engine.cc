@@ -681,12 +681,11 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   std::shared_ptr<WasmModule> module;
   WasmDetectedFeatures detected_features;
   {
-    // Normally modules are validated in {CompileToNativeModule} but in jitless
-    // mode the only opportunity of validatiom is during decoding.
-    bool validate_module = v8_flags.wasm_jitless;
+    // This is where sync / sync streaming compilations validate function
+    // bodies. See {DecodeWasmModule} for an overview.
     ModuleResult result = DecodeWasmModule(
-        isolate, enabled_features, bytes.as_vector(), validate_module,
-        kWasmOrigin, DecodingMethod::kSync, &detected_features);
+        isolate, enabled_features, bytes.as_vector(), true, kWasmOrigin,
+        DecodingMethod::kSync, &detected_features);
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};

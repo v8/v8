@@ -169,21 +169,6 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   SharedFlag is_shared = module->type(inlinee.sig_index).is_shared;
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end(), is_shared);
-  // If the inlinee was not validated before, do that now.
-  if (V8_UNLIKELY(!module->function_was_validated(fct_index))) {
-    wasm::WasmDetectedFeatures unused_detected_features;
-    if (ValidateFunctionBody(graph()->zone(), enabled_features_, module,
-                             &unused_detected_features, inlinee_body)
-            .failed()) {
-      // At this point we cannot easily raise a compilation error any more.
-      // Since this situation is highly unlikely though, we just ignore this
-      // inlinee and move on. The same validation error will be triggered
-      // again when actually compiling the invalid function.
-      TRACE("- not inlining: function body is invalid");
-      return false;
-    }
-    module->set_function_validated(fct_index);
-  }
   bool result = WasmIntoJSInliner::TryInlining(
       graph()->zone(), module, mcgraph_, inlinee_body, bytes,
       source_position_table_, inlining_id);

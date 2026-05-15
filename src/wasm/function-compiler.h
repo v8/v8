@@ -27,6 +27,8 @@ namespace v8::internal::wasm {
 class NativeModule;
 struct WasmFunction;
 
+enum class Validation : bool { kAlreadyValidated, kMustValidate };
+
 // Stores assumptions that a Wasm compilation job made while executing,
 // so they can be checked for continued validity when the job finishes.
 class AssumptionsJournal {
@@ -90,8 +92,12 @@ struct WasmCompilationResult {
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
-  WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
-      : func_index_(index), tier_(tier), for_debugging_(for_debugging) {
+  WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging,
+                      Validation validation)
+      : func_index_(index),
+        tier_(tier),
+        for_debugging_(for_debugging),
+        validation_(validation) {
     DCHECK_IMPLIES(for_debugging != ForDebugging::kNotForDebugging,
                    tier_ == ExecutionTier::kLiftoff);
   }
@@ -104,6 +110,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
+  Validation validation() const { return validation_; }
 
   static void CompileWasmFunction(NativeModule*, WasmDetectedFeatures*,
                                   const WasmFunction*, ExecutionTier);
@@ -112,6 +119,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   int func_index_;
   ExecutionTier tier_;
   ForDebugging for_debugging_;
+  Validation validation_;
 };
 
 // {WasmCompilationUnit} should be trivially copyable and small enough so we can
