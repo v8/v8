@@ -1017,6 +1017,9 @@ class MaglevReducer {
   Graph* graph() const { return graph_; }
   compiler::JSHeapBroker* broker() const { return broker_; }
   LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
+  bool is_turbolev() const {
+    return graph()->compilation_info()->is_turbolev();
+  }
 
  protected:
   class LazyDeoptResultLocationScope;
