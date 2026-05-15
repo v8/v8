@@ -1515,6 +1515,7 @@ void ExternalString::DisposeResource(Isolate* isolate) {
     if (!IsShared() && !HeapLayout::InWritableSharedSpace(this)) {
       resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     }
+    DisableGCMole no_gc_mole;
     resource->Dispose();
     resource_.store(isolate, kNullAddress);
   }
