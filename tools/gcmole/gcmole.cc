@@ -669,6 +669,8 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* js_dispatch_handle_decl,
                    clang::CXXRecordDecl* js_dispatch_handle_member_decl,
                    clang::ClassTemplateDecl* tagged_member_decl,
+                   clang::ClassTemplateDecl* unaligned_value_member_decl,
+                   clang::CXXRecordDecl* unaligned_double_member_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::CXXRecordDecl* conservative_pinning_scope_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
@@ -681,6 +683,8 @@ class FunctionAnalyzer {
         js_dispatch_handle_decl_(js_dispatch_handle_decl),
         js_dispatch_handle_member_decl_(js_dispatch_handle_member_decl),
         tagged_member_decl_(tagged_member_decl),
+        unaligned_value_member_decl_(unaligned_value_member_decl),
+        unaligned_double_member_decl_(unaligned_double_member_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
         conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
         d_(d),
@@ -1299,7 +1303,7 @@ class FunctionAnalyzer {
     return record->getDefinition();
   }
 
-  bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
+  bool IsTaggedPointer(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
     if (!InV8Namespace(record)) return false;
     auto* specialization =
@@ -1329,18 +1333,11 @@ class FunctionAnalyzer {
                tagged_type_record != cleared_weak_value_decl_;
       }
     }
-
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-    if (!definition) return false;
-    if (IsDerivedFrom(record, heap_object_decl_)) {
-      return true;
-    }
     return false;
   }
 
-  bool IsOnHeapValue(const clang::CXXRecordDecl* record) {
+  bool IsRawPointerToOnHeapValue(const clang::CXXRecordDecl* record) {
     if (record == nullptr) return false;
-    if (IsDerivedFromInternalPointer(record)) return true;
 
     if (js_dispatch_handle_decl_ &&
         record->getCanonicalDecl() == js_dispatch_handle_decl_) {
@@ -1350,23 +1347,39 @@ class FunctionAnalyzer {
         record->getCanonicalDecl() == js_dispatch_handle_member_decl_) {
       return true;
     }
+    if (unaligned_double_member_decl_ &&
+        record->getCanonicalDecl() == unaligned_double_member_decl_) {
+      return true;
+    }
 
     auto* specialization =
         llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
     if (specialization) {
       auto* template_decl =
           specialization->getSpecializedTemplate()->getCanonicalDecl();
-      if (tagged_member_decl_ && template_decl == tagged_member_decl_) {
+      if ((tagged_member_decl_ && template_decl == tagged_member_decl_) ||
+          (unaligned_value_member_decl_ &&
+           template_decl == unaligned_value_member_decl_)) {
         return true;
       }
     }
 
+    if (!InV8Namespace(record)) return false;
+    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
+    if (!definition) return false;
+    if (IsDerivedFrom(record, heap_object_decl_)) {
+      return true;
+    }
     return false;
+  }
+
+  bool IsOnHeapValue(const clang::CXXRecordDecl* record) {
+    return IsTaggedPointer(record) || IsRawPointerToOnHeapValue(record);
   }
 
   bool IsRawPointerType(const clang::PointerType* type) {
     const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
-    bool result = IsOnHeapValue(record);
+    bool result = IsRawPointerToOnHeapValue(record);
     TRACE("is raw " << result << " "
                     << (record ? record->getNameAsString() : "nullptr"));
     return result;
@@ -1562,6 +1575,8 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* js_dispatch_handle_decl_;
   clang::CXXRecordDecl* js_dispatch_handle_member_decl_;
   clang::ClassTemplateDecl* tagged_member_decl_;
+  clang::ClassTemplateDecl* unaligned_value_member_decl_;
+  clang::CXXRecordDecl* unaligned_double_member_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
@@ -1682,6 +1697,12 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::ClassTemplateDecl* tagged_member_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("TaggedMember");
 
+    clang::ClassTemplateDecl* unaligned_value_member_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("UnalignedValueMember");
+
+    clang::CXXRecordDecl* unaligned_double_member_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("UnalignedDoubleMember");
+
     if (heap_object_decl != nullptr) {
       heap_object_decl = heap_object_decl->getDefinition();
     }
@@ -1711,14 +1732,25 @@ class ProblemsFinder : public clang::ASTConsumer,
       tagged_member_decl = tagged_member_decl->getCanonicalDecl();
     }
 
+    if (unaligned_value_member_decl != nullptr) {
+      unaligned_value_member_decl =
+          unaligned_value_member_decl->getCanonicalDecl();
+    }
+
+    if (unaligned_double_member_decl != nullptr) {
+      unaligned_double_member_decl =
+          unaligned_double_member_decl->getCanonicalDecl();
+    }
+
     if (heap_object_decl != nullptr && smi_decl != nullptr &&
         tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
           smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
           js_dispatch_handle_decl, js_dispatch_handle_member_decl,
-          tagged_member_decl, no_gc_mole_decl, conservative_pinning_scope_decl,
-          d_, sm_);
+          tagged_member_decl, unaligned_value_member_decl,
+          unaligned_double_member_decl, no_gc_mole_decl,
+          conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {

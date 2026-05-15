@@ -390,5 +390,15 @@ void TestConservativePinningScopeConstWitness(
   Print(raw_obj);
 }
 
+void OutParameterFunction(Tagged<JSObject>* out_obj, Isolate* isolate) {
+  CauseGCRaw(*out_obj, isolate);
+  *out_obj = *isolate->factory()->NewJSObjectWithNullProto();
+}
+
+void TestOutParameter(Isolate* isolate) {
+  Tagged<JSObject> raw_obj;
+  OutParameterFunction(&raw_obj, isolate);
+}
+
 }  // namespace internal
 }  // namespace v8
