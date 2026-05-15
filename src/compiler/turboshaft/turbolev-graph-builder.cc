@@ -3265,6 +3265,7 @@ class GraphBuildingNodeProcessor {
 #ifdef V8_INTL_SUPPORT
   maglev::ProcessResult Process(maglev::StringLocaleCompareIntl* node,
                                 const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     SetMap(node, __ StringLocaleCompareIntl(
                      Map<JSFunction>(node->LocaleCompareFnInput()),
