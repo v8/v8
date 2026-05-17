@@ -4218,7 +4218,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Use specialized bytecodes for Get/Set Private Fields")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
-DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
+DEFINE_BOOL(use_libm_trig_functions, false, "use libm trig functions")
 #endif
 
 DEFINE_BOOL(track_array_buffer_views, true,
