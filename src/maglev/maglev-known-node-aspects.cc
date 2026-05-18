@@ -614,7 +614,7 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
 bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
-  value = value->UnwrapIdentities();
+  if (value) value = value->UnwrapIdentities();
   auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
                                                   : loaded_context_constants_;
 
@@ -630,12 +630,23 @@ bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
 
 KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
     Graph* graph, ValueNode* context, int offset, ValueNode* value,
-    MaybeAssignedFlag assigned) {
+    MaybeAssignedFlag assigned, ContextSlotStoreCacheMode mode) {
   SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots =
       ClearAliasedContextSlotsFor(graph, context, offset, value);
 
+  ValueNode* cached = value;
+  if (mode == ContextSlotStoreCacheMode::kTaggedOnly &&
+      value->properties().value_representation() !=
+          ValueRepresentation::kTagged) {
+    // An untagged stored value would force a re-tagging conversion at the
+    // load site; the deopting variants (CheckedSmiTag*) require eager deopt
+    // info that the load can't carry here. Substitute a recorded tagged
+    // alternative if available, otherwise invalidate the slot.
+    cached = TryGetAlternativeFor(value, UseRepresentation::kTagged);
+  }
+
   bool inserted_or_updated =
-      SetContextCachedValue(context, offset, value, assigned);
+      SetContextCachedValue(context, offset, cached, assigned);
 
   if (!inserted_or_updated) {
     return {ContextStoreResult::kNone, std::move(aliased_slots)};

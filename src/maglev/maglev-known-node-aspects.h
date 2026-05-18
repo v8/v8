@@ -619,13 +619,19 @@ class KnownNodeAspects {
     SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots;
   };
 
+  enum class ContextSlotStoreCacheMode {
+    kAny,
+    kTaggedOnly,
+  };
+
   void UpdateMayHaveAliasingContexts(compiler::JSHeapBroker* broker,
                                      LocalIsolate* local_isolate,
                                      ValueNode* context);
 
-  ContextStoreResult RecordContextSlotStore(Graph* graph, ValueNode* context,
-                                            int offset, ValueNode* value,
-                                            MaybeAssignedFlag assigned);
+  ContextStoreResult RecordContextSlotStore(
+      Graph* graph, ValueNode* context, int offset, ValueNode* value,
+      MaybeAssignedFlag assigned,
+      ContextSlotStoreCacheMode mode = ContextSlotStoreCacheMode::kAny);
 
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
