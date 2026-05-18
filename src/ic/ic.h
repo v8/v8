@@ -148,7 +148,7 @@ class IC {
     return IsKeyedLoadIC() || IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
            IsKeyedHasIC() || IsDefineKeyedOwnIC();
   }
-  bool ShouldRecomputeHandler(DirectHandle<String> name);
+  bool ShouldRecomputeHandler(DirectHandle<Name> name);
 
   Handle<Map> lookup_start_object_map() { return lookup_start_object_map_; }
   inline void update_lookup_start_object_map(DirectHandle<Object> object);
