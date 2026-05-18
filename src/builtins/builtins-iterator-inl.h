@@ -134,8 +134,9 @@ inline void CloseAndMarkIteratorDone(Isolate* isolate,
   // method to finalize them. However, V8's core native built-in iterators
   // (Array, Map, Set, String, RegExp) are implemented purely in C++ and lack a
   // JS .return() method. For them, IteratorClose is a no-op, so we must
-  // manually exhaust them by wiping their C++ backing fields.
-  IteratorClose(isolate, iterator);
+  // manually exhaust them by wiping their C++ backing fields. We do this
+  // before calling IteratorClose to ensure that custom monkey-patched .return()
+  // methods observe the iterator as exhausted.
   if (IsJSArrayIterator(*iterator)) {
     auto num = isolate->factory()->NewNumberFromUint(kMaxUInt32);
     Cast<JSArrayIterator>(iterator)->set_next_index(*num);
@@ -152,6 +153,7 @@ inline void CloseAndMarkIteratorDone(Isolate* isolate,
   } else if (IsJSRegExpStringIterator(*iterator)) {
     Cast<JSRegExpStringIterator>(iterator)->set_done(true);
   }
+  IteratorClose(isolate, iterator);
 }
 
 template <bool kAllowJSExecution, typename IntVisitor, typename DoubleVisitor,
