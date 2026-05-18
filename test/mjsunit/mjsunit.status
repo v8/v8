@@ -2017,6 +2017,9 @@
   # Wasm code coverage is not supported yet.
   'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
+
+  # Wasm wide arithmetic is not supported yet.
+  'wasm/wide-arithmetic': [SKIP],
 }],  # arch in [ppc64, s390x]'
 
 ##############################################################################
