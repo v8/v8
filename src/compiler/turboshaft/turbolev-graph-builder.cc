@@ -1479,6 +1479,9 @@ class GraphBuildingNodeProcessor {
             function_data->instance_data();
         wasm::NativeModule* native_module = instance_data->native_module();
 
+        // Keep the instance data (and thus the NativeModule) alive via a GC
+        // root.
+        broker_->CanonicalPersistentHandle(instance_data);
         wasm_call_params =
             TryInlineWasmWrapper(node, function_data, native_module);
       }

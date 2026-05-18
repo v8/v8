@@ -4382,6 +4382,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
     wasm_native_module_for_inlining_ = native_module;
   }
 
+  // Keep the instance data (and thus the NativeModule) alive via a GC root.
+  broker()->CanonicalPersistentHandle(instance_data);
+
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
