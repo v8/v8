@@ -151,4 +151,8 @@ specific_include_rules = {
   "hash-seed\.cc": [
     "+third_party/rapidhash-v8/secret.h",
   ],
+  "heap-snapshot-generator\.cc": [
+    "+src/heap/cppgc-js/cpp-heap.h",
+    "+src/heap/cppgc-js/cpp-snapshot.h",
+  ],
 }

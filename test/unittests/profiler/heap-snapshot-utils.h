@@ -22,6 +22,7 @@ class Isolate;
 const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name);
 const HeapGraphEdge* FindFirstEdgeTo(const HeapEntry& from,
                                      const HeapEntry& to);
+bool IsRetainedByCppStackRoot(HeapSnapshot* snapshot, const HeapEntry& entry);
 const HeapEntry* GetEntryByName(HeapSnapshot* snapshot, const char* name);
 bool HasNamedEdge(const HeapEntry& entry, const char* name);
 std::optional<int> GetIntEdge(const HeapEntry* node, const char* name);

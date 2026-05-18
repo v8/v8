@@ -118,22 +118,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void RemoveBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
-  void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph,
-                          CppHeapWrapperSet&& cpp_heap_wrappers);
-  bool HasBuildEmbedderGraphCallback() {
-    return internal_build_embedder_graph_callback_.first != nullptr ||
-           !build_embedder_graph_callbacks_.empty();
+  void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph);
+  bool HasBuildEmbedderGraphCallback() const {
+    return !build_embedder_graph_callbacks_.empty();
   }
-
-  // Internal version of `v8::HeapProfiler::BuildEmbedderGraphCallback`, which
-  // additionally receives the set of `CppHeapPointerWrapperObject`s to link to
-  // embedder nodes.
-  typedef void (*InternalBuildEmbedderGraphCallback)(
-      v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
-      CppHeapWrapperSet&& cpp_heap_wrappers);
-
-  void SetInternalBuildEmbedderGraphCallback(
-      InternalBuildEmbedderGraphCallback callback, void* data);
 
   void SetGetDetachednessCallback(
       v8::HeapProfiler::GetDetachednessCallback callback, void* data);
@@ -179,8 +167,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
-  std::pair<InternalBuildEmbedderGraphCallback, void*>
-      internal_build_embedder_graph_callback_;
   std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
       get_detachedness_callback_;
   std::unique_ptr<HeapProfilerNativeMoveListener> native_move_listener_;

@@ -43,6 +43,13 @@ const HeapGraphEdge* FindFirstEdgeTo(const HeapEntry& from,
   return nullptr;
 }
 
+bool IsRetainedByCppStackRoot(HeapSnapshot* snapshot, const HeapEntry& entry) {
+  const HeapEntry* stack_roots_entry =
+      GetEntryByName(snapshot, "C++ native stack roots");
+  return stack_roots_entry &&
+         FindFirstEdgeTo(*stack_roots_entry, entry) != nullptr;
+}
+
 const HeapEntry* GetEntryByName(HeapSnapshot* snapshot, const char* name) {
   for (const HeapEntry& entry : snapshot->entries()) {
     if (strcmp(entry.name(), name) == 0) return &entry;

@@ -712,6 +712,10 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool GenerateSnapshot();
   bool GenerateSnapshotAfterGC();
 
+  static const char* MergeNames(StringsStorage* names,
+                                const char* embedder_name,
+                                const char* wrapper_name);
+
   HeapEntry* FindEntry(HeapThing ptr) {
     HeapEntriesMap::Entry* entry =
         entries_map_.Lookup(ptr, ComputePointerHash(ptr));
@@ -743,6 +747,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
     verifier_ = verifier;
   }
 #endif
+  HeapSnapshot* snapshot() const { return snapshot_; }
 
   HeapEntry* AddEntry(Tagged<Smi> smi, HeapEntriesAllocator* allocator) {
     return smis_map_.emplace(smi.value(), allocator->AllocateEntry(smi))

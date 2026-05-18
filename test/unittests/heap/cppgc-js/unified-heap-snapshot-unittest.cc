@@ -524,14 +524,11 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
 
   HeapSnapshot* heap_snapshot =
       reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
-  const HeapEntry* stack_roots_entry =
-      GetEntryByName(heap_snapshot, kExpectedCppStackRootsName);
-  ASSERT_NE(nullptr, stack_roots_entry);
 
   const HeapEntry* backing_entry =
       GetEntryFor(isolate(), heap_snapshot, backing);
   ASSERT_NE(nullptr, backing_entry);
-  EXPECT_NE(nullptr, FindFirstEdgeTo(*stack_roots_entry, *backing_entry));
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *backing_entry));
   // Because the backing is reachable from stack, the backing object has an edge
   // to each key in it.
   EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
@@ -1291,6 +1288,68 @@ TEST_F(UnifiedHeapSnapshotTest, MergeNodeDoesNotHaveCppgcObject) {
   ASSERT_NE(nullptr, wrapper_entry);
   EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
   EXPECT_TRUE(HasNamedEdge(*wrapper_entry, "link"));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, NonMergedWrapperPointsToMergedNode) {
+  cppgc::Persistent<ExternalDataWithJSRef> cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "MergedJSApiWrapper"));
+  v8::Global<v8::Object> non_merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "NonMergedJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), merged_wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*merged_wrapper.Get(v8_isolate())));
+  const HeapEntry* non_merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*non_merged_wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, merged_wrapper_entry);
+  ASSERT_NE(nullptr, non_merged_wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*merged_wrapper_entry, "cppgc_object"));
+  // Multiple JS objects may point to the same cppgc object, e.g. with
+  // non-main-world wrapper pairs. The main world will be a proper merged
+  // wrapper pair but non-main world wrapper (those that lack the direct back
+  // reference from cppgc) should point to the merged node.
+  const HeapGraphEdge* edge =
+      GetNamedEdge(*non_merged_wrapper_entry, "cppgc_object");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(merged_wrapper_entry, edge->to());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergedNodeRetainedByCppStack) {
+  auto* volatile cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object,
+                                                 "MergedStackJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* wrapper_entry =
+      GetEntryFor(isolate(), heap_snapshot,
+                  *v8::Utils::OpenDirectHandle(*wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
+  // Stack iteration already knows about wrappers, so reaching the cppgc object
+  // from the stack must retain the merged wrapper entry.
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *wrapper_entry));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
