@@ -82,7 +82,7 @@ class Stack final {
 
   // Ensures that there is a memory area with at least the specified size.
   // If passing zero, the default/minimum size buffer is allocated.
-  Address EnsureCapacity(size_t size);
+  V8_EXPORT_PRIVATE Address EnsureCapacity(size_t size);
 
   // Thread local archiving.
   static constexpr int ArchiveSpacePerThread() {
