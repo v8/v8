@@ -58,13 +58,13 @@ class MaglevGraphOptimizer {
   }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
-    DCHECK(current_node()->properties().has_eager_deopt_info());
+    CHECK(current_node()->properties().has_eager_deopt_info());
     return &current_node()->eager_deopt_info()->top_frame();
   }
 
   std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
       bool can_throw) {
-    DCHECK(current_node()->properties().can_lazy_deopt());
+    CHECK(current_node()->properties().can_lazy_deopt());
     return current_node()->lazy_deopt_info()->GetFrameForCloning();
   }
 
