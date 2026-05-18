@@ -807,12 +807,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
     __ jmp(&return_eax);
 
     __ bind(&stack_limit_hit);
-    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), edi);
+    __ push(backtrack_stackpointer());
     CallCheckStackGuardState(ebx, extra_space_for_variables);
+    __ pop(backtrack_stackpointer());
     __ or_(eax, eax);
     // If returned value is non-zero, we exit with the returned value as result.
     __ j(not_zero, &return_eax);
-    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     __ bind(&stack_ok);
   }

@@ -1393,13 +1393,13 @@ DirectHandle<HeapObject> RegExpMacroAssemblerX64::GetCode(
 
     __ bind(&stack_limit_hit);
     __ Move(code_object_pointer(), masm_.CodeObject());
-    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), kScratchRegister);
+    __ pushq(backtrack_stackpointer());
     // CallCheckStackGuardState preserves no registers beside rbp and rsp.
     CallCheckStackGuardState(extra_space_for_variables);
+    __ popq(backtrack_stackpointer());
     __ testq(rax, rax);
     // If returned value is non-zero, we exit with the returned value as result.
     __ j(not_zero, &return_rax);
-    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     __ bind(&stack_ok);
   }

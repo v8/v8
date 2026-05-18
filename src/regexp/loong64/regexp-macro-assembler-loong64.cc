@@ -741,12 +741,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
       __ jmp(&return_v0);
 
       __ bind(&stack_limit_hit);
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
       CallCheckStackGuardState(a0, extra_space_for_variables);
       // If returned value is non-zero, we exit with the returned value as
       // result.
       __ Branch(&return_v0, ne, a0, Operand(zero_reg));
-      LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
       __ bind(&stack_ok);
     }

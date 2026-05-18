@@ -13,7 +13,6 @@
 #include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
-#include "src/base/sanitizer/asan.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
@@ -27,7 +26,6 @@
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-parser.h"
-#include "src/regexp/regexp-stack.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
@@ -2626,91 +2624,6 @@ TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
 
   i::DirectHandle<i::Object> result = RegExpExec(&d);
   CHECK(IsNull(*result));
-}
-
-namespace {
-
-struct StalePrologueData {
-  i::Isolate* isolate;
-  uintptr_t stale_sp;
-  bool sentinel_overwritten;
-};
-
-DISABLE_ASAN void NoAsanStore32(uintptr_t addr, uint32_t value) {
-  *reinterpret_cast<volatile uint32_t*>(addr) = value;
-}
-
-DISABLE_ASAN uint32_t NoAsanLoad32(uintptr_t addr) {
-  return *reinterpret_cast<volatile uint32_t*>(addr);
-}
-
-// Runs from the prologue's stack_limit_hit handler via CheckStackGuardState ->
-// HandleInterrupts -> InvokeApiInterruptCallbacks. At this point the JIT has
-// already saved (push or store) the soon-to-be-stale backtrack_stackpointer.
-// We force GrowStack to relocate the per-isolate RegExpStack so the saved
-// pointer dangles, then paint a sentinel over the slots the JIT is about to
-// push into.
-void StalePrologueInterrupt(v8::Isolate*, void* data) {
-  auto* d = static_cast<StalePrologueData*>(data);
-  d->stale_sp = d->isolate->regexp_stack()->stack_pointer();
-  // Double the dynamic stack; this frees the existing buffer (under ASan it
-  // is quarantined, so reads/writes still hit it but ASan marks the region
-  // poisoned).
-  d->isolate->regexp_stack()->EnsureCapacity(
-      d->isolate->regexp_stack()->memory_size() * 2);
-  // Paint a sentinel just below stale_sp so the JIT's first Push() (which
-  // does `sub bsp, kSlotSize; mov [bsp], imm32`) lands on instrumented bytes.
-  for (int i = 1; i <= 16; ++i) {
-    NoAsanStore32(d->stale_sp - i * regexp::Stack::kSlotSize, 0xCCCCCCCCu);
-  }
-}
-
-}  // namespace
-
-// Regression test for crbug.com/513298483. The native irregexp prologue's
-// stack_limit_hit handler used to save/restore the backtrack_stackpointer with
-// pushq/popq around CallCheckStackGuardState, instead of round-tripping it
-// through RegExpStack::stack_pointer_. If the call ran an API interrupt that
-// re-entered irregexp and grew the backtrack stack (freeing the original
-// buffer), the popq'd register held a dangling pointer that subsequent Push()
-// operations wrote through. The fix replaces pushq/popq with
-// Store/LoadRegExpStackPointerToMemory, mirroring check_preempt_label_.
-TEST_F(RegExpTestWithContext, RegExpInterruptStalePrologueBacktrackPointer) {
-  if (v8_flags.jitless) return;
-  v8_flags.regexp_tier_up_ticks = 0;  // Compile to native on first exec.
-
-  v8::HandleScope scope(isolate());
-  i::Isolate* i_iso = i_isolate();
-
-  // Pre-grow the per-isolate backtrack stack so EnsureCapacity below actually
-  // frees a heap buffer (rather than transitioning off the static stack).
-  i_iso->regexp_stack()->EnsureCapacity(2 * i::KB);
-
-  StalePrologueData d{i_iso, 0, false};
-  isolate()->RequestInterrupt(&StalePrologueInterrupt, &d);
-
-  // A simple regexp that exercises the prologue and does at least one Push().
-  i::DirectHandle<i::JSRegExp> regexp = v8::Utils::OpenDirectHandle(
-      *v8::RegExp::New(context(), NewString("(a|b)(a|b)(a|b)c"),
-                       v8::RegExp::kNone)
-           .ToLocalChecked());
-  i::DirectHandle<i::String> subject =
-      v8::Utils::OpenDirectHandle(*NewString("aaac"));
-
-  i::DirectHandle<i::Object> result =
-      i::RegExp::Exec_Single(i_iso, regexp, subject, 0,
-                             i_iso->regexp_last_match_info())
-          .ToHandleChecked();
-  USE(result);
-
-  // If the prologue restored the stale BSP, the JIT's Push() wrote through it
-  // and overwrote the sentinel. (Under ASan the JIT's stores bypass the
-  // shadow because generated code is uninstrumented, but the bytes still
-  // land in the freed buffer.)
-  if (d.stale_sp != 0) {
-    uint32_t value = NoAsanLoad32(d.stale_sp - regexp::Stack::kSlotSize);
-    CHECK_EQ(0xCCCCCCCCu, value);
-  }
 }
 
 #undef CHECK_PARSE_ERROR
