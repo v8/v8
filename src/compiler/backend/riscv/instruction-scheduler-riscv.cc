@@ -44,6 +44,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvShl64:
     case kRiscvShr64:
     case kRiscvSub64:
+    case kRiscvAdd128:
+    case kRiscvSub128:
     case kRiscvFloat64RoundDown:
     case kRiscvFloat64RoundTiesEven:
     case kRiscvFloat64RoundTruncate:
@@ -1096,6 +1098,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvSub32:
     case kRiscvSub64:
       return Sub64Latency(instr->InputAt(1)->IsRegister());
+    case kRiscvAdd128:
+    case kRiscvSub128:
+      return Add64Latency(instr->InputAt(1)->IsRegister()) * 4;
     case kRiscvMulHigh64:
       return Mulh64Latency();
     case kRiscvMul64:

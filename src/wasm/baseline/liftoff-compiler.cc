@@ -3112,7 +3112,7 @@ class LiftoffCompiler {
   void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_lo_val,
                const Value& lhs_hi_val, const Value& rhs_lo_val,
                const Value& rhs_hi_val, Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64
     static constexpr RegClass rc = reg_class_for(kI64);
 
     LiftoffRegList pinned;

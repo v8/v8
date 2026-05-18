@@ -1337,6 +1337,35 @@ void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
 
+void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, bl);
+  DCHECK_NE(dst_low, dst_high);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  add(dst_low, al, bl);
+  Sltu(scratch, dst_low, bl);
+  add(dst_high, ah, bh);
+  add(dst_high, dst_high, scratch);
+}
+
+void LiftoffAssembler::emit_i64_sub128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Sltu(scratch, al, bl);
+  sub(dst_low, al, bl);
+  sub(dst_high, ah, bh);
+  sub(dst_high, dst_high, scratch);
+}
+
 #define I32_BINOP(name, instruction)                                 \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
                                          Register rhs) {             \

@@ -7897,8 +7897,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-    V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
         auto [a_lo, a_hi, b_lo, b_hi] =
             Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
@@ -7906,27 +7904,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp4, opcode, a_lo, a_hi, b_lo,
                                            b_hi, result_l, result_h);
         return opcode_length;
-#else
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
-#endif
       }
       case kExprI64MulWideS:
       case kExprI64MulWideU: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64
-
         auto [a, b] = Pop(kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
         Value* result_h = Push(kWasmI64);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp2, opcode, a, b, result_l,
                                            result_h);
         return opcode_length;
-#else
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
-#endif
       }
       case kExprI64Sub128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
