@@ -891,10 +891,11 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   DCHECK(success);
   USE(success);
 
-  v8::Local<v8::ArrayBuffer> data =
-      v8::ArrayBuffer::New(isolate, sizeof(CommandLineAPIData));
-  *static_cast<CommandLineAPIData*>(data->GetBackingStore()->Data()) =
-      CommandLineAPIData(this, sessionId);
+  v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
+  data->Set(context, 0, v8::External::New(isolate, this, kV8ConsoleTag))
+      .Check();
+  data->Set(context, 1, v8::Integer::New(isolate, sessionId)).Check();
+
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
                               &V8Console::call<&V8Console::Dir>);
   createBoundFunctionProperty(context, commandLineAPI, data, "dirxml",

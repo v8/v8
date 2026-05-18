@@ -8,6 +8,7 @@
 #include <map>
 
 #include "include/v8-array-buffer.h"
+#include "include/v8-container.h"
 #include "include/v8-external.h"
 #include "include/v8-local-handle.h"
 #include "src/base/macros.h"
@@ -128,21 +129,41 @@ class V8Console : public v8::debug::ConsoleDelegate {
         info.Data().As<v8::External>()->Value(kV8ConsoleTag));
     (console->*func)(info);
   }
-  using CommandLineAPIData = std::pair<V8Console*, int>;
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&,
                                     int)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    CommandLineAPIData* data = static_cast<CommandLineAPIData*>(
-        info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
-    (data->first->*func)(info, data->second);
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Value> console_value;
+    if (!data->Get(context, 0).ToLocal(&console_value) ||
+        !console_value->IsExternal()) {
+      return;
+    }
+    V8Console* console = static_cast<V8Console*>(
+        console_value.As<v8::External>()->Value(kV8ConsoleTag));
+    v8::Local<v8::Value> session_value;
+    if (!data->Get(context, 1).ToLocal(&session_value) ||
+        !session_value->IsInt32()) {
+      return;
+    }
+    int sessionId = session_value.As<v8::Int32>()->Value();
+    (console->*func)(info, sessionId);
   }
+
   template <void (V8Console::*func)(const v8::debug::ConsoleCallArguments&,
                                     const v8::debug::ConsoleContext&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    CommandLineAPIData* data = static_cast<CommandLineAPIData*>(
-        info.Data().As<v8::ArrayBuffer>()->GetBackingStore()->Data());
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Value> console_value;
+    if (!data->Get(context, 0).ToLocal(&console_value) ||
+        !console_value->IsExternal()) {
+      return;
+    }
+    V8Console* console = static_cast<V8Console*>(
+        console_value.As<v8::External>()->Value(kV8ConsoleTag));
     v8::debug::ConsoleCallArguments args(info);
-    (data->first->*func)(args, v8::debug::ConsoleContext());
+    (console->*func)(args, v8::debug::ConsoleContext());
   }
 
   // TODO(foolip): There is no spec for the Memory Info API, see blink-dev:

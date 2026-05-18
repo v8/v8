@@ -1152,9 +1152,11 @@ bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
   return enabled() && (isOOMBreak || !m_skipAllPauses);
 }
 
-std::unique_ptr<protocol::Debugger::Location> V8DebuggerAgentImpl::setBreakpointImpl(
-    const String16& breakpointId, const String16& scriptId,
-    const String16& condition, int lineNumber, int columnNumber) {
+std::unique_ptr<protocol::Debugger::Location>
+V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
+                                       const String16& scriptId,
+                                       const String16& condition,
+                                       int lineNumber, int columnNumber) {
   v8::HandleScope handles(m_isolate);
   DCHECK(enabled());
 
@@ -1931,9 +1933,10 @@ Response V8DebuggerAgentImpl::currentCallFrames(
   for (; !iterator->Done(); iterator->Advance(), frameOrdinal++) {
     int contextId = iterator->GetContextId();
     InjectedScript* injectedScript = nullptr;
-    std::shared_ptr<InspectedContext> context;
+    std::shared_ptr<InspectedContext> inspectedContext;
     if (contextId) {
-      m_session->findInjectedScript(contextId, injectedScript, &context);
+      m_session->findInjectedScript(contextId, injectedScript,
+                                    &inspectedContext);
     }
     String16 callFrameId = RemoteCallFrameId::serialize(
         m_inspector->isolateId(), contextId, frameOrdinal);
@@ -2340,8 +2343,8 @@ void V8DebuggerAgentImpl::didPause(
         protocol::Debugger::Paused::ReasonEnum::Assert, nullptr));
   } else if (breakReasons.contains(v8::debug::BreakReason::kException)) {
     InjectedScript* injectedScript = nullptr;
-    std::shared_ptr<InspectedContext> context;
-    m_session->findInjectedScript(contextId, injectedScript, &context);
+    std::shared_ptr<InspectedContext> inspectedContext;
+    m_session->findInjectedScript(contextId, injectedScript, &inspectedContext);
     if (injectedScript) {
       String16 breakReason =
           exceptionType == v8::debug::kPromiseRejection
