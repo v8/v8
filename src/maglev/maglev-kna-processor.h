@@ -333,9 +333,8 @@ class RecomputeKnownNodeAspectsProcessor {
 
   void ProcessStoreContextSlot(ValueNode* context, ValueNode* value, int offset,
                                MaybeAssignedFlag maybe_assigned) {
-    known_node_aspects().RecordContextSlotStore(
-        graph_, context, offset, value, maybe_assigned,
-        KnownNodeAspects::ContextSlotStoreCacheMode::kTaggedOnly);
+    known_node_aspects().RecordContextSlotStore(graph_, context, offset, value,
+                                                maybe_assigned);
   }
 
   template <typename NodeT>
