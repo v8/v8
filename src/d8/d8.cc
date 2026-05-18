@@ -778,15 +778,18 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
                                            std::is_same_v<T, Module>
                                                ? v8::ScriptType::kModule
                                                : v8::ScriptType::kClassic));
-    StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
+    if (streaming_task) {
+      StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
 
-    if (source_string.IsEmpty()) {
-      if (!source.ConvertToString(isolate).ToLocal(&source_string)) {
-        return MaybeLocal<T>();
+      if (source_string.IsEmpty()) {
+        if (!source.ConvertToString(isolate).ToLocal(&source_string)) {
+          return MaybeLocal<T>();
+        }
       }
+      update_script_size(source_string->Length());
+      return CompileStreamed<T>(context, &streamed_source, source_string,
+                                origin);
     }
-    update_script_size(source_string->Length());
-    return CompileStreamed<T>(context, &streamed_source, source_string, origin);
   }
 
   Local<String> source_string;
