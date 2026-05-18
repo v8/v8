@@ -13,9 +13,13 @@ consistent usage.
 
 V8 uses `gm.py` as a wrapper around GN and Ninja for building.
 
-**Mandatory GN Args**: Always include `use_remoteexec = true` in your `args.gn`
-or via `gm.py` flags to ensure builds are fast. Remote execution is available
-and preferred in this environment.
+**Mandatory GN Args & Siso Remote Execution Guardrails**: Always include
+`use_remoteexec = true` in your `args.gn` or via `gm.py` flags to ensure builds
+utilize remote execution. Remote execution is mandatory in this environment.
+
+**Critical Guardrail (Path Strictness)**: The target output directory must sit
+exactly 2 levels deep relative to the project root (e.g., `out/x64.debug` or
+`out/x64.release`).
 
 - **Build (Debug):** `tools/dev/gm.py quiet x64.debug tests`
 - **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug tests`
