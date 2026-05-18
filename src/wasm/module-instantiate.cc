@@ -2080,6 +2080,13 @@ bool InstanceBuilder::ProcessImportedTable(int import_index, int table_index,
     SBXCHECK_EQ(dispatch_table->table_type(),
                 module_->canonical_type(table.type));
     SBXCHECK_GE(dispatch_table->length(), table.initial_size);
+  } else {
+    // Hardening: for non-funcref tables, the dispatch table must be empty.
+    // This is not strictly necessary for sandbox safety as these tables are
+    // not sensitive to CFI, but it prevents an attacker from placing a wrongly
+    // typed trusted_dispatch_table in trusted memory.
+    SBXCHECK_EQ(dispatch_table,
+                *isolate_->factory()->empty_wasm_dispatch_table());
   }
   trusted_instance_data->dispatch_tables()->set(table_index, dispatch_table);
   if (table_index == 0) {
