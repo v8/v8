@@ -79,8 +79,13 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
     unsigned handler = table.GetRangeHandler(i);
     Check(end <= bytecode_length && start <= end,
           "Invalid exception handler range");
+    Check(handler >= end, "Exception handler must be after the try-range");
     Check(handler < bytecode_length && valid_offsets.Contains(handler),
           "Invalid exception handler offset");
+    int data = table.GetRangeData(i);
+    Check(data == interpreter::Register::invalid_value().index() ||
+              (data >= 0 && data < bytecode->register_count()),
+          "Invalid exception handler data");
   }
 }
 
