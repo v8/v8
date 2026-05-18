@@ -8651,9 +8651,18 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   auto promise = i::Cast<i::JSPromise>(self);
 
-  if (promise->status() != Promise::kPending) {
+  // Protect against double settlement. This is a simpler version of
+  // "promiseOrEmpty.[[Value]] is EMPTY" related steps from the spec:
+  // https://tc39.es/ecma262/#sec-createresolvingfunctions
+  // Native promises do not require the full `promiseOrEmpty` capturing
+  // dance because Api is limited and does not allow providing custom
+  // executor for native promises.
+  DCHECK_IMPLIES(promise->status() != Promise::kPending,
+                 promise->is_native_resolver_invoked());
+  if (promise->is_native_resolver_invoked()) {
     return Just(true);
   }
+  promise->set_is_native_resolver_invoked(true);
 
   // TODO(434637746): Drop this CHECK when the bug is fixed.
   CHECK(!value.IsEmpty());
@@ -8673,9 +8682,18 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
   auto self = Utils::OpenDirectHandle(this);
   auto promise = i::Cast<i::JSPromise>(self);
 
-  if (promise->status() != Promise::kPending) {
+  // Protect against double settlement. This is a simpler version of
+  // "promiseOrEmpty.[[Value]] is EMPTY" related steps from the spec:
+  // https://tc39.es/ecma262/#sec-createresolvingfunctions
+  // Native promises do not require the full `promiseOrEmpty` capturing
+  // dance because Api is limited and does not allow providing custom
+  // executor for native promises.
+  DCHECK_IMPLIES(promise->status() != Promise::kPending,
+                 promise->is_native_resolver_invoked());
+  if (promise->is_native_resolver_invoked()) {
     return Just(true);
   }
+  promise->set_is_native_resolver_invoked(true);
 
   if (i::JSPromise::Reject(promise, Utils::OpenDirectHandle(*value))
           .is_null()) {

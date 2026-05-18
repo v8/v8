@@ -18,6 +18,8 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-promise-tq-inl.inc"
 
+BOOL_ACCESSORS(JSPromise, flags, is_native_resolver_invoked,
+               IsNativeResolverInvokedBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, is_silent, IsSilentBit::kShift)
 

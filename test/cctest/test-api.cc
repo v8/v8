@@ -23437,6 +23437,117 @@ TEST(PromiseCatchCallsBuiltin) {
                   .FromJust());
 }
 
+TEST(PromiseResolverIsNativeResolverInvokedTest) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+
+  // 1. Create the first promise.
+  v8::Local<v8::Promise::Resolver> resolver1 =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise1 = resolver1->GetPromise();
+
+  // 2. Create the second promise.
+  v8::Local<v8::Promise::Resolver> resolver2 =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise2 = resolver2->GetPromise();
+
+  // 3. Resolve the second promise to the first one
+  CHECK(resolver2->Resolve(context.local(), promise1).FromJust());
+
+  // 4. Attempt to resolve the second promise again with a different value
+  // or reject it immediately (should be ignored).
+  CHECK(resolver2->Resolve(context.local(), v8::Integer::New(isolate, 100))
+            .FromJust());
+  v8::Local<v8::Value> error =
+      v8::Exception::Error(v8_str("This should be ignored!"));
+  CHECK(resolver2->Reject(context.local(), error).FromJust());
+
+  // Both promises must be in pending state.
+  CHECK_EQ(v8::Promise::kPending, promise1->State());
+  CHECK_EQ(v8::Promise::kPending, promise2->State());
+
+  // 5. Resolve the first promise
+  CHECK(resolver1->Resolve(context.local(), v8::Integer::New(isolate, 42))
+            .FromJust());
+
+  // promise1 is fulfilled synchronously, promise2 remains pending until
+  // microtasks run.
+  CHECK_EQ(v8::Promise::kFulfilled, promise1->State());
+  CHECK_EQ(v8::Promise::kPending, promise2->State());
+
+  isolate->PerformMicrotaskCheckpoint();
+
+  // Both promises must be resolved to 42.
+  CHECK_EQ(v8::Promise::kFulfilled, promise1->State());
+  CHECK_EQ(v8::Promise::kFulfilled, promise2->State());
+
+  CHECK_EQ(42, promise1->Result()->Int32Value(context.local()).FromJust());
+  CHECK_EQ(42, promise2->Result()->Int32Value(context.local()).FromJust());
+}
+
+namespace {
+void ResolveCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Promise::Resolver>* resolver =
+      GetData<v8::Local<v8::Promise::Resolver>>(info);
+  v8::Local<v8::Value> value = info[0];
+  CHECK((*resolver)->Resolve(context, value).FromJust());
+}
+}  // namespace
+
+TEST(PromiseResolverDoubleResolveThenableSideEffects) {
+  LocalContext context;
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+
+  v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(
+      isolate, ResolveCallback, MakeData(isolate, &resolver));
+  v8::Local<v8::Function> fn = t->GetFunction(context.local()).ToLocalChecked();
+  context->Global()
+      ->Set(context.local(), v8_str("resolvePromise"), fn)
+      .FromJust();
+
+  // Create a thenable with a custom getter for "then" that calls
+  // resolve1 as a side effect.
+  v8::Local<v8::Value> thenable = CompileRun(
+      "(( {\n"
+      "  get then() {\n"
+      "    resolvePromise('nested-value');\n"
+      "    return function(resolve) {\n"
+      "      resolve('late-value');\n"
+      "    };\n"
+      "  }\n"
+      "} ))");
+
+  CHECK(thenable->IsObject());
+
+  // Resolve with thenable. This triggers the "then" getter.
+  CHECK(resolver->Resolve(context.local(), thenable).FromJust());
+
+  // The promise should still be pending because the nested resolve was ignored.
+  CHECK_EQ(v8::Promise::kPending, promise->State());
+
+  // Perform microtask checkpoint. This runs the thenable resolution microtask.
+  isolate->PerformMicrotaskCheckpoint();
+
+  // The promise should now be fulfilled with 'late-value', NOT 'nested-value'.
+  CHECK_EQ(v8::Promise::kFulfilled, promise->State());
+  v8::Local<v8::Value> result = promise->Result();
+  CHECK(result->IsString());
+  v8::String::Utf8Value utf8(isolate, result);
+  CHECK_EQ(0, strcmp(*utf8, "late-value"));
+}
+
 TEST(PromiseStateAndValue) {
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
