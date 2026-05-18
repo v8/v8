@@ -512,8 +512,8 @@ transitioning builtin IteratorTakeHelperNext(
     // i. If remaining is 0, then
     if (remaining == 0) {
       // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
-      MarkIteratorHelperAsExhausted(helper);
       IteratorClose(helper.underlying_iterator);
+      MarkIteratorHelperAsExhausted(helper);
       return AllocateJSIteratorResult(Undefined, True);
     }
 
