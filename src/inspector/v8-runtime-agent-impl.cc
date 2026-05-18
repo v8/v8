@@ -1125,11 +1125,16 @@ Response V8RuntimeAgentImpl::enable() {
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
   // The message queue can be cleared by a getter during message formatting.
   // Make a copy of the message to avoid a UAF.
-  const auto& messages = storage->messages();
-  const size_t size = messages.size();
+  // Also, the storage itself can be destroyed and recreated, so re-fetch the
+  // storage on each iteration.
+  size_t size = storage->messages().size();
   for (size_t i = 0; i < size; ++i) {
-    if (i >= messages.size()) break;
-    V8ConsoleMessage message = *messages[i];
+    if (m_inspector->consoleMessageStorage(m_session->contextGroupId()) !=
+        storage) {
+      break;
+    }
+    if (i >= storage->messages().size()) break;
+    V8ConsoleMessage message = *storage->messages()[i];
     if (!reportMessage(&message, false)) {
       break;
     }

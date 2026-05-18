@@ -133,6 +133,7 @@ class V8InspectorImpl : public V8Inspector {
   void muteExceptions(int contextGroupId);
   void unmuteExceptions(int contextGroupId);
   V8ConsoleMessageStorage* ensureConsoleMessageStorage(int contextGroupId);
+  V8ConsoleMessageStorage* consoleMessageStorage(int contextGroupId);
   bool hasConsoleMessageStorage(int contextGroupId);
   void discardInspectedContext(int contextGroupId, int contextId);
   void disconnect(V8InspectorSessionImpl*);

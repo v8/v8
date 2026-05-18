@@ -138,6 +138,15 @@ V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
   return storageIt->second.get();
 }
 
+V8ConsoleMessageStorage* V8InspectorImpl::consoleMessageStorage(
+    int contextGroupId) {
+  auto storageIt = m_consoleStorageMap.find(contextGroupId);
+  if (storageIt == m_consoleStorageMap.end()) {
+    return nullptr;
+  }
+  return storageIt->second.get();
+}
+
 bool V8InspectorImpl::hasConsoleMessageStorage(int contextGroupId) {
   auto storageIt = m_consoleStorageMap.find(contextGroupId);
   return storageIt != m_consoleStorageMap.end();

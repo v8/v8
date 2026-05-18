@@ -321,8 +321,11 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   // Protect against reentrant debugger calls via interrupts.
   v8::debug::PostponeInterruptsScope no_interrupts(inspector->isolate());
 
+  V8ConsoleMessageStorage* storage =
+      inspector->consoleMessageStorage(contextGroupId);
+  if (!storage) return;
+
   if (m_origin == V8MessageOrigin::kException) {
-    if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
     v8::HandleScope scope(inspector->isolate());
     auto maybeScriptOrigin =
         v8::debug::GetScriptOrigin(inspector->isolate(), m_scriptId);
@@ -367,7 +370,7 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
   if (m_origin == V8MessageOrigin::kConsole) {
     std::unique_ptr<protocol::Array<protocol::Runtime::RemoteObject>>
         arguments = wrapArguments(session, generatePreview);
-    if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
+    if (inspector->consoleMessageStorage(contextGroupId) != storage) return;
     if (!arguments) {
       arguments =
           std::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
