@@ -200,7 +200,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     if (!InV8Namespace(f)) return;
     MangledName name;
     if (!GetMangledName(ctx_, f, &name)) return;
-    const std::string& function = f->getNameAsString();
+    const std::string function = f->getQualifiedNameAsString();
     AddCallee(name, function);
 
     const clang::FunctionDecl* body = nullptr;
@@ -392,7 +392,8 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
       suspects_allowlist.end()) {
     return false;
   }
-  if (gc_functions.find(decl->getNameAsString()) != gc_functions.end()) {
+  if (gc_functions.find(decl->getQualifiedNameAsString()) !=
+      gc_functions.end()) {
     TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
   }
