@@ -9624,6 +9624,14 @@ class TurboshaftGraphBuildingInterface
     // to avoid this special case.
     if (size == 0) return false;
 
+    // What can happen here is that due to --no-liftoff, we inline additional
+    // functions that are not included in the inlining tree, resulting in
+    // `inlining_positions_` growing in size more than expected.
+    if (!v8_flags.liftoff &&
+        inlining_positions_->size() >= InliningTree::kMaxInlinedCount) {
+      return false;
+    }
+
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
       if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
         // Default, production configuration (without compilation hints):
