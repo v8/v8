@@ -84,6 +84,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_bigsleep",
+    cq_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/bigsleep",
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    gclient_vars = [GCLIENT_VARS.NO_BENCHMARKS],
+)
+
+try_builder(
     name = "v8_linux64_coverage_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

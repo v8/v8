@@ -37,6 +37,7 @@ def define_all_recipes():
         "v8",
         "v8/archive",
         "v8/bazel",
+        "v8/bigsleep",
         "v8/branch_monitor",
         "v8/canary_detector",
         "v8/compilator",

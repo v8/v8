@@ -217,6 +217,24 @@ in_category(
 )
 
 in_category(
+    "BigSleep",
+    v8_builder(
+        name = "V8 Linux64 - big sleep",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        triggering_policy = greedy_batching_of_1,
+        executable = "recipe:v8/bigsleep",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+        use_siso = SISO.CHROMIUM_TRUSTED,
+        gclient_vars = [GCLIENT_VARS.NO_BENCHMARKS],
+        disable_resultdb_exports = True,
+        barrier = BARRIER.NONE,
+        work_in_progress = True,
+    ),
+)
+
+in_category(
     "NumFuzz",
     v8_builder(
         name = "V8 NumFuzz",
