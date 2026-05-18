@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstring>
+#include <string_view>
 #include <vector>
 
 #include "include/cppgc/allocation.h"
@@ -530,8 +531,8 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
   ASSERT_NE(nullptr, backing_entry);
   EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *backing_entry));
   // Because the backing is reachable from stack, the backing object has an edge
-  // to each key in it.
-  EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
+  // to each key in it, as well as an ephemeron edge to each value.
+  EXPECT_EQ(static_cast<int>(2 * EphemeronContainerBacking::kEphemeronCount),
             backing_entry->children_count());
 
   for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
@@ -547,13 +548,29 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
     const HeapGraphEdge* backing_to_key =
         FindFirstEdgeTo(*backing_entry, *key_entry);
     ASSERT_NE(nullptr, backing_to_key);
+    EXPECT_EQ(HeapGraphEdge::kElement, backing_to_key->type());
+
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
 
     // Each key has an edge to its linked ephemeron value.
     const HeapGraphEdge* key_to_value =
         FindFirstEdgeTo(*key_entry, *value_entry);
     ASSERT_NE(nullptr, key_to_value);
-    EXPECT_STREQ("part of key -> value pair in ephemeron table",
-                 key_to_value->name());
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
   }
 }
 
@@ -572,9 +589,10 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerNotReachableFromStack) {
   const HeapEntry* backing_entry =
       GetEntryFor(isolate(), heap_snapshot, container->backing());
   ASSERT_NE(nullptr, backing_entry);
-  // Currently the ephemeron container backing doesn't have any edges when not
-  // reachable from stack.
-  EXPECT_EQ(0, backing_entry->children_count());
+  // The ephemeron container backing now gets ephemeron edges to values even
+  // when not reachable from stack.
+  EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
+            backing_entry->children_count());
 
   for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
     const HeapEntry* key_entry =
@@ -584,12 +602,27 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerNotReachableFromStack) {
         GetEntryFor(isolate(), heap_snapshot, container->value(i));
     ASSERT_NE(nullptr, value_entry);
 
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
+
     // Each key has an edge to its linked ephemeron value.
     const HeapGraphEdge* key_to_value =
         FindFirstEdgeTo(*key_entry, *value_entry);
     ASSERT_NE(nullptr, key_to_value);
-    EXPECT_STREQ("part of key -> value pair in ephemeron table",
-                 key_to_value->name());
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
   }
 }
 

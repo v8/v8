@@ -716,6 +716,9 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
                                 const char* embedder_name,
                                 const char* wrapper_name);
 
+  void CreateEphemeronEdges(HeapEntry* table_entry, HeapEntry* key_entry,
+                            HeapEntry* value_entry);
+
   HeapEntry* FindEntry(HeapThing ptr) {
     HeapEntriesMap::Entry* entry =
         entries_map_.Lookup(ptr, ComputePointerHash(ptr));

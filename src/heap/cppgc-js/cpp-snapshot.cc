@@ -201,6 +201,16 @@ class CppGraphBuilderImpl final {
     }
   }
 
+  void AddEphemeronEdge(const ParentScope& table_scope,
+                        const ParentScope& key_scope,
+                        const HeapObjectHeader& value_header) {
+    HeapEntry* key = key_scope.entry();
+    HeapEntry* table = table_scope.entry();
+    HeapEntry* value = GetOrCreateNode(value_header);
+
+    generator_->CreateEphemeronEdges(table, key, value);
+  }
+
   void AddEdge(const ParentScope& parent, const TracedReferenceBase& ref,
                std::string_view edge_name) {
     v8::Local<v8::Data> v8_data =
@@ -314,7 +324,7 @@ class GraphBuildingVisitor final : public JSVisitor {
     // Regular path where both key and value are GarbageCollected objects.
     auto& value_header = HeapObjectHeader::FromObject(value);
 
-    graph_builder_.AddEdge(key_scope, value_header, kEphemeronEdgeName);
+    graph_builder_.AddEphemeronEdge(parent_scope_, key_scope, value_header);
   }
 
   // JS handling.

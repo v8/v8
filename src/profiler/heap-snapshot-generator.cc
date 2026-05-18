@@ -1776,16 +1776,7 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
     if (key_entry && value_entry && !IsUndefined(key)) {
-      const char* edge_name = names_->GetFormatted(
-          "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
-          key_entry->name(), key_entry->id(), value_entry->name(),
-          value_entry->id(), table_entry->id());
-      key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
-                                            value_entry, names_, generator_,
-                                            HeapEntry::kEphemeron);
-      table_entry->SetNamedAutoIndexReference(
-          HeapGraphEdge::kInternal, edge_name, value_entry, names_, generator_,
-          HeapEntry::kEphemeron);
+      generator_->CreateEphemeronEdges(table_entry, key_entry, value_entry);
     }
   }
 }
@@ -3312,6 +3303,21 @@ const char* HeapSnapshotGenerator::MergeNames(StringsStorage* names,
   const char* suffix = strchr(wrapper_name, '/');
   return suffix ? names->GetFormatted("%s %s", embedder_name, suffix)
                 : embedder_name;
+}
+
+void HeapSnapshotGenerator::CreateEphemeronEdges(HeapEntry* table_entry,
+                                                 HeapEntry* key_entry,
+                                                 HeapEntry* value_entry) {
+  const char* edge_name = names_->GetFormatted(
+      "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
+      key_entry->name(), key_entry->id(), value_entry->name(),
+      value_entry->id(), table_entry->id());
+  key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
+                                        value_entry, names_, this,
+                                        HeapEntry::kEphemeron);
+  table_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
+                                          value_entry, names_, this,
+                                          HeapEntry::kEphemeron);
 }
 
 HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
