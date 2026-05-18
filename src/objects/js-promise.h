@@ -10,6 +10,7 @@
 #include "src/handles/handles.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -65,6 +66,14 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   V8_EXPORT_PRIVATE Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
 
+  // [is_native_resolver_invoked]: This is a part of simpler anti double
+  // settlement mechanism for native promises unlike the "promiseOrEmpty"
+  // machinery required by the spec for JavaScript promises.
+  // https://tc39.es/ecma262/#sec-createresolvingfunctions
+  // Returns true if v8::Resolver::Resolve() or Reject() was called for this
+  // promise.
+  DECL_BOOLEAN_ACCESSORS(is_native_resolver_invoked)
+
   // https://tc39.es/ecma262/#sec-fulfillpromise
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);
@@ -92,10 +101,7 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   DECL_VERIFIER(JSPromise)
 
   // Flags layout.
-  using StatusBits = base::BitField<Promise::PromiseState, 0, 2>;
-  using HasHandlerBit = base::BitField<bool, 2, 1>;
-  using IsSilentBit = base::BitField<bool, 3, 1>;
-  using AsyncTaskIdBits = base::BitField<uint32_t, 4, 27>;
+  DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
 
   static_assert(v8::Promise::kPending == 0);
   static_assert(v8::Promise::kFulfilled == 1);

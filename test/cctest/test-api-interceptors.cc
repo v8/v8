@@ -32,20 +32,6 @@ using ::v8::Value;
 
 namespace {
 
-// This tag value has been picked arbitrarily between 0 and
-// V8_EXTERNAL_POINTER_TAG_COUNT.
-constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
-
-template <typename T, typename U>
-T* GetData(const v8::PropertyCallbackInfo<U>& info) {
-  return reinterpret_cast<T*>(
-      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
-}
-
-v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
-  return v8::External::New(isolate, pointer, kTestConfigTag);
-}
-
 constexpr v8::EmbedderDataTypeTag kApiInterceptorTag = 1;
 
 void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {

@@ -33,6 +33,8 @@ void JSPromise::set_flags(int value) {
   flags_.store(this, Smi::From31BitPattern(value));
 }
 
+BOOL_ACCESSORS(JSPromise, flags, is_native_resolver_invoked,
+               IsNativeResolverInvokedBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, is_silent, IsSilentBit::kShift)
 
