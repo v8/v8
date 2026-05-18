@@ -428,7 +428,7 @@ void ObjectStats::RecordObject(Tagged<HeapObject> obj, int type, size_t size) {
 
 void ObjectStats::RecordObjectStats(Tagged<HeapObject> obj, InstanceType type,
                                     size_t size, size_t over_allocated) {
-  DCHECK_LE(type, LAST_TYPE);
+  SBXCHECK_LE(type, LAST_TYPE);
 
   object_counts_[type]++;
   object_sizes_[type] += size;
