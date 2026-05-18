@@ -2359,23 +2359,35 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
 }
 
 #ifdef V8_OS_LINUX
-void SendPerfControlCommand(const char* command) {
+bool SendPerfControlCommand(const char* command) {
   if (Shell::options.perf_ctl_fd != -1 && Shell::options.perf_ack_fd != -1) {
     size_t command_len = strlen(command);
     ssize_t ret = write(Shell::options.perf_ctl_fd, command, command_len);
     if (ret == -1) {
       fprintf(stderr, "perf_ctl write error: %s\n", strerror(errno));
+      return false;
     }
-    CHECK_EQ(ret, command_len);
+    if (ret != static_cast<ssize_t>(command_len)) {
+      fprintf(stderr, "perf_ctl write failed to write all bytes\n");
+      return false;
+    }
 
     char ack[5];
     ret = read(Shell::options.perf_ack_fd, ack, 5);
     if (ret == -1) {
       fprintf(stderr, "perf_ack read error: %s\n", strerror(errno));
+      return false;
     }
-    CHECK_EQ(ret, 5);
-    CHECK_EQ(strcmp(ack, "ack\n"), 0);
+    if (ret != 5) {
+      fprintf(stderr, "perf_ack read failed to read all bytes\n");
+      return false;
+    }
+    if (strcmp(ack, "ack\n") != 0) {
+      fprintf(stderr, "perf_ack received invalid ack: %s\n", ack);
+      return false;
+    }
   }
+  return true;
 }
 #endif
 
@@ -2430,7 +2442,10 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
-    SendPerfControlCommand("enable");
+    if (!SendPerfControlCommand("enable")) {
+      options.perf_ctl_fd.Overwrite(-1);
+      options.perf_ack_fd.Overwrite(-1);
+    }
   }
 #endif
 }
@@ -2470,7 +2485,10 @@ void Shell::PerformanceMeasure(
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
-    SendPerfControlCommand("disable");
+    if (!SendPerfControlCommand("disable")) {
+      options.perf_ctl_fd.Overwrite(-1);
+      options.perf_ack_fd.Overwrite(-1);
+    }
   }
 #endif
 
@@ -6881,6 +6899,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_flag_is_not_specified(options.thread_pool_size);
     check_flag_is_not_specified(options.dump_counters);
     check_flag_is_not_specified(options.dump_counters_nvp);
+#ifdef V8_OS_LINUX
+    check_flag_is_not_specified(options.perf_ctl_fd);
+    check_flag_is_not_specified(options.perf_ack_fd);
+    check_flag_is_not_specified(options.scope_linux_perf_to_mark_measure);
+#endif
   }
 
 #ifdef V8_OS_LINUX
@@ -6891,7 +6914,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
               "--perf-ctl-fd and --perf-ack-fd\n");
       return false;
     }
-    SendPerfControlCommand("disable");
+    if (!SendPerfControlCommand("disable")) {
+      fprintf(stderr, "Failed to initially disable perf control\n");
+      return false;
+    }
   }
 #endif
 
