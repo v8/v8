@@ -467,6 +467,8 @@
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
+  # https://crbug.com/42202404
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
