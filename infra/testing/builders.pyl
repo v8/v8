@@ -318,8 +318,7 @@
   'v8_linux64_arm64_asan_rel': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -328,8 +327,7 @@
   'v8_linux64_arm64_dbg': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -338,8 +336,7 @@
   'v8_linux64_arm64_rel': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -2639,8 +2636,7 @@
   'V8 Linux64 - arm64 - ASAN': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
@@ -2649,8 +2645,7 @@
   'V8 Linux64 - arm64': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing',  'variant': 'default'},
@@ -2659,8 +2654,7 @@
   'V8 Linux64 - arm64 - debug': {
     'swarming_dimensions': {
       'os': 'Linux',
-      'cpu': 'arm64',
-      'pool': 'v8.tests',
+      'cpu': 'arm64-64-Google_Tamar_GCE',
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
