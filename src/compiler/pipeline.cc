@@ -701,6 +701,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   // Ensure that the RuntimeCallStats table of main thread is available for
   // phases happening during PrepareJob.
   PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
+  compilation_info()->set_debug_name(compilation_info()->GetDebugName().get());
 
   if (compilation_info()->bytecode_array()->length() >
       v8_flags.max_optimized_bytecode_size) {

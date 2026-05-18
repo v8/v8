@@ -129,11 +129,11 @@ class MaglevCompilationInfo final {
   static std::unique_ptr<MaglevCompilationInfo> NewForTurbolev(
       Isolate* isolate, compiler::JSHeapBroker* broker,
       IndirectHandle<JSFunction> function, BytecodeOffset osr_offset,
-      bool specialize_to_function_context) {
+      bool specialize_to_function_context, std::string function_name) {
     // Doesn't use make_unique due to the private ctor.
     return std::unique_ptr<MaglevCompilationInfo>(new MaglevCompilationInfo(
         isolate, function, osr_offset, broker, specialize_to_function_context,
-        /*is_turbolev*/ true));
+        /*is_turbolev*/ true, std::move(function_name)));
   }
   static std::unique_ptr<MaglevCompilationInfo> New(
       Isolate* isolate, IndirectHandle<JSFunction> function,
@@ -217,7 +217,7 @@ class MaglevCompilationInfo final {
       BytecodeOffset osr_offset,
       std::optional<compiler::JSHeapBroker*> broker = std::nullopt,
       std::optional<bool> specialize_to_function_context = std::nullopt,
-      bool is_turbolev = false);
+      bool is_turbolev = false, std::string function_name = "");
 
   // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
   // Use DetachCanonicalHandles() to transfer ownership instead.

@@ -47,7 +47,8 @@ TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
       compilation_info_(maglev::MaglevCompilationInfo::NewForTurbolev(
           data->isolate(), data->broker(), data->info()->closure(),
           data->info()->osr_offset(),
-          data->info()->function_context_specializing())) {
+          data->info()->function_context_specializing(),
+          data->info()->debug_name())) {
   // We need to be certain that the parameter count reported by our output
   // Code object matches what the code we compile expects. Otherwise, this
   // may lead to effectively signature mismatches during function calls. This
