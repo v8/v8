@@ -269,18 +269,24 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   // It's unclear if we'll ever need this in production, but if we decide to
   // use it, we should do a more thorough audit to determine which functions
   // should be disallowed here.
+
+  if (!v8_flags.fuzzing) return true;
+
   switch (id) {
 #if V8_ENABLE_WEBASSEMBLY
-    case Runtime::kWasmTriggerTierUp:
-    case Runtime::kWasmTraceEnter:
-    case Runtime::kWasmTraceExit:
-    case Runtime::kTrapHandlerThrowWasmError:
-    case Runtime::kWasmInternalFunctionCreateExternal:
-    case Runtime::kWasmArrayCopy:
-    case Runtime::kWasmAllocateFeedbackVector:
-    case Runtime::kWasmStringNewWtf8:
-      return false;
+#define CASE_WASM_INTRINSIC(Name, ...) case Runtime::k##Name:
+#define CASE_WASM_INTRINSIC_INLINE(Name, ...) case Runtime::kInline##Name:
+    // Only allow fuzzing-safe Wasm intrinsics because these intrinsics are
+    // never called by JS bytecode in production and inappropriate calls often
+    // lead to uninteresting fuzzer crashes.
+    FOR_EACH_INTRINSIC_WASM(CASE_WASM_INTRINSIC, CASE_WASM_INTRINSIC_INLINE)
+    FOR_EACH_INTRINSIC_WASM_TEST(CASE_WASM_INTRINSIC,
+                                 CASE_WASM_INTRINSIC_INLINE)
+#undef CASE_WASM_INTRINSIC_INLINE
+#undef CASE_WASM_INTRINSIC
+    return Runtime::IsEnabledForFuzzing(id);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
     default:
       return true;
   }

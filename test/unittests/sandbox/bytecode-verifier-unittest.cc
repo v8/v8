@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -636,6 +637,7 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
 
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(BytecodeVerifierTest, ForbiddenRuntimeFunction) {
+  i::FlagScope<bool> f(&v8_flags.fuzzing, true);
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
