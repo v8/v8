@@ -57,6 +57,14 @@ class JSPromise
   V8_EXPORT_PRIVATE Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
 
+  // [is_native_resolver_invoked]: This is a part of simpler anti double
+  // settlement mechanism for native promises unlike the "promiseOrEmpty"
+  // machinery required by the spec for JavaScript promises.
+  // https://tc39.es/ecma262/#sec-createresolvingfunctions
+  // Returns true if v8::Resolver::Resolve() or Reject() was called for this
+  // promise.
+  DECL_BOOLEAN_ACCESSORS(is_native_resolver_invoked)
+
   // ES section #sec-fulfillpromise
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);

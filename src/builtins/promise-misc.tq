@@ -51,6 +51,7 @@ macro PromiseInit(promise: JSPromise): void {
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
+    is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
     async_task_id: kInvalidAsyncTaskId
@@ -70,6 +71,7 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   promise.reactions_or_result = kZero;
   promise.flags = SmiTag(JSPromiseFlags{
     status: PromiseState::kPending,
+    is_native_resolver_invoked: false,
     has_handler: false,
     is_silent: false,
     async_task_id: kInvalidAsyncTaskId
