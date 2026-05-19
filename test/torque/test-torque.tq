@@ -799,6 +799,7 @@ struct TestIterator {
 }
 
 @export
+@if(TAGGED_SIZE_8_BYTES)
 macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
   let i = TestIterator{count: 5};
   return new FixedArray{
@@ -810,6 +811,14 @@ macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
 }
 
 @export
+@ifnot(TAGGED_SIZE_8_BYTES)
+macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
+  let i = TestIterator{count: 5};
+  return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
+}
+
+@export
+@if(TAGGED_SIZE_8_BYTES)
 macro TestSlices(): void {
   const it = TestIterator{count: 3};
   const a = new FixedArray{
@@ -832,14 +841,27 @@ macro TestSlices(): void {
   const threeTwoOne = Convert<Smi>(321);
   *firstRefAgain = threeTwoOne;
   check(TaggedEqual(a.objects[0], threeTwoOne));
+}
 
-  // *slice;             // error, not allowed
-  // a.objects;          // error, not allowed
-  // a.objects = slice;  // error, not allowed
+@export
+@ifnot(TAGGED_SIZE_8_BYTES)
+macro TestSlices(): void {
+  const it = TestIterator{count: 3};
+  const a = new FixedArray{map: kFixedArrayMap, length: 3, objects: ...it};
+  check(a.length == 3);
 
-  // TODO(gsps): Currently errors, but should be allowed:
-  // const _sameSlice: MutableSlice<Object> = &(*slice);
-  // (*slice)[0] : Smi
+  const oneTwoThree = Convert<Smi>(123);
+  a.objects[0] = oneTwoThree;
+  const firstRef:&Object = &a.objects[0];
+  check(TaggedEqual(*firstRef, oneTwoThree));
+
+  const slice: MutableSlice<Object> = &a.objects;
+  const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
+  check(TaggedEqual(*firstRefAgain, oneTwoThree));
+
+  const threeTwoOne = Convert<Smi>(321);
+  *firstRefAgain = threeTwoOne;
+  check(TaggedEqual(a.objects[0], threeTwoOne));
 }
 
 @export

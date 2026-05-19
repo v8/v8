@@ -682,7 +682,8 @@ constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
 constexpr int SwissNameDictionary::MaxCapacity() {
   // TODO(375937549): Convert to uint32_t.
   constexpr int kConstSize =
-      SwissNameDictionary::DataTableStartOffset() + sizeof(ByteArray::Header) +
+      SwissNameDictionary::DataTableStartOffset() +
+      OFFSET_OF_DATA_START(ByteArray) +
       // Size for present and deleted element count at max capacity:
       2 * sizeof(uint32_t);
   constexpr int kPerEntrySize =

@@ -160,7 +160,7 @@ static_assert(sizeof(JSDispatchHandleMember) == sizeof(uint32_t));
                                                                            \
  public:                                                                   \
   template <typename Class>                                                \
-  static constexpr auto OffsetOfDataStart() {                              \
+  static constexpr int OffsetOfDataStart() {                               \
     /* Produce a compiler error if {Class} is not this class */            \
     static_assert(base::tmp::lazy_true<                                    \
                   decltype(std::declval<Class>()                           \

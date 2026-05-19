@@ -32,18 +32,32 @@ extern class SloppyArgumentsElements extends FixedArrayBase {
   mapped_entries[length]: Smi|TheHole;
 }
 
-macro NewSloppyArgumentsElements<Iterator: type>(
-    length: uint32, context: Context, arguments: FixedArray,
-    it: Iterator): SloppyArgumentsElements {
-  return new SloppyArgumentsElements{
-    map: %GetClassMapConstant<SloppyArgumentsElements>(),
-    length,
-    optional_padding: 0,
-    context,
-    arguments,
-    mapped_entries: ...it
-  };
-}
+@if(TAGGED_SIZE_8_BYTES)
+  macro NewSloppyArgumentsElements<Iterator: type>(
+      length: uint32, context: Context, arguments: FixedArray,
+      it: Iterator): SloppyArgumentsElements {
+    return new SloppyArgumentsElements{
+      map: %GetClassMapConstant<SloppyArgumentsElements>(),
+      length,
+      optional_padding: 0,
+      context,
+      arguments,
+      mapped_entries: ...it
+    };
+  }
+
+@ifnot(TAGGED_SIZE_8_BYTES)
+  macro NewSloppyArgumentsElements<Iterator: type>(
+      length: uint32, context: Context, arguments: FixedArray,
+      it: Iterator): SloppyArgumentsElements {
+    return new SloppyArgumentsElements{
+      map: %GetClassMapConstant<SloppyArgumentsElements>(),
+      length,
+      context,
+      arguments,
+      mapped_entries: ...it
+    };
+  }
 
 @cppObjectLayoutDefinition
 extern class AliasedArgumentsEntry extends Struct {

@@ -302,10 +302,12 @@ class ClosureFeedbackCellArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
-  static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
-  static_assert(sizeof(Super::Header) == kHeaderSize);
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 };
 
 class NexusConfig;

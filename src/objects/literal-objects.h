@@ -58,11 +58,6 @@ class ObjectBoilerplateDescriptionShape final : public AllStatic {
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kObjectBoilerplateDescriptionMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Smi> backing_store_size_;
-    TaggedMember<Smi> flags_;
-  });
 };
 
 // ObjectBoilerplateDescription is a list of properties consisting of name
@@ -106,7 +101,7 @@ class ObjectBoilerplateDescription
 
   static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
+      kLengthOffset + 3 * (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 
  private:
   using TaggedArrayBase::get;
@@ -115,6 +110,15 @@ class ObjectBoilerplateDescription
   static constexpr int kElementsPerEntry = 2;
   static constexpr int NameIndex(int i) { return i * kElementsPerEntry; }
   static constexpr int ValueIndex(int i) { return i * kElementsPerEntry + 1; }
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<Smi> backing_store_size_;
+  TaggedMember<Smi> flags_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 };
 
 V8_OBJECT class ArrayBoilerplateDescription : public Struct {

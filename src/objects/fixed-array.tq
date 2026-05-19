@@ -7,7 +7,6 @@
 extern class FixedArrayBase extends HeapObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 @cppObjectLayoutDefinition
@@ -21,7 +20,7 @@ type EmptyFixedArray extends FixedArray;
 extern class TrustedFixedArray extends TrustedObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   objects[length]: Object;
 }
 
@@ -29,7 +28,7 @@ extern class TrustedFixedArray extends TrustedObject {
 extern class ProtectedFixedArray extends TrustedObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   objects[length]: TrustedObject|Smi;
 }
 
@@ -42,7 +41,7 @@ extern class FixedDoubleArray extends FixedArrayBase {
 extern class WeakFixedArray extends HeapObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   objects[length]: MaybeObject;
 }
 
@@ -56,7 +55,7 @@ extern class WeakHomomorphicFixedArray extends HeapObject {
 extern class TrustedWeakFixedArray extends TrustedObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   objects[length]: MaybeObject;
 }
 
@@ -64,7 +63,7 @@ extern class TrustedWeakFixedArray extends TrustedObject {
 extern class ProtectedWeakFixedArray extends TrustedObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
   // code accessing these values.
   objects[length]: TrustedObject|Smi;
@@ -79,7 +78,7 @@ extern class ByteArray extends FixedArrayBase {
 extern class TrustedByteArray extends TrustedObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   values[length]: uint8;
 }
 
@@ -208,28 +207,57 @@ namespace runtime {
 extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
 }
 
-macro NewFixedArray<Iterator: type>(
-    length: intptr, it: Iterator): FixedArray {
-  const length: uint32 = Unsigned(Convert<int32>(length));
-  if (length == 0) return kEmptyFixedArray;
-  if (length > kFixedArrayMaxLength) deferred {
-      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-    }
-  return new
-  FixedArray{map: kFixedArrayMap, length, optional_padding: 0, objects: ...it};
-}
+@if(TAGGED_SIZE_8_BYTES)
+  macro NewFixedArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new FixedArray{
+      map: kFixedArrayMap,
+      length,
+      optional_padding: 0,
+      objects: ...it
+    };
+  }
 
-macro NewFixedDoubleArray<Iterator: type>(
-    length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
-  const length: uint32 = Unsigned(Convert<int32>(length));
-  if (length == 0) return kEmptyFixedArray;
-  if (length > kFixedDoubleArrayMaxLength) deferred {
-      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-    }
-  return new FixedDoubleArray{
-    map: kFixedDoubleArrayMap,
-    length,
-    optional_padding: 0,
-    values: ...it
-  };
-}
+@ifnot(TAGGED_SIZE_8_BYTES)
+  macro NewFixedArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new FixedArray{map: kFixedArrayMap, length, objects: ...it};
+  }
+
+@if(TAGGED_SIZE_8_BYTES)
+  macro NewFixedDoubleArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedDoubleArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new FixedDoubleArray{
+      map: kFixedDoubleArrayMap,
+      length,
+      optional_padding: 0,
+      values: ...it
+    };
+  }
+
+@ifnot(TAGGED_SIZE_8_BYTES)
+  macro NewFixedDoubleArray<Iterator: type>(
+      length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+    const length: uint32 = Unsigned(Convert<int32>(length));
+    if (length == 0) return kEmptyFixedArray;
+    if (length > kFixedDoubleArrayMaxLength) deferred {
+        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+      }
+    return new
+    FixedDoubleArray{map: kFixedDoubleArrayMap, length, values: ...it};
+  }

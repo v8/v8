@@ -35,83 +35,25 @@
 #include "src/objects/object-macros.h"
 
 namespace v8::internal {
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity() const {
-  return SafeHeapObjectSize(capacity_);
-}
-
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity(
-    AcquireLoadTag tag) const {
-  return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&capacity_));
-}
-
-template <class S>
-void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value) {
-  capacity_ = value;
-}
-
-template <class S>
-void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value,
-                                                     ReleaseStoreTag tag) {
-  base::AsAtomic32::Release_Store(&capacity_, value);
-}
-
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length() const {
+SafeHeapObjectSize FixedArrayBase::length() const {
   return SafeHeapObjectSize(length_);
 }
 
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::ulength() const {
-  return length();
-}
+SafeHeapObjectSize FixedArrayBase::ulength() const { return length(); }
 
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length(
-    AcquireLoadTag tag) const {
+SafeHeapObjectSize FixedArrayBase::length(AcquireLoadTag tag) const {
   return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_));
 }
 
-template <class S>
-void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value) {
-  length_ = value;
+SafeHeapObjectSize FixedArrayBase::length(RelaxedLoadTag tag) const {
+  return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_));
 }
 
-template <class S>
-void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value,
-                                                  ReleaseStoreTag tag) {
+void FixedArrayBase::set_length(uint32_t value) { length_ = value; }
+
+void FixedArrayBase::set_length(uint32_t value, ReleaseStoreTag tag) {
   base::AsAtomic32::Release_Store(&length_, value);
 }
-
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::capacity() const {
-  return ulength();
-}
-
-template <class S>
-SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::capacity(
-    AcquireLoadTag tag) const {
-  return length(tag);
-}
-
-template <class S>
-void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value) {
-  set_length(value);
-}
-
-template <class S>
-void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value,
-                                                    ReleaseStoreTag tag) {
-  set_length(value, tag);
-}
-
-#if TAGGED_SIZE_8_BYTES
-template <class S>
-void detail::ArrayHeaderBase<S, true>::clear_optional_padding() {
-  optional_padding_ = 0;
-}
-#endif
 
 template <class D, class S, class P>
 bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
@@ -129,28 +71,28 @@ Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
 TaggedArrayBase<D, S, P>::get(uint32_t index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
-  return objects()[index].Relaxed_Load();
+  return derived()->objects()[index].Relaxed_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
 TaggedArrayBase<D, S, P>::get(uint32_t index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
-  return objects()[index].Relaxed_Load();
+  return derived()->objects()[index].Relaxed_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
 TaggedArrayBase<D, S, P>::get(uint32_t index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
-  return objects()[index].Acquire_Load();
+  return derived()->objects()[index].Acquire_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
 TaggedArrayBase<D, S, P>::get(uint32_t index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
-  return objects()[index].SeqCst_Load();
+  return derived()->objects()[index].SeqCst_Load();
 }
 
 template <class D, class S, class P>
@@ -159,7 +101,7 @@ void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
-  objects()[index].Relaxed_Store(this, value, mode);
+  derived()->objects()[index].Relaxed_Store(derived(), value, mode);
 }
 
 template <class D, class S, class P>
@@ -173,7 +115,7 @@ void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    RelaxedStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  objects()[index].Relaxed_Store(this, value, mode);
+  derived()->objects()[index].Relaxed_Store(derived(), value, mode);
 }
 
 template <class D, class S, class P>
@@ -188,7 +130,7 @@ void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    ReleaseStoreTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  objects()[index].Release_Store(this, value, mode);
+  derived()->objects()[index].Release_Store(derived(), value, mode);
 }
 
 template <class D, class S, class P>
@@ -203,7 +145,7 @@ void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
                                    SeqCstAccessTag tag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  objects()[index].SeqCst_Store(this, value, mode);
+  derived()->objects()[index].SeqCst_Store(derived(), value, mode);
 }
 
 template <class D, class S, class P>
@@ -219,7 +161,7 @@ TaggedArrayBase<D, S, P>::swap(uint32_t index, Tagged<ElementT> value,
                                SeqCstAccessTag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  return objects()[index].SeqCst_Swap(this, value, mode);
+  return derived()->objects()[index].SeqCst_Swap(derived(), value, mode);
 }
 
 template <class D, class S, class P>
@@ -231,7 +173,8 @@ TaggedArrayBase<D, S, P>::compare_and_swap(uint32_t index,
                                            WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  return objects()[index].SeqCst_CompareAndSwap(this, expected, value, mode);
+  return derived()->objects()[index].SeqCst_CompareAndSwap(derived(), expected,
+                                                           value, mode);
 }
 
 template <class D, class S, class P>
@@ -299,7 +242,7 @@ TaggedArrayBase<D, S, P>::RawFieldOfFirstElement() const {
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::SlotType
 TaggedArrayBase<D, S, P>::RawFieldOfElementAt(uint32_t index) const {
-  return SlotType(&objects()[index]);
+  return SlotType(&derived()->objects()[index]);
 }
 
 // static
@@ -513,13 +456,13 @@ bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::get(int index) const -> ElementMemberT {
   DCHECK(IsInBounds(index));
-  return values()[index];
+  return derived()->values()[index];
 }
 
 template <class D, class S, class P>
 void PrimitiveArrayBase<D, S, P>::set(int index, ElementMemberT value) {
   DCHECK(IsInBounds(index));
-  values()[index] = value;
+  derived()->values()[index] = value;
 }
 
 // Due to right-trimming (which creates a filler object before publishing the
@@ -532,27 +475,27 @@ int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::begin() -> ElementMemberT* {
-  return &values()[0];
+  return &derived()->values()[0];
 }
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::begin() const -> const ElementMemberT* {
-  return &values()[0];
+  return &derived()->values()[0];
 }
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::end() -> ElementMemberT* {
-  return &values()[this->ulength().value()];
+  return &derived()->values()[this->ulength().value()];
 }
 
 template <class D, class S, class P>
 auto PrimitiveArrayBase<D, S, P>::end() const -> const ElementMemberT* {
-  return &values()[this->ulength().value()];
+  return &derived()->values()[this->ulength().value()];
 }
 
 template <class D, class S, class P>
 int PrimitiveArrayBase<D, S, P>::DataSize() const {
-  int data_size = SizeFor(this->ulength().value()) - sizeof(Header);
+  int data_size = SizeFor(this->ulength().value()) - OFFSET_OF_DATA_START(D);
   DCHECK_EQ(data_size,
             OBJECT_POINTER_ALIGN(this->ulength().value() * kElementSize));
   return data_size;
@@ -563,7 +506,8 @@ template <class D, class S, class P>
 inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
     Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return Cast<D>(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
+  return Cast<D>(
+      Tagged<Object>(address - OFFSET_OF_DATA_START(D) + kHeapObjectTag));
 }
 
 // static

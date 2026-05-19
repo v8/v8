@@ -33,86 +33,37 @@ namespace v8::internal {
 static constexpr uint32_t kMaxFixedArrayCapacity =
     V8_LOWER_LIMITS_MODE_BOOL ? (16 * 1024 * 1024) : (128 * 1024 * 1024);
 
-namespace detail {
-template <class Super, bool kLengthEqualsCapacity>
-class ArrayHeaderBase;
-
-V8_OBJECT template <class Super>
-class ArrayHeaderBase<Super, false> : public Super {
- public:
-  inline SafeHeapObjectSize capacity() const;
-  inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(uint32_t value);
-  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
-
-  // TODO(leszeks): Make this private.
- public:
-  uint32_t capacity_;
-} V8_OBJECT_END;
-
-V8_OBJECT template <class Super>
-class ArrayHeaderBase<Super, true> : public Super {
- public:
-  // Length and capacity are never supposed to be negative.
-  // See https://crbug.com/441221573.
-  // The function returns an alias instead of uint32_t to incrementally convert
-  // callsites without missing any implicit casts.
-  inline SafeHeapObjectSize ulength() const;
-
-  inline SafeHeapObjectSize length() const;
-  inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
-  inline void set_length(uint32_t value);
-  inline void set_length(uint32_t value, ReleaseStoreTag tag);
-
-  inline SafeHeapObjectSize capacity() const;
-  inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const;
-  inline void set_capacity(uint32_t value);
-  inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
-#if TAGGED_SIZE_8_BYTES
-  inline void clear_optional_padding();
-#endif  // TAGGED_SIZE_8_BYTES
-
-  // TODO(leszeks): Make this private.
- public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#else
-  char optional_padding_[0];
-#endif  // TAGGED_SIZE_8_BYTES
-} V8_OBJECT_END;
-
-template <class Shape, class Super, typename = void>
-struct TaggedArrayHeaderHelper {
-  using type = ArrayHeaderBase<Super, Shape::kLengthEqualsCapacity>;
-};
-template <class Shape, class Super>
-struct TaggedArrayHeaderHelper<
-    Shape, Super, std::void_t<typename Shape::template ExtraFields<Super>>> {
-  using BaseHeader = ArrayHeaderBase<Super, Shape::kLengthEqualsCapacity>;
-  using type = typename Shape::template ExtraFields<BaseHeader>;
-  static_assert(std::is_base_of_v<BaseHeader, type>);
-};
-template <class Shape, class Super>
-using TaggedArrayHeader = typename TaggedArrayHeaderHelper<Shape, Super>::type;
-}  // namespace detail
-
-#define V8_ARRAY_EXTRA_FIELDS(...)    \
-  V8_OBJECT template <typename Super> \
-  struct ExtraFields : public Super __VA_ARGS__ V8_OBJECT_END
-
-// Derived: must not have any fields - extra fields can be specified in the
-// Shap using V8_ARRAY_EXTRA_FIELDS.
 V8_OBJECT template <class Derived, class ShapeT, class Super = HeapObject>
-class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
+class TaggedArrayBase : public Super {
+ private:
+  V8_INLINE Derived* derived() { return static_cast<Derived*>(this); }
+  V8_INLINE const Derived* derived() const {
+    return static_cast<const Derived*>(this);
+  }
+
+  uint32_t& capacity_field() {
+    if constexpr (ShapeT::kLengthEqualsCapacity) {
+      return derived()->length_;
+    } else {
+      return derived()->capacity_;
+    }
+  }
+  const uint32_t& capacity_field() const {
+    if constexpr (ShapeT::kLengthEqualsCapacity) {
+      return derived()->length_;
+    } else {
+      return derived()->capacity_;
+    }
+  }
+
+  uint32_t& length_field() { return derived()->length_; }
+  const uint32_t& length_field() const { return derived()->length_; }
+
   static_assert(std::is_base_of_v<HeapObject, Super>);
   using ElementT = typename ShapeT::ElementT;
 
   static_assert(sizeof(TaggedMember<ElementT>) == kTaggedSize);
   static_assert(is_subtype_v<ElementT, MaybeObject>);
-
-  using ElementMemberT =
-      TaggedMember<ElementT, typename ShapeT::CompressionScheme>;
 
   template <typename ElementT>
   static constexpr bool kSupportsSmiElements =
@@ -122,7 +73,8 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
-  using Header = detail::TaggedArrayHeader<ShapeT, Super>;
+  using ElementMemberT =
+      TaggedMember<ElementT, typename ShapeT::CompressionScheme>;
   static constexpr bool kElementsAreMaybeObject = is_maybe_weak_v<ElementT>;
   static constexpr int kElementSize = kTaggedSize;
 
@@ -132,6 +84,45 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
  public:
   using Shape = ShapeT;
+
+  inline SafeHeapObjectSize capacity() const {
+    return SafeHeapObjectSize(capacity_field());
+  }
+  inline SafeHeapObjectSize capacity(RelaxedLoadTag) const {
+    return SafeHeapObjectSize(
+        base::AsAtomic32::Relaxed_Load(&capacity_field()));
+  }
+  inline SafeHeapObjectSize capacity(AcquireLoadTag) const {
+    return SafeHeapObjectSize(
+        base::AsAtomic32::Acquire_Load(&capacity_field()));
+  }
+  inline void set_capacity(uint32_t value) { capacity_field() = value; }
+  inline void set_capacity(uint32_t value, ReleaseStoreTag) {
+    base::AsAtomic32::Release_Store(&capacity_field(), value);
+  }
+
+  inline SafeHeapObjectSize length() const {
+    return SafeHeapObjectSize(length_field());
+  }
+  inline SafeHeapObjectSize ulength() const {
+    return SafeHeapObjectSize(length_field());
+  }
+  inline SafeHeapObjectSize length(AcquireLoadTag) const {
+    return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_field()));
+  }
+  inline SafeHeapObjectSize length(RelaxedLoadTag) const {
+    return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_field()));
+  }
+  inline void set_length(uint32_t value) { length_field() = value; }
+  inline void set_length(uint32_t value, ReleaseStoreTag) {
+    base::AsAtomic32::Release_Store(&length_field(), value);
+  }
+
+  inline void clear_optional_padding() {
+    if constexpr (requires { derived()->optional_padding_; }) {
+      derived()->optional_padding_ = 0;
+    }
+  }
 
   // Index is never supposed to be negative.
   // See https://crbug.com/441221573.
@@ -185,11 +176,8 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   inline void RightTrim(Isolate* isolate, uint32_t new_capacity);
 
   inline int AllocatedSize() const;
-  // TODO(375937549): Convert to use uint32_t.
-  static constexpr int SizeFor(int capacity) {
-    return sizeof(Header) + capacity * kElementSize;
-  }
-  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
+  static constexpr int SizeFor(int capacity);
+  static constexpr int OffsetOfElementAt(int index);
 
   // Gives access to raw memory which stores the array's data.
   inline SlotType RawFieldOfFirstElement() const;
@@ -199,13 +187,8 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   // fits into a Smi which is necessary for being able to create a free space
   // filler.
   static constexpr uint32_t kMaxCapacity = kMaxFixedArrayCapacity;
-  static_assert(SizeFor(static_cast<int>(kMaxCapacity)) <=
-                FreeSpace::kMaxSizeInBytes);
 
-  // Maximally allowed length for regular (non large object space) object.
-  static constexpr int kMaxRegularCapacity =
-      (kMaxRegularHeapObjectSize - sizeof(Header)) / kElementSize;
-  static_assert(static_cast<uint32_t>(kMaxRegularCapacity) < kMaxCapacity);
+  static constexpr int MaxRegularCapacity();
 
  protected:
   template <class IsolateT>
@@ -220,9 +203,25 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
-
-  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
+
+template <class Derived, class ShapeT, class Super>
+constexpr int TaggedArrayBase<Derived, ShapeT, Super>::SizeFor(int capacity) {
+  static_assert(Smi::IsValid(OffsetOfElementAt(kMaxCapacity)));
+  return OffsetOfElementAt(capacity);
+}
+
+template <class Derived, class ShapeT, class Super>
+constexpr int TaggedArrayBase<Derived, ShapeT, Super>::OffsetOfElementAt(
+    int index) {
+  return OFFSET_OF_DATA_START(Derived) + index * kElementSize;
+}
+
+template <class Derived, class ShapeT, class Super>
+constexpr int TaggedArrayBase<Derived, ShapeT, Super>::MaxRegularCapacity() {
+  return (kMaxRegularHeapObjectSize - OFFSET_OF_DATA_START(Derived)) /
+         kElementSize;
+}
 
 class TaggedArrayShape final : public AllStatic {
  public:
@@ -300,8 +299,11 @@ V8_OBJECT class FixedArray
   class BodyDescriptor;
 
   static constexpr uint32_t kMaxLength = FixedArray::kMaxCapacity;
-  // TODO(375937549): Convert kMaxRegularLength constants to uint32_t.
-  static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
+  static constexpr int kMaxRegularLength =
+      (kMaxRegularHeapObjectSize -
+       (sizeof(HeapObject) +
+        (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size))) /
+      kTaggedSize;
 
  private:
   template <template <typename> typename HandleType>
@@ -315,6 +317,13 @@ V8_OBJECT class FixedArray
       Isolate* isolate, DirectHandle<FixedArray> xs, uint32_t new_capacity,
       AllocationType allocation = AllocationType::kYoung,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 static_assert(sizeof(FixedArray) == Internals::kFixedArrayHeaderSize);
@@ -353,11 +362,17 @@ V8_OBJECT class TrustedFixedArray
 
   static constexpr uint32_t kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
-      TrustedFixedArray::kMaxRegularCapacity;
-  static constexpr uint32_t kLengthOffset = TrustedObject::kHeaderSize;
-  static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
-  static_assert(sizeof(Super::Header) == kHeaderSize);
+      (kMaxRegularHeapObjectSize -
+       (sizeof(TrustedObject) +
+        (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size))) /
+      kTaggedSize;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class ProtectedArrayShape final : public AllStatic {
@@ -392,7 +407,17 @@ V8_OBJECT class ProtectedFixedArray
 
   static constexpr uint32_t kMaxLength = Super::kMaxCapacity;
   static constexpr int kMaxRegularLength =
-      ProtectedFixedArray::kMaxRegularCapacity;
+      (kMaxRegularHeapObjectSize -
+       (sizeof(TrustedObject) +
+        (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size))) /
+      kTaggedSize;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -410,7 +435,7 @@ class FixedArrayExact final : public FixedArray {
 // elements backing stores and should not be part of the common FixedArray
 // hierarchy.
 V8_OBJECT
-class FixedArrayBase : public detail::ArrayHeaderBase<HeapObject, true> {
+class FixedArrayBase : public HeapObject {
  public:
   static constexpr int kLengthOffset = sizeof(HeapObject);
 #if TAGGED_SIZE_8_BYTES
@@ -420,45 +445,99 @@ class FixedArrayBase : public detail::ArrayHeaderBase<HeapObject, true> {
   static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
 #endif  // TAGGED_SIZE_8_BYTES
   static constexpr uint32_t kMaxLength = FixedArray::kMaxCapacity;
-  static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
+  static constexpr int kMaxRegularLength = FixedArray::kMaxRegularLength;
+
+  inline SafeHeapObjectSize length() const;
+  inline SafeHeapObjectSize ulength() const;
+  inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
+  inline SafeHeapObjectSize length(RelaxedLoadTag tag) const;
+  inline void set_length(uint32_t value);
+  inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
   V8_EXPORT_PRIVATE bool IsCowArray() const;
 
   DECL_VERIFIER(FixedArrayBase)
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
 } V8_OBJECT_END;
 
 V8_OBJECT
 template <class Derived, class ShapeT, class Super = HeapObject>
-class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
+class PrimitiveArrayBase : public Super {
+ private:
+  V8_INLINE Derived* derived() { return static_cast<Derived*>(this); }
+  V8_INLINE const Derived* derived() const {
+    return static_cast<const Derived*>(this);
+  }
+
+  uint32_t& length_field() { return derived()->length_; }
+  const uint32_t& length_field() const { return derived()->length_; }
+
   static_assert(std::is_base_of_v<HeapObject, Super>);
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(!is_subtype_v<ElementT, Object>);
 
+ public:
   // Bug(v8:8875): Doubles may be unaligned.
   using ElementMemberT = std::conditional_t<std::is_same_v<ElementT, double>,
                                             UnalignedDoubleMember, ElementT>;
   static_assert(alignof(ElementMemberT) <= alignof(Tagged_t));
 
- public:
   using Shape = ShapeT;
   static constexpr bool kElementsAreMaybeObject = false;
   static constexpr int kElementSize = sizeof(ElementMemberT);
-  using Header = detail::ArrayHeaderBase<Super, true>;
+
+  inline SafeHeapObjectSize length() const {
+    return SafeHeapObjectSize(length_field());
+  }
+  inline SafeHeapObjectSize ulength() const {
+    return SafeHeapObjectSize(length_field());
+  }
+  inline SafeHeapObjectSize capacity() const {
+    return SafeHeapObjectSize(length_field());
+  }
+  inline SafeHeapObjectSize length(AcquireLoadTag) const {
+    return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_field()));
+  }
+  inline SafeHeapObjectSize length(RelaxedLoadTag) const {
+    return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_field()));
+  }
+  inline void set_length(uint32_t value) { length_field() = value; }
+  inline void set_length(uint32_t value, ReleaseStoreTag) {
+    base::AsAtomic32::Release_Store(&length_field(), value);
+  }
+
+  inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const {
+    return length(tag);
+  }
+  inline SafeHeapObjectSize capacity(RelaxedLoadTag tag) const {
+    return length(tag);
+  }
+  inline void set_capacity(uint32_t value) { set_length(value); }
+  inline void set_capacity(uint32_t value, ReleaseStoreTag tag) {
+    set_length(value, tag);
+  }
+
+  inline void clear_optional_padding() {
+    if constexpr (requires { derived()->optional_padding_; }) {
+      derived()->optional_padding_ = 0;
+    }
+  }
 
   inline ElementMemberT get(int index) const;
   inline void set(int index, ElementMemberT value);
 
   inline int AllocatedSize() const;
   // TODO(375937549): Convert to use uint32_t.
-  static constexpr int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
-  }
-  static constexpr int OffsetOfElementAt(int index) {
-    return sizeof(Header) + index * kElementSize;
-  }
+  static constexpr int SizeFor(int length);
+  static constexpr int OffsetOfElementAt(int index);
 
   // Gives access to raw memory which stores the array's data.
   // Note that on 32-bit archs and on 64-bit platforms with pointer compression
@@ -475,13 +554,9 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
   // fits into a Smi which is necessary for being able to create a free space
   // filler.
   static constexpr uint32_t kMaxLength = kMaxFixedArrayCapacity;
-  static_assert(SizeFor(static_cast<int>(kMaxLength)) <=
-                FreeSpace::kMaxSizeInBytes);
 
   // Maximally allowed length for regular (non large object space) object.
-  static constexpr int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - sizeof(Header)) / kElementSize;
-  static_assert(static_cast<uint32_t>(kMaxRegularLength) < kMaxLength);
+  static constexpr int MaxRegularLength();
 
  protected:
   template <class IsolateT>
@@ -492,8 +567,6 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
       AllocationAlignment alignment = kTaggedAligned);
 
   inline bool IsInBounds(int index) const;
-
-  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values);
 } V8_OBJECT_END;
 
 class FixedDoubleArrayShape final : public AllStatic {
@@ -545,6 +618,13 @@ V8_OBJECT class FixedDoubleArray
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, values);
 } V8_OBJECT_END;
 
 static_assert(FixedDoubleArray::kMaxLength == FixedArray::kMaxLength);
@@ -575,10 +655,12 @@ V8_OBJECT class WeakFixedArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
-  static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
-  static_assert(sizeof(Super::Header) == kHeaderSize);
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class WeakHomomorphicFixedArrayShape final : public AllStatic {
@@ -612,10 +694,12 @@ V8_OBJECT class WeakHomomorphicFixedArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
-  static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
-  static_assert(sizeof(Super::Header) == kHeaderSize);
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class TrustedWeakFixedArrayShape final : public AllStatic {
@@ -644,10 +728,12 @@ V8_OBJECT class TrustedWeakFixedArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = TrustedObject::kHeaderSize;
-  static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
-  static_assert(sizeof(Super::Header) == kHeaderSize);
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class ProtectedWeakFixedArrayShape final : public AllStatic {
@@ -675,6 +761,13 @@ V8_OBJECT class ProtectedWeakFixedArray
   DECL_VERIFIER(ProtectedWeakFixedArray)
 
   class BodyDescriptor;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class WeakArrayListShape final : public AllStatic {
@@ -683,8 +776,6 @@ class WeakArrayListShape final : public AllStatic {
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
-
-  V8_ARRAY_EXTRA_FIELDS({ uint32_t length_; });
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -739,9 +830,7 @@ V8_OBJECT class WeakArrayList
   inline SafeHeapObjectSize ulength() const;
   inline void set_length(uint32_t value);
 
-  static constexpr int SizeForCapacity(uint32_t capacity) {
-    return SizeFor(capacity);
-  }
+  static constexpr int SizeForCapacity(uint32_t capacity);
 
   static constexpr uint32_t CapacityForLength(uint32_t length) {
     return length + std::max(length / 2, 2u);
@@ -767,7 +856,6 @@ V8_OBJECT class WeakArrayList
   // sizeof(Header)) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
   static constexpr uint32_t kMaxCapacity = kMaxFixedArrayCapacity;
-  static_assert(Smi::IsValid(SizeFor(static_cast<int>(kMaxCapacity))));
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, uint32_t length,
@@ -793,13 +881,21 @@ V8_OBJECT class WeakArrayList
   static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
-  static_assert(sizeof(Super::Header) == kHeaderSize);
 
  private:
   static constexpr int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kTaggedSize;
   }
+
+ public:
+  uint32_t capacity_;
+  uint32_t length_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
+
+constexpr int WeakArrayList::SizeForCapacity(uint32_t capacity) {
+  return SizeFor(capacity);
+}
 
 class WeakArrayList::Iterator {
  public:
@@ -821,8 +917,6 @@ class ArrayListShape final : public AllStatic {
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
-
-  V8_ARRAY_EXTRA_FIELDS({ uint32_t length_; });
 };
 
 // A generic array that grows dynamically with O(1) amortized insertion.
@@ -870,12 +964,16 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
-  static_assert(sizeof(Super::Header) == kHeaderSize);
 
  private:
   static DirectHandle<ArrayList> EnsureSpace(
       Isolate* isolate, DirectHandle<ArrayList> array, uint32_t length,
       AllocationType allocation = AllocationType::kYoung);
+
+ public:
+  uint32_t capacity_;
+  uint32_t length_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 class ByteArrayShape final : public AllStatic {
@@ -908,14 +1006,21 @@ V8_OBJECT class ByteArray
   // passed to New s.t. an object of the same size is created.
   static constexpr uint32_t LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));
-    DCHECK_GE(size_in_bytes, sizeof(Header));
-    return size_in_bytes - sizeof(Header);
+    DCHECK_GE(size_in_bytes, OFFSET_OF_DATA_START(ByteArray));
+    return size_in_bytes - OFFSET_OF_DATA_START(ByteArray);
   }
 
   DECL_PRINTER(ByteArray)
   DECL_VERIFIER(ByteArray)
 
   class BodyDescriptor;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
 class TrustedByteArrayShape final : public AllStatic {
@@ -949,14 +1054,21 @@ class TrustedByteArray
   // passed to New s.t. an object of the same size is created.
   static constexpr int LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));
-    DCHECK_GE(size_in_bytes, sizeof(Header));
-    return size_in_bytes - sizeof(Header);
+    DCHECK_GE(size_in_bytes, OFFSET_OF_DATA_START(TrustedByteArray));
+    return size_in_bytes - OFFSET_OF_DATA_START(TrustedByteArray);
   }
 
   DECL_PRINTER(TrustedByteArray)
   DECL_VERIFIER(TrustedByteArray)
 
   class BodyDescriptor;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
 // Convenience class for treating a ByteArray / TrustedByteArray as array of
@@ -979,7 +1091,7 @@ class FixedIntegerArrayBase : public Base {
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
-    return sizeof(typename Base::Header) + index * sizeof(T);
+    return OFFSET_OF_DATA_START(Base) + index * sizeof(T);
   }
 
   inline SafeHeapObjectSize length() const;
@@ -1008,6 +1120,23 @@ class TrustedFixedAddressArray
   static inline DirectHandle<TrustedFixedAddressArray> New(
       Isolate* isolate, uint32_t length, MoreArgs&&... more_args);
 } V8_OBJECT_END;
+
+template <class Derived, class ShapeT, class Super>
+constexpr int PrimitiveArrayBase<Derived, ShapeT, Super>::SizeFor(int length) {
+  return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
+}
+
+template <class Derived, class ShapeT, class Super>
+constexpr int PrimitiveArrayBase<Derived, ShapeT, Super>::OffsetOfElementAt(
+    int index) {
+  return OFFSET_OF_DATA_START(Derived) + index * kElementSize;
+}
+
+template <class Derived, class ShapeT, class Super>
+constexpr int PrimitiveArrayBase<Derived, ShapeT, Super>::MaxRegularLength() {
+  return (kMaxRegularHeapObjectSize - OFFSET_OF_DATA_START(Derived)) /
+         kElementSize;
+}
 
 V8_OBJECT
 template <class T, class Super>

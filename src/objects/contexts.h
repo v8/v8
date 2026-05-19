@@ -862,11 +862,6 @@ class ScriptContextTableShape final : public AllStatic {
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
   static constexpr bool kLengthEqualsCapacity = false;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    uint32_t length_;
-    TaggedMember<NameToIndexHashTable> names_to_context_index_;
-  });
 };
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -881,6 +876,12 @@ class ScriptContextTable
   static Handle<ScriptContextTable> New(
       Isolate* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung);
+
+  inline SafeHeapObjectSize length() const {
+    return SafeHeapObjectSize(length_);
+  }
+  inline SafeHeapObjectSize ulength() const { return length(); }
+  inline void set_length(uint32_t value) { length_ = value; }
 
   inline SafeHeapObjectSize length(AcquireLoadTag) const;
   inline void set_length(uint32_t value, ReleaseStoreTag);
@@ -913,7 +914,15 @@ class ScriptContextTable
 
   static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kApiInt32Size;
-  static constexpr uint32_t kHeaderSize = kLengthOffset + kApiInt32Size;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + kApiInt32Size +
+      (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
+
+ public:
+  uint32_t capacity_;
+  uint32_t length_;
+  TaggedMember<NameToIndexHashTable> names_to_context_index_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 };
 
 using ContextField = Context::Field;

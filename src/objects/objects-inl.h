@@ -1244,8 +1244,8 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     int instance_type = map->instance_type();
 
     static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||
-                  (sizeof(FixedDoubleArray::Header) & kDoubleAlignmentMask) ==
-                      kTaggedSize);
+                  (OFFSET_OF_DATA_START(FixedDoubleArray) &
+                   kDoubleAlignmentMask) == kTaggedSize);
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
 
     static_assert(!USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ||

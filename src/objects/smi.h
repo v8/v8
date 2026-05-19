@@ -24,6 +24,9 @@ namespace internal {
 // Smi stands for small integer.
 class Smi : public AllStatic {
  public:
+  static constexpr int kMinValue = kSmiMinValue;
+  static constexpr int kMaxValue = kSmiMaxValue;
+
   static inline constexpr Tagged<Smi> ToUint32Smi(Tagged<Smi> smi) {
     if (smi.value() <= 0) return Smi::FromInt(0);
     return Smi::FromInt(static_cast<uint32_t>(smi.value()));
@@ -39,6 +42,23 @@ class Smi : public AllStatic {
     int value = ToInt(object);
     DCHECK_GE(value, 0);
     return static_cast<uint32_t>(value);
+  }
+
+  // Returns whether value can be represented in a Smi.
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_signed_v<T>)
+  {
+    DCHECK_EQ(Internals::IsValidSmi(value),
+              value >= kMinValue && value <= kMaxValue);
+    return Internals::IsValidSmi(value);
+  }
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+  {
+    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
+    return Internals::IsValidSmi(value);
   }
 
   // Convert a value to a Smi object.
@@ -75,23 +95,6 @@ class Smi : public AllStatic {
     return FromInt(static_cast<int>(value));
   }
 
-  // Returns whether value can be represented in a Smi.
-  template <typename T>
-  static inline bool constexpr IsValid(T value)
-    requires(std::is_integral_v<T> && std::is_signed_v<T>)
-  {
-    DCHECK_EQ(Internals::IsValidSmi(value),
-              value >= kMinValue && value <= kMaxValue);
-    return Internals::IsValidSmi(value);
-  }
-  template <typename T>
-  static inline bool constexpr IsValid(T value)
-    requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
-  {
-    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
-    return Internals::IsValidSmi(value);
-  }
-
   // Compare two Smis x, y as if they were converted to strings and then
   // compared lexicographically. Returns:
   // -1 if x < y.
@@ -110,8 +113,6 @@ class Smi : public AllStatic {
   // Since this is a constexpr, "calling" it is just as efficient
   // as reading a constant.
   static inline constexpr Tagged<Smi> zero() { return Smi::FromInt(0); }
-  static constexpr int kMinValue = kSmiMinValue;
-  static constexpr int kMaxValue = kSmiMaxValue;
 
   // Smi value for filling in not-yet initialized tagged field values with a
   // valid tagged pointer. A field value equal to this doesn't necessarily

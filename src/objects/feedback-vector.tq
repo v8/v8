@@ -28,7 +28,7 @@ bitfield struct OsrState extends uint8 {
 extern class ClosureFeedbackCellArray extends HeapObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   objects[length]: FeedbackCell;
 }
 

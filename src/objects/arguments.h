@@ -102,11 +102,6 @@ class SloppyArgumentsElementsShape final : public AllStatic {
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kSloppyArgumentsElementsMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Context> context_;
-    TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
-  });
 };
 
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS, dividing
@@ -162,6 +157,9 @@ class SloppyArgumentsElementsShape final : public AllStatic {
 class SloppyArgumentsElements
     : public TaggedArrayBase<SloppyArgumentsElements,
                              SloppyArgumentsElementsShape> {
+  using Super =
+      TaggedArrayBase<SloppyArgumentsElements, SloppyArgumentsElementsShape>;
+
  public:
   inline Tagged<Context> context() const;
   inline void set_context(Tagged<Context> value,
@@ -187,7 +185,17 @@ class SloppyArgumentsElements
 
   static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size) +
+      2 * kTaggedSize;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<Context> context_;
+  TaggedMember<UnionOf<FixedArray, NumberDictionary>> arguments_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 };
 
 }  // namespace internal

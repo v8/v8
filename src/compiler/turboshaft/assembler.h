@@ -3316,7 +3316,7 @@ class AssemblerOpInterface : public Next {
                   ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::Float64(), WriteBarrierKind::kNoWriteBarrier,
-          sizeof(FixedDoubleArray::Header),
+          OFFSET_OF_DATA_START(FixedDoubleArray),
           ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
   }
 

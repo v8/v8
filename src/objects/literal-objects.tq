@@ -6,7 +6,7 @@
 extern class ObjectBoilerplateDescription extends HeapObject {
   const length: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   backing_store_size: Smi;
   flags: Smi;
   raw_entries[length]: Object;

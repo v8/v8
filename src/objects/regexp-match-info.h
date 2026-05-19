@@ -28,12 +28,6 @@ class RegExpMatchInfoShape final : public AllStatic {
   using CompressionScheme = SmiCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-  V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Smi> number_of_capture_registers_;
-    TaggedMember<String> last_subject_;
-    TaggedMember<Object> last_input_;
-  });
 };
 
 // The property RegExpMatchInfo includes the matchIndices array of the last
@@ -90,7 +84,18 @@ V8_OBJECT class RegExpMatchInfo
   static constexpr uint32_t kMinCapacity = 2;
   static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
-      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size) +
+      3 * kTaggedSize;
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<Smi> number_of_capture_registers_;
+  TaggedMember<String> last_subject_;
+  TaggedMember<Object> last_input_;
+  FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
 } V8_OBJECT_END;
 
 }  // namespace internal
