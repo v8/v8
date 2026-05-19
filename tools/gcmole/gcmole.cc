@@ -197,6 +197,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   }
 
   void AnalyzeFunction(const clang::FunctionDecl* f) {
+    if (f->isNoReturn()) return;
     if (!InV8Namespace(f)) return;
     MangledName name;
     if (!GetMangledName(ctx_, f, &name)) return;
