@@ -444,16 +444,14 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void SandboxGetBuiltinNames(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
-  Local<v8::Context> context = isolate->GetCurrentContext();
 
-  Local<v8::Array> result = v8::Array::New(isolate, Builtins::kBuiltinCount);
-
-  // Find a builtin with matching name.
+  v8::LocalVector<v8::Value> names(isolate, Builtins::kBuiltinCount);
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
-    Local<v8::String> name =
+    names[static_cast<uint32_t>(i)] =
         v8::String::NewFromUtf8(isolate, Builtins::name(i)).ToLocalChecked();
-    CHECK(result->Set(context, static_cast<uint32_t>(i), name).FromJust());
   }
+
+  Local<v8::Array> result = v8::Array::New(isolate, names.data(), names.size());
 
   info.GetReturnValue().Set(result);
 }
