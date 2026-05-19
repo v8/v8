@@ -441,7 +441,7 @@ macro NewJSIteratorTakeHelper(
   };
 }
 
-// https://tc39.es/ecma262/#sec-iteratorprototype.take
+// https://tc39.es/ecma262/#sec-iterator.prototype.take
 @incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeTake(
     js-implicit context: NativeContext, receiver: JSAny)(
@@ -472,23 +472,29 @@ transitioning javascript builtin IteratorPrototypeTake(
     //   b. Return ? IteratorClose(iterated, error).
     if (NumberIsNaN(numLimit)) goto RangeError(o);
 
-    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    // 7. If numLimit is finite and numLimit > 𝔽(2^53 - 1), then
+    //   a. Let error be ThrowCompletion(a newly created RangeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+    if (!NumberIsSomeInfinity(numLimit) && numLimit > kMaxSafeInteger)
+      goto RangeError(o);
+
+    // 8. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     const integerLimit = ToInteger_Inline(numLimit);
 
-    // 8. If integerLimit < 0, then
+    // 9. If integerLimit < 0, then
     //  a. Let error be ThrowCompletion(a newly created RangeError object).
     //  b. Return ? IteratorClose(iterated, error).
     if (integerLimit < 0) goto RangeError(o);
 
-    // 9. Set iterated to ? GetIteratorDirect(O).
+    // 10. Set iterated to ? GetIteratorDirect(O).
     const iterated = GetIteratorDirect(o);
 
-    // Step 10 implemented in IteratorTakeHelperNext
+    // Step 11 implemented in IteratorTakeHelperNext
 
-    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
-    //    %IteratorHelperPrototype%).
-    // 12. Set result.[[UnderlyingIterator]] to iterated.
-    // 13. Return result.
+    // 12. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //     %IteratorHelperPrototype%).
+    // 13. Set result.[[UnderlyingIterator]] to iterated.
+    // 14. Return result.
     return NewJSIteratorTakeHelper(iterated, integerLimit);
   } label RangeError(iteratorObject: JSReceiver) deferred {
     IteratorCloseOnException(iteratorObject);
@@ -562,7 +568,7 @@ macro NewJSIteratorDropHelper(
   };
 }
 
-// https://tc39.es/ecma262/#sec-iteratorprototype.drop
+// https://tc39.es/ecma262/#sec-iterator.prototype.drop
 @incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeDrop(
     js-implicit context: NativeContext, receiver: JSAny)(
@@ -593,23 +599,29 @@ transitioning javascript builtin IteratorPrototypeDrop(
     //   b. Return ? IteratorClose(iterated, error).
     if (NumberIsNaN(numLimit)) goto RangeError(o);
 
-    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    // 7. If numLimit is finite and numLimit > 𝔽(2^53 - 1), then
+    //   a. Let error be ThrowCompletion(a newly created RangeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+    if (!NumberIsSomeInfinity(numLimit) && numLimit > kMaxSafeInteger)
+      goto RangeError(o);
+
+    // 8. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
     const integerLimit = ToInteger_Inline(numLimit);
 
-    // 8. If integerLimit < 0, then
+    // 9. If integerLimit < 0, then
     //   a. Let error be ThrowCompletion(a newly created RangeError object).
     //   b. Return ? IteratorClose(iterated, error).
     if (integerLimit < 0) goto RangeError(o);
 
-    // 9. Let iterated be ? GetIteratorDirect(O).
+    // 10. Let iterated be ? GetIteratorDirect(O).
     const iterated = GetIteratorDirect(o);
 
-    // Step 10 implemented in IteratorDropHelperNext
+    // Step 11 implemented in IteratorDropHelperNext
 
-    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
-    //    %IteratorHelperPrototype%).
-    // 12. Set result.[[UnderlyingIterator]] to iterated.
-    // 13. Return result.
+    // 12. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //     %IteratorHelperPrototype%).
+    // 13. Set result.[[UnderlyingIterator]] to iterated.
+    // 14. Return result.
     return NewJSIteratorDropHelper(iterated, integerLimit);
   } label RangeError(iteratorObject: JSReceiver) deferred {
     IteratorCloseOnException(iteratorObject);
