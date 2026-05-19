@@ -2375,7 +2375,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
       return {};
     case Operation::kBitwiseOr:
       // x | -1 = -1
-      if (cst_right == 0) {
+      if (cst_right == -1) {
         RETURN_IF_ABORT(EnsureInt32(left));
         return GetInt32Constant(-1);
       }
