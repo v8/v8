@@ -1286,9 +1286,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
           0,      // peeled_iteration_count
           false,  // is_eager_inline
           is_small_function, call_frequency,
-          nullptr  // TOD(victorgomes): Propagate
-                   // parent_inlining_tree_debug_info?
-      },
+          reducer_.graph()->inlining_tree_debug_info()},
       new_call_node, feedback_cell, score, bytecode_length);
 
   reducer_.PushInlineCandidate(call_site);
