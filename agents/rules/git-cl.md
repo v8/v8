@@ -27,22 +27,22 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **Subsequent Uploads**: On subsequent uploads (new patchsets), always use
     `-t` to provide a patchset message that very briefly summarizes the
     differences since the last patchset (e.g.,
-    `git cl upload -t "Address review comments"`,
-    `git cl upload -t "Fix lint in parser.cc"`,
-    `git cl upload -t "Add unit test for edge case"`). Avoid using
-    `--commit-description=+` by default, as it can combine messages or overwrite
-    the main description incorrectly. Preferred is omitting it unless modifying
-    description intentionally.
+    `git cl upload -t "Address review comments"`). **NEVER** use
+    `--commit-description=+` or `git cl desc -n` by default, as it will blindly
+    overwrite the user's manual Gerrit Web UI description edits and severely
+    annoy them. Omit description-modifying flags entirely on subsequent uploads
+    unless intentionally updating a stale description.
   - **Updating Description**: If the changes in a new patchset make the existing
     CL description **out-of-date** or inaccurate, you **MUST** explicitly update
     it by passing `--commit-description="New cohesive description content"`.
-    **Note**: Before passing `--commit-description` on a subsequent upload, you
-    must first inspect the live remote description on Gerrit (using either
-    `git cl desc` or the `gerrit_get_change_details` MCP tool) to verify whether
-    the user has manually edited it. If manual user edits or refinements are
-    detected, you must carefully evaluate them: preserve any human-authored
-    background context, rationale, or formatting, while surgically updating only
-    the outdated technical statements resulting from the new patchset.
+    **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description` or
+    updating it on a subsequent upload, you must first inspect the live remote
+    description on Gerrit (using either `git cl desc` or the
+    `gerrit_get_change_details` MCP tool) to verify whether the user has
+    manually edited it. If manual user edits or refinements are detected, you
+    must carefully evaluate them: preserve any human-authored background
+    context, rationale, or formatting, while surgically updating only the
+    outdated technical statements resulting from the new patchset.
   - Verify `git diff` is not empty before uploading.
 - **Safeguards & Code Quality**:
   - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
