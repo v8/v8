@@ -209,6 +209,14 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
       TraverseStmt(body->getBody());
       LeaveScope();
     }
+
+    if (const clang::CXXMethodDecl* method =
+            llvm::dyn_cast<clang::CXXMethodDecl>(f)) {
+      for (const clang::CXXMethodDecl* overridden :
+           method->overridden_methods()) {
+        AddVirtualLink(overridden, method);
+      }
+    }
   }
 
   typedef std::map<MangledName, CalleesSet*> Callgraph;
@@ -230,6 +238,27 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   void AddCallee(const MangledName& name, const MangledName& function) {
     if (!scopes_.empty()) scopes_.top()->insert(name);
     mangled_to_function_[name] = function;
+  }
+
+  void AddVirtualLink(const clang::CXXMethodDecl* base,
+                      const clang::CXXMethodDecl* derived) {
+    if (!InV8Namespace(base) || !InV8Namespace(derived)) return;
+    MangledName base_mangled;
+    MangledName derived_mangled;
+    if (!GetMangledName(ctx_, base, &base_mangled)) return;
+    if (!GetMangledName(ctx_, derived, &derived_mangled)) return;
+
+    const std::string base_function = base->getQualifiedNameAsString();
+    const std::string derived_function = derived->getQualifiedNameAsString();
+
+    mangled_to_function_[base_mangled] = base_function;
+    mangled_to_function_[derived_mangled] = derived_function;
+
+    CalleesSet* callees = callgraph_[base_mangled];
+    if (callees == nullptr) {
+      callgraph_[base_mangled] = callees = new CalleesSet();
+    }
+    callees->insert(derived_mangled);
   }
 
   void PrintCallGraph() {
