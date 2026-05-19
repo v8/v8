@@ -34,7 +34,7 @@ class TurbolevEarlyLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(TurbolevEarlyLowering)
 
-  void CheckInstanceType(V<Object> input, V<FrameState> frame_state,
+  void CheckInstanceType(V<Object> input, V<EagerFrameState> frame_state,
                          const FeedbackSource& feedback,
                          InstanceType first_instance_type,
                          InstanceType last_instance_type, bool check_smi) {
@@ -88,7 +88,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   V<InternalizedString> CheckedInternalizedString(
-      V<Object> object, V<FrameState> frame_state, bool check_smi,
+      V<Object> object, V<EagerFrameState> frame_state, bool check_smi,
       const FeedbackSource& feedback) {
     if (check_smi) {
       __ DeoptimizeIf(__ IsSmi(object), frame_state, DeoptimizeReason::kSmi,
@@ -125,7 +125,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   void CheckValueEqualsString(V<Object> object, InternalizedStringRef value,
-                              V<FrameState> frame_state,
+                              V<EagerFrameState> frame_state,
                               const FeedbackSource& feedback) {
     IF_NOT (LIKELY(__ TaggedEqual(object, __ HeapConstant(value.object())))) {
       __ DeoptimizeIfNot(__ ObjectIsString(object), frame_state,
@@ -166,7 +166,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   void CheckDerivedConstructResult(V<Object> construct_result,
-                                   V<FrameState> frame_state,
+                                   V<LazyFrameState> frame_state,
                                    V<NativeContext> native_context,
                                    LazyDeoptOnThrow lazy_deopt_on_throw) {
     // The result of a derived construct should be an object (in the ECMA
@@ -268,7 +268,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   V<Boolean> HasInPrototypeChain(V<Object> object, HeapObjectRef prototype,
-                                 V<FrameState> frame_state,
+                                 V<LazyFrameState> frame_state,
                                  V<NativeContext> native_context,
                                  LazyDeoptOnThrow lazy_deopt_on_throw) {
     Label<Boolean> done(this);
@@ -322,7 +322,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   V<Map> MigrateMapIfNeeded(V<HeapObject> object, V<Map> map,
-                            V<FrameState> frame_state,
+                            V<EagerFrameState> frame_state,
                             const FeedbackSource& feedback) {
     ScopedVar<Map> result(this, map);
 
@@ -345,7 +345,7 @@ class TurbolevEarlyLoweringReducer : public Next {
   V<PropertyArray> ExtendPropertiesBackingStore(
       V<PropertyArray> old_property_array, V<JSObject> object,
       const compiler::MapRef& old_map, int old_length,
-      V<FrameState> frame_state, const FeedbackSource& feedback) {
+      V<EagerFrameState> frame_state, const FeedbackSource& feedback) {
     int in_object_length = old_map.GetInObjectProperties();
 
     // Find the descriptor index corresponding to the first out-of-object
@@ -476,7 +476,7 @@ class TurbolevEarlyLoweringReducer : public Next {
              offsetof(JSGeneratorObject, context_));
   }
 
-  V<Boolean> ObjectIsArray(V<Object> value, V<FrameState> frame_state,
+  V<Boolean> ObjectIsArray(V<Object> value, V<LazyFrameState> frame_state,
                            V<NativeContext> native_context,
                            LazyDeoptOnThrow lazy_deopt_on_throw) {
     Label<Boolean> done(this);

@@ -275,7 +275,8 @@ using Simd256 = WordWithBits<256>;
 
 struct Compressed : public Any {};
 struct InternalTag : public Any {};
-struct FrameState : public InternalTag {};
+struct EagerFrameState : public InternalTag {};
+struct LazyFrameState : public InternalTag {};
 
 // A Union type for untagged values. For Tagged types use `Union` for now.
 // TODO(nicohartmann@): We should think about a more uniform solution some day.
@@ -283,6 +284,8 @@ template <typename... Ts>
 struct UntaggedUnion : public Any {
   using to_list_t = base::tmp::list<Ts...>;
 };
+
+using AnyFrameState = UntaggedUnion<EagerFrameState, LazyFrameState>;
 
 template <typename... Ts>
 struct Tuple : public Any {
@@ -687,6 +690,13 @@ class V : public OpIndex {
   static V<T> Cast(V<U> index) {
     static_assert(!implicitly_constructible_from<U>,
                   "Redundant explicit V<> cast.");
+    // Eager frame states cannot be used for LazyDeopt and vice-versa.
+    static_assert(
+        !(std::is_same_v<T, EagerFrameState> &&
+          std::is_same_v<U, LazyFrameState>) &&
+            !(std::is_same_v<T, LazyFrameState> &&
+              std::is_same_v<U, EagerFrameState>),
+        "Cannot cast EagerFrameState to LazyFrameState or vice-versa!");
     return V<T>(OpIndex{index});
   }
   static V<T> Cast(OpIndex index) { return V<T>(index); }

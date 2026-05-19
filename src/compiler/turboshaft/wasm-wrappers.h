@@ -21,7 +21,7 @@ namespace v8::internal::compiler::turboshaft {
 struct WasmInlinedFunctionData {
   wasm::NativeModule* native_module = nullptr;
   uint32_t function_index = 0;
-  V<FrameState> js_caller_frame_state;
+  V<EagerFrameState> js_caller_frame_state;
   int inlining_id = 0;
 };
 
@@ -84,7 +84,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   template <typename Descriptor, typename... Args>
-  OpIndex CallBuiltin(Builtin name, OpIndex frame_state,
+  OpIndex CallBuiltin(Builtin name, OptionalV<LazyFrameState> frame_state,
                       Operator::Properties properties,
                       compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
                       Args... args) {
@@ -150,7 +150,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
                                 V<Word32> callee,
                                 const base::Vector<OpIndex> args,
                                 base::Vector<OpIndex> returns,
-                                OptionalV<FrameState> frame_state,
+                                OptionalV<LazyFrameState> frame_state,
                                 compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   V<Object> ConvertWasmResultsToJS(base::Vector<OpIndex> returns,
@@ -162,9 +162,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   // Returns the result of the Wasm function converted to a JS value.
   V<Any> BuildJSToWasmWrapper(V<JSFunction> js_closure, V<Context> js_context,
                               base::Vector<const OpIndex> arguments,
-                              OptionalV<FrameState> lazy_frame_state,
+                              OptionalV<LazyFrameState> lazy_frame_state,
                               compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-                              OptionalV<FrameState> caller_frame_state);
+                              OptionalV<EagerFrameState> caller_frame_state);
 
   // Overload for the "regular" non-inlined compiled JS-to-Wasm wrapper.
   void BuildJSToWasmWrapper();
@@ -240,7 +240,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   V<Float32> BuildChangeTaggedToFloat32(
       OpIndex value, OpIndex context,
-      OptionalV<FrameState> caller_frame_state) {
+      OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float32> result(this, OpIndex::Invalid());
     IF (__ IsSmi(value)) {
@@ -283,7 +283,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   V<Float64> BuildChangeTaggedToFloat64(
       OpIndex value, OpIndex context,
-      OptionalV<FrameState> caller_frame_state) {
+      OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     ScopedVar<Float64> result(this, OpIndex::Invalid());
     IF (__ IsSmi(value)) {
@@ -318,8 +318,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     return result;
   }
 
-  OpIndex BuildChangeTaggedToInt32(OpIndex value, OpIndex context,
-                                   OptionalV<FrameState> caller_frame_state) {
+  OpIndex BuildChangeTaggedToInt32(
+      OpIndex value, OpIndex context,
+      OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
@@ -357,8 +358,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         needs_frame_state);
   }
 
-  OpIndex BuildChangeBigIntToInt64(OpIndex input, OpIndex context,
-                                   OptionalV<FrameState> caller_frame_state) {
+  OpIndex BuildChangeBigIntToInt64(
+      OpIndex input, OpIndex context,
+      OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // When inlining JS-to-Wasm wrappers, eagerly deopt for values that are
     // not BigInt to avoid calling ToBigInt, which could trigger user JS via
@@ -411,7 +413,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   //   for BigInt inputs, and the conversion is modular truncation).
   //   (crbug.com/498709150)
   OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
-                 OptionalV<FrameState> caller_frame_state = {}) {
+                 OptionalV<EagerFrameState> caller_frame_state = {}) {
     if (type.is_numeric()) {
       switch (type.numeric_kind()) {
         case NumericKind::kI32:

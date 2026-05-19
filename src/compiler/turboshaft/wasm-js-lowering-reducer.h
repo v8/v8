@@ -28,13 +28,15 @@ class WasmJSLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmJSLowering)
 
-  V<None> REDUCE(WasmTrap)(OptionalV<FrameState> frame_state, TrapId trap_id) {
+  V<None> REDUCE(WasmTrap)(OptionalV<EagerFrameState> frame_state,
+                           TrapId trap_id) {
     LowerWasmTrap(frame_state, trap_id);
     return V<None>::Invalid();
   }
 
-  V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
-                         bool negated, TrapId trap_id) {
+  V<None> REDUCE(TrapIf)(V<Word32> condition,
+                         OptionalV<EagerFrameState> frame_state, bool negated,
+                         TrapId trap_id) {
     V<Word32> should_trap = negated ? __ Word32Equal(condition, 0) : condition;
     IF (UNLIKELY(should_trap)) {
       LowerWasmTrap(frame_state, trap_id);
@@ -44,7 +46,7 @@ class WasmJSLoweringReducer : public Next {
   }
 
  private:
-  void LowerWasmTrap(OptionalV<FrameState> frame_state, TrapId trap_id) {
+  void LowerWasmTrap(OptionalV<EagerFrameState> frame_state, TrapId trap_id) {
     // All WasmTrap nodes in JS need to have a FrameState.
     DCHECK(frame_state.valid());
     Builtin trap = static_cast<Builtin>(trap_id);
@@ -56,14 +58,19 @@ class WasmJSLoweringReducer : public Next {
         TSCallDescriptor::Create(tf_descriptor, CanThrow::kYes,
                                  LazyDeoptOnThrow::kNo, Asm().graph_zone());
 
-    V<FrameState> new_frame_state =
-        CreateFrameStateWithUpdatedBailoutId(frame_state.value());
+    V<LazyFrameState> new_frame_state =
+        CreateFrameStateForStackTrace(frame_state.value());
     OpIndex call_target = __ NumberConstant(static_cast<int>(trap));
     __ Call(call_target, new_frame_state, {}, ts_descriptor);
     __ Unreachable();  // The trap builtin never returns.
   }
 
-  OpIndex CreateFrameStateWithUpdatedBailoutId(V<FrameState> frame_state) {
+  V<LazyFrameState> CreateFrameStateForStackTrace(
+      V<EagerFrameState> frame_state) {
+    // TODO(dmercadier, dlehmann): Since this frame state is only used for stack
+    // trace capturing and unwinding (as execution never resumes here), we could
+    // optimize this to construct a simpler frame state (e.g., with empty/dead
+    // locals) rather than copying all inputs from the original frame state.
     // Create new FrameState with the correct source position (the position of
     // the trap location).
     const FrameStateOp& frame_state_op =
@@ -81,8 +88,8 @@ class WasmJSLoweringReducer : public Next {
     FrameStateData* new_data = Asm().graph_zone()->template New<FrameStateData>(
         FrameStateData{*new_info, data->instructions, data->machine_types,
                        data->int_operands});
-    return __ FrameState(frame_state_op.inputs(), frame_state_op.inlined,
-                         new_data);
+    return __ template FrameState<LazyFrameState>(
+        frame_state_op.inputs(), frame_state_op.inlined, new_data);
   }
 
   Isolate* isolate_ = __ data() -> isolate();

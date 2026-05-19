@@ -24,7 +24,7 @@ class StackCheckLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(StackCheckLowering)
 
   V<None> REDUCE(JSStackCheck)(V<Context> context,
-                               OptionalV<FrameState> frame_state,
+                               OptionalV<LazyFrameState> frame_state,
                                JSStackCheckOp::Kind kind) {
     if (v8_flags.verify_write_barriers) {
       // The stack check/safepoint might trigger GC, so write barriers cannot be

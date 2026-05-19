@@ -49,7 +49,6 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
-
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 namespace {
@@ -92,7 +91,7 @@ struct GraphBuilder {
 
   struct BlockData {
     Block* block;
-    OpIndex final_frame_state;
+    V<EagerFrameState> final_frame_state;
   };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
@@ -232,7 +231,7 @@ struct GraphBuilder {
   }
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
-                  OpIndex& dominating_frame_state,
+                  V<EagerFrameState>& dominating_frame_state,
                   std::optional<BailoutReason>* bailout,
                   bool is_final_control = false);
 };
@@ -275,7 +274,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 
     // Skip loop back-edge predecessors: their final_frame_state hasn't been
     // computed yet at header-visit time.
-    OpIndex dominating_frame_state = OpIndex::Invalid();
+    V<EagerFrameState> dominating_frame_state = V<EagerFrameState>::Invalid();
     bool first_fs = true;
     for (BasicBlock* pred : predecessors) {
       if (pred->rpo_number() >= block->rpo_number()) {
@@ -283,12 +282,13 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         DCHECK(block->IsLoopHeader());
         continue;
       }
-      OpIndex pred_fs = block_mapping[pred->rpo_number()].final_frame_state;
+      V<EagerFrameState> pred_fs =
+          block_mapping[pred->rpo_number()].final_frame_state;
       if (first_fs) {
         dominating_frame_state = pred_fs;
         first_fs = false;
       } else if (pred_fs != dominating_frame_state) {
-        dominating_frame_state = OpIndex::Invalid();
+        dominating_frame_state = V<EagerFrameState>::Invalid();
         break;
       }
     }
@@ -380,8 +380,8 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation,
-    OpIndex& dominating_frame_state, std::optional<BailoutReason>* bailout,
-    bool is_final_control) {
+    V<EagerFrameState>& dominating_frame_state,
+    std::optional<BailoutReason>* bailout, bool is_final_control) {
   if (Asm().current_block() == nullptr) {
     return OpIndex::Invalid();
   }
@@ -408,7 +408,8 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kCheckpoint: {
       // Preserve the frame state from this checkpoint for following nodes.
-      dominating_frame_state = Map(NodeProperties::GetFrameStateInput(node));
+      dominating_frame_state =
+          Map<EagerFrameState>(NodeProperties::GetFrameStateInput(node));
       return OpIndex::Invalid();
     }
 
@@ -1499,11 +1500,12 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
-      OptionalV<FrameState> frame_state_idx = OptionalV<FrameState>::Nullopt();
+      OptionalV<LazyFrameState> frame_state_idx =
+          OptionalV<LazyFrameState>::Nullopt();
       if (call_descriptor->NeedsFrameState()) {
         compiler::FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
-        frame_state_idx = Map(frame_state);
+        frame_state_idx = Map<LazyFrameState>(frame_state);
       }
       OpEffects effects =
           OpEffects().CanDependOnChecks().CanChangeControlFlow().CanDeopt();
@@ -1551,9 +1553,10 @@ OpIndex GraphBuilder::Process(
         *bailout = BailoutReason::kTooManyArguments;
         return OpIndex::Invalid();
       }
-      return __ FrameState(builder.Inputs(), builder.inlined(),
-                           builder.AllocateFrameStateData(
-                               frame_state.frame_state_info(), graph_zone));
+      return __ template FrameState<AnyFrameState>(
+          builder.Inputs(), builder.inlined(),
+          builder.AllocateFrameStateData(frame_state.frame_state_info(),
+                                         graph_zone));
     }
 
     case IrOpcode::kDeoptimizeIf:
@@ -1582,7 +1585,7 @@ OpIndex GraphBuilder::Process(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
-      V<FrameState> frame_state = Map(node->InputAt(0));
+      V<EagerFrameState> frame_state = Map<EagerFrameState>(node->InputAt(0));
       __ Deoptimize(frame_state, &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
     }
@@ -1990,8 +1993,7 @@ OpIndex GraphBuilder::Process(
       V<Object> right = Map<Object>(node->InputAt(2));
       V<StringOrUndefined> locales = Map<StringOrUndefined>(node->InputAt(3));
       V<Context> context = Map<Context>(node->InputAt(4));
-      V<turboshaft::FrameState> frame_state =
-          Map<turboshaft::FrameState>(node->InputAt(5));
+      V<LazyFrameState> frame_state = Map<LazyFrameState>(node->InputAt(5));
       ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringLocaleCompareIntl(locale_compare_fn, left, right, locales,
                                         frame_state, context,
@@ -2242,7 +2244,8 @@ OpIndex GraphBuilder::Process(
       for (int i = 1; i < n.SlowCallArgumentCount(); ++i) {
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
-      OpIndex frame_state = slow_call_arguments.back();
+      V<LazyFrameState> frame_state =
+          V<LazyFrameState>::Cast(slow_call_arguments.back());
 
       auto convert_fallback_return = [this](Variable value,
                                             CFunctionInfo::Int64Representation
@@ -2812,7 +2815,7 @@ OpIndex GraphBuilder::Process(
           UNREACHABLE();
       }
       V<Context> context = Map(node->InputAt(0));
-      V<FrameState> frame_state = Map(node->InputAt(1));
+      V<LazyFrameState> frame_state = Map<LazyFrameState>(node->InputAt(1));
       __ JSStackCheck(context, frame_state, kind);
       if (NodeProperties::IsExceptionalCall(node)) {
         // JSStackCheck in Turbofan have control projections (even though they

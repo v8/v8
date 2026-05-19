@@ -1149,6 +1149,9 @@ struct OperationT : Operation {
   V8_INLINE V<Any> input(size_t i) const { return derived_this().inputs()[i]; }
   template <typename T>
   V8_INLINE V<T> input(size_t i) const {
+    static_assert(!std::is_same_v<T, AnyFrameState>,
+                  "Operations should not have AnyFrameState inputs! Use "
+                  "EagerFrameState or LazyFrameState instead.");
     return V<T>::Cast(derived_this().inputs()[i]);
   }
 
@@ -1499,10 +1502,10 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
 
   V<Object> left() const { return input<Object>(0); }
   V<Object> right() const { return input<Object>(1); }
-  V<FrameState> frame_state() const { return input<FrameState>(2); }
+  V<LazyFrameState> frame_state() const { return input<LazyFrameState>(2); }
   V<Context> context() const { return input<Context>(3); }
 
-  GenericBinopOp(V<Object> left, V<Object> right, V<FrameState> frame_state,
+  GenericBinopOp(V<Object> left, V<Object> right, V<LazyFrameState> frame_state,
                  V<Context> context, Kind kind,
                  LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(left, right, frame_state, context),
@@ -1537,11 +1540,14 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<LazyFrameState> frame_state() const {
+    return Base::input<LazyFrameState>(1);
+  }
   V<Context> context() const { return Base::input<Context>(2); }
 
-  GenericUnopOp(V<Object> input, V<FrameState> frame_state, V<Context> context,
-                Kind kind, LazyDeoptOnThrow lazy_deopt_on_throw)
+  GenericUnopOp(V<Object> input, V<LazyFrameState> frame_state,
+                V<Context> context, Kind kind,
+                LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(input, frame_state, context),
         kind(kind),
         lazy_deopt_on_throw(lazy_deopt_on_throw) {}
@@ -1564,10 +1570,12 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<LazyFrameState> frame_state() const {
+    return Base::input<LazyFrameState>(1);
+  }
   V<Context> context() const { return Base::input<Context>(2); }
 
-  ToNumberOrNumericOp(V<Object> input, V<FrameState> frame_state,
+  ToNumberOrNumericOp(V<Object> input, V<LazyFrameState> frame_state,
                       V<Context> context, Object::Conversion kind,
                       LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(input, frame_state, context),
@@ -1939,10 +1947,10 @@ struct WordBinopDeoptOnOverflowOp
   V<WordType> right() const {
     return input<WordType>(1);
   }
-  V<FrameState> frame_state() const { return input<FrameState>(2); }
+  V<EagerFrameState> frame_state() const { return input<EagerFrameState>(2); }
 
   WordBinopDeoptOnOverflowOp(V<Word> left, V<Word> right,
-                             V<FrameState> frame_state, Kind kind,
+                             V<EagerFrameState> frame_state, Kind kind,
                              WordRepresentation rep, FeedbackSource feedback,
                              CheckForMinusZeroMode mode)
       : Base(left, right, frame_state),
@@ -2504,9 +2512,11 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
   }
 
   V<Untagged> input() const { return Base::input<Untagged>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
-  ChangeOrDeoptOp(V<Untagged> input, V<FrameState> frame_state, Kind kind,
+  ChangeOrDeoptOp(V<Untagged> input, V<EagerFrameState> frame_state, Kind kind,
                   CheckForMinusZeroMode minus_zero_mode,
                   const FeedbackSource& feedback)
       : Base(input, frame_state),
@@ -3867,9 +3877,9 @@ struct JSStackCheckOp : OperationT<JSStackCheckOp> {
   }
 
   V<Context> native_context() const { return Base::input<Context>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 1 ? Base::input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<LazyFrameState> frame_state() const {
+    return input_count > 1 ? Base::input<LazyFrameState>(1)
+                           : OptionalV<LazyFrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -3879,8 +3889,8 @@ struct JSStackCheckOp : OperationT<JSStackCheckOp> {
     return {};
   }
 
-  explicit JSStackCheckOp(V<Context> context, OptionalV<FrameState> frame_state,
-                          Kind kind)
+  explicit JSStackCheckOp(V<Context> context,
+                          OptionalV<LazyFrameState> frame_state, Kind kind)
       : Base(1 + frame_state.has_value()), kind(kind) {
     input(0) = context;
     if (frame_state.has_value()) {
@@ -3889,7 +3899,7 @@ struct JSStackCheckOp : OperationT<JSStackCheckOp> {
   }
 
   static JSStackCheckOp& New(Graph* graph, V<Context> context,
-                             OptionalV<FrameState> frame_state, Kind kind) {
+                             OptionalV<LazyFrameState> frame_state, Kind kind) {
     return Base::New(graph, 1 + frame_state.has_value(), context, frame_state,
                      kind);
   }
@@ -4022,9 +4032,11 @@ struct FrameStateOp : OperationT<FrameStateOp> {
     return {};
   }
 
-  V<FrameState> parent_frame_state() const {
+  V<AnyFrameState> parent_frame_state() const {
     DCHECK(inlined);
-    return input<FrameState>(0);
+    // Bypasses input<AnyFrameState>() using a manual cast to avoid triggering
+    // the static assertion in OperationT against AnyFrameState inputs.
+    return V<AnyFrameState>::Cast(inputs()[0]);
   }
   base::Vector<const OpIndex> state_values() const {
     base::Vector<const OpIndex> result = inputs();
@@ -4077,9 +4089,9 @@ struct DeoptimizeOp : FixedArityOperationT<1, DeoptimizeOp> {
     return {};
   }
 
-  V<FrameState> frame_state() const { return input<FrameState>(0); }
+  V<EagerFrameState> frame_state() const { return input<EagerFrameState>(0); }
 
-  DeoptimizeOp(V<FrameState> frame_state,
+  DeoptimizeOp(V<EagerFrameState> frame_state,
                const DeoptimizeParameters* parameters)
       : Base(frame_state), parameters(parameters) {}
   void Validate(const Graph& graph) const {
@@ -4101,10 +4113,10 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
   }
 
   V<Word32> condition() const { return input<Word32>(0); }
-  V<FrameState> frame_state() const { return input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const { return input<EagerFrameState>(1); }
 
-  DeoptimizeIfOp(V<Word32> condition, V<FrameState> frame_state, bool negated,
-                 const DeoptimizeParameters* parameters)
+  DeoptimizeIfOp(V<Word32> condition, V<EagerFrameState> frame_state,
+                 bool negated, const DeoptimizeParameters* parameters)
       : Base(condition, frame_state),
         negated(negated),
         parameters(parameters) {}
@@ -4180,13 +4192,13 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   }
 
   V<Word32> condition() const { return input<Word32>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 1 ? input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 1 ? input<EagerFrameState>(1)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
-  TrapIfOp(V<Word32> condition, OptionalV<FrameState> frame_state, bool negated,
-           const TrapId trap_id)
+  TrapIfOp(V<Word32> condition, OptionalV<EagerFrameState> frame_state,
+           bool negated, const TrapId trap_id)
       : Base(1 + frame_state.valid()), negated(negated), trap_id(trap_id) {
     input(0) = condition;
     if (frame_state.valid()) {
@@ -4201,7 +4213,7 @@ struct TrapIfOp : OperationT<TrapIfOp> {
   }
 
   static TrapIfOp& New(Graph* graph, V<Word32> condition,
-                       OptionalV<FrameState> frame_state, bool negated,
+                       OptionalV<EagerFrameState> frame_state, bool negated,
                        const TrapId trap_id) {
     return Base::New(graph, 1 + frame_state.valid(), condition, frame_state,
                      negated, trap_id);
@@ -4232,12 +4244,12 @@ struct WasmTrapOp : OperationT<WasmTrapOp> {
     return {};
   }
 
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 0 ? input<FrameState>(0)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 0 ? input<EagerFrameState>(0)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
-  WasmTrapOp(OptionalV<FrameState> frame_state, const TrapId trap_id)
+  WasmTrapOp(OptionalV<EagerFrameState> frame_state, const TrapId trap_id)
       : Base(frame_state.valid() ? 1 : 0), trap_id(trap_id) {
     if (frame_state.valid()) {
       input(0) = frame_state.value();
@@ -4249,7 +4261,7 @@ struct WasmTrapOp : OperationT<WasmTrapOp> {
     return fn(mapper.Map(frame_state()), trap_id);
   }
 
-  static WasmTrapOp& New(Graph* graph, OptionalV<FrameState> frame_state,
+  static WasmTrapOp& New(Graph* graph, OptionalV<EagerFrameState> frame_state,
                          const TrapId trap_id) {
     return Base::New(graph, frame_state.valid() ? 1 : 0, frame_state, trap_id);
   }
@@ -4527,15 +4539,15 @@ struct CallOp : OperationT<CallOp> {
   }
 
   V<CallTarget> callee() const { return input<CallTarget>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return HasFrameState() ? input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<LazyFrameState> frame_state() const {
+    return HasFrameState() ? input<LazyFrameState>(1)
+                           : OptionalV<LazyFrameState>::Nullopt();
   }
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(1 + HasFrameState(), input_count);
   }
 
-  CallOp(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+  CallOp(V<CallTarget> callee, OptionalV<LazyFrameState> frame_state,
          base::Vector<const OpIndex> arguments,
          const TSCallDescriptor* descriptor, OpEffects effects)
       : Base(1 + frame_state.valid() + arguments.size()),
@@ -4553,7 +4565,7 @@ struct CallOp : OperationT<CallOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     V<CallTarget> mapped_callee = mapper.Map(callee());
-    OptionalV<FrameState> mapped_frame_state = mapper.Map(frame_state());
+    OptionalV<LazyFrameState> mapped_frame_state = mapper.Map(frame_state());
     auto mapped_arguments = mapper.template Map<16>(arguments());
     return fn(mapped_callee, mapped_frame_state,
               base::VectorOf(mapped_arguments), descriptor, Effects());
@@ -4562,7 +4574,7 @@ struct CallOp : OperationT<CallOp> {
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
   static CallOp& New(Graph* graph, V<CallTarget> callee,
-                     OptionalV<FrameState> frame_state,
+                     OptionalV<LazyFrameState> frame_state,
                      base::Vector<const OpIndex> arguments,
                      const TSCallDescriptor* descriptor, OpEffects effects) {
     return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,
@@ -5367,9 +5379,11 @@ struct ConvertWordToSmiOrDeoptOp
   }
 
   V<Word> input() const { return Base::input<Word>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
-  ConvertWordToSmiOrDeoptOp(V<Word> input, V<FrameState> frame_state,
+  ConvertWordToSmiOrDeoptOp(V<Word> input, V<EagerFrameState> frame_state,
                             RegisterRepresentation input_rep,
                             InputInterpretation input_interpretation,
                             const FeedbackSource& feedback)
@@ -5505,10 +5519,12 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
   ConvertJSPrimitiveToUntaggedOrDeoptOp(V<Object> input,
-                                        V<FrameState> frame_state,
+                                        V<EagerFrameState> frame_state,
                                         JSPrimitiveKind from_kind,
                                         UntaggedKind to_kind,
                                         CheckForMinusZeroMode minus_zero_mode,
@@ -5612,10 +5628,12 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
   }
 
   V<JSPrimitive> input() const { return Base::input<JSPrimitive>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
   TruncateJSPrimitiveToUntaggedOrDeoptOp(V<JSPrimitive> input,
-                                         V<FrameState> frame_state,
+                                         V<EagerFrameState> frame_state,
                                          UntaggedKind kind,
                                          InputRequirement input_requirement,
                                          const FeedbackSource& feedback)
@@ -5812,10 +5830,12 @@ struct LoadDictionaryFieldOp : FixedArityOperationT<3, LoadDictionaryFieldOp> {
 
   V<JSReceiver> object() const { return Base::input<JSReceiver>(0); }
   V<Context> context() const { return Base::input<Context>(1); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
+  V<LazyFrameState> frame_state() const {
+    return Base::input<LazyFrameState>(2);
+  }
 
   LoadDictionaryFieldOp(V<JSReceiver> object, V<Context> context,
-                        V<FrameState> frame_state, size_t index,
+                        V<LazyFrameState> frame_state, size_t index,
                         compiler::NameRef name, const FeedbackSource& feedback,
                         LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(object, context, frame_state),
@@ -5926,9 +5946,11 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
 
   V<BigInt> left() const { return Base::input<BigInt>(0); }
   V<BigInt> right() const { return Base::input<BigInt>(1); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(2);
+  }
 
-  BigIntBinopOp(V<BigInt> left, V<BigInt> right, V<FrameState> frame_state,
+  BigIntBinopOp(V<BigInt> left, V<BigInt> right, V<EagerFrameState> frame_state,
                 Kind kind)
       : Base(left, right, frame_state), kind(kind) {}
   void Validate(const Graph& graph) const {
@@ -6084,10 +6106,12 @@ struct StringToCaseIntlOp : FixedArityOperationT<3, StringToCaseIntlOp> {
   }
 
   V<String> string() const { return Base::input<String>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<LazyFrameState> frame_state() const {
+    return Base::input<LazyFrameState>(1);
+  }
   V<Context> context() const { return Base::input<Context>(2); }
 
-  StringToCaseIntlOp(V<String> string, V<FrameState> frame_state,
+  StringToCaseIntlOp(V<String> string, V<LazyFrameState> frame_state,
                      V<Context> context, Kind kind,
                      LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(string, frame_state, context),
@@ -6125,12 +6149,14 @@ struct StringLocaleCompareIntlOp
   V<StringOrUndefined> locales() const {
     return Base::input<StringOrUndefined>(3);
   }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(4); }
+  V<LazyFrameState> frame_state() const {
+    return Base::input<LazyFrameState>(4);
+  }
   V<Context> context() const { return Base::input<Context>(5); }
 
   StringLocaleCompareIntlOp(V<JSFunction> locale_compare_fn, V<Object> left,
                             V<Object> right, V<StringOrUndefined> locales,
-                            V<FrameState> frame_state, V<Context> context,
+                            V<LazyFrameState> frame_state, V<Context> context,
                             LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(locale_compare_fn, left, right, locales, frame_state, context),
         lazy_deopt_on_throw(lazy_deopt_on_throw) {}
@@ -6797,12 +6823,14 @@ struct CheckMapsOp : OperationT<CheckMapsOp> {
   }
 
   V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
   OptionalV<Map> map() const {
     return input_count > 2 ? input<Map>(2) : OptionalV<Map>::Nullopt();
   }
 
-  CheckMapsOp(V<HeapObject> heap_object, V<FrameState> frame_state,
+  CheckMapsOp(V<HeapObject> heap_object, V<EagerFrameState> frame_state,
               OptionalV<Map> map, ZoneRefSet<Map> maps, CheckMapsFlags flags,
               const FeedbackSource& feedback)
       : Base(2 + map.valid()),
@@ -6830,7 +6858,7 @@ struct CheckMapsOp : OperationT<CheckMapsOp> {
   }
 
   static CheckMapsOp& New(Graph* graph, V<HeapObject> heap_object,
-                          V<FrameState> frame_state, OptionalV<Map> map,
+                          V<EagerFrameState> frame_state, OptionalV<Map> map,
                           ZoneRefSet<Map> maps, CheckMapsFlags flags,
                           const FeedbackSource& feedback) {
     return Base::New(graph, 2 + map.valid(), heap_object, frame_state, map,
@@ -6855,9 +6883,11 @@ struct CheckHomomorphicOp : FixedArityOperationT<2, CheckHomomorphicOp> {
   }
 
   V<Object> heap_object() const { return Base::input<Object>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
-  CheckHomomorphicOp(V<Object> heap_object, V<FrameState> frame_state,
+  CheckHomomorphicOp(V<Object> heap_object, V<EagerFrameState> frame_state,
                      NameRef name,
                      WeakHomomorphicFixedArrayRef homomorphic_array,
                      int handler_value, bool check_heap_object,
@@ -6922,9 +6952,11 @@ struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(1);
+  }
 
-  CheckedClosureOp(V<Object> input, V<FrameState> frame_state,
+  CheckedClosureOp(V<Object> input, V<EagerFrameState> frame_state,
                    Handle<FeedbackCell> feedback_cell)
       : Base(input, frame_state), feedback_cell(feedback_cell) {}
 
@@ -6957,10 +6989,12 @@ struct CheckEqualsInternalizedStringOp
 
   V<Object> expected() const { return Base::input<Object>(0); }
   V<Object> value() const { return Base::input<Object>(1); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(2);
+  }
 
   CheckEqualsInternalizedStringOp(V<Object> expected, V<Object> value,
-                                  V<FrameState> frame_state)
+                                  V<EagerFrameState> frame_state)
       : Base(expected, value, frame_state) {}
 
   void Validate(const Graph& graph) const {
@@ -7150,7 +7184,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     UNREACHABLE();
   }
 
-  V<FrameState> frame_state() const { return input<FrameState>(0); }
+  V<LazyFrameState> frame_state() const { return input<LazyFrameState>(0); }
 
   V<Object> data_argument() const { return input<Object>(1); }
 
@@ -7160,7 +7194,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     return inputs().SubVector(kNumNonParamInputs, inputs().size());
   }
 
-  FastApiCallOp(V<FrameState> frame_state, V<Object> data_argument,
+  FastApiCallOp(V<LazyFrameState> frame_state, V<Object> data_argument,
                 V<Context> context, base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters,
                 base::Vector<const RegisterRepresentation> out_reps)
@@ -7178,7 +7212,7 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
-    V<FrameState> mapped_frame_state = mapper.Map(frame_state());
+    V<LazyFrameState> mapped_frame_state = mapper.Map(frame_state());
     OpIndex mapped_data_argument = mapper.Map(data_argument());
     V<Context> mapped_context = mapper.Map(context());
     auto mapped_arguments = mapper.template Map<8>(arguments());
@@ -7186,9 +7220,8 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
               base::VectorOf(mapped_arguments), parameters, out_reps);
   }
 
-
   static FastApiCallOp& New(
-      Graph* graph, V<FrameState> frame_state, V<Object> data_argument,
+      Graph* graph, V<LazyFrameState> frame_state, V<Object> data_argument,
       V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
@@ -7267,10 +7300,13 @@ struct MaybeGrowFastElementsOp
   V<Object> elements() const { return Base::input<Object>(1); }
   V<Word32> index() const { return Base::input<Word32>(2); }
   V<Word32> elements_length() const { return Base::input<Word32>(3); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(4); }
+  V<EagerFrameState> frame_state() const {
+    return Base::input<EagerFrameState>(4);
+  }
 
   MaybeGrowFastElementsOp(V<Object> object, V<Object> elements, V<Word32> index,
-                          V<Word32> elements_length, V<FrameState> frame_state,
+                          V<Word32> elements_length,
+                          V<EagerFrameState> frame_state,
                           GrowFastElementsMode mode,
                           const FeedbackSource& feedback)
       : Base(object, elements, index, elements_length, frame_state),
@@ -7320,10 +7356,9 @@ struct TransitionElementsKindOrCheckMapOp
   V<HeapObject> object() const { return Base::input<HeapObject>(0); }
 
   TransitionElementsKindOrCheckMapOp(
-      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
+      V<HeapObject> object, V<Map> map, V<EagerFrameState> frame_state,
       const ElementsTransitionWithMultipleSources& transition)
       : Base(object, map, frame_state), transition(transition) {}
-
 
   auto options() const { return std::tuple{transition}; }
 };
@@ -7588,12 +7623,12 @@ struct AssertNotNullOp : OperationT<AssertNotNullOp> {
       OpEffects().CanDependOnChecks().CanLeaveCurrentFunction();
 
   V<Object> object() const { return input<Object>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 1 ? input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 1 ? input<EagerFrameState>(1)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
-  AssertNotNullOp(V<Object> object, OptionalV<FrameState> frame_state,
+  AssertNotNullOp(V<Object> object, OptionalV<EagerFrameState> frame_state,
                   wasm::ValueType type, TrapId trap_id)
       : Base(1 + frame_state.valid()), type(type), trap_id(trap_id) {
     input(0) = object;
@@ -7603,7 +7638,7 @@ struct AssertNotNullOp : OperationT<AssertNotNullOp> {
   }
 
   static AssertNotNullOp& New(Graph* graph, V<Object> object,
-                              OptionalV<FrameState> frame_state,
+                              OptionalV<EagerFrameState> frame_state,
                               wasm::ValueType type, TrapId trap_id) {
     return Base::New(graph, 1 + frame_state.valid(), object, frame_state, type,
                      trap_id);
@@ -7712,7 +7747,8 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
       OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
-                 WasmTypeCheckConfig config, OptionalV<FrameState> frame_state)
+                 WasmTypeCheckConfig config,
+                 OptionalV<EagerFrameState> frame_state)
       : Base(1 + rtt.valid() + frame_state.valid()),
         config(config),
         has_rtt(rtt.valid()),
@@ -7737,10 +7773,10 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   OptionalV<Map> rtt() const {
     return has_rtt ? input<Map>(1) : OptionalV<Map>::Nullopt();
   }
-  OptionalV<FrameState> frame_state() const {
+  OptionalV<EagerFrameState> frame_state() const {
     int idx = 1 + (has_rtt ? 1 : 0);
-    return has_frame_state ? input<FrameState>(idx)
-                           : OptionalV<FrameState>::Nullopt();
+    return has_frame_state ? input<EagerFrameState>(idx)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -7758,7 +7794,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 
   static WasmTypeCastOp& New(Graph* graph, V<Object> object, OptionalV<Map> rtt,
                              WasmTypeCheckConfig config,
-                             OptionalV<FrameState> frame_state) {
+                             OptionalV<EagerFrameState> frame_state) {
     return Base::New(graph, 1 + rtt.valid() + frame_state.valid(), object, rtt,
                      config, frame_state);
   }
@@ -7808,11 +7844,11 @@ struct ProcessWasmArgumentOp : FixedArityOperationT<2, ProcessWasmArgumentOp> {
   // unwraps it.
   static constexpr OpEffects effects = OpEffects();
 
-  ProcessWasmArgumentOp(V<Object> value, V<FrameState> frame_state)
+  ProcessWasmArgumentOp(V<Object> value, V<EagerFrameState> frame_state)
       : Base(value, frame_state) {}
 
   V<Object> value() const { return input<Object>(0); }
-  V<FrameState> frame_state() const { return input<FrameState>(1); }
+  V<EagerFrameState> frame_state() const { return input<EagerFrameState>(1); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -7916,7 +7952,8 @@ struct StructGetOp : OperationT<StructGetOp> {
     return result;
   }
 
-  StructGetOp(V<WasmStructNullable> object, OptionalV<FrameState> frame_state,
+  StructGetOp(V<WasmStructNullable> object,
+              OptionalV<EagerFrameState> frame_state,
               const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
               int field_index, bool is_signed, CheckForNull null_check,
               std::optional<AtomicMemoryOrder> memory_order)
@@ -7934,7 +7971,7 @@ struct StructGetOp : OperationT<StructGetOp> {
   }
 
   static StructGetOp& New(Graph* graph, V<WasmStructNullable> object,
-                          OptionalV<FrameState> frame_state,
+                          OptionalV<EagerFrameState> frame_state,
                           const wasm::StructType* type,
                           wasm::ModuleTypeIndex type_index, int field_index,
                           bool is_signed, CheckForNull null_check,
@@ -7945,9 +7982,9 @@ struct StructGetOp : OperationT<StructGetOp> {
   }
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 1 ? input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 1 ? input<EagerFrameState>(1)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
   bool is_atomic() const { return memory_order.has_value(); }
@@ -8015,9 +8052,9 @@ struct StructSetOp : OperationT<StructSetOp> {
   }
 
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
-              OptionalV<FrameState> frame_state, const wasm::StructType* type,
-              wasm::ModuleTypeIndex type_index, int field_index,
-              CheckForNull null_check,
+              OptionalV<EagerFrameState> frame_state,
+              const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
+              int field_index, CheckForNull null_check,
               std::optional<AtomicMemoryOrder> memory_order,
               WriteBarrierKind write_barrier)
       : Base(2 + frame_state.valid()),
@@ -8035,7 +8072,7 @@ struct StructSetOp : OperationT<StructSetOp> {
   }
 
   static StructSetOp& New(Graph* graph, V<WasmStructNullable> object,
-                          V<Any> value, OptionalV<FrameState> frame_state,
+                          V<Any> value, OptionalV<EagerFrameState> frame_state,
                           const wasm::StructType* type,
                           wasm::ModuleTypeIndex type_index, int field_index,
                           CheckForNull null_check,
@@ -8048,9 +8085,9 @@ struct StructSetOp : OperationT<StructSetOp> {
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
   V<Any> value() const { return input(1); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 2 ? input<FrameState>(2)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 2 ? input<EagerFrameState>(2)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -8354,7 +8391,7 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   }
 
   explicit ArrayLengthOp(V<WasmArrayNullable> array,
-                         OptionalV<FrameState> frame_state,
+                         OptionalV<EagerFrameState> frame_state,
                          CheckForNull null_check)
       : Base(1 + frame_state.valid()), null_check(null_check) {
     input(0) = array;
@@ -8364,9 +8401,9 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   }
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
-  OptionalV<FrameState> frame_state() const {
-    return input_count > 1 ? input<FrameState>(1)
-                           : OptionalV<FrameState>::Nullopt();
+  OptionalV<EagerFrameState> frame_state() const {
+    return input_count > 1 ? input<EagerFrameState>(1)
+                           : OptionalV<EagerFrameState>::Nullopt();
   }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -8384,7 +8421,7 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
   }
 
   static ArrayLengthOp& New(Graph* graph, V<WasmArrayNullable> array,
-                            OptionalV<FrameState> frame_state,
+                            OptionalV<EagerFrameState> frame_state,
                             CheckForNull null_check) {
     return Base::New(graph, 1 + frame_state.valid(), array, frame_state,
                      null_check);

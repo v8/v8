@@ -188,7 +188,7 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
     Zone* zone, const wasm::CanonicalSig* sig, V<Word32> callee,
     const base::Vector<OpIndex> args, base::Vector<OpIndex> returns,
-    OptionalV<FrameState> frame_state,
+    OptionalV<LazyFrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const bool needs_frame_state = frame_state.valid();
 
@@ -249,9 +249,9 @@ template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     V<JSFunction> js_closure, V<Context> js_context,
     base::Vector<const OpIndex> arguments,
-    OptionalV<FrameState> lazy_frame_state,
+    OptionalV<LazyFrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-    OptionalV<FrameState> caller_frame_state) -> V<Any> {
+    OptionalV<EagerFrameState> caller_frame_state) -> V<Any> {
   // JS-to-Wasm wrappers are compiled per isolate, so they can emit
   // isolate-dependent code.
   DCHECK_NOT_NULL(__ data()->isolate());
@@ -791,7 +791,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   OpIndex call;
   {
     typename Assembler::CatchScope scope(Asm(), catch_block);
-    OpIndex frame_state = OpIndex::Invalid();
+    OptionalV<LazyFrameState> frame_state =
+        OptionalV<LazyFrameState>::Nullopt();
     call = __ Call(code_entry, frame_state, base::VectorOf(args), descriptor,
                    OpEffects().CanCallAnything());
   }

@@ -878,7 +878,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
   OpIndex AssembleOutputGraphCall(const CallOp& op) {
     V<CallTarget> callee = MapToNewGraph(op.callee());
-    OptionalV<FrameState> frame_state = MapToNewGraph(op.frame_state());
+    OptionalV<LazyFrameState> frame_state = MapToNewGraph(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return Asm().ReduceCall(callee, frame_state, base::VectorOf(arguments),
                             op.descriptor, op.Effects());

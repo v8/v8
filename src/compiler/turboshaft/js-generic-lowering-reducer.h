@@ -29,8 +29,8 @@ class JSGenericLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(JSGenericLowering)
 
   V<Object> REDUCE(GenericBinop)(V<Object> left, V<Object> right,
-                                 V<FrameState> frame_state, V<Context> context,
-                                 GenericBinopOp::Kind kind,
+                                 V<LazyFrameState> frame_state,
+                                 V<Context> context, GenericBinopOp::Kind kind,
                                  LazyDeoptOnThrow lazy_deopt_on_throw) {
     // Note that we're **not** calling the __WithFeedback variants of the
     // generic builtins, on purpose. There have been several experiments with
@@ -49,7 +49,7 @@ class JSGenericLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Object> REDUCE(GenericUnop)(V<Object> input, V<FrameState> frame_state,
+  V<Object> REDUCE(GenericUnop)(V<Object> input, V<LazyFrameState> frame_state,
                                 V<Context> context, GenericUnopOp::Kind kind,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     switch (kind) {
@@ -63,7 +63,8 @@ class JSGenericLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  OpIndex REDUCE(ToNumberOrNumeric)(V<Object> input, V<FrameState> frame_state,
+  OpIndex REDUCE(ToNumberOrNumeric)(V<Object> input,
+                                    V<LazyFrameState> frame_state,
                                     V<Context> context, Object::Conversion kind,
                                     LazyDeoptOnThrow lazy_deopt_on_throw) {
     Label<Object> done(this);

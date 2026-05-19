@@ -72,7 +72,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   using ConditionWithHint = compiler::turboshaft::ConditionWithHint;
   template <typename T>
   using ConstOrV = compiler::turboshaft::ConstOrV<T>;
-  using FrameState = compiler::turboshaft::FrameState;
+  using EagerFrameState = compiler::turboshaft::EagerFrameState;
   using LoadOp = compiler::turboshaft::LoadOp;
   using MemoryRepresentation = compiler::turboshaft::MemoryRepresentation;
   using OpIndex = compiler::turboshaft::OpIndex;

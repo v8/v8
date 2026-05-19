@@ -498,7 +498,7 @@ class BuiltinsReducer : public Next {
 
   void PerformStackCheck(V<Context> context) {
     __ JSStackCheck(context,
-                    OptionalV<compiler::turboshaft::FrameState>::Nullopt(),
+                    OptionalV<compiler::turboshaft::LazyFrameState>::Nullopt(),
                     compiler::turboshaft::JSStackCheckOp::Kind::kBuiltinEntry);
   }
 
@@ -936,7 +936,7 @@ class BuiltinsReducer : public Next {
                    const Desc::Arguments& args) {
     return Next::template CallRuntime<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
         context, args, compiler::LazyDeoptOnThrow::kNo);
   }
 
@@ -959,7 +959,7 @@ class BuiltinsReducer : public Next {
                    const Desc::Arguments& args) {
     return Next::template CallBuiltin<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
         context, args, compiler::LazyDeoptOnThrow::kNo);
   }
 
@@ -968,7 +968,7 @@ class BuiltinsReducer : public Next {
   auto CallBuiltin(const Desc::Arguments& args) {
     return Next::template CallBuiltin<Desc>(
         compiler::turboshaft::OptionalV<
-            compiler::turboshaft::FrameState>::Nullopt(),
+            compiler::turboshaft::LazyFrameState>::Nullopt(),
         args, compiler::LazyDeoptOnThrow::kNo);
   }
 
@@ -1111,7 +1111,7 @@ class BuiltinsReducer : public Next {
         call_mode);
 
     return __ AssemblerOpInterface::Call(
-        target, OptionalV<compiler::turboshaft::FrameState>::Nullopt(),
+        target, OptionalV<compiler::turboshaft::LazyFrameState>::Nullopt(),
         base::VectorOf(inputs),
         compiler::turboshaft::TSCallDescriptor::Create(
             call_descriptor, compiler::CanThrow::kYes,

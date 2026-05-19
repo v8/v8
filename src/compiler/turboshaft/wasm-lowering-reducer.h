@@ -70,7 +70,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> REDUCE(AssertNotNull)(V<Object> object,
-                                  OptionalV<FrameState> frame_state,
+                                  OptionalV<EagerFrameState> frame_state,
                                   wasm::ValueType type, TrapId trap_id) {
     if (trap_id == TrapId::kTrapNullDereference) {
       // Skip the check altogether if null checks are turned off.
@@ -123,7 +123,7 @@ class WasmLoweringReducer : public Next {
 
   V<Object> REDUCE(WasmTypeCast)(V<Object> object, OptionalV<Map> rtt,
                                  WasmTypeCheckConfig config,
-                                 OptionalV<FrameState> frame_state) {
+                                 OptionalV<EagerFrameState> frame_state) {
     if (rtt.has_value()) {
       return ReduceWasmTypeCastRtt(object, rtt, config, frame_state);
     } else {
@@ -239,7 +239,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Any> REDUCE(StructGet)(V<WasmStructNullable> object,
-                           OptionalV<FrameState> frame_state,
+                           OptionalV<EagerFrameState> frame_state,
                            const wasm::StructType* type,
                            wasm::ModuleTypeIndex type_index, int field_index,
                            bool is_signed, CheckForNull null_check,
@@ -284,7 +284,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<None> REDUCE(StructSet)(V<WasmStructNullable> object, V<Any> value,
-                            OptionalV<FrameState> frame_state,
+                            OptionalV<EagerFrameState> frame_state,
                             const wasm::StructType* type,
                             wasm::ModuleTypeIndex type_index, int field_index,
                             CheckForNull null_check,
@@ -421,7 +421,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
-                                OptionalV<FrameState> frame_state,
+                                OptionalV<EagerFrameState> frame_state,
                                 CheckForNull null_check) {
     bool explicit_null_check =
         null_check == kWithNullCheck &&
@@ -794,9 +794,9 @@ class WasmLoweringReducer : public Next {
     return final_result;
   }
 
-  void TrapOnSharedWasmObjectsIfUnshared(V<HeapObject> object,
-                                         WasmTypeCheckConfig config,
-                                         OptionalV<FrameState> frame_state) {
+  void TrapOnSharedWasmObjectsIfUnshared(
+      V<HeapObject> object, WasmTypeCheckConfig config,
+      OptionalV<EagerFrameState> frame_state) {
     if (!v8_flags.experimental_wasm_shared ||
         config.to.is_shared() == SharedFlag::kYes ||
         config.from.AsNullable() != wasm::kWasmAnyRef) {
@@ -808,7 +808,7 @@ class WasmLoweringReducer : public Next {
 
   V<Object> ReduceWasmTypeCastAbstract(V<Object> object,
                                        WasmTypeCheckConfig config,
-                                       OptionalV<FrameState> frame_state) {
+                                       OptionalV<EagerFrameState> frame_state) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
@@ -895,7 +895,7 @@ class WasmLoweringReducer : public Next {
 
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
                                   WasmTypeCheckConfig config,
-                                  OptionalV<FrameState> frame_state) {
+                                  OptionalV<EagerFrameState> frame_state) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();

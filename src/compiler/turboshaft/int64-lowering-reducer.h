@@ -238,7 +238,8 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
-  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+  V<Any> REDUCE(Call)(V<CallTarget> callee,
+                      OptionalV<LazyFrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
     const bool is_tail_call = false;
@@ -250,7 +251,8 @@ class Int64LoweringReducer : public Next {
                            base::Vector<const OpIndex> arguments,
                            const TSCallDescriptor* descriptor) {
     const bool is_tail_call = true;
-    OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
+    OptionalV<LazyFrameState> frame_state =
+        OptionalV<LazyFrameState>::Nullopt();
     return LowerCall(callee, frame_state, arguments, descriptor,
                      OpEffects().CanCallAnything(), is_tail_call);
   }
@@ -643,9 +645,9 @@ class Int64LoweringReducer : public Next {
         low_replaced, high, Simd128ReplaceLaneOp::Kind::kI32x4, 2 * lane + 1);
   }
 
-  V<turboshaft::FrameState> REDUCE(FrameState)(
-      base::Vector<const OpIndex> inputs, bool inlined,
-      const FrameStateData* data) {
+  V<AnyFrameState> REDUCE(FrameState)(base::Vector<const OpIndex> inputs,
+                                      bool inlined,
+                                      const FrameStateData* data) {
     bool has_int64_input = false;
 
     for (MachineType type : data->machine_types) {
@@ -660,7 +662,7 @@ class Int64LoweringReducer : public Next {
     }
     FrameStateData::Builder builder;
     if (inlined) {
-      builder.AddParentFrameState(V<turboshaft::FrameState>(inputs[0]));
+      builder.AddParentFrameState(V<AnyFrameState>(inputs[0]));
     }
     const FrameStateFunctionInfo* function_info =
         data->frame_state_info.function_info();
@@ -888,7 +890,7 @@ class Int64LoweringReducer : public Next {
     return __ MakeTuple(low_node, high_node);
   }
 
-  V<Any> LowerCall(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+  V<Any> LowerCall(V<CallTarget> callee, OptionalV<LazyFrameState> frame_state,
                    base::Vector<const OpIndex> arguments,
                    const TSCallDescriptor* descriptor, OpEffects effects,
                    bool is_tail_call) {

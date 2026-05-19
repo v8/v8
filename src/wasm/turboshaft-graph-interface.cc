@@ -59,7 +59,7 @@ using compiler::turboshaft::ConstOrV;
 using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
-using compiler::turboshaft::FrameState;
+using EagerFrameState = compiler::turboshaft::EagerFrameState;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -273,7 +273,7 @@ class TurboshaftGraphBuildingInterface
       SharedFlag shared, const WireBytesStorage* wire_bytes,
       base::Vector<OpIndex> real_parameters, TSBlock* return_block,
       BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
-      OptionalV<FrameState> parent_frame_state)
+      OptionalV<EagerFrameState> parent_frame_state)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -2802,7 +2802,7 @@ class TurboshaftGraphBuildingInterface
 
         // Creating the frame state here allows us to share the frame state
         // between a deopt due to wrong instance and deopt due to wrong target.
-        V<FrameState> frame_state =
+        V<EagerFrameState> frame_state =
             deopts_enabled() ? CreateFrameState(decoder, imm.sig, &index, args)
                              : OpIndex::Invalid();
         // CreateFrameState may have disabled deopts.
@@ -3164,7 +3164,7 @@ class TurboshaftGraphBuildingInterface
         }
         bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
         if (emit_deopt) {
-          V<FrameState> frame_state =
+          V<EagerFrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
           if (frame_state.valid()) {
             DeoptIfNot(
@@ -7014,10 +7014,10 @@ class TurboshaftGraphBuildingInterface
   }
 
  private:
-  V<FrameState> CreateFrameState(FullDecoder* decoder,
-                                 const FunctionSig* callee_sig,
-                                 const Value* func_ref_or_index,
-                                 const Value args[]) {
+  V<EagerFrameState> CreateFrameState(FullDecoder* decoder,
+                                      const FunctionSig* callee_sig,
+                                      const Value* func_ref_or_index,
+                                      const Value args[]) {
     compiler::turboshaft::FrameStateData::Builder builder;
     if (parent_frame_state_.valid()) {
       builder.AddParentFrameState(parent_frame_state_.value());
@@ -7112,13 +7112,13 @@ class TurboshaftGraphBuildingInterface
       return OpIndex::Invalid();
     }
 
-    return __ FrameState(
+    return __ template FrameState<EagerFrameState>(
         builder.Inputs(), builder.inlined(),
         builder.AllocateFrameStateData(*frame_state_info, zone));
   }
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  V<FrameState> frame_state) {
+                  V<EagerFrameState> frame_state) {
     CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ DeoptimizeIfNot(deopt_condition, frame_state,
@@ -7126,7 +7126,7 @@ class TurboshaftGraphBuildingInterface
                        compiler::FeedbackSource());
   }
 
-  void Deopt(FullDecoder* decoder, V<FrameState> frame_state) {
+  void Deopt(FullDecoder* decoder, V<EagerFrameState> frame_state) {
     CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
@@ -9466,7 +9466,7 @@ class TurboshaftGraphBuildingInterface
       inlinee_return_phis = &fresh_return_phis;
     }
 
-    OptionalV<FrameState> frame_state;
+    OptionalV<EagerFrameState> frame_state;
     if (deopts_enabled()) {
       frame_state = is_tail_call
                         ? parent_frame_state_
@@ -9807,7 +9807,7 @@ class TurboshaftGraphBuildingInterface
   bool is_inlined_tail_call_ = false;
 
   std::optional<bool> deopts_enabled_;
-  OptionalV<FrameState> parent_frame_state_;
+  OptionalV<EagerFrameState> parent_frame_state_;
   OptionalV<WordPtr> wide_ops_stack_buffer_;
   static constexpr int kWideOpsStackBufferSize = 4 * kInt64Size;
 

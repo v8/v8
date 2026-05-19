@@ -77,7 +77,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Untagged> REDUCE(ChangeOrDeopt)(V<Untagged> input,
-                                    V<FrameState> frame_state,
+                                    V<EagerFrameState> frame_state,
                                     ChangeOrDeoptOp::Kind kind,
                                     CheckForMinusZeroMode minus_zero_mode,
                                     const FeedbackSource& feedback) {
@@ -272,8 +272,8 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
-                               bool negated,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition,
+                               V<EagerFrameState> frame_state, bool negated,
                                const DeoptimizeParameters* parameters) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
@@ -1167,7 +1167,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<JSPrimitive> REDUCE(ConvertWordToSmiOrDeopt)(
-      V<Untagged> input, V<FrameState> frame_state,
+      V<Untagged> input, V<EagerFrameState> frame_state,
       RegisterRepresentation input_rep,
       ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation,
       const FeedbackSource& feedback) {
@@ -1401,7 +1401,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Untagged> REDUCE(ConvertJSPrimitiveToUntaggedOrDeopt)(
-      V<Object> object, V<FrameState> frame_state,
+      V<Object> object, V<EagerFrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind to_kind,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
@@ -1836,7 +1836,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Word> REDUCE(TruncateJSPrimitiveToUntaggedOrDeopt)(
-      V<JSPrimitive> input, V<FrameState> frame_state,
+      V<JSPrimitive> input, V<EagerFrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
           input_requirement,
@@ -2192,7 +2192,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Object> REDUCE(LoadDictionaryField)(
-      V<JSReceiver> object, V<Context> context, V<FrameState> frame_state,
+      V<JSReceiver> object, V<Context> context, V<LazyFrameState> frame_state,
       size_t raw_index, compiler::NameRef name, const FeedbackSource& feedback,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
     static_assert(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
@@ -2247,7 +2247,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Word> REDUCE(WordBinopDeoptOnOverflow)(
-      V<Word> left, V<Word> right, V<FrameState> frame_state,
+      V<Word> left, V<Word> right, V<EagerFrameState> frame_state,
       WordBinopDeoptOnOverflowOp::Kind kind, WordRepresentation rep,
       FeedbackSource feedback, CheckForMinusZeroMode mode) {
     switch (kind) {
@@ -2498,7 +2498,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<BigInt> REDUCE(BigIntBinop)(V<BigInt> left, V<BigInt> right,
-                                V<FrameState> frame_state,
+                                V<EagerFrameState> frame_state,
                                 BigIntBinopOp::Kind kind) {
     const Builtin builtin = GetBuiltinForBigIntBinop(kind);
     switch (kind) {
@@ -2525,7 +2525,7 @@ class MachineLoweringReducer : public Next {
         // TerminationRequested.
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
           __ template CallRuntime<runtime::TerminateExecution>(
-              frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
+              __ NoContextConstant(), {});
         }
 
         // Check for exception sentinel: Smi 0 is returned to signal
@@ -2801,7 +2801,7 @@ class MachineLoweringReducer : public Next {
 
 #ifdef V8_INTL_SUPPORT
   V<String> REDUCE(StringToCaseIntl)(V<String> string,
-                                     V<FrameState> frame_state,
+                                     V<LazyFrameState> frame_state,
                                      V<Context> context,
                                      StringToCaseIntlOp::Kind kind,
                                      LazyDeoptOnThrow lazy_deopt_on_throw) {
@@ -3033,7 +3033,7 @@ class MachineLoweringReducer : public Next {
                                          V<Object> receiver,
                                          V<Object> compare_str,
                                          V<StringOrUndefined> locales,
-                                         V<FrameState> frame_state,
+                                         V<LazyFrameState> frame_state,
                                          V<Context> context,
                                          LazyDeoptOnThrow lazy_deopt_on_throw) {
     // Static classification by output-graph ConstantOp: lets us skip the type
@@ -3535,7 +3535,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(CheckMaps)(V<HeapObject> heap_object,
-                            V<FrameState> frame_state, OptionalV<Map> map,
+                            V<EagerFrameState> frame_state, OptionalV<Map> map,
                             const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
     if (maps.is_empty()) {
@@ -3577,7 +3577,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(CheckHomomorphic)(
-      V<Object> heap_object, V<FrameState> frame_state, NameRef name,
+      V<Object> heap_object, V<EagerFrameState> frame_state, NameRef name,
       WeakHomomorphicFixedArrayRef homomorphic_array, int handler_value,
       bool check_heap_object, const FeedbackSource& feedback) {
     Label<Map> done(this);
@@ -3907,7 +3907,8 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Object> REDUCE(CheckedClosure)(V<Object> input, V<FrameState> frame_state,
+  V<Object> REDUCE(CheckedClosure)(V<Object> input,
+                                   V<EagerFrameState> frame_state,
                                    Handle<FeedbackCell> feedback_cell) {
     // Check that {input} is actually a JSFunction.
     V<Map> map = __ LoadMapField(input);
@@ -3928,9 +3929,8 @@ class MachineLoweringReducer : public Next {
     return input;
   }
 
-  V<None> REDUCE(CheckEqualsInternalizedString)(V<Object> expected,
-                                                V<Object> value,
-                                                V<FrameState> frame_state) {
+  V<None> REDUCE(CheckEqualsInternalizedString)(
+      V<Object> expected, V<Object> value, V<EagerFrameState> frame_state) {
     Label<> done(this);
     // Check if {expected} and {value} are the same, which is the likely case.
     GOTO_IF(LIKELY(__ TaggedEqual(expected, value)), done);
@@ -4069,7 +4069,7 @@ class MachineLoweringReducer : public Next {
   V<Object> REDUCE(MaybeGrowFastElements)(V<Object> object, V<Object> elements,
                                           V<Word32> index,
                                           V<Word32> elements_length,
-                                          V<FrameState> frame_state,
+                                          V<EagerFrameState> frame_state,
                                           GrowFastElementsMode mode,
                                           const FeedbackSource& feedback) {
     Label<Object> done(this);
@@ -4126,7 +4126,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(TransitionElementsKindOrCheckMap)(
-      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
+      V<HeapObject> object, V<Map> map, V<EagerFrameState> frame_state,
       const ElementsTransitionWithMultipleSources& transition) {
     Label<> done(this);
 
@@ -4501,7 +4501,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Float64> ConvertHeapObjectToFloat64OrDeopt(
-      V<Object> heap_object, V<FrameState> frame_state,
+      V<Object> heap_object, V<EagerFrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind input_kind,
       const FeedbackSource& feedback,
       OptionalV<Map> loaded_map = OptionalV<Map>::Nullopt()) {
@@ -4621,7 +4621,7 @@ class MachineLoweringReducer : public Next {
   }
 
   void MigrateInstanceOrDeopt(V<HeapObject> heap_object, V<Map> heap_object_map,
-                              V<FrameState> frame_state,
+                              V<EagerFrameState> frame_state,
                               const FeedbackSource& feedback) {
     // If {heap_object_map} is not deprecated, the migration attempt does not
     // make sense.
@@ -4640,7 +4640,7 @@ class MachineLoweringReducer : public Next {
 
   void TryMigrateInstanceAndMarkMapAsMigrationTarget(
       V<HeapObject> heap_object, V<Map> heap_object_map,
-      V<FrameState> frame_state, const FeedbackSource& feedback) {
+      V<EagerFrameState> frame_state, const FeedbackSource& feedback) {
     // If {heap_object_map} is not deprecated, the migration attempt does not
     // make sense.
     V<Word32> bitfield3 = __ template LoadField<Word32>(
@@ -4671,8 +4671,9 @@ class MachineLoweringReducer : public Next {
         CallDescriptor::kNoFlags, Operator::kFoldable | Operator::kNoThrow);
     auto ts_descriptor = TSCallDescriptor::Create(
         descriptor, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
-    return __ Call(__ HeapConstant(callable.code()), V<FrameState>::Invalid(),
-                   base::VectorOf(args), ts_descriptor);
+    return __ Call(__ HeapConstant(callable.code()),
+                   V<LazyFrameState>::Invalid(), base::VectorOf(args),
+                   ts_descriptor);
   }
 
   Builtin GetBuiltinForBigIntBinop(BigIntBinopOp::Kind kind) {

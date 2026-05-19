@@ -911,8 +911,7 @@ struct HeapObjectField<C, TaggedMember<F>> {
 // of the callee, but also depends on the caller.
 class FrameStateForCall {
  public:
-  FrameStateForCall(
-      V<turboshaft::FrameState> framestate)  // NOLINT(runtime/explicit)
+  FrameStateForCall(V<LazyFrameState> framestate)  // NOLINT(runtime/explicit)
       : framestate_(framestate) {
     DCHECK(framestate_.valid());
   }
@@ -925,13 +924,13 @@ class FrameStateForCall {
     return FrameStateForCall{};
   }
 
-  OptionalV<turboshaft::FrameState> get() const { return framestate_; }
+  OptionalV<LazyFrameState> get() const { return framestate_; }
   bool valid() const { return framestate_.valid(); }
 
  private:
   FrameStateForCall() : framestate_() {}
 
-  OptionalV<turboshaft::FrameState> framestate_;
+  OptionalV<LazyFrameState> framestate_;
 };
 
 // Meta-class to map a root index to the corresponding C++-type.
@@ -1430,7 +1429,7 @@ class ReducerBase : public Next {
   }
 
   V<Any> REDUCE(Call)(V<CallTarget> callee,
-                      OptionalV<turboshaft::FrameState> frame_state,
+                      OptionalV<LazyFrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
     V<Any> raw_call =
@@ -1450,8 +1449,8 @@ class ReducerBase : public Next {
   }
 
   OpIndex REDUCE(FastApiCall)(
-      V<FrameState> frame_state, V<Object> data_argument, V<Context> context,
-      base::Vector<const OpIndex> arguments,
+      V<LazyFrameState> frame_state, V<Object> data_argument,
+      V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
     OpIndex raw_call = Next::ReduceFastApiCall(
@@ -1591,52 +1590,51 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Object> GenericBinop(V<Object> left, V<Object> right,
-                         V<turboshaft::FrameState> frame_state,
-                         V<Context> context, GenericBinopOp::Kind kind,
+                         V<LazyFrameState> frame_state, V<Context> context,
+                         GenericBinopOp::Kind kind,
                          LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ReduceIfReachableGenericBinop(left, right, frame_state, context,
                                          kind, lazy_deopt_on_throw);
   }
-#define DECL_GENERIC_BINOP(Name)                                              \
-  V<Object> Generic##Name(                                                    \
-      V<Object> left, V<Object> right, V<turboshaft::FrameState> frame_state, \
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {             \
-    return GenericBinop(left, right, frame_state, context,                    \
-                        GenericBinopOp::Kind::k##Name, lazy_deopt_on_throw);  \
+#define DECL_GENERIC_BINOP(Name)                                             \
+  V<Object> Generic##Name(V<Object> left, V<Object> right,                   \
+                          V<LazyFrameState> frame_state, V<Context> context, \
+                          LazyDeoptOnThrow lazy_deopt_on_throw) {            \
+    return GenericBinop(left, right, frame_state, context,                   \
+                        GenericBinopOp::Kind::k##Name, lazy_deopt_on_throw); \
   }
   GENERIC_BINOP_LIST(DECL_GENERIC_BINOP)
 #undef DECL_GENERIC_BINOP
 
-  V<Object> GenericUnop(V<Object> input, V<turboshaft::FrameState> frame_state,
+  V<Object> GenericUnop(V<Object> input, V<LazyFrameState> frame_state,
                         V<Context> context, GenericUnopOp::Kind kind,
                         LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ReduceIfReachableGenericUnop(input, frame_state, context, kind,
                                         lazy_deopt_on_throw);
   }
 #define DECL_GENERIC_UNOP(Name)                                            \
-  V<Object> Generic##Name(                                                 \
-      V<Object> input, V<turboshaft::FrameState> frame_state,              \
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {          \
+  V<Object> Generic##Name(V<Object> input, V<LazyFrameState> frame_state,  \
+                          V<Context> context,                              \
+                          LazyDeoptOnThrow lazy_deopt_on_throw) {          \
     return GenericUnop(input, frame_state, context,                        \
                        GenericUnopOp::Kind::k##Name, lazy_deopt_on_throw); \
   }
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
 #undef DECL_GENERIC_UNOP
 
-  V<Object> ToNumberOrNumeric(V<Object> input,
-                              V<turboshaft::FrameState> frame_state,
+  V<Object> ToNumberOrNumeric(V<Object> input, V<LazyFrameState> frame_state,
                               V<Context> context, Object::Conversion kind,
                               LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ReduceIfReachableToNumberOrNumeric(input, frame_state, context, kind,
                                               lazy_deopt_on_throw);
   }
-  V<Object> ToNumber(V<Object> input, V<turboshaft::FrameState> frame_state,
+  V<Object> ToNumber(V<Object> input, V<LazyFrameState> frame_state,
                      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ToNumberOrNumeric(input, frame_state, context,
                              Object::Conversion::kToNumber,
                              lazy_deopt_on_throw);
   }
-  V<Object> ToNumeric(V<Object> input, V<turboshaft::FrameState> frame_state,
+  V<Object> ToNumeric(V<Object> input, V<LazyFrameState> frame_state,
                       V<Context> context,
                       LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ToNumberOrNumeric(input, frame_state, context,
@@ -2068,7 +2066,7 @@ class AssemblerOpInterface : public Next {
 #undef DECL_MULTI_REP_UNARY_V
 
   V<Word> WordBinopDeoptOnOverflow(V<Word> left, V<Word> right,
-                                   V<turboshaft::FrameState> frame_state,
+                                   V<EagerFrameState> frame_state,
                                    WordBinopDeoptOnOverflowOp::Kind kind,
                                    WordRepresentation rep,
                                    FeedbackSource feedback,
@@ -2076,16 +2074,16 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWordBinopDeoptOnOverflow(left, right, frame_state,
                                                      kind, rep, feedback, mode);
   }
-#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type)     \
-  OpIndex rep_type##operation##DeoptOnOverflow(                       \
-      ConstOrV<rep_type> left, ConstOrV<rep_type> right,              \
-      V<turboshaft::FrameState> frame_state, FeedbackSource feedback, \
-      CheckForMinusZeroMode mode =                                    \
-          CheckForMinusZeroMode::kDontCheckForMinusZero) {            \
-    return WordBinopDeoptOnOverflow(                                  \
-        resolve(left), resolve(right), frame_state,                   \
-        WordBinopDeoptOnOverflowOp::Kind::k##operation,               \
-        WordRepresentation::rep_type(), feedback, mode);              \
+#define DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(operation, rep_type) \
+  OpIndex rep_type##operation##DeoptOnOverflow(                   \
+      ConstOrV<rep_type> left, ConstOrV<rep_type> right,          \
+      V<EagerFrameState> frame_state, FeedbackSource feedback,    \
+      CheckForMinusZeroMode mode =                                \
+          CheckForMinusZeroMode::kDontCheckForMinusZero) {        \
+    return WordBinopDeoptOnOverflow(                              \
+        resolve(left), resolve(right), frame_state,               \
+        WordBinopDeoptOnOverflowOp::Kind::k##operation,           \
+        WordRepresentation::rep_type(), feedback, mode);          \
   }
 
   DECL_SINGLE_REP_BINOP_DEOPT_OVERFLOW(SignedAdd, Word32)
@@ -2274,7 +2272,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Smi> ConvertWordToSmiOrDeopt(
-      V<Word> input, V<turboshaft::FrameState> frame_state,
+      V<Word> input, V<EagerFrameState> frame_state,
       RegisterRepresentation input_rep,
       ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation,
       const FeedbackSource& feedback) {
@@ -2284,7 +2282,7 @@ class AssemblerOpInterface : public Next {
 
 #define DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(From, repr, sign)                  \
   V<Smi> Convert##From##ToSmiOrDeopt(V<repr> input,                         \
-                                     V<turboshaft::FrameState> frame_state, \
+                                     V<EagerFrameState> frame_state,        \
                                      const FeedbackSource& feedback) {      \
     return ConvertWordToSmiOrDeopt(                                         \
         input, frame_state, RegisterRepresentation::repr(),                 \
@@ -2315,15 +2313,14 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Untagged> ConvertJSPrimitiveToUntaggedOrDeopt(
-      V<Object> object, V<turboshaft::FrameState> frame_state,
+      V<Object> object, V<EagerFrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind to_kind,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
     return ReduceIfReachableConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
   }
-  V<Word32> CheckedSmiUntag(V<Object> object,
-                            V<turboshaft::FrameState> frame_state,
+  V<Word32> CheckedSmiUntag(V<Object> object, V<EagerFrameState> frame_state,
                             const FeedbackSource& feedback) {
     return V<Word32>::Cast(ConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state,
@@ -2353,7 +2350,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
-      V<JSPrimitive> object, V<turboshaft::FrameState> frame_state,
+      V<JSPrimitive> object, V<EagerFrameState> frame_state,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
       TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
           input_requirement,
@@ -2736,8 +2733,7 @@ class AssemblerOpInterface : public Next {
 #undef DECL_CHANGE_V
 #undef DECL_TRY_CHANGE_V
 
-  V<Untagged> ChangeOrDeopt(V<Untagged> input,
-                            V<turboshaft::FrameState> frame_state,
+  V<Untagged> ChangeOrDeopt(V<Untagged> input, V<EagerFrameState> frame_state,
                             ChangeOrDeoptOp::Kind kind,
                             CheckForMinusZeroMode minus_zero_mode,
                             const FeedbackSource& feedback) {
@@ -2746,7 +2742,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Word32> ChangeFloat64ToInt32OrDeopt(V<Float64> input,
-                                        V<turboshaft::FrameState> frame_state,
+                                        V<EagerFrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
     return V<Word32>::Cast(ChangeOrDeopt(input, frame_state,
@@ -2754,7 +2750,7 @@ class AssemblerOpInterface : public Next {
                                          minus_zero_mode, feedback));
   }
   V<Word32> ChangeFloat64ToUint32OrDeopt(V<Float64> input,
-                                         V<turboshaft::FrameState> frame_state,
+                                         V<EagerFrameState> frame_state,
                                          CheckForMinusZeroMode minus_zero_mode,
                                          const FeedbackSource& feedback) {
     return V<Word32>::Cast(ChangeOrDeopt(
@@ -2762,7 +2758,7 @@ class AssemblerOpInterface : public Next {
         minus_zero_mode, feedback));
   }
   V<Word64> ChangeFloat64ToAdditiveSafeIntegerOrDeopt(
-      V<Float64> input, V<turboshaft::FrameState> frame_state,
+      V<Float64> input, V<EagerFrameState> frame_state,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
     return V<Word64>::Cast(
         ChangeOrDeopt(input, frame_state,
@@ -2770,7 +2766,7 @@ class AssemblerOpInterface : public Next {
                       minus_zero_mode, feedback));
   }
   V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input,
-                                        V<turboshaft::FrameState> frame_state,
+                                        V<EagerFrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
                                         const FeedbackSource& feedback) {
     return V<Word64>::Cast(ChangeOrDeopt(input, frame_state,
@@ -2778,7 +2774,7 @@ class AssemblerOpInterface : public Next {
                                          minus_zero_mode, feedback));
   }
   V<Word64> ChangeFloat64ToUint64OrDeopt(V<Float64> input,
-                                         V<turboshaft::FrameState> frame_state,
+                                         V<EagerFrameState> frame_state,
                                          CheckForMinusZeroMode minus_zero_mode,
                                          const FeedbackSource& feedback) {
     return V<Word64>::Cast(ChangeOrDeopt(
@@ -3459,18 +3455,16 @@ class AssemblerOpInterface : public Next {
   }
 #endif
 
-  void JSStackCheck(V<Context> context,
-                    OptionalV<turboshaft::FrameState> frame_state,
+  void JSStackCheck(V<Context> context, OptionalV<LazyFrameState> frame_state,
                     JSStackCheckOp::Kind kind) {
     ReduceIfReachableJSStackCheck(context, frame_state, kind);
   }
 
-  void JSLoopStackCheck(V<Context> context,
-                        V<turboshaft::FrameState> frame_state) {
+  void JSLoopStackCheck(V<Context> context, V<LazyFrameState> frame_state) {
     JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kLoop);
   }
   void JSFunctionEntryStackCheck(V<Context> context,
-                                 V<turboshaft::FrameState> frame_state) {
+                                 V<LazyFrameState> frame_state) {
     JSStackCheck(context, frame_state, JSStackCheckOp::Kind::kFunctionEntry);
   }
 
@@ -3614,7 +3608,7 @@ class AssemblerOpInterface : public Next {
   }
 
   template <typename R = AnyOrNone>
-  V<R> Call(V<CallTarget> callee, OptionalV<turboshaft::FrameState> frame_state,
+  V<R> Call(V<CallTarget> callee, OptionalV<LazyFrameState> frame_state,
             base::Vector<const OpIndex> arguments,
             const TSCallDescriptor* descriptor,
             OpEffects effects = OpEffects().CanCallAnything()) {
@@ -3625,7 +3619,7 @@ class AssemblerOpInterface : public Next {
   V<R> Call(V<CallTarget> callee, std::initializer_list<OpIndex> arguments,
             const TSCallDescriptor* descriptor,
             OpEffects effects = OpEffects().CanCallAnything()) {
-    return Call<R>(callee, OptionalV<turboshaft::FrameState>::Nullopt(),
+    return Call<R>(callee, OptionalV<LazyFrameState>::Nullopt(),
                    base::VectorOf(arguments), descriptor, effects);
   }
 
@@ -3679,8 +3673,8 @@ class AssemblerOpInterface : public Next {
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction,
-        OptionalV<turboshaft::FrameState>::Nullopt(), base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
         Descriptor::kEffects));
@@ -3731,8 +3725,8 @@ class AssemblerOpInterface : public Next {
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction,
-        OptionalV<turboshaft::FrameState>::Nullopt(), base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone()),
         Descriptor::kEffects));
@@ -3760,7 +3754,7 @@ class AssemblerOpInterface : public Next {
     V<WordPtr> call_target =
         RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
     return result_t::Cast(
-        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+        Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
              base::VectorOf(arguments),
              Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
                                 Asm().output_graph().graph_zone()),
@@ -3789,7 +3783,7 @@ class AssemblerOpInterface : public Next {
     V<WordPtr> call_target =
         RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
     return result_t::Cast(
-        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+        Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
              base::VectorOf(arguments),
              Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
                                 Asm().output_graph().graph_zone()),
@@ -3833,7 +3827,7 @@ class AssemblerOpInterface : public Next {
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        isolate, Desc::kFunction, OptionalV<LazyFrameState>::Nullopt(),
         base::VectorOf(arguments),
         Desc::Create(StubCallMode::kCallCodeObject,
                      Asm().output_graph().graph_zone()),
@@ -3854,7 +3848,7 @@ class AssemblerOpInterface : public Next {
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        isolate, Desc::kFunction, OptionalV<LazyFrameState>::Nullopt(),
         base::VectorOf(arguments),
         Desc::Create(StubCallMode::kCallCodeObject,
                      Asm().output_graph().graph_zone()),
@@ -3864,8 +3858,7 @@ class AssemblerOpInterface : public Next {
   template <typename Desc>
     requires(!Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
-      OptionalV<turboshaft::FrameState> frame_state,
-      const Desc::Arguments& args,
+      OptionalV<LazyFrameState> frame_state, const Desc::Arguments& args,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3888,7 +3881,7 @@ class AssemblerOpInterface : public Next {
   template <typename Desc>
     requires(Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
-      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      OptionalV<LazyFrameState> frame_state, V<Context> context,
       const Desc::Arguments& args,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
@@ -3924,12 +3917,11 @@ class AssemblerOpInterface : public Next {
     }
     auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    auto result =
-        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
-             base::VectorOf(arguments),
-             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                          Asm().output_graph().graph_zone()),
-             Desc::kEffects);
+    auto result = Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
+                       base::VectorOf(arguments),
+                       Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                                    Asm().output_graph().graph_zone()),
+                       Desc::kEffects);
     if constexpr (requires { result_t::Cast(result); }) {
       return result_t::CastIfNeeded(result);
     } else {
@@ -3951,7 +3943,7 @@ class AssemblerOpInterface : public Next {
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
     return result_t::CastIfNeeded(
-        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+        Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
              base::VectorOf(arguments),
              Desc::Create(StubCallMode::kCallWasmRuntimeStub,
                           Asm().output_graph().graph_zone()),
@@ -3962,7 +3954,7 @@ class AssemblerOpInterface : public Next {
 
   template <typename Desc>
   typename Desc::returns_t CallRuntimeImpl(
-      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      OptionalV<LazyFrameState> frame_state, V<Context> context,
       const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
     using returns_t = typename Desc::returns_t;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3997,9 +3989,10 @@ class AssemblerOpInterface : public Next {
 
   template <typename Desc>
     requires(Desc::kCanTriggerLazyDeopt)
-  typename Desc::returns_t CallRuntime(
-      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
-      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+  typename Desc::returns_t CallRuntime(OptionalV<LazyFrameState> frame_state,
+                                       V<Context> context,
+                                       const Desc::Arguments& args,
+                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallRuntimeImpl<Desc>(frame_state, context, args,
                                  lazy_deopt_on_throw);
   }
@@ -4008,12 +4001,12 @@ class AssemblerOpInterface : public Next {
     requires(!Desc::kCanTriggerLazyDeopt)
   typename Desc::returns_t CallRuntime(V<Context> context,
                                        const Desc::Arguments& args) {
-    return CallRuntimeImpl<Desc>(OptionalV<turboshaft::FrameState>::Nullopt(),
-                                 context, args, LazyDeoptOnThrow::kNo);
+    return CallRuntimeImpl<Desc>(OptionalV<LazyFrameState>::Nullopt(), context,
+                                 args, LazyDeoptOnThrow::kNo);
   }
 
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
-                         OptionalV<turboshaft::FrameState> frame_state,
+                         OptionalV<LazyFrameState> frame_state,
                          base::Vector<const OpIndex> arguments,
                          const TSCallDescriptor* desc, OpEffects effects) {
     Callable callable = Builtins::CallableFor(isolate, builtin);
@@ -4023,7 +4016,7 @@ class AssemblerOpInterface : public Next {
 
   V<Object> CallBuiltinWithVarStackArgs(Isolate* isolate, Zone* graph_zone,
                                         Builtin builtin,
-                                        V<turboshaft::FrameState> frame_state,
+                                        V<LazyFrameState> frame_state,
                                         int num_stack_args,
                                         base::Vector<OpIndex> arguments,
                                         LazyDeoptOnThrow lazy_deopt_on_throw) {
@@ -4041,7 +4034,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Object> CallBuiltin_CallWithSpread(Isolate* isolate, Zone* graph_zone,
-                                       V<turboshaft::FrameState> frame_state,
+                                       V<LazyFrameState> frame_state,
                                        V<Context> context, V<Object> function,
                                        int num_args_no_spread, V<Object> spread,
                                        base::Vector<V<Object>> args_no_spread,
@@ -4060,7 +4053,7 @@ class AssemblerOpInterface : public Next {
         num_args_no_spread, base::VectorOf(arguments), lazy_deopt_on_throw);
   }
   V<Object> CallBuiltin_CallWithArrayLike(
-      Isolate* isolate, Zone* graph_zone, V<turboshaft::FrameState> frame_state,
+      Isolate* isolate, Zone* graph_zone, V<LazyFrameState> frame_state,
       V<Context> context, V<Object> receiver, V<Object> function,
       V<Object> arguments_list, LazyDeoptOnThrow lazy_deopt_on_throw) {
     // CallWithArrayLike is a weird builtin that expects a receiver as top of
@@ -4077,9 +4070,9 @@ class AssemblerOpInterface : public Next {
   }
   V<Object> CallBuiltin_CallForwardVarargs(
       Isolate* isolate, Zone* graph_zone, Builtin builtin,
-      V<turboshaft::FrameState> frame_state, V<Context> context,
-      V<JSFunction> function, int num_args, int start_index,
-      base::Vector<V<Object>> args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+      V<LazyFrameState> frame_state, V<Context> context, V<JSFunction> function,
+      int num_args, int start_index, base::Vector<V<Object>> args,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
     DCHECK(builtin == Builtin::kCallFunctionForwardVarargs ||
            builtin == Builtin::kCallForwardVarargs);
     base::SmallVector<OpIndex, 16> arguments;
@@ -4095,10 +4088,9 @@ class AssemblerOpInterface : public Next {
   }
   V<Object> CallBuiltin_ConstructForwardVarargs(
       Isolate* isolate, Zone* graph_zone, Builtin builtin,
-      V<turboshaft::FrameState> frame_state, V<Context> context,
-      V<JSFunction> target, V<JSFunction> new_target, int num_args,
-      int start_index, base::Vector<V<Object>> args,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
+      V<LazyFrameState> frame_state, V<Context> context, V<JSFunction> target,
+      V<JSFunction> new_target, int num_args, int start_index,
+      base::Vector<V<Object>> args, LazyDeoptOnThrow lazy_deopt_on_throw) {
     DCHECK(builtin == Builtin::kConstructFunctionForwardVarargs ||
            builtin == Builtin::kConstructForwardVarargs);
     base::SmallVector<OpIndex, 16> arguments;
@@ -4152,21 +4144,21 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableTailCall(callee, arguments, descriptor);
   }
 
-  V<turboshaft::FrameState> FrameState(base::Vector<const OpIndex> inputs,
-                                       bool inlined,
-                                       const FrameStateData* data) {
-    return ReduceIfReachableFrameState(inputs, inlined, data);
+  template <typename FrameStateType>
+  V<FrameStateType> FrameState(base::Vector<const OpIndex> inputs, bool inlined,
+                               const FrameStateData* data) {
+    return V<FrameStateType>::Cast(
+        ReduceIfReachableFrameState(inputs, inlined, data));
   }
-  void DeoptimizeIf(V<Word32> condition, V<turboshaft::FrameState> frame_state,
+  void DeoptimizeIf(V<Word32> condition, V<EagerFrameState> frame_state,
                     const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, false, parameters);
   }
-  void DeoptimizeIfNot(V<Word32> condition,
-                       V<turboshaft::FrameState> frame_state,
+  void DeoptimizeIfNot(V<Word32> condition, V<EagerFrameState> frame_state,
                        const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimizeIf(condition, frame_state, true, parameters);
   }
-  void DeoptimizeIf(V<Word32> condition, V<turboshaft::FrameState> frame_state,
+  void DeoptimizeIf(V<Word32> condition, V<EagerFrameState> frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
@@ -4176,8 +4168,7 @@ class AssemblerOpInterface : public Next {
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIf(condition, frame_state, params);
   }
-  void DeoptimizeIfNot(V<Word32> condition,
-                       V<turboshaft::FrameState> frame_state,
+  void DeoptimizeIfNot(V<Word32> condition, V<EagerFrameState> frame_state,
                        DeoptimizeReason reason,
                        const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -4188,12 +4179,12 @@ class AssemblerOpInterface : public Next {
         zone->New<DeoptimizeParameters>(reason, feedback);
     DeoptimizeIfNot(condition, frame_state, params);
   }
-  void Deoptimize(V<turboshaft::FrameState> frame_state,
+  void Deoptimize(V<EagerFrameState> frame_state,
                   const DeoptimizeParameters* parameters) {
     ReduceIfReachableDeoptimize(frame_state, parameters);
   }
-  void Deoptimize(V<turboshaft::FrameState> frame_state,
-                  DeoptimizeReason reason, const FeedbackSource& feedback) {
+  void Deoptimize(V<EagerFrameState> frame_state, DeoptimizeReason reason,
+                  const FeedbackSource& feedback) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return;
     }
@@ -4206,31 +4197,29 @@ class AssemblerOpInterface : public Next {
 #if V8_ENABLE_WEBASSEMBLY
   // TrapIf and TrapIfNot in Wasm code do not pass a frame state.
   void TrapIf(ConstOrV<Word32> condition, TrapId trap_id) {
-    ReduceIfReachableTrapIf(resolve(condition),
-                            OptionalV<turboshaft::FrameState>{}, false,
-                            trap_id);
+    ReduceIfReachableTrapIf(resolve(condition), OptionalV<EagerFrameState>{},
+                            false, trap_id);
   }
   void TrapIfNot(ConstOrV<Word32> condition, TrapId trap_id) {
-    ReduceIfReachableTrapIf(resolve(condition),
-                            OptionalV<turboshaft::FrameState>{}, true, trap_id);
+    ReduceIfReachableTrapIf(resolve(condition), OptionalV<EagerFrameState>{},
+                            true, trap_id);
   }
 
   // TrapIf and TrapIfNot from Wasm inlined into JS pass a frame state.
   void TrapIf(ConstOrV<Word32> condition,
-              OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+              OptionalV<EagerFrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, false, trap_id);
   }
   void TrapIfNot(ConstOrV<Word32> condition,
-                 OptionalV<turboshaft::FrameState> frame_state,
-                 TrapId trap_id) {
+                 OptionalV<EagerFrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
 
   void WasmTrap(TrapId trap_id) {
-    WasmTrap(OptionalV<turboshaft::FrameState>{}, trap_id);
+    WasmTrap(OptionalV<EagerFrameState>{}, trap_id);
   }
 
-  void WasmTrap(OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+  void WasmTrap(OptionalV<EagerFrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableWasmTrap(frame_state, trap_id);
   }
 
@@ -4518,7 +4507,7 @@ class AssemblerOpInterface : public Next {
     return GotoIfNot(condition.condition(), if_false, condition.hint());
   }
 
-  OpIndex CallBuiltin(Builtin builtin, V<turboshaft::FrameState> frame_state,
+  OpIndex CallBuiltin(Builtin builtin, V<LazyFrameState> frame_state,
                       base::Vector<OpIndex> arguments, CanThrow can_throw,
                       Isolate* isolate) {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -4576,7 +4565,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Object> LoadDictionaryField(V<JSReceiver> object, V<Context> context,
-                                V<turboshaft::FrameState> fs, size_t index,
+                                V<LazyFrameState> fs, size_t index,
                                 compiler::NameRef name,
                                 const FeedbackSource& feedback,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
@@ -4714,15 +4703,15 @@ class AssemblerOpInterface : public Next {
   }
 
   V<BigInt> BigIntBinop(V<BigInt> left, V<BigInt> right,
-                        V<turboshaft::FrameState> frame_state,
+                        V<EagerFrameState> frame_state,
                         BigIntBinopOp::Kind kind) {
     return ReduceIfReachableBigIntBinop(left, right, frame_state, kind);
   }
-#define BIGINT_BINOP(kind)                                        \
-  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,         \
-                         V<turboshaft::FrameState> frame_state) { \
-    return BigIntBinop(left, right, frame_state,                  \
-                       BigIntBinopOp::Kind::k##kind);             \
+#define BIGINT_BINOP(kind)                                 \
+  V<BigInt> BigInt##kind(V<BigInt> left, V<BigInt> right,  \
+                         V<EagerFrameState> frame_state) { \
+    return BigIntBinop(left, right, frame_state,           \
+                       BigIntBinopOp::Kind::k##kind);      \
   }
   BIGINT_BINOP(Add)
   BIGINT_BINOP(Sub)
@@ -4799,21 +4788,20 @@ class AssemblerOpInterface : public Next {
   }
 
 #ifdef V8_INTL_SUPPORT
-  V<String> StringToCaseIntl(V<String> string,
-                             V<turboshaft::FrameState> frame_state,
+  V<String> StringToCaseIntl(V<String> string, V<LazyFrameState> frame_state,
                              V<Context> context,
                              StringToCaseIntlOp::Kind kind) {
     return ReduceIfReachableStringToCaseIntl(string, frame_state, context, kind,
                                              LazyDeoptOnThrow::kNo);
   }
   V<String> StringToLowerCaseIntl(V<String> string,
-                                  V<turboshaft::FrameState> frame_state,
+                                  V<LazyFrameState> frame_state,
                                   V<Context> context) {
     return StringToCaseIntl(string, frame_state, context,
                             StringToCaseIntlOp::Kind::kLower);
   }
   V<String> StringToUpperCaseIntl(V<String> string,
-                                  V<turboshaft::FrameState> frame_state,
+                                  V<LazyFrameState> frame_state,
                                   V<Context> context) {
     return StringToCaseIntl(string, frame_state, context,
                             StringToCaseIntlOp::Kind::kUpper);
@@ -4821,7 +4809,7 @@ class AssemblerOpInterface : public Next {
   V<Smi> StringLocaleCompareIntl(V<JSFunction> locale_compare_fn,
                                  V<Object> left, V<Object> right,
                                  V<StringOrUndefined> locales,
-                                 V<turboshaft::FrameState> frame_state,
+                                 V<LazyFrameState> frame_state,
                                  V<Context> context,
                                  LazyDeoptOnThrow lazy_deopt_on_throw) {
     return ReduceIfReachableStringLocaleCompareIntl(
@@ -4945,16 +4933,15 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableCompareMaps(heap_object, map, maps);
   }
 
-  void CheckMaps(V<HeapObject> heap_object,
-                 V<turboshaft::FrameState> frame_state, OptionalV<Map> map,
-                 const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
-                 const FeedbackSource& feedback) {
+  void CheckMaps(V<HeapObject> heap_object, V<EagerFrameState> frame_state,
+                 OptionalV<Map> map, const ZoneRefSet<Map>& maps,
+                 CheckMapsFlags flags, const FeedbackSource& feedback) {
     ReduceIfReachableCheckMaps(heap_object, frame_state, map, maps, flags,
                                feedback);
   }
 
   void CheckHomomorphic(V<HeapObject> heap_object,
-                        V<turboshaft::FrameState> frame_state, NameRef name,
+                        V<EagerFrameState> frame_state, NameRef name,
                         WeakHomomorphicFixedArrayRef homomorphic_array,
                         int handler_value, bool check_heap_object,
                         const FeedbackSource& feedback) {
@@ -4967,14 +4954,13 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableAssumeMap(heap_object, maps);
   }
 
-  V<Object> CheckedClosure(V<Object> input,
-                           V<turboshaft::FrameState> frame_state,
+  V<Object> CheckedClosure(V<Object> input, V<EagerFrameState> frame_state,
                            Handle<FeedbackCell> feedback_cell) {
     return ReduceIfReachableCheckedClosure(input, frame_state, feedback_cell);
   }
 
   void CheckEqualsInternalizedString(V<Object> expected, V<Object> value,
-                                     V<turboshaft::FrameState> frame_state) {
+                                     V<EagerFrameState> frame_state) {
     ReduceIfReachableCheckEqualsInternalizedString(expected, value,
                                                    frame_state);
   }
@@ -5008,9 +4994,8 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableFloat64SameValue(resolve(left), resolve(right));
   }
 
-  OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
-                      V<Object> data_argument, V<Context> context,
-                      base::Vector<const OpIndex> arguments,
+  OpIndex FastApiCall(V<LazyFrameState> frame_state, V<Object> data_argument,
+                      V<Context> context, base::Vector<const OpIndex> arguments,
                       const FastApiCallParameters* parameters,
                       base::Vector<const RegisterRepresentation> out_reps) {
     return ReduceIfReachableFastApiCall(frame_state, data_argument, context,
@@ -5032,7 +5017,7 @@ class AssemblerOpInterface : public Next {
 
   V<Object> MaybeGrowFastElements(V<Object> object, V<Object> elements,
                                   V<Word32> index, V<Word32> elements_length,
-                                  V<turboshaft::FrameState> frame_state,
+                                  V<EagerFrameState> frame_state,
                                   GrowFastElementsMode mode,
                                   const FeedbackSource& feedback) {
     return ReduceIfReachableMaybeGrowFastElements(
@@ -5044,7 +5029,7 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableTransitionElementsKind(object, transition);
   }
   void TransitionElementsKindOrCheckMap(
-      V<HeapObject> object, V<Map> map, V<turboshaft::FrameState> frame_state,
+      V<HeapObject> object, V<Map> map, V<EagerFrameState> frame_state,
       const ElementsTransitionWithMultipleSources& transition) {
     ReduceIfReachableTransitionElementsKindOrCheckMap(object, map, frame_state,
                                                       transition);
@@ -5150,12 +5135,12 @@ class AssemblerOpInterface : public Next {
 
   V<Object> AssertNotNull(V<Object> object, wasm::ValueType type,
                           TrapId trap_id) {
-    return ReduceIfReachableAssertNotNull(
-        object, OptionalV<turboshaft::FrameState>{}, type, trap_id);
+    return ReduceIfReachableAssertNotNull(object, OptionalV<EagerFrameState>{},
+                                          type, trap_id);
   }
 
   V<Object> AssertNotNull(V<Object> object,
-                          OptionalV<turboshaft::FrameState> frame_state,
+                          OptionalV<EagerFrameState> frame_state,
                           wasm::ValueType type, TrapId trap_id) {
     return ReduceIfReachableAssertNotNull(object, frame_state, type, trap_id);
   }
@@ -5173,7 +5158,7 @@ class AssemblerOpInterface : public Next {
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config,
-                         OptionalV<turboshaft::FrameState> frame_state = {}) {
+                         OptionalV<EagerFrameState> frame_state = {}) {
     DCHECK(__ generating_unreachable_operations() ||
            rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCast(object, rtt, config, frame_state);
@@ -5198,7 +5183,7 @@ class AssemblerOpInterface : public Next {
   // Identity operation that carries a pre-call FrameState for JS-to-Wasm
   // wrapper inlining.
   V<Object> ProcessWasmArgument(V<Object> value,
-                                V<turboshaft::FrameState> frame_state) {
+                                V<EagerFrameState> frame_state) {
     return ReduceIfReachableProcessWasmArgument(value, frame_state);
   }
 
@@ -5206,13 +5191,13 @@ class AssemblerOpInterface : public Next {
                    wasm::ModuleTypeIndex type_index, int field_index,
                    bool is_signed, CheckForNull null_check,
                    std::optional<AtomicMemoryOrder> memory_order) {
-    return ReduceIfReachableStructGet(
-        object, OptionalV<turboshaft::FrameState>{}, type, type_index,
-        field_index, is_signed, null_check, memory_order);
+    return ReduceIfReachableStructGet(object, OptionalV<EagerFrameState>{},
+                                      type, type_index, field_index, is_signed,
+                                      null_check, memory_order);
   }
 
   V<Any> StructGet(V<WasmStructNullable> object,
-                   OptionalV<turboshaft::FrameState> frame_state,
+                   OptionalV<EagerFrameState> frame_state,
                    const wasm::StructType* type,
                    wasm::ModuleTypeIndex type_index, int field_index,
                    bool is_signed, CheckForNull null_check,
@@ -5227,13 +5212,13 @@ class AssemblerOpInterface : public Next {
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
                  WriteBarrierKind write_barrier) {
-    ReduceIfReachableStructSet(
-        object, value, OptionalV<turboshaft::FrameState>{}, type, type_index,
-        field_index, null_check, memory_order, write_barrier);
+    ReduceIfReachableStructSet(object, value, OptionalV<EagerFrameState>{},
+                               type, type_index, field_index, null_check,
+                               memory_order, write_barrier);
   }
 
   void StructSet(V<WasmStructNullable> object,
-                 OptionalV<turboshaft::FrameState> frame_state, V<Any> value,
+                 OptionalV<EagerFrameState> frame_state, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
@@ -5280,20 +5265,20 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(
-        array, OptionalV<turboshaft::FrameState>{}, null_check);
+    return ReduceIfReachableArrayLength(array, OptionalV<EagerFrameState>{},
+                                        null_check);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array,
-                        OptionalV<turboshaft::FrameState> frame_state,
+                        OptionalV<EagerFrameState> frame_state,
                         CheckForNull null_check) {
     return ReduceIfReachableArrayLength(array, frame_state, null_check);
   }
 
   // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
-  void WasmBoundsCheckArray(
-      V<WasmArrayNullable> array, V<Word32> index, wasm::ValueType array_type,
-      OptionalV<turboshaft::FrameState> frame_state = {}) {
+  void WasmBoundsCheckArray(V<WasmArrayNullable> array, V<Word32> index,
+                            wasm::ValueType array_type,
+                            OptionalV<EagerFrameState> frame_state = {}) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
         __ AssertNotNull(array, frame_state, array_type,

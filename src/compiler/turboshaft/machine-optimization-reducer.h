@@ -2075,8 +2075,8 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition, V<FrameState> frame_state,
-                               bool negated,
+  V<None> REDUCE(DeoptimizeIf)(V<Word32> condition,
+                               V<EagerFrameState> frame_state, bool negated,
                                const DeoptimizeParameters* parameters) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
@@ -2100,8 +2100,9 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE(TrapIf)(V<Word32> condition, OptionalV<FrameState> frame_state,
-                         bool negated, TrapId trap_id) {
+  V<None> REDUCE(TrapIf)(V<Word32> condition,
+                         OptionalV<EagerFrameState> frame_state, bool negated,
+                         TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }

@@ -167,7 +167,7 @@ class TestInstance {
                                             OutputFrameStateCombine::Ignore(),
                                             function_info);
 
-    return Asm().FrameState(
+    return Asm().template FrameState<AnyFrameState>(
         builder.Inputs(), builder.inlined(),
         builder.AllocateFrameStateData(*frame_state_info, zone_));
   }

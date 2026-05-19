@@ -108,7 +108,7 @@ class SimplifiedOptimizationReducer : public Next {
   }
 
   V<Untagged> REDUCE(ChangeOrDeopt)(V<Untagged> input,
-                                    V<FrameState> frame_state,
+                                    V<EagerFrameState> frame_state,
                                     ChangeOrDeoptOp::Kind kind,
                                     CheckForMinusZeroMode minus_zero_mode,
                                     const FeedbackSource& feedback) {
@@ -187,7 +187,7 @@ class SimplifiedOptimizationReducer : public Next {
   }
 
   V<Word> REDUCE(WordBinopDeoptOnOverflow)(
-      V<Word> left, V<Word> right, V<FrameState> frame_state,
+      V<Word> left, V<Word> right, V<EagerFrameState> frame_state,
       WordBinopDeoptOnOverflowOp::Kind kind, WordRepresentation rep,
       FeedbackSource feedback, CheckForMinusZeroMode mode) {
     LABEL_BLOCK(no_change) {

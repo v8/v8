@@ -221,7 +221,7 @@ struct runtime : CallDescriptorBuilder {
     using Arguments = NoArguments;
     using returns_t = V<Object>;
 
-    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
   };
 
