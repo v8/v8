@@ -8,8 +8,8 @@ among developers, accommodating the various environments (Linux, Mac, Windows)
 and agent types in use.
 
 To ensure consistency across the ecosystem, the directory structure and
-documentation standards (excluding V8-specific skills and extensions) mirror
-those in
+documentation standards (excluding V8-specific skills and plugins) mirror those
+in
 [Chromium's agents directory](https://source.chromium.org/chromium/chromium/src/+/main:agents/).
 
 ## Directory Structure

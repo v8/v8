@@ -32,6 +32,12 @@ if agents_dest.is_symlink():
 # 2. Ensure .agents is a real directory
 agents_dest.mkdir(parents=True, exist_ok=True)
 
+# Cleanup top-level dead symlinks in .agents/ (e.g. legacy extensions)
+for item in agents_dest.iterdir():
+  if item.is_symlink() and not item.exists():
+    print(f"Removing dead top-level symlink {item}")
+    item.unlink()
+
 # 3. Process top-level items in agents/
 for item in agents_src.iterdir():
   # Skip hidden files/dirs
@@ -40,13 +46,16 @@ for item in agents_src.iterdir():
 
   dest_item = agents_dest / item.name
 
-  if item.name not in ["agents", "skills", "rules"]:
+  if item.name not in ["agents", "skills", "rules", "plugins"]:
     # For other items, symlink directly
     if not dest_item.exists():
       create_symlink(item, dest_item)
     continue
 
   # Create real directory in .agents/
+  if dest_item.is_symlink():
+    print(f"Removing top-level symlink {dest_item}")
+    dest_item.unlink()
   dest_item.mkdir(parents=True, exist_ok=True)
 
   # Cleanup dead symlinks
