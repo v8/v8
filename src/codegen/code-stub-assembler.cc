@@ -3331,8 +3331,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromUint64(TNode<UintPtrT> value) {
 TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
     TNode<RawPtrT> data_pointer, TNode<UintPtrT> index,
     ElementsKind elements_kind) {
-  TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(Signed(index), elements_kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
+      ElementOffsetFromIndex(Signed(index), elements_kind, 0), elements_kind);
   switch (elements_kind) {
     case UINT8_ELEMENTS: /* fall through */
     case UINT8_CLAMPED_ELEMENTS:
@@ -13735,15 +13735,15 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
-TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayStoreOffset(
+TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayAccessOffset(
     TNode<IntPtrT> offset, ElementsKind kind) {
 #if V8_ENABLE_SANDBOX
   // If the ElementsKind is concurrently modified between the bound check and
-  // the store, we might write outside of the sandbox. To prevent this
-  // ElementsKind switcheroo, mask the offset such that it is at most
+  // the access (load/store), we might access outside of the sandbox. To prevent
+  // this ElementsKind switcheroo, mask the offset such that it is at most
   // kMaxSafeBufferSizeForSandbox.
   // For 1-byte elements, the offset is identical to the index and cannot
-  // exceed the checked bounds to cause an out-of-bounds write relative to the
+  // exceed the checked bounds to cause an out-of-bounds access relative to the
   // backing store, so we can skip masking.
   if (ElementsKindToByteSize(kind) != 1) {
     TVARIABLE(IntPtrT, offset_var, offset);
@@ -13776,7 +13776,7 @@ void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
       std::is_same_v<TIndex, UintPtrT> || std::is_same_v<TIndex, IntPtrT>,
       "Only UintPtrT or IntPtrT indices is allowed");
   DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   TVARIABLE(UintPtrT, var_low);
   // Only used on 32-bit platforms.
@@ -13831,7 +13831,7 @@ void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
   if (kind == UINT8_CLAMPED_ELEMENTS) {
     CSA_DCHECK(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
@@ -13874,7 +13874,7 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
       "Only Int32T, Float32T, Float64T or object value "
       "types are allowed");
   DCHECK(IsTypedArrayElementsKind(kind));
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
