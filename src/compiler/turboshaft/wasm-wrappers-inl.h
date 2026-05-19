@@ -82,6 +82,25 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
 }
 
 template <typename Assembler>
+void WasmWrapperTSGraphBuilder<Assembler>::CheckAndConvertSharedString(
+    V<Object> ret, ScopedVar<Object>& result) {
+  IF (__ IsSmi(ret)) {
+    result = ret;
+  } ELSE {
+    V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(ret));
+    V<Word32> is_string = __ Uint32LessThan(
+        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
+    IF (is_string) {
+      // Since this is a shared externref, the string will be shared.
+      result = __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
+                                  {ret}, __ NoContextConstant());
+    } ELSE {
+      result = ret;
+    }
+  }
+}
+
+template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                                                 CanonicalValueType type,
                                                 V<Context> context)
@@ -131,20 +150,21 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   if (wasm::IsSubtypeOf(type, wasm::kWasmSharedExternRef)) {
     // We have to unshare shared strings before passing them to JS.
     ScopedVar<Object> result(this, OpIndex::Invalid());
-    IF (__ IsSmi(ret)) {
-      result = ret;
-    } ELSE {
-      OpIndex instance_type = LoadInstanceType(LoadMap(ret));
-      V<Word32> is_string = __ Uint32LessThan(
-          instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
-      IF (is_string) {
-        // Since this is a shared externref, the string will be shared.
-        result =
-            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
-                               {ret}, __ NoContextConstant());
+    CheckAndConvertSharedString(ret, result);
+    return result;
+  }
+
+  if (type.is_reference_to(GenericKind::kAny) &&
+      type.is_shared() == SharedFlag::kYes) {
+    ScopedVar<Object> result(this, OpIndex::Invalid());
+    if (type.is_nullable()) {
+      IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
+        result = __ template LoadRoot<RootIndex::kNullValue>();
       } ELSE {
-        result = ret;
+        CheckAndConvertSharedString(ret, result);
       }
+    } else {
+      CheckAndConvertSharedString(ret, result);
     }
     return result;
   }
