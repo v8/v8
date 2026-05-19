@@ -511,10 +511,9 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
 
 // Instantiate `WriteBarrier::WriteBarrierForRange()` for `ObjectSlot` and
 // `MaybeObjectSlot`.
-template void WriteBarrier::ForRange<ObjectSlot>(Heap* heap,
-                                                 Tagged<HeapObject> object,
-                                                 ObjectSlot start_slot,
-                                                 ObjectSlot end_slot);
+template V8_EXPORT_PRIVATE void WriteBarrier::ForRange<ObjectSlot>(
+    Heap* heap, Tagged<HeapObject> object, ObjectSlot start_slot,
+    ObjectSlot end_slot);
 template void WriteBarrier::ForRange<MaybeObjectSlot>(
     Heap* heap, Tagged<HeapObject> object, MaybeObjectSlot start_slot,
     MaybeObjectSlot end_slot);
@@ -534,7 +533,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
     mode |= kDoGenerationalOrShared;
   }
 
-  if (heap->incremental_marking()->IsMarking()) {
+  if (source_chunk->IsMarking()) {
     mode |= kDoMarking;
     if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
       mode |= kDoEvacuationSlotRecording;

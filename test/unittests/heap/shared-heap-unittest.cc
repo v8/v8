@@ -6,6 +6,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -941,6 +942,47 @@ TEST_F(SharedHeapTest, UpdateExternalMemoryWorkerIsolate) {
   sema_done.ParkedWait(local_isolate);
 
   thread->ParkedJoin(local_isolate);
+}
+
+TEST_F(SharedHeapTest, WriteBarrierForRange_SharedHeapMarking) {
+  Isolate* isolate = i_isolate();
+  ManualGCScope manual_gc_scope(isolate);
+
+  HandleScope scope(isolate);
+  Handle<FixedArray> source =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+  Handle<FixedArray> value =
+      isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+
+  // Start incremental marking (shared GC) on the main isolate.
+  isolate->heap()->StartIncrementalMarking(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+
+  // Setup client isolate and run the write barrier.
+  SetupClientIsolateAndRunCallback([raw_source = *source, raw_value = *value](
+                                       v8::Isolate* client_isolate,
+                                       Isolate* i_client_isolate) {
+    HandleScope scope(i_client_isolate);
+
+    // Perform a raw store. The write barrier will be triggered manually.
+    ObjectSlot slot = raw_source->RawFieldOfElementAt(0);
+    slot.store(raw_value);
+
+    // Assert that object and value are still unmarked before the write barrier.
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_value));
+    EXPECT_TRUE(
+        i_client_isolate->heap()->marking_state()->IsUnmarked(raw_source));
+
+    // Invoke the range write barrier on the client isolate.
+    WriteBarrier::ForRange(i_client_isolate->heap(), raw_source, slot,
+                           slot + 1);
+
+    // The range write barrier should unconditionally mark the value.
+    EXPECT_TRUE(i_client_isolate->heap()->marking_state()->IsMarked(raw_value));
+  });
+
+  InvokeMajorGC(isolate);
 }
 
 }  // namespace internal
