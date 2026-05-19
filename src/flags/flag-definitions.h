@@ -1271,9 +1271,6 @@ DEFINE_DEVELOPER_FLAG(trace_track_allocation_sites,
 DEFINE_DEVELOPER_FLAG(trace_migration, "trace object migration")
 DEFINE_DEVELOPER_FLAG(trace_generalization, "trace map generalization")
 
-DEFINE_BOOL(reuse_scope_infos, true, "reuse scope infos from previous compiles")
-
-DEFINE_IMPLICATION(fuzzing, reuse_scope_infos)
 
 // Flags for Sparkplug
 #undef FLAG

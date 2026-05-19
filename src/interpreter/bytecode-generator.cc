@@ -1622,8 +1622,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
     int index = call.first->eval_scope_info_index();
     if (script->infos()
             ->get(index, kAcquireLoad)
-            .GetHeapObjectIfWeak(&current) &&
-        v8_flags.reuse_scope_infos) {
+            .GetHeapObjectIfWeak(&current)) {
       CHECK_EQ(current, *call.second->scope_info());
     } else {
       script->infos()->set(call.first->eval_scope_info_index(),
