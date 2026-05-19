@@ -2089,10 +2089,41 @@ void V8FileLogger::MapEvent(const char* type, DirectHandle<Map> from,
       << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
-    if (IsName(*name_or_sfi)) {
-      msg << Cast<Name>(*name_or_sfi);
-    } else if (IsSharedFunctionInfo(*name_or_sfi)) {
-      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(*name_or_sfi);
+    if (Tagged<Name> name; TryCast(*name_or_sfi, &name)) {
+      msg << name;
+    } else if (Tagged<SharedFunctionInfo> sfi; TryCast(*name_or_sfi, &sfi)) {
+      msg << sfi->DebugNameCStr().get();
+      msg << " " << sfi->unique_id();
+    }
+  }
+  msg.WriteToLogFile();
+}
+
+void V8FileLogger::MapEvent(DisallowGarbageCollection& no_gc, const char* type,
+                            Tagged<Map> from, Tagged<Map> to,
+                            const char* reason,
+                            Tagged<HeapObject> name_or_sfi) {
+  if (!v8_flags.log_maps) return;
+  VMStateIfMainThread<LOGGING> state(isolate_);
+  if (!to.is_null()) MapDetails(to);
+  int line = -1;
+  int column = -1;
+  Address pc = 0;
+
+  if (!isolate_->bootstrapper()->IsActive()) {
+    pc = isolate_->GetAbstractPCNoGC(&line, &column, no_gc);
+  }
+  MSG_BUILDER();
+  msg << "map" << kNext << type << kNext << Time() << kNext
+      << AsHex::Address(from.is_null() ? kNullAddress : from->ptr()) << kNext
+      << AsHex::Address(to.is_null() ? kNullAddress : to->ptr()) << kNext
+      << AsHex::Address(pc) << kNext << line << kNext << column << kNext
+      << reason << kNext;
+
+  if (!name_or_sfi.is_null()) {
+    if (Tagged<Name> name; TryCast(name_or_sfi, &name)) {
+      msg << name;
+    } else if (Tagged<SharedFunctionInfo> sfi; TryCast(name_or_sfi, &sfi)) {
       msg << sfi->DebugNameCStr().get();
       msg << " " << sfi->unique_id();
     }

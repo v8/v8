@@ -1850,6 +1850,41 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
+Address Isolate::GetAbstractPCNoGC(int* line, int* column,
+                                   DisallowGarbageCollection& no_gc) {
+  JavaScriptStackFrameIterator it(this);
+
+  if (it.done()) {
+    *line = -1;
+    *column = -1;
+    return kNullAddress;
+  }
+  JavaScriptFrame* frame = it.frame();
+  DCHECK(!frame->is_builtin());
+
+  int position = frame->position();
+
+  Tagged<Object> maybe_script = frame->function()->shared()->script();
+  if (Tagged<Script> script; TryCast(maybe_script, &script)) {
+    Script::PositionInfo info;
+    script->GetPositionInfo(position, &info);
+    *line = info.line + 1;
+    *column = info.column + 1;
+  } else {
+    *line = position;
+    *column = -1;
+  }
+
+  if (frame->is_unoptimized()) {
+    UnoptimizedJSFrame* iframe = static_cast<UnoptimizedJSFrame*>(frame);
+    Address bytecode_start =
+        iframe->GetBytecodeArray()->GetFirstBytecodeAddress();
+    return bytecode_start + iframe->GetBytecodeOffset();
+  }
+
+  return frame->pc();
+}
+
 namespace {
 
 class StackFrameBuilder {

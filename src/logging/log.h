@@ -235,6 +235,9 @@ class V8FileLogger : public LogEventListener {
       const char* type, DirectHandle<Map> from, DirectHandle<Map> to,
       const char* reason = nullptr,
       DirectHandle<HeapObject> name_or_sfi = DirectHandle<HeapObject>());
+  void MapEvent(DisallowGarbageCollection& no_gc, const char* type,
+                Tagged<Map> from, Tagged<Map> to, const char* reason = nullptr,
+                Tagged<HeapObject> name_or_sfi = Tagged<HeapObject>());
   void MapCreate(Tagged<Map> map);
   void MapDetails(Tagged<Map> map);
   void MapMoveEvent(Tagged<Map> from, Tagged<Map> to);

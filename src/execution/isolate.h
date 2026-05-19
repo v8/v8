@@ -1011,6 +1011,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
   Address GetAbstractPC(int* line, int* column);
+  Address GetAbstractPCNoGC(int* line, int* column,
+                            DisallowGarbageCollection& no_gc);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the exception is guaranteed to be

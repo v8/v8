@@ -726,7 +726,7 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   set_is_deprecated(true);
   if (v8_flags.log_maps) {
-    LOG(isolate, MapEvent("Deprecate", direct_handle<Map>(this, isolate), {}));
+    LOG(isolate, MapEvent(no_gc, "Deprecate", this, {}));
   }
   DependentCode::DeoptimizeDependencyGroups<Map>(
       isolate, this, DependentCode::kTransitionGroup);
