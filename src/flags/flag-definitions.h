@@ -2707,6 +2707,16 @@ DEFINE_FLOAT(
 DEFINE_INT(external_memory_max_reasonable_size, 32,
            "Max external memory value (in GB) checked for a reasonable size, 0 "
            "to disable the check.")
+DEFINE_BOOL(
+    sqrt_allocation_limits, false,
+    "Old generation and global heap limit growth scale based on the sqrt of "
+    "estimated GC cost.")
+DEFINE_INT(
+    sqrt_allocation_limits_factor, 80,
+    "When the sqrt heap limit is enabled, multiplier on the heap growth.")
+DEFINE_FLOAT(
+    sqrt_allocation_limits_max_growing_factor, 4.0,
+    "This is the upper bound for growing factor when using sqrt heap limit.")
 DEFINE_BOOL(gc_speed_uses_counters, false,
             "Old gen GC speed is computed directly from gc tracer counters.")
 DEFINE_INT(heap_growing_percent, 0,

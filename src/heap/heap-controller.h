@@ -44,6 +44,10 @@ struct V8_EXPORT_PRIVATE GlobalMemoryTrait : public BaseControllerTrait {
 template <typename Trait>
 class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
  public:
+  static uint64_t ComputeSqrtLimit(uint64_t heap_size_at_last_gc,
+                                   double allocation_speed,
+                                   uint64_t total_size_of_objects);
+
   static double GrowingFactor(Isolate* isolate, uint64_t physical_memory,
                               size_t max_heap_size,
                               std::optional<double> gc_speed,
@@ -254,6 +258,11 @@ class V8_EXPORT_PRIVATE HeapLimits {
 
   // The size of embedder memory after the last MarkCompact GC.
   size_t embedder_size_at_last_gc_ = 0;
+
+  // The size of combined young, old and embedder objects after the last
+  // MarkCompact GC, excluding external memory. This is used to estimate the
+  // relative cost of a Full GC.
+  size_t total_size_excluding_external_at_last_gc_ = 0;
 
   // Caches the amount of external memory registered at the last MC.
   std::atomic<uint64_t> external_memory_low_since_last_gc_{0};
