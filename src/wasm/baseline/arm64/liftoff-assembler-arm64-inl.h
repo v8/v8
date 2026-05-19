@@ -4405,7 +4405,8 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
   DCHECK_LE(max_index, kMaxMemory64Size);
 
-  if (kMaxMemory64Size - max_index <= AllocatePageSize()) {
+  if (kMaxMemory64Size - max_index <= kMinExpectedOSPageSize) {
+    DCHECK_GE(AllocatePageSize(), kMinExpectedOSPageSize);
     // We have reserved an extra guard page, so that more accesses with small
     // offset values can rely on the trap handler. As a result, `index` can be
     // compared directly with `kMaxMemory64Size`, which is a power of 2 and thus
