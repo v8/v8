@@ -8,6 +8,7 @@
 #include "src/date/date.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -2931,8 +2932,17 @@ void CheckArrayBufferViewTrackingConsistency(Tagged<JSArrayBuffer> ab,
   if (views == JSArrayBuffer::kNoView || views.IsCleared()) {
     CHECK(view->WasDetached());
   } else if (views != JSArrayBuffer::kManyViews) {
-    CHECK_EQ(views.GetHeapObjectAssumeWeak(), view);
-    CHECK(Is<JSArrayBufferView>(views.GetHeapObjectAssumeWeak()));
+    Tagged<HeapObject> tracked = views.GetHeapObjectAssumeWeak();
+    CHECK(Is<JSArrayBufferView>(tracked));
+    if (tracked != view) {
+      // `views` points to a different view. This is only legal when the
+      // buffer was detached without walking its views list (the
+      // ArrayBufferDetaching protector was invalidated). `view` may be
+      // another already-detached view, or an orphan left behind by a
+      // constructor that threw on the post-arg detach check.
+      CHECK(view->WasDetached());
+      CHECK(!Protectors::IsArrayBufferDetachingIntact(isolate));
+    }
   }
 }
 
