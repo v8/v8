@@ -509,6 +509,7 @@
   V(WeakCollectionGet)                      \
   V(InitializeImmutableInObject)            \
   V(LoadDataViewElement)                    \
+  V(LoadDictionaryField)                    \
   V(LoadElement)                            \
   V(LoadField)                              \
   V(LoadFieldByIndex)                       \

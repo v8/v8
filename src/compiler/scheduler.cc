@@ -359,6 +359,7 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kStringToLowerCaseIntl:
       case IrOpcode::kStringToUpperCaseIntl:
       case IrOpcode::kStringLocaleCompareIntl:
+      case IrOpcode::kLoadDictionaryField:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -407,6 +408,7 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kStringToLowerCaseIntl:
       case IrOpcode::kStringToUpperCaseIntl:
       case IrOpcode::kStringLocaleCompareIntl:
+      case IrOpcode::kLoadDictionaryField:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);

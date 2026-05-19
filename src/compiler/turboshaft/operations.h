@@ -38,6 +38,8 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 #include "src/maglev/maglev-node-type.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/js-objects.h"
 #include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -354,7 +356,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(GenericUnop)                                 \
   IF_INTL(V, StringLocaleCompareIntl)            \
   IF_INTL(V, StringToCaseIntl)                   \
-  V(ToNumberOrNumeric)
+  V(ToNumberOrNumeric)                           \
+  V(LoadDictionaryField)
 
 #define TURBOSHAFT_JS_OPERATION_LIST(V)        \
   TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)
@@ -5791,6 +5794,40 @@ struct LoadFieldByIndexOp : FixedArityOperationT<2, LoadFieldByIndexOp> {
   LoadFieldByIndexOp(OpIndex object, OpIndex index) : Base(object, index) {}
 
   auto options() const { return std::tuple{}; }
+};
+
+struct LoadDictionaryFieldOp : FixedArityOperationT<3, LoadDictionaryFieldOp> {
+  InternalIndex index;
+  compiler::NameRef name;
+  FeedbackSource feedback;
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
+  static constexpr OpEffects effects =
+      OpEffects().CanCallAnything().CanThrowOrTrap();
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<JSReceiver> object() const { return Base::input<JSReceiver>(0); }
+  V<Context> context() const { return Base::input<Context>(1); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
+
+  LoadDictionaryFieldOp(V<JSReceiver> object, V<Context> context,
+                        V<FrameState> frame_state, size_t index,
+                        compiler::NameRef name, const FeedbackSource& feedback,
+                        LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(object, context, frame_state),
+        index(InternalIndex(index)),
+        name(name),
+        feedback(feedback),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
+
+  // 3. Add lazy_deopt_on_throw to options()
+  auto options() const {
+    return std::tuple{index.raw_value(), name, feedback, lazy_deopt_on_throw};
+  }
 };
 
 struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {

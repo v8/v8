@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/code-factory.h"
@@ -1381,7 +1382,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
-    AccessMode access_mode, Node* key) {
+    AccessMode access_mode, FeedbackSource const& source, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSSetNamedProperty ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1465,8 +1466,17 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         return NoChange();
       }
 
-      PropertyAccessInfo access_info =
-          broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
+      OptionalObjectRef handler;
+      for (const auto [m, h] :
+           base::zip(feedback.maps(), feedback.handlers())) {
+        if (m.equals(map)) {
+          handler = h;
+          break;
+        }
+      }
+
+      PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+          map, feedback.name(), access_mode, handler);
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -1589,10 +1599,12 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       lookup_start_object = receiver;
     }
 
+    // Extract feedback vector node.
     // Generate the actual property access.
-    std::optional<ValueEffectControl> continuation = BuildPropertyAccess(
-        lookup_start_object, receiver, value, context, frame_state, effect,
-        control, feedback.name(), if_exceptions, access_info, access_mode);
+    std::optional<ValueEffectControl> continuation =
+        BuildPropertyAccess(lookup_start_object, receiver, value, context,
+                            frame_state, effect, control, feedback.name(),
+                            if_exceptions, access_info, access_mode, source);
     if (!continuation) {
       // At this point we maybe have added nodes into the graph (e.g. via
       // NewNode or BuildCheckMaps) in some cases but we haven't connected them
@@ -1746,7 +1758,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       std::optional<ValueEffectControl> continuation = BuildPropertyAccess(
           this_lookup_start_object, this_receiver, this_value, context,
           frame_state, this_effect, this_control, feedback.name(),
-          if_exceptions, access_info, access_mode);
+          if_exceptions, access_info, access_mode, source);
       if (!continuation) {
         // At this point we maybe have added nodes into the graph (e.g. via
         // NewNode or BuildCheckMaps) in some cases but we haven't connected
@@ -2640,7 +2652,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback->AsNamedAccess(),
-                               access_mode, key);
+                               access_mode, source, key);
     case ProcessedFeedback::kHomomorphicPropertyAccess:
       return ReduceHomomorphicAccess(node, value,
                                      feedback->AsHomomorphicPropertyAccess(),
@@ -3079,7 +3091,7 @@ std::optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyLoad(
     Node* lookup_start_object, Node* receiver, Node* context, Node* frame_state,
     Node* effect, Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info) {
+    PropertyAccessInfo const& access_info, FeedbackSource const& source) {
   // Determine actual holder and perform prototype chain checks.
   OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value() && !access_info.HasDictionaryHolder()) {
@@ -3145,13 +3157,26 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     }
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
-           access_info.IsDictionaryProtoDataConstant());
+           access_info.IsDictionaryProtoDataConstant() ||
+           access_info.IsDictionaryDataField());
     PropertyAccessBuilder access_builder(jsgraph(), broker());
     if (access_info.IsDictionaryProtoDataConstant()) {
       auto maybe_value =
           access_builder.FoldLoadDictPrototypeConstant(access_info);
       if (!maybe_value) return {};
       value = maybe_value.value();
+    } else if (access_info.IsDictionaryDataField()) {
+      value = access_builder.BuildLoadDictionaryField(
+          name, access_info, lookup_start_object, &effect, &control, source,
+          context, frame_state);
+      if (if_exceptions != nullptr) {
+        Node* const if_exception =
+            graph()->NewNode(common()->IfException(), effect, control);
+        Node* const if_success =
+            graph()->NewNode(common()->IfSuccess(), control);
+        if_exceptions->push_back(if_exception);
+        control = if_success;
+      }
     } else {
       value = access_builder.BuildLoadDataField(
           name, access_info, lookup_start_object, &effect, &control);
@@ -3186,12 +3211,12 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     Node* lookup_start_object, Node* receiver, Node* value, Node* context,
     Node* frame_state, Node* effect, Node* control, NameRef name,
     ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
-    AccessMode access_mode) {
+    AccessMode access_mode, FeedbackSource const& source) {
   switch (access_mode) {
     case AccessMode::kLoad:
       return BuildPropertyLoad(lookup_start_object, receiver, context,
                                frame_state, effect, control, name,
-                               if_exceptions, access_info);
+                               if_exceptions, access_info, source);
     case AccessMode::kStore:
     case AccessMode::kStoreInLiteral:
     case AccessMode::kDefine:

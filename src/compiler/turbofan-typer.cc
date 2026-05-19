@@ -2586,6 +2586,10 @@ Type Typer::Visitor::TypeLoadFieldByIndex(Node* node) {
   return Type::NonInternal();
 }
 
+Type Typer::Visitor::TypeLoadDictionaryField(Node* node) {
+  return Type::NonInternal();
+}
+
 Type Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;
 }

@@ -56,6 +56,7 @@
 #include "src/maglev/maglev-node-type.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
@@ -4572,6 +4573,15 @@ class AssemblerOpInterface : public Next {
 
   V<Any> LoadFieldByIndex(V<Object> object, V<Word32> index) {
     return ReduceIfReachableLoadFieldByIndex(object, index);
+  }
+
+  V<Object> LoadDictionaryField(V<JSReceiver> object, V<Context> context,
+                                V<turboshaft::FrameState> fs, size_t index,
+                                compiler::NameRef name,
+                                const FeedbackSource& feedback,
+                                LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return ReduceIfReachableLoadDictionaryField(
+        object, context, fs, index, name, feedback, lazy_deopt_on_throw);
   }
 
   void DebugBreak() { ReduceIfReachableDebugBreak(); }

@@ -302,6 +302,30 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   return OpParameter<CheckMapsParameters>(op);
 }
 
+bool operator==(LoadDictionaryFieldParameters const& lhs,
+                LoadDictionaryFieldParameters const& rhs) {
+  return lhs.dictionary_index() == rhs.dictionary_index() &&
+         lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(LoadDictionaryFieldParameters const& p) {
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.dictionary_index().raw_value(), p.name(),
+                            feedback_hash(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         LoadDictionaryFieldParameters const& p) {
+  return os << p.dictionary_index().raw_value() << ", " << p.name() << ", "
+            << p.feedback();
+}
+
+LoadDictionaryFieldParameters const& LoadDictionaryFieldParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kLoadDictionaryField, op->opcode());
+  return OpParameter<LoadDictionaryFieldParameters>(op);
+}
+
 bool operator==(CheckHomomorphicParameters const& lhs,
                 CheckHomomorphicParameters const& rhs) {
   return lhs.name() == rhs.name() &&
@@ -1614,6 +1638,15 @@ GET_FROM_CACHE(StringToLowerCaseIntl)
 GET_FROM_CACHE(StringToUpperCaseIntl)
 GET_FROM_CACHE(StringLocaleCompareIntl)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::LoadDictionaryField(
+    InternalIndex dictionary_index, NameRef name,
+    const FeedbackSource& feedback) {
+  return zone()->New<Operator1<LoadDictionaryFieldParameters>>(
+      IrOpcode::kLoadDictionaryField, Operator::kNoProperties,
+      "LoadDictionaryField", 3, 1, 1, 1, 1, 2,
+      LoadDictionaryFieldParameters(dictionary_index, name, feedback));
+}
 
 const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
     CollectionKind collection_kind) {

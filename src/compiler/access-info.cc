@@ -991,21 +991,20 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
   if (map.is_dictionary_map() && access_mode == AccessMode::kLoad &&
       handler.has_value() && handler->IsSmi()) {
-    if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      auto smi_handler = Cast<Smi>(*handler->object());
-      if (LoadHandler::GetHandlerKind(smi_handler) ==
-          LoadHandler::Kind::kNormal) {
-        if (LoadHandler::IsDataPropertyBits::decode(smi_handler.value())) {
-          uint32_t index =
-              LoadHandler::DictionaryIndexBits::decode(smi_handler.value());
-          if (index != LoadHandler::DictionaryIndexBits::kMax) {
-            return PropertyAccessInfo::DictionaryDataField(
-                zone(), map, OptionalJSObjectRef(), InternalIndex(index), name);
-          }
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      return Invalid();
+    }
+    auto smi_handler = Cast<Smi>(*handler->object());
+    if (LoadHandler::GetHandlerKind(smi_handler) ==
+        LoadHandler::Kind::kNormal) {
+      if (LoadHandler::IsDataPropertyBits::decode(smi_handler.value())) {
+        uint32_t index =
+            LoadHandler::DictionaryIndexBits::decode(smi_handler.value());
+        if (index != LoadHandler::DictionaryIndexBits::kMax) {
+          return PropertyAccessInfo::DictionaryDataField(
+              zone(), map, OptionalJSObjectRef(), InternalIndex(index), name);
         }
       }
-    } else {
-      UNREACHABLE();
     }
   }
 

@@ -487,6 +487,32 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
 
 ZoneRefSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
+class LoadDictionaryFieldParameters final {
+ public:
+  LoadDictionaryFieldParameters(InternalIndex dictionary_index, NameRef name,
+                                const FeedbackSource& feedback)
+      : dictionary_index_(dictionary_index), name_(name), feedback_(feedback) {}
+
+  InternalIndex dictionary_index() const { return dictionary_index_; }
+  NameRef name() const { return name_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+
+ private:
+  InternalIndex const dictionary_index_;
+  NameRef const name_;
+  FeedbackSource const feedback_;
+};
+
+bool operator==(LoadDictionaryFieldParameters const&,
+                LoadDictionaryFieldParameters const&);
+
+size_t hash_value(LoadDictionaryFieldParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadDictionaryFieldParameters const&);
+
+LoadDictionaryFieldParameters const& LoadDictionaryFieldParametersOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
 class CheckHomomorphicParameters final {
  public:
   CheckHomomorphicParameters(NameRef name,
@@ -1216,6 +1242,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StoreMessage();
 
   const Operator* LoadFieldByIndex();
+  const Operator* LoadDictionaryField(InternalIndex dictionary_index,
+                                      NameRef name,
+                                      const FeedbackSource& feedback);
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&,
                              bool maybe_initializing_or_transitioning = true);

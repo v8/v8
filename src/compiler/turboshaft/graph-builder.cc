@@ -1822,6 +1822,15 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kLoadFieldByIndex:
       return __ LoadFieldByIndex(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
+    case IrOpcode::kLoadDictionaryField: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
+      auto const& p = LoadDictionaryFieldParametersOf(node->op());
+      return __ LoadDictionaryField(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          p.dictionary_index().raw_value(), p.name(), p.feedback(),
+          LazyDeoptOnThrow::kNo);
+    }
+
     case IrOpcode::kCheckedAdditiveSafeIntegerAdd: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());

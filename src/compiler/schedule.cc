@@ -239,6 +239,7 @@ bool IsPotentiallyThrowingCall(IrOpcode::Value opcode) {
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
     case IrOpcode::kStringLocaleCompareIntl:
+    case IrOpcode::kLoadDictionaryField:
       return true;
     default:
       return false;

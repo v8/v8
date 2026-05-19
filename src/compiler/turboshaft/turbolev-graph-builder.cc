@@ -59,6 +59,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/map.h"
@@ -2187,56 +2188,15 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
 
     V<JSReceiver> object = Map(node->ObjectInput());
-    V<Name> name = __ HeapConstant(node->name().object());
+    V<Context> context = Map(node->ContextInput());
 
-    Label<Object> done(this);
+    InternalIndex dictionary_index(node->dictionary_index());
+    FeedbackSource feedback(node->feedback());
 
-    V<HeapObject> properties = __ LoadTaggedField<HeapObject>(
-        object, offsetof(JSReceiver, properties_or_hash_));
-
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      UNREACHABLE();
-    }
-
-    int entry_index = NameDictionary::kElementsStartIndex +
-                      node->dictionary_index() * NameDictionary::kEntrySize;
-    int max_index = entry_index + NameDictionary::kEntrySize - 1;
-
-    V<Word32> length =
-        __ LoadField<Word32>(properties, AccessBuilder::ForFixedArrayLength());
-
-    IF (LIKELY(__ Uint32LessThan(max_index, length))) {
-      int key_offset = NameDictionary::OffsetOfElementAt(
-          entry_index + NameDictionary::kEntryKeyIndex);
-      V<Object> key = __ LoadTaggedField(properties, key_offset);
-
-      IF (LIKELY(__ TaggedEqual(key, name))) {
-        int details_offset = NameDictionary::OffsetOfElementAt(
-            entry_index + NameDictionary::kEntryDetailsIndex);
-        V<Smi> details = __ LoadTaggedField<Smi>(properties, details_offset);
-
-        V<Word32> details_int = __ UntagSmi(details);
-        V<Word32> kind =
-            __ Word32BitwiseAnd(details_int, PropertyDetails::KindField::kMask);
-        IF (LIKELY(__ Word32Equal(kind, PropertyDetails::KindField::encode(
-                                            PropertyKind::kData)))) {
-          int value_offset = NameDictionary::OffsetOfElementAt(
-              entry_index + NameDictionary::kEntryValueIndex);
-          V<Object> value = __ LoadTaggedField(properties, value_offset);
-          GOTO(done, value);
-        }
-      }
-    }
-
-    OpIndex arguments[] = {
-        object, name, __ TaggedIndexConstant(node->feedback().index()),
-        __ HeapConstant(node->feedback().vector), Map(node->ContextInput())};
-
-    V<Object> fallback_result = GenerateBuiltinCall<Object>(
-        node, Builtin::kLoadIC, frame_state, base::VectorOf(arguments));
-    GOTO(done, fallback_result);
-
-    BIND(done, result);
+    ThrowingScope throwing_scope(this, node);
+    V<Object> result = __ LoadDictionaryField(
+        object, context, frame_state, dictionary_index.raw_value(),
+        node->name(), feedback, ShouldLazyDeoptOnThrow(node));
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }

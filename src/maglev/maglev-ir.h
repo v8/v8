@@ -9401,10 +9401,7 @@ class LoadDictionaryField
   }
 
   static constexpr OpProperties kProperties =
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
-      OpProperties::Call() |
-#endif
-      OpProperties::CanCallUserCode() | OpProperties::DeferredCall();
+      OpProperties::JSCall() | OpProperties::DeferredCall();
 
   DECLARE_INPUTS(Context, Object)
   DECLARE_INPUT_TYPES(Tagged, Tagged)

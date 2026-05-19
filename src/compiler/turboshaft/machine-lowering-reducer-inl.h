@@ -31,8 +31,10 @@
 #include "src/execution/frame-constants.h"
 #include "src/ic/handler-configuration.h"
 #include "src/objects/bigint.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
@@ -2184,6 +2186,61 @@ class MachineLoweringReducer : public Next {
         GOTO(done, AllocateHeapNumber(value));
       }
     }
+
+    BIND(done, result);
+    return result;
+  }
+
+  V<Object> REDUCE(LoadDictionaryField)(
+      V<JSReceiver> object, V<Context> context, V<FrameState> frame_state,
+      size_t raw_index, compiler::NameRef name, const FeedbackSource& feedback,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
+    static_assert(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
+    InternalIndex index(raw_index);
+    Label<Object> done(this);
+
+    V<HeapObject> properties = __ template LoadField<HeapObject>(
+        object, AccessBuilder::ForJSObjectPropertiesOrHash());
+
+    int entry_index = NameDictionary::kElementsStartIndex +
+                      index.as_int() * NameDictionary::kEntrySize;
+    int max_index = entry_index + NameDictionary::kEntrySize - 1;
+
+    V<Word32> length = __ template LoadField<Word32>(
+        properties, AccessBuilder::ForFixedArrayLength());
+
+    IF (LIKELY(__ Uint32LessThan(max_index, length))) {
+      int key_offset = NameDictionary::OffsetOfElementAt(
+          entry_index + NameDictionary::kEntryKeyIndex);
+      V<Object> key = __ LoadTaggedField(properties, key_offset);
+
+      IF (LIKELY(__ TaggedEqual(key, __ HeapConstant(name.object())))) {
+        int details_offset = NameDictionary::OffsetOfElementAt(
+            entry_index + NameDictionary::kEntryDetailsIndex);
+        V<Smi> details =
+            __ template LoadTaggedField<Smi>(properties, details_offset);
+
+        V<Word32> details_int = __ UntagSmi(details);
+        V<Word32> kind =
+            __ Word32BitwiseAnd(details_int, PropertyDetails::KindField::kMask);
+        IF (LIKELY(__ Word32Equal(kind, PropertyDetails::KindField::encode(
+                                            PropertyKind::kData)))) {
+          int value_offset = NameDictionary::OffsetOfElementAt(
+              entry_index + NameDictionary::kEntryValueIndex);
+          V<Object> value = __ LoadTaggedField(properties, value_offset);
+          GOTO(done, value);
+        }
+      }
+    }
+
+    V<JSAny> fallback_result = __ template CallBuiltin<builtin::LoadIC>(
+        frame_state, context,
+        {.object = object,
+         .name = __ HeapConstant(name.object()),
+         .slot = __ TaggedIndexConstant(feedback.index()),
+         .vector = __ HeapConstant(feedback.vector)},
+        lazy_deopt_on_throw);
+    GOTO(done, fallback_result);
 
     BIND(done, result);
     return result;
