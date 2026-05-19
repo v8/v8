@@ -14,6 +14,8 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
@@ -68,6 +70,35 @@ void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
+bool IsLocatedInMappedMemory(Address address, Heap* heap) {
+  if (heap->memory_allocator()->LookupChunkContainingAddress(address) !=
+      nullptr) {
+    return true;
+  }
+  return heap->read_only_space()->ContainsSlow(address);
+}
+
+bool IsValidHeapObject(Address addr, Heap* heap) {
+  Sandbox* sandbox = Sandbox::current();
+  Address current = addr;
+  // Simple heuristic: follow the Map chain three times until we find a MetaMap
+  // (where the map pointer points to itself), or give up.
+  for (int j = 0; j < 3; j++) {
+    if (!IsLocatedInMappedMemory(current, heap)) {
+      return false;
+    }
+    uint32_t map_word = *reinterpret_cast<uint32_t*>(current);
+    if ((map_word & kHeapObjectTag) != kHeapObjectTag) {
+      return false;
+    }
+    Address map_address = sandbox->base() + (map_word & ~kHeapObjectTagMask);
+    if (map_address == current) {
+      return true;
+    }
+    current = map_address;
+  }
+  return false;
+}
 
 // Sandbox.base
 void SandboxGetBase(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -205,6 +236,7 @@ void SandboxGetObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  if (!IsValidHeapObject(obj.address(), i_isolate->heap())) return;
   Handle<Object> handle(obj, i_isolate);
   info.GetReturnValue().Set(ToApiHandle<v8::Value>(handle));
 }
@@ -213,55 +245,26 @@ void SandboxGetObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
-  Sandbox* sandbox = Sandbox::current();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  auto IsLocatedInMappedMemory = [&](Address address) {
-    if (heap->memory_allocator()->LookupChunkContainingAddress(address) !=
-        nullptr) {
-      return true;
-    }
-    return heap->read_only_space()->ContainsSlow(address);
-  };
 
   Tagged<HeapObject> obj;
   if (!GetArgumentObjectPassedAsAddress(info, &obj)) {
     return;
   }
 
-  // Simple heuristic: follow the Map chain three times until we find a MetaMap
-  // (where the map pointer points to itself), or give up.
-  info.GetReturnValue().Set(false);
-  Address current = obj.address();
-  for (int i = 0; i < 3; i++) {
-    if (!IsLocatedInMappedMemory(current)) {
-      return;
-    }
-    uint32_t map_word = *reinterpret_cast<uint32_t*>(current);
-    if ((map_word & kHeapObjectTag) != kHeapObjectTag) {
-      return;
-    }
-    Address map_address = sandbox->base() + map_word - kHeapObjectTag;
-    if (map_address == current) {
-      info.GetReturnValue().Set(true);
-      return;
-    }
-    current = map_address;
-  }
+  info.GetReturnValue().Set(IsValidHeapObject(obj.address(), heap));
 }
-
 static void SandboxIsWritableImpl(
     const v8::FunctionCallbackInfo<v8::Value>& info,
     ArgumentObjectExtractorFunction getArgumentObject) {
   DCHECK(ValidateCallbackInfo(info));
 
   Tagged<HeapObject> obj;
-  if (!getArgumentObject(info, &obj)) {
-    return;
-  }
+  if (!getArgumentObject(info, &obj)) return;
 
-  auto* page = BasePage::FromHeapObject(
-      reinterpret_cast<Isolate*>(info.GetIsolate()), obj);
-  bool is_writable = page->IsWritable();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  bool is_writable = IsValidHeapObject(obj.address(), i_isolate->heap()) &&
+                     BasePage::FromHeapObject(i_isolate, obj)->IsWritable();
   info.GetReturnValue().Set(is_writable);
 }
 
@@ -285,6 +288,10 @@ static void SandboxGetSizeOfImpl(
   if (!getArgumentObject(info, &obj)) {
     return;
   }
+
+  if (!IsValidHeapObject(obj.address(),
+                         reinterpret_cast<Isolate*>(info.GetIsolate())->heap()))
+    return;
 
   int size = obj->Size();
   info.GetReturnValue().Set(size);
@@ -310,6 +317,10 @@ static void SandboxGetInstanceTypeOfImpl(
   if (!getArgumentObject(info, &obj)) {
     return;
   }
+
+  if (!IsValidHeapObject(obj.address(),
+                         reinterpret_cast<Isolate*>(info.GetIsolate())->heap()))
+    return;
 
   InstanceType type = obj->map()->instance_type();
   std::stringstream out;
@@ -339,6 +350,10 @@ static void SandboxGetInstanceTypeIdOfImpl(
   if (!getArgumentObject(info, &obj)) {
     return;
   }
+
+  if (!IsValidHeapObject(obj.address(),
+                         reinterpret_cast<Isolate*>(info.GetIsolate())->heap()))
+    return;
 
   InstanceType type = obj->map()->instance_type();
   static_assert(std::is_same_v<std::underlying_type_t<InstanceType>, uint16_t>);
@@ -540,6 +555,10 @@ bool ResolveObjectField(const v8::FunctionCallbackInfo<v8::Value>& info,
 
   Tagged<HeapObject> obj;
   if (!GetArgumentObjectPassedAsReference(info, &obj)) return false;
+
+  if (!IsValidHeapObject(obj.address(),
+                         reinterpret_cast<Isolate*>(isolate)->heap()))
+    return false;
 
   int offset;
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
