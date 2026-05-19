@@ -3104,6 +3104,33 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+    // Spill the two 64-bit arguments to multiplication.
+    __ SpillLoopArgs(2);
+    // Spill the remaining registers (if any).
+    __ SpillAllRegisters();
+
+    // Compute the lowest address of the two 64bit inputs.
+    // The top of the stack has the lowest address (stack grows down).
+    // The top value is at the back of the stack_state.
+    int stack_offset = __ cache_state() -> stack_state.back().offset();
+
+    LiftoffRegister addr_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadSpillAddress(addr_reg.gp(), stack_offset,
+                        __ cache_state()->stack_state.back().kind());
+
+    ExternalReference ext_ref;
+    switch (opcode) {
+      case kExprI64MulWideS:
+        ext_ref = ExternalReference::wasm_int64_mul_wide_s();
+        break;
+      case kExprI64MulWideU:
+        ext_ref = ExternalReference::wasm_int64_mul_wide_u();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    GenerateCCall(kVoid, {VarState{kIntPtrKind, addr_reg, 0}}, ext_ref);
 #else
     unsupported(decoder, kUnsupportedArchitecture, "wide multiplication");
 #endif

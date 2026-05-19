@@ -8,6 +8,9 @@
 
 #include <limits>
 
+#if !V8_TARGET_ARCH_64_BIT
+#include "absl/numeric/int128.h"
+#endif
 #include "src/base/bits.h"
 #include "src/base/float16.h"
 #include "src/base/ieee754.h"
@@ -400,6 +403,38 @@ void wasm_int128_sub_wrapper(Address data) {
   // Overwrite slots for Operand A.
   ptr[2] = rh;
   ptr[3] = rl;
+}
+
+void wasm_int64_mul_wide_s_wrapper(Address data) {
+#if V8_TARGET_ARCH_64_BIT
+  UNREACHABLE();
+#else
+  int64_t* ptr = reinterpret_cast<int64_t*>(data);
+
+  int64_t b = ptr[0];
+  int64_t a = ptr[1];
+
+  absl::int128 res = absl::int128(a) * absl::int128(b);
+
+  ptr[0] = absl::Int128High64(res);
+  ptr[1] = absl::Int128Low64(res);
+#endif
+}
+
+void wasm_int64_mul_wide_u_wrapper(Address data) {
+#if V8_TARGET_ARCH_64_BIT
+  UNREACHABLE();
+#else
+  uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
+
+  uint64_t b = ptr[0];
+  uint64_t a = ptr[1];
+
+  absl::uint128 res = absl::uint128(a) * absl::uint128(b);
+
+  ptr[0] = absl::Uint128High64(res);
+  ptr[1] = absl::Uint128Low64(res);
+#endif
 }
 
 void float64_pow_wrapper(Address data) {

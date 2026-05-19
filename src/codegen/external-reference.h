@@ -331,6 +331,8 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_word64_ror, "wasm::word64_ror")                              \
   IF_WASM(V, wasm_int128_add, "wasm::wasm_int128_add_wrapper")                 \
   IF_WASM(V, wasm_int128_sub, "wasm::wasm_int128_sub_wrapper")                 \
+  IF_WASM(V, wasm_int64_mul_wide_s, "wasm::wasm_int64_mul_wide_s_wrapper")     \
+  IF_WASM(V, wasm_int64_mul_wide_u, "wasm::wasm_int64_mul_wide_u_wrapper")     \
   IF_WASM(V, wasm_word64_ctz, "wasm::word64_ctz")                              \
   IF_WASM(V, wasm_word64_popcnt, "wasm::word64_popcnt")                        \
   IF_WASM(V, wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                      \

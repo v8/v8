@@ -89,6 +89,10 @@ V8_EXPORT_PRIVATE void wasm_int128_add_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void wasm_int128_sub_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void wasm_int64_mul_wide_s_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void wasm_int64_mul_wide_u_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);
