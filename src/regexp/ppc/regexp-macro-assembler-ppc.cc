@@ -808,11 +808,13 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
       __ b(&return_r3);
 
       __ bind(&stack_limit_hit);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
       CallCheckStackGuardState(r3, extra_space_for_variables);
       __ cmpi(r3, Operand::Zero());
       // If returned value is non-zero, we exit with the returned value as
       // result.
       __ bne(&return_r3);
+      LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
       __ bind(&stack_ok);
     }

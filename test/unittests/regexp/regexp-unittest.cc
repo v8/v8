@@ -26,6 +26,7 @@
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-parser.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
@@ -2625,6 +2626,68 @@ TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
   i::DirectHandle<i::Object> result = RegExpExec(&d);
   CHECK(IsNull(*result));
 }
+
+// The bug below is only reliably observable under sandbox hardware support,
+// where the freed RegExpStack page is unmapped and a buggy JIT Push through
+// the dangling BSP segfaults. On other builds the success-path BSP recovery
+// hides the divergence.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+namespace {
+
+// Runs from the prologue's stack_limit_hit handler via CheckStackGuardState ->
+// HandleInterrupts -> InvokeApiInterruptCallbacks. Doubles the backtrack
+// stack to force GrowStack to relocate the per-isolate buffer; under sandbox
+// hardware support the freed page is unmapped (vas->FreePages -> munmap), so
+// any subsequent JIT Push through a stale BSP faults.
+void StalePrologueGrowStackInterrupt(v8::Isolate*, void* data) {
+  auto* i_iso = static_cast<i::Isolate*>(data);
+  i_iso->regexp_stack()->EnsureCapacity(i_iso->regexp_stack()->memory_size() *
+                                        2);
+}
+
+}  // namespace
+
+// Regression test for crbug.com/513298483. The native irregexp prologue's
+// stack_limit_hit handler used to save/restore the backtrack_stackpointer with
+// pushq/popq (x64, ia32) or via callee-saved registers (other arches) around
+// CallCheckStackGuardState, instead of round-tripping it through
+// RegExpStack::stack_pointer_. If the call ran an API interrupt that
+// re-entered irregexp and grew the backtrack stack (freeing the original
+// buffer), the restored register held a dangling pointer that subsequent
+// Push() operations wrote through. The fix replaces the push/pop with
+// Store/LoadRegExpStackPointerToMemory on every port, mirroring
+// check_preempt_label_.
+TEST_F(RegExpTestWithContext, RegExpInterruptStalePrologueBacktrackPointer) {
+  if (v8_flags.jitless) return;
+  v8_flags.regexp_tier_up_ticks = 0;  // Compile to native on first exec.
+
+  v8::HandleScope scope(isolate());
+  i::Isolate* i_iso = i_isolate();
+
+  // Pre-grow the per-isolate backtrack stack so EnsureCapacity in the
+  // interrupt actually frees a heap buffer (rather than transitioning off the
+  // static stack).
+  i_iso->regexp_stack()->EnsureCapacity(2 * i::KB);
+
+  isolate()->RequestInterrupt(&StalePrologueGrowStackInterrupt, i_iso);
+
+  // Any regexp that hits the prologue's stack_limit_hit path will do.
+  i::DirectHandle<i::JSRegExp> regexp = v8::Utils::OpenDirectHandle(
+      *v8::RegExp::New(context(), NewString("(a|b)(a|b)(a|b)c"),
+                       v8::RegExp::kNone)
+           .ToLocalChecked());
+  i::DirectHandle<i::String> subject =
+      v8::Utils::OpenDirectHandle(*NewString("aaac"));
+
+  i::DirectHandle<i::Object> result =
+      i::RegExp::Exec_Single(i_iso, regexp, subject, 0,
+                             i_iso->regexp_last_match_info())
+          .ToHandleChecked();
+  USE(result);
+}
+
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 #undef CHECK_PARSE_ERROR
 #undef CHECK_SIMPLE
