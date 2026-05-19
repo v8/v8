@@ -196,12 +196,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (type.is_uninhabited()) {
       __ template WasmCallBuiltinThroughJumptable<
           builtin::WasmTypeAssertionFailed>({});
-      __ Unreachable();
-      // For simplicity (so that callers don't have to check whether a block is
-      // bound), simply create a new Block. As it won't have any predecessors,
-      // it will be removed from the graph.
-      Label<> unreachable(&Asm());
-      BIND(unreachable);
+      // Don't mark it as __ Unreachable() as that would require the caller to
+      // handle the special case of reducing into unreachable code.
       return;
     }
 
