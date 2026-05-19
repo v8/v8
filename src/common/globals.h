@@ -1558,6 +1558,8 @@ constexpr const char* ToString(AllocationType kind) {
   UNREACHABLE();
 }
 
+enum class AllowAllocation : uint8_t { kYes, kNo };
+
 inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }

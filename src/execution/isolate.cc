@@ -1522,7 +1522,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
 template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
                 StackTrace::StackTraceOptions options = StackTrace::kDetailed,
-                bool never_allocate = false) {
+                AllowAllocation allow_allocation = AllowAllocation::kYes) {
   DisallowJavascriptExecution no_js(isolate);
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
@@ -1549,7 +1549,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
         // A standard frame may include many summarized frames (due to
         // inlining).
         FrameSummaries summaries =
-            CommonFrame::cast(frame)->Summarize(never_allocate);
+            CommonFrame::cast(frame)->Summarize(allow_allocation);
         for (auto& summary : base::Reversed(summaries.frames)) {
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
@@ -2143,7 +2143,7 @@ size_t Isolate::CurrentScriptData(
 
   CurrentScriptDataStackVisitor visitor(this, frame_data);
   // CurrentScriptData should only expose frames from the same origin.
-  VisitStack(this, &visitor, StackTrace::kDetailed, true);
+  VisitStack(this, &visitor, StackTrace::kDetailed, AllowAllocation::kNo);
   return visitor.FrameCount();
 }
 
@@ -2179,14 +2179,15 @@ bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   return true;
 }
 
-void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
+void Isolate::PrintStack(FILE* out, PrintStackMode mode,
+                         AllowAllocation allow_allocation) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     StringStream::ClearMentionedObjectCache(this);
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
-    PrintStack(&accumulator, mode);
+    PrintStack(&accumulator, mode, allow_allocation);
     accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log(this);
@@ -2202,15 +2203,17 @@ void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
   }
 }
 
-static void PrintFrames(Isolate* isolate, StringStream* accumulator,
-                        StackFrame::PrintMode mode) {
+static void PrintFrames(
+    Isolate* isolate, StringStream* accumulator, StackFrame::PrintMode mode,
+    AllowAllocation allow_allocation = AllowAllocation::kYes) {
   StackFrameIterator it(isolate);
   for (int i = 0; !it.done(); it.Advance()) {
-    it.frame()->Print(accumulator, mode, i++);
+    it.frame()->Print(accumulator, mode, i++, allow_allocation);
   }
 }
 
-void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
+void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode,
+                         AllowAllocation allow_allocation) {
   HandleScope scope(this);
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
@@ -2222,11 +2225,11 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
-  PrintFrames(this, accumulator, StackFrame::OVERVIEW);
+  PrintFrames(this, accumulator, StackFrame::OVERVIEW, allow_allocation);
   if (mode == kPrintStackVerbose) {
     accumulator->Add(
         "\n==== Details ================================================\n\n");
-    PrintFrames(this, accumulator, StackFrame::DETAILS);
+    PrintFrames(this, accumulator, StackFrame::DETAILS, allow_allocation);
     accumulator->PrintMentionedObjectCache(this);
   }
   accumulator->Add("=====================\n\n");
@@ -2341,7 +2344,7 @@ std::string Isolate::BuildMinimalStack(size_t max_length) {
           v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
 
   MinimalStackPrinter printer(max_length);
-  VisitStack(this, &printer, stackTraceOptions, true);
+  VisitStack(this, &printer, stackTraceOptions, AllowAllocation::kNo);
   return printer.Build();
 }
 

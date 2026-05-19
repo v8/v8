@@ -1239,7 +1239,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->constant_pool_address = nullptr;
 }
 
-FrameSummaries BuiltinExitFrame::Summarize(bool never_allocate) const {
+FrameSummaries BuiltinExitFrame::Summarize(
+    AllowAllocation allow_allocation) const {
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
@@ -1315,12 +1316,12 @@ static_assert(ArgOffset(FCA::kFirstJSArgumentIndex) ==
 }  // namespace ensure_FunctionCallbackInfo_layout
 
 DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction(
-    bool never_allocate) const {
+    AllowAllocation allow_allocation) const {
   Tagged<HeapObject> maybe_function = target();
   if (IsJSFunction(maybe_function)) {
     return DirectHandle<JSFunction>::FromSlot(target_slot().location());
   }
-  if (never_allocate) {
+  if (allow_allocation == AllowAllocation::kNo) {
     // Instantiation would allocate, return empty handle.
     return {};
   }
@@ -1356,8 +1357,8 @@ ApiCallbackExitFrame::GetFunctionTemplateInfo() const {
 }
 
 FrameSummaries ApiCallbackExitFrame::SummarizeApiFrame(
-    bool is_constructor, bool never_allocate) const {
-  DirectHandle<JSFunction> function = GetFunction(never_allocate);
+    bool is_constructor, AllowAllocation allow_allocation) const {
+  DirectHandle<JSFunction> function = GetFunction(allow_allocation);
   if (function.is_null()) {
     // GetFunction() would need to instantiate the function, skip this frame.
     return FrameSummaries{};
@@ -1403,7 +1404,8 @@ static_assert(FC::kPropertyCallbackInfoSetterApiArgsLength ==
 
 }  // namespace ensure_PropertyCallbackInfo_layout
 
-FrameSummaries ApiAccessorExitFrame::Summarize(bool never_allocate) const {
+FrameSummaries ApiAccessorExitFrame::Summarize(
+    AllowAllocation allow_allocation) const {
   // Theses kinds of frames are not supposed to appear in exception stack
   // traces.
   DCHECK_IMPLIES(
@@ -1434,8 +1436,8 @@ const char* StringForStackFrameType(StackFrame::Type type) {
 }
 }  // namespace
 
-void StackFrame::Print(StringStream* accumulator, PrintMode mode,
-                       int index) const {
+void StackFrame::Print(StringStream* accumulator, PrintMode mode, int index,
+                       AllowAllocation allow_allocation) const {
   DisallowGarbageCollection no_gc;
   PrintIndex(accumulator, mode, index);
   accumulator->Add(StringForStackFrameType(type()));
@@ -1444,7 +1446,8 @@ void StackFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                             int index) const {
+                             int index,
+                             AllowAllocation allow_allocation) const {
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();
   Tagged<JSFunction> function = this->function();
@@ -1472,18 +1475,34 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add(")\n");
 }
 
-void ApiCallbackExitFrame::PrintApiFrame(StringStream* accumulator,
-                                         PrintMode mode, int index,
-                                         bool is_constructor) const {
-  DirectHandle<JSFunction> function = GetFunction();
-  DisallowGarbageCollection no_gc;
-  Tagged<Object> receiver = this->receiver();
+void ApiCallbackExitFrame::PrintApiFrame(
+    StringStream* accumulator, PrintMode mode, int index, bool is_constructor,
+    AllowAllocation allow_allocation) const {
+  DirectHandle<JSFunction> function = GetFunction(allow_allocation);
+  if (!function.is_null()) {
+    accumulator->PrintSecurityTokenIfChanged(isolate(), *function);
+  }
 
-  accumulator->PrintSecurityTokenIfChanged(isolate(), *function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("ApiCallbackExitFrame ");
   if (is_constructor) accumulator->Add("new ");
-  accumulator->PrintFunction(isolate(), *function, receiver);
+
+  DisallowGarbageCollection no_gc;
+  Tagged<Object> receiver = this->receiver();
+
+  if (function.is_null()) {
+    DirectHandle<FunctionTemplateInfo> ft_info = GetFunctionTemplateInfo();
+    accumulator->Add("<uninstantiated FunctionTemplateInfo: %p",
+                     reinterpret_cast<void*>(ft_info->ptr()));
+    Tagged<Object> class_name = ft_info->class_name();
+    if (IsString(class_name)) {
+      accumulator->Add(" class_name=");
+      accumulator->PrintName(class_name);
+    }
+    accumulator->Add(">");
+  } else {
+    accumulator->PrintFunction(isolate(), *function, receiver);
+  }
 
   accumulator->Add("(this=%o", receiver);
 
@@ -1497,17 +1516,20 @@ void ApiCallbackExitFrame::PrintApiFrame(StringStream* accumulator,
 }
 
 void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                                 int index) const {
-  return PrintApiFrame(accumulator, mode, index, false);
+                                 int index,
+                                 AllowAllocation allow_allocation) const {
+  return PrintApiFrame(accumulator, mode, index, false, allow_allocation);
 }
 
 void ApiConstructExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                                  int index) const {
-  return PrintApiFrame(accumulator, mode, index, true);
+                                  int index,
+                                  AllowAllocation allow_allocation) const {
+  return PrintApiFrame(accumulator, mode, index, true, allow_allocation);
 }
 
 void ApiNamedAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                                      int index) const {
+                                      int index,
+                                      AllowAllocation allow_allocation) const {
   DisallowGarbageCollection no_gc;
 
   PrintIndex(accumulator, mode, index);
@@ -1518,8 +1540,9 @@ void ApiNamedAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("(holder=%o, name=%o)\n", holder, name);
 }
 
-void ApiIndexedAccessorExitFrame::Print(StringStream* accumulator,
-                                        PrintMode mode, int index) const {
+void ApiIndexedAccessorExitFrame::Print(
+    StringStream* accumulator, PrintMode mode, int index,
+    AllowAllocation allow_allocation) const {
   // These frames are not created yet.
   UNREACHABLE();
 }
@@ -1572,7 +1595,7 @@ void CommonFrame::ComputeCallerState(State* state) const {
       fp() + StandardFrameConstants::kConstantPoolOffset);
 }
 
-FrameSummaries CommonFrame::Summarize(bool never_allocate) const {
+FrameSummaries CommonFrame::Summarize(AllowAllocation allow_allocation) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
 }
@@ -2395,7 +2418,7 @@ int StubFrame::LookupExceptionHandlerInTable() {
   return table.LookupReturn(pc_offset);
 }
 
-FrameSummaries StubFrame::Summarize(bool never_allocate) const {
+FrameSummaries StubFrame::Summarize(AllowAllocation allow_allocation) const {
   FrameSummaries summaries;
 #if V8_ENABLE_WEBASSEMBLY
   Tagged<Code> code = LookupCode();
@@ -2498,7 +2521,8 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
   return IsConstructFrame(caller_fp());
 }
 
-FrameSummaries CommonFrameWithJSLinkage::Summarize(bool never_allocate) const {
+FrameSummaries CommonFrameWithJSLinkage::Summarize(
+    AllowAllocation allow_allocation) const {
   Tagged<GcSafeCode> gcsafe_code;
   int offset = -1;
   std::tie(gcsafe_code, offset) = GcSafeLookupCodeAndOffset();
@@ -3055,7 +3079,8 @@ FRAME_SUMMARY_DISPATCH(DirectHandle<StackFrameInfo>, CreateStackFrameInfo)
 #undef CASE_WASM_INTERPRETED
 #undef FRAME_SUMMARY_DISPATCH
 
-FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
+FrameSummaries OptimizedJSFrame::Summarize(
+    AllowAllocation allow_allocation) const {
   DCHECK(is_optimized());
   FrameSummaries summaries;
 
@@ -3064,7 +3089,7 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
   DirectHandle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN ||
       code->kind() == CodeKind::FOR_TESTING_JS) {
-    return JavaScriptFrame::Summarize(never_allocate);
+    return JavaScriptFrame::Summarize(allow_allocation);
   }
   DCHECK_NE(code->kind(), CodeKind::FOR_TESTING);
 
@@ -3084,7 +3109,7 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
     // heap allocation site in Turbofan. Heap allocation sites do not have a
     // DeoptimizationEntry in general. Instead of crashing we simply report here
     // just one frame.
-    if (code->is_maglevved() || never_allocate) {
+    if (code->is_maglevved() || allow_allocation == AllowAllocation::kNo) {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
@@ -3196,15 +3221,15 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
   }  // no_gc scope ends.
 
   if (needs_full_walk) {
-    return SummarizeFull(data, deopt_index, never_allocate);
+    return SummarizeFull(data, deopt_index, allow_allocation);
   }
 
   return summaries;
 }
 
-FrameSummaries OptimizedJSFrame::SummarizeFull(Tagged<DeoptimizationData> data,
-                                               int deopt_index,
-                                               bool never_allocate) const {
+FrameSummaries OptimizedJSFrame::SummarizeFull(
+    Tagged<DeoptimizationData> data, int deopt_index,
+    AllowAllocation allow_allocation) const {
   FrameSummaries summaries;
 
   DCHECK_NE(deopt_index, SafepointEntry::kNoDeoptIndex);
@@ -3242,7 +3267,7 @@ FrameSummaries OptimizedJSFrame::SummarizeFull(Tagged<DeoptimizationData> data,
       Tagged<Object> receiver_obj = translated_values->GetRawValue();
       DirectHandle<Object> receiver;
       if (receiver_obj == ReadOnlyRoots(isolate()).arguments_marker() &&
-          never_allocate) {
+          allow_allocation == AllowAllocation::kNo) {
         // Calling GetValue() would definitely trigger allocation but with
         // `never_allocate` allocations are not allowed. Simply pick `undefined`
         // as receiver instead even though it is off. `never_allocate` is
@@ -3471,7 +3496,8 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
   return GetExpression(index + register_index);
 }
 
-FrameSummaries UnoptimizedJSFrame::Summarize(bool never_allocate) const {
+FrameSummaries UnoptimizedJSFrame::Summarize(
+    AllowAllocation allow_allocation) const {
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());
   FrameSummary::JavaScriptFrameSummary summary(
@@ -3537,8 +3563,8 @@ uint32_t BuiltinFrame::ComputeParametersCount() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
-                      int index) const {
+void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
+                      AllowAllocation allow_allocation) const {
   PrintIndex(accumulator, mode, index);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -3625,7 +3651,7 @@ Tagged<Object> WasmFrame::context() const {
   return trusted_instance_data()->native_context();
 }
 
-FrameSummaries WasmFrame::Summarize(bool never_allocate) const {
+FrameSummaries WasmFrame::Summarize(AllowAllocation allow_allocation) const {
   FrameSummaries summaries;
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
@@ -3734,7 +3760,8 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
 }
 
 void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
-                                int index) const {
+                                int index,
+                                AllowAllocation allow_allocation) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WasmDebugBreak");
   if (mode != OVERVIEW) accumulator->Add("\n");
@@ -3852,7 +3879,8 @@ void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
 }
 
 void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
-                                      int index) const {
+                                      int index,
+                                      AllowAllocation allow_allocation) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM INTERPRETER ENTRY [");
   Tagged<Script> script = this->script();
@@ -3861,7 +3889,8 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-FrameSummaries WasmInterpreterEntryFrame::Summarize(bool never_allocate) const {
+FrameSummaries WasmInterpreterEntryFrame::Summarize(
+    AllowAllocation allow_allocation) const {
   FrameSummaries summaries;
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   std::vector<WasmInterpreterStackEntry> interpreted_stack =
@@ -4043,9 +4072,11 @@ void PrintFunctionSource(StringStream* accumulator,
 }  // namespace
 
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
-                            int index) const {
+                            int index, AllowAllocation allow_allocation) const {
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
-  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
+  if (allow_allocation != AllowAllocation::kNo) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
+  }
 
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();

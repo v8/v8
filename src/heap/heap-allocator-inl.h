@@ -179,6 +179,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
     }
 
     if (local_heap_->is_main_thread()) {
+      DisallowGarbageCollection no_gc;
       for (auto& tracker : heap_->allocation_trackers_) {
         tracker->AllocationEvent(object.address(), size_in_bytes);
       }

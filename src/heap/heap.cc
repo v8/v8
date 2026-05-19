@@ -182,7 +182,8 @@ class Heap::AllocationTrackerForDebugging final
     } else if (v8_flags.trace_allocation_stack_interval > 0) {
       allocations_count_.fetch_add(1, std::memory_order_relaxed);
       if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
-        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise,
+                                     AllowAllocation::kNo);
       }
     }
   }
