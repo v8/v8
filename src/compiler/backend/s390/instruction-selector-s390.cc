@@ -3338,7 +3338,27 @@ void InstructionSelector::VisitTruncateFloat32ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
+  S390OperandGenerator g(this);
+
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+
+  InstructionOperand left = g.UseUniqueRegister(op.left());
+  InstructionOperand right = g.UseUniqueRegister(op.right());
+
+  // Process the high side first as `left` could be used as
+  // dst in the low side calculation.
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    InstructionCode high_opcode =
+        is_signed ? kS390_MulHighS64 : kS390_MulHighU64;
+    Emit(high_opcode, g.DefineAsRegister(out_high.value()), left, right);
+  }
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  Emit(kS390_Mul64,
+       g.DefineSameAsFirst(out_low.valid() ? out_low.value() : node), left,
+       right);
 }
 
 void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
