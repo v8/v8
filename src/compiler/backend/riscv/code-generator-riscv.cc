@@ -2556,6 +2556,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kAtomicCompareExchangeWithWriteBarrier: {
+      Register expect_value = i.InputRegister(2);
+      Register new_value = i.InputRegister(3);
+      Register out_value = i.OutputRegister(0);
+      Label exit;
+      __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
       if constexpr (COMPRESS_POINTERS_BOOL) {
         // We need sign extend the expected value(i.InputRegister(2))) to be
         // compared, so we don't use ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER.
@@ -2563,45 +2568,49 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // There are have chance to use a same register for i.InputRegister(2)
         // and i.OutputRegister(0).
         Label compareExchange;
-        Label exit;
-        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
-        __ sync();
         __ bind(&compareExchange);
-        __ SignExtendWord(i.TempRegister(1), i.InputRegister(2));
-        __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0), trapper);
-        DCHECK_NE(i.TempRegister(1), i.OutputRegister(0));
-        __ BranchShort(&exit, ne, i.TempRegister(1),
-                       Operand(i.OutputRegister(0)));
-        __ Move(i.TempRegister(2), i.InputRegister(3));
+        Register expect_signed = i.TempRegister(1);
+        __ SignExtendWord(expect_signed, expect_value);
+        __ Ll(out_value, MemOperand(i.TempRegister(0), 0), trapper);
+        DCHECK_NE(expect_signed, out_value);
+        __ BranchShort(&exit, ne, expect_signed, Operand(out_value));
+        __ Move(i.TempRegister(2), new_value);
         __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));
         __ BranchShort(&compareExchange, ne, i.TempRegister(2),
                        Operand(zero_reg));
         __ bind(&exit);
-        __ sync();
-        __ ZeroExtendWord(i.OutputRegister(), i.OutputRegister());
-        __ AddWord(i.OutputRegister(), i.OutputRegister(),
-                   kPtrComprCageBaseRegister);
       } else {
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
+        Label compare_exchange;
+        __ bind(&compare_exchange);
+        __ Lld(out_value, MemOperand(i.TempRegister(0), 0), trapper);
+        __ BranchShort(&exit, ne, expect_value, Operand(out_value));
+        __ Move(i.TempRegister(1), new_value);
+        __ Scd(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compare_exchange, ne, i.TempRegister(1),
+                       Operand(zero_reg));
       }
-      if (v8_flags.disable_write_barriers) break;
-      // Emit the write barrier.
-      // We only need a write barrier if the CAS was successful (i.e., the
-      // value was actually written). Compare the result with the expected
-      // value to determine if the CAS succeeded.
-      Register object = i.InputRegister(0);
-      Operand offset = i.InputOperand(1);
-      Register new_value = i.InputRegister(3);
-      auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, offset, new_value, RecordWriteMode::kValueIsAny,
-          DetermineStubCallMode());
-      __ Branch(ool->exit(), ne, i.OutputRegister(0),
-                Operand(i.InputRegister(2)));
-      __ JumpIfSmi(new_value, ool->exit());
-
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
-      __ bind(ool->exit());
+      if (!v8_flags.disable_write_barriers) {
+        // Emit the write barrier. We only need a write barrier if the CAS
+        // was successful (i.e., the value was actually written). Compare the
+        // result (still compressed) with the sign-extended expected value to
+        // determine if the CAS succeeded.
+        Register object = i.InputRegister(0);
+        Operand offset = i.InputOperand(1);
+        Register new_value = i.InputRegister(3);
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, offset, new_value, RecordWriteMode::kValueIsAny,
+            DetermineStubCallMode());
+        __ JumpIfSmi(new_value, ool->exit());
+        __ CheckPageFlag(object,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+        __ bind(ool->exit());
+      }
+      __ bind(&exit);
+      __ sync();
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ DecompressTagged(i.OutputRegister(), i.OutputRegister());
+      }
       break;
     }
     case kRiscvWord64AtomicCompareExchangeUint64:

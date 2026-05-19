@@ -1021,44 +1021,56 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  if (COMPRESS_POINTERS_BOOL) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    SignExtendWord(scratch, expected.gp());
-    liftoff::AtomicCompareExchange(
-        this, dst_addr, offset_reg, offset_imm, scratch, new_value.gp(),
-        result.gp(), StoreType::kI32Store, trapping_load_pc, pinned);
-    ZeroExtendWord(result.gp(), result.gp());
-    AddWord(result.gp(), result.gp(), kPtrComprCageBaseRegister);
-  } else {
-    liftoff::AtomicCompareExchange(
-        this, dst_addr, offset_reg, offset_imm, expected.gp(), new_value.gp(),
-        result.gp(), StoreType::kI64Store, trapping_load_pc, pinned);
-  }
-  if (v8_flags.disable_write_barriers) return;
-
-  // We only need a write barrier if the CAS was successful.
-  // For RISC-V, we need to explicitly compare result with expected to check
-  // if the CAS succeeded.
+  auto trapper = [trapping_load_pc](int offset) {
+    if (trapping_load_pc) *trapping_load_pc = static_cast<uint32_t>(offset);
+  };
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Label exit;
-  Branch(&exit, ne, result.gp(), Operand(expected.gp()));
-
-  // Emit the write barrier.
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
-  CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
-                kZero, &exit);
-  Operand offset_op =
-      offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
-  if (offset_reg.is_valid() && offset_imm) {
-    Register effective_offset = kScratchReg;
-    AddWord(effective_offset, offset_reg, Operand(offset_imm));
-    offset_op = Operand(effective_offset);
+  AddWord(temp0, dst_op.rm(), dst_op.offset());
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    Label compareExchange;
+    SignExtendWord(temp1, expected.gp());
+    bind(&compareExchange);
+    Ll(result.gp(), MemOperand(temp0, 0), trapper);
+    BranchShort(&exit, ne, temp1, Operand(result.gp()));
+    MacroAssembler::Move(temp2, new_value.gp());
+    Sc(temp2, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, ne, temp2, Operand(zero_reg));
+  } else {
+    Label compareExchange;
+    bind(&compareExchange);
+    Lld(result.gp(), MemOperand(temp0, 0), trapper);
+    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));
+    MacroAssembler::Move(temp1, new_value.gp());
+    Scd(temp1, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, ne, temp1, Operand(zero_reg));
   }
-  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
+  if (!v8_flags.disable_write_barriers) {
+    // Emit the write barrier.
+    JumpIfSmi(new_value.gp(), &exit);
+    CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                  kZero, &exit);
+    CheckPageFlag(new_value.gp(),
+                  MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
+    Operand offset_op =
+        offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
+    if (offset_reg.is_valid() && offset_imm) {
+      Register effective_offset = kScratchReg;
+      AddWord(effective_offset, offset_reg, Operand(offset_imm));
+      offset_op = Operand(effective_offset);
+    }
+    CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                     StubCallMode::kCallWasmRuntimeStub);
+  }
   bind(&exit);
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    DecompressTagged(result.gp(), result.gp());
+  }
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
