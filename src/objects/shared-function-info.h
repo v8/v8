@@ -575,8 +575,9 @@ V8_OBJECT class SharedFunctionInfo : public HeapObject {
 
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
-  static Handle<String> DebugName(Isolate* isolate,
-                                  DirectHandle<SharedFunctionInfo> shared);
+  static Handle<String> DebugName(
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
+      AllowAllocation allow_allocation = AllowAllocation::kYes);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);

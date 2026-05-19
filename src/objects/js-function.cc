@@ -1366,7 +1366,8 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Tagged<Map> map) {
 }  // namespace
 
 DirectHandle<String> JSFunction::GetDebugName(
-    Isolate* isolate, DirectHandle<JSFunction> function) {
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    AllowAllocation allow_allocation) {
   // Below we use the same fast-path that we already established for
   // Function.prototype.bind(), where we avoid a slow "name" property
   // lookup if the DescriptorArray for the |function| still has the
@@ -1386,7 +1387,7 @@ DirectHandle<String> JSFunction::GetDebugName(
     if (IsString(*name)) return Cast<String>(name);
   }
   return SharedFunctionInfo::DebugName(
-      isolate, direct_handle(function->shared(), isolate));
+      isolate, direct_handle(function->shared(), isolate), allow_allocation);
 }
 
 bool JSFunction::SetName(Isolate* isolate, DirectHandle<JSFunction> function,

@@ -996,7 +996,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 }
 
 DirectHandle<Object> LookupIterator::FetchValue(
-    AllocationPolicy allocation_policy) const {
+    AllowAllocation allow_allocation) const {
   Tagged<Object> result;
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(!IsWasmObject(*holder_));
@@ -1020,8 +1020,8 @@ DirectHandle<Object> LookupIterator::FetchValue(
     DirectHandle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
         FieldIndex::ForDetails(holder->map(), property_details_);
-    if (allocation_policy == AllocationPolicy::kAllocationDisallowed &&
-        field_index.is_inobject() && field_index.is_double()) {
+    if (allow_allocation == AllowAllocation::kNo && field_index.is_inobject() &&
+        field_index.is_double()) {
       return isolate_->factory()->undefined_value();
     }
     return JSObject::FastPropertyAt(
@@ -1132,7 +1132,7 @@ DirectHandle<Object> LookupIterator::GetAccessors() const {
 }
 
 Handle<Object> LookupIterator::GetStringPropertyValue(
-    AllocationPolicy allocation_policy) const {
+    AllowAllocation allow_allocation) const {
   DCHECK_EQ(state_, STRING_LOOKUP_START_OBJECT);
   if (IsElement()) {
     DirectHandle<String> string = Cast<String>(lookup_start_object_);
@@ -1149,9 +1149,9 @@ Handle<Object> LookupIterator::GetStringPropertyValue(
 }
 
 Handle<Object> LookupIterator::GetDataValue(
-    AllocationPolicy allocation_policy) const {
+    AllowAllocation allow_allocation) const {
   DCHECK_EQ(DATA, state_);
-  return indirect_handle(FetchValue(allocation_policy), isolate_);
+  return indirect_handle(FetchValue(allow_allocation), isolate_);
 }
 
 DirectHandle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
