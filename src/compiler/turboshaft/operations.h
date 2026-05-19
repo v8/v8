@@ -3279,8 +3279,13 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   IndirectPointerTagRange tag_range;
   const int offset;
 
-  static constexpr OpEffects effects =
-      OpEffects().CanReadMemory().CanDependOnChecks();
+  OpEffects Effects() const {
+    // Loads might depend on checks for pointer validity, object layout, bounds
+    // checks, etc.
+    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
+    return effects;
+  }
 
   explicit LoadTrustedPointerOp(V<HeapObject> base, V<WordPtr> table,
                                 LoadOp::Kind kind,
@@ -10449,6 +10454,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<Simd256LoadTransformOp>().Effects();
 #endif  // V8_ENABLE_SIMD256
 #endif  // V8_ENABLE_SIMD128
+#if V8_ENABLE_SANDBOX
+    case Opcode::kLoadTrustedPointer:
+      return Cast<LoadTrustedPointerOp>().Effects();
+#endif  // V8_ENABLE_SANDBOX
     default:
       UNREACHABLE();
   }
