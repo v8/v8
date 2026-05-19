@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+struct SandboxFreeDeleter;
 class SharedStringAccessGuardIfNeeded;
 
 // uint64_t constants prefixed with kFP64 are bit patterns of doubles.
@@ -204,7 +205,8 @@ constexpr int kDoubleToStringMinBufferSize = 100;
 V8_EXPORT_PRIVATE std::string_view DoubleToStringView(
     double value, base::Vector<char> buffer);
 
-V8_EXPORT_PRIVATE std::unique_ptr<char[]> BigIntLiteralToDecimal(
+using SandboxChars = std::unique_ptr<uint8_t, SandboxFreeDeleter>;
+std::pair<SandboxChars, uint32_t> BigIntLiteralToDecimal(
     LocalIsolate* isolate, base::Vector<const uint8_t> literal);
 // Convert an int to string value. The returned string is located inside the
 // buffer, but not necessarily at the start.
