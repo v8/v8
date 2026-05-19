@@ -2526,6 +2526,7 @@ class MachineLoweringReducer : public Next {
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
           __ template CallRuntime<runtime::TerminateExecution>(
               __ NoContextConstant(), {});
+          __ Unreachable();
         }
 
         // Check for exception sentinel: Smi 0 is returned to signal
