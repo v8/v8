@@ -2909,12 +2909,13 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode = is_add ? kArm64Add128 : kArm64Sub128;
   InstructionCode opcode_no_high = is_add ? kArm64Add : kArm64Sub;
 
-  DCHECK(out_low.valid() && out_high.valid());
-
-  if (!selector->IsUsed(out_high.value())) {
-    InstructionOperand b_low_op = g.UseOperand(op.right_low(), kArithmeticImm);
-    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
-                   g.UseRegister(op.left_low()), b_low_op);
+  if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
+    if (out_low.valid()) {
+      InstructionOperand b_low_op =
+          g.UseOperand(op.right_low(), kArithmeticImm);
+      selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                     g.UseRegister(op.left_low()), b_low_op);
+    }
     return;
   }
 
@@ -2929,7 +2930,8 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   inputs[input_count++] = g.UseUniqueRegister(op.left_high());
   inputs[input_count++] = g.UseUniqueRegister(op.right_high());
 
-  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
   outputs[output_count++] = g.DefineAsRegister(out_high.value());
 
   selector->Emit(opcode, output_count, outputs, input_count, inputs);
