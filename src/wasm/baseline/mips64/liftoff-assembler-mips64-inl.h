@@ -1153,42 +1153,51 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  AtomicCompareExchange(
-      dst_addr, offset_reg, offset_imm, expected, new_value, result,
-      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      trapping_load_pc, false);
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
-  if constexpr (COMPRESS_POINTERS_BOOL) {
-    UNIMPLEMENTED();
-  }
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
 
-  if (v8_flags.disable_write_barriers) return;
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  // We only need a write barrier if the CAS was successful.
-  // For MIPS64, if the expected and result are different, it is assumed that
-  // cmpxchg has not updated the value.
   Label exit;
-  Branch(&exit, ne, result.gp(), Operand(expected.gp()));
-
-  // Emit the write barrier.
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, scratch,
-                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
-  CheckPageFlag(new_value.gp(), scratch,
-                MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
-
-  if (offset_reg.is_valid()) {
-    Dext(scratch, offset_reg, 0, 32);
-    if (offset_imm) {
-      Daddu(scratch, scratch, Operand(offset_imm));
-    }
-  } else {
-    li(scratch, offset_imm);
+  Daddu(temp0, dst_op.rm(), dst_op.offset());
+  {
+    Label compareExchange;
+    sync();
+    bind(&compareExchange);
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();
+    Lld(result.gp(), MemOperand(temp0, 0));
+    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));
+    mov(temp1, new_value.gp());
+    Scd(temp1, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, eq, temp1, Operand(zero_reg));
   }
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
+
+  if (!v8_flags.disable_write_barriers) {
+    // Emit the write barrier.
+    JumpIfSmi(new_value.gp(), &exit);
+    CheckPageFlag(dst_addr, temp0,
+                  MemoryChunk::kPointersFromHereAreInterestingMask, kZero,
+                  &exit);
+    CheckPageFlag(new_value.gp(), temp0,
+                  MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
+
+    if (offset_reg.is_valid()) {
+      Dext(temp0, offset_reg, 0, 32);
+      if (offset_imm) {
+        Daddu(temp0, temp0, Operand(offset_imm));
+      }
+    } else {
+      li(temp0, offset_imm);
+    }
+    CallRecordWriteStubSaveRegisters(dst_addr, temp0, SaveFPRegsMode::kSave,
+                                     StubCallMode::kCallWasmRuntimeStub);
+  }
   bind(&exit);
+  sync();
 }
 
 void LiftoffAssembler::AtomicFence() { sync(); }

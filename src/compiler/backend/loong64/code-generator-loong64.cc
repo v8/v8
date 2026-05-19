@@ -2328,47 +2328,54 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeWithWriteBarrier: {
-      UseScratchRegisterScope temps(masm());
-      Register temp = temps.Acquire();
-      Register expect_reg = no_reg;
-      Register result_reg = no_reg;
-      if constexpr (COMPRESS_POINTERS_BOOL) {
-        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
-        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-        __ slli_w(i.TempRegister(2), i.InputRegister(2), 0);
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w, i.TempRegister(2),
-                                                 i.InputRegister(3), temp);
-        // Contrary to x64, the instruction sequence we emit on loong64 always
-        // writes an uncompressed value into the output register, so we can
-        // unconditionally decompress it.
-        __ Bstrpick_d(i.OutputRegister(), temp, 31, 0);
-        __ add_d(i.OutputRegister(), i.OutputRegister(0),
-                 kPtrComprCageBaseRegister);
-        expect_reg = i.TempRegister(2);
-        result_reg = temp;
-      } else {
-        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
-        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d, i.InputRegister(2),
-                                                 i.InputRegister(3),
-                                                 i.OutputRegister(0));
-        expect_reg = i.InputRegister(2);
-        result_reg = i.OutputRegister(0);
-      }
-      if (v8_flags.disable_write_barriers) break;
-      // Emit the write barrier.
-      Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Register expect_value = i.InputRegister(2);
       Register new_value = i.InputRegister(3);
-      auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), new_value,
-          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
-      __ BranchShort(ool->exit(), ne, expect_reg, Operand(result_reg));
-      __ JumpIfSmi(new_value, ool->exit());
+      Register out_value = i.OutputRegister(0);
+      Label exit;
+      __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        Label compare_exchange;
+        expect_value = i.TempRegister(2);
+        __ slli_w(expect_value, i.InputRegister(2), 0);
+        __ bind(&compare_exchange);
+        __ Ll_w(out_value, MemOperand(i.TempRegister(0), 0), &trap_pc);
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+        __ BranchShort(&exit, ne, expect_value, Operand(out_value));
+        __ mov(i.TempRegister(1), new_value);
+        __ Sc_w(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compare_exchange, eq, i.TempRegister(1),
+                       Operand(zero_reg));
+      } else {
+        Label compare_exchange;
+        __ bind(&compare_exchange);
+        __ Ll_d(out_value, MemOperand(i.TempRegister(0), 0), &trap_pc);
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+        __ BranchShort(&exit, ne, expect_value, Operand(out_value));
+        __ mov(i.TempRegister(1), new_value);
+        __ Sc_d(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compare_exchange, eq, i.TempRegister(1),
+                       Operand(zero_reg));
+      }
+      if (!v8_flags.disable_write_barriers) {
+        // Emit the write barrier.
+        Register object = i.InputRegister(0);
+        Register offset = i.InputRegister(1);
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, Operand(offset), new_value,
+            RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+        __ JumpIfSmi(new_value, ool->exit());
+        __ CheckPageFlag(object,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+        __ bind(ool->exit());
+      }
+      __ bind(&exit);
+      __ dbar(0x14);
 
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
-      __ bind(ool->exit());
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ Bstrpick_d(out_value, out_value, 31, 0);
+        __ Or(out_value, out_value, kPtrComprCageBaseRegister);
+      }
       break;
     }
 #undef ATOMIC_BINOP_CASE

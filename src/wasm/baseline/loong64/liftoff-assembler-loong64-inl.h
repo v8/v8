@@ -1263,44 +1263,65 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  UseScratchRegisterScope temps(this);
-  AtomicCompareExchange(
-      dst_addr, offset_reg, offset_imm, expected, new_value, result,
-      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      trapping_load_pc, false);
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  Label exit;
+  Add_d(temp0, dst_op.base(), dst_op.offset());
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    Label compareExchange;
+    slli_w(temp1, expected.gp(), 0);
+    bind(&compareExchange);
+    Ll_w(result.gp(), MemOperand(temp0, 0),
+         reinterpret_cast<int*>(trapping_load_pc));
+    BranchShort(&exit, ne, temp1, Operand(result.gp()));
+    mov(temp2, new_value.gp());
+    Sc_w(temp2, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, eq, temp2, Operand(zero_reg));
+  } else {
+    Label compareExchange;
+    bind(&compareExchange);
+    Ll_d(result.gp(), MemOperand(temp0, 0),
+         reinterpret_cast<int*>(trapping_load_pc));
+    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));
+    mov(temp1, new_value.gp());
+    Sc_d(temp1, MemOperand(temp0, 0));
+    BranchShort(&compareExchange, eq, temp1, Operand(zero_reg));
+  }
+
+  if (!v8_flags.disable_write_barriers) {
+    // Emit the write barrier.
+    JumpIfSmi(new_value.gp(), &exit);
+    CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                  kZero, &exit);
+    CheckPageFlag(new_value.gp(),
+                  MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
+
+    Operand offset_op = Operand(offset_imm);
+    if (offset_reg.is_valid()) {
+      bstrpick_d(temp0, offset_reg, 31, 0);
+      if (offset_imm) {
+        Add_d(temp0, temp0, offset_op);
+      }
+      offset_op = Operand(temp0);
+    }
+    CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                     StubCallMode::kCallWasmRuntimeStub);
+  }
+
+  bind(&exit);
+  dbar(0x14);
   if constexpr (COMPRESS_POINTERS_BOOL) {
     Bstrpick_d(result.gp(), result.gp(), 31, 0);
-    add_d(result.gp(), result.gp(), kPtrComprCageBaseRegister);
+    Or(result.gp(), result.gp(), kPtrComprCageBaseRegister);
   }
-
-  if (v8_flags.disable_write_barriers) return;
-  // We only need a write barrier if the CAS was successful.
-  // For LOONG64, if the expected and result are different, it is assumed that
-  // cmpxchg has not updated the value.
-  Label exit;
-  Register scratch = temps.Acquire();
-  Sub_w(scratch, result.gp(), Operand(expected.gp()));
-  Branch(&exit, ne, scratch, Operand(zero_reg));
-
-  // Emit the write barrier.
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
-  CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
-                kZero, &exit);
-
-  Operand offset_op = Operand(offset_imm);
-  if (offset_reg.is_valid()) {
-    bstrpick_d(scratch, offset_reg, 31, 0);
-    if (offset_imm) {
-      Add_d(scratch, scratch, offset_op);
-    }
-    offset_op = Operand(scratch);
-  }
-  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
-  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicFence() { dbar(0); }
