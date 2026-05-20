@@ -348,6 +348,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(TruncateFloat64ToWord32, Uint32T, Float64T)                 \
   V(TruncateInt64ToInt32, Int32T, Int64T)                       \
   V(ChangeFloat32ToFloat64, Float64T, Float32T)                 \
+  V(ChangeFloat16RawBitsToFloat64, Float64T, Float16RawBitsT)   \
   V(ChangeFloat64ToUint32, Uint32T, Float64T)                   \
   V(ChangeFloat64ToUint64, Uint64T, Float64T)                   \
   V(ChangeFloat64ToInt64, Int64T, Float64T)                     \
@@ -419,6 +420,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
   bool IsTruncateFloat64ToFloat16RawBitsSupported() const;
+  bool IsChangeFloat16RawBitsToFloat64Supported() const;
   bool IsInt32AbsWithOverflowSupported() const;
   bool IsInt64AbsWithOverflowSupported() const;
   bool IsIntPtrAbsWithOverflowSupported() const;

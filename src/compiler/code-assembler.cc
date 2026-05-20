@@ -261,6 +261,13 @@ bool CodeAssembler::IsTruncateFloat64ToFloat16RawBitsSupported() const {
       .IsSupported();
 }
 
+bool CodeAssembler::IsChangeFloat16RawBitsToFloat64Supported() const {
+  return raw_assembler()
+      ->machine()
+      ->ChangeFloat16RawBitsToFloat64()
+      .IsSupported();
+}
+
 bool CodeAssembler::IsInt32AbsWithOverflowSupported() const {
   return raw_assembler()->machine()->Int32AbsWithOverflow().IsSupported();
 }

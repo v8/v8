@@ -813,6 +813,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeFloat32ToFloat64(Node* a) {
     return AddNode(machine()->ChangeFloat32ToFloat64(), a);
   }
+  Node* ChangeFloat16RawBitsToFloat64(Node* a) {
+    return AddNode(machine()->ChangeFloat16RawBitsToFloat64().placeholder(), a);
+  }
   Node* ChangeInt32ToFloat64(Node* a) {
     return AddNode(machine()->ChangeInt32ToFloat64(), a);
   }

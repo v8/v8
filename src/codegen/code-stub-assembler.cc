@@ -7543,7 +7543,27 @@ TNode<Float16RawBitsT> CodeStubAssembler::RoundInt32ToFloat16(
 
 TNode<Float64T> CodeStubAssembler::ChangeFloat16ToFloat64(
     TNode<Float16RawBitsT> value) {
-  return ChangeFloat32ToFloat64(ChangeFloat16ToFloat32(value));
+  TVARIABLE(Float64T, float64_out);
+  Label change_op_supported(this), change_op_fallback(this), return_out(this);
+
+  // See Float64Ceil for the reason there is a branch for the static constant
+  // (PGO profiles).
+  Branch(UniqueInt32Constant(IsChangeFloat16RawBitsToFloat64Supported()),
+         &change_op_supported, &change_op_fallback);
+  BIND(&change_op_supported);
+  {
+    float64_out = ChangeFloat16RawBitsToFloat64(value);
+    Goto(&return_out);
+  }
+
+  BIND(&change_op_fallback);
+  {
+    float64_out = ChangeFloat32ToFloat64(ChangeFloat16ToFloat32(value));
+    Goto(&return_out);
+  }
+
+  BIND(&return_out);
+  return float64_out.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
