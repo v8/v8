@@ -425,6 +425,7 @@ TARGET_SVE uint64_t search_loop_sve(const ScalarType* array,
                                     const ScalarType& search_element) {
   using SVEOps = SVEOperations<ScalarType>;
 
+  DCHECK_LE(start_index, array_length);
   uint64_t number_of_elements = array_length - start_index;
   const uint64_t vector_length = SVEOps::vector_length();
 
@@ -664,7 +665,9 @@ enum class ArrayIndexOfIncludesKind { DOUBLE, OBJECTORSMI };
 template <ArrayIndexOfIncludesKind kind>
 Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
                              uintptr_t from_index, Address search_element) {
-  if (array_len == 0) {
+  // The TurboFan-reduced Array.prototype.indexOf/includes path can pass
+  // from_index >= array_len here. This also covers array_len == 0 case.
+  if (from_index >= array_len) {
     return Smi::FromInt(-1).ptr();
   }
 
