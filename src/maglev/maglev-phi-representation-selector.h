@@ -168,6 +168,7 @@ class MaglevPhiRepresentationSelector {
                              bool truncating, int input_index, Phi* input_phi);
   void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
                              int input_index, Phi* input_phi);
+  bool ShouldSkipUntagging(Phi* phi);
   template <class NodeT>
   ValueNode* GetReplacementForPhiInputConversion(ValueNode* input, Phi* phi,
                                                  uint32_t input_index);

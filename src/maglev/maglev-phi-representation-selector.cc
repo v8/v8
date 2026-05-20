@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-phi-representation-selector.h"
 
 #include <algorithm>
+#include <atomic>
 #include <optional>
 
 #include "src/base/enum-set.h"
@@ -426,6 +427,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
+  if (ShouldSkipUntagging(node)) {
+    EnsurePhiInputsTagged(node);
+    return default_result;
+  }
   if (intersection.contains(ValueRepresentation::kInt32) &&
       use_reprs.contains_any(UseRepresentationSet{
           UseRepresentation::kTaggedForNumberToString,
@@ -1717,6 +1722,21 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
   };
 
   phi_taggings_.StartNewSnapshot(base::VectorOf(predecessors_), merge_taggings);
+}
+
+bool MaglevPhiRepresentationSelector::ShouldSkipUntagging(Phi* phi) {
+  if (V8_UNLIKELY(v8_flags.maglev_untagged_phis_bisect_limit >= 0)) {
+    static std::atomic<int> counter{0};
+    int current = counter++;
+    if (current >= v8_flags.maglev_untagged_phis_bisect_limit) {
+      TRACE_UNTAGGING("[maglev-phi-untag-bisect] SKIPPING Untagging Phi #"
+                      << current << " (owner: " << phi->owner().ToString()
+                      << ") in function "
+                      << graph_->compilation_info()->function_name());
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace maglev
