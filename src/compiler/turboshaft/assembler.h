@@ -5331,10 +5331,8 @@ class AssemblerOpInterface : public Next {
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
                                    const wasm::StructType* struct_type,
-                                   wasm::ModuleTypeIndex type_index,
-                                   SharedFlag is_shared) {
-    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, type_index,
-                                               is_shared);
+                                   wasm::ModuleTypeIndex type_index) {
+    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, type_index);
   }
 
   V<WasmFuncRef> WasmRefFunc(V<WasmTrustedInstanceData> wasm_instance,

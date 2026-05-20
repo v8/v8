@@ -358,12 +358,13 @@ void WasmGCTypeAnalyzer::ProcessAllocateArray(
 }
 void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     const WasmAllocateStructOp& allocate_struct) {
-  RefineTypeKnowledge(graph_.Index(allocate_struct),
-                      wasm::ValueType::Ref(allocate_struct.type_index,
-                                           allocate_struct.is_shared,
-                                           wasm::RefTypeKind::kStruct)
-                          .AsExact(),
-                      allocate_struct);
+  RefineTypeKnowledge(
+      graph_.Index(allocate_struct),
+      wasm::ValueType::Ref(allocate_struct.type_index,
+                           allocate_struct.struct_type->is_shared(),
+                           wasm::RefTypeKind::kStruct)
+          .AsExact(),
+      allocate_struct);
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,

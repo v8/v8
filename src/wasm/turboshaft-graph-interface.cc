@@ -9250,9 +9250,7 @@ class TurboshaftGraphBuildingInterface
       struct_value = __ AnnotateWasmType(
           struct_value, ValueType::Ref(decoder->module_->heap_type(imm.index)));
     } else {
-      const SharedFlag shared = type.is_shared;
-      struct_value =
-          __ WasmAllocateStruct(rtt, imm.struct_type, imm.index, shared);
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, imm.index);
     }
 
     bool in_old_space = type.is_shared == SharedFlag::kYes ||

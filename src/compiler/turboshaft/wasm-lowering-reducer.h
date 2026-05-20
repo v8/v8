@@ -484,20 +484,22 @@ class WasmLoweringReducer : public Next {
 
   V<WasmStruct> REDUCE(WasmAllocateStruct)(V<Map> rtt,
                                            const wasm::StructType* struct_type,
-                                           wasm::ModuleTypeIndex type_index,
-                                           SharedFlag is_shared) {
+                                           wasm::ModuleTypeIndex type_index) {
     int size = WasmStruct::Size(struct_type);
     Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
         size,
-        is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                      : AllocationType::kYoung,
-        is_shared == SharedFlag::kYes ? kDoubleAligned : kTaggedAligned);
+        struct_type->is_shared() == SharedFlag::kYes
+            ? AllocationType::kSharedOld
+            : AllocationType::kYoung,
+        struct_type->is_shared() == SharedFlag::kYes ? kDoubleAligned
+                                                     : kTaggedAligned);
     // Objects allocated into old-space need a write barrier for initialization.
-    __ InitializeField(s,
-                       AccessBuilder::ForMap(is_shared == SharedFlag::kYes
-                                                 ? compiler::kMapWriteBarrier
-                                                 : compiler::kNoWriteBarrier),
-                       rtt);
+    __ InitializeField(
+        s,
+        AccessBuilder::ForMap(struct_type->is_shared() == SharedFlag::kYes
+                                  ? compiler::kMapWriteBarrier
+                                  : compiler::kNoWriteBarrier),
+        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     // Note: Struct initialization isn't finished here, the user defined fields
