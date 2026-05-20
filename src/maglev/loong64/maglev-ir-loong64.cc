@@ -12,8 +12,12 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-function.h"
+#include "src/objects/property-details.h"
+#include "src/objects/swiss-name-dictionary.h"
 
 namespace v8 {
 namespace internal {
@@ -1281,6 +1285,83 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size);
   __ Ret();
+}
+
+void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(ObjectInput());
+  Register result_reg = ToRegister(result());
+
+  ZoneLabelRef done(masm);
+
+  Label* deferred_fallback = __ MakeDeferredCode(
+      [](MaglevAssembler* masm, ZoneLabelRef done, LoadDictionaryField* node,
+         Register object, Register result_reg) {
+        {
+          // Save live registers so the fast path remains register-allocation
+          // friendly.
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          snapshot.live_tagged_registers.clear(result_reg);
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+
+          __ CallBuiltin<Builtin::kLoadIC>(
+              node->ContextInput(), object, node->name().object(),
+              TaggedIndex::FromIntptr(node->feedback().index()),
+              node->feedback().vector);
+          masm->DefineExceptionHandlerPoint(node);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+
+          __ Move(result_reg, kReturnRegister0);
+        }
+        __ Jump(*done);
+      },
+      done, this, object, result_reg);
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register properties = temps.Acquire();
+
+  __ LoadTaggedField(properties, object,
+                     offsetof(JSReceiver, properties_or_hash_));
+
+  if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    int entry_index = NameDictionary::kElementsStartIndex +
+                      dictionary_index() * NameDictionary::kEntrySize;
+    int max_index = entry_index + NameDictionary::kEntrySize - 1;
+
+    Register length = temps.Acquire();
+    __ Ld_w(length, FieldMemOperand(properties, FixedArrayBase::kLengthOffset));
+    // Length is sign-extended and max_index is an immediate; so we can directly
+    // use 64-bit comparison.
+    __ CompareIntPtrAndJumpIf(length, max_index, ls, deferred_fallback);
+
+    Register scratch = length;
+    int key_offset = NameDictionary::OffsetOfElementAt(
+        entry_index + NameDictionary::kEntryKeyIndex);
+    __ LoadTaggedField(scratch, properties, key_offset);
+    __ CompareTaggedAndBranch(deferred_fallback, kNotEqual, scratch,
+                              Operand(name().object()));
+
+    __ LoadTaggedField(scratch, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryDetailsIndex));
+    __ SmiToInt32(scratch);
+    __ And(scratch, scratch, Operand(PropertyDetails::KindField::kMask));
+    // Both scratch and PropertyDetails::KindField::encode are zero-extended;
+    // direct 64-bit comparison is safe.
+    __ MacroAssembler::Branch(
+        deferred_fallback, kNotEqual, scratch,
+        Operand(PropertyDetails::KindField::encode(PropertyKind::kData)));
+
+    __ LoadTaggedField(result_reg, properties,
+                       NameDictionary::OffsetOfElementAt(
+                           entry_index + NameDictionary::kEntryValueIndex));
+  } else {
+    UNREACHABLE();
+  }
+
+  __ bind(*done);
 }
 
 }  // namespace maglev

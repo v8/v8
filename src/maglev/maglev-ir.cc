@@ -4812,7 +4812,8 @@ int LoadDictionaryField::MaxCallStackArgs() const {
 }
 void LoadDictionaryField::SetValueLocationConstraints() {
   UseFixed(ContextInput(), kContextRegister);
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
+    !defined(V8_TARGET_ARCH_LOONG64)
   UseFixed(ObjectInput(), LoadDescriptor::ReceiverRegister());
 #else
   UseRegister(ObjectInput());
@@ -4820,7 +4821,8 @@ void LoadDictionaryField::SetValueLocationConstraints() {
   DefineAsRegister(this);
 }
 
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
+    !defined(V8_TARGET_ARCH_LOONG64)
 void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CallBuiltin<Builtin::kLoadIC>(
