@@ -302,14 +302,20 @@ class MjsunitNamesProvider {
   V(kStringViewWtf8, kWasmStringViewWtf8, kStringViewWtf8Code)    \
   V(kStringViewIter, kWasmStringViewIter, kStringViewIterCode)
 
+  // Note: due to module builder peculiarities, this doesn't exactly match
+  // the way the spec slices concepts. For {mode == kEmitObjects}, callers
+  // must take care of exactness and sharedness! Currently there is only one
+  // such caller: {PrintValueType}.
   void PrintHeapType(StringBuilder& out, HeapType type, OutputContext mode) {
+    if (type.is_exact() && mode == kEmitWireBytes) {
+      out << "kWasmExact, ";
+    }
     if (type.has_index()) {
       PrintTypeIndex(out, type.ref_index(), mode);
       return;
     }
-    if (type.is_shared() == SharedFlag::kYes) {
-      out << (mode == kEmitWireBytes ? "kWasmSharedTypeForm, "
-                                     : "wasmRefNullType(");
+    if (type.is_shared() == SharedFlag::kYes && mode == kEmitWireBytes) {
+      out << "kWasmSharedTypeForm, ";
     }
     switch (type.generic_kind()) {
 #define CASE(kCpp, JS, JSCode)                       \
@@ -325,9 +331,6 @@ class MjsunitNamesProvider {
       case GenericKind::kVoid:
       case GenericKind::kExternString:
         UNREACHABLE();
-    }
-    if (type.is_shared() == SharedFlag::kYes && mode == kEmitObjects) {
-      out << ").shared()";
     }
   }
 
@@ -385,20 +388,19 @@ class MjsunitNamesProvider {
         out << "wasmRefNullType(";
       } else {
         out << "kWasmRefNull, ";
-        if (type.is_exact()) out << "kWasmExact, ";
       }
     } else {
       if (mode == kEmitObjects) {
         out << "wasmRefType(";
       } else {
         out << "kWasmRef, ";
-        if (type.is_exact()) out << "kWasmExact, ";
       }
     }
     PrintHeapType(out, type.heap_type(), mode);
     if (mode == kEmitObjects) {
       out << ")";
       if (type.is_exact()) out << ".exact()";
+      if (type.is_shared() == SharedFlag::kYes) out << ".shared()";
     }
   }
 
@@ -1264,36 +1266,48 @@ class MjsunitModuleDis {
     // TODO(14616): Support shared types.
 
     // Support self-referential and mutually-recursive types.
-    std::vector<uint32_t> needed_at(module_->types.size(), kMaxUInt32);
-    auto MarkAsNeededHere = [&needed_at](ValueType vt, uint32_t here) {
-      if (!vt.is_ref()) return;
-      HeapType ht = vt.heap_type();
-      if (!ht.has_index()) return;
-      if (ht.ref_index().index < here) return;
-      if (needed_at[ht.ref_index().index] < here) return;
-      needed_at[ht.ref_index().index] = here;
-    };
+    class NeededAt {
+     public:
+      explicit NeededAt(size_t num_types) : needed_at_(num_types, kMaxUInt32) {}
+
+      void Record(ModuleTypeIndex needed, uint32_t here) {
+        if (needed.index < here) return;
+        if (needed_at_[needed.index] < here) return;
+        needed_at_[needed.index] = here;
+      }
+      void Record(ValueType vt, uint32_t here) {
+        if (!vt.has_index()) return;
+        Record(vt.ref_index(), here);
+      }
+
+      uint32_t operator[](uint32_t index) { return needed_at_[index]; }
+
+     private:
+      std::vector<uint32_t> needed_at_;
+    } needed_at(module_->types.size());
     for (uint32_t i = 0; i < module_->types.size(); i++) {
       const TypeDefinition& type = module_->types[i];
-      if (type.has_descriptor()) needed_at[type.descriptor.index] = i;
-      if (type.is_descriptor()) needed_at[type.describes.index] = i;
-      if (type.supertype != kNoSuperType) needed_at[type.supertype.index] = i;
+      if (type.has_descriptor()) needed_at.Record(type.descriptor, i);
+      if (type.is_descriptor()) needed_at.Record(type.describes, i);
+      if (type.supertype != kNoSuperType) needed_at.Record(type.supertype, i);
       if (module_->has_struct(ModuleTypeIndex{i})) {
         const StructType* struct_type = type.struct_type;
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
-          MarkAsNeededHere(struct_type->field(fi), i);
+          needed_at.Record(struct_type->field(fi), i);
         }
       } else if (module_->has_array(ModuleTypeIndex{i})) {
-        MarkAsNeededHere(type.array_type->element_type(), i);
-      } else {
-        DCHECK(module_->has_signature(ModuleTypeIndex{i}));
+        needed_at.Record(type.array_type->element_type(), i);
+      } else if (module_->has_signature(ModuleTypeIndex{i})) {
         const FunctionSig* sig = type.function_sig;
         for (size_t pi = 0; pi < sig->parameter_count(); pi++) {
-          MarkAsNeededHere(sig->GetParam(pi), i);
+          needed_at.Record(sig->GetParam(pi), i);
         }
         for (size_t ri = 0; ri < sig->return_count(); ri++) {
-          MarkAsNeededHere(sig->GetReturn(ri), i);
+          needed_at.Record(sig->GetReturn(ri), i);
         }
+      } else {
+        DCHECK(module_->has_cont_type(ModuleTypeIndex{i}));
+        needed_at.Record(type.cont_type->contfun_typeindex(), i);
       }
     }
 
