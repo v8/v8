@@ -407,6 +407,11 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
     }
   }
 
+  V8_CLANG_NO_SANITIZE("address")
+  SourceLocation LocationFromGC() const {
+    return LocationPolicy::LocationFromGC();
+  }
+
   // See Get() for details.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast")
   T* GetFromGC() const {

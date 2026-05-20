@@ -158,7 +158,8 @@ declare_args() {
   # Sets -dV8_ENABLE_WEBASSEMBLY.
   v8_enable_webassembly = ""
 
-  # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
+  # Enable 256-bit long vector re-vectorization pass in WASM compilation
+  # pipeline.
   v8_enable_wasm_simd256_revec = false
 
   # We use target_os == "ios" here because it isn't equivalent to is_ios
@@ -212,7 +213,8 @@ declare_args() {
   cppgc_enable_slow_api_checks = false
 
   # Enable object names in cppgc for profiling purposes.
-  cppgc_enable_object_names = is_chrome_for_testing
+  cppgc_enable_object_names =
+      is_chrome_for_testing || (!is_android && !is_fuchsia)
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
