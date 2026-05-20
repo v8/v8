@@ -17370,6 +17370,198 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(ValueNode* iterator,
   compiler::FeedbackSource feedback_source{feedback(),
                                            FeedbackVector::ToSlot(call_slot)};
 
+  // The feedback for ForOfNext is laid out as:
+  // - Call feedback for the .next() call.
+  // - Load feedback for the iterated object (dummy loadic).
+  // - Load feedback for the .value property.
+  // - Load feedback for the .done property.
+  int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
+  int load_slot_size =
+      FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
+
+  FeedbackSlot iterated_object_slot(call_slot + call_slot_size);
+  compiler::FeedbackSource iterated_object_feedback(feedback_source.vector,
+                                                    iterated_object_slot);
+
+  FeedbackSlot value_slot(iterated_object_slot.ToInt() + load_slot_size);
+  compiler::FeedbackSource value_feedback(feedback_source.vector, value_slot);
+
+  FeedbackSlot done_slot(value_slot.ToInt() + load_slot_size);
+  compiler::FeedbackSource done_feedback(feedback_source.vector, done_slot);
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForCall(feedback_source);
+  if (processed_feedback.IsInsufficient()) {
+    return {};
+  }
+  DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
+  const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+  if (call_feedback.target().has_value() &&
+      call_feedback.target()->IsJSFunction()) {
+    compiler::JSFunctionRef feedback_target =
+        call_feedback.target()->AsJSFunction();
+    compiler::SharedFunctionInfoRef shared = feedback_target.shared(broker());
+    if (shared.HasBuiltinId() &&
+        shared.builtin_id() == Builtin::kArrayIteratorPrototypeNext) {
+      PROCESS_AND_RETURN_IF_DONE(
+          TryReduceArrayIteratorForOfNext(
+              iterator, next_method, feedback_source, done_feedback,
+              value_feedback, iterated_object_feedback),
+          SetAccumulator);
+    }
+  }
+
+  return SetAccumulator(BuildForOfNextFallback(
+      iterator, next_method, feedback_source, done_feedback, value_feedback));
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
+    ValueNode* iterator, ValueNode* next_method,
+    compiler::FeedbackSource& feedback_source,
+    compiler::FeedbackSource& done_feedback,
+    compiler::FeedbackSource& value_feedback,
+    compiler::FeedbackSource& iterated_object_feedback) {
+  if (!broker()->dependencies()->DependOnArrayIteratorProtector() ||
+      !broker()->dependencies()->DependOnNoElementsProtector()) {
+    return {};
+  }
+
+  // Check all feedback conditions before emitting any nodes. If the fast path
+  // isn't applicable, return {} and let the caller use BuildForOfNextFallback.
+
+  // TODO(marja): The iterated_object_slot is a dummy LoadIC slot that
+  // ForOfNextHelper fires as LoadIC(iterated_object, Symbol.iterator) solely to
+  // collect the map of the iterated object. Reading it here via
+  // GetFeedbackForPropertyAccess is a hack; ideally the bytecode would have a
+  // dedicated feedback slot for the iterated object's map.
+  const compiler::ProcessedFeedback& iterated_feedback =
+      broker()->GetFeedbackForPropertyAccess(iterated_object_feedback,
+                                             compiler::AccessMode::kLoad,
+                                             broker()->iterator_symbol(), true);
+  if (iterated_feedback.kind() != compiler::ProcessedFeedback::kNamedAccess) {
+    return {};
+  }
+  const compiler::NamedAccessFeedback& named_feedback =
+      iterated_feedback.AsNamedAccess();
+  // TODO(marja): Support polymorphic feedback.
+  if (named_feedback.maps().size() != 1) {
+    return {};
+  }
+  compiler::MapRef map = named_feedback.maps()[0];
+  // TODO(marja): Support other kinds of iterated objects, like TypedArrays.
+  if (!map.IsJSArrayMap() || !IsFastElementsKind(map.elements_kind())) {
+    return {};
+  }
+
+  compiler::NativeContextRef nc = broker()->target_native_context();
+  compiler::MapRef initial_map = nc.initial_array_iterator_map(broker());
+
+  RETURN_IF_ABORT(BuildCheckMaps(iterator, base::VectorOf({initial_map})));
+
+  ValueNode* iterator_kind;
+  GET_VALUE_OR_ABORT(
+      iterator_kind,
+      BuildLoadTaggedField(iterator, offsetof(JSArrayIterator, kind_),
+                           LoadType::kSmi));
+
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value,
+      Select(
+          [&](BranchBuilder& builder) {
+            return BuildBranchIfInt32Compare(
+                builder, Operation::kEqual, iterator_kind,
+                GetSmiConstant(static_cast<int>(IterationKind::kValues)));
+          },
+          [&]() -> ReduceResult {
+            ValueNode* iterated_object;
+            GET_VALUE_OR_ABORT(
+                iterated_object,
+                BuildLoadTaggedField(
+                    iterator, offsetof(JSArrayIterator, iterated_object_)));
+
+            // TODO(marja): Investigate whether this already gets hoisted - if
+            // not, look into moving it out of the for-of loop.
+            RETURN_IF_ABORT(
+                BuildCheckMaps(iterated_object, base::VectorOf({map})));
+
+            // Since the array has fast elements, its length is a Smi, and the
+            // Smi loads below are safe.
+            DCHECK(IsFastElementsKind(map.elements_kind()));
+
+            ValueNode* index;
+            GET_VALUE_OR_ABORT(
+                index, BuildLoadTaggedField(
+                           iterator, offsetof(JSArrayIterator, next_index_),
+                           LoadType::kSmi));
+
+            ValueNode* length;
+            GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(iterated_object,
+                                                              LoadType::kSmi));
+
+            ValueNode* int32_index;
+            GET_VALUE_OR_ABORT(int32_index, GetInt32ElementIndex(index));
+            ValueNode* int32_length;
+            GET_VALUE_OR_ABORT(int32_length, GetInt32ElementIndex(length));
+
+            MaglevSubGraphBuilder subgraph(this, 1);
+            MaglevSubGraphBuilder::Variable ret_value(0);
+
+            RETURN_IF_ABORT(subgraph.Branch(
+                {&ret_value},
+                [&](BranchBuilder& builder) {
+                  return BuildBranchIfInt32Compare(
+                      builder, Operation::kLessThan, int32_index, int32_length);
+                },
+                [&] {
+                  ValueNode* value_node;
+                  GET_VALUE_OR_ABORT(
+                      value_node,
+                      TryBuildElementLoadOnJSArrayOrJSObject(
+                          iterated_object, int32_index, base::VectorOf({map}),
+                          map.elements_kind(),
+                          KeyedAccessLoadMode::kHandleHoles));
+
+                  subgraph.set(ret_value, value_node);
+
+                  // Add 1 to index. This cannot overflow, since index < length.
+                  ValueNode* next_index;
+                  GET_VALUE_OR_ABORT(
+                      next_index,
+                      AddNewNode<Int32Add>({int32_index, GetInt32Constant(1)}));
+                  EnsureType(next_index, NodeType::kSmi);
+                  // Update [[NextIndex]]
+                  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+                      iterator, next_index,
+                      offsetof(JSArrayIterator, next_index_),
+                      StoreTaggedMode::kDefault));
+
+                  return ReduceResult::Done();
+                },
+                [&] {
+                  // Index is greater or equal than length.
+                  subgraph.set(ret_value,
+                               GetRootConstant(RootIndex::kTheHoleValue));
+                  return ReduceResult::Done();
+                }));
+
+            return subgraph.get(ret_value);
+          },
+          [&]() -> ReduceResult {
+            // TODO(marja): support the "keys" and "entries" iteration kinds.
+            return BuildForOfNextFallback(iterator, next_method,
+                                          feedback_source, done_feedback,
+                                          value_feedback);
+          }));
+
+  return value;
+}
+
+ReduceResult MaglevGraphBuilder::BuildForOfNextFallback(
+    ValueNode* iterator, ValueNode* next_method,
+    compiler::FeedbackSource& feedback_source,
+    compiler::FeedbackSource& done_feedback,
+    compiler::FeedbackSource& value_feedback) {
   ValueNode* result_object;
   CallArguments args(ConvertReceiverMode::kAny, {iterator});
   {
@@ -17379,20 +17571,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(ValueNode* iterator,
     GET_VALUE_OR_ABORT(result_object,
                        ReduceCall(next_method, args, feedback_source));
   }
-
-  // The feedback for ForOfNext is laid out as:
-  // - Call feedback for the .next() call.
-  // - Load feedback for the .value property.
-  // - Load feedback for the .done property.
-  int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
-  int load_slot_size =
-      FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
-
-  FeedbackSlot value_slot(feedback_source.slot.ToInt() + call_slot_size);
-  compiler::FeedbackSource value_feedback(feedback_source.vector, value_slot);
-
-  FeedbackSlot done_slot(value_slot.ToInt() + load_slot_size);
-  compiler::FeedbackSource done_feedback(feedback_source.vector, done_slot);
 
   ValueNode* done;
   {
@@ -17445,9 +17623,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(ValueNode* iterator,
                                                 value_feedback);
           }));
 
-  SetAccumulator(value);
-
-  return ReduceResult::Done();
+  return value;
 }
 
 ReduceResult MaglevGraphBuilder::VisitForOfNext() {

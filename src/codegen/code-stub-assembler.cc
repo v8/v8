@@ -18195,7 +18195,7 @@ TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::CallIteratorNext(
   int load_slot_size =
       FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
   TNode<UintPtrT> value_slot =
-      UintPtrAdd(call_slot, UintPtrConstant(call_slot_size));
+      UintPtrAdd(call_slot, UintPtrConstant(call_slot_size + load_slot_size));
   TNode<UintPtrT> done_slot =
       UintPtrAdd(value_slot, UintPtrConstant(load_slot_size));
   Branch(IsUndefined(feedback_vector), &after_collect_feedback,
@@ -18317,6 +18317,32 @@ TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::ForOfNextHelper(
     TNode<JSArrayIterator> array_iterator = CAST(object);
     TNode<JSReceiver> iterated_object = LoadObjectField<JSReceiver>(
         array_iterator, offsetof(JSArrayIterator, iterated_object_));
+    // Collect feedback for the iterated object.
+    int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
+
+    TNode<UintPtrT> iterated_object_slot =
+        UintPtrAdd(call_slot, UintPtrConstant(call_slot_size));
+
+    Label collect_feedback(this), after_collect_feedback(this);
+    Branch(IsUndefined(feedback_vector), &after_collect_feedback,
+           &collect_feedback);
+    BIND(&collect_feedback);
+    {
+      // TODO(marja): Performing a dummy LoadIC(iterated_object,
+      // Symbol.iterator) here solely to collect the map of the iterated object
+      // is a hack. Maglev reads this slot via GetFeedbackForPropertyAccess to
+      // determine the iterated object's map for its fast path. Ideally the
+      // bytecode would have a dedicated feedback slot for the iterated object's
+      // map instead.
+      CallBuiltin(Builtin::kLoadIC, context, iterated_object,
+                  HeapConstantNoHole(factory()->iterator_symbol()),
+                  IntPtrToTaggedIndex(Signed(iterated_object_slot)),
+                  feedback_vector);
+      Goto(&after_collect_feedback);
+    }
+    BIND(&after_collect_feedback);
+
+    // TODO(marja): Support typed arrays in the fast path below.
     GotoIfNot(IsJSArray(iterated_object), &slow_path);
     TNode<JSArray> iterated_array = CAST(iterated_object);
 

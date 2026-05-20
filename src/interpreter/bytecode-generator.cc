@@ -3388,6 +3388,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           if (v8_flags.for_of_optimization &&
               iterator.type() != IteratorType::kAsync) {
             FeedbackSlot call_slot = feedback_spec()->AddCallICSlot();
+            feedback_spec()->AddLoadICSlot();  // iterated_object_slot
             feedback_spec()->AddLoadICSlot();  // value_slot
             feedback_spec()->AddLoadICSlot();  // done_slot
 

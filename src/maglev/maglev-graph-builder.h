@@ -1045,6 +1045,19 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceForOfNext(ValueNode* iterator,
                                        ValueNode* next_method, int call_slot);
 
+  MaybeReduceResult TryReduceArrayIteratorForOfNext(
+      ValueNode* iterator, ValueNode* next_method,
+      compiler::FeedbackSource& feedback_source,
+      compiler::FeedbackSource& done_feedback,
+      compiler::FeedbackSource& value_feedback,
+      compiler::FeedbackSource& iterated_object_feedback);
+
+  ReduceResult BuildForOfNextFallback(ValueNode* iterator,
+                                      ValueNode* next_method,
+                                      compiler::FeedbackSource& feedback_source,
+                                      compiler::FeedbackSource& done_feedback,
+                                      compiler::FeedbackSource& value_feedback);
+
   MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
                                   ValueNode* new_target,
                                   compiler::SharedFunctionInfoRef shared,
