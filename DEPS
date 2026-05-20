@@ -73,6 +73,9 @@ vars = {
   # V8 doesn't need src_internal, but some shared GN files use this variable.
   'checkout_src_internal': False,
 
+  # Fetch the internal agents repository.
+  'checkout_agents_internal': False,
+
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.185.0.db415f21-gomaip',
 
@@ -136,9 +139,24 @@ vars = {
   # the commit queue can handle CLs rolling jetstream_3.0-custom_revision
   # and whatever else without interference from each other.
   'jetstream_3.0-custom_revision': '91552391bf2f429a2b7102c5c02d6f2cb82b4bcf',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling agents-internal
+  # and whatever else without interference from each other.
+  'agents_internal_revision': '9da720d66a9ae9d88afa34870de16854ec0ea13b',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling agents-public
+  # and whatever else without interference from each other.
+  'agents_public_revision': '36edcee9526c18e12da08de3c432bd89429cbf8b',
 }
 
 deps = {
+  'agents/shared': {
+    'url': Var('chromium_url') + '/chromium/agents.git' + '@' + Var('agents_public_revision'),
+  },
+  'agents/internal': {
+    'url': Var('chrome_internal_url') + '/chrome/agents-internal.git' + '@' + Var('agents_internal_revision'),
+    'condition': 'checkout_agents_internal',
+  },
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '8896bef21e0491da1232556db3cdfcf192f93018',
   'buildtools':
