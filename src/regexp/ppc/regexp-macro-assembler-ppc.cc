@@ -1352,8 +1352,10 @@ void RegExpMacroAssemblerPPC::SafeCall(Label* to, Condition cond,
 
 void RegExpMacroAssemblerPPC::SafeReturn() {
   __ pop(r0);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ add(r0, r0, ip);
+  UseScratchRegisterScope temps(masm_.get());
+  Register scratch = temps.Acquire();
+  __ mov(scratch, Operand(masm_->CodeObject()));
+  __ add(r0, r0, scratch);
   __ mtlr(r0);
   __ blr();
 }
@@ -1361,8 +1363,10 @@ void RegExpMacroAssemblerPPC::SafeReturn() {
 void RegExpMacroAssemblerPPC::SafeCallTarget(Label* name) {
   __ bind(name);
   __ mflr(r0);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ sub(r0, r0, ip);
+  UseScratchRegisterScope temps(masm_.get());
+  Register scratch = temps.Acquire();
+  __ mov(scratch, Operand(masm_->CodeObject()));
+  __ sub(r0, r0, scratch);
   __ push(r0);
 }
 
