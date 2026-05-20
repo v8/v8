@@ -5304,7 +5304,7 @@ class TurboshaftGraphBuildingInterface
                                            : compiler::kWithoutNullCheck,
           {});
       result->op = old_value;
-      V<Any> new_value;
+      V<Word64> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprStructAtomicAdd:
@@ -5323,7 +5323,7 @@ class TurboshaftGraphBuildingInterface
           new_value = __ Word64BitwiseXor(old, field_value.get<Word64>());
           break;
         case kExprStructAtomicExchange:
-          new_value = field_value.op;
+          new_value = field_value.get<Word64>();
           break;
         default:
           UNREACHABLE();
@@ -5356,10 +5356,9 @@ class TurboshaftGraphBuildingInterface
       }
     })(opcode);
     result->op = __ StructAtomicRMW(
-        struct_object.get<WasmStructNullable>(),
-        field_value.get<WasmStructNullable>(), OpIndex::Invalid(), op,
-        field.struct_imm.struct_type, field.struct_imm.index,
-        field.field_imm.index,
+        struct_object.get<WasmStructNullable>(), field_value.op,
+        OpIndex::Invalid(), op, field.struct_imm.struct_type,
+        field.struct_imm.index, field.field_imm.index,
         struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                          : compiler::kWithoutNullCheck,
         memory_order);
@@ -5388,7 +5387,7 @@ class TurboshaftGraphBuildingInterface
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ StructSet(struct_object.get<WasmStructNullable>(),
-                     new_value.get<WasmStructNullable>(), struct_type,
+                     new_value.get<Word64>(), struct_type,
                      field.struct_imm.index, field.field_imm.index,
                      compiler::kWithoutNullCheck, {},
                      FieldImmediateToWriteBarrier(field));
@@ -5397,9 +5396,8 @@ class TurboshaftGraphBuildingInterface
     }
 
     result->op = __ StructAtomicRMW(
-        struct_object.get<WasmStructNullable>(),
-        new_value.get<WasmStructNullable>(),
-        expected_value.get<WasmStructNullable>(),
+        struct_object.get<WasmStructNullable>(), new_value.op,
+        expected_value.op,
         compiler::turboshaft::StructAtomicRMWOp::BinOp::kCompareExchange,
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index,
@@ -5524,7 +5522,7 @@ class TurboshaftGraphBuildingInterface
       V<Any> old_value = __ ArrayGet(array_value, index.get<Word32>(),
                                      imm.array_type, true, {});
       result->op = old_value;
-      V<compiler::turboshaft::Word> new_value;
+      V<Word64> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprArrayAtomicAdd:
@@ -5543,7 +5541,7 @@ class TurboshaftGraphBuildingInterface
           new_value = __ Word64BitwiseXor(old, value.get<Word64>());
           break;
         case kExprArrayAtomicExchange:
-          new_value = value.get<Word>();
+          new_value = value.get<Word64>();
           break;
         default:
           UNREACHABLE();
@@ -5576,8 +5574,8 @@ class TurboshaftGraphBuildingInterface
     })(opcode);
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
-    result->op = __ ArrayAtomicRMW(array_value, index.get<Word32>(),
-                                   value.get<Word32>(), OpIndex::Invalid(), op,
+    result->op = __ ArrayAtomicRMW(array_value, index.get<Word32>(), value.op,
+                                   OpIndex::Invalid(), op,
                                    imm.array_type->element_type(), order);
   }
 
@@ -5599,7 +5597,7 @@ class TurboshaftGraphBuildingInterface
           array_value, index.get<Word32>(), imm.array_type, true, {}));
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
-        __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word32>(),
+        __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
                     imm.array_type->element_type(), {},
                     ArrayIndexImmediateToWriteBarrier(imm));
       }
@@ -5607,8 +5605,7 @@ class TurboshaftGraphBuildingInterface
     }
 
     result->op = __ ArrayAtomicRMW(
-        array_value, index.get<Word32>(), new_value.get<Word32>(),
-        expected_value.get<Word32>(),
+        array_value, index.get<Word32>(), new_value.op, expected_value.op,
         compiler::turboshaft::ArrayAtomicRMWOp::BinOp::kCompareExchange,
         imm.array_type->element_type(), order);
   }
