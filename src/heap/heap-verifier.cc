@@ -881,8 +881,11 @@ void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(
 void HeapVerifier::SetPendingLayoutChangeObject(Heap* heap,
                                                 Tagged<HeapObject> object) {
   VerifyObjectLayoutChangeIsAllowed(heap, object);
-  CHECK(pending_layout_change_object.is_null());
-  pending_layout_change_object = object;
+  {
+    DisableGCMole no_gcmole;
+    CHECK(pending_layout_change_object.is_null());
+    pending_layout_change_object = object;
+  }
 }
 
 // static
@@ -899,15 +902,18 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
 
   PtrComprCageBase cage_base(heap->isolate());
 
-  // Check that Heap::NotifyObjectLayoutChange was called for object transitions
-  // that are not safe for concurrent marking.
-  // If you see this check triggering for a freshly allocated object,
-  // use object->set_map_after_allocation() to initialize its map.
-  if (pending_layout_change_object.is_null()) {
-    VerifySafeMapTransition(heap, object, new_map);
-  } else {
-    CHECK_EQ(pending_layout_change_object, object);
-    pending_layout_change_object = {};
+  {
+    DisableGCMole no_gcmole;
+    // Check that Heap::NotifyObjectLayoutChange was called for object
+    // transitions that are not safe for concurrent marking. If you see this
+    // check triggering for a freshly allocated object, use
+    // object->set_map_after_allocation() to initialize its map.
+    if (pending_layout_change_object.is_null()) {
+      VerifySafeMapTransition(heap, object, new_map);
+    } else {
+      CHECK_EQ(pending_layout_change_object, object);
+      pending_layout_change_object = {};
+    }
   }
 }
 
