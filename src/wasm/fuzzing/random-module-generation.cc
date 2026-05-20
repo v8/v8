@@ -1081,6 +1081,19 @@ class BodyGen {
     builder_->EmitWithPrefix(Op);
   }
 
+  template <WasmOpcode Op, ValueKind... Args>
+  void wide_arithmetic_op(DataRange* data) {
+    if (!v8_flags.experimental_wasm_wide_arithmetic) {
+      GenerateI64(data);
+      return;
+    }
+    Generate<Args...>(data);
+    builder_->EmitWithPrefix(Op);
+    constexpr ValueType kReturns[] = {kWasmI64, kWasmI64};
+    constexpr ValueType kWanted[] = {kWasmI64};
+    ConsumeAndGenerate(base::VectorOf(kReturns), base::VectorOf(kWanted), data);
+  }
+
   void simd_const(DataRange* data) {
     builder_->EmitWithPrefix(kExprS128Const);
     for (int i = 0; i < kSimd128Size; i++) {
@@ -3260,6 +3273,11 @@ class BodyGen {
         &BodyGen::op_with_prefix<kExprI64UConvertSatF32, kF32>,
         &BodyGen::op_with_prefix<kExprI64SConvertSatF64, kF64>,
         &BodyGen::op_with_prefix<kExprI64UConvertSatF64, kF64>,
+
+        &BodyGen::wide_arithmetic_op<kExprI64Add128, kI64, kI64, kI64, kI64>,
+        &BodyGen::wide_arithmetic_op<kExprI64Sub128, kI64, kI64, kI64, kI64>,
+        &BodyGen::wide_arithmetic_op<kExprI64MulWideS, kI64, kI64>,
+        &BodyGen::wide_arithmetic_op<kExprI64MulWideU, kI64, kI64>,
 
         &BodyGen::block<kI64>,            //
         &BodyGen::loop<kI64>,             //

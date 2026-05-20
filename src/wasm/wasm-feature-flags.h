@@ -44,16 +44,10 @@
   /* V8 side owner: irezvov */                                                 \
   V(fp16, "fp16", false)                                                       \
                                                                                \
-  /* Wide Arithmetic proposal */                                               \
-  /* https://github.com/WebAssembly/wide-arithmetic */                         \
-  /* V8 side owner: ryandiaz */                                                \
-  V(wide_arithmetic, "wide arithmetic", false)                                 \
-                                                                               \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
   V(memory_control, "memory control", false)                                   \
-                                                                               \
   /* Core stack switching, main proposal */                                    \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: fgm */                                                     \
@@ -89,6 +83,11 @@
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
+                                                                               \
+  /* Wide Arithmetic proposal */                                               \
+  /* https://github.com/WebAssembly/wide-arithmetic */                         \
+  /* V8 side owner: ryandiaz */                                                \
+  V(wide_arithmetic, "wide arithmetic", false)                                 \
   // add pre-staged features right before this line
 
 // #############################################################################
