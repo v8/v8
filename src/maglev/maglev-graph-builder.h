@@ -1605,6 +1605,8 @@ class MaglevGraphBuilder {
                                         ValueNode* string);
   VirtualObject* CreateJSStringWrapper(ValueNode* value);
   VirtualObject* CreateJSPromiseObject();
+  VirtualObject* CreateAsyncResumeTask(ValueNode* generator, ValueNode* value,
+                                       ValueNode* kind);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);

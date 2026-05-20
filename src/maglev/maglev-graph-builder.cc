@@ -13503,12 +13503,77 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGetImportMetaObject(
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
-  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionAwait>(
-      {tagged_arg_0, tagged_arg_1}));
+  ValueNode* async_function_object;
+  GET_VALUE_OR_ABORT(async_function_object, GetTaggedValue(args[0]));
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, GetTaggedValue(args[1]));
+
+  if (!broker()->dependencies()->DependOnPromiseHookProtector() ||
+      !broker()->dependencies()->DependOnPromiseSpeciesProtector() ||
+      !broker()->dependencies()->DependOnPromiseThenProtector()) {
+    SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionAwait>(
+        {async_function_object, value}));
+    return ReduceResult::Done();
+  }
+
+  compiler::MapRef promise_map =
+      broker()->target_native_context().promise_function(broker()).initial_map(
+          broker());
+
+  ValueNode* outer_promise;
+  GET_VALUE_OR_ABORT(
+      outer_promise,
+      BuildLoadTaggedField(async_function_object,
+                           offsetof(JSAsyncFunctionObject, promise_)));
+
+  MaglevSubGraphBuilder sub_graph(this, 1);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Label slow_path(&sub_graph, 3);
+  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
+
+  RETURN_IF_ABORT(sub_graph.GotoIfTrue<BranchIfSmi>(&slow_path, {value}));
+
+  ValueNode* value_map;
+  GET_VALUE_OR_ABORT(value_map, BuildLoadMap(value));
+  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+      &slow_path, {value_map, GetConstant(promise_map)}));
+
+  ValueNode* flags;
+  GET_VALUE_OR_ABORT(flags,
+                     BuildLoadTaggedField(value, offsetof(JSPromise, flags_)));
+  RETURN_IF_ABORT(sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
+      &slow_path,
+      {flags, GetSmiConstant(static_cast<int>(Promise::kFulfilled))}));
+
+  ValueNode* fulfilled_value;
+  GET_VALUE_OR_ABORT(
+      fulfilled_value,
+      BuildLoadTaggedField(value, offsetof(JSPromise, reactions_or_result_)));
+
+  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
+      value,
+      GetSmiConstant(static_cast<int>(Promise::kFulfilled) |
+                     JSPromise::HasHandlerBit::kMask),
+      offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
+
+  VirtualObject* task = CreateAsyncResumeTask(
+      async_function_object, fulfilled_value,
+      GetSmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
+  ValueNode* task_node;
+  GET_VALUE_OR_ABORT(task_node,
+                     BuildInlinedAllocation(task, AllocationType::kYoung));
+  BuildCallBuiltin<Builtin::kEnqueueMicrotask>({task_node});
+
+  sub_graph.set(ret_val, outer_promise);
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&slow_path);
+  sub_graph.set(ret_val, BuildCallBuiltin<Builtin::kAsyncFunctionAwait>(
+                             {async_function_object, value}));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&done);
+  SetAccumulator(sub_graph.get(ret_val));
   return ReduceResult::Done();
 }
 
@@ -15271,6 +15336,28 @@ VirtualObject* MaglevGraphBuilder::CreateJSPromiseObject() {
        offset += kTaggedSize) {
     vobj->set(offset, GetSmiConstant(0));
   }
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateAsyncResumeTask(ValueNode* generator,
+                                                         ValueNode* value,
+                                                         ValueNode* kind) {
+  compiler::MapRef map = broker()->async_resume_task_map();
+  int instance_size = map.instance_size();
+  int slot_count = instance_size / kTaggedSize;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this,
+      &VirtualAsyncResumeTaskShape::kObjectLayout, map, slot_count);
+  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  ValueNode* cped =
+      AddNewNodeNoInputConversion<GetContinuationPreservedEmbedderData>({});
+  vobj->set(ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,
+            cped);
+#endif
+  vobj->set(ObjectTraits<AsyncResumeTask>::kGeneratorOffset, generator);
+  vobj->set(ObjectTraits<AsyncResumeTask>::kValueOffset, value);
+  vobj->set(ObjectTraits<AsyncResumeTask>::kKindOffset, kind);
   return vobj;
 }
 

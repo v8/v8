@@ -71,6 +71,8 @@
 namespace v8 {
 namespace internal {
 
+class AsyncResumeTask;
+
 enum Condition : int;
 
 namespace maglev {
@@ -5963,6 +5965,26 @@ struct VirtualJSPromiseObjectShape : VirtualJSObjectShape {
     vobj::FieldType::kTagged)                         \
   V(flags, T::kFlagsOffset, vobj::FieldType::kTagged) \
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualAsyncResumeTaskShape : VirtualHeapObjectShape {
+  using T = AsyncResumeTask;
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+#define FIELD_LIST(V)                                                       \
+  V(continuation_preserved_embedder_data,                                   \
+    ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,      \
+    vobj::FieldType::kTagged)                                               \
+  V(generator, ObjectTraits<T>::kGeneratorOffset, vobj::FieldType::kTagged) \
+  V(value, ObjectTraits<T>::kValueOffset, vobj::FieldType::kTagged)         \
+  V(kind, ObjectTraits<T>::kKindOffset, vobj::FieldType::kTagged)
+#else
+#define FIELD_LIST(V)                                                       \
+  V(generator, ObjectTraits<T>::kGeneratorOffset, vobj::FieldType::kTagged) \
+  V(value, ObjectTraits<T>::kValueOffset, vobj::FieldType::kTagged)         \
+  V(kind, ObjectTraits<T>::kKindOffset, vobj::FieldType::kTagged)
+#endif
+  DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
