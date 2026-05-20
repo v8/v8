@@ -135,7 +135,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling jetstream_3.0-custom_revision
   # and whatever else without interference from each other.
-  'jetstream_3.0-custom_revision': '2145cedef4ca2777b792cb0059d3400ee2a6153c',
+  'jetstream_3.0-custom_revision': '91552391bf2f429a2b7102c5c02d6f2cb82b4bcf',
 }
 
 deps = {
