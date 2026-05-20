@@ -972,8 +972,9 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  int contextId = context->contextId();
   auto it = m_activeBindings.find(name);
-  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+  if (it != m_activeBindings.end() && it->second.count(contextId)) {
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
@@ -987,12 +988,13 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
-    if (it == m_activeBindings.end()) {
-      m_activeBindings.emplace(name,
-                               std::unordered_set<int>(context->contextId()));
-    } else {
-      m_activeBindings.at(name).insert(context->contextId());
+
+    // The context might have been destroyed during the Set() call due to
+    // re-entrant JS.
+    if (!m_inspector->getContext(m_session->contextGroupId(), contextId)) {
+      return;
     }
+    m_activeBindings[name].insert(contextId);
   }
 }
 
