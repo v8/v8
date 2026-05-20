@@ -2155,6 +2155,70 @@ CallBuiltin* MaglevReducer<BaseT>::BuildCallBuiltin(
   return call_builtin;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// When calling a JS-to-Wasm wrapper and Turbolev Wasm inlining is enabled,
+// callers wrap all arguments with ProcessWasmArgument. This identity node
+// carries an eager deopt frame state (the pre-call checkpoint) so that when
+// the wrapper is later inlined by Turbolev, the conversion builtins can
+// never lazily-deoptimize with a JSReceiver triggering valueOf
+// (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
+// signature); the reducer only uses the frame state for numeric params.
+// LINT.IfChange(WasmWrapperInliningConditions)
+template <typename BaseT>
+bool MaglevReducer<BaseT>::ShouldWrapArgsForWasmInlining(
+    compiler::SharedFunctionInfoRef shared, JSDispatchHandle dispatch_handle) {
+  if (!is_turbolev()) return false;
+  if (!v8_flags.wasm_in_js_inlining_wrapper) return false;
+  // The SharedFunctionInfo of a Wasm exported function does not carry a
+  // builtin ID, so the check below filters out regular JS builtins.
+  // However, the Code installed in the dispatch table can be either:
+  //  - The generic kJSToWasmWrapper builtin (used before a per-signature
+  //    wrapper has been compiled), or
+  //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
+  // We detect both cases by inspecting the Code object directly.
+  if (!shared.object()->HasWasmExportedFunctionData(local_isolate())) {
+    return false;
+  }
+  Tagged<Code> code =
+      local_isolate()->js_dispatch_table().GetCode(dispatch_handle);
+  return code->builtin_id() == Builtin::kJSToWasmWrapper ||
+         code->kind() == CodeKind::JS_TO_WASM_FUNCTION;
+}
+// LINT.ThenChange(src/compiler/turboshaft/turbolev-graph-builder.cc:WasmWrapperInliningConditions)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCallKnownJSFunction(
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
+    ValueNode* tagged_function, ValueNode* tagged_context,
+    ValueNode* tagged_receiver, ValueNode* tagged_new_target, int arg_count,
+    base::FunctionRef<ReduceResult(int)> get_arg,
+    compiler::FeedbackSource const& feedback_source) {
+#if V8_ENABLE_WEBASSEMBLY
+  const bool wrap_args_for_wasm =
+      ShouldWrapArgsForWasmInlining(shared, dispatch_handle);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  size_t input_count = arg_count + CallKnownJSFunction::kFixedInputCount;
+  return AddNewNode<CallKnownJSFunction>(
+      input_count,
+      [&](CallKnownJSFunction* call) {
+        for (int i = 0; i < arg_count; i++) {
+          ValueNode* arg;
+          GET_VALUE_OR_ABORT(arg, get_arg(i));
+#if V8_ENABLE_WEBASSEMBLY
+          if (wrap_args_for_wasm) {
+            GET_VALUE_OR_ABORT(arg, AddNewNode<ProcessWasmArgument>({arg}));
+          }
+#endif  // V8_ENABLE_WEBASSEMBLY
+          call->set_arg(i, arg);
+        }
+        return ReduceResult::Done();
+      },
+      dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
+      tagged_new_target, feedback_source);
+}
+
 template <typename BaseT>
 compiler::OptionalStringRef MaglevReducer<BaseT>::GetStringFromInt32(
     int32_t value) {

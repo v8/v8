@@ -1486,7 +1486,7 @@ class GraphBuildingNodeProcessor {
             TryInlineWasmWrapper(node, function_data, native_module);
       }
     }
-    // LINT.ThenChange(src/maglev/maglev-graph-builder.cc:WasmWrapperInliningConditions)
+    // LINT.ThenChange(src/maglev/maglev-reducer-inl.h:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     V<Object> callee = Map(node->TargetInput());

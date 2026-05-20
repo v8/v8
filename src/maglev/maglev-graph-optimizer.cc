@@ -1190,41 +1190,11 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   }
 
   // Promote to CallKnownJSFunction.
-  size_t input_count =
-      positional_arg_count + CallKnownJSFunction::kFixedInputCount;
-
-#if V8_ENABLE_WEBASSEMBLY
-  // LINT.IfChange(WasmWrapperInliningConditions)
-  bool wrap_args_for_wasm = false;
-  if (reducer_.is_turbolev() && v8_flags.wasm_in_js_inlining_wrapper &&
-      shared.object()->HasWasmExportedFunctionData(
-          broker()->local_isolate_or_isolate())) {
-    Tagged<Code> code =
-        broker()->local_isolate_or_isolate()->js_dispatch_table().GetCode(
-            target_function->dispatch_handle());
-    wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
-                         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
-  }
-  // LINT.ThenChange(src/maglev/maglev-graph-builder.cc:WasmWrapperInliningConditions)
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  ReduceResult new_call = reducer_.AddNewNode<CallKnownJSFunction>(
-      input_count,
-      [&](CallKnownJSFunction* call) {
-        for (int i = 0; i < positional_arg_count; i++) {
-          ValueNode* arg = node->arg(i + 1).node();
-#if V8_ENABLE_WEBASSEMBLY
-          if (wrap_args_for_wasm) {
-            arg = reducer_.AddNewNodeNoInputConversion<ProcessWasmArgument>(
-                {arg});
-          }
-#endif  // V8_ENABLE_WEBASSEMBLY
-          call->set_arg(i, arg);
-        }
-        return ReduceResult::Done();
-      },
+  ReduceResult new_call = reducer_.BuildCallKnownJSFunction(
       target_function->dispatch_handle(), shared, target, context,
-      converted_receiver, new_target, node->feedback());
+      converted_receiver, new_target, positional_arg_count,
+      [&](int i) { return ReduceResult::Done(node->arg(i + 1).node()); },
+      node->feedback());
   DCHECK(new_call.IsDoneWithValue());
   CallKnownJSFunction* new_call_node =
       new_call.value()->Cast<CallKnownJSFunction>();

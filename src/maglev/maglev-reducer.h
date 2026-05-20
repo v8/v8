@@ -675,6 +675,18 @@ class MaglevReducer {
       compiler::FeedbackSource const& feedback,
       CallBuiltin::FeedbackSlotType slot_type);
 
+  ReduceResult BuildCallKnownJSFunction(
+      JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
+      ValueNode* tagged_function, ValueNode* tagged_context,
+      ValueNode* tagged_receiver, ValueNode* tagged_new_target, int arg_count,
+      base::FunctionRef<ReduceResult(int)> get_arg,
+      compiler::FeedbackSource const& feedback_source);
+
+#if V8_ENABLE_WEBASSEMBLY
+  bool ShouldWrapArgsForWasmInlining(compiler::SharedFunctionInfoRef shared,
+                                     JSDispatchHandle dispatch_handle);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);
 
   MaybeReduceResult TryFoldNumberToString(ValueNode* value);

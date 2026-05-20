@@ -12524,54 +12524,10 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
         tagged_context, tagged_receiver, tagged_new_target, feedback_source);
   }
 
-  size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
-
-#if V8_ENABLE_WEBASSEMBLY
-  // When calling a JS-to-Wasm wrapper and Turbolev Wasm inlining is enabled,
-  // wrap all arguments with ProcessWasmArgument. This identity node carries
-  // an eager deopt frame state (the pre-call checkpoint) so that when the
-  // wrapper is later inlined by Turbolev, the conversion builtins can never
-  // lazily-deoptimize with a JSReceiver triggering valueOf
-  // (crbug.com/493307329). We wrap all args here (Maglev doesn't know the wasm
-  // signature); the reducer only uses the frame state for numeric params.
-  // LINT.IfChange(WasmWrapperInliningConditions)
-  bool wrap_args_for_wasm = false;
-  if (is_turbolev() && v8_flags.wasm_in_js_inlining_wrapper &&
-      shared.object()->HasWasmExportedFunctionData(local_isolate_)) {
-    // The SharedFunctionInfo of a Wasm exported function does not carry a
-    // builtin ID, so the check above filters out regular JS builtins.
-    // However, the Code installed in the dispatch table can be either:
-    //  - The generic kJSToWasmWrapper builtin (used before a per-signature
-    //    wrapper has been compiled), or
-    //  - A jitted per-signature wrapper (CodeKind::JS_TO_WASM_FUNCTION).
-    // We detect both cases by inspecting the Code object directly.
-    Tagged<Code> code =
-        local_isolate_->js_dispatch_table().GetCode(dispatch_handle);
-    wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
-                         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
-  }
-  // LINT.ThenChange(src/compiler/turboshaft/turbolev-graph-builder.cc:WasmWrapperInliningConditions)
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  return AddNewNode<CallKnownJSFunction>(
-      input_count,
-      [&](CallKnownJSFunction* call) {
-        for (int i = 0; i < static_cast<int>(args.count()); i++) {
-          ValueNode* tagged_arg;
-          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(args[i]));
-#if V8_ENABLE_WEBASSEMBLY
-          if (wrap_args_for_wasm) {
-            // Note that this might untag the argument.
-            GET_VALUE_OR_ABORT(tagged_arg,
-                               AddNewNode<ProcessWasmArgument>({tagged_arg}));
-          }
-#endif  // V8_ENABLE_WEBASSEMBLY
-          call->set_arg(i, tagged_arg);
-        }
-        return ReduceResult::Done();
-      },
+  return reducer().BuildCallKnownJSFunction(
       dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
-      tagged_new_target, feedback_source);
+      tagged_new_target, static_cast<int>(args.count()),
+      [&](int i) { return GetTaggedValue(args[i]); }, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
@@ -12582,8 +12538,6 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   constexpr int kSkipReceiver = 1;
   int argcount_without_receiver =
       static_cast<int>(arguments.size()) - kSkipReceiver;
-  size_t input_count =
-      argcount_without_receiver + CallKnownJSFunction::kFixedInputCount;
   ValueNode* tagged_function;
   GET_VALUE_OR_ABORT(tagged_function, GetTaggedValue(function));
   ValueNode* tagged_context;
@@ -12592,19 +12546,11 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
   GET_VALUE_OR_ABORT(tagged_receiver, GetTaggedValue(arguments[0]));
   ValueNode* tagged_new_target;
   GET_VALUE(tagged_new_target, GetTaggedValue(new_target));
-  return AddNewNode<CallKnownJSFunction>(
-      input_count,
-      [&](CallKnownJSFunction* call) {
-        for (int i = 0; i < argcount_without_receiver; i++) {
-          ValueNode* tagged_arg;
-          GET_VALUE_OR_ABORT(tagged_arg,
-                             GetTaggedValue(arguments[i + kSkipReceiver]));
-          call->set_arg(i, tagged_arg);
-        }
-        return ReduceResult::Done();
-      },
+  return reducer().BuildCallKnownJSFunction(
       dispatch_handle, shared, tagged_function, tagged_context, tagged_receiver,
-      tagged_new_target, compiler::FeedbackSource{});
+      tagged_new_target, argcount_without_receiver,
+      [&](int i) { return GetTaggedValue(arguments[i + kSkipReceiver]); },
+      compiler::FeedbackSource{});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
