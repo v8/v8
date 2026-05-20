@@ -484,6 +484,7 @@ class WasmLoweringReducer : public Next {
 
   V<WasmStruct> REDUCE(WasmAllocateStruct)(V<Map> rtt,
                                            const wasm::StructType* struct_type,
+                                           wasm::ModuleTypeIndex type_index,
                                            SharedFlag is_shared) {
     int size = WasmStruct::Size(struct_type);
     Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(

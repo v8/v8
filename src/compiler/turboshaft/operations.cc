@@ -2197,6 +2197,12 @@ void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
      << "]";
 }
 
+void WasmAllocateStructOp::PrintOptions(std::ostream& os) const {
+  os << '[' << type_index
+     << ", is_shared: " << (is_shared == SharedFlag::kYes ? "true" : "false")
+     << "]";
+}
+
 void StructGetOp::PrintOptions(std::ostream& os) const {
   os << '[' << type << ", " << type_index << ", ";
   if (is_get_desc()) {

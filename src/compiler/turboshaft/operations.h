@@ -8469,11 +8469,16 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::StructType* struct_type;
+  wasm::ModuleTypeIndex type_index;
   SharedFlag is_shared;
 
   explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type,
+                                wasm::ModuleTypeIndex type_index,
                                 SharedFlag is_shared)
-      : Base(rtt), struct_type(struct_type), is_shared(is_shared) {}
+      : Base(rtt),
+        struct_type(struct_type),
+        type_index(type_index),
+        is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
 
@@ -8486,7 +8491,10 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  auto options() const { return std::tuple{struct_type, is_shared}; }
+  auto options() const {
+    return std::tuple{struct_type, type_index, is_shared};
+  }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
