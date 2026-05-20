@@ -1670,6 +1670,46 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
   }
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  mov(addr, Operand(reinterpret_cast<uintptr_t>(max_steps_ptr)));
+  Register max_steps = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  LoadS32(max_steps, MemOperand(addr), r0);
+
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    SubS32(max_steps, max_steps, Operand(*steps_const), r0, SetRC);
+    StoreU32(max_steps, MemOperand(addr), r0);
+    blt(trap_label);
+    return;
+  }
+
+  auto [reg, kind] = std::get<std::pair<Register, ValueKind>>(steps);
+
+  // Decrement the counter. If it underflows, clamp to -1 to prevent
+  // wraparound into positive range.
+  if (kind == kI64) {
+    CmpU64(max_steps, reg);
+  } else {
+    CmpU32(max_steps, reg);
+  }
+  SubS64(max_steps, max_steps, reg, LeaveOE, LeaveRC);
+  // If max_steps was `unsigned less than` reg, the subtraction wrapped around,
+  // clamp to -1.
+  Label no_underflow;
+  bge(&no_underflow);
+  mov(max_steps, Operand(-1));
+  bind(&no_underflow);
+
+  StoreU32(max_steps, MemOperand(addr), r0);
+  CmpS32(max_steps, Operand(0), r0);
+
+  // Now trap if the (possibly capped) result is negative.
+  blt(trap_label);
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
