@@ -6427,7 +6427,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
-       v8_flags.turbo_profiling || v8_flags.print_turbolev_frontend) &&
+       v8_flags.turbo_profiling || v8_flags.print_turbolev_frontend ||
+       v8_flags.print_turbolev_inline_functions) &&
       !v8_flags.concurrent_turbo_tracing) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {
