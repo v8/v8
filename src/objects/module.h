@@ -140,7 +140,7 @@ V8_OBJECT class Module : public HeapObject {
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<Module> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
-      Zone* zone);
+      Zone* zone, unsigned depth, unsigned* max_depth);
 
   // Set module's status back to kUnlinked and reset other internal state.
   // This is used when instantiation fails.

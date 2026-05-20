@@ -604,7 +604,7 @@ bool SourceTextModule::MaybeTransitionComponent(
 bool SourceTextModule::FinishInstantiate(
     Isolate* isolate, Handle<SourceTextModule> module,
     ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
-    Zone* zone) {
+    Zone* zone, unsigned depth, unsigned* max_depth) {
   // Instantiate SharedFunctionInfo and mark module as instantiating for
   // the recursion.
   DirectHandle<SharedFunctionInfo> shared(
@@ -634,7 +634,7 @@ bool SourceTextModule::FinishInstantiate(
     Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
     if (!Module::FinishInstantiate(isolate, requested_module, stack, dfs_index,
-                                   zone)) {
+                                   zone, depth + 1, max_depth)) {
       return false;
     }
 

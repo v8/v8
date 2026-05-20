@@ -219,7 +219,7 @@ V8_OBJECT class SourceTextModule : public Module {
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
-      Zone* zone);
+      Zone* zone, unsigned depth, unsigned* max_depth);
   static V8_WARN_UNUSED_RESULT bool RunInitializationCode(
       Isolate* isolate, DirectHandle<SourceTextModule> module);
 

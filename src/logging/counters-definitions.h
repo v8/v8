@@ -105,7 +105,9 @@ namespace internal {
   HR(external_pointer_table_compaction_outcome,                                \
      V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)                        \
   HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)               \
-  HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)
+  HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)             \
+  HR(esm_modules_per_page, V8.ESMModulesPerPage, 1, 1024, 30)                  \
+  HR(esm_import_graph_depth, V8.ESMImportGraphDepth, 1, 128, 20)
 
 #if V8_ENABLE_DRUMBRAKE
 #define HISTOGRAM_RANGE_LIST_SLOW(HR)                                         \
