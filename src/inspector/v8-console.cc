@@ -1051,7 +1051,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
-  data()->Set(context, kCommandLineAPIIndex, commandLineAPI).Check();
+  data()
+      ->CreateDataProperty(context, kCommandLineAPIIndex, commandLineAPI)
+      .Check();
 
   for (uint32_t i = 0; i < names->Length(); ++i) {
     v8::Local<v8::Value> name;
@@ -1071,7 +1073,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
              .FromMaybe(false)) {
       continue;
     }
-    data()->Set(context, data()->Length(), name).Check();
+    data()->CreateDataProperty(context, data()->Length(), name).Check();
   }
 }
 
@@ -1079,7 +1081,9 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
   if (m_isolate->IsExecutionTerminating()) return;
   v8::MicrotasksScope microtasksScope(context(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
-  data()->Set(context(), kCommandLineAPIIndex, v8::Null(isolate())).Check();
+  data()
+      ->CreateDataProperty(context(), kCommandLineAPIIndex, v8::Null(isolate()))
+      .Check();
   for (uint32_t i = kFirstInstalledMethodIndex; i < data()->Length(); ++i) {
     v8::Local<v8::Value> name;
     if (data()->Get(context(), i).ToLocal(&name) && name->IsString()) {
