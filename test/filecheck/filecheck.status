@@ -60,4 +60,8 @@
   'wasm/regress-509312806': [SKIP],
 }],
 
+['not memory_corruption_api', {
+  'wasm/corrupted-function-data': [SKIP],
+}]
+
 ]

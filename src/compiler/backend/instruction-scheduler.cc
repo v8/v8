@@ -293,6 +293,12 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kHasSideEffect;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_SANDBOX
+    case kArchLoadTrustedPointer:
+      // May trap.
+      return kIsLoadOperation | kHasSideEffect;
+#endif  // V8_ENABLE_SANDBOX
+
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
     case kArchTailCallCodeObject:

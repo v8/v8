@@ -2467,6 +2467,10 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
 bool Operation::IsTrappingLoad() const {
   if (const auto* load = TryCast<LoadOp>()) {
     return load->kind.with_trap_handler;
+#if V8_ENABLE_SANDBOX
+  } else if (const auto* load_trusted = TryCast<LoadTrustedPointerOp>()) {
+    return load_trusted->kind.with_trap_handler;
+#endif
   } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {
     return load_t->load_kind.with_trap_handler;
   } else if (const auto* load_pd = TryCast<Simd128LoadPairDeinterleaveOp>()) {

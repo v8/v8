@@ -316,6 +316,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Constant)                                \
   V(LoadRootRegister)                        \
   V(Load)                                    \
+  IF_SANDBOX(V, LoadTrustedPointer)          \
   V(Store)                                   \
   V(Retain)                                  \
   V(Parameter)                               \
@@ -369,8 +370,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Allocate)                              \
   V(MajorGCForCompilerTesting)             \
   V(JSStackCheck)                          \
-  IF_SANDBOX(V, LoadExternalPointer)       \
-  IF_SANDBOX(V, LoadTrustedPointer)
+  IF_SANDBOX(V, LoadExternalPointer)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \

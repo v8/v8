@@ -2565,6 +2565,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand());
       break;
+#if V8_ENABLE_SANDBOX
+    case kArchLoadTrustedPointer: {
+      CHECK(instr->HasOutput());
+      Register base = i.InputRegister(0);
+      int32_t offset = i.InputInt32(1);
+      Register table = i.InputRegister(2);
+      IndirectPointerTag first =
+          IndirectPointerTagRangeFirstField::decode(opcode);
+      IndirectPointerTag last =
+          IndirectPointerTagRangeLastField::decode(opcode);
+      IndirectPointerTagRange tag_range(first, last);
+
+      Register destination = i.OutputRegister();
+      Register handle = i.TempRegister(0);
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Ldr(handle.W(), MemOperand(base, offset));
+      __ Lsr(handle, handle, kTrustedPointerHandleShift);
+      __ Ldr(destination,
+             MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
+
+      if (IsFastIndirectPointerTagRange(tag_range)) {
+        uint64_t mask =
+            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+        __ And(destination, destination, mask);
+      } else {
+        Register tag = handle;  // Reuse handle for tag
+        __ Lsr(tag, destination, kTrustedPointerTableTagShift);
+
+        UseScratchRegisterScope scope(masm());
+        Register scratch = scope.AcquireX();
+        __ Mov(scratch, 0);
+        if (tag_range.Size() == 1) {
+          __ Cmp(tag.W(), static_cast<int32_t>(tag_range.first));
+          __ CmovX(destination, scratch, ne);
+        } else {
+          __ Sub(tag.W(), tag.W(), static_cast<int32_t>(tag_range.first));
+          __ Cmp(tag.W(),
+                 static_cast<int32_t>(tag_range.last - tag_range.first));
+          __ CmovX(destination, scratch, hi);
+        }
+
+        __ And(destination, destination, kTrustedPointerTablePayloadMask);
+      }
+      break;
+    }
+#endif
     case kArm64LdarDecompressTaggedSigned:
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0),
                                       i.InputRegister(1), i.TempRegister(0));

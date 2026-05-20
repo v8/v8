@@ -1366,6 +1366,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
                  InstructionCode opcode);
+#ifdef V8_ENABLE_SANDBOX
+  void VisitLoadTrustedPointer(turboshaft::OpIndex node);
+#endif
   void VisitParameter(turboshaft::OpIndex node);
   void VisitIfException(turboshaft::OpIndex node);
   void VisitOsrValue(turboshaft::OpIndex node);

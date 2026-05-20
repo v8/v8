@@ -33,6 +33,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3381,6 +3382,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxlq);
       break;
+#if V8_ENABLE_SANDBOX
+    case kArchLoadTrustedPointer: {
+      CHECK(instr->HasOutput());
+      Register base = i.InputRegister(0);
+      int32_t offset = i.InputInt32(1);
+      Register table = i.InputRegister(2);
+      IndirectPointerTag first =
+          IndirectPointerTagRangeFirstField::decode(opcode);
+      IndirectPointerTag last =
+          IndirectPointerTagRangeLastField::decode(opcode);
+      IndirectPointerTagRange tag_range(first, last);
+
+      Register destination = i.OutputRegister();
+      Register handle = i.TempRegister(0);
+
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ movl(handle, Operand(base, offset));
+      __ shrl(handle, Immediate(kTrustedPointerHandleShift));
+      static_assert(kTrustedPointerTableEntrySizeLog2 == times_8);
+      __ movq(destination, Operand{table, handle, times_8, 0});
+
+      if (IsFastIndirectPointerTagRange(tag_range)) {
+        uint64_t mask =
+            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+        __ movq(kScratchRegister, Immediate64(mask));
+        __ andq(destination, kScratchRegister);
+      } else {
+        Register tag = handle;  // Reuse handle for tag
+        __ movq(tag, destination);
+        __ shrq(tag, Immediate(kTrustedPointerTableTagShift));
+
+        __ movq(kScratchRegister, Immediate64(0));
+        if (tag_range.Size() == 1) {
+          __ cmpl(tag, Immediate(tag_range.first));
+          __ cmovq(not_equal, destination, kScratchRegister);
+        } else {
+          __ subl(tag, Immediate(tag_range.first));
+          __ cmpl(tag, Immediate(tag_range.last - tag_range.first));
+          __ cmovq(above, destination, kScratchRegister);
+        }
+
+        __ movq(kScratchRegister, Immediate64(kTrustedPointerTablePayloadMask));
+        __ andq(destination, kScratchRegister);
+      }
+      break;
+    }
+#endif  // V8_ENABLE_SANDBOX
     case kX64MovqDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());

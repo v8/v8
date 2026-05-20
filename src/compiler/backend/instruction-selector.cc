@@ -1046,6 +1046,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
+// TODO(manoskouk): Consider adding LoadTrustedPointer.
 bool InstructionSelector::IsTrappingLoad(turboshaft::OpIndex node) const {
 #if V8_ENABLE_SIMD128
   if (Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
@@ -1373,40 +1374,46 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
   if (const LoadOp* load = operation.TryCast<LoadOp>()) {
     return load->kind.with_trap_handler;
   }
-    if (const StoreOp* store = operation.TryCast<StoreOp>()) {
-      return store->kind.with_trap_handler;
-    }
+#if V8_ENABLE_SANDBOX
+  if (const LoadTrustedPointerOp* load =
+          operation.TryCast<LoadTrustedPointerOp>()) {
+    return load->kind.with_trap_handler;
+  }
+#endif
+  if (const StoreOp* store = operation.TryCast<StoreOp>()) {
+    return store->kind.with_trap_handler;
+  }
 #if V8_ENABLE_WEBASSEMBLY
-    if (operation.Is<TrapIfOp>()) return true;
-    if (operation.Is<WasmTrapOp>()) return true;
-    if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
-      return rmw->memory_access_kind == MemoryAccessKind::kTrapping;
-    }
+  if (operation.Is<TrapIfOp>()) return true;
+  if (operation.Is<WasmTrapOp>()) return true;
+  if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
+    return rmw->memory_access_kind == MemoryAccessKind::kTrapping;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_SIMD128
-    if (const Simd128LoadTransformOp* lt =
-            operation.TryCast<Simd128LoadTransformOp>()) {
-      return lt->load_kind.with_trap_handler;
-    }
+  if (const Simd128LoadTransformOp* lt =
+          operation.TryCast<Simd128LoadTransformOp>()) {
+    return lt->load_kind.with_trap_handler;
+  }
 #if V8_ENABLE_SIMD256
-    if (const Simd256LoadTransformOp* lt =
-            operation.TryCast<Simd256LoadTransformOp>()) {
-      return lt->load_kind.with_trap_handler;
-    }
+  if (const Simd256LoadTransformOp* lt =
+          operation.TryCast<Simd256LoadTransformOp>()) {
+    return lt->load_kind.with_trap_handler;
+  }
 #endif  // V8_ENABLE_SIMD256
-    if (const Simd128LaneMemoryOp* lm =
-            operation.TryCast<Simd128LaneMemoryOp>()) {
-      return lm->kind.with_trap_handler;
-    }
-    if (const Simd128LoadPairDeinterleaveOp* dl =
-            operation.TryCast<Simd128LoadPairDeinterleaveOp>()) {
-      return dl->load_kind.with_trap_handler;
-    }
+  if (const Simd128LaneMemoryOp* lm =
+          operation.TryCast<Simd128LaneMemoryOp>()) {
+    return lm->kind.with_trap_handler;
+  }
+  if (const Simd128LoadPairDeinterleaveOp* dl =
+          operation.TryCast<Simd128LoadPairDeinterleaveOp>()) {
+    return dl->load_kind.with_trap_handler;
+  }
 #endif  // V8_ENABLE_SIMD128
-    if (additional_trapping_instructions_->Contains(node.id())) {
-      return true;
-    }
-    return false;
+  if (additional_trapping_instructions_->Contains(node.id())) {
+    return true;
+  }
+  return false;
 }
 
 bool InstructionSelector::IsCommutative(turboshaft::OpIndex node) const {
@@ -1748,6 +1755,32 @@ void InstructionSelector::VisitFloat64Tan(OpIndex node) {
 void InstructionSelector::VisitFloat64Tanh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
+
+#ifdef V8_ENABLE_SANDBOX
+void InstructionSelector::VisitLoadTrustedPointer(OpIndex node) {
+  const LoadTrustedPointerOp& op = this->Get(node).Cast<LoadTrustedPointerOp>();
+  OperandGenerator g(this);
+
+  MemoryAccessMode access_mode = kMemoryAccessDirect;
+  if (op.kind.with_trap_handler) {
+    DCHECK(op.kind.trap_on_null);
+    access_mode = kMemoryAccessTrappingNullDereference;
+  }
+  InstructionCode code =
+      kArchLoadTrustedPointer |
+      IndirectPointerTagRangeFirstField::encode(op.tag_range.first) |
+      IndirectPointerTagRangeLastField::encode(op.tag_range.last) |
+      AccessModeField::encode(access_mode);
+
+  DCHECK(op.kind.tagged_base);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(op.base()),
+                                 g.UseImmediate(op.offset - kHeapObjectTag),
+                                 g.UseUniqueRegister(op.table())};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(code, 1, outputs, arraysize(inputs), inputs, 1, temps);
+}
+#endif
 
 void InstructionSelector::MarkAsTableSwitchTarget(
     const turboshaft::Block* block) {
@@ -3487,6 +3520,11 @@ void InstructionSelector::VisitNode(OpIndex node) {
       }
       UNREACHABLE();
     }
+#ifdef V8_ENABLE_SANDBOX
+    case Opcode::kLoadTrustedPointer:
+      MarkAsTagged(node);
+      return VisitLoadTrustedPointer(node);
+#endif
     case Opcode::kStore: {
       const StoreOp& store = op.Cast<StoreOp>();
       MachineRepresentation rep =
