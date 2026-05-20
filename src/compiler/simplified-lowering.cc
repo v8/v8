@@ -4234,7 +4234,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kLoadDictionaryField: {
-        if (truncation.IsUnused()) return VisitUnused<T>(node);
         ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // receiver
         ProcessInput<T>(node, 1, UseInfo::AnyTagged());  // context
         ProcessInput<T>(node, 2, UseInfo::AnyTagged());  // frame_state
