@@ -1267,7 +1267,7 @@ class LiftoffCompiler {
         // function prologue), plus 1 for each local (including parameters). Do
         // this only *after* setting up the frame completely, even though we
         // already executed the work then.
-        CheckMaxSteps(decoder, 16 + __ num_locals());
+        CheckMaxSteps(decoder, static_cast<int32_t>(16 + __ num_locals()));
       }
     } else {
       DCHECK(!max_steps_);
@@ -1482,107 +1482,61 @@ class LiftoffCompiler {
     }
   }
 
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
-                                   LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(decoder, stack_idx, nullptr, pinned);
-  }
-
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
-                                   LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(decoder, input, nullptr, pinned);
-  }
-
+  // Load the length of a string, which will be used as steps.
   V8_INLINE void FuzzerChargeStringLength(FullDecoder* decoder,
                                           LiftoffRegister input,
                                           LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(
-        decoder, input,
-        [this, decoder](LiftoffRegister input, LiftoffRegList& pinned) {
-          LiftoffRegister length_reg =
-              pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-          LoadObjectField(decoder, length_reg, input.gp(), no_reg,
-                          offsetof(String, length_) - kHeapObjectTag,
-                          ValueKind::kI32, false /* is_signed */,
-                          false /* trapping */, pinned);
-          return length_reg;
-        },
-        pinned);
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    LiftoffRegister length_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadObjectField(decoder, length_reg, input.gp(), no_reg,
+                    offsetof(String, length_) - kHeapObjectTag, kI32,
+                    false /* is_signed */, false /* trapping */, pinned);
+    FuzzerChargeSteps(decoder, length_reg, kI32, pinned);
   }
 
-  template <typename LoadFn>
+  // Use steps in `steps_reg` with value kind `kind`.
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder,
+                                   LiftoffRegister steps_reg, ValueKind kind,
+                                   LiftoffRegList pinned = {}) {
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    pinned.set(steps_reg);
+
+#if V8_TARGET_ARCH_64_BIT
+    LiftoffAssembler::MaxStepsVariant steps_done{
+        std::make_pair(steps_reg.gp(), kind)};
+#else
+    LiftoffAssembler::MaxStepsVariant steps_done{steps_reg};
+#endif
+    CheckMaxSteps(decoder, steps_done, pinned);
+  }
+
+  // Load steps from stack position `stack_idx`.
   V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
-                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
-    if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      LiftoffRegister input = pinned.set(__ PeekToRegister(stack_idx, pinned));
-      FuzzerChargeSteps(decoder, input, load_fn, pinned);
-    }
+                                   LiftoffRegList pinned = {}) {
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    LiftoffRegister reg = pinned.set(__ PeekToRegister(stack_idx, pinned));
+    ValueKind kind =
+        __ cache_state() -> stack_state.end()[-1 - stack_idx].kind();
+    FuzzerChargeSteps(decoder, reg, kind, pinned);
   }
 
-  template <typename LoadFn>
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
-                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
-    if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      pinned.set(input);
-      LiftoffRegister steps_reg = input;
-      if constexpr (!std::is_same_v<std::nullptr_t, LoadFn>) {
-        steps_reg = load_fn(input, pinned);
-      }
-      CheckMaxSteps(decoder, steps_reg, pinned);
-    }
-  }
-
+  // This is the bottlenectk that all other functions above call in order to
+  // perform the actual check.
   V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder,
-                                 LiftoffRegister steps_done,
+                                 LiftoffAssembler::MaxStepsVariant steps_done,
                                  LiftoffRegList pinned = {}) {
-    SCOPED_CODE_COMMENT("check max steps (reg)");
-    pinned.set(steps_done);
-    LiftoffRegister max_steps =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister max_steps_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    {
-      FREEZE_STATE(frozen);
-      __ LoadConstant(
-          max_steps_addr,
-          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
-      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
-      __ emit_i32_sub(max_steps.gp(), max_steps.gp(), steps_done.gp());
-      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-               pinned);
-      // Abort if max steps have been executed.
-      OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
-      DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
-      Label* trap_label = &ool->label;
-      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
-    }
-  }
-
-  V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1,
-                                 LiftoffRegList pinned = {}) {
-    DCHECK_LE(1, steps_done);
+    DCHECK_NOT_NULL(max_steps_);
     SCOPED_CODE_COMMENT("check max steps");
-    LiftoffRegister max_steps = pinned.set(__ GetUnusedRegister(kGpReg, {}));
-    LiftoffRegister max_steps_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    {
-      FREEZE_STATE(frozen);
-      __ LoadConstant(
-          max_steps_addr,
-          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
-      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
-      // Subtract first (and store the result), so the caller sees that
-      // max_steps ran negative. Since we never subtract too much at once, we
-      // cannot underflow.
-      DCHECK_GE(kMaxInt / 16, steps_done);  // An arbitrary limit.
-      __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
-      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-               pinned);
-      // Abort if max steps have been executed.
-      OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
-      DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
-      Label* trap_label = &ool->label;
-      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
+    OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
+    DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
+#ifdef DEBUG
+    if (const int32_t* steps_int = std::get_if<int32_t>(&steps_done)) {
+      DCHECK_LE(1, *steps_int);
+      DCHECK_GE(kMaxInt / 2, *steps_int);
     }
+#endif  // DEBUG
+    __ DecrementMaxSteps(max_steps_, steps_done, &ool->label, pinned);
   }
 
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
@@ -1661,7 +1615,7 @@ class LiftoffCompiler {
       __ bind(&cont);
     }
     if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      CheckMaxSteps(decoder);
+      CheckMaxSteps(decoder, 1);
     }
   }
 
@@ -4581,7 +4535,8 @@ class LiftoffCompiler {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
-    FuzzerChargeSteps(decoder, num_pages, pinned);
+    FuzzerChargeSteps(decoder, num_pages,
+                      imm.memory->is_memory64() ? kI64 : kI32, pinned);
     __ SpillAllRegisters();
 
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -9926,7 +9881,7 @@ class LiftoffCompiler {
     LiftoffRegister start_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister view_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
-    FuzzerChargeSteps(decoder, end_reg, pinned);
+    FuzzerChargeSteps(decoder, end_reg, kI32, pinned);
     VarState view_var(kRef, view_reg, 0);
     VarState start_var(kI32, start_reg, 0);
     VarState end_var(kI32, end_reg, 0);

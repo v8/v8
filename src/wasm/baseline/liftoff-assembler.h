@@ -732,6 +732,19 @@ class LiftoffAssembler : public MacroAssembler {
                                        uint32_t* trapping_store_pc = nullptr);
   // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);
+#if V8_TARGET_ARCH_64_BIT
+  static_assert(!kNeedI64RegPair);
+  // Use `ValueKind` to differentiate between 32 and 64-bit values in
+  // `Register`.
+  using MaxStepsVariant = std::variant<int32_t, std::pair<Register, ValueKind>>;
+#else
+  static_assert(kNeedI64RegPair);
+  // 64-bit values are passed in a register pair, encoded as `LiftoffRegister`.
+  using MaxStepsVariant = std::variant<int32_t, LiftoffRegister>;
+#endif
+
+  inline void DecrementMaxSteps(int32_t* max_steps_ptr, MaxStepsVariant steps,
+                                Label* trap_label, LiftoffRegList pinned);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type,
                    uint32_t* trapping_load_pc = nullptr,

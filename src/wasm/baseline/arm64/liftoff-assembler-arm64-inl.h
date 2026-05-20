@@ -2018,6 +2018,40 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
   }
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register max_steps = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Mov(addr, reinterpret_cast<uintptr_t>(max_steps_ptr));
+  Ldrsw(max_steps.X(), MemOperand(addr));
+
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    Subs(max_steps.W(), max_steps.W(), *steps_const);
+  } else {
+    auto& pair = std::get<std::pair<Register, ValueKind>>(steps);
+    Register reg = pair.first;
+    ValueKind kind = pair.second;
+
+    // If the subtraction resulted in an unsigned underflow (borrow), {Subs}
+    // will set the Carry flag to 0. This prevents a large subtraction from
+    // wrapping around to a positive value and bypassing the trap below. We use
+    // {Csel} to set {max_steps} to -1 if condition {hs} is false (i.e., on
+    // borrow).
+    if (kind == kI64) {
+      Subs(max_steps.X(), max_steps.X(), reg.X());
+      Csel(max_steps.X(), max_steps.X(), Operand(-1), hs);
+    } else {
+      Subs(max_steps.W(), max_steps.W(), reg.W());
+      Csel(max_steps.W(), max_steps.W(), Operand(-1), hs);
+    }
+  }
+
+  Str(max_steps.W(), MemOperand(addr));
+  Tbnz(max_steps.W(), 31, trap_label);
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {

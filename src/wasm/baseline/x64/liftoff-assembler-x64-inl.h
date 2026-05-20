@@ -1874,6 +1874,45 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
   SmiAddConstant(Operand(dst.gp(), offset), Smi::FromInt(1));
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = kScratchRegister;
+  movq(addr, Immediate64(reinterpret_cast<intptr_t>(max_steps_ptr)));
+
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    subl(Operand(addr, 0), Immediate(*steps_const));
+    j(negative, trap_label);
+    return;
+  }
+
+  auto [reg, kind] = std::get<std::pair<Register, ValueKind>>(steps);
+
+  Register max_steps = liftoff::kScratchRegister2;
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  // Decrement the counter. If it underflows, clamp to -1 to prevent
+  // wraparound into positive range. {sbbq} sets {scratch} to -1 if there was
+  // a borrow (CF=1), and 0 otherwise. {orq}/{orl} then sets {max_steps} to -1
+  // if there was a borrow.
+  if (kind == kI64) {
+    movsxlq(max_steps, Operand(addr, 0));
+    subq(max_steps, reg);
+    sbbq(scratch, scratch);
+    orq(max_steps, scratch);
+  } else {
+    movl(max_steps, Operand(addr, 0));
+    subl(max_steps, reg);
+    sbbl(scratch, scratch);
+    orl(max_steps, scratch);
+  }
+  movl(Operand(addr, 0), max_steps);
+
+  // Now trap if the (possibly capped) result is negative.
+  j(negative, trap_label);
+}
+
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   AssertZeroExtended(src);
   if (dst != src) movl(dst, src);
