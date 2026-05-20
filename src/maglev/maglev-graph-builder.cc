@@ -13614,16 +13614,37 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
     ValueNode* async_function_object, ValueNode* value) {
   if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
 
-  ValueNode* promise;
-  GET_VALUE_OR_ABORT(
-      promise, BuildLoadTaggedField(async_function_object,
+  ValueNode* promise = nullptr;
+  if (auto* alloc = async_function_object->TryCast<InlinedAllocation>()) {
+    if (VirtualObject* vobj = GetObjectFromAllocation(alloc)) {
+      ValueNode* slot = vobj->get(offsetof(JSAsyncFunctionObject, promise_));
+      if (slot->Is<InlinedAllocation>()) {
+        promise = slot;
+      }
+    }
+  }
+  if (promise == nullptr) {
+    GET_VALUE_OR_ABORT(promise, BuildLoadTaggedField(
+                                    async_function_object,
                                     offsetof(JSAsyncFunctionObject, promise_)));
+  }
 
   if (NodeTypeIs(GetType(value), NodeType::kJSPrimitive)) {
     // We can strength-reduce JSResolvePromise to JSFulfillPromise  if the
     // {resolution} is known to be a primitive, as in that case we don't perform
     // the implicit chaining (via "then").
-    AddNewNodeNoInputConversion<FulfillPromise>({promise, value});
+    // The InlinedAllocation doesn't survive suspend/resume, so seeing it
+    // here proves no await ran and the promise has no reactions to trigger.
+    if (promise->Is<InlinedAllocation>()) {
+      RETURN_IF_ABORT(BuildStoreTaggedField(
+          promise, value, offsetof(JSPromise, reactions_or_result_),
+          StoreTaggedMode::kDefault));
+      RETURN_IF_ABORT(BuildStoreTaggedField(
+          promise, GetSmiConstant(v8::Promise::kFulfilled),
+          offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
+    } else {
+      AddNewNodeNoInputConversion<FulfillPromise>({promise, value});
+    }
   } else {
     // Create a nested frame state inside the current method's most-recent
     // {frame_state} that will ensure that lazy deoptimizations at this
