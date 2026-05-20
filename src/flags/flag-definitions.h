@@ -3438,6 +3438,7 @@ DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_SMI(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
+DEFINE_REQUIREMENT(v8_flags.regexp_tier_up_ticks >= 0)
 DEFINE_BOOL(
     regexp_jit_all, false,
     "compile all regexp patterns directly to native code, skipping the "
