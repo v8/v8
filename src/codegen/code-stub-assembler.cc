@@ -18338,6 +18338,12 @@ TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::ForOfNextHelper(
                   HeapConstantNoHole(factory()->iterator_symbol()),
                   IntPtrToTaggedIndex(Signed(iterated_object_slot)),
                   feedback_vector);
+      // Collect call feedback for the .next() call. The fast path below does
+      // not actually call .next(), but having this feedback is required for
+      // optimizing in the higher tiers.
+      CollectCallFeedback(
+          CAST(next), [=, this] { return CAST(object); }, context,
+          feedback_vector, call_slot);
       Goto(&after_collect_feedback);
     }
     BIND(&after_collect_feedback);
