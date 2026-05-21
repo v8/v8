@@ -2683,6 +2683,37 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
   return false;
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register max_steps = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  li(addr, Operand(reinterpret_cast<uintptr_t>(max_steps_ptr)));
+  Lw(max_steps, MemOperand(addr, 0));
+
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    Sub32(max_steps, max_steps, Operand(*steps_const));
+    Sw(max_steps, MemOperand(addr, 0));
+    Branch(trap_label, lt, max_steps, Operand(zero_reg));
+    return;
+  }
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  auto [reg, kind] = std::get<std::pair<Register, ValueKind>>(steps);
+
+  // If max_steps was `unsigned less than` reg, the subtraction wrapped around,
+  // clamp to -1.
+  Sltu(scratch, max_steps, reg);  // max_steps < reg ? 1:0
+  SubWord(max_steps, max_steps, reg);
+  Neg(scratch, scratch);  // 0 -> 0, 1 -> -1(0xFFFFFFFF)
+  Or(max_steps, max_steps, scratch);
+  Sw(max_steps, MemOperand(addr, 0));
+  Branch(trap_label, lt, max_steps, Operand(zero_reg));
+}
+
 void LiftoffAssembler::emit_inc_i32_at(Address address) {
   UseScratchRegisterScope temps(this);
   Register counter_addr = temps.Acquire();
