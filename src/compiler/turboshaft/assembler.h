@@ -2390,6 +2390,7 @@ class AssemblerOpInterface : public Next {
       case WordRepresentation::Word64():
         return Word64Constant(value);
     }
+    UNREACHABLE();
   }
   V<WordPtr> IntPtrConstant(intptr_t value) {
     return UintPtrConstant(static_cast<uintptr_t>(value));
@@ -2435,6 +2436,7 @@ class AssemblerOpInterface : public Next {
       case FloatRepresentation::Float64():
         return Float64Constant(value);
     }
+    UNREACHABLE();
   }
   V<Number> NumberConstant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kNumber, value);
