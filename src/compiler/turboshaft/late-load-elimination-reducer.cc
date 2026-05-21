@@ -368,6 +368,10 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     // Tagged and the other one Float64).
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
+#if V8_ENABLE_SANDBOX
+    // A LoadOp should never alias with a LoadTrustedPointerOp.
+    DCHECK(!replacement.Is<LoadTrustedPointerOp>());
+#endif
     TRACE(">> Found potential replacement at offset " << existing);
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
@@ -415,6 +419,7 @@ void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
     USE(replacement);
     // All trusted loads have the same representation and they can't alias with
     // any other loads.
+    DCHECK(replacement.Is<LoadTrustedPointerOp>());
     DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
     TRACE(">> Found replacement at offset " << existing);
     replacements_[op_idx] = Replacement::LoadElimination(existing);
