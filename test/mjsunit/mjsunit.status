@@ -2186,6 +2186,9 @@
 
   # Requires tier-up.
   'regress/wasm/regress-334687959': [SKIP],
+
+  # Fails in stress due to --no-wasm-generic-wrapper (requires generic wrapper).
+  'sandbox/regress/regress-496341820': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
