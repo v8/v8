@@ -415,6 +415,18 @@ BUILTIN(ArrayPrototypeFill) {
                        end_index)) {
     return *receiver;
   }
+
+  // We have observed `new Array(2**32-1).fill(0)` as a means to cause
+  // intentional crashes. Annotate that situation for filtering.
+  static constexpr uint64_t kSuspiciousLength = uint64_t{kMaxUInt32};
+  if (V8_UNLIKELY(length == kSuspiciousLength) && IsJSArray(*receiver) &&
+      start_index == 0 && end_index == length) {
+    if (isolate->HasCrashKeyStringCallbacks()) {
+      isolate->AddCrashKeyString("v8-oom-looks-intentional",
+                                 CrashKeySize::Size32, "true");
+    }
+  }
+
   return GenericArrayFill(isolate, receiver, value, start_index, end_index);
 }
 
