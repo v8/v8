@@ -18,6 +18,20 @@
   'table': [FAIL],
 }],  # ALWAYS
 
+['lower_limits_mode', {
+  # These tests need longer strings.
+  'f32': [SKIP],
+  'f32_cmp': [SKIP],
+  'f64': [SKIP],
+  'f64_cmp': [SKIP],
+  'simd/simd_f32x4_arith': [SKIP],
+  'simd/simd_f32x4_cmp': [SKIP],
+  'simd/simd_f32x4_pmin_pmax': [SKIP],
+  'simd/simd_f64x2_arith': [SKIP],
+  'simd/simd_f64x2_cmp': [SKIP],
+  'simd/simd_f64x2_pmin_pmax': [SKIP],
+}],
+
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
   'simd/simd_f32x4': [PASS, FAIL],

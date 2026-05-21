@@ -357,6 +357,39 @@
   # Skip tests that's supposed to run only in lower_limits_mode.
   'lower_limits_mode/*': [SKIP],
 }],
+['lower_limits_mode', {
+  # These tests need longer strings.
+  # It might be possible to make some of them compatible with lower limits mode
+  # by using %StringMaxLength() instead of hard-coded constants.
+  # It might also be possible to make them faster by making them target
+  # lower limits mode specifically.
+  'array-join-invalid-string-length': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
+  'asm/poppler/poppler': [SKIP],
+  'compiler/conditional-chain': [SKIP],
+  'compiler/regress-815392': [SKIP],
+  'es6/unicode-regexp-unanchored-advance': [SKIP],
+  'regress/regress-490': [SKIP],
+  'regress/regress-655573': [SKIP],
+  'regress/regress-862433': [SKIP],
+  'regress/regress-944945': [SKIP],
+  'regress/regress-1447343': [SKIP],
+  'regress/regress-7558019': [SKIP],
+  'regress/regress-331074427': [SKIP],
+  'regress/regress-437956096': [SKIP],
+  'regress/regress-506499280': [SKIP],
+  'regress/regress-506499280-extended': [SKIP],
+  'regress/regress-crbug-612109': [SKIP],
+  'regress/regress-crbug-627934': [SKIP],
+  'regress/regress-crbug-923264': [SKIP],
+  'regress/regress-json-stringify-gc': [SKIP],
+  'regress/regress-latin-1': [SKIP],
+  'tools/processor': [SKIP],
+  'tools/processor-bigint': [SKIP],
+  'turboshaft/string-escape-analysis-exponential-state': [SKIP],
+  'wasm/stringrefs-regressions': [SKIP],
+  'wasm/embenchen/lua_binarytrees': [SKIP],
+}],
 
 ##############################################################################
 # TODO(ahaas): Port multiple return values to MIPS.

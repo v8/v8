@@ -125,8 +125,12 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
+#ifndef V8_LOWER_LIMITS_MODE
   static constexpr int kMaxLength =
       internal::kApiSystemPointerSize == 4 ? (1 << 28) - 16 : (1 << 29) - 24;
+#else
+  static constexpr int kMaxLength = 1 << 20;
+#endif  // V8_LOWER_LIMITS_MODE
 
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,

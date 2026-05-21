@@ -164,6 +164,18 @@
 }],
 
 ##############################################################################
+['lower_limits_mode', {
+  # These tests need longer strings.
+  # It might be possible to make some of them compatible with lower limits mode
+  # by using String::kMaxLength instead of hard-coded constants.
+  'test-heap-profiler/HeapSnapshotJSONSerialization': [SKIP],
+  'test-serialize/CodeSerializerLargeExternalString': [SKIP],
+  'test-serialize/CodeSerializerLargeStrings': [SKIP],
+  'test-strings/CheckIntlSegmentIteratorTerminateExecutionInterrupt': [SKIP],
+  'test-strings/Traverse': [SKIP],
+  'test-strings/Utf8ConversionPerf': [SKIP],
+}],
+##############################################################################
 ['arch == arm64', {
   # BUG(v8:3385).
   'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
