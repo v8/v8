@@ -213,9 +213,6 @@ class KeepLocationPolicy {
   constexpr explicit KeepLocationPolicy(SourceLocation location)
       : location_(location) {}
 
-  V8_CLANG_NO_SANITIZE("address")
-  constexpr SourceLocation LocationFromGC() const { return location_; }
-
   // KeepLocationPolicy must not copy underlying source locations.
   KeepLocationPolicy(const KeepLocationPolicy&) = delete;
   KeepLocationPolicy& operator=(const KeepLocationPolicy&) = delete;
@@ -235,7 +232,6 @@ class IgnoreLocationPolicy {
  protected:
   constexpr IgnoreLocationPolicy() = default;
   constexpr explicit IgnoreLocationPolicy(SourceLocation) {}
-  constexpr SourceLocation LocationFromGC() const { return {}; }
 };
 
 #if CPPGC_SUPPORTS_OBJECT_NAMES
