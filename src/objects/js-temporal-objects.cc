@@ -9,6 +9,7 @@
 #include <set>
 
 #include "include/v8config.h"
+#include "src/api/api-inl.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -2166,7 +2167,21 @@ temporal_rs::TimeZone SystemTimeZoneIdentifier() { return UTCTimeZone(); }
 #endif  //  V8_INTL_SUPPORT
 
 // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
-temporal_rs::I128Nanoseconds SystemUTCEpochNanoseconds() {
+temporal_rs::I128Nanoseconds SystemUTCEpochNanoseconds(Isolate* isolate) {
+  DirectHandle<NativeContext> context = isolate->native_context();
+  if (!IsUndefined(context->temporal_get_epoch_nanoseconds_callback(),
+                   isolate)) {
+    v8::TemporalHostSystemUTCEpochNanosecondsCallback callback =
+        v8::ToCData<v8::TemporalHostSystemUTCEpochNanosecondsCallback,
+                    kApiTemporalHostSystemUTCEpochNanosecondsCallbackTag>(
+            isolate, context->temporal_get_epoch_nanoseconds_callback());
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    int64_t ns_int = callback(api_context);
+    absl::int128 ns = ns_int;
+    return temporal_rs::I128Nanoseconds{.high = absl::Uint128High64(ns),
+                                        .low = absl::Uint128Low64(ns)};
+  }
+
   double ms =
       V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
 
@@ -2207,7 +2222,7 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   }
 
   // 3. Let ns be SystemUTCEpochNanoseconds().
-  auto ns = SystemUTCEpochNanoseconds();
+  auto ns = SystemUTCEpochNanoseconds(isolate);
 
   // 4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
   // TODO(manishearth) we can avoid the multiple layers of allocation here
@@ -6430,7 +6445,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
-  auto ns = temporal::SystemUTCEpochNanoseconds();
+  auto ns = temporal::SystemUTCEpochNanoseconds(isolate);
   return ConstructRustWrappingType<JSTemporalInstant>(
       isolate, temporal_rs::Instant::try_new(ns));
 }

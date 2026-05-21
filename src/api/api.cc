@@ -7222,6 +7222,21 @@ void Context::SetAbortScriptExecution(
   }
 }
 
+void Context::SetTemporalHostSystemUTCEpochNanosecondsCallback(
+    Context::TemporalHostSystemUTCEpochNanosecondsCallback callback) {
+  auto context = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  if (callback == nullptr) {
+    context->set_temporal_get_epoch_nanoseconds_callback(
+        i::ReadOnlyRoots(i_isolate).undefined_value());
+  } else {
+    SET_FIELD_WRAPPED(
+        i_isolate, context, set_temporal_get_epoch_nanoseconds_callback,
+        callback,
+        internal::kApiTemporalHostSystemUTCEpochNanosecondsCallbackTag);
+  }
+}
+
 void v8::Context::SetPromiseHooks(Local<Function> init_hook,
                                   Local<Function> before_hook,
                                   Local<Function> after_hook,

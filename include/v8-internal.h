@@ -605,6 +605,7 @@ struct TagRange {
   V(GenericForeignTag)                                    \
   V(ApiAccessCheckCallbackTag)                            \
   V(ApiAbortScriptExecutionCallbackTag)                   \
+  V(ApiTemporalHostSystemUTCEpochNanosecondsCallbackTag)  \
   V(CFunctionTag)                                         \
   V(SyntheticModuleTag)                                   \
   V(MicrotaskCallbackTag)                                 \

@@ -325,6 +325,8 @@ enum ContextLookupFlags {
     initial_regexp_string_iterator_prototype_map)                              \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
+  V(TEMPORAL_GET_EPOCH_NANOSECONDS_CALLBACK_INDEX, Object,                     \
+    temporal_get_epoch_nanoseconds_callback)                                   \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SERIALIZED_OBJECTS, HeapObject, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
