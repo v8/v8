@@ -46,7 +46,8 @@ class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
  public:
   static uint64_t ComputeSqrtLimit(uint64_t heap_size_at_last_gc,
                                    double allocation_speed,
-                                   uint64_t total_size_of_objects);
+                                   uint64_t total_size_of_objects,
+                                   double limit_factor);
 
   static double GrowingFactor(Isolate* isolate, uint64_t physical_memory,
                               size_t max_heap_size,

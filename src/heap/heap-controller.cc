@@ -19,12 +19,24 @@ size_t MaximumGlobalMemorySizeFromV8Size(size_t v8_limit) {
       v8_flags.maximum_global_heap_limit_factor);
 }
 
+double SqrtAllocationLimitFactorFromGrowingMode(
+    Heap::HeapGrowingMode growing_mode) {
+  switch (growing_mode) {
+    case Heap::HeapGrowingMode::kConservative:
+    case Heap::HeapGrowingMode::kSlow:
+    case Heap::HeapGrowingMode::kMinimal:
+      return v8_flags.sqrt_allocation_limits_minimal_factor;
+    case Heap::HeapGrowingMode::kDefault:
+      return v8_flags.sqrt_allocation_limits_factor;
+  }
+}
+
 }  // namespace
 
 template <typename Trait>
 uint64_t MemoryController<Trait>::ComputeSqrtLimit(
     uint64_t heap_size_at_last_gc, double allocation_speed,
-    uint64_t total_size_of_objects) {
+    uint64_t total_size_of_objects, double limit_factor) {
   // Sqrt heap limit based on https://arxiv.org/abs/2204.10455.
   // The original formula is `M = L + sqrt(Lg/cs)`
   // M: Computed Heap limit
@@ -33,13 +45,12 @@ uint64_t MemoryController<Trait>::ComputeSqrtLimit(
   // s: GC speed
   // c: Control parameter (lagrange multiplier)
   // For simplicity, we assume a constant GC speed, and replace sqrt(1/cs)
-  // by `sqrt_allocation_limits_factor`. We also assume that GC
-  // cost (L/s) is proportional to
+  // by `limit_factor`. We also assume that GC cost (L/s) is proportional to
   // `total_size_excluding_external_at_last_gc_`, which includes young
   // objects and excludes external memory, for both old gen or global limit.
   return std::min<uint64_t>(
-      heap_size_at_last_gc + v8_flags.sqrt_allocation_limits_factor *
-                                 sqrt(allocation_speed * total_size_of_objects),
+      heap_size_at_last_gc +
+          limit_factor * sqrt(allocation_speed * total_size_of_objects),
       v8_flags.sqrt_allocation_limits_max_growing_factor *
           heap_size_at_last_gc);
 }
@@ -273,10 +284,11 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
   uint64_t computed_old_generation_allocation_limit;
   uint64_t computed_global_allocation_limit;
   if (v8_flags.sqrt_allocation_limits) {
+    double limit_factor = SqrtAllocationLimitFactorFromGrowingMode(mode);
     computed_old_generation_allocation_limit =
         MemoryController<V8HeapTrait>::ComputeSqrtLimit(
             old_gen_consumed_bytes_at_last_gc, v8_mutator_speed,
-            total_size_excluding_external_at_last_gc_);
+            total_size_excluding_external_at_last_gc_, limit_factor);
 
     const double global_mutator_speed =
         v8_mutator_speed + embedder_speed +
@@ -284,7 +296,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
     computed_global_allocation_limit =
         MemoryController<GlobalMemoryTrait>::ComputeSqrtLimit(
             global_consumed_bytes_at_last_gc, global_mutator_speed,
-            total_size_excluding_external_at_last_gc_);
+            total_size_excluding_external_at_last_gc_, limit_factor);
   } else {
     computed_old_generation_allocation_limit =
         old_gen_consumed_bytes_at_last_gc * v8_growing_factor;

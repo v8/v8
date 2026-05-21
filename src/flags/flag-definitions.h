@@ -2713,6 +2713,10 @@ DEFINE_BOOL(
 DEFINE_INT(
     sqrt_allocation_limits_factor, 80,
     "When the sqrt heap limit is enabled, multiplier on the heap growth.")
+DEFINE_INT(
+    sqrt_allocation_limits_minimal_factor, 20,
+    "When the sqrt heap limit is enabled, multiplier on the heap growth for "
+    "HeapGrowingMode::kMinimal.")
 DEFINE_FLOAT(
     sqrt_allocation_limits_max_growing_factor, 4.0,
     "This is the upper bound for growing factor when using sqrt heap limit.")
