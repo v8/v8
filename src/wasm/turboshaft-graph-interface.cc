@@ -1704,10 +1704,11 @@ class TurboshaftGraphBuildingInterface
   }
 
 #if V8_INTL_SUPPORT
-  V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
+  V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string,
+                                  V<Context> context) {
     OpIndex result = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
-        decoder, __ NoContextConstant(), {string});
+        decoder, context, {string}, CheckForException::kCatchInThisFrame);
     return result;
   }
 #endif
@@ -2534,7 +2535,8 @@ class TurboshaftGraphBuildingInterface
             __ Unreachable();
           }
         }
-        V<String> result_value = CallStringToLowercase(decoder, string);
+        V<String> result_value = CallStringToLowercase(
+            decoder, string, instance_cache_.native_context());
         result = __ AnnotateWasmType(result_value, kWasmRefString);
         decoder->detected_->add_stringref();
         break;
@@ -2551,7 +2553,8 @@ class TurboshaftGraphBuildingInterface
           return false;
         }
         V<String> string = args[0].get<String>();
-        V<String> result_value = CallStringToLowercase(decoder, string);
+        V<String> result_value = CallStringToLowercase(
+            decoder, string, instance_cache_.native_context());
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->add_imported_strings();
         break;

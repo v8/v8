@@ -609,6 +609,8 @@
   'wasm/*': [SKIP],
   'shared-memory/wasm/*': [SKIP],
 
+  'lower_limits_mode/regress/regress-513192886': [SKIP],
+
   'maglev/regress-355256380': [SKIP],
 
   'turbolev/has-in-prototype-chain-wasm': [SKIP],

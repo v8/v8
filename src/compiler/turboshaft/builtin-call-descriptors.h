@@ -1009,7 +1009,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
+        Operator::kNoDeopt | Operator::kNoWrite;
     static constexpr OpEffects kEffects =
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };

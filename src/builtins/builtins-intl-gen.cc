@@ -75,13 +75,12 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
     kToLocaleLowerCase,
   };
   void ToLowerCaseImpl(TNode<String> string, TNode<Object> maybe_locales,
-                       TNode<ContextOrEmptyContext> context,
-                       ToLowerCaseKind kind,
+                       TNode<Context> context, ToLowerCaseKind kind,
                        std::function<void(TNode<JSAny>)> ReturnFct);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto context = Parameter<Context>(Descriptor::kContext);
   auto string = Parameter<String>(Descriptor::kString);
   ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
@@ -90,7 +89,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
 #if V8_ENABLE_WEBASSEMBLY
 TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  auto context = Parameter<ContextOrEmptyContext>(Descriptor::kContext);
+  auto context = Parameter<Context>(Descriptor::kContext);
   auto string = Parameter<String>(Descriptor::kString);
   ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, context,
                   ToLowerCaseKind::kToLowerCase,
@@ -124,10 +123,11 @@ TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
                   [&args](TNode<JSAny> ret) { args.PopAndReturn(ret); });
 }
 
+// This needs a Context because it can throw, because there is one case where
+// it can grow the string's length: "\u0130".toLowerCase().length == 2.
 void IntlBuiltinsAssembler::ToLowerCaseImpl(
-    TNode<String> string, TNode<Object> maybe_locales,
-    TNode<ContextOrEmptyContext> context, ToLowerCaseKind kind,
-    std::function<void(TNode<JSAny>)> ReturnFct) {
+    TNode<String> string, TNode<Object> maybe_locales, TNode<Context> context,
+    ToLowerCaseKind kind, std::function<void(TNode<JSAny>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
