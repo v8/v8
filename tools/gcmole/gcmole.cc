@@ -179,9 +179,46 @@ struct Resolver {
 
 class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
  public:
-  explicit CalleesPrinter(clang::MangleContext* ctx) : ctx_(ctx) {}
+  explicit CalleesPrinter(clang::MangleContext* ctx,
+                          clang::CXXRecordDecl* no_gc_mole_decl)
+      : ctx_(ctx), no_gc_mole_decl_(no_gc_mole_decl) {}
+
+  struct GCScope {
+    bool is_guarded = false;
+  };
+
+  bool IsGuarded() {
+    for (const auto& s : gc_scopes_) {
+      if (s.is_guarded) return true;
+    }
+    return false;
+  }
+
+  bool TraverseStmt(clang::Stmt* S) {
+    if (!S) return true;
+    bool introduces_scope = IntroducesScope(S);
+    if (introduces_scope) {
+      gc_scopes_.push_back(GCScope());
+    }
+    bool result = clang::RecursiveASTVisitor<CalleesPrinter>::TraverseStmt(S);
+    if (introduces_scope) {
+      gc_scopes_.pop_back();
+    }
+    return result;
+  }
+
+  bool VisitVarDecl(clang::VarDecl* var) {
+    clang::QualType var_type = var->getType();
+    if (IsGCGuard(var_type)) {
+      if (!gc_scopes_.empty()) {
+        gc_scopes_.back().is_guarded = true;
+      }
+    }
+    return true;
+  }
 
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
+    if (IsGuarded()) return true;
     const clang::FunctionDecl* callee = expr->getDirectCallee();
     if (callee != nullptr) AnalyzeFunction(callee);
     return true;
@@ -280,12 +317,41 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   }
 
  private:
+  bool IntroducesScope(clang::Stmt* S) {
+    switch (S->getStmtClass()) {
+      case clang::Stmt::CompoundStmtClass:
+      case clang::Stmt::IfStmtClass:
+      case clang::Stmt::ForStmtClass:
+      case clang::Stmt::WhileStmtClass:
+      case clang::Stmt::SwitchStmtClass:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
+  }
+
+  bool IsGCGuard(clang::QualType qtype) {
+    return IsSameType(qtype, no_gc_mole_decl_);
+  }
+
   clang::MangleContext* ctx_;
+  clang::CXXRecordDecl* no_gc_mole_decl_;
 
   std::stack<CalleesSet*> scopes_;
   Callgraph callgraph_;
   CalleesMap mangled_to_function_;
   CalleesSet analyzed_;
+  std::vector<GCScope> gc_scopes_;
 };
 
 class FunctionDeclarationFinder
@@ -302,7 +368,13 @@ class FunctionDeclarationFinder
   void HandleTranslationUnit(clang::ASTContext& ctx) override {
     mangle_context_ =
         clang::ItaniumMangleContext::create(ctx, diagnostics_engine_);
-    callees_printer_ = new CalleesPrinter(mangle_context_);
+
+    Resolver r(ctx);
+    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
+    clang::CXXRecordDecl* no_gc_mole_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
+
+    callees_printer_ = new CalleesPrinter(mangle_context_, no_gc_mole_decl);
     TraverseDecl(ctx.getTranslationUnitDecl());
     callees_printer_->PrintCallGraph();
   }
@@ -1248,10 +1320,12 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(WhileStmt) {
+    scopes_.push_back(GCScope());
     Block block(env, this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody());
     } while (block.changed());
+    scopes_.pop_back();
     return block.out();
   }
 
@@ -1275,24 +1349,30 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(ForStmt) {
+    scopes_.push_back(GCScope());
     Block block(VisitStmt(stmt->getInit(), env), this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
     } while (block.changed());
+    scopes_.pop_back();
     return block.out();
   }
 
   DECL_VISIT_STMT(IfStmt) {
+    scopes_.push_back(GCScope());
     Environment init_out = VisitStmt(stmt->getInit(), env);
     Environment cond_out = VisitStmt(stmt->getCond(), init_out);
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
+    scopes_.pop_back();
     return Environment::Merge(then_out, else_out);
   }
 
   DECL_VISIT_STMT(SwitchStmt) {
+    scopes_.push_back(GCScope());
     Block block(env, this);
     block.Sequential(stmt->getCond(), stmt->getBody());
+    scopes_.pop_back();
     return block.out();
   }
 
