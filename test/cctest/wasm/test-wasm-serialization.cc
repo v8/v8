@@ -84,8 +84,10 @@ class WasmSerializationTest {
     CHECK(Deserialize().ToHandle(&module_object));
     {
       DisallowGarbageCollection assume_no_gc;
+      Managed<wasm::NativeModule>::Ptr native_module =
+          module_object->native_module();
       base::Vector<const uint8_t> deserialized_module_wire_bytes =
-          module_object->native_module()->wire_bytes();
+          native_module->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
       CHECK_EQ(memcmp(deserialized_module_wire_bytes.begin(),
                       wire_bytes_.data(), wire_bytes_.size()),

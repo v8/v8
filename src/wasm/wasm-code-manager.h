@@ -775,7 +775,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
-  base::Vector<const uint8_t> wire_bytes() const {
+  base::Vector<const uint8_t> wire_bytes() const V8_LIFETIME_BOUND {
     return std::atomic_load(&wire_bytes_)->as_vector();
   }
   const WasmModule* module() const { return module_.get(); }

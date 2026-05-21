@@ -596,8 +596,9 @@ DirectHandle<JSArray> GetCustomSections(
     DirectHandle<String> name, ErrorThrower* thrower) {
   Factory* factory = isolate->factory();
 
-  base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
       DecodeCustomSections(wire_bytes);
 

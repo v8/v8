@@ -866,8 +866,7 @@ std::vector<WasmScript::DebugSymbols> WasmScript::GetDebugSymbols() const {
         GetDebugSymbolType(symbol.type);
     if (type.IsNothing()) continue;
 
-    internal::wasm::ModuleWireBytes wire_bytes(
-        script->wasm_native_module()->wire_bytes());
+    internal::wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
     i::wasm::WasmName external_url =
         wire_bytes.GetNameOrNull(symbol.external_url);
     debug_symbols.push_back({type.FromJust(), external_url});
