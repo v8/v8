@@ -22,25 +22,17 @@ class String;
 // TorqueGeneratedFooAsserts should be emitted into a global .cc file.
 #include "torque-generated/src/objects/regexp-match-info-tq.inc"
 
-class RegExpMatchInfoShape final : public AllStatic {
- public:
-  using ElementT = Smi;
-  using CompressionScheme = SmiCompressionScheme;
-  static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-};
 
 // The property RegExpMatchInfo includes the matchIndices array of the last
 // successful regexp match (an array of start/end index pairs for the match and
 // all the captured substrings), the invariant is that there are at least two
 // capture indices.  The array also contains the subject string for the last
 // successful match.
-V8_OBJECT class RegExpMatchInfo
-    : public TaggedArrayBase<RegExpMatchInfo, RegExpMatchInfoShape> {
-  using Super = TaggedArrayBase<RegExpMatchInfo, RegExpMatchInfoShape>;
+V8_OBJECT class RegExpMatchInfo : public TaggedArrayBase<RegExpMatchInfo, Smi> {
+  using Super = TaggedArrayBase<RegExpMatchInfo, Smi>;
 
  public:
-  using Shape = RegExpMatchInfoShape;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kRegExpMatchInfoMap;
 
   V8_EXPORT_PRIVATE static DirectHandle<RegExpMatchInfo> New(
       Isolate* isolate, int capture_count,

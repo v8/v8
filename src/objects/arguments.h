@@ -95,15 +95,6 @@ V8_OBJECT class AliasedArgumentsEntry : public Struct {
   TaggedMember<Smi> aliased_context_slot_;
 } V8_OBJECT_END;
 
-class SloppyArgumentsElementsShape final : public AllStatic {
- public:
-  using ElementT = UnionOf<Smi, Hole>;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex =
-      RootIndex::kSloppyArgumentsElementsMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-};
-
 // Helper class to access FAST_ and SLOW_SLOPPY_ARGUMENTS_ELEMENTS, dividing
 // arguments into two types for a given SloppyArgumentsElements object:
 // mapped and unmapped.
@@ -155,12 +146,12 @@ class SloppyArgumentsElementsShape final : public AllStatic {
 // - FAST_SLOPPY_ARGUMENTS_ELEMENTS: HOLEY_ELEMENTS
 // - SLOW_SLOPPY_ARGUMENTS_ELEMENTS: DICTIONARY_ELEMENTS
 class SloppyArgumentsElements
-    : public TaggedArrayBase<SloppyArgumentsElements,
-                             SloppyArgumentsElementsShape> {
-  using Super =
-      TaggedArrayBase<SloppyArgumentsElements, SloppyArgumentsElementsShape>;
+    : public TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>> {
+  using Super = TaggedArrayBase<SloppyArgumentsElements, UnionOf<Smi, Hole>>;
 
  public:
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kSloppyArgumentsElementsMap;
   inline Tagged<Context> context() const;
   inline void set_context(Tagged<Context> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

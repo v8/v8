@@ -51,26 +51,18 @@ V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
   TaggedMember<Context> context_;
 } V8_OBJECT_END;
 
-class ObjectBoilerplateDescriptionShape final : public AllStatic {
- public:
-  using ElementT = Object;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex =
-      RootIndex::kObjectBoilerplateDescriptionMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-};
 
 // ObjectBoilerplateDescription is a list of properties consisting of name
 // value pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
 // computed names that are not in the list.
 class ObjectBoilerplateDescription
-    : public TaggedArrayBase<ObjectBoilerplateDescription,
-                             ObjectBoilerplateDescriptionShape> {
-  using Super = TaggedArrayBase<ObjectBoilerplateDescription,
-                                ObjectBoilerplateDescriptionShape>;
+    : public TaggedArrayBase<ObjectBoilerplateDescription, Object> {
+  using Super = TaggedArrayBase<ObjectBoilerplateDescription, Object>;
+
  public:
-  using Shape = ObjectBoilerplateDescriptionShape;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kObjectBoilerplateDescriptionMap;
   using KeyT = UnionOf<InternalizedString, Number>;
 
   template <class IsolateT>

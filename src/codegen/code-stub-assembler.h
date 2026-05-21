@@ -1579,9 +1579,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<TIndex> index,
                                  int additional_offset = 0);
   template <typename Array, typename TIndex>
-  TNode<typename Array::Shape::ElementT> LoadArrayElement(
-      TNode<Array> array, TNode<TIndex> index, int additional_offset = 0) {
-    return LoadArrayElement<Array, TIndex, typename Array::Shape::ElementT>(
+  TNode<typename Array::ElementT> LoadArrayElement(TNode<Array> array,
+                                                   TNode<TIndex> index,
+                                                   int additional_offset = 0) {
+    return LoadArrayElement<Array, TIndex, typename Array::ElementT>(
         array, OFFSET_OF_DATA_START(Array), index, additional_offset);
   }
 
@@ -1915,8 +1916,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   template <typename Array>
   void UnsafeStoreArrayElement(
-      TNode<Array> object, int index,
-      TNode<typename Array::Shape::ElementT> value,
+      TNode<Array> object, int index, TNode<typename Array::ElementT> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
            barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
@@ -1938,7 +1938,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename Array>
   void UnsafeStoreArrayElement(
       TNode<Array> object, TNode<Uint32T> index,
-      TNode<typename Array::Shape::ElementT> value,
+      TNode<typename Array::ElementT> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
            barrier_mode == UPDATE_WRITE_BARRIER);

@@ -271,27 +271,17 @@ class FeedbackMetadata;
 
 #include "torque-generated/src/objects/feedback-vector-tq.inc"
 
-class ClosureFeedbackCellArrayShape final : public AllStatic {
- public:
-  using ElementT = FeedbackCell;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex =
-      RootIndex::kClosureFeedbackCellArrayMap;
-  static constexpr bool kLengthEqualsCapacity = true;
-};
-
 // ClosureFeedbackCellArray contains feedback cells used when creating closures
 // from a function. This is created once the function is compiled and is either
 // held by the feedback vector (if allocated) or by the FeedbackCell of the
 // closure.
 class ClosureFeedbackCellArray
-    : public TaggedArrayBase<ClosureFeedbackCellArray,
-                             ClosureFeedbackCellArrayShape> {
-  using Super =
-      TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
+    : public TaggedArrayBase<ClosureFeedbackCellArray, FeedbackCell> {
+  using Super = TaggedArrayBase<ClosureFeedbackCellArray, FeedbackCell>;
 
  public:
-  using Shape = ClosureFeedbackCellArrayShape;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kClosureFeedbackCellArrayMap;
 
   V8_EXPORT_PRIVATE static DirectHandle<ClosureFeedbackCellArray> New(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,

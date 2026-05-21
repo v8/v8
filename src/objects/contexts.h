@@ -858,22 +858,14 @@ class NativeContext : public Context {
                 Internals::kNativeContextEmbedderDataOffset);
 };
 
-class ScriptContextTableShape final : public AllStatic {
- public:
-  using ElementT = Context;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
-  static constexpr bool kLengthEqualsCapacity = false;
-};
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
-class ScriptContextTable
-    : public TaggedArrayBase<ScriptContextTable, ScriptContextTableShape> {
-  using Super = TaggedArrayBase<ScriptContextTable, ScriptContextTableShape>;
+class ScriptContextTable : public TaggedArrayBase<ScriptContextTable, Context> {
+  using Super = TaggedArrayBase<ScriptContextTable, Context>;
 
  public:
-  using Shape = ScriptContextTableShape;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
 
   static Handle<ScriptContextTable> New(
       Isolate* isolate, uint32_t capacity,

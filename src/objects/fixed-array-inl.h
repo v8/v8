@@ -55,133 +55,135 @@ void FixedArrayBase::set_length(uint32_t value, ReleaseStoreTag tag) {
   base::AsAtomic32::Release_Store(&length_, value);
 }
 
-template <class D, class S, class P>
-bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
+template <class D, class ElementT_, class P>
+bool TaggedArrayBase<D, ElementT_, P>::IsInBounds(int index) const {
   return static_cast<uint32_t>(index) < this->capacity().value();
 }
 
-template <class D, class S, class P>
-bool TaggedArrayBase<D, S, P>::IsCowArray() const {
+template <class D, class ElementT_, class P>
+bool TaggedArrayBase<D, ElementT_, P>::IsCowArray() const {
   return this->map() ==
          this->EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(uint32_t index) const {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   return derived()->objects()[index].Relaxed_Load();
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(uint32_t index, RelaxedLoadTag) const {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index,
+                                                        RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
   return derived()->objects()[index].Relaxed_Load();
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(uint32_t index, AcquireLoadTag) const {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index,
+                                                        AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
   return derived()->objects()[index].Acquire_Load();
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(uint32_t index, SeqCstAccessTag) const {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::get(uint32_t index,
+                                                        SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
   return derived()->objects()[index].SeqCst_Load();
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
-                                   WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
+                                           Tagged<ElementT_> value,
+                                           WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   derived()->objects()[index].Relaxed_Store(derived(), value, mode);
 }
 
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value) {
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value) {
   set(index, value, SKIP_WRITE_BARRIER);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
-                                   RelaxedStoreTag tag, WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
+                                           Tagged<ElementT_> value,
+                                           RelaxedStoreTag tag,
+                                           WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   derived()->objects()[index].Relaxed_Store(derived(), value, mode);
 }
 
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
-                                   RelaxedStoreTag tag) {
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value,
+                                           RelaxedStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
-                                   ReleaseStoreTag tag, WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
+                                           Tagged<ElementT_> value,
+                                           ReleaseStoreTag tag,
+                                           WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   derived()->objects()[index].Release_Store(derived(), value, mode);
 }
 
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
-                                   ReleaseStoreTag tag) {
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value,
+                                           ReleaseStoreTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<ElementT> value,
-                                   SeqCstAccessTag tag, WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index,
+                                           Tagged<ElementT_> value,
+                                           SeqCstAccessTag tag,
+                                           WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   derived()->objects()[index].SeqCst_Store(derived(), value, mode);
 }
 
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <typename, typename>
-void TaggedArrayBase<D, S, P>::set(uint32_t index, Tagged<Smi> value,
-                                   SeqCstAccessTag tag) {
+void TaggedArrayBase<D, ElementT_, P>::set(uint32_t index, Tagged<Smi> value,
+                                           SeqCstAccessTag tag) {
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::swap(uint32_t index, Tagged<ElementT> value,
-                               SeqCstAccessTag, WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::swap(
+    uint32_t index, Tagged<ElementT_> value, SeqCstAccessTag,
+    WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   return derived()->objects()[index].SeqCst_Swap(derived(), value, mode);
 }
 
-template <class D, class S, class P>
-Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::compare_and_swap(uint32_t index,
-                                           Tagged<ElementT> expected,
-                                           Tagged<ElementT> value,
-                                           SeqCstAccessTag,
-                                           WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+Tagged<ElementT_> TaggedArrayBase<D, ElementT_, P>::compare_and_swap(
+    uint32_t index, Tagged<ElementT_> expected, Tagged<ElementT_> value,
+    SeqCstAccessTag, WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   return derived()->objects()[index].SeqCst_CompareAndSwap(derived(), expected,
                                                            value, mode);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
-                                            uint32_t dst_index, Tagged<D> src,
-                                            uint32_t src_index, uint32_t len,
-                                            WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::MoveElements(
+    Isolate* isolate, Tagged<D> dst, uint32_t dst_index, Tagged<D> src,
+    uint32_t src_index, uint32_t len, WriteBarrierMode mode) {
   if (len == 0) return;
 
   DCHECK_GE(len, 0);
@@ -196,11 +198,10 @@ void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
   isolate->heap()->MoveRange(dst, dst_slot, src_slot, len, mode);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
-                                            uint32_t dst_index, Tagged<D> src,
-                                            uint32_t src_index, uint32_t len,
-                                            WriteBarrierMode mode) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::CopyElements(
+    Isolate* isolate, Tagged<D> dst, uint32_t dst_index, Tagged<D> src,
+    uint32_t src_index, uint32_t len, WriteBarrierMode mode) {
   if (len == 0) return;
 
   DCHECK_GE(len, 0);
@@ -215,9 +216,9 @@ void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
   isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
 }
 
-template <class D, class S, class P>
-void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate,
-                                         uint32_t new_capacity) {
+template <class D, class ElementT_, class P>
+void TaggedArrayBase<D, ElementT_, P>::RightTrim(Isolate* isolate,
+                                                 uint32_t new_capacity) {
   const uint32_t old_capacity = this->capacity().value();
   CHECK_GT(new_capacity, 0);  // Due to possible canonicalization.
   CHECK_LE(new_capacity, old_capacity);
@@ -228,20 +229,20 @@ void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate,
 // Due to right-trimming (which creates a filler object before publishing the
 // length through a release-store, see Heap::RightTrimArray), concurrent
 // visitors need to read the length with acquire semantics.
-template <class D, class S, class P>
-int TaggedArrayBase<D, S, P>::AllocatedSize() const {
+template <class D, class ElementT_, class P>
+int TaggedArrayBase<D, ElementT_, P>::AllocatedSize() const {
   return SizeFor(static_cast<int>(this->capacity(kAcquireLoad).value()));
 }
 
-template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::SlotType
-TaggedArrayBase<D, S, P>::RawFieldOfFirstElement() const {
+template <class D, class ElementT_, class P>
+typename TaggedArrayBase<D, ElementT_, P>::SlotType
+TaggedArrayBase<D, ElementT_, P>::RawFieldOfFirstElement() const {
   return RawFieldOfElementAt(0);
 }
 
-template <class D, class S, class P>
-typename TaggedArrayBase<D, S, P>::SlotType
-TaggedArrayBase<D, S, P>::RawFieldOfElementAt(uint32_t index) const {
+template <class D, class ElementT_, class P>
+typename TaggedArrayBase<D, ElementT_, P>::SlotType
+TaggedArrayBase<D, ElementT_, P>::RawFieldOfElementAt(uint32_t index) const {
   return SlotType(&derived()->objects()[index]);
 }
 
@@ -340,9 +341,9 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
 }
 
 // static
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <class IsolateT>
-Handle<D> TaggedArrayBase<D, S, P>::Allocate(
+Handle<D> TaggedArrayBase<D, ElementT_, P>::Allocate(
     IsolateT* isolate, uint32_t capacity,
     std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation, AllocationHint hint) {
@@ -356,7 +357,7 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
-  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
+  Tagged<Map> map = Cast<Map>(roots.object_at(D::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
   xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
@@ -371,8 +372,8 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
 }
 
 // static
-template <class D, class S, class P>
-constexpr uint32_t TaggedArrayBase<D, S, P>::NewCapacityForIndex(
+template <class D, class ElementT_, class P>
+constexpr uint32_t TaggedArrayBase<D, ElementT_, P>::NewCapacityForIndex(
     uint32_t index, uint32_t old_capacity) {
   DCHECK_GE(index, old_capacity);
   // Note this is currently based on JSObject::NewElementsCapacity.
@@ -448,19 +449,20 @@ inline int WeakArrayList::AllocatedSize() const {
   return SizeFor(static_cast<int>(capacity(kRelaxedLoad).value()));
 }
 
-template <class D, class S, class P>
-bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
+template <class D, class ElementT_, class P>
+bool PrimitiveArrayBase<D, ElementT_, P>::IsInBounds(int index) const {
   return static_cast<unsigned>(index) < this->ulength().value();
 }
 
-template <class D, class S, class P>
-auto PrimitiveArrayBase<D, S, P>::get(int index) const -> ElementMemberT {
+template <class D, class ElementT_, class P>
+auto PrimitiveArrayBase<D, ElementT_, P>::get(int index) const
+    -> ElementMemberT {
   DCHECK(IsInBounds(index));
   return derived()->values()[index];
 }
 
-template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set(int index, ElementMemberT value) {
+template <class D, class ElementT_, class P>
+void PrimitiveArrayBase<D, ElementT_, P>::set(int index, ElementMemberT value) {
   DCHECK(IsInBounds(index));
   derived()->values()[index] = value;
 }
@@ -468,33 +470,34 @@ void PrimitiveArrayBase<D, S, P>::set(int index, ElementMemberT value) {
 // Due to right-trimming (which creates a filler object before publishing the
 // length through a release-store, see Heap::RightTrimArray), concurrent
 // visitors need to read the length with acquire semantics.
-template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
+template <class D, class ElementT_, class P>
+int PrimitiveArrayBase<D, ElementT_, P>::AllocatedSize() const {
   return SizeFor(this->length(kAcquireLoad).value());
 }
 
-template <class D, class S, class P>
-auto PrimitiveArrayBase<D, S, P>::begin() -> ElementMemberT* {
+template <class D, class ElementT_, class P>
+auto PrimitiveArrayBase<D, ElementT_, P>::begin() -> ElementMemberT* {
   return &derived()->values()[0];
 }
 
-template <class D, class S, class P>
-auto PrimitiveArrayBase<D, S, P>::begin() const -> const ElementMemberT* {
+template <class D, class ElementT_, class P>
+auto PrimitiveArrayBase<D, ElementT_, P>::begin() const
+    -> const ElementMemberT* {
   return &derived()->values()[0];
 }
 
-template <class D, class S, class P>
-auto PrimitiveArrayBase<D, S, P>::end() -> ElementMemberT* {
+template <class D, class ElementT_, class P>
+auto PrimitiveArrayBase<D, ElementT_, P>::end() -> ElementMemberT* {
   return &derived()->values()[this->ulength().value()];
 }
 
-template <class D, class S, class P>
-auto PrimitiveArrayBase<D, S, P>::end() const -> const ElementMemberT* {
+template <class D, class ElementT_, class P>
+auto PrimitiveArrayBase<D, ElementT_, P>::end() const -> const ElementMemberT* {
   return &derived()->values()[this->ulength().value()];
 }
 
-template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::DataSize() const {
+template <class D, class ElementT_, class P>
+int PrimitiveArrayBase<D, ElementT_, P>::DataSize() const {
   int data_size = SizeFor(this->ulength().value()) - OFFSET_OF_DATA_START(D);
   DCHECK_EQ(data_size,
             OBJECT_POINTER_ALIGN(this->ulength().value() * kElementSize));
@@ -502,8 +505,8 @@ int PrimitiveArrayBase<D, S, P>::DataSize() const {
 }
 
 // static
-template <class D, class S, class P>
-inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
+template <class D, class ElementT_, class P>
+inline Tagged<D> PrimitiveArrayBase<D, ElementT_, P>::FromAddressOfFirstElement(
     Address address) {
   DCHECK_TAG_ALIGNED(address);
   return Cast<D>(
@@ -549,9 +552,9 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, uint32_t length,
 }
 
 // static
-template <class D, class S, class P>
+template <class D, class ElementT_, class P>
 template <class IsolateT>
-Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
+Handle<D> PrimitiveArrayBase<D, ElementT_, P>::Allocate(
     IsolateT* isolate, uint32_t length,
     std::optional<DisallowGarbageCollection>* no_gc_out,
     AllocationType allocation, AllocationAlignment alignment) {
@@ -565,7 +568,7 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
-  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
+  Tagged<Map> map = Cast<Map>(roots.object_at(D::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
   xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
