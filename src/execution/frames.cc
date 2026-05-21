@@ -3576,7 +3576,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  if (function_index() == wasm::kAnonymousFuncIndex) {
+  if (wasm_code()->index() == wasm::kAnonymousFuncIndex) {
     accumulator->Add("Anonymous wasm wrapper [pc: %p]\n",
                      reinterpret_cast<void*>(pc()));
     return;
@@ -3584,22 +3584,25 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
   wasm::WasmCodeRefScope code_ref_scope;
   accumulator->Add(is_wasm_to_js() ? "Wasm-to-JS [" : "Wasm [");
   accumulator->PrintName(script()->name());
-  Address instruction_start = wasm_code()->instruction_start();
+
+  FrameSummary::WasmFrameSummary top_summary =
+      FrameSummary::GetTop(this).AsWasm();
+  int func_index = static_cast<int>(top_summary.function_index());
   base::Vector<const uint8_t> raw_func_name =
-      module_object()->GetRawFunctionName(function_index());
+      module_object()->GetRawFunctionName(func_index);
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
   memcpy(func_name, raw_func_name.begin(), func_name_len);
   func_name[func_name_len] = '\0';
-  int pos = position();
+  int pos = top_summary.SourcePosition();
   const wasm::WasmModule* module = trusted_instance_data()->module();
-  int func_index = function_index();
   int func_code_offset = module->functions[func_index].code.offset();
   accumulator->Add(
       "], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d) instance=%p\n",
       func_index, func_name, reinterpret_cast<void*>(pc()),
-      static_cast<int>(pc() - instruction_start), pos, pos - func_code_offset,
+      static_cast<int>(pc() - top_summary.code()->instruction_start()), pos,
+      pos - func_code_offset,
       reinterpret_cast<void*>(trusted_instance_data()->ptr()));
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
@@ -3629,20 +3632,28 @@ Tagged<WasmModuleObject> WasmFrame::module_object() const {
   return trusted_instance_data()->module_object();
 }
 
-int WasmFrame::function_index() const { return wasm_code()->index(); }
-
 Tagged<Script> WasmFrame::script() const { return module_object()->script(); }
 
-int WasmFrame::position() const {
-  const wasm::WasmModule* module = trusted_instance_data()->module();
-  return GetSourcePosition(module, function_index(), generated_code_offset(),
-                           at_to_number_conversion());
-}
-
-int WasmFrame::generated_code_offset() const {
+std::tuple<SourcePosition, int>
+WasmFrame::GetInnermostSourcePositionAndFunctionIndex() const {
   wasm::WasmCode* code = wasm_code();
   int offset = static_cast<int>(pc() - code->instruction_start());
-  return code->GetSourceOffsetBefore(offset);
+  SourcePosition pos = code->GetSourcePositionBefore(offset);
+  int func_index = code->index();
+  if (pos.isInlined()) {
+    func_index = std::get<0>(code->GetInliningPosition(pos.InliningId()));
+  }
+  return {pos, func_index};
+}
+
+int WasmFrame::position() const {
+  auto [pos, func_index] = GetInnermostSourcePositionAndFunctionIndex();
+  return GetSourcePosition(trusted_instance_data()->module(), func_index,
+                           pos.ScriptOffset(), at_to_number_conversion());
+}
+
+int WasmFrame::GetInnermostFunctionIndex() const {
+  return std::get<1>(GetInnermostSourcePositionAndFunctionIndex());
 }
 
 bool WasmFrame::is_inspectable() const { return wasm_code()->is_inspectable(); }

@@ -171,12 +171,7 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   HandleScope scope(isolate);
   FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
   WasmFrame* frame = frame_finder.frame();
-  // TODO(ahaas): We cannot use frame->position() here because for inlined
-  // function it does not return the correct source position. We should remove
-  // frame->position() to avoid problems in the future.
-  FrameSummaries summaries = frame->Summarize();
-  DCHECK(summaries.frames.back().IsWasm());
-  int pos = summaries.frames.back().AsWasm().SourcePosition();
+  int pos = frame->position();
 
   wasm::WasmCodeRefScope code_ref_scope;
   auto wire_bytes = frame->wasm_code()->native_module()->wire_bytes();
@@ -665,8 +660,9 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
         TrustedCast<WasmTrustedInstanceData>(args[0]);
 
     FrameFinder<WasmFrame> frame_finder(isolate);
-    int func_index = frame_finder.frame()->function_index();
-    DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
+    WasmFrame* frame = frame_finder.frame();
+    int func_index = frame->GetInnermostFunctionIndex();
+    DCHECK_EQ(trusted_data, frame->trusted_instance_data());
 
     if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up &&
                     !v8_flags.wasm_generate_compilation_hints &&

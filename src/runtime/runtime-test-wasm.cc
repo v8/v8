@@ -234,7 +234,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
   // Find the function name.
-  int func_index = frame->function_index();
+  int func_index = frame->GetInnermostFunctionIndex();
   const wasm::WasmModule* module = frame->trusted_instance_data()->module();
   wasm::ModuleWireBytes wire_bytes =
       wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK(!it.is_wasm_interpreter_entry());
 #endif  // V8_ENABLE_DRUMBRAKE
   WasmFrame* frame = WasmFrame::cast(it.frame());
-  int func_index = frame->function_index();
+  int func_index = frame->GetInnermostFunctionIndex();
   const wasm::WasmModule* module = frame->trusted_instance_data()->module();
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
 
@@ -637,7 +637,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
       instance->trusted_data(isolate)->GetGlobalValue(isolate, global);
 
   wasm::GlobalTraceEntry trace_entry = {
-      .function_index = frame->function_index(),
+      .function_index = frame->GetInnermostFunctionIndex(),
       .global_index = info->global_index,
       .frame_position = frame->position(),
       .tier = tier,
@@ -702,7 +702,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 
   wasm::MemoryTraceEntry trace_entry = {
       .offset = info->offset,
-      .function_index = frame->function_index(),
+      .function_index = frame->GetInnermostFunctionIndex(),
       .mem_index = info->mem_index,
       .frame_position = frame->position(),
       .tier = tier,

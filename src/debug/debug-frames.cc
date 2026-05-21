@@ -89,8 +89,10 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
 #endif  // V8_ENABLE_DRUMBRAKE
     auto wasm_frame = WasmFrame::cast(frame_);
     auto instance_data = handle(wasm_frame->trusted_instance_data(), isolate_);
-    return GetWasmFunctionDebugName(isolate_, instance_data,
-                                    wasm_frame->function_index());
+    int top_func_index = FrameSummary::Get(wasm_frame, inlined_frame_index_)
+                             .AsWasm()
+                             .function_index();
+    return GetWasmFunctionDebugName(isolate_, instance_data, top_func_index);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return JSFunction::GetDebugName(isolate_, function_);

@@ -173,7 +173,10 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
   if (iterator_.frame()->is_wasm()) {
     auto frame = WasmFrame::cast(iterator_.frame());
     const wasm::WasmModule* module = frame->trusted_instance_data()->module();
-    auto offset = module->functions[frame->function_index()].code.offset();
+    uint32_t func_index = FrameSummary::Get(frame, inlined_frame_index_)
+                              .AsWasm()
+                              .function_index();
+    auto offset = module->functions[func_index].code.offset();
     return v8::debug::Location(0, offset);
   }
 #endif

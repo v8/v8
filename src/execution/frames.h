@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_FRAMES_H_
 #define V8_EXECUTION_FRAMES_H_
 
+#include <tuple>
+
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
 #include "src/base/small-vector.h"
@@ -1400,14 +1402,17 @@ class WasmFrame : public TypedFrame {
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
 
   virtual wasm::WasmCode* wasm_code() const;
-  int function_index() const;
-  Tagged<Script> script() const;
-  // Byte position in the module, or asm.js source position.
+  // Returns the module-relative byte position in the module of the innermost
+  // inlined frame. This method is handle-free; use FrameSummary for more
+  // comprehensive information.
   int position() const override;
+  // Returns the function index of the innermost inlined frame.
+  // This method is handle-free; use FrameSummary for more comprehensive
+  // information.
+  int GetInnermostFunctionIndex() const;
+  Tagged<Script> script() const;
   Tagged<Object> context() const override;
   bool at_to_number_conversion() const;
-  // Generated code byte offset in the function.
-  int generated_code_offset() const;
   bool is_inspectable() const;
 
   FrameSummaries Summarize(
@@ -1428,6 +1433,8 @@ class WasmFrame : public TypedFrame {
  private:
   friend class StackFrameIteratorBase;
   Tagged<WasmModuleObject> module_object() const;
+  std::tuple<SourcePosition, int> GetInnermostSourcePositionAndFunctionIndex()
+      const;
 };
 
 // WasmSegmentStartFrame is a regular Wasm frame moved to the

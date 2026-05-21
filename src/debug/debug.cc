@@ -2604,9 +2604,9 @@ void Debug::OnException(DirectHandle<Object> exception,
 #if V8_ENABLE_WEBASSEMBLY
       } else if (it.frame()->is_wasm()) {
         const WasmFrame* frame = WasmFrame::cast(it.frame());
-        if (IsMutedAtWasmLocation(frame->script(), frame->position())) {
-          return;
-        }
+        int top_wasm_position =
+            FrameSummary::GetTop(frame).AsWasm().SourcePosition();
+        if (IsMutedAtWasmLocation(frame->script(), top_wasm_position)) return;
         // Wasm is always subject to debugging
         break;
 #endif  // V8_ENABLE_WEBASSEMBLY
