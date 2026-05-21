@@ -391,6 +391,8 @@ class PerIsolateData {
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& info,
                         int arg_offset);
   int RealmFind(Local<Context> context);
+
+  static constexpr int kMainRealmIndex = 0;
 };
 
 extern bool check_d8_flag_contradictions;
@@ -896,6 +898,10 @@ class Shell : public i::AllStatic {
   static std::atomic<bool> script_executed_;
   static std::atomic<bool> valid_fuzz_script_;
 
+  static bool ValidateRealmIndex(Isolate* isolate, PerIsolateData* data,
+                                 int index);
+  static bool ValidateRestrictedRealmIndex(Isolate* isolate,
+                                           PerIsolateData* data, int index);
   // Append LCOV coverage data to file.
   static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);

@@ -2644,6 +2644,28 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(index);
 }
 
+bool Shell::ValidateRealmIndex(Isolate* isolate, PerIsolateData* data,
+                               int index) {
+  if (index >= 0 && index < data->realm_count_ &&
+      !data->realms_[index].IsEmpty()) {
+    return true;
+  }
+  ThrowError(isolate, "Invalid realm index");
+  return false;
+}
+
+bool Shell::ValidateRestrictedRealmIndex(Isolate* isolate, PerIsolateData* data,
+                                         int index) {
+  if (index == PerIsolateData::kMainRealmIndex ||
+      index == data->realm_current_ || index == data->realm_switch_) {
+    // We cannot dispose or navigate away from the main realm, the current
+    // realm, or the realm we are currently switching to.
+    ThrowError(isolate, "Invalid realm index");
+    return false;
+  }
+  return ValidateRealmIndex(isolate, data, index);
+}
+
 // Realm.global(i) returns the global object of realm i.
 // (Note that properties of global objects cannot be read/written cross-realm.)
 void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -2755,11 +2777,9 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
-  if (index == 0 || index == data->realm_current_ ||
-      index == data->realm_switch_) {
-    ThrowError(isolate, "Invalid realm index");
-    return;
-  }
+  // We cannot navigate away from the main realm, the current realm, or the
+  // realm we are currently switching to.
+  if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
   Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
   v8::Local<Value> global = context->Global();
@@ -2779,11 +2799,9 @@ void Shell::RealmNavigateSameOrigin(
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
-  if (index == 0 || index == data->realm_current_ ||
-      index == data->realm_switch_) {
-    ThrowError(isolate, "Invalid realm index");
-    return;
-  }
+  // We cannot navigate away from the main realm, the current realm, or the
+  // realm we are currently switching to.
+  if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
   Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
   v8::Local<Value> global = context->Global();
@@ -2804,11 +2822,9 @@ void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
-  if (index == 0 || index == data->realm_current_ ||
-      index == data->realm_switch_) {
-    ThrowError(isolate, "Invalid realm index");
-    return;
-  }
+  // We cannot detach the global object of the main realm, the current realm, or
+  // the realm we are currently switching to.
+  if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
 
   HandleScope scope(isolate);
   Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
@@ -2822,11 +2838,9 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& info) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(info, 0);
   if (index == -1) return;
-  if (index == 0 || index == data->realm_current_ ||
-      index == data->realm_switch_) {
-    ThrowError(isolate, "Invalid realm index");
-    return;
-  }
+  // We cannot dispose the main realm, the current realm, or the realm we are
+  // currently switching to.
+  if (!ValidateRestrictedRealmIndex(isolate, data, index)) return;
   DisposeRealm(info, index);
 }
 
@@ -2854,6 +2868,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<String> source;
   if (!ReadSource(info, 1, CodeType::kString).ToLocal(&source)) {
+    if (!ValidateRealmIndex(isolate, data, index)) return;
     ThrowError(isolate, "Invalid argument");
     return;
   }
@@ -2862,6 +2877,8 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
                          ScriptType::kClassic);
 
   if (isolate->IsExecutionTerminating()) return;
+  if (!ValidateRealmIndex(isolate, data, index)) return;
+
   ScriptCompiler::Source script_source(source, origin);
   Local<UnboundScript> script;
   if (!ScriptCompiler::CompileUnboundScript(isolate, &script_source)
