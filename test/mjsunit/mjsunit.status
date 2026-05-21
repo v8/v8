@@ -381,6 +381,7 @@
   'regress/regress-506499280-extended': [SKIP],
   'regress/regress-crbug-612109': [SKIP],
   'regress/regress-crbug-627934': [SKIP],
+  'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-923264': [SKIP],
   'regress/regress-json-stringify-gc': [SKIP],
   'regress/regress-latin-1': [SKIP],
