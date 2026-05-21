@@ -2989,6 +2989,9 @@ class LiftoffCompiler {
               decoder, Builtin::kThrowWasmTrapDivUnrepresentable));
           if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero->label(),
                                 div_unrepresentable->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_div();
             Label* div_by_zero_ptr = div_by_zero->label();
             Label* div_unrepresentable_ptr = div_unrepresentable->label();
@@ -2999,6 +3002,7 @@ class LiftoffCompiler {
             div_unrepresentable.reset();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr,
                                 div_unrepresentable_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64DivU:
@@ -3010,6 +3014,9 @@ class LiftoffCompiler {
           div_by_zero.emplace(
               AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero));
           if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
             Label* div_by_zero_ptr = div_by_zero->label();
             // TODO(513426275): Capturing the label here and then resetting the
@@ -3017,6 +3024,7 @@ class LiftoffCompiler {
             // stack state.
             div_by_zero.reset();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64RemS:
@@ -3028,6 +3036,9 @@ class LiftoffCompiler {
           rem_by_zero.emplace(
               AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
           if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
             Label* rem_by_zero_ptr = rem_by_zero->label();
             // TODO(513426275): Capturing the label here and then resetting the
@@ -3035,6 +3046,7 @@ class LiftoffCompiler {
             // stack state.
             rem_by_zero.reset();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64RemU:
@@ -3046,6 +3058,9 @@ class LiftoffCompiler {
           rem_by_zero.emplace(
               AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
           if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
             Label* rem_by_zero_ptr = rem_by_zero->label();
             // TODO(513426275): Capturing the label here and then resetting the
@@ -3053,6 +3068,7 @@ class LiftoffCompiler {
             // stack state.
             rem_by_zero.reset();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprRefEq: {

@@ -7928,29 +7928,31 @@ class TurboshaftGraphBuildingInterface
       case kExprI64Mul:
         return __ Word64Mul(lhs, rhs);
       case kExprI64DivS: {
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
-                                wasm::TrapId::kTrapDivByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
+                              wasm::TrapId::kTrapDivByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word64Equal(rhs, -1),
             __ Word64Equal(lhs, std::numeric_limits<int64_t>::min()));
         __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int64Div(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       }
       case kExprI64DivU:
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
-                                wasm::TrapId::kTrapDivByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
+                              wasm::TrapId::kTrapDivByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint64Div(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       case kExprI64RemS: {
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
-                                wasm::TrapId::kTrapRemByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
+                              wasm::TrapId::kTrapRemByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
         IF (UNLIKELY(__ Word64Equal(rhs, -1))) {
@@ -7961,14 +7963,16 @@ class TurboshaftGraphBuildingInterface
 
         BIND(done, result);
         return result;
+#endif  // !V8_TARGET_ARCH_32_BIT
       }
       case kExprI64RemU:
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
-                                wasm::TrapId::kTrapRemByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
+                              wasm::TrapId::kTrapRemByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint64Mod(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       case kExprI64And:
         return __ Word64BitwiseAnd(lhs, rhs);
       case kExprI64Ior:

@@ -639,10 +639,12 @@ FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
                    wasm::float64_to_uint64_sat_wrapper)
 FUNCTION_REFERENCE(wasm_float16_to_float32, wasm::float16_to_float32_wrapper)
 FUNCTION_REFERENCE(wasm_float32_to_float16, wasm::float32_to_float16_wrapper)
+#if V8_TARGET_ARCH_32_BIT
 FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
 FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_mod, wasm::uint64_mod_wrapper)
+#endif
 FUNCTION_REFERENCE(wasm_word32_ctz, base::bits::CountTrailingZeros<uint32_t>)
 FUNCTION_REFERENCE(wasm_word64_ctz, base::bits::CountTrailingZeros<uint64_t>)
 FUNCTION_REFERENCE(wasm_word32_popcnt, base::bits::CountPopulation<uint32_t>)

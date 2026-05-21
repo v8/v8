@@ -315,12 +315,12 @@ enum class IsolateFieldId : uint8_t;
           "wasm::float64_to_uint64_sat_wrapper")                               \
   IF_WASM(V, wasm_float16_to_float32, "wasm::float16_to_float32_wrapper")      \
   IF_WASM(V, wasm_float32_to_float16, "wasm::float32_to_float16_wrapper")      \
-  IF_WASM(V, wasm_int64_div, "wasm::int64_div")                                \
-  IF_WASM(V, wasm_int64_mod, "wasm::int64_mod")                                \
+  IF_TARGET_ARCH_32_BIT(IF_WASM, V, wasm_int64_div, "wasm::int64_div")         \
+  IF_TARGET_ARCH_32_BIT(IF_WASM, V, wasm_int64_mod, "wasm::int64_mod")         \
+  IF_TARGET_ARCH_32_BIT(IF_WASM, V, wasm_uint64_div, "wasm::uint64_div")       \
+  IF_TARGET_ARCH_32_BIT(IF_WASM, V, wasm_uint64_mod, "wasm::uint64_mod")       \
   IF_WASM(V, wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")          \
   IF_WASM(V, wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")          \
-  IF_WASM(V, wasm_uint64_div, "wasm::uint64_div")                              \
-  IF_WASM(V, wasm_uint64_mod, "wasm::uint64_mod")                              \
   IF_WASM(V, wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")        \
   IF_WASM(V, wasm_uint64_to_float64, "wasm::uint64_to_float64_wrapper")        \
   IF_WASM(V, wasm_word32_ctz, "wasm::word32_ctz")                              \

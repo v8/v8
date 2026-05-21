@@ -297,6 +297,7 @@ TEST(RunCallFloat64ToUint64) {
       ref, wasm::float64_to_uint64_wrapper, ValueHelper::float64_vector());
 }
 
+#if V8_TARGET_ARCH_32_BIT
 TEST(RunCallInt64Div) {
   ExternalReference ref = ExternalReference::wasm_int64_div();
   TestExternalReference_BinOpWithReturn<int64_t>(ref, wasm::int64_div_wrapper,
@@ -320,6 +321,7 @@ TEST(RunCallUint64Mod) {
   TestExternalReference_BinOpWithReturn<uint64_t>(ref, wasm::uint64_mod_wrapper,
                                                   ValueHelper::uint64_vector());
 }
+#endif  // V8_TARGET_ARCH_32_BIT
 
 TEST(RunCallWord32Ctz) {
   ExternalReference ref = ExternalReference::wasm_word32_ctz();
