@@ -588,7 +588,7 @@ void V8ConsoleMessageStorage::addMessage(
         }
         session->runtimeAgent()->messageAdded(message.get());
       });
-  if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
+  if (inspector->consoleMessageStorage(contextGroupId) != this) return;
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
   if (m_messages.size() == maxConsoleMessageCount) {

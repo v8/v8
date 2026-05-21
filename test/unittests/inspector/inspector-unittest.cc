@@ -415,5 +415,193 @@ TEST_F(InspectorTest, NoInterruptWhileBuildingConsoleMessages) {
   CHECK(recorder.WasInvoked);
 }
 
+class UAFTriggerChannel : public V8Inspector::Channel {
+ public:
+  UAFTriggerChannel(v8::Isolate* isolate, V8Inspector* inspector,
+                    int contextGroupId, v8::Local<v8::Context> context,
+                    const std::string& targetNotification)
+      : m_isolate(isolate),
+        m_inspector(inspector),
+        m_contextGroupId(contextGroupId),
+        m_context(isolate, context),
+        m_targetNotification(targetNotification) {}
+  ~UAFTriggerChannel() override = default;
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {}
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    String16 message_str = toString16(message->string());
+    if (message_str.find("Runtime.consoleAPICalled") != String16::kNotFound) {
+      m_consoleAPICalled = true;
+    }
+    if (message_str.find(m_targetNotification.c_str()) != String16::kNotFound) {
+      m_triggerCount++;
+      m_inspector->resetContextGroup(m_contextGroupId);
+
+      // Allocate a few small dummy blocks of varying sizes
+      // and prevent the allocator from recycling the same memory address,
+      // otherwise our test NoUAFWhenResettingContextGroupDuringArgumentWrapping
+      // will actually report the message to the front-end.
+      for (size_t size : {32, 48, 64, 80, 96, 128, 256}) {
+        m_dummies.push_back(std::make_unique<std::vector<uint8_t>>(size, 0));
+      }
+
+      // Recreate storage using public exceptionThrown API.
+      // This avoids depending on internal non-exported V8InspectorImpl methods.
+      v8::HandleScope handle_scope(m_isolate);
+      v8::Local<v8::Context> context = m_context.Get(m_isolate);
+      v8::Context::Scope context_scope(context);
+
+      v8::Local<v8::Value> error = v8::Exception::Error(
+          v8::String::NewFromUtf8(m_isolate, "dummy").ToLocalChecked());
+      const char* dummy_str = "dummy";
+      StringView dummy_view(reinterpret_cast<const uint8_t*>(dummy_str),
+                            strlen(dummy_str));
+
+      m_inspector->exceptionThrown(context, dummy_view, error, dummy_view,
+                                   dummy_view, 0, 0, nullptr, 0);
+    }
+  }
+
+  void flushProtocolNotifications() override {}
+
+  // triggerCount() tracks how many times the target notification was
+  // intercepted. Asserting that triggerCount() == 1 in the tests serves a dual
+  // purpose:
+  // 1. Verifies Activation: Confirms the UAF sequence (reset and recreate)
+  //    successfully ran, preventing false positives.
+  // 2. Verifies Early Termination: In loop tests (Test 1 & 2), confirms that
+  //    the loop successfully aborted after the first message and did not
+  //    process subsequent queued messages (which would trigger a second count).
+  int triggerCount() const { return m_triggerCount; }
+  bool consoleAPICalled() const { return m_consoleAPICalled; }
+
+ private:
+  v8::Isolate* m_isolate;
+  V8Inspector* m_inspector;
+  int m_contextGroupId;
+  v8::Global<v8::Context> m_context;
+  std::string m_targetNotification;
+  int m_triggerCount = 0;
+  bool m_consoleAPICalled = false;
+  std::vector<std::unique_ptr<std::vector<uint8_t>>> m_dummies;
+};
+
+TEST_F(InspectorTest, NoUAFWhenResettingContextGroupDuringMessageReporting) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  UAFTriggerChannel channel(isolate, inspector.get(), 1, v8_context(),
+                            "Runtime.consoleAPICalled");
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+
+  // Log messages to accumulate them in storage while Runtime agent is disabled.
+  TryRunJS("console.log(1); console.log(2);");
+
+  // Enable Runtime agent, which will trigger reporting of accumulated messages.
+  // The first message will trigger UAFTriggerChannel::sendNotification,
+  // which will reset the context group and destroy the storage.
+  // The loop in V8RuntimeAgentImpl::enable should safely break.
+  const char kEnableCommand[] = R"({
+    "id": 1,
+    "method": "Runtime.enable"
+  })";
+  session->dispatchProtocolMessage(toStringView(kEnableCommand));
+
+  // Verify that we only received one notification (for the first message)
+  // and did not crash due to UAF on the second message.
+  CHECK_EQ(channel.triggerCount(), 1);
+}
+
+TEST_F(InspectorTest,
+       NoUAFWhenResettingContextGroupDuringConsoleMessageReporting) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  UAFTriggerChannel channel(isolate, inspector.get(), 1, v8_context(),
+                            "Console.messageAdded");
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+
+  // Log messages to accumulate them in storage while Console agent is disabled.
+  TryRunJS("console.log(1); console.log(2);");
+
+  // Enable Console agent, which will trigger reporting of accumulated messages.
+  // The first message will trigger UAFTriggerChannel::sendNotification, which
+  // will reset the context group and destroy the storage. The loop in
+  // V8ConsoleAgentImpl::reportAllMessages should safely break.
+  const char kEnableCommand[] = R"({
+    "id": 1,
+    "method": "Console.enable"
+  })";
+  session->dispatchProtocolMessage(toStringView(kEnableCommand));
+
+  // Verify that we only received one notification (for the first message)
+  // and did not crash due to UAF on the second message.
+  CHECK_EQ(channel.triggerCount(), 1);
+}
+
+TEST_F(InspectorTest, NoUAFWhenResettingContextGroupDuringArgumentWrapping) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<V8Inspector> inspector =
+      V8Inspector::create(isolate, &default_client);
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  UAFTriggerChannel channel(isolate, inspector.get(), 1, v8_context(),
+                            "Debugger.paused");
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, toStringView("{}"), v8_inspector::V8Inspector::kFullyTrusted,
+      v8_inspector::V8Inspector::kNotWaitingForDebugger);
+
+  // Enable Runtime and Debugger agents.
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 1,
+    "method": "Runtime.enable"
+  })"));
+  session->dispatchProtocolMessage(toStringView(R"({
+    "id": 2,
+    "method": "Debugger.enable"
+  })"));
+
+  // Run JS that overrides Error.prepareStackTrace and logs an Error object.
+  // This will trigger wrapArguments -> wrapObject -> reads 'stack' ->
+  // Error.prepareStackTrace -> debugger; Debugger.paused will be sent
+  // synchronously during wrapping, and our channel will reset the context
+  // group. reportToFrontend and addMessage should detect the changed storage
+  // and abort early.
+  TryRunJS(R"(
+    Error.prepareStackTrace = function(error, stack) {
+      debugger;
+      return stack;
+    };
+    const err = new Error("Trigger UAF");
+    console.log(err);
+  )");
+
+  // Verify that we paused once and did not crash.
+  CHECK_EQ(channel.triggerCount(), 1);
+  // Verify that reportToFrontend was aborted and did not send the notification.
+  CHECK(!channel.consoleAPICalled());
+}
 }  // namespace internal
 }  // namespace v8
