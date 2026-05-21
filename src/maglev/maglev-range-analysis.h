@@ -348,6 +348,12 @@ class RangeProcessor {
     }
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(LoadFixedArrayElement* node, const ProcessingState&) {
+    if (node->load_type() == LoadType::kSmi) {
+      UnionUpdate(node, Range::Smi());
+    }
+    return ProcessResult::kContinue;
+  }
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState&) {
