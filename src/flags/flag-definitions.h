@@ -1752,8 +1752,8 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
 DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_in_js_inlining_body,
+DEFINE_BOOL(
+    wasm_in_js_inlining_body, false,
     "inline Wasm code into JS functions via Turboshaft. This requires "
     "inlining the wrapper, see --wasm-in-js-inlining-wrapper. For controlling "
     "the inlining in the old Turbofan pipeline, see "
@@ -1764,9 +1764,8 @@ DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
 // Both are staged behind --turbolev-future.
 DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_body)
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_in_js_inlining_wrapper,
-    "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
+DEFINE_BOOL(wasm_in_js_inlining_wrapper, false,
+            "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_wrapper)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
