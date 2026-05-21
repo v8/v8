@@ -4,6 +4,17 @@ wheel: <
   name: "infra/python/wheels/pyyaml/${vpython_platform}"
   version: "version:5.4.1.chromium.1"
 >
+
+wheel: <
+  name: "infra/python/wheels/tabulate-py3"
+  version: "version:0.9.0"
+>
+
+wheel: <
+  name: "infra/python/wheels/platformdirs-py3"
+  version: "version:4.9.2"
+>
+
 wheel: <
   name: "infra/python/wheels/mcp-py3"
   version: "version:1.9.4"
