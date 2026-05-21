@@ -5927,9 +5927,12 @@ void ConsStringMap::GenerateCode(MaglevAssembler* masm,
       __ LoadByte(scratch,
                   FieldMemOperand(right, offsetof(Map, instance_type_)));
       __ AndInt32(scratch, left);
+      __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
+                                    Label::kNear);
+    } else {
+      __ TestInt32AndJumpIfAllClear(left, kStringEncodingMask, &two_byte,
+                                    Label::kNear);
     }
-    __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
-                                  Label::kNear);
   }
 #endif  // V8_STATIC_ROOTS
   DCHECK_EQ(left, res);
