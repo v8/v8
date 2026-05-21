@@ -2415,33 +2415,39 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, {})
                               : __ GetUnusedRegister(dst_rc, {});
-    bool emitted = __ emit_type_conversion(
-        opcode, dst, src,
-        can_trap ? AddOutOfLineTrap(decoder,
-                                    Builtin::kThrowWasmTrapFloatUnrepresentable)
-                       .label()
-                 : nullptr);
+    std::optional<OolTrapLabel> trap;
+    if (can_trap) {
+      trap.emplace(AddOutOfLineTrap(
+          decoder, Builtin::kThrowWasmTrapFloatUnrepresentable));
+    }
+    bool emitted = __ emit_type_conversion(opcode, dst, src,
+                                           can_trap ? trap->label() : nullptr);
     if (!emitted) {
       if constexpr (fallback_fn == nullptr) {
         UNREACHABLE();
       }
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
+        // TODO(clemensb): Resetting the OolTrapLabel here and then capturing a
+        // new one later is problematic as it will result in showing the state
+        // of the stack *after* the operation instead of before.
+        trap.reset();
         // External references for potentially trapping conversions return int.
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
         LiftoffRegister dst_regs[] = {ret_reg, dst};
         GenerateCCallWithStackBuffer(dst_regs, kI32, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
-        OolTrapLabel trap = AddOutOfLineTrap(
-            decoder, Builtin::kThrowWasmTrapFloatUnrepresentable);
-        __ emit_cond_jump(kEqual, trap.label(), kI32, ret_reg.gp(), no_reg,
-                          trap.frozen());
+        trap.emplace(AddOutOfLineTrap(
+            decoder, Builtin::kThrowWasmTrapFloatUnrepresentable));
+        __ emit_cond_jump(kEqual, trap->label(), kI32, ret_reg.gp(), no_reg,
+                          trap->frozen());
       } else {
         GenerateCCallWithStackBuffer(&dst, kVoid, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
       }
     }
+    trap.reset();
     __ PushRegister(dst_kind, dst);
   }
 
@@ -2975,18 +2981,24 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero)
-                  .label();
-          Label* div_unrepresentable =
-              AddOutOfLineTrap(decoder,
-                               Builtin::kThrowWasmTrapDivUnrepresentable)
-                  .label();
-          if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
-                                div_unrepresentable)) {
+          std::optional<OolTrapLabel> div_by_zero;
+          div_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero));
+          std::optional<OolTrapLabel> div_unrepresentable;
+          div_unrepresentable.emplace(AddOutOfLineTrap(
+              decoder, Builtin::kThrowWasmTrapDivUnrepresentable));
+          if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero->label(),
+                                div_unrepresentable->label())) {
             ExternalReference ext_ref = ExternalReference::wasm_int64_div();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero,
-                                div_unrepresentable);
+            Label* div_by_zero_ptr = div_by_zero->label();
+            Label* div_unrepresentable_ptr = div_unrepresentable->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            div_by_zero.reset();
+            div_unrepresentable.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr,
+                                div_unrepresentable_ptr);
           }
         });
       case kExprI64DivU:
@@ -2994,12 +3006,17 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero)
-                  .label();
-          if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
+          std::optional<OolTrapLabel> div_by_zero;
+          div_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero));
+          if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero->label())) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
+            Label* div_by_zero_ptr = div_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            div_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr);
           }
         });
       case kExprI64RemS:
@@ -3007,12 +3024,17 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero)
-                  .label();
-          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
+          std::optional<OolTrapLabel> rem_by_zero;
+          rem_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
+          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero->label())) {
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+            Label* rem_by_zero_ptr = rem_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            rem_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
           }
         });
       case kExprI64RemU:
@@ -3020,12 +3042,17 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero)
-                  .label();
-          if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
+          std::optional<OolTrapLabel> rem_by_zero;
+          rem_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
+          if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero->label())) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+            Label* rem_by_zero_ptr = rem_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            rem_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
           }
         });
       case kExprRefEq: {
@@ -3855,7 +3882,7 @@ class LiftoffCompiler {
     OolTrapLabel(LiftoffAssembler& assembler, Label* label)
         : label_(label), freeze_(assembler) {}
 
-    Label* label() const { return label_; }
+    Label* label() const V8_LIFETIME_BOUND { return label_; }
     const FreezeCacheState& frozen() const { return freeze_; }
 
    private:
@@ -9231,15 +9258,17 @@ class LiftoffCompiler {
     Label no_match, match;
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, decoder, kPeek, object.type);
-    FREEZE_STATE(frozen);
+    {
+      FREEZE_STATE(frozen);
 
-    if (null_succeeds && check.obj_type.is_nullable()) {
-      __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
-                        check.null_reg(), frozen);
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
+
+      (this->*type_checker)(check, frozen);
+      __ bind(&match);
     }
-
-    (this->*type_checker)(check, frozen);
-    __ bind(&match);
     BrOrRet(decoder, br_depth);
 
     __ bind(&no_match);
@@ -9257,17 +9286,19 @@ class LiftoffCompiler {
     Label no_match, end;
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, decoder, kPeek, object.type);
-    FREEZE_STATE(frozen);
+    {
+      FREEZE_STATE(frozen);
 
-    if (null_succeeds && check.obj_type.is_nullable()) {
-      __ emit_cond_jump(kEqual, &end, kRefNull, check.obj_reg, check.null_reg(),
-                        frozen);
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &end, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
+
+      (this->*type_checker)(check, frozen);
+      __ emit_jump(&end);
+
+      __ bind(&no_match);
     }
-
-    (this->*type_checker)(check, frozen);
-    __ emit_jump(&end);
-
-    __ bind(&no_match);
     BrOrRet(decoder, br_depth);
 
     __ bind(&end);
