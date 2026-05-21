@@ -52,6 +52,7 @@
 ['arch in (ia32, arm, riscv32)', {
   'wasm-in-js-inlining-turboshaft': [SKIP],
   'wasm-in-js-inlining-turboshaft-stacktrace-api': [SKIP],
+  'wasm-gc-inlining-turboshaft': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
   'js-wasm-wrapper-inlining-type-combos': [SKIP],
 }],
