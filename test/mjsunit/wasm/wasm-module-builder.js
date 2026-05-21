@@ -1035,7 +1035,11 @@ let kExprI16x8RelaxedQ15MulRS = wasmSignedLeb(0x111);
 let kExprI16x8DotI8x16I7x16S = wasmSignedLeb(0x112);
 let kExprI32x4DotI8x16I7x16AddS = wasmSignedLeb(0x113);
 
-// FP16 SIMD
+// FP16
+// kNumericPrefix instructions:
+let kExprF32LoadF16 = wasmSignedLeb(0x30);
+let kExprF32StoreF16 = wasmSignedLeb(0x31);
+// kSimdPrefix instructions:
 let kExprF16x8Splat = wasmSignedLeb(0x120);
 let kExprF16x8ExtractLane = wasmSignedLeb(0x121);
 let kExprF16x8ReplaceLane = wasmSignedLeb(0x122);

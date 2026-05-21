@@ -592,13 +592,14 @@ class X64OperandGenerator final : public OperandGenerator {
       case kAVXFloat64Add:
       case kAVXFloat64Sub:
       case kAVXFloat64Mul:
-        DCHECK_EQ(MachineRepresentation::kFloat64, rep);
-        return true;
+        // This is currently always true; it's a condition for symmetry with
+        // the Float32 case.
+        return rep == MachineRepresentation::kFloat64;
       case kAVXFloat32Add:
       case kAVXFloat32Sub:
       case kAVXFloat32Mul:
-        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
-        return true;
+        // Representation can be different for f16-to-f32 promoting loads.
+        return rep == MachineRepresentation::kFloat32;
       case kX64Cmp16:
       case kX64Test16:
         return rep == MachineRepresentation::kWord16;
