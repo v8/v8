@@ -1523,10 +1523,10 @@ void Deoptimizer::GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
   }
   sig = GetI32Sig(&*zone_, sig);
 #endif
-  int untagged_slots, untagged_return_slots;  // Unused.
-  wasm::IterateSignatureImpl(sig, false, result_collector, &untagged_slots,
-                             parameter_stack_slots, &untagged_return_slots,
-                             return_stack_slots);
+  wasm::IterateSignatureImpl(
+      sig, false, result_collector, nullptr /* untagged_slots */,
+      parameter_stack_slots, nullptr /* untagged_return_slots */,
+      return_stack_slots);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

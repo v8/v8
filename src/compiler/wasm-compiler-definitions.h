@@ -144,11 +144,10 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
   int extra_params = extra_callable_param ? 2 : 1;
   LocationSignature::Builder locations(zone, sig->return_count(),
                                        sig->parameter_count() + extra_params);
-  int untagged_parameter_slots;  // Unused.
-  int untagged_return_slots;     // Unused.
   wasm::IterateSignatureImpl(sig, extra_callable_param, locations,
-                             &untagged_parameter_slots, parameter_slots,
-                             &untagged_return_slots, return_slots);
+                             nullptr /* untagged_parameter_slots */,
+                             parameter_slots,
+                             nullptr /* untagged_return_slots */, return_slots);
   return locations.Get();
 }
 }  // namespace compiler

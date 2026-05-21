@@ -79,6 +79,18 @@ TEST_F(WasmSignatureHashingTest, SignatureHashing) {
   }
 }
 
+TEST_F(WasmSignatureHashingTest, NoPaddingSlotCollision) {
+  // Regression test for https://crbug.com/513314150.
+  ValueType l = kWasmI64;
+  ValueType r = kWasmExternRef;
+  uint64_t sigA = H({l, l, l, l, l, l, l}, {});
+  uint64_t sigB = H({l, l, l, l, l, l, l, r}, {});
+  // On ARM64, sigA has 1 untagged stack slot, padded to 2.
+  // sigB has 1 untagged stack slot and 1 tagged stack slot (total 2).
+  // The bug was that sigA's padding slot was counted as tagged.
+  EXPECT_NE(sigA, sigB) << "arm64 padding slot counted as tagged stack param";
+}
+
 #endif  // V8_ENABLE_SANDBOX
 
 }  // namespace v8::internal::wasm::signature_hashing_unittest
