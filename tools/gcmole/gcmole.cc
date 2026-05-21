@@ -222,9 +222,13 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
 
   typedef std::map<MangledName, CalleesSet*> Callgraph;
 
-  bool Analyzed(const MangledName& name) { return callgraph_[name] != nullptr; }
+  bool Analyzed(const MangledName& name) {
+    return analyzed_.find(name) != analyzed_.end();
+  }
 
   void EnterScope(const MangledName& name) {
+    analyzed_.insert(name);
+
     CalleesSet* callees = callgraph_[name];
 
     if (callees == nullptr) {
@@ -281,6 +285,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   std::stack<CalleesSet*> scopes_;
   Callgraph callgraph_;
   CalleesMap mangled_to_function_;
+  CalleesSet analyzed_;
 };
 
 class FunctionDeclarationFinder
