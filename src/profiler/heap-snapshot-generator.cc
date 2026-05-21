@@ -1768,15 +1768,23 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     int value_index = EphemeronHashTable::EntryToValueIndex(i);
     Tagged<Object> key = table->get(key_index);
     Tagged<Object> value = table->get(value_index);
-    SetWeakReference(entry, key_index, key,
-                     table->OffsetOfElementAt(key_index));
-    SetWeakReference(entry, value_index, value,
-                     table->OffsetOfElementAt(value_index));
+    // This stops auto-generating edges for the key and value from the table.
+    // All edges are create by CreateEphmeronEdges() below.
+    MarkVisitedField(table->OffsetOfElementAt(key_index));
+    MarkVisitedField(table->OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
-    if (key_entry && value_entry && !IsUndefined(key)) {
-      generator_->CreateEphemeronEdges(table_entry, key_entry, value_entry);
+    if (key_entry && !IsUndefined(key)) {
+#ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
+      if (generator_->verifier() != nullptr) {
+        generator_->verifier()->MarkReferenceCheckedWithoutChecking(
+            table, Cast<HeapObject>(key));
+      }
+#endif
+      if (value_entry) {
+        generator_->CreateEphemeronEdges(table_entry, key_entry, value_entry);
+      }
     }
   }
 }

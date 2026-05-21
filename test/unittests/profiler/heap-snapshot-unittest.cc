@@ -4,6 +4,8 @@
 
 #include <json/json.h>
 
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/unittests/profiler/heap-snapshot-utils.h"
@@ -482,6 +484,74 @@ TEST_F(HeapSnapshotTest, LongScriptName) {
   EXPECT_EQ(4095u, strlen(entry->name()));
   // It should NOT be the raw format string.
   EXPECT_STRNE("%s / %s", entry->name());
+}
+
+TEST_F(HeapSnapshotTest, EphemeronHashTableEdges) {
+  HandleScope scope(i_isolate());
+
+  v8::Local<v8::Value> weak_map_val =
+      RunJS("const weak_map = new WeakMap(); weak_map");
+  v8::Local<v8::Value> key_val = RunJS("const key = {name: 'my_key'}; key");
+  v8::Local<v8::Value> val_val = RunJS("const val = {name: 'my_val'}; val");
+
+  Handle<JSWeakMap> weak_map =
+      Cast<JSWeakMap>(v8::Utils::OpenHandle(*weak_map_val));
+  Handle<JSObject> key = Cast<JSObject>(v8::Utils::OpenHandle(*key_val));
+  Handle<JSObject> val = Cast<JSObject>(v8::Utils::OpenHandle(*val_val));
+
+  RunJS("weak_map.set(key, val);");
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  const HeapEntry* weak_map_entry =
+      GetEntryFor(i_isolate(), snapshot, *weak_map);
+  const HeapEntry* key_entry = GetEntryFor(i_isolate(), snapshot, *key);
+  const HeapEntry* val_entry = GetEntryFor(i_isolate(), snapshot, *val);
+
+  ASSERT_NE(nullptr, weak_map_entry);
+  ASSERT_NE(nullptr, key_entry);
+  ASSERT_NE(nullptr, val_entry);
+
+  // The WeakMap has 3 edges: map + proto + table.
+  EXPECT_EQ(3, weak_map_entry->children_count());
+  EXPECT_EQ(nullptr, FindFirstEdgeTo(*weak_map_entry, *key_entry));
+  EXPECT_EQ(nullptr, FindFirstEdgeTo(*weak_map_entry, *val_entry));
+
+  Tagged<EphemeronHashTable> table =
+      Cast<EphemeronHashTable>(weak_map->table());
+  const HeapEntry* table_entry = GetEntryFor(i_isolate(), snapshot, table);
+  ASSERT_NE(nullptr, table_entry);
+
+  // There should be exactly 2 edges: 1) the map and 2) the ephemeron edge from
+  // table -> value.
+  EXPECT_EQ(2, table_entry->children_count());
+
+  // Verify that there are NO edges from table to key.
+  const HeapGraphEdge* table_to_key_edge =
+      FindFirstEdgeTo(*table_entry, *key_entry);
+  EXPECT_EQ(nullptr, table_to_key_edge);
+
+  std::string expected_name =
+      " / part of key (" + std::string(key_entry->name()) + " @" +
+      std::to_string(key_entry->id()) + ") -> value (" +
+      std::string(val_entry->name()) + " @" + std::to_string(val_entry->id()) +
+      ") pair in WeakMap (table @" + std::to_string(table_entry->id()) + ")";
+
+  // Verify that the only edge from table to val is the ephemeron edge.
+  const HeapGraphEdge* table_to_val_edge =
+      FindFirstEdgeTo(*table_entry, *val_entry);
+  ASSERT_NE(nullptr, table_to_val_edge);
+  EXPECT_EQ(HeapGraphEdge::kInternal, table_to_val_edge->type());
+  EXPECT_TRUE(
+      std::string_view(table_to_val_edge->name()).ends_with(expected_name));
+
+  // Verify that the edge from key to val is the ephemeron edge.
+  const HeapGraphEdge* key_to_val_edge =
+      FindFirstEdgeTo(*key_entry, *val_entry);
+  ASSERT_NE(nullptr, key_to_val_edge);
+  EXPECT_EQ(HeapGraphEdge::kInternal, key_to_val_edge->type());
+  EXPECT_TRUE(
+      std::string_view(key_to_val_edge->name()).ends_with(expected_name));
 }
 
 }  // namespace v8::internal

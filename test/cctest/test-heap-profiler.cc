@@ -31,6 +31,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "include/v8-function.h"
@@ -217,6 +218,28 @@ const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
     v8::String::Utf8Value prop_name(isolate, prop->GetName());
     if (prop->GetType() == type && strcmp(name, *prop_name) == 0) {
       return prop->GetToNode();
+    }
+  }
+  return nullptr;
+}
+
+const v8::HeapGraphEdge* FindEphemeronEdge(v8::Isolate* isolate,
+                                           const v8::HeapGraphNode* table,
+                                           const v8::HeapGraphNode* key) {
+  v8::String::Utf8Value key_name(isolate, key->GetName());
+  std::string prefix = "part of key (" + std::string(*key_name) + " @" +
+                       std::to_string(key->GetId()) + ") -> value (";
+  std::string suffix =
+      ") pair in WeakMap (table @" + std::to_string(table->GetId()) + ")";
+
+  for (int i = 0, count = table->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = table->GetChild(i);
+    if (prop->GetType() != v8::HeapGraphEdge::kInternal) continue;
+    v8::String::Utf8Value name(isolate, prop->GetName());
+    std::string name_str(*name);
+    if (name_str.find(prefix) != std::string::npos &&
+        name_str.find(suffix) != std::string::npos) {
+      return prop;
     }
   }
   return nullptr;
@@ -933,16 +956,19 @@ TEST(HeapSnapshotWeakCollection) {
   const v8::HeapGraphNode* ws_table =
       GetProperty(env.isolate(), ws, v8::HeapGraphEdge::kInternal, "table");
   CHECK_EQ(v8::HeapGraphNode::kArray, ws_table->GetType());
-  CHECK_GT(ws_table->GetChildrenCount(), 0);
-  int weak_entries = 0;
+  CHECK_EQ(3, ws_table->GetChildrenCount());
+  // Verify that WeakSet table has NO edges to k and v.
   for (int i = 0, count = ws_table->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = ws_table->GetChild(i);
-    if (prop->GetType() != v8::HeapGraphEdge::kWeak) continue;
-    if (k->GetId() == prop->GetToNode()->GetId()) {
-      ++weak_entries;
-    }
+    CHECK_NE(k->GetId(), prop->GetToNode()->GetId());
   }
-  CHECK_EQ(1, weak_entries);
+  const v8::HeapGraphEdge* edge_k =
+      FindEphemeronEdge(env.isolate(), ws_table, k);
+  const v8::HeapGraphEdge* edge_v =
+      FindEphemeronEdge(env.isolate(), ws_table, v);
+  CHECK_NOT_NULL(edge_k);
+  CHECK_NOT_NULL(edge_v);
+  CHECK_EQ(edge_k->GetToNode()->GetId(), edge_v->GetToNode()->GetId());
   const v8::HeapGraphNode* ws_s =
       GetProperty(env.isolate(), ws, v8::HeapGraphEdge::kProperty, "str");
   CHECK(ws_s);
@@ -958,16 +984,32 @@ TEST(HeapSnapshotWeakCollection) {
       GetProperty(env.isolate(), wm, v8::HeapGraphEdge::kInternal, "table");
   CHECK_EQ(v8::HeapGraphNode::kArray, wm_table->GetType());
   CHECK_GT(wm_table->GetChildrenCount(), 0);
-  weak_entries = 0;
+  int wm_ephemeron_edges_to_v = 0;
   for (int i = 0, count = wm_table->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = wm_table->GetChild(i);
-    if (prop->GetType() != v8::HeapGraphEdge::kWeak) continue;
-    const v8::SnapshotObjectId to_node_id = prop->GetToNode()->GetId();
-    if (to_node_id == k->GetId() || to_node_id == v->GetId()) {
-      ++weak_entries;
+    // Verify NO edge to k.
+    CHECK_NE(k->GetId(), prop->GetToNode()->GetId());
+    if (prop->GetToNode()->GetId() == v->GetId()) {
+      CHECK_EQ(v8::HeapGraphEdge::kInternal, prop->GetType());
+      v8::String::Utf8Value prop_name(env.isolate(), prop->GetName());
+      CHECK_NOT_NULL(strstr(*prop_name, "pair in WeakMap"));
+      ++wm_ephemeron_edges_to_v;
     }
   }
-  CHECK_EQ(2, weak_entries);  // Key and value are weak.
+  CHECK_EQ(1, wm_ephemeron_edges_to_v);
+
+  // Verify that k has an ephemeron edge to v.
+  int k_ephemeron_edges_to_v = 0;
+  for (int i = 0, count = k->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = k->GetChild(i);
+    if (prop->GetToNode()->GetId() == v->GetId()) {
+      CHECK_EQ(v8::HeapGraphEdge::kInternal, prop->GetType());
+      v8::String::Utf8Value prop_name(env.isolate(), prop->GetName());
+      CHECK_NOT_NULL(strstr(*prop_name, "pair in WeakMap"));
+      ++k_ephemeron_edges_to_v;
+    }
+  }
+  CHECK_EQ(1, k_ephemeron_edges_to_v);
   const v8::HeapGraphNode* wm_s =
       GetProperty(env.isolate(), wm, v8::HeapGraphEdge::kProperty, "str");
   CHECK(wm_s);
