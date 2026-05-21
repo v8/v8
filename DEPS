@@ -110,7 +110,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'b6aef8525a29639a92208d85993b6979cf2b0460',
+  'partition_alloc_version': 'ff212a1d6a4ab28b7d66ca99dcc736aff2329f66',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -140,7 +140,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bdd24a72f21229ca707d511bf8e3caf7e85a1839',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '548b9c90dc82cb39734a339c34bb39577dcb70cc',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4aacaa165bb602de929db8c20a7aaa02b166e706',
   'buildtools/linux64': {
@@ -323,7 +323,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd6c7a21e978f0adaa43accaad53bc64f0b64f6ec',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ec245eaff565997e990b4aa7aeb4db202214e4c8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '0f11f7562cef4ed958553dbc1be059a166b41c7c',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -503,7 +503,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '4eea1d1c609b1b21928d32ec3f21d6bfaf6b8c1a',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '44c433949af865f08f9fbd948b0fe900cdddee49',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'c313010041a251756d814549483f00293bd8bac4',
   'third_party/re2/src':
