@@ -360,7 +360,7 @@ using InstructionCode = uint32_t;
 // other information into a single InstructionCode which is stored as part of
 // the instruction.
 //
-// All instructions (*) have the first five fields, using up the lower 23 bits.
+// All instructions have the first five fields, using up the lower 23 bits.
 // The remaining 9 bits are accessible in the MiscField, which the other
 // instructions types can overlay specific data:
 // -- Generic
@@ -402,13 +402,6 @@ using InstructionCode = uint32_t;
 // StackCheck                   | 2
 // BranchHint                   | 1
 // Undefined                    | 6
-//
-// (*) Exception: ArchLoadTrustedPointer uses the following layout:
-// ArchOpcode                   | 10 bits
-// TagRangeFirst                | 8
-// TagRangeLast                 | 8
-// <unused>                     | 4
-// AccessMode                   | 2
 //
 using ArchOpcodeField = base::BitField<ArchOpcode, 0, 10>;
 static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
@@ -491,19 +484,6 @@ using MiscField = FlagsConditionField::Next<int, 9>;
 
 using StackCheckField = FlagsConditionField::Next<StackCheckKind, 2>;
 using BranchHintField = StackCheckField::Next<bool, 1>;
-
-#if V8_ENABLE_SANDBOX
-using IndirectPointerTagRangeFirstField =
-    ArchOpcodeField::Next<IndirectPointerTag, 8>;
-using IndirectPointerTagRangeLastField =
-    IndirectPointerTagRangeFirstField::Next<IndirectPointerTag, 8>;
-static_assert(
-    IndirectPointerTagRangeFirstField::is_valid(kLastIndirectPointerTag));
-static_assert(
-    IndirectPointerTagRangeLastField::is_valid(kLastIndirectPointerTag));
-static_assert(IndirectPointerTagRangeLastField::kLastUsedBit <
-              AccessModeField::kShift);
-#endif  // V8_ENABLE_SANDBOX
 
 // ParamField and FPParamField represent the general purpose and floating point
 // parameter counts of a direct call into C and are given 5 bits each, which

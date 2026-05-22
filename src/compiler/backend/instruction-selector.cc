@@ -1766,16 +1766,15 @@ void InstructionSelector::VisitLoadTrustedPointer(OpIndex node) {
     DCHECK(op.kind.trap_on_null);
     access_mode = kMemoryAccessTrappingNullDereference;
   }
-  InstructionCode code =
-      kArchLoadTrustedPointer |
-      IndirectPointerTagRangeFirstField::encode(op.tag_range.first) |
-      IndirectPointerTagRangeLastField::encode(op.tag_range.last) |
-      AccessModeField::encode(access_mode);
+  InstructionCode code = ArchOpcodeField::encode(kArchLoadTrustedPointer) |
+                         AccessModeField::encode(access_mode);
 
   DCHECK(op.kind.tagged_base);
   InstructionOperand inputs[] = {g.UseUniqueRegister(op.base()),
                                  g.UseImmediate(op.offset - kHeapObjectTag),
-                                 g.UseUniqueRegister(op.table())};
+                                 g.UseUniqueRegister(op.table()),
+                                 g.UseImmediate(op.tag_range.first),
+                                 g.UseImmediate(op.tag_range.last)};
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand temps[] = {g.TempRegister()};
   Emit(code, 1, outputs, arraysize(inputs), inputs, 1, temps);

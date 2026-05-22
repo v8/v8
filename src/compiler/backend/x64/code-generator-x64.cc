@@ -3389,9 +3389,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int32_t offset = i.InputInt32(1);
       Register table = i.InputRegister(2);
       IndirectPointerTag first =
-          IndirectPointerTagRangeFirstField::decode(opcode);
+          static_cast<IndirectPointerTag>(i.InputInt32(3));
       IndirectPointerTag last =
-          IndirectPointerTagRangeLastField::decode(opcode);
+          static_cast<IndirectPointerTag>(i.InputInt32(4));
       IndirectPointerTagRange tag_range(first, last);
 
       Register destination = i.OutputRegister();
