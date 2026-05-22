@@ -271,12 +271,17 @@ const int kAverageBytecodeToInstructionRatio = 7;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
     DirectHandle<BytecodeArray> bytecodes) {
-  int estimated_size;
+  base::CheckedNumeric<int> estimated_size;
   {
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
   }
-  int rounded_size = RoundUp(estimated_size, 4 * KB);
+  int raw_estimated_size;
+  if (!estimated_size.AssignIfValid(&raw_estimated_size) ||
+      raw_estimated_size > Assembler::kMaximalBufferSize) {
+    V8::FatalProcessOutOfMemory(nullptr, "BaselineCompiler::AllocateBuffer");
+  }
+  int rounded_size = RoundUp(raw_estimated_size, 4 * KB);
   if (rounded_size > Assembler::kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "BaselineCompiler::AllocateBuffer");
   }
@@ -367,8 +372,10 @@ MaybeHandle<Code> BaselineCompiler::Build() {
   return code_builder.TryBuild();
 }
 
-int BaselineCompiler::EstimateInstructionSize(Tagged<BytecodeArray> bytecode) {
-  return bytecode->length() * kAverageBytecodeToInstructionRatio;
+base::CheckedNumeric<int> BaselineCompiler::EstimateInstructionSize(
+    Tagged<BytecodeArray> bytecode) {
+  return base::CheckedNumeric<int>(bytecode->length()) *
+         kAverageBytecodeToInstructionRatio;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {

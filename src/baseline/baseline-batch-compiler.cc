@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/fpu.h"
+#include "src/base/numerics/checked_math.h"
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
@@ -342,20 +343,23 @@ bool BaselineBatchCompiler::ShouldCompileBatch(
   if (shared->is_sparkplug_compiling()) return false;
   if (!CanCompileWithBaseline(isolate_, shared)) return false;
 
-  int estimated_size;
+  base::CheckedNumeric<int> estimated_size;
   {
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(
         shared->GetBytecodeArray(isolate_));
   }
-  estimated_instruction_size_ += estimated_size;
+  int raw_estimated_size = estimated_size.ValueOrDefault(kMaxInt);
+  base::CheckedNumeric<int> new_size = estimated_instruction_size_;
+  new_size += raw_estimated_size;
+  estimated_instruction_size_ = new_size.ValueOrDefault(kMaxInt);
   if (v8_flags.trace_baseline_batch_compilation) {
     CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
     PrintF(trace_scope.file(), "[Baseline batch compilation] Enqueued SFI %s",
            shared->DebugNameCStr().get());
     PrintF(trace_scope.file(),
-           " with estimated size %d (current budget: %d/%d)\n", estimated_size,
-           estimated_instruction_size_,
+           " with estimated size %d (current budget: %d/%d)\n",
+           raw_estimated_size, estimated_instruction_size_,
            v8_flags.baseline_batch_compilation_threshold.value());
   }
   if (estimated_instruction_size_ >=
