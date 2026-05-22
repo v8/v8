@@ -1183,6 +1183,23 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     [[fallthrough]];                                                          \
   }                                                                           \
   case Simd128UnaryOp::Kind::k##op_high: {                                    \
+    if (IsSplat(node_group)) {                                                \
+      const Simd128LoadTransformOp* load_transform0 =                         \
+          graph_.Get(op0.Cast<Simd128UnaryOp>().input())                      \
+              .TryCast<Simd128LoadTransformOp>();                             \
+      if (load_transform0 &&                                                  \
+          (load_transform0->transform_kind ==                                 \
+               Simd128LoadTransformOp::TransformKind::k8Splat ||              \
+           load_transform0->transform_kind ==                                 \
+               Simd128LoadTransformOp::TransformKind::k16Splat ||             \
+           load_transform0->transform_kind ==                                 \
+               Simd128LoadTransformOp::TransformKind::k32Splat ||             \
+           load_transform0->transform_kind ==                                 \
+               Simd128LoadTransformOp::TransformKind::k64Splat)) {            \
+        TRACE("Added a vector of unary extension with load splat.\n");        \
+        return NewPackNode(node_group);                                       \
+      }                                                                       \
+    }                                                                         \
     if (op1.Cast<Simd128UnaryOp>().kind == op0.Cast<Simd128UnaryOp>().kind) { \
       auto force_pack_type =                                                  \
           node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral;   \

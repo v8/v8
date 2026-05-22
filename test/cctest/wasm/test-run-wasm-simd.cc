@@ -7942,6 +7942,91 @@ TEST(RunWasmTurbofan_ForcePackIntToIntExtensionSplat) {
       kExprI64x2SConvertI32x4High);
 }
 
+// Similar to RunIntToIntExtensionRevecForcePackSplat, but uses load-splat
+// as the unary input so this test covers the load-splat packing path.
+template <typename S, typename T>
+void RunIntToIntExtensionRevecLoadSplat(WasmOpcode opcode1) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "integer to integer extension");
+
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  uint32_t count = 3 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    // Use Load32Splat as the unary-extension input. This should take the
+    // load-splat path and produce a Simd256Unary node.
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimd256Unary>,
+        ExpectedResult::kPass);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(kExprS128Load32Splat,
+                                                 WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(opcode1, WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp2)),
+         WASM_ONE});
+  }
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (uint32_t i = 0; i < lanes / 2; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 16);
+    T expected = static_cast<T>(x);
+    T* output = reinterpret_cast<T*>(memory + lanes);
+    for (uint32_t i = 0; i < lanes / 2; i++) {
+      CHECK_EQ(expected, output[i]);
+      CHECK_EQ(expected, output[lanes / 2 + i]);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_IntToIntExtensionLoadSplat) {
+  // Extend 8 bits to 16 bits.
+  RunIntToIntExtensionRevecLoadSplat<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16Low);
+  RunIntToIntExtensionRevecLoadSplat<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16Low);
+  RunIntToIntExtensionRevecLoadSplat<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16High);
+  RunIntToIntExtensionRevecLoadSplat<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16High);
+
+  // Extend 16 bits to 32 bits.
+  RunIntToIntExtensionRevecLoadSplat<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8Low);
+  RunIntToIntExtensionRevecLoadSplat<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8Low);
+  RunIntToIntExtensionRevecLoadSplat<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8High);
+  RunIntToIntExtensionRevecLoadSplat<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8High);
+
+  // Extend 32 bits to 64 bits.
+  RunIntToIntExtensionRevecLoadSplat<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4Low);
+  RunIntToIntExtensionRevecLoadSplat<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4Low);
+  RunIntToIntExtensionRevecLoadSplat<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4High);
+  RunIntToIntExtensionRevecLoadSplat<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4High);
+}
+
 TEST(RunWasmTurbofan_ExtendLowHighRevec) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
