@@ -13636,6 +13636,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
     // The InlinedAllocation doesn't survive suspend/resume, so seeing it
     // here proves no await ran and the promise has no reactions to trigger.
     if (promise->Is<InlinedAllocation>()) {
+      value = value->Unwrap();
       RETURN_IF_ABORT(BuildStoreTaggedField(
           promise, value, offsetof(JSPromise, reactions_or_result_),
           StoreTaggedMode::kDefault));
