@@ -2776,7 +2776,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
     }
+#if V8_ENABLE_SANDBOX
+    case kArchLoadTrustedPointer: {
+      CHECK(instr->HasOutput());
+      Register base = i.InputRegister(0);
+      int32_t offset = i.InputInt32(1);
+      Register table = i.InputRegister(2);
+      IndirectPointerTag first =
+          IndirectPointerTagRangeFirstField::decode(opcode);
+      IndirectPointerTag last =
+          IndirectPointerTagRangeLastField::decode(opcode);
+      IndirectPointerTagRange tag_range(first, last);
+      Register destination = i.OutputRegister();
+      Register handle = i.TempRegister(0);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Lw(handle, MemOperand(base, offset));
+      __ Srl64(handle, handle, kTrustedPointerHandleShift);
+      __ CalcScaledAddress(destination, table, handle,
+                           kTrustedPointerTableEntrySizeLog2);
+      __ LoadWord(destination, MemOperand(destination, 0));
+      if (IsFastIndirectPointerTagRange(tag_range)) {
+        uint64_t mask =
+            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+        __ And(destination, destination, Operand(mask));
+      } else {
+        Register tag = handle;  // Reuse handle for tag
+        __ Srl64(tag, destination, kTrustedPointerTableTagShift);
+        UseScratchRegisterScope scope(masm());
+        Register scratch = scope.Acquire();
+        if (tag_range.Size() == 1) {
+          __ SubWord(scratch, tag, static_cast<int32_t>(tag_range.first));
+          __ LoadZeroIfConditionZero(destination, scratch);
+          // __ Cmp(tag.W(), static_cast<int32_t>(tag_range.first));
+          // __ CmovX(destination, scratch, ne);
+        } else {
+          __ SubWord(tag, tag, static_cast<int32_t>(tag_range.first));
+          Label done;
+          __ Branch(
+              &done, le, tag,
+              Operand(static_cast<int32_t>(tag_range.last - tag_range.first)));
+          __ li(destination, 0);
+          __ bind(&done);
+        }
+        __ And(destination, destination,
+               Operand(kTrustedPointerTablePayloadMask));
+      }
+      break;
+    }
 #endif
+#endif  // V8_TARGET_ARCH_RISCV64
     case kRiscvRvvSt: {
       __ VU.SetSimd128(VSew::E8);
       auto memOperand = i.MemoryOperand(1);
