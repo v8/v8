@@ -93,7 +93,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:618387c6b5c1276885a2282c9609be06441bd1eb',
+  'gn_version': 'git_revision:e44942b445d9376451f7d519965dae036efde5bc',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -140,9 +140,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '548b9c90dc82cb39734a339c34bb39577dcb70cc',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8896bef21e0491da1232556db3cdfcf192f93018',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4aacaa165bb602de929db8c20a7aaa02b166e706',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b1c2cbc21d9a602aac3273f3494bab7b50eb968b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -503,9 +503,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '44c433949af865f08f9fbd948b0fe900cdddee49',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '944dbae4a35b9b6d03cb20318f0abeedd88ba590',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'c313010041a251756d814549483f00293bd8bac4',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'd654d0be3e15901d90d3f22cf4adcbdde5318eb2',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '972a15cedd008d846f1a39b2e88ce48d7f166cbd',
   'third_party/requests': {
