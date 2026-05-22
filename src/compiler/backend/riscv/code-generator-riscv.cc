@@ -2806,9 +2806,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register scratch = scope.Acquire();
         if (tag_range.Size() == 1) {
           __ SubWord(scratch, tag, static_cast<int32_t>(tag_range.first));
-          __ LoadZeroIfConditionZero(destination, scratch);
-          // __ Cmp(tag.W(), static_cast<int32_t>(tag_range.first));
-          // __ CmovX(destination, scratch, ne);
+          __ LoadZeroIfConditionNotZero(destination, scratch);
         } else {
           __ SubWord(tag, tag, static_cast<int32_t>(tag_range.first));
           Label done;
