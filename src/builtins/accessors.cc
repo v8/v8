@@ -553,7 +553,8 @@ DirectHandle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(
 
 static inline bool AllowAccessToFunction(Tagged<Context> current_context,
                                          Tagged<JSFunction> function) {
-  return current_context->HasSameSecurityTokenAs(function->context());
+  return current_context->native_context()->HasSameSecurityTokenAs(
+      function->context()->native_context());
 }
 
 class FrameFunctionIterator {

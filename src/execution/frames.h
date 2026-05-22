@@ -470,7 +470,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const;
     Handle<Object> script() const;
-    DirectHandle<Context> native_context() const;
+    DirectHandle<NativeContext> native_context() const;
     DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
@@ -503,7 +503,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     DirectHandle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
       return instance_data_;
     }
-    DirectHandle<Context> native_context() const;
+    DirectHandle<NativeContext> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
     DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
@@ -535,7 +535,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<Script> script() const;
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
-    DirectHandle<Context> native_context() const;
+    DirectHandle<NativeContext> native_context() const;
     DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
@@ -557,7 +557,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<Object> script() const;
     int SourcePosition() const { return kNoSourcePosition; }
     int SourceStatementPosition() const { return 0; }
-    DirectHandle<Context> native_context() const;
+    DirectHandle<NativeContext> native_context() const;
     DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
@@ -581,7 +581,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
-    DirectHandle<Context> native_context() const;
+    DirectHandle<NativeContext> native_context() const;
     DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
@@ -615,7 +615,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
   Handle<Object> script() const;
   int SourcePosition() const;
   int SourceStatementPosition() const;
-  DirectHandle<Context> native_context() const;
+  DirectHandle<NativeContext> native_context() const;
   DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
 #define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \

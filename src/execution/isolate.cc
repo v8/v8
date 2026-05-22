@@ -1150,7 +1150,9 @@ class CallSiteBuilder {
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
   bool IsVisibleInStackTrace(DirectHandle<JSFunction> function) {
-    return ShouldIncludeFrame(function) && IsNotHidden(function);
+    return ShouldIncludeFrame(function) && IsNotHidden(function) &&
+           function->native_context()->HasSameSecurityTokenAs(
+               isolate_->raw_native_context());
   }
 
   // This mechanism excludes a number of uninteresting frames from the stack
@@ -1201,9 +1203,7 @@ class CallSiteBuilder {
   bool AppendDeferredFrame(JavaScriptFrame* frame, int deferred_flag) {
     if (Full()) return false;
     DirectHandle<JSFunction> function(frame->function(), isolate_);
-    if (!function->native_context()->HasSameSecurityTokenAs(
-            isolate_->context()) ||
-        !IsVisibleInStackTrace(function)) {
+    if (!IsVisibleInStackTrace(function)) {
       skipped_prev_frame_ = true;
       return true;
     }
@@ -1554,7 +1554,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
               !summary.native_context()->HasSameSecurityTokenAs(
-                  isolate->context())) {
+                  isolate->raw_native_context())) {
             continue;
           }
           if (!visitor->Visit(summary)) return;
@@ -1617,7 +1617,7 @@ void VisitStack_ForCallSiteBuilder(Isolate* isolate, CallSiteBuilder* visitor) {
           // CaptureSimpleStackTrace uses kDetailed, which does not expose
           // frames across security origins.
           if (!summary.native_context()->HasSameSecurityTokenAs(
-                  isolate->context())) {
+                  isolate->raw_native_context())) {
             continue;
           }
           if (!visitor->Visit(summary)) return;
@@ -2419,10 +2419,7 @@ bool Isolate::MayAccess(DirectHandle<NativeContext> accessing_context,
           Cast<JSGlobalProxy>(*receiver)->GetCreationContext();
       if (!receiver_context) return false;
 
-      if (*receiver_context == *accessing_context) return true;
-
-      if ((*receiver_context)->security_token() ==
-          accessing_context->security_token()) {
+      if ((*receiver_context)->HasSameSecurityTokenAs(*accessing_context)) {
         return true;
       }
     }

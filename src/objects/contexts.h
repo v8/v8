@@ -649,8 +649,6 @@ V8_OBJECT class Context : public HeapObject {
   inline bool IsScriptContext() const;
   inline bool HasContextCells() const;
 
-  inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
-
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
   DirectHandle<Object> ErrorMessageForWasmCodeGeneration();
 
@@ -775,6 +773,8 @@ inline constexpr int Context::SlotOffset(int index) {
 class NativeContext : public Context {
  public:
   // TODO(neis): Move some stuff from Context here.
+
+  inline bool HasSameSecurityTokenAs(Tagged<NativeContext> that) const;
 
   // NativeContext fields are read concurrently from background threads; any
   // concurrent writes of affected fields must have acquire-release semantics,

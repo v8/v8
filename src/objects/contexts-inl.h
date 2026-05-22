@@ -218,11 +218,6 @@ inline bool Context::HasContextCells() const {
   return scope_info()->HasContextCells();
 }
 
-bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
-  return this->native_context()->security_token() ==
-         that->native_context()->security_token();
-}
-
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
   void Context::set_##name(Tagged<UNPAREN(type)> value) {          \
     DCHECK(IsNativeContext(this));                                 \
@@ -311,6 +306,10 @@ Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
 EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
                            kMicrotaskQueueOffset,
                            kNativeContextMicrotaskQueueTag)
+
+bool NativeContext::HasSameSecurityTokenAs(Tagged<NativeContext> that) const {
+  return this == that || this->security_token() == that->security_token();
+}
 
 Tagged<JSGlobalProxy> NativeContext::global_proxy() const {
   return global_proxy_object();

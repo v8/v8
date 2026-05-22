@@ -627,7 +627,7 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
     : public ExposedTrustedObject {
  public:
   DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
-  DECL_OPTIONAL_ACCESSORS(native_context, Tagged<Context>)
+  DECL_OPTIONAL_ACCESSORS(native_context, Tagged<NativeContext>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
 #if V8_ENABLE_DRUMBRAKE
   DECL_OPTIONAL_ACCESSORS(interpreter_object, Tagged<Tuple2>)

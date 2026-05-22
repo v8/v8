@@ -2799,8 +2799,8 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
   return handle(function_->shared()->script(), isolate());
 }
 
-DirectHandle<Context> FrameSummary::JavaScriptFrameSummary::native_context()
-    const {
+DirectHandle<NativeContext>
+FrameSummary::JavaScriptFrameSummary::native_context() const {
   return direct_handle(function_->native_context(), isolate());
 }
 
@@ -2868,7 +2868,8 @@ DirectHandle<WasmInstanceObject> FrameSummary::WasmFrameSummary::wasm_instance()
   return direct_handle(instance_data_->instance_object(), isolate());
 }
 
-DirectHandle<Context> FrameSummary::WasmFrameSummary::native_context() const {
+DirectHandle<NativeContext> FrameSummary::WasmFrameSummary::native_context()
+    const {
   return direct_handle(wasm_trusted_instance_data()->native_context(),
                        isolate());
 }
@@ -2913,8 +2914,8 @@ Handle<Script> FrameSummary::WasmInlinedFrameSummary::script() const {
   return handle(wasm_instance()->module_object()->script(), isolate());
 }
 
-DirectHandle<Context> FrameSummary::WasmInlinedFrameSummary::native_context()
-    const {
+DirectHandle<NativeContext>
+FrameSummary::WasmInlinedFrameSummary::native_context() const {
   return direct_handle(wasm_trusted_instance_data()->native_context(),
                        isolate());
 }
@@ -2955,7 +2956,7 @@ Handle<Script> FrameSummary::WasmInterpretedFrameSummary::script() const {
   return handle(wasm_instance()->module_object()->script(), Isolate::Current());
 }
 
-DirectHandle<Context>
+DirectHandle<NativeContext>
 FrameSummary::WasmInterpretedFrameSummary::native_context() const {
   return handle(wasm_instance_->trusted_data(isolate())->native_context(),
                 isolate());
@@ -2982,7 +2983,7 @@ Handle<Object> FrameSummary::BuiltinFrameSummary::script() const {
   return isolate()->factory()->undefined_value();
 }
 
-DirectHandle<Context> FrameSummary::BuiltinFrameSummary::native_context()
+DirectHandle<NativeContext> FrameSummary::BuiltinFrameSummary::native_context()
     const {
   return isolate()->native_context();
 }
@@ -3073,7 +3074,7 @@ FRAME_SUMMARY_DISPATCH(bool, is_subject_to_debugging)
 FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
-FRAME_SUMMARY_DISPATCH(DirectHandle<Context>, native_context)
+FRAME_SUMMARY_DISPATCH(DirectHandle<NativeContext>, native_context)
 FRAME_SUMMARY_DISPATCH(DirectHandle<StackFrameInfo>, CreateStackFrameInfo)
 
 #undef CASE_WASM_INTERPRETED

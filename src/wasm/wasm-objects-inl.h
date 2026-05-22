@@ -380,7 +380,7 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,
 
 WTI_OPTIONAL_TAGGED_ACCESSORS(instance_object, Tagged<WasmInstanceObject>,
                               kInstanceObjectOffset)
-WTI_OPTIONAL_TAGGED_ACCESSORS(native_context, Tagged<Context>,
+WTI_OPTIONAL_TAGGED_ACCESSORS(native_context, Tagged<NativeContext>,
                               kNativeContextOffset)
 WTI_TAGGED_ACCESSORS(memory_objects, Tagged<FixedArray>, kMemoryObjectsOffset)
 WTI_TAGGED_ACCESSORS(untagged_globals_buffer, Tagged<ByteArray>,
