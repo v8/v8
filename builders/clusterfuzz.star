@@ -222,7 +222,6 @@ in_category(
         name = "V8 Linux64 - big sleep",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/bigsleep",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
