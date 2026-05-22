@@ -561,7 +561,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<CallableTask> NewCallableTask(
       DirectHandle<JSReceiver> callable, DirectHandle<NativeContext> context);
   DirectHandle<CallbackTask> NewCallbackTask(DirectHandle<Foreign> callback,
-                                             DirectHandle<Foreign> data);
+                                             DirectHandle<Object> data);
   DirectHandle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       DirectHandle<JSPromise> promise_to_resolve,
       DirectHandle<JSReceiver> thenable, DirectHandle<JSReceiver> then,

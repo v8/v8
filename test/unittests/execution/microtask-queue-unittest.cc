@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
@@ -27,6 +29,13 @@ using Closure = std::function<void()>;
 
 void RunStdFunction(void* data) {
   std::unique_ptr<Closure> f(static_cast<Closure*>(data));
+  (*f)();
+}
+
+void RunStdFunctionWithData(v8::Local<v8::Data> data) {
+  v8::Local<v8::External> ext = data.As<v8::External>();
+  std::unique_ptr<Closure> f(
+      static_cast<Closure*>(ext->Value(v8::kExternalPointerTypeTagDefault)));
   (*f)();
 }
 
@@ -77,24 +86,54 @@ void DummyPromiseHook(PromiseHookType type, Local<Promise> promise,
 
 }  // namespace
 
-class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
-                           public ::testing::WithParamInterface<bool> {
+struct MicrotaskQueueTestConfig {
+  bool runtime_promise_hook;
+  bool callback_v8_data;
+};
+
+class MicrotaskQueueTest
+    : public TestWithNativeContextAndFinalizationRegistry,
+      public ::testing::WithParamInterface<MicrotaskQueueTestConfig> {
  public:
   template <typename F>
   DirectHandle<Microtask> NewMicrotask(F&& f) {
+    auto* closure = new Closure(std::forward<F>(f));
     DirectHandle<Foreign> runner = factory()->NewForeign<kMicrotaskCallbackTag>(
-        reinterpret_cast<Address>(&RunStdFunction));
-    DirectHandle<Foreign> data =
-        factory()->NewForeign<kMicrotaskCallbackDataTag>(
-            reinterpret_cast<Address>(new Closure(std::forward<F>(f))));
+        GetParam().callback_v8_data
+            ? reinterpret_cast<Address>(&RunStdFunctionWithData)
+            : reinterpret_cast<Address>(&RunStdFunction));
+
+    DirectHandle<Object> data;
+    if (GetParam().callback_v8_data) {
+      v8::Local<v8::External> ext_data = v8::External::New(
+          v8_isolate(), closure, v8::kExternalPointerTypeTagDefault);
+      data = Utils::OpenDirectHandle(*ext_data);
+    } else {
+      data = factory()->NewForeign<kMicrotaskCallbackDataTag>(
+          reinterpret_cast<Address>(closure));
+    }
     return factory()->NewCallbackTask(runner, data);
+  }
+
+  template <typename F>
+  void Enqueue(F&& f) {
+    auto* closure = new Closure(std::forward<F>(f));
+    if (GetParam().callback_v8_data) {
+      v8::Local<v8::External> data = v8::External::New(
+          v8_isolate(), closure, v8::kExternalPointerTypeTagDefault);
+      microtask_queue()->EnqueueMicrotask(v8_isolate(), &RunStdFunctionWithData,
+                                          data);
+    } else {
+      microtask_queue()->EnqueueMicrotask(v8_isolate(), &RunStdFunction,
+                                          closure);
+    }
   }
 
   void SetUp() override {
     microtask_queue_ = MicrotaskQueue::New(isolate());
     native_context()->set_microtask_queue(isolate(), microtask_queue());
 
-    if (GetParam()) {
+    if (GetParam().runtime_promise_hook) {
       // Use a PromiseHook to switch the implementation to ResolvePromise
       // runtime, instead of ResolvePromise builtin.
       v8_isolate()->SetPromiseHook(&DummyPromiseHook);
@@ -147,11 +186,11 @@ TEST_P(MicrotaskQueueTest, EnqueueAndRun) {
   bool ran = false;
   EXPECT_EQ(0, microtask_queue()->capacity());
   EXPECT_EQ(0, microtask_queue()->size());
-  microtask_queue()->EnqueueMicrotask(*NewMicrotask([this, &ran] {
+  Enqueue([this, &ran] {
     EXPECT_FALSE(ran);
     ran = true;
     EXPECT_TRUE(microtask_queue()->HasMicrotasksSuppressions());
-  }));
+  });
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(1, microtask_queue()->size());
   EXPECT_EQ(1, microtask_queue()->RunMicrotasks(isolate()));
@@ -164,8 +203,7 @@ TEST_P(MicrotaskQueueTest, BufferGrowth) {
   int count = 0;
 
   // Enqueue and flush the queue first to have non-zero |start_|.
-  microtask_queue()->EnqueueMicrotask(
-      *NewMicrotask([&count] { EXPECT_EQ(0, count++); }));
+  Enqueue([&count] { EXPECT_EQ(0, count++); });
   EXPECT_EQ(1, microtask_queue()->RunMicrotasks(isolate()));
 
   EXPECT_LT(0, microtask_queue()->capacity());
@@ -174,15 +212,13 @@ TEST_P(MicrotaskQueueTest, BufferGrowth) {
 
   // Fill the queue with Microtasks.
   for (int i = 1; i <= MicrotaskQueue::kMinimumCapacity; ++i) {
-    microtask_queue()->EnqueueMicrotask(
-        *NewMicrotask([&count, i] { EXPECT_EQ(i, count++); }));
+    Enqueue([&count, i] { EXPECT_EQ(i, count++); });
   }
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->size());
 
   // Add another to grow the ring buffer.
-  microtask_queue()->EnqueueMicrotask(*NewMicrotask(
-      [&] { EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 1, count++); }));
+  Enqueue([&] { EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 1, count++); });
 
   EXPECT_LT(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 1, microtask_queue()->size());
@@ -228,7 +264,7 @@ TEST_P(MicrotaskQueueTest, InstanceChain) {
 TEST_P(MicrotaskQueueTest, VisitRoot) {
   // Ensure that the ring buffer has separate in-use region.
   for (int i = 0; i < MicrotaskQueue::kMinimumCapacity / 2 + 1; ++i) {
-    microtask_queue()->EnqueueMicrotask(*NewMicrotask([] {}));
+    Enqueue([] {});
   }
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity / 2 + 1,
             microtask_queue()->RunMicrotasks(isolate()));
@@ -697,18 +733,26 @@ TEST_P(MicrotaskQueueTest, MicrotasksScope) {
   {
     MicrotasksScope scope(v8_isolate(), microtask_queue(),
                           MicrotasksScope::kRunMicrotasks);
-    microtask_queue()->EnqueueMicrotask(*NewMicrotask([&ran]() {
+    Enqueue([&ran]() {
       EXPECT_FALSE(ran);
       ran = true;
-    }));
+    });
   }
   EXPECT_TRUE(ran);
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    , MicrotaskQueueTest, ::testing::Values(false, true),
+    , MicrotaskQueueTest,
+    ::testing::Values(MicrotaskQueueTestConfig{false, false},
+                      MicrotaskQueueTestConfig{false, true},
+                      MicrotaskQueueTestConfig{true, false},
+                      MicrotaskQueueTestConfig{true, true}),
     [](const ::testing::TestParamInfo<MicrotaskQueueTest::ParamType>& info) {
-      return info.param ? "runtime" : "builtin";
+      std::string name =
+          info.param.runtime_promise_hook ? "runtime" : "builtin";
+      name += "_";
+      name += info.param.callback_v8_data ? "v8data" : "rawptr";
+      return name;
     });
 
 }  // namespace internal

@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "include/v8-array-buffer.h"
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-isolate.h"
 #include "include/v8-script.h"
 #include "include/v8-value-serializer.h"
@@ -829,10 +831,8 @@ class Shell : public i::AllStatic {
   static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info);
 #endif  // V8_FUZZILLI
 
-  // Data is of type DynamicImportData*. We use void* here to be able
-  // to conform with MicrotaskCallback interface and enqueue this
-  // function in the microtask queue.
-  static void DoHostImportModuleDynamically(void* data);
+  // Data is of type DynamicImportData* wrapped in v8::External.
+  static void DoHostImportModuleDynamically(v8::Local<v8::Data> data);
   static void AddOSMethods(v8::Isolate* isolate,
                            Local<ObjectTemplate> os_template);
 

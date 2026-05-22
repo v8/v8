@@ -53,12 +53,16 @@ class V8_EXPORT MicrotaskQueue {
   virtual void EnqueueMicrotask(Isolate* isolate,
                                 Local<Function> microtask) = 0;
 
+  V8_DEPRECATE_SOON("Use the MicrotaskCallbackWithData overload instead")
+  virtual void EnqueueMicrotask(v8::Isolate* isolate,
+                                MicrotaskCallback callback,
+                                void* data = nullptr) = 0;
   /**
    * Enqueues the callback to the queue.
    */
   virtual void EnqueueMicrotask(v8::Isolate* isolate,
-                                MicrotaskCallback callback,
-                                void* data = nullptr) = 0;
+                                MicrotaskCallbackWithData callback,
+                                v8::Local<v8::Data> data) = 0;
 
   /**
    * Adds a callback to notify the embedder after microtasks were run. The

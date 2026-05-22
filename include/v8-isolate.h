@@ -1406,10 +1406,13 @@ class V8_EXPORT Isolate {
    */
   void EnqueueMicrotask(Local<Function> microtask);
 
-  /**
-   * Enqueues the callback to the default MicrotaskQueue
-   */
+  V8_DEPRECATE_SOON("Use the MicrotaskCallbackWithData overload instead")
   void EnqueueMicrotask(MicrotaskCallback callback, void* data = nullptr);
+  /**
+   * Enqueues the callback to the default MicrotaskQueue.
+   */
+  void EnqueueMicrotask(MicrotaskCallbackWithData callback,
+                        v8::Local<v8::Data> data);
 
   /**
    * Controls how Microtasks are invoked. See MicrotasksPolicy for details.

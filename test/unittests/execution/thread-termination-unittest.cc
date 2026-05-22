@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
@@ -796,17 +798,18 @@ TEST_F(ThreadTerminationTest, TerminateInMicrotask) {
   CHECK(!isolate()->IsExecutionTerminating());
 }
 
-void TerminationMicrotask(void* data) {
+void TerminationMicrotask(v8::Local<v8::Data> data) {
   v8::Isolate* isolate = Isolate::GetCurrent();
   // Make sure the C++ microtask executes code it the right context.
   CHECK(isolate->GetCurrentContext().IsEmpty());
-  Local<Context> context = *(reinterpret_cast<Local<Context>*>(data));
+  Local<Context> context = *(reinterpret_cast<Local<Context>*>(
+      data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault)));
   isolate->TerminateExecution();
   Context::Scope context_scope(context);
   CompileRun(context, "");
 }
 
-void UnreachableMicrotask(void* data) { UNREACHABLE(); }
+void UnreachableMicrotask(v8::Local<v8::Data> data) { UNREACHABLE(); }
 
 TEST_F(ThreadTerminationTest, TerminateInApiMicrotask) {
   Locker locker(isolate());
@@ -820,8 +823,12 @@ TEST_F(ThreadTerminationTest, TerminateInApiMicrotask) {
     {
       Context::Scope context_scope(context);
       CHECK(!isolate()->IsExecutionTerminating());
-      isolate()->EnqueueMicrotask(TerminationMicrotask, &context);
-      isolate()->EnqueueMicrotask(UnreachableMicrotask);
+      isolate()->EnqueueMicrotask(
+          TerminationMicrotask,
+          v8::External::New(isolate(), &context,
+                            v8::kExternalPointerTypeTagDefault));
+      isolate()->EnqueueMicrotask(UnreachableMicrotask,
+                                  v8::Undefined(isolate()));
     }
     // Trigger microtask checkpoint without active context.
     isolate()->PerformMicrotaskCheckpoint();

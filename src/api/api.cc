@@ -10653,6 +10653,12 @@ void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
   i_isolate->default_microtask_queue()->EnqueueMicrotask(this, callback, data);
 }
 
+void Isolate::EnqueueMicrotask(MicrotaskCallbackWithData callback,
+                               v8::Local<v8::Data> data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->default_microtask_queue()->EnqueueMicrotask(this, callback, data);
+}
+
 void Isolate::SetMicrotasksPolicy(MicrotasksPolicy policy) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->default_microtask_queue()->set_microtasks_policy(policy);

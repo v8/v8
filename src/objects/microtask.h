@@ -55,8 +55,8 @@ V8_OBJECT class CallbackTask : public Microtask {
   inline void set_callback(Tagged<Foreign> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Foreign> data() const;
-  inline void set_data(Tagged<Foreign> value,
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(CallbackTask)
@@ -67,7 +67,7 @@ V8_OBJECT class CallbackTask : public Microtask {
   friend class MicrotaskQueueBuiltinsAssembler;
 
   TaggedMember<Foreign> callback_;
-  TaggedMember<Foreign> data_;
+  TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
 // A CallableTask is a special (internal) Microtask that allows us to

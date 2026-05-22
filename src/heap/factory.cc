@@ -1999,7 +1999,7 @@ DirectHandle<CallableTask> Factory::NewCallableTask(
 }
 
 DirectHandle<CallbackTask> Factory::NewCallbackTask(
-    DirectHandle<Foreign> callback, DirectHandle<Foreign> data) {
+    DirectHandle<Foreign> callback, DirectHandle<Object> data) {
   auto microtask = NewStructInternal<CallbackTask>(CALLBACK_TASK_TYPE,
                                                    AllocationType::kYoung);
   DisallowGarbageCollection no_gc;

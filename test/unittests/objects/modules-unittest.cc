@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
 #include "test/common/flag-utils.h"
@@ -869,9 +871,10 @@ struct DynamicImportData {
   bool should_resolve;
 };
 
-void DoHostImportModuleDynamically(void* import_data) {
+void DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   std::unique_ptr<DynamicImportData> import_data_(
-      static_cast<DynamicImportData*>(import_data));
+      static_cast<DynamicImportData*>(
+          data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault)));
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
@@ -897,7 +900,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, true);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  isolate->EnqueueMicrotask(
+      DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 
@@ -910,7 +915,9 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, false);
-  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  isolate->EnqueueMicrotask(
+      DoHostImportModuleDynamically,
+      v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
 

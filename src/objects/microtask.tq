@@ -12,7 +12,7 @@ extern class Microtask extends Struct {
 @cppObjectLayoutDefinition
 extern class CallbackTask extends Microtask {
   callback: Foreign;
-  data: Foreign;
+  data: Object;
 }
 
 @cppObjectLayoutDefinition

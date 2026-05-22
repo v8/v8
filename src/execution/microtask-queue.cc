@@ -100,6 +100,18 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
   EnqueueMicrotask(*microtask);
 }
 
+void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
+                                      v8::MicrotaskCallbackWithData callback,
+                                      v8::Local<v8::Data> data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  HandleScope scope(isolate);
+  DirectHandle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
+      isolate->factory()->NewForeign<kMicrotaskCallbackTag>(
+          reinterpret_cast<Address>(callback)),
+      Utils::OpenDirectHandle(*data));
+  EnqueueMicrotask(*microtask);
+}
+
 void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
   if (size_ == capacity_) {
     // Keep the capacity of |ring_buffer_| power of 2, so that the JIT

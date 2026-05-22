@@ -26,6 +26,8 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-initialization.h"
 #include "include/v8-inspector.h"
@@ -1747,7 +1749,9 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
         new DynamicImportData(isolate, context, resource_name, specifier, phase,
                               import_attributes, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
-    isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+    isolate->EnqueueMicrotask(
+        Shell::DoHostImportModuleDynamically,
+        External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   }
   return resolver->GetPromise();
 }
@@ -1839,10 +1843,12 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
 }
 }  // namespace
 
-void Shell::DoHostImportModuleDynamically(void* data) {
+void Shell::DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   Isolate* current_isolate = reinterpret_cast<Isolate*>(i::Isolate::Current());
+  void* raw_data =
+      data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault);
   DynamicImportData* import_data =
-      PerIsolateData::Get(current_isolate)->LookupImportData(data);
+      PerIsolateData::Get(current_isolate)->LookupImportData(raw_data);
   CHECK_EQ(current_isolate, import_data->isolate);
 
   Isolate* isolate(import_data->isolate);

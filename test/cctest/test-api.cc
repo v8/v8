@@ -44,8 +44,10 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/persistent.h"
 #include "include/v8-cpp-heap-external.h"
+#include "include/v8-data.h"
 #include "include/v8-date.h"
 #include "include/v8-extension.h"
+#include "include/v8-external.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-function.h"
 #include "include/v8-initialization.h"
@@ -20774,10 +20776,12 @@ static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
 
 void* g_passed_to_three = nullptr;
 
-static void MicrotaskThree(void* data) {
-  g_passed_to_three = data;
+static void MicrotaskThree(v8::Local<v8::Data> data) {
+  g_passed_to_three =
+      data->IsValue() && data.As<v8::Value>()->IsExternal()
+          ? data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault)
+          : nullptr;
 }
-
 
 TEST(EnqueueMicrotask) {
   LocalContext env;
@@ -20815,7 +20819,7 @@ TEST(EnqueueMicrotask) {
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
 
   g_passed_to_three = nullptr;
-  env.isolate()->EnqueueMicrotask(MicrotaskThree);
+  env.isolate()->EnqueueMicrotask(MicrotaskThree, v8::Undefined(env.isolate()));
   CompileRun("1+1;");
   CHECK(!g_passed_to_three);
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
@@ -20824,7 +20828,9 @@ TEST(EnqueueMicrotask) {
   int dummy;
   env.isolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskOne).ToLocalChecked());
-  env.isolate()->EnqueueMicrotask(MicrotaskThree, &dummy);
+  env.isolate()->EnqueueMicrotask(
+      MicrotaskThree, v8::External::New(env.isolate(), &dummy,
+                                        v8::kExternalPointerTypeTagDefault));
   env.isolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   CompileRun("1+1;");
@@ -20893,13 +20899,13 @@ TEST(RunMicrotasksIgnoresThrownExceptions) {
            CompileRun("exception2Calls")->Int32Value(env.local()).FromJust());
 }
 
-static void ThrowExceptionMicrotask(void* data) {
+static void ThrowExceptionMicrotask(v8::Local<v8::Data> data) {
   CcTest::isolate()->ThrowException(v8_str("exception"));
 }
 
 int microtask_callback_count = 0;
 
-static void IncrementCounterMicrotask(void* data) {
+static void IncrementCounterMicrotask(v8::Local<v8::Data> data) {
   microtask_callback_count++;
 }
 
@@ -20927,8 +20933,9 @@ TEST_WITH_PLATFORM(RunMicrotasksIgnoresThrownExceptionsFromApi, MockPlatform) {
   v8::TryCatch try_catch(isolate);
   {
     CHECK(!isolate->IsExecutionTerminating());
-    isolate->EnqueueMicrotask(ThrowExceptionMicrotask);
-    isolate->EnqueueMicrotask(IncrementCounterMicrotask);
+    isolate->EnqueueMicrotask(ThrowExceptionMicrotask, v8::Undefined(isolate));
+    isolate->EnqueueMicrotask(IncrementCounterMicrotask,
+                              v8::Undefined(isolate));
     CHECK(!platform.dump_without_crashing_called());
     isolate->PerformMicrotaskCheckpoint();
     CHECK(platform.dump_without_crashing_called());
@@ -21061,10 +21068,11 @@ TEST(RunMicrotasksWithoutEnteringContext) {
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
-static void Regress808911_MicrotaskCallback(void* data) {
+static void Regress808911_MicrotaskCallback(v8::Local<v8::Data> data) {
   // So here we expect "current context" to be context1 and
   // "entered or microtask context" to be context2.
-  v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
+  v8::Isolate* isolate = static_cast<v8::Isolate*>(
+      data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
   CHECK(isolate->GetCurrentContext() !=
         isolate->GetEnteredOrMicrotaskContext());
 }
@@ -21076,7 +21084,9 @@ static void Regress808911_CurrentContextWrapper(
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(isolate->GetCurrentContext() !=
         isolate->GetEnteredOrMicrotaskContext());
-  isolate->EnqueueMicrotask(Regress808911_MicrotaskCallback, isolate);
+  isolate->EnqueueMicrotask(
+      Regress808911_MicrotaskCallback,
+      v8::External::New(isolate, isolate, v8::kExternalPointerTypeTagDefault));
   isolate->PerformMicrotaskCheckpoint();
 }
 
@@ -31489,9 +31499,10 @@ TEST(ContinuationPreservedEmbedderDataClearedAndRestored) {
 }
 
 static bool did_callback_microtask_run = false;
-static void CallbackTaskMicrotask(void* data) {
+static void CallbackTaskMicrotask(v8::Local<v8::Data> data) {
   did_callback_microtask_run = true;
-  v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
+  v8::Isolate* isolate = static_cast<v8::Isolate*>(
+      data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
 #if V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   CHECK(v8_str("foo")->SameValue(
       GetContinuationPreservedEmbedderDataAsValue(isolate)));
@@ -31506,7 +31517,9 @@ TEST(EnqueMicrotaskContinuationPreservedEmbedderData_CallbackTask) {
   v8::HandleScope scope(isolate);
 
   isolate->SetContinuationPreservedEmbedderDataV2(v8_str("foo"));
-  isolate->EnqueueMicrotask(&CallbackTaskMicrotask, isolate);
+  isolate->EnqueueMicrotask(
+      &CallbackTaskMicrotask,
+      v8::External::New(isolate, isolate, v8::kExternalPointerTypeTagDefault));
   isolate->SetContinuationPreservedEmbedderDataV2(v8::Undefined(isolate));
 
   isolate->PerformMicrotaskCheckpoint();

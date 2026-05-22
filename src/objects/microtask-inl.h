@@ -37,8 +37,8 @@ void CallbackTask::set_callback(Tagged<Foreign> value, WriteBarrierMode mode) {
   callback_.store(this, value, mode);
 }
 
-Tagged<Foreign> CallbackTask::data() const { return data_.load(); }
-void CallbackTask::set_data(Tagged<Foreign> value, WriteBarrierMode mode) {
+Tagged<Object> CallbackTask::data() const { return data_.load(); }
+void CallbackTask::set_data(Tagged<Object> value, WriteBarrierMode mode) {
   data_.store(this, value, mode);
 }
 
