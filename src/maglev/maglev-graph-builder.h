@@ -271,11 +271,9 @@ class MaglevGraphBuilder {
   static SpeculationMode GetSpeculationMode(
       compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source);
 
-#ifdef DEBUG
-  bool MayNeedContextPhis() const;
-#endif
-
  private:
+  friend class Subgraph<MaglevGraphBuilder>;
+
   void InitializeScopeInfo();
 
   class DeoptFrameScopeBase;
@@ -285,11 +283,14 @@ class MaglevGraphBuilder {
   //
   // It does this by creating a fake dummy compilation unit and frame state, and
   // wrapping up all the places where it pretends to be interpreted but isn't.
-  class MaglevSubGraphBuilder {
+  class MaglevSubGraphBuilder
+      : public SubgraphBase<MaglevSubGraphBuilder, MaglevGraphBuilder> {
    public:
-    class Variable;
-    class Label;
-    class LabelForTrackingInterpreterFrameState;
+    using Base = SubgraphBase<MaglevSubGraphBuilder, MaglevGraphBuilder>;
+    using Variable = Base::Variable;
+    using Label = Base::Label;
+    using LabelForTrackingInterpreterFrameState =
+        Base::LabelForTrackingInterpreterFrameState;
     class LoopLabel;
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
@@ -302,22 +303,18 @@ class MaglevGraphBuilder {
     ReduceResult GotoIfFalse(Label* false_target,
                              std::initializer_list<ValueNode*> control_inputs,
                              Args&&... args);
-    void GotoOrTrim(Label* label);
     void Goto(Label* label);
-    void ReducePredecessorCount(Label* label, unsigned num = 1);
     void EndLoop(LoopLabel* loop_label);
     void Bind(Label* label);
-    V8_NODISCARD ReduceResult TrimPredecessorsAndBind(Label* label);
-    void set(Variable& var, ValueNode* value);
-    ValueNode* get(const Variable& var) const;
 
     template <typename FCond, typename FTrue, typename FFalse>
     ReduceResult Branch(std::initializer_list<Variable*> vars, FCond cond,
                         FTrue if_true, FFalse if_false);
 
     void MergeIntoLabel(Label* label, BasicBlock* predecessor);
+    void MergeDeadInterpreterFrameState(Label* label, unsigned num);
 
-   private:
+   protected:
     class BorrowParentKnownNodeAspectsAndVOs;
     void TakeKnownNodeAspectsAndVOsFromParent();
     void MoveKnownNodeAspectsAndVOsToParent();
@@ -327,8 +324,6 @@ class MaglevGraphBuilder {
     }
 
     MaglevGraphBuilder* builder_;
-    MaglevCompilationUnit* variable_compilation_unit_;
-    InterpreterFrameState variable_frame_;
   };
 
   // TODO(olivf): Currently identifying dead code relies on the fact that loops
@@ -1031,11 +1026,6 @@ class MaglevGraphBuilder {
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);
 
-  template <typename Int32Binop, typename Float64Binop>
-  MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
-                                        Int32Binop&& int32_case,
-                                        Float64Binop&& float64_case);
-
   template <typename CallNode, typename... Args>
   ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
@@ -1733,13 +1723,7 @@ class MaglevGraphBuilder {
 
   enum class BranchType { kBranchIfTrue, kBranchIfFalse };
   enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
-  enum class BranchResult {
-    kDefault,
-    kAlwaysTrue,
-    kAlwaysFalse,
-    // Bailed out before evaluating the condition
-    kAbort
-  };
+  using BranchResult = ::v8::internal::maglev::BranchResult;
 
   static inline BranchType NegateBranchType(BranchType jump_type) {
     switch (jump_type) {
@@ -2208,6 +2192,23 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   // TODO(leszeks): What side effects aren't observable? Maybe migrations?
   ResetBuilderCachedState<is_possible_map_change>();
 }
+
+// Builder-side Subgraph: thin facade over the existing MaglevSubGraphBuilder.
+// Each primitive mutates the live graph as the bytecode visitor would.
+// TODO(victorgomes): Remove MaglevSubGraphBuilder and consolidate
+// everything in the Subgraph specialization.
+template <>
+class Subgraph<MaglevGraphBuilder>
+    : public MaglevGraphBuilder::MaglevSubGraphBuilder {
+ public:
+  using MaglevSubGraphBuilder = MaglevGraphBuilder::MaglevSubGraphBuilder;
+  using Variable = MaglevSubGraphBuilder::Variable;
+  using Label = MaglevSubGraphBuilder::Label;
+  using LoopLabel = MaglevSubGraphBuilder::LoopLabel;
+
+  Subgraph(MaglevReducer<MaglevGraphBuilder>* reducer, int variable_count)
+      : MaglevSubGraphBuilder(reducer->base_, variable_count) {}
+};
 
 }  // namespace maglev
 }  // namespace internal

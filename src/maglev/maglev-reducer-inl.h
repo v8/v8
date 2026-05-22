@@ -2954,6 +2954,112 @@ ReduceResult MaglevReducer<BaseT>::GetConvertReceiver(
 }
 
 template <typename BaseT>
+template <typename CondFn>
+ReduceResult MaglevReducer<BaseT>::Select(
+    CondFn cond, base::FunctionRef<ReduceResult()> if_true,
+    base::FunctionRef<ReduceResult()> if_false) {
+  Subgraph<BaseT> sg(this, /*variable_count=*/1);
+  using Variable = typename Subgraph<BaseT>::Variable;
+  using Label = typename Subgraph<BaseT>::Label;
+
+  Label else_branch(&sg, /*predecessor_count=*/1);
+
+  BranchResult br = cond(sg, &else_branch);
+  switch (br) {
+    case BranchResult::kAbort:
+      return ReduceResult::DoneWithAbort();
+    case BranchResult::kAlwaysTrue:
+      return if_true();
+    case BranchResult::kAlwaysFalse:
+      return if_false();
+    case BranchResult::kDefault:
+      break;
+  }
+
+  Variable v(0);
+  Label done(&sg, /*predecessor_count=*/2, {&v});
+  ReduceResult t = if_true();
+  CHECK(t.IsDone());
+  if (t.IsDoneWithValue()) sg.set(v, t.value());
+  sg.GotoOrTrim(&done);
+
+  sg.Bind(&else_branch);
+  ReduceResult f = if_false();
+  CHECK(f.IsDone());
+  if (t.IsDoneWithAbort() && f.IsDoneWithAbort()) {
+    return ReduceResult::DoneWithAbort();
+  }
+  CHECK(f.IsDoneWithValue());
+  sg.set(v, f.value());
+  sg.GotoOrTrim(&done);
+
+  RETURN_IF_ABORT(sg.TrimPredecessorsAndBind(&done));
+  return sg.get(v);
+}
+
+template <typename BaseT>
+template <typename Sub>
+BranchResult MaglevReducer<BaseT>::BuildBranchIfInt32Compare(
+    Sub& sg, typename Sub::Label* false_target, Operation op, ValueNode* lhs,
+    ValueNode* rhs) {
+  if (auto cl = TryGetInt32Constant(lhs)) {
+    if (auto cr = TryGetInt32Constant(rhs)) {
+      return CompareInt32(*cl, *cr, op) ? BranchResult::kAlwaysTrue
+                                        : BranchResult::kAlwaysFalse;
+    }
+  }
+  ReduceResult r = sg.template GotoIfFalse<BranchIfInt32Compare>(
+      false_target, {lhs, rhs}, op);
+  if (r.IsDoneWithAbort()) return BranchResult::kAbort;
+  return BranchResult::kDefault;
+}
+
+template <typename BaseT>
+template <typename Sub>
+BranchResult MaglevReducer<BaseT>::BuildBranchIfUint32Compare(
+    Sub& sg, typename Sub::Label* false_target, Operation op, ValueNode* lhs,
+    ValueNode* rhs) {
+  if (auto cl = TryGetUint32Constant(lhs)) {
+    if (auto cr = TryGetUint32Constant(rhs)) {
+      return CompareUint32(*cl, *cr, op) ? BranchResult::kAlwaysTrue
+                                         : BranchResult::kAlwaysFalse;
+    }
+  }
+  ReduceResult r = sg.template GotoIfFalse<BranchIfUint32Compare>(
+      false_target, {lhs, rhs}, op);
+  if (r.IsDoneWithAbort()) return BranchResult::kAbort;
+  return BranchResult::kDefault;
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildInt32Max(ValueNode* a, ValueNode* b) {
+  if (auto cl = TryGetInt32Constant(a)) {
+    if (auto cr = TryGetInt32Constant(b)) {
+      return GetInt32Constant(std::max(*cl, *cr));
+    }
+  }
+  return Select(
+      [&](auto& sg, auto* label) -> BranchResult {
+        return BuildBranchIfInt32Compare(sg, label, Operation::kLessThan, a, b);
+      },
+      [&]() -> ReduceResult { return b; }, [&]() -> ReduceResult { return a; });
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildInt32Min(ValueNode* a, ValueNode* b) {
+  if (auto cl = TryGetInt32Constant(a)) {
+    if (auto cr = TryGetInt32Constant(b)) {
+      return GetInt32Constant(std::min(*cl, *cr));
+    }
+  }
+  return Select(
+      [&](auto& sg, auto* label) -> BranchResult {
+        return BuildBranchIfInt32Compare(sg, label, Operation::kLessThan, a, b);
+      },
+      [&]() -> ReduceResult { return a; }, [&]() -> ReduceResult { return b; });
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSqrt(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1) {
@@ -2966,6 +3072,90 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSqrt(
   GET_VALUE_OR_ABORT(
       value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
   return AddNewNode<Float64Sqrt>({value});
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMax(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->minus_infinity_value());
+  }
+  return TryReduceMathMinMax(
+      args,
+      [&](ValueNode* lhs, ValueNode* rhs) -> ReduceResult {
+        return BuildInt32Max(lhs, rhs);
+      },
+      [&](ValueNode* lhs, ValueNode* rhs) -> ReduceResult {
+        ValueNode* lhs_float;
+        GET_VALUE_OR_ABORT(
+            lhs_float, GetFloat64ForToNumber(lhs, NodeType::kNumberOrOddball));
+        ValueNode* rhs_float;
+        GET_VALUE_OR_ABORT(
+            rhs_float, GetFloat64ForToNumber(rhs, NodeType::kNumberOrOddball));
+        RETURN_IF_DONE(TryFoldFloat64Max(lhs_float, rhs_float));
+        return AddNewNode<Float64Max>({lhs_float, rhs_float});
+      });
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMin(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->infinity_value());
+  }
+  return TryReduceMathMinMax(
+      args,
+      [&](ValueNode* lhs, ValueNode* rhs) -> ReduceResult {
+        return BuildInt32Min(lhs, rhs);
+      },
+      [&](ValueNode* lhs, ValueNode* rhs) -> ReduceResult {
+        ValueNode* lhs_float;
+        GET_VALUE_OR_ABORT(
+            lhs_float, GetFloat64ForToNumber(lhs, NodeType::kNumberOrOddball));
+        ValueNode* rhs_float;
+        GET_VALUE_OR_ABORT(
+            rhs_float, GetFloat64ForToNumber(rhs, NodeType::kNumberOrOddball));
+        RETURN_IF_DONE(TryFoldFloat64Min(lhs_float, rhs_float));
+        return AddNewNode<Float64Min>({lhs_float, rhs_float});
+      });
+}
+
+template <typename BaseT>
+template <typename Int32Binop, typename Float64Binop>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathMinMax(
+    CallArguments& args, Int32Binop&& int32_case, Float64Binop&& float64_case) {
+  bool all_args_are_int32_or_smi = true;
+  for (size_t i = 0; i < args.count(); ++i) {
+    ValueNode* arg = args[i];
+    if (GetType(arg) != NodeType::kSmi &&
+        arg->properties().value_representation() !=
+            ValueRepresentation::kInt32) {
+      all_args_are_int32_or_smi = false;
+      break;
+    }
+  }
+
+  if (all_args_are_int32_or_smi) {
+    ValueNode* acc = args[0];
+    for (size_t i = 1; i < args.count(); ++i) {
+      GET_VALUE_OR_ABORT(acc, int32_case(acc, args[i]));
+    }
+    return acc;
+  }
+
+  // TODO(marja): Investigate whether a non-speculative Float64 case helps.
+  if (!CanSpeculateCall()) return {};
+
+  // float64_case converts inputs to Float64. Only the first one has to be
+  // converted explicitly to seed the accumulator.
+  ValueNode* acc;
+  GET_VALUE_OR_ABORT(
+      acc, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
+  acc = acc->Unwrap();
+  for (size_t i = 1; i < args.count(); ++i) {
+    GET_VALUE_OR_ABORT(acc, float64_case(acc, args[i]));
+  }
+  return acc;
 }
 
 template <typename BaseT>
@@ -3001,6 +3191,12 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
     case Builtin::kMathSqrt:
       result = TryReduceMathSqrt(target, args);
       break;
+    case Builtin::kMathMax:
+      result = TryReduceMathMax(target, args);
+      break;
+    case Builtin::kMathMin:
+      result = TryReduceMathMin(target, args);
+      break;
     default:
       // Not yet ported. The remaining builtins still go through the
       // bytecode-builder dispatcher.
@@ -3010,6 +3206,70 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
   current_speculation_feedback_ = saved_feedback;
   current_speculation_mode_ = saved_mode;
   return result;
+}
+
+template <typename DerivedT, typename BaseT>
+SubgraphBase<DerivedT, BaseT>::Label::Label(SubgraphBase* sg,
+                                            int predecessor_count)
+    : predecessor_count_(predecessor_count),
+      variable_liveness_(
+          sg->reducer_->zone()->template New<compiler::BytecodeLivenessState>(
+              sg->dummy_unit_->register_count(), sg->reducer_->zone())) {}
+
+template <typename DerivedT, typename BaseT>
+SubgraphBase<DerivedT, BaseT>::Label::Label(
+    SubgraphBase* sg, int predecessor_count,
+    std::initializer_list<Variable*> vars)
+    : Label(sg, predecessor_count) {
+  for (Variable* var : vars) {
+    variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
+  }
+}
+
+template <typename DerivedT, typename BaseT>
+SubgraphBase<DerivedT, BaseT>::Label::Label(
+    const LabelForTrackingInterpreterFrameState& label)
+    : Label(label.sg_, label.predecessor_count_) {
+  for (Variable* var : label.vars_) {
+    variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
+  }
+  future_bind_offset_ = label.future_bind_offset_;
+}
+
+template <typename DerivedT, typename BaseT>
+void SubgraphBase<DerivedT, BaseT>::ReducePredecessorCount(Label* label,
+                                                           unsigned num) {
+  DCHECK_GE(label->predecessor_count_, static_cast<int>(num));
+  if (num == 0) return;
+  label->predecessor_count_ -= num;
+  if (label->variable_merge_state_ != nullptr) {
+    label->variable_merge_state_->MergeDead(*dummy_unit_, num);
+    if (label->ShouldTrackInterpreterFrameState()) {
+      static_cast<DerivedT*>(this)->MergeDeadInterpreterFrameState(label, num);
+    }
+  }
+}
+
+template <typename DerivedT, typename BaseT>
+ReduceResult SubgraphBase<DerivedT, BaseT>::TrimPredecessorsAndBind(
+    Label* label) {
+  int predecessors_so_far =
+      label->variable_merge_state_ == nullptr
+          ? 0
+          : label->variable_merge_state_->predecessors_so_far();
+  if (label->ShouldTrackInterpreterFrameState()) {
+    DCHECK_EQ(predecessors_so_far,
+              label->merge_state_ == nullptr
+                  ? 0
+                  : label->merge_state_->predecessors_so_far());
+  }
+  DCHECK_LE(predecessors_so_far, label->predecessor_count_);
+  reducer_->set_current_block(nullptr);
+  ReducePredecessorCount(label,
+                         label->predecessor_count_ - predecessors_so_far);
+  if (predecessors_so_far == 0) return ReduceResult::DoneWithAbort();
+  static_cast<DerivedT*>(this)->Bind(label);
+  return ReduceResult::Done();
 }
 
 }  // namespace maglev

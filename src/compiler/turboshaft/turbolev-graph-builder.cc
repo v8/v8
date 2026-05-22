@@ -5578,6 +5578,13 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::DeadValue*,
+                                const maglev::ProcessingState&) {
+    // `DeadValue` is a frame-state-only placeholder that must never be
+    // translated into a real operation.
+    UNREACHABLE();
+  }
+
   maglev::ProcessResult Process(maglev::DebugBreak*,
                                 const maglev::ProcessingState&) {
     __ DebugBreak();

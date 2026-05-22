@@ -7,8 +7,10 @@
 
 #include <algorithm>
 #include <initializer_list>
+#include <optional>
 #include <utility>
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
 #include "src/codegen/source-position.h"
@@ -28,6 +30,12 @@ namespace internal {
 namespace maglev {
 
 struct MaglevCallSiteInfo;
+template <typename BaseT>
+class MaglevReducer;
+template <typename BaseT>
+class Subgraph;
+template <typename DerivedT, typename BaseT>
+class SubgraphBase;
 class ReduceResult;
 class V8_NODISCARD MaybeReduceResult {
  public:
@@ -204,6 +212,11 @@ template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
 template <typename BaseT>
+concept ReducerBaseWithKNASetter = requires(BaseT* b, KnownNodeAspects* kna) {
+  b->set_known_node_aspects(kna);
+};
+
+template <typename BaseT>
 concept ReducerBaseWithEagerDeopt =
     requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
 
@@ -237,6 +250,50 @@ template <typename BaseT>
 concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
+
+enum class BranchResult {
+  kDefault,
+  kAlwaysTrue,
+  kAlwaysFalse,
+  // Bailed out before evaluating the condition.
+  kAbort,
+};
+
+inline bool CompareInt32(int32_t lhs, int32_t rhs, Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return lhs == rhs;
+    case Operation::kLessThan:
+      return lhs < rhs;
+    case Operation::kLessThanOrEqual:
+      return lhs <= rhs;
+    case Operation::kGreaterThan:
+      return lhs > rhs;
+    case Operation::kGreaterThanOrEqual:
+      return lhs >= rhs;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return lhs == rhs;
+    case Operation::kLessThan:
+      return lhs < rhs;
+    case Operation::kLessThanOrEqual:
+      return lhs <= rhs;
+    case Operation::kGreaterThan:
+      return lhs > rhs;
+    case Operation::kGreaterThanOrEqual:
+      return lhs >= rhs;
+    default:
+      UNREACHABLE();
+  }
+}
 
 // CallArguments encapsulates the arguments of a JS-level call so that
 // reducer code can read them uniformly regardless of where they came from.
@@ -824,10 +881,63 @@ class MaglevReducer {
 
   MaybeReduceResult TryReduceMathSqrt(compiler::JSFunctionRef target,
                                       CallArguments& args);
+  MaybeReduceResult TryReduceMathMax(compiler::JSFunctionRef target,
+                                     CallArguments& args);
+  MaybeReduceResult TryReduceMathMin(compiler::JSFunctionRef target,
+                                     CallArguments& args);
+  template <typename Int32Binop, typename Float64Binop>
+  MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
+                                        Int32Binop&& int32_case,
+                                        Float64Binop&& float64_case);
   MaybeReduceResult TryReduceBuiltin(
       Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
 
+  ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
+  ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
+
+  // TODO(victorgomes): Maybe it makes sense to port BranchBuilder.
+  template <typename Sub>
+  BranchResult BuildBranchIfInt32Compare(Sub& sg,
+                                         typename Sub::Label* false_target,
+                                         Operation op, ValueNode* lhs,
+                                         ValueNode* rhs);
+  template <typename Sub>
+  BranchResult BuildBranchIfUint32Compare(Sub& sg,
+                                          typename Sub::Label* false_target,
+                                          Operation op, ValueNode* lhs,
+                                          ValueNode* rhs);
+
+  // TODO(victorgomes): Support DoneWithoutValue.
+  template <typename CondFn>
+  ReduceResult Select(CondFn cond, base::FunctionRef<ReduceResult()> if_true,
+                      base::FunctionRef<ReduceResult()> if_false);
+
+  struct PendingSplice {
+    BasicBlock* entry;
+    BasicBlock* exit;
+    ZoneVector<BasicBlock*> all_blocks;
+  };
+  void RecordPendingSplice(BasicBlock* entry, BasicBlock* exit,
+                           ZoneVector<BasicBlock*> all_blocks) {
+    DCHECK(!pending_splice_.has_value());
+    // // Copy `all_blocks` into the zone — the Subgraph that produced it may go
+    // // out of scope before the GraphProcessor consumes the splice, and we
+    // // don't want to depend on its internal storage outliving it.
+    // size_t n = all_blocks.size();
+    // BasicBlock** copy = zone()->template AllocateArray<BasicBlock*>(n);
+    // for (size_t i = 0; i < n; ++i) copy[i] = all_blocks[i];
+    pending_splice_ = PendingSplice{entry, exit, all_blocks};
+  }
+  bool HasPendingSplice() const { return pending_splice_.has_value(); }
+  const PendingSplice& pending_splice() const {
+    DCHECK(pending_splice_.has_value());
+    return *pending_splice_;
+  }
+  PendingSplice TakePendingSplice() {
+    DCHECK(pending_splice_.has_value());
+    return *std::exchange(pending_splice_, {});
+  }
   void FlushNodesToBlock();
 
   void SetNewNodePosition(BasicBlockPosition position) {
@@ -1033,6 +1143,17 @@ class MaglevReducer {
     return graph()->compilation_info()->is_turbolev();
   }
 
+  KnownNodeAspects& known_node_aspects() {
+    static_assert(ReducerBaseWithKNA<BaseT>);
+    return base_->known_node_aspects();
+  }
+  void set_known_node_aspects(KnownNodeAspects* kna) {
+    static_assert(ReducerBaseWithKNASetter<BaseT>);
+    base_->set_known_node_aspects(kna);
+  }
+
+  friend class Subgraph<BaseT>;
+
  protected:
   class LazyDeoptResultLocationScope;
 
@@ -1082,11 +1203,6 @@ class MaglevReducer {
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
-  KnownNodeAspects& known_node_aspects() {
-    static_assert(ReducerBaseWithKNA<BaseT>);
-    return base_->known_node_aspects();
-  }
-
   template <typename T>
   friend class MapInference;
 
@@ -1117,6 +1233,124 @@ class MaglevReducer {
   compiler::FeedbackSource current_speculation_feedback_ = {};
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
+  std::optional<PendingSplice> pending_splice_;
+};
+
+template <typename DerivedT, typename BaseT>
+class SubgraphBase {
+ public:
+  class Variable {
+   public:
+    explicit Variable(int index) : pseudo_register_(index) {}
+
+   private:
+    friend class SubgraphBase;
+    friend DerivedT;
+    interpreter::Register pseudo_register_;
+  };
+
+  class Label;
+
+  class LabelForTrackingInterpreterFrameState {
+   public:
+    LabelForTrackingInterpreterFrameState(SubgraphBase* sg,
+                                          int predecessor_count,
+                                          int future_bind_offset)
+        : sg_(sg),
+          predecessor_count_(predecessor_count),
+          future_bind_offset_(future_bind_offset) {}
+    LabelForTrackingInterpreterFrameState(SubgraphBase* sg,
+                                          int predecessor_count,
+                                          std::initializer_list<Variable*> vars,
+                                          int future_bind_offset)
+        : sg_(sg),
+          predecessor_count_(predecessor_count),
+          vars_(vars),
+          future_bind_offset_(future_bind_offset) {}
+
+   private:
+    friend class Label;
+    SubgraphBase* sg_;
+    int predecessor_count_;
+    std::vector<Variable*> vars_;
+    int future_bind_offset_;
+  };
+
+  class Label {
+   public:
+    Label(SubgraphBase* sg, int predecessor_count);
+    Label(SubgraphBase* sg, int predecessor_count,
+          std::initializer_list<Variable*> vars);
+
+    // NOLINTNEXTLINE(runtime/explicit)
+    Label(const LabelForTrackingInterpreterFrameState& label);
+
+    BasicBlockRef* ref() { return &ref_; }
+    int predecessor_count() const { return predecessor_count_; }
+    bool ShouldTrackInterpreterFrameState() const {
+      return future_bind_offset_.has_value();
+    }
+
+   private:
+    friend class SubgraphBase;
+    friend DerivedT;
+
+    int predecessor_count_ = -1;
+
+    // These are for tracking the values of Variables and merging them into
+    // variable_frame_.
+    MergePointInterpreterFrameState* variable_merge_state_ = nullptr;
+    compiler::BytecodeLivenessState* variable_liveness_ = nullptr;
+    BasicBlockRef ref_;
+
+    // Used only by MaglevSubGraphBuilder when the label is bound at a
+    // future bytecode offset; the optimizer never sets either of these.
+    // These are for tracking the values of registers and merging into the
+    // interpreter frame. Setting the future_bind_offset to the bytecode offset
+    // where the "bind" for this label will be enables tracking.
+    // TODO(marja): Unify merge_state_ and variable_merge_state_ and only
+    // have one.
+    std::optional<int> future_bind_offset_;
+    MergePointInterpreterFrameState* merge_state_ = nullptr;
+  };
+
+  void set(Variable& v, ValueNode* value) {
+    variable_frame_.set(v.pseudo_register_, value);
+  }
+  ValueNode* get(const Variable& v) const {
+    return variable_frame_.get(v.pseudo_register_);
+  }
+
+  void GotoOrTrim(Label* label) {
+    if (reducer_->current_block() == nullptr) {
+      ReducePredecessorCount(label);
+      return;
+    }
+    static_cast<DerivedT*>(this)->Goto(label);
+  }
+
+  void ReducePredecessorCount(Label* label, unsigned num = 1);
+
+  V8_NODISCARD ReduceResult TrimPredecessorsAndBind(Label* label);
+
+ protected:
+  SubgraphBase(MaglevReducer<BaseT>* reducer, MaglevCompilationUnit* dummy_unit)
+      : reducer_(reducer),
+        dummy_unit_(dummy_unit),
+        variable_frame_(*dummy_unit, /*known_node_aspects=*/nullptr) {}
+
+  MaglevReducer<BaseT>* reducer() { return reducer_; }
+  MaglevCompilationUnit* dummy_unit() { return dummy_unit_; }
+  InterpreterFrameState& variable_frame() { return variable_frame_; }
+
+  // Default CRTP hook; the builder side overrides to also MergeDead its
+  // separate interpreter-frame-state tracking. The optimizer never
+  // triggers it (its labels always have future_bind_offset_ = nullopt).
+  void MergeDeadInterpreterFrameState(Label*, unsigned) { UNREACHABLE(); }
+
+  MaglevReducer<BaseT>* reducer_;
+  MaglevCompilationUnit* dummy_unit_;
+  InterpreterFrameState variable_frame_;
 };
 
 }  // namespace maglev

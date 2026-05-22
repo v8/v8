@@ -56,6 +56,9 @@ class MaglevGraphOptimizer {
   KnownNodeAspects& known_node_aspects() {
     return kna_processor_.known_node_aspects();
   }
+  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
+    kna_processor_.set_known_node_aspects(known_node_aspects);
+  }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     CHECK(current_node()->properties().has_eager_deopt_info());
@@ -84,6 +87,11 @@ class MaglevGraphOptimizer {
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }
+
+  bool HasPendingSplice() const { return reducer_.HasPendingSplice(); }
+  auto TakePendingSplice() { return reducer_.TakePendingSplice(); }
+
+  Graph* graph() const { return reducer_.graph(); }
 
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
@@ -155,6 +163,58 @@ class MaglevGraphOptimizer {
   MaybeReduceResult EnsureType(
       ValueNode* node, NodeType type,
       DeoptimizeReason reason = DeoptimizeReason::kWrongValue);
+};
+
+// Optimizer-side Subgraph: synthesises an off-graph CFG (entry / branches /
+// labels / join) and records a pending splice when it goes out of scope, so
+// the GraphProcessor can stitch the new blocks into the live graph at the
+// node currently being visited.
+template <>
+class Subgraph<MaglevGraphOptimizer>
+    : public SubgraphBase<Subgraph<MaglevGraphOptimizer>,
+                          MaglevGraphOptimizer> {
+ public:
+  using Base =
+      SubgraphBase<Subgraph<MaglevGraphOptimizer>, MaglevGraphOptimizer>;
+  using Variable = Base::Variable;
+  using Label = Base::Label;
+
+  // TODO(victorgomes): support loops.
+  class LoopLabel {};
+
+  Subgraph(MaglevReducer<MaglevGraphOptimizer>* reducer, int variable_count);
+  ~Subgraph();
+
+  template <typename ControlNodeT, typename... Args>
+  ReduceResult GotoIfTrue(Label* true_target,
+                          std::initializer_list<ValueNode*> control_inputs,
+                          Args&&... args);
+  template <typename ControlNodeT, typename... Args>
+  ReduceResult GotoIfFalse(Label* false_target,
+                           std::initializer_list<ValueNode*> control_inputs,
+                           Args&&... args);
+
+  void Goto(Label* label);
+  void Bind(Label* label);
+
+  LoopLabel BeginLoop(std::initializer_list<Variable*> /*loop_vars*/) {
+    UNREACHABLE();
+  }
+  void EndLoop(LoopLabel* /*loop_label*/) { UNREACHABLE(); }
+
+ private:
+  void MergeIntoLabel(Label* label, BasicBlock* predecessor);
+
+  template <typename ControlNodeT, typename... Args>
+  ReduceResult GotoIfImpl(Label* jump_target, bool jump_on_true,
+                          std::initializer_list<ValueNode*> control_inputs,
+                          Args&&... args);
+
+  Zone* zone_;
+  ZoneVector<BasicBlock*> blocks_;
+  BasicBlock* saved_block_;
+  BasicBlockPosition saved_position_;
+  KnownNodeAspects* saved_kna_;
 };
 
 }  // namespace maglev

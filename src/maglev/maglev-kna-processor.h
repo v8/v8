@@ -186,6 +186,12 @@ class RecomputeKnownNodeAspectsProcessor {
     return *known_node_aspects_;
   }
 
+  // Swap the active KNA pointer. Used by Subgraph<MaglevGraphOptimizer> to
+  // maintain a per-branch KNA snapshot during off-graph subgraph construction.
+  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
+    known_node_aspects_ = known_node_aspects;
+  }
+
  private:
   Graph* graph_;
   KnownNodeAspects* known_node_aspects_;

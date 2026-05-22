@@ -428,95 +428,6 @@ class V8_NODISCARD MaglevGraphBuilder::EagerDeoptFrameScope
   MaglevGraphBuilder::LazyDeoptFrameScope* parent_;
 };
 
-class MaglevGraphBuilder::MaglevSubGraphBuilder::Variable {
- public:
-  explicit Variable(int index) : pseudo_register_(index) {}
-
- private:
-  friend class MaglevSubGraphBuilder;
-
-  // Variables pretend to be interpreter registers as far as the dummy
-  // compilation unit and merge states are concerned.
-  interpreter::Register pseudo_register_;
-};
-
-class MaglevGraphBuilder::MaglevSubGraphBuilder::
-    LabelForTrackingInterpreterFrameState {
- public:
-  LabelForTrackingInterpreterFrameState(MaglevSubGraphBuilder* sub_builder,
-                                        int predecessor_count,
-                                        int future_bind_offset)
-      : sub_builder_(sub_builder),
-        predecessor_count_(predecessor_count),
-        future_bind_offset_(future_bind_offset) {}
-  LabelForTrackingInterpreterFrameState(MaglevSubGraphBuilder* sub_builder,
-                                        int predecessor_count,
-                                        std::initializer_list<Variable*> vars,
-                                        int future_bind_offset)
-      : sub_builder_(sub_builder),
-        predecessor_count_(predecessor_count),
-        vars_(vars),
-        future_bind_offset_(future_bind_offset) {}
-
- private:
-  friend class Label;
-  MaglevSubGraphBuilder* sub_builder_;
-  int predecessor_count_;
-  std::vector<Variable*> vars_;
-  int future_bind_offset_;
-};
-
-class MaglevGraphBuilder::MaglevSubGraphBuilder::Label {
- public:
-  Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count)
-      : predecessor_count_(predecessor_count),
-        variable_liveness_(
-            sub_builder->builder_->zone()->New<compiler::BytecodeLivenessState>(
-                sub_builder->variable_compilation_unit_->register_count(),
-                sub_builder->builder_->zone())) {}
-  Label(MaglevSubGraphBuilder* sub_builder, int predecessor_count,
-        std::initializer_list<Variable*> vars)
-      : Label(sub_builder, predecessor_count) {
-    for (Variable* var : vars) {
-      variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
-    }
-  }
-
-  // NOLINTNEXTLINE(runtime/explicit)
-  Label(const LabelForTrackingInterpreterFrameState& label)
-      : Label(label.sub_builder_, label.predecessor_count_) {
-    for (Variable* var : label.vars_) {
-      variable_liveness_->MarkRegisterLive(var->pseudo_register_.index());
-    }
-    future_bind_offset_ = label.future_bind_offset_;
-  }
-
-  bool ShouldTrackInterpreterFrameState() const {
-    return future_bind_offset_.has_value();
-  }
-
- private:
-  friend class MaglevSubGraphBuilder;
-  friend class BranchBuilder;
-  int predecessor_count_ = -1;
-
-  // These are for tracking the values of Variables and merging them into
-  // variable_frame_.
-  MergePointInterpreterFrameState* variable_merge_state_ = nullptr;
-  compiler::BytecodeLivenessState* variable_liveness_ = nullptr;
-
-  // These are for tracking the values of registers and merging into the
-  // interpreter frame. Setting the future_bind_offset to the bytecode offset
-  // where the "bind" for this label will be enables tracking.
-
-  // TODO(marja): Unify merge_state_ and variable_merge_state_ and only have
-  // one.
-  std::optional<int> future_bind_offset_;
-  MergePointInterpreterFrameState* merge_state_ = nullptr;
-
-  BasicBlockRef ref_;
-};
-
 class MaglevGraphBuilder::MaglevSubGraphBuilder::LoopLabel {
  public:
  private:
@@ -590,7 +501,7 @@ BasicBlockRef* MaglevGraphBuilder::BranchBuilder::jump_target() {
     case kBytecodeJumpTarget:
       return &builder_->jump_targets_[data_.bytecode_target.jump_target_offset];
     case kLabelJumpTarget:
-      return &data_.label_target.jump_label->ref_;
+      return data_.label_target.jump_label->ref();
   }
 }
 
@@ -646,10 +557,11 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BranchBuilder::Build(
 
 MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     MaglevGraphBuilder* builder, int variable_count)
-    : builder_(builder),
-      variable_compilation_unit_(MaglevCompilationUnit::NewDummy(
-          builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
-      variable_frame_(*variable_compilation_unit_, nullptr) {
+    : Base(&builder->reducer(),
+           MaglevCompilationUnit::NewDummy(builder->zone(),
+                                           builder->compilation_unit(),
+                                           variable_count, 0, 0)),
+      builder_(builder) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.
   variable_frame_.set(interpreter::Register::current_context(),
@@ -665,10 +577,10 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // set to be live and assigned inside the loop.
   compiler::BytecodeLivenessState* loop_header_liveness =
       builder_->zone()->New<compiler::BytecodeLivenessState>(
-          variable_compilation_unit_->register_count(), builder_->zone());
+          dummy_unit_->register_count(), builder_->zone());
   compiler::LoopInfo* loop_info = builder_->zone()->New<compiler::LoopInfo>(
-      -1, 0, kMaxInt, variable_compilation_unit_->parameter_count(),
-      variable_compilation_unit_->register_count(), builder_->zone());
+      -1, 0, kMaxInt, dummy_unit_->parameter_count(),
+      dummy_unit_->register_count(), builder_->zone());
   for (Variable* var : loop_vars) {
     loop_header_liveness->MarkRegisterLive(var->pseudo_register_.index());
     loop_info->assignments().Add(var->pseudo_register_);
@@ -683,18 +595,18 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // and the back edge), and initialise with the current state.
   MergePointInterpreterFrameState* loop_state =
       MergePointInterpreterFrameState::NewForLoop(
-          variable_frame_, builder_, *variable_compilation_unit_, 0, 2,
-          loop_header_liveness, loop_info);
+          variable_frame_, builder_, *dummy_unit_, 0, 2, loop_header_liveness,
+          loop_info);
 
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_state->Merge(builder_, *variable_compilation_unit_, variable_frame_,
+    loop_state->Merge(builder_, *dummy_unit_, variable_frame_,
                       loop_predecessor);
   }
 
   // Start a new basic block for the loop.
   DCHECK_NULL(variable_frame_.known_node_aspects());
-  variable_frame_.CopyFrom(*variable_compilation_unit_, *loop_state);
+  variable_frame_.CopyFrom(*dummy_unit_, *loop_state);
   MoveKnownNodeAspectsAndVOsToParent();
 
   builder_->ProcessMergePointPredecessors(*loop_state, loop_header_ref);
@@ -744,39 +656,21 @@ ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::GotoIfFalse(
   return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::MaglevSubGraphBuilder::GotoOrTrim(Label* label) {
-  if (builder_->current_block() == nullptr) {
-    ReducePredecessorCount(label);
-    return;
-  }
-  Goto(label);
-}
-
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Goto(Label* label) {
   CHECK_NOT_NULL(builder_->current_block());
   BasicBlock* block = builder_->FinishBlockNoAbort<Jump>({}, &label->ref_);
   MergeIntoLabel(label, block);
 }
 
-void MaglevGraphBuilder::MaglevSubGraphBuilder::ReducePredecessorCount(
+void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeDeadInterpreterFrameState(
     Label* label, unsigned num) {
-  DCHECK_GE(label->predecessor_count_, num);
-  if (num == 0) {
-    return;
-  }
-  label->predecessor_count_ -= num;
-  if (label->variable_merge_state_ != nullptr) {
-    label->variable_merge_state_->MergeDead(*variable_compilation_unit_, num);
-    if (label->ShouldTrackInterpreterFrameState()) {
-      DCHECK_NOT_NULL(label->merge_state_);
-      label->merge_state_->MergeDead(*compilation_unit(), num);
-    }
-  }
+  DCHECK_NOT_NULL(label->merge_state_);
+  label->merge_state_->MergeDead(*compilation_unit(), num);
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
   if (builder_->current_block() == nullptr) {
-    loop_label->merge_state_->MergeDeadLoop(*variable_compilation_unit_);
+    loop_label->merge_state_->MergeDeadLoop(*dummy_unit_);
     return;
   }
 
@@ -784,39 +678,17 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
       builder_->FinishBlockNoAbort<JumpLoop>({}, loop_label->loop_header_);
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_label->merge_state_->MergeLoop(builder_, *variable_compilation_unit_,
-                                        variable_frame_, block);
+    loop_label->merge_state_->MergeLoop(builder_, *dummy_unit_, variable_frame_,
+                                        block);
   }
   block->set_predecessor_id(loop_label->merge_state_->predecessor_count() - 1);
-}
-
-ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::TrimPredecessorsAndBind(
-    Label* label) {
-  int predecessors_so_far =
-      label->variable_merge_state_ == nullptr
-          ? 0
-          : label->variable_merge_state_->predecessors_so_far();
-  if (label->ShouldTrackInterpreterFrameState()) {
-    DCHECK_EQ(predecessors_so_far,
-              label->merge_state_ == nullptr
-                  ? 0
-                  : label->merge_state_->predecessors_so_far());
-  }
-  DCHECK_LE(predecessors_so_far, label->predecessor_count_);
-  builder_->set_current_block(nullptr);
-  ReducePredecessorCount(label,
-                         label->predecessor_count_ - predecessors_so_far);
-  if (predecessors_so_far == 0) return ReduceResult::DoneWithAbort();
-  Bind(label);
-  return ReduceResult::Done();
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   DCHECK_NULL(builder_->current_block());
 
   DCHECK_NULL(variable_frame_.known_node_aspects());
-  variable_frame_.CopyFrom(*variable_compilation_unit_,
-                           *label->variable_merge_state_);
+  variable_frame_.CopyFrom(*dummy_unit_, *label->variable_merge_state_);
 
   if (label->ShouldTrackInterpreterFrameState()) {
     DCHECK_EQ(*label->future_bind_offset_,
@@ -845,15 +717,6 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
   builder_->ProcessMergePointPredecessors(*label->variable_merge_state_,
                                           label->ref_);
   builder_->StartNewBlock(nullptr, label->variable_merge_state_, label->ref_);
-}
-
-void MaglevGraphBuilder::MaglevSubGraphBuilder::set(Variable& var,
-                                                    ValueNode* value) {
-  variable_frame_.set(var.pseudo_register_, value);
-}
-ValueNode* MaglevGraphBuilder::MaglevSubGraphBuilder::get(
-    const Variable& var) const {
-  return variable_frame_.get(var.pseudo_register_);
 }
 
 template <typename FCond, typename FTrue, typename FFalse>
@@ -890,19 +753,11 @@ ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::Branch(
 }
 
 ReduceResult MaglevGraphBuilder::BuildInt32Max(ValueNode* a, ValueNode* b) {
-  return Select(
-      [&](BranchBuilder& builder) {
-        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
-      },
-      [&]() -> ReduceResult { return b; }, [&]() -> ReduceResult { return a; });
+  return reducer_.BuildInt32Max(a, b);
 }
 
 ReduceResult MaglevGraphBuilder::BuildInt32Min(ValueNode* a, ValueNode* b) {
-  return Select(
-      [&](BranchBuilder& builder) {
-        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
-      },
-      [&]() -> ReduceResult { return a; }, [&]() -> ReduceResult { return b; });
+  return reducer_.BuildInt32Min(a, b);
 }
 
 ReduceResult MaglevGraphBuilder::Select(
@@ -973,8 +828,8 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
     // If there's no merge state, allocate a new one.
     DCHECK_NULL(label->merge_state_);
     label->variable_merge_state_ = MergePointInterpreterFrameState::New(
-        *variable_compilation_unit_, variable_frame_, 0,
-        label->predecessor_count_, predecessor, label->variable_liveness_,
+        *dummy_unit_, variable_frame_, 0, label->predecessor_count_,
+        predecessor, label->variable_liveness_,
         builder_->GetCurrentScopeInfo());
     if (label->ShouldTrackInterpreterFrameState()) {
       label->merge_state_ = MergePointInterpreterFrameState::New(
@@ -986,8 +841,8 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
 
   } else {
     // If there already is a frame state, merge.
-    label->variable_merge_state_->Merge(builder_, *variable_compilation_unit_,
-                                        variable_frame_, predecessor);
+    label->variable_merge_state_->Merge(builder_, *dummy_unit_, variable_frame_,
+                                        predecessor);
     if (label->ShouldTrackInterpreterFrameState()) {
       DCHECK_NOT_NULL(label->merge_state_);
       label->merge_state_->Merge(builder_, *compilation_unit(),
@@ -5839,42 +5694,6 @@ bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
       return static_cast<uint32_t>(lhs) > static_cast<uint32_t>(rhs);
     case AssertCondition::kUnsignedGreaterThanEqual:
       return static_cast<uint32_t>(lhs) >= static_cast<uint32_t>(rhs);
-  }
-}
-
-bool CompareInt32(int32_t lhs, int32_t rhs, Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return lhs == rhs;
-    case Operation::kLessThan:
-      return lhs < rhs;
-    case Operation::kLessThanOrEqual:
-      return lhs <= rhs;
-    case Operation::kGreaterThan:
-      return lhs > rhs;
-    case Operation::kGreaterThanOrEqual:
-      return lhs >= rhs;
-    default:
-      UNREACHABLE();
-  }
-}
-
-bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return lhs == rhs;
-    case Operation::kLessThan:
-      return lhs < rhs;
-    case Operation::kLessThanOrEqual:
-      return lhs <= rhs;
-    case Operation::kGreaterThan:
-      return lhs > rhs;
-    case Operation::kGreaterThanOrEqual:
-      return lhs >= rhs;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -11879,46 +11698,12 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() == 0) {
-    return GetConstant(broker()->infinity_value());
-  }
-  return TryReduceMathMinMax(
-      args,
-      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        return BuildInt32Min(v1, v2);
-      },
-      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        ValueNode* v1_float;
-        GET_VALUE_OR_ABORT(v1_float, reducer_.GetFloat64ForToNumber(
-                                         v1, NodeType::kNumberOrOddball));
-        ValueNode* v2_float;
-        GET_VALUE_OR_ABORT(v2_float, reducer_.GetFloat64ForToNumber(
-                                         v2, NodeType::kNumberOrOddball));
-        RETURN_IF_DONE(reducer_.TryFoldFloat64Min(v1_float, v2_float));
-        return AddNewNode<Float64Min>({v1_float, v2_float});
-      });
+  return reducer_.TryReduceMathMin(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() == 0) {
-    return GetConstant(broker()->minus_infinity_value());
-  }
-  return TryReduceMathMinMax(
-      args,
-      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        return BuildInt32Max(v1, v2);
-      },
-      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        ValueNode* v1_float;
-        GET_VALUE_OR_ABORT(v1_float, reducer_.GetFloat64ForToNumber(
-                                         v1, NodeType::kNumberOrOddball));
-        ValueNode* v2_float;
-        GET_VALUE_OR_ABORT(v2_float, reducer_.GetFloat64ForToNumber(
-                                         v2, NodeType::kNumberOrOddball));
-        RETURN_IF_DONE(reducer_.TryFoldFloat64Max(v1_float, v2_float));
-        return AddNewNode<Float64Max>({v1_float, v2_float});
-      });
+  return reducer_.TryReduceMathMax(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathImul(
@@ -11939,49 +11724,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathImul(
   GET_VALUE_OR_ABORT(
       right, GetTruncatedInt32ForToNumber(args[1], NodeType::kNumberOrOddball));
   return AddNewNode<Int32Multiply>({left, right});
-}
-
-template <typename Int32Binop, typename Float64Binop>
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
-    CallArguments& args, Int32Binop&& int32_case, Float64Binop&& float64_case) {
-  bool all_args_are_int32_or_smi =
-      std::all_of(args.begin(), args.end(), [&](ValueNode* arg) {
-        return GetType(arg) == NodeType::kSmi ||
-               arg->properties().value_representation() ==
-                   ValueRepresentation::kInt32;
-      });
-
-  if (all_args_are_int32_or_smi) {
-    // TODO(C++23): Use std::ranges::fold_left_first.
-    // int32_case will convert the parameters to Int32.
-    return std::reduce(
-        args.begin() + 1, args.end(), ReduceResult(*args.begin()),
-        [&](ReduceResult lhs_result, ReduceResult rhs_result) -> ReduceResult {
-          ValueNode* lhs;
-          GET_VALUE_OR_ABORT(lhs, lhs_result);
-          ValueNode* rhs;
-          GET_VALUE_OR_ABORT(rhs, rhs_result);
-          return int32_case(lhs, rhs);
-        });
-  }
-
-  // TODO(marja): Investigate whether a non-speculative Float64 case helps.
-  if (!CanSpeculateCall()) return {};
-
-  // float64_case will convert the parameters to Float64. Only the first one
-  // has to be converted explicitly.
-  ValueNode* first_result;
-  GET_VALUE_OR_ABORT(first_result, reducer_.GetFloat64ForToNumber(
-                                       args[0], NodeType::kNumberOrOddball));
-  return std::reduce(
-      args.begin() + 1, args.end(), ReduceResult(first_result->Unwrap()),
-      [&](ReduceResult lhs_result, ReduceResult rhs_result) -> ReduceResult {
-        ValueNode* lhs;
-        GET_VALUE_OR_ABORT(lhs, lhs_result);
-        ValueNode* rhs;
-        GET_VALUE_OR_ABORT(rhs, rhs_result);
-        return float64_case(lhs, rhs);
-      });
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
@@ -18649,25 +18391,6 @@ ValueNode* MaglevGraphBuilder::GetSecondValue(ValueNode* result) {
 #ifdef DEBUG
 bool MaglevGraphBuilder::IsNodeCreatedForThisBytecode(ValueNode* node) const {
   return reducer_.WasNodeCreatedDuringCurrentPeriod(node);
-}
-
-bool MaglevGraphBuilder::MayNeedContextPhis() const {
-  if (graph()->is_osr()) return true;
-  if (IsResumableFunction(compilation_unit_->GetTopLevelCompilationUnit()
-                              ->shared_function_info()
-                              .kind())) {
-    // Top level function is resumable.
-    return true;
-  }
-  if (IsResumableFunction(compilation_unit_->shared_function_info().kind())) {
-    // Currently inlining a resumable function.
-    return true;
-  }
-  // Checking if we've already inlined a resumable function.
-  for (auto fun : graph()->inlined_functions()) {
-    if (IsResumableFunction(fun.shared_info->kind())) return true;
-  }
-  return false;
 }
 #endif  // DEBUG
 

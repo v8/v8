@@ -96,7 +96,157 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
   }
   UNREACHABLE();
 }
+
 }  // namespace
+
+Subgraph<MaglevGraphOptimizer>::Subgraph(
+    MaglevReducer<MaglevGraphOptimizer>* reducer, int variable_count)
+    : Base(reducer,
+           MaglevCompilationUnit::NewDummy(
+               reducer->zone(), reducer->current_provenance().unit,
+               variable_count, /*parameter_count=*/0, /*max_arguments=*/0)),
+      zone_(reducer->zone()),
+      blocks_(zone_),
+      saved_block_(reducer->current_block()),
+      saved_position_(reducer->current_block_position()),
+      saved_kna_(&reducer->known_node_aspects()) {
+  reducer_->FlushNodesToBlock();
+
+  // Create entry block.
+  BasicBlock* entry =
+      reducer_->zone()->New<BasicBlock>(/*state=*/nullptr, reducer_->zone());
+  blocks_.push_back(entry);
+
+  reducer_->set_current_block(entry);
+  reducer_->SetNewNodePosition(BasicBlockPosition::End());
+
+  // Active KNA = clone of parent, so refinements inside the subgraph don't
+  // leak back. Restored to parent_kna_ in the destructor.
+  reducer_->set_known_node_aspects(saved_kna_->Clone(zone_));
+
+  // We need to set a context, since this is unconditioned in the frame state.
+  // It should never be used, since this will never be executed. Use a DeadValue
+  // placeholder: frame-state bookkeeping can inspect it, but any attempt to
+  // materialize or use it as a real operand hits UNREACHABLE.
+  variable_frame_.set(interpreter::Register::current_context(),
+                      reducer_->graph()->GetDeadValue());
+}
+
+Subgraph<MaglevGraphOptimizer>::~Subgraph() {
+  BasicBlock* exit_block = reducer_->current_block();
+  CHECK_NOT_NULL(exit_block);
+  DCHECK_GT(blocks_.size(), 0);
+  BasicBlock* entry_block = blocks_[0];
+  if (entry_block != exit_block || !entry_block->nodes().empty()) {
+    reducer_->RecordPendingSplice(entry_block, exit_block, blocks_);
+  }
+  reducer_->set_current_block(saved_block_);
+  reducer_->SetNewNodePosition(saved_position_);
+  reducer_->set_known_node_aspects(saved_kna_);
+}
+
+void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
+                                                    BasicBlock* predecessor) {
+  // Borrow active KNA into variable_frame_ so the merge sees it.
+  variable_frame_.set_known_node_aspects(&reducer_->known_node_aspects());
+  if (label->variable_merge_state_ == nullptr) {
+    label->variable_merge_state_ = MergePointInterpreterFrameState::New(
+        *dummy_unit_, variable_frame_, /*merge_offset=*/0,
+        label->predecessor_count(), predecessor, label->variable_liveness_,
+        /*context_scope_info=*/std::nullopt);
+  } else {
+    label->variable_merge_state_->Merge(reducer_->graph(),
+                                        reducer_->is_tracing(), *dummy_unit_,
+                                        variable_frame_, predecessor);
+  }
+  variable_frame_.clear_known_node_aspects();
+}
+
+void Subgraph<MaglevGraphOptimizer>::Goto(Label* label) {
+  DCHECK_NOT_NULL(reducer_->current_block());
+  BasicBlock* prev = reducer_->current_block();
+  CHECK(!reducer_->AddNewControlNode<Jump>(/*inputs=*/{}, label->ref())
+             .IsDoneWithAbort());
+  reducer_->FlushNodesToBlock();
+  MergeIntoLabel(label, prev);
+  reducer_->set_current_block(nullptr);
+}
+
+void Subgraph<MaglevGraphOptimizer>::Bind(Label* label) {
+  DCHECK_NULL(reducer_->current_block());
+  DCHECK_NOT_NULL(label->variable_merge_state_);
+  MergePointInterpreterFrameState* merge_state = label->variable_merge_state_;
+  DCHECK_EQ(merge_state->predecessors_so_far(), label->predecessor_count_);
+  DCHECK_GT(label->predecessor_count_, 0);
+
+  // Materialize the merge block and stitch up Phis.
+  BasicBlock* block = zone_->New<BasicBlock>(merge_state, zone_);
+  label->ref_.Bind(block);
+  blocks_.push_back(block);
+  merge_state->InitializeWithBasicBlock(block);
+
+  // Pull merged frame state + KNA back into variable_frame_, then move KNA
+  // onto the reducer as the active aspects.
+  variable_frame_.CopyFrom(*dummy_unit_, *merge_state);
+  reducer_->set_known_node_aspects(variable_frame_.known_node_aspects());
+  variable_frame_.clear_known_node_aspects();
+
+  // Set predecessor IDs on the predecessor blocks' control nodes.
+  if (label->predecessor_count_ > 1) {
+    for (int p = 0; p < label->predecessor_count_; ++p) {
+      merge_state->predecessor_at(p)->set_predecessor_id(p);
+    }
+  }
+
+  reducer_->set_current_block(block);
+  reducer_->SetNewNodePosition(BasicBlockPosition::End());
+}
+
+template <typename ControlNodeT, typename... Args>
+ReduceResult Subgraph<MaglevGraphOptimizer>::GotoIfImpl(
+    Label* jump_target, bool jump_on_true,
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  static_assert(IsConditionalControlNode(Node::opcode_of<ControlNodeT>));
+  DCHECK_NOT_NULL(reducer_->current_block());
+
+  BasicBlock* prev = reducer_->current_block();
+  BasicBlock* fallthrough = zone_->New<BasicBlock>(/*state=*/nullptr, zone_);
+  BasicBlockRef* fallthrough_ref = zone_->New<BasicBlockRef>();
+
+  BasicBlockRef* true_ref = jump_on_true ? jump_target->ref() : fallthrough_ref;
+  BasicBlockRef* false_ref =
+      jump_on_true ? fallthrough_ref : jump_target->ref();
+
+  ReduceResult r = reducer_->AddNewControlNode<ControlNodeT>(
+      control_inputs, std::forward<Args>(args)..., true_ref, false_ref);
+  if (r.IsDoneWithAbort()) return r;
+  reducer_->FlushNodesToBlock();
+  fallthrough_ref->Bind(fallthrough);
+  fallthrough->set_predecessor(prev);
+  blocks_.push_back(fallthrough);
+
+  MergeIntoLabel(jump_target, prev);
+
+  reducer_->set_current_block(fallthrough);
+  reducer_->SetNewNodePosition(BasicBlockPosition::End());
+  return ReduceResult::Done();
+}
+
+template <typename ControlNodeT, typename... Args>
+ReduceResult Subgraph<MaglevGraphOptimizer>::GotoIfTrue(
+    Label* true_target, std::initializer_list<ValueNode*> control_inputs,
+    Args&&... args) {
+  return GotoIfImpl<ControlNodeT>(true_target, /*jump_on_true=*/true,
+                                  control_inputs, std::forward<Args>(args)...);
+}
+
+template <typename ControlNodeT, typename... Args>
+ReduceResult Subgraph<MaglevGraphOptimizer>::GotoIfFalse(
+    Label* false_target, std::initializer_list<ValueNode*> control_inputs,
+    Args&&... args) {
+  return GotoIfImpl<ControlNodeT>(false_target, /*jump_on_true=*/false,
+                                  control_inputs, std::forward<Args>(args)...);
+}
 
 static_assert(ReducerBaseWithEagerDeopt<MaglevGraphOptimizer>);
 static_assert(ReducerBaseWithLazyDeopt<MaglevGraphOptimizer>);
@@ -174,6 +324,10 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
   DCHECK(!node->Is<Identity>());
+  if (reducer_.HasPendingSplice()) {
+    TRACE(TraceColor::kDarkGreen << "Splicing subgraph into "
+                                 << PrintNodeLabel(current_node()));
+  }
   if (current_node()->properties().can_throw()) {
     kna_processor_.ProcessThrowingNode(current_node());
   }
@@ -3348,6 +3502,7 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
   X(ConstantGapMove)         \
   X(GapMove)                 \
   X(Int32Divide)             \
+  X(DeadValue)               \
   X(VirtualObject)
 
 #define UNREACHEABLE_VISITOR(Node)                                          \

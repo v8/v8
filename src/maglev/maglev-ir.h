@@ -253,6 +253,7 @@ class ExceptionHandlerInfo;
 
 #define VALUE_NODE_LIST(V)                                            \
   V(Identity)                                                         \
+  V(DeadValue)                                                        \
   V(AllocationBlock)                                                  \
   V(ArgumentsElements)                                                \
   V(ArgumentsLength)                                                  \
@@ -3107,6 +3108,17 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
     // Node::SetTaggedResultNeedsDecompress pass through phis.
   }
 #endif
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+};
+
+class DeadValue : public FixedInputValueNodeT<0, DeadValue> {
+ public:
+  static constexpr OpProperties kProperties =
+      OpProperties::ForValueRepresentation(ValueRepresentation::kTagged);
+
+  explicit DeadValue(uint64_t bitfield) : Base(bitfield) {}
+
   void SetValueLocationConstraints() { UNREACHABLE(); }
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
 };

@@ -332,6 +332,9 @@ class MergePointInterpreterFrameState {
   void Merge(MaglevGraphBuilder* graph_builder,
              MaglevCompilationUnit& compilation_unit,
              InterpreterFrameState& unmerged, BasicBlock* predecessor);
+  void Merge(Graph* graph, bool is_tracing,
+             MaglevCompilationUnit& compilation_unit,
+             InterpreterFrameState& unmerged, BasicBlock* predecessor);
   void InitializeLoop(MaglevGraphBuilder* graph_builder,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
@@ -555,12 +558,21 @@ class MergePointInterpreterFrameState {
       BasicBlockType type, const compiler::BytecodeLivenessState* liveness,
       compiler::OptionalScopeInfoRef context_scope_info);
 
+  void MergePhis(Graph* graph, bool is_tracing,
+                 MaglevCompilationUnit& compilation_unit,
+                 InterpreterFrameState& unmerged, BasicBlock* predecessor,
+                 bool optimistic_loop_phis);
   void MergePhis(MaglevGraphBuilder* builder,
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& unmerged, BasicBlock* predecessor,
                  bool optimistic_loop_phis);
 
-  ValueNode* MergeValue(const MaglevGraphBuilder* graph_builder,
+  ValueNode* MergeValue(Graph* graph, interpreter::Register owner,
+                        const KnownNodeAspects& unmerged_aspects,
+                        ValueNode* merged, ValueNode* unmerged,
+                        Alternatives::List* per_predecessor_alternatives,
+                        bool optimistic_loop_phis = false);
+  ValueNode* MergeValue(const MaglevGraphBuilder* builder,
                         interpreter::Register owner,
                         const KnownNodeAspects& unmerged_aspects,
                         ValueNode* merged, ValueNode* unmerged,
@@ -569,18 +581,20 @@ class MergePointInterpreterFrameState {
 
   void ReducePhiPredecessorCount(unsigned num);
 
+  void MergeVirtualObjects(Graph* graph, bool is_tracing,
+                           MaglevCompilationUnit& compilation_unit,
+                           const KnownNodeAspects& unmerged_aspects);
   void MergeVirtualObjects(MaglevGraphBuilder* builder,
                            MaglevCompilationUnit& compilation_unit,
                            const KnownNodeAspects& unmerged_aspects);
 
-  void MergeVirtualObject(MaglevGraphBuilder* builder,
+  void MergeVirtualObject(Graph* graph, bool is_tracing,
                           const VirtualObjectList unmerged_vos,
                           const KnownNodeAspects& unmerged_aspects,
                           VirtualObject* merged, VirtualObject* unmerged);
 
   std::optional<ValueNode*> MergeVirtualObjectValue(
-      const MaglevGraphBuilder* graph_builder,
-      const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
+      Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
       ValueNode* unmerged);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
