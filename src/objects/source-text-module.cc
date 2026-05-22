@@ -808,7 +808,7 @@ void SourceTextModule::GatherAvailableAncestors(
       Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
       // a. If execList does not contain m and m.[[EvaluationError]] is empty,
       //    then
-      if (exec_list->find(m) == exec_list->end() && m->status() != kErrored) {
+      if (m->status() != kErrored && exec_list->find(m) == exec_list->end()) {
         // i. Assert: m.[[Status]] is EVALUATING-ASYNC.
         DCHECK_EQ(m->status(), kEvaluatingAsync);
         // ii. Assert: m.[[CycleRoot]] is not empty.
