@@ -3717,9 +3717,15 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
   JSObject::MigrateToMap(isolate, object, new_map);
   // TODO(leszeks): Avoid re-loading the property details, which we already
   // loaded in PrepareForDataProperty.
-  object->WriteToField(descriptor,
-                       new_map->instance_descriptors()->GetDetails(descriptor),
-                       *value);
+  PropertyDetails details =
+      new_map->instance_descriptors()->GetDetails(descriptor);
+  if (details.representation().IsDouble()) {
+    if (Tagged<HeapNumber> heap_number;
+        TryCast(*value, &heap_number) && std::isnan(heap_number->value())) {
+      value = isolate->factory()->nan_value();
+    }
+  }
+  object->WriteToField(descriptor, details, *value);
   return true;
 }
 
