@@ -47,7 +47,11 @@ TEST_F(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
   // (b) avoid exposing internal types until it has been clarified whether
   //     exposing internals in DevTools is fine.
 #if defined(OFFICIAL_BUILD)
+#if defined(V8_OS_ANDROID) || defined(V8_OS_FUCHSIA)
   EXPECT_FALSE(NameProvider::SupportsCppClassNamesAsObjectNames());
+#else
+  EXPECT_TRUE(NameProvider::SupportsCppClassNamesAsObjectNames());
+#endif
 #endif
 }
 
