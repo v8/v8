@@ -142,7 +142,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': '9da720d66a9ae9d88afa34870de16854ec0ea13b',
+  'agents_internal_revision': '99f7008eeb11de7f1f822b4bbe6e2f6622699098',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9f4f3c582c2427b572c38971be594918bb319f38',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f8b1319f3ada7d78b619ddd8831d83c5843d43d7',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '152ef14c5ed0be1a786dcaee440f5bbbf1ec9dbf',
   'buildtools/linux64': {
@@ -521,9 +521,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '208074dc4c26ac9274f28904aaed054fb18abdf3',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '42b44ce121a3fca4c467c845f9cc51283f9f8465',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'd654d0be3e15901d90d3f22cf4adcbdde5318eb2',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '96835044c7edeb1cfa2b2dbfd3057c51588952b3',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '972a15cedd008d846f1a39b2e88ce48d7f166cbd',
   'third_party/requests': {
@@ -535,7 +535,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'faefd1b6fa9eeb033ad6fe60368ccb9bf908cbd0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'da2d775cf37f100b9408649096406a9805b24207',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '3418a0a593e197553a4ceb1b9b644c6149c62c89',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
