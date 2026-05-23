@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hpcc-js/wasm-graphviz": "*",
-    "express": "^4.18.0",
+    "express": "^4.22.2",
     "marked": "^12.0.0"
   }
 }
