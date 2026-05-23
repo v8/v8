@@ -1410,6 +1410,50 @@ void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
   Sd(scratch, MemOperand(dst.gp(), offset));
 }
 
+void LiftoffAssembler::DecrementMaxSteps(int32_t* max_steps_ptr,
+                                         MaxStepsVariant steps,
+                                         Label* trap_label,
+                                         LiftoffRegList pinned) {
+  Register addr = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register max_steps = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  li(addr, reinterpret_cast<uintptr_t>(max_steps_ptr));
+  Lw(max_steps, MemOperand(addr, 0));
+  if (auto* steps_const = std::get_if<int32_t>(&steps)) {
+    Subu(max_steps, max_steps, Operand(*steps_const));
+    Sw(max_steps, MemOperand(addr, 0));
+    Branch(trap_label, lt, max_steps, Operand(zero_reg));
+    return;
+  }
+
+  UseScratchRegisterScope temps(this);
+  Register scratch0 = temps.Acquire();
+  Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+
+  auto [reg, kind] = std::get<std::pair<Register, ValueKind>>(steps);
+
+  // Decrement the counter. If it underflows, clamp to -1 to prevent
+  // wraparound into positive range.
+
+  if (kind == kI64) {
+    Dsubu(scratch0, max_steps, reg);
+  } else {
+    Subu(scratch0, max_steps, reg);
+    sll(scratch1, reg, 0);
+    reg = scratch1;
+  }
+
+  // If max_steps was `unsigned less than` reg, the subtraction wrapped around,
+  // clamp to -1.
+  Label no_underflow;
+  Branch(&no_underflow, hs, max_steps, Operand(reg));
+  li(scratch0, Operand(-1));
+  bind(&no_underflow);
+
+  Sw(scratch0, MemOperand(addr, 0));
+  Branch(trap_label, lt, scratch0, Operand(zero_reg));
+}
+
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   MacroAssembler::Mul(dst, lhs, rhs);
 }
