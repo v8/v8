@@ -469,6 +469,7 @@ class ObjectBoilerplateDescriptionIterator {
   struct RevisitValueIterator {
     DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description;
     base::SmallVector<Handle<Object>, 4>::iterator materialized_values_it;
+    base::SmallVector<Handle<Object>, 4>::iterator materialized_values_end;
     Isolate* isolate;
     int i;
     int length = object_boilerplate_description->boilerplate_properties_count();
@@ -481,6 +482,7 @@ class ObjectBoilerplateDescriptionIterator {
       // Potentially re-use an already materialized value.
       if (IsArrayBoilerplateDescription(value) ||
           IsObjectBoilerplateDescription(value)) {
+        SBXCHECK_LT(materialized_values_it, materialized_values_end);
         value = **materialized_values_it++;
       }
 
@@ -496,7 +498,8 @@ class ObjectBoilerplateDescriptionIterator {
 
   RevisitValueIterator RevisitValues() {
     return RevisitValueIterator{object_boilerplate_description_,
-                                materialized_values_.begin(), isolate_, start_};
+                                materialized_values_.begin(),
+                                materialized_values_.end(), isolate_, start_};
   }
 
  private:
