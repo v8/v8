@@ -93,6 +93,10 @@ joint-iteration
 # https://github.com/tc39/proposal-await-dictionary
 await-dictionary
 
+# Error Stack Accessor
+# https://github.com/tc39/proposal-error-stack-accessor
+error-stack-accessor
+
 ## Standard language features
 #
 # Language features that have been included in a published version of the
