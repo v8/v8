@@ -55,7 +55,17 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += list.Count() * kPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_SIMD128
+    bool generating_builtins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_builtins || CpuFeatures::SupportsSimd128()) {
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else {
+      bytes += kCallerSavedFPU.Count() * kDoubleSize;
+    }
+#else
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
 
   return bytes;
@@ -71,8 +81,39 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += list.Count() * kPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_SIMD128
+    bool generating_builtins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_builtins) {
+      Label no_simd, done;
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, ExternalReference::supports_simd_128_address());
+      Lbu(scratch, MemOperand(scratch, 0));
+      Branch(&no_simd, le, scratch, Operand(zero_reg));
+      {
+        CpuFeatureScope msa_scope(
+            this, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+        MultiPushMSA(kCallerSavedFPU);
+      }
+      Branch(&done);
+      bind(&no_simd);
+      MultiPushFPU(kCallerSavedFPU);
+      Dsubu(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+      bind(&done);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else if (CpuFeatures::SupportsSimd128()) {
+      CpuFeatureScope msa_scope(this, MIPS_SIMD);
+      MultiPushMSA(kCallerSavedFPU);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else {
+      MultiPushFPU(kCallerSavedFPU);
+      bytes += kCallerSavedFPU.Count() * kDoubleSize;
+    }
+#else
     MultiPushFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
 
   return bytes;
@@ -83,8 +124,39 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
+#if V8_ENABLE_SIMD128
+    bool generating_builtins =
+        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+    if (generating_builtins) {
+      Label no_simd, done;
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, ExternalReference::supports_simd_128_address());
+      Lbu(scratch, MemOperand(scratch, 0));
+      Branch(&no_simd, le, scratch, Operand(zero_reg));
+      {
+        CpuFeatureScope msa_scope(
+            this, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+        MultiPopMSA(kCallerSavedFPU);
+      }
+      Branch(&done);
+      bind(&no_simd);
+      Daddu(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+      MultiPopFPU(kCallerSavedFPU);
+      bind(&done);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else if (CpuFeatures::SupportsSimd128()) {
+      CpuFeatureScope msa_scope(this, MIPS_SIMD);
+      MultiPopMSA(kCallerSavedFPU);
+      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+    } else {
+      MultiPopFPU(kCallerSavedFPU);
+      bytes += kCallerSavedFPU.Count() * kDoubleSize;
+    }
+#else
     MultiPopFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
+#endif
   }
 
   RegList exclusions = {exclusion1, exclusion2, exclusion3};
