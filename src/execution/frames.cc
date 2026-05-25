@@ -3654,6 +3654,9 @@ int WasmFrame::position() const {
 }
 
 int WasmFrame::GetInnermostFunctionIndex() const {
+  if (auto* code = wasm_code(); code != nullptr && code->is_liftoff()) {
+    return code->index();
+  }
   return std::get<1>(GetInnermostSourcePositionAndFunctionIndex());
 }
 
