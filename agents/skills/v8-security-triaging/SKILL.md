@@ -33,8 +33,8 @@ security vulnerability report.
   source of truth. Use `render_issue_with_external` if content is redacted.
 - **Sandbox Bypasses vs. Regular Bugs**:
   - **Sandbox Bypass**: Reports that start with in-sandbox memory corruption
-    (using `--sandbox-testing` or the Sandbox API). These are strictly governed
-    by the V8 Sandbox threat model.
+    (using `--sandbox-testing` or `--expose-memory-corruption-api` or the
+    Sandbox API). These are strictly governed by the V8 Sandbox threat model.
   - **Regular Bug**: Vulnerabilities that do not require an initial in-sandbox
     write primitive.
 - **Title Accuracy**: If the reporter provided a generic title, identify a more
@@ -86,6 +86,14 @@ When executing a triage task, delegate tactical steps to subagents:
 
 ## Workflow
 
+### 0. Phase: Prepare isolated worktree
+
+- **Orchestrator Instruction**: "Use v8-workflow skill to create a fresh
+  worktree (cr-NNN, where NNN is the bug number) and respective branch for
+  investigation. Choose "Isolated Strategy", don't ask user. Switch to the new
+  worktree and work there to avoid contamenating current workspace. Use "tmp"
+  subdirectory for temporary files."
+
 ### 1. Phase: Intake (Delegation)
 
 Task the **Researcher** subagent with gathering all necessary data from
@@ -130,8 +138,9 @@ the issue. You MUST confirm the bug exists before proceeding.
 Task the **Tester** and **Generalist** to determine if the bug violates a
 security boundary.
 
-- **Boundary Check**: Task **Tester** to run with
-  `reporter_flags + --run-as-[sandbox]-security-poc`.
+- **Boundary Check**: Task **Tester** to replace
+  `--expose-memory-corruption-api` in `reporter_flags` with `--sandbox-testing`
+  and run with updated `reporter_flags` and `--run-as-[sandbox]-security-poc`.
 - **Investigation Loop**: If the crash stops reproducing with the security flag,
   task **Generalist** to identify why and attempt to "heal" the POC by replacing
   forbidden syntax with standard JS while maintaining the bug trigger.
