@@ -2041,6 +2041,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
+#if V8_ENABLE_SANDBOX
+    case kArchLoadTrustedPointer: {
+      CHECK(instr->HasOutput());
+      Register base = i.InputRegister(0);
+      int32_t offset = i.InputInt32(1);
+      Register table = i.InputRegister(2);
+      IndirectPointerTag first =
+          static_cast<IndirectPointerTag>(i.InputInt32(3));
+      IndirectPointerTag last =
+          static_cast<IndirectPointerTag>(i.InputInt32(4));
+      IndirectPointerTagRange tag_range(first, last);
+
+      Register destination = i.OutputRegister();
+      Register handle = i.TempRegister(0);
+
+      __ Ld_wu(handle, MemOperand(base, offset), &trap_pc);
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
+      __ srli_d(handle, handle, kTrustedPointerHandleShift);
+      __ Alsl_d(handle, handle, table, kTrustedPointerTableEntrySizeLog2);
+      __ Ld_d(destination, MemOperand(handle, 0));
+
+      if (IsFastIndirectPointerTagRange(tag_range)) {
+        uint64_t mask =
+            ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+        __ And(destination, destination, Operand(mask));
+      } else {
+        Register tag = handle;  // Reuse handle for tag
+        __ srli_d(tag, destination, kTrustedPointerTableTagShift);
+        if (tag_range.Size() == 1) {
+          __ Sub_w(tag, tag, static_cast<int32_t>(tag_range.first));
+          __ masknez(destination, destination, tag);
+        } else {
+          __ Sub_w(tag, tag, static_cast<int32_t>(tag_range.first));
+          __ Sleu(tag, tag,
+                  static_cast<int32_t>(tag_range.last - tag_range.first));
+          __ maskeqz(destination, destination, tag);
+        }
+
+        __ And(destination, destination,
+               Operand(kTrustedPointerTablePayloadMask));
+      }
+      break;
+    }
+#endif
     case kLoong64StoreCompressTagged: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
