@@ -239,7 +239,7 @@ class TurboshaftGraphBuildingInterface
       std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       SharedFlag shared, const WireBytesStorage* wire_bytes,
-      WasmFunctionCoverageData* coverage_data)
+      Validation validate_inlinees, WasmFunctionCoverageData* coverage_data)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(kRegular),
         block_phis_(zone),
@@ -252,6 +252,7 @@ class TurboshaftGraphBuildingInterface
         func_index_(func_index),
         shared_(shared),
         wire_bytes_(wire_bytes),
+        validate_inlinees_(validate_inlinees),
         return_phis_(nullptr),
         is_inlined_tail_call_(false) {
     DCHECK_NOT_NULL(env_);
@@ -271,9 +272,9 @@ class TurboshaftGraphBuildingInterface
       std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       SharedFlag shared, const WireBytesStorage* wire_bytes,
-      base::Vector<OpIndex> real_parameters, TSBlock* return_block,
-      BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
-      OptionalV<EagerFrameState> parent_frame_state)
+      Validation validate_inlinees, base::Vector<OpIndex> real_parameters,
+      TSBlock* return_block, BlockPhis* return_phis, TSBlock* catch_block,
+      bool is_inlined_tail_call, OptionalV<EagerFrameState> parent_frame_state)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -285,6 +286,7 @@ class TurboshaftGraphBuildingInterface
         func_index_(func_index),
         shared_(shared),
         wire_bytes_(wire_bytes),
+        validate_inlinees_(validate_inlinees),
         real_parameters_(real_parameters),
         return_block_(return_block),
         return_phis_(return_phis),
@@ -9447,6 +9449,28 @@ class TurboshaftGraphBuildingInterface
         inlinee.sig, inlinee.code.offset(), function_bytes.begin(),
         function_bytes.end(), inlinee_is_shared};
 
+    // If this is eager streaming compilation, the inlinee might not have been
+    // validated yet, so do that now.
+    if (V8_UNLIKELY(validate_inlinees_ == Validation::kMustValidate) &&
+        ValidateFunctionBody(decoder->zone_, decoder->enabled_,
+                             decoder->module_, decoder->detected_, inlinee_body)
+            .failed()) {
+      // At this point we cannot easily raise a compilation error any more.
+      // Since this situation is highly unlikely though, we just ignore this
+      // inlinee, emit a regular call, and move on. The same validation error
+      // will be triggered again when actually compiling the invalid function.
+      V<WordPtr> callee =
+          __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
+      V<WasmTrustedInstanceData> instance_data = trusted_instance_data(
+          decoder->module_->function_is_shared(func_index));
+      if (is_tail_call) {
+        BuildWasmMaybeReturnCall(decoder, sig, callee, instance_data, args);
+      } else {
+        BuildWasmCall(decoder, sig, callee, instance_data, args, returns);
+      }
+      return;
+    }
+
     BlockPhis fresh_return_phis(decoder->zone_);
 
     Mode inlinee_mode;
@@ -9493,13 +9517,13 @@ class TurboshaftGraphBuildingInterface
 
     WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
                     TurboshaftGraphBuildingInterface>
-        inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
-                        decoder->detected_, inlinee_body, decoder->zone_, env_,
-                        asm_, inlinee_mode, instance_cache_, assumptions_,
-                        inlining_positions_, func_index, inlinee_is_shared,
-                        wire_bytes_, base::VectorOf(inlinee_args),
-                        callee_return_block, inlinee_return_phis,
-                        callee_catch_block, is_tail_call, frame_state);
+        inlinee_decoder(
+            decoder->zone_, decoder->module_, decoder->enabled_,
+            decoder->detected_, inlinee_body, decoder->zone_, env_, asm_,
+            inlinee_mode, instance_cache_, assumptions_, inlining_positions_,
+            func_index, inlinee_is_shared, wire_bytes_, validate_inlinees_,
+            base::VectorOf(inlinee_args), callee_return_block,
+            inlinee_return_phis, callee_catch_block, is_tail_call, frame_state);
     SourcePosition call_position =
         SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
                                                 ? SourcePosition::kNotInlined
@@ -9636,11 +9660,9 @@ class TurboshaftGraphBuildingInterface
     // TODO(42204563,41480394,335082212): Do not inline if the current function
     // is shared (which also implies the target cannot be shared either).
     if (shared_ == SharedFlag::kYes) return false;
-    // Some of our cctests compile functions eagerly when defining them
-    // (see {WasmFunctionCompiler::Build}); their callees might not exist yet.
-    // All valid functions have size >= 2 (number of locals, kExprEnd).
-    // TODO(jkummerow): Bring testing infrastructure closer to production code
-    // to avoid this special case.
+    // When streaming (or running certain cctests which define functions one
+    // by one and compile them immediately), we might not have the bodies
+    // of callees yet.
     if (size == 0) return false;
 
     // What can happen here is that due to --no-liftoff, we inline additional
@@ -9798,6 +9820,7 @@ class TurboshaftGraphBuildingInterface
   int func_index_;
   SharedFlag shared_;
   const WireBytesStorage* wire_bytes_;
+  Validation validate_inlinees_;
   BranchHintingMode branch_hinting_mode_;
   const BranchHintMap* branch_hints_ = nullptr;
   BranchHintingStresser branch_hinting_stresser_;
@@ -9867,7 +9890,7 @@ compiler::WriteBarrierKind FieldImmediateToWriteBarrier(
 V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, CompilationEnv* env,
     WasmDetectedFeatures* detected, Graph& graph, const FunctionBody& func_body,
-    const WireBytesStorage* wire_bytes,
+    const WireBytesStorage* wire_bytes, Validation validate_callees,
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data) {
@@ -9877,7 +9900,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
                   TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,
-              func_index, func_body.is_shared, wire_bytes, coverage_data);
+              func_index, func_body.is_shared, wire_bytes, validate_callees,
+              coverage_data);
   decoder.Decode();
   // The function was already validated, so graph building must always succeed.
   DCHECK(decoder.ok());

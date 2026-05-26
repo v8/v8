@@ -31,18 +31,20 @@ class PipelineData;
 namespace wasm {
 
 class AssumptionsJournal;
+struct CompilationEnv;
 struct FunctionBody;
+class TurboshaftGraphBuildingInterface;
+enum class Validation : bool;
 class WasmDetectedFeatures;
+class WasmFunctionCoverageData;
 struct WasmModule;
 class WireBytesStorage;
-class TurboshaftGraphBuildingInterface;
-struct CompilationEnv;
-class WasmFunctionCoverageData;
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, CompilationEnv* env,
     WasmDetectedFeatures* detected, compiler::turboshaft::Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
+    Validation validate_callees,
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data);

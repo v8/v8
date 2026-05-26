@@ -121,6 +121,7 @@ struct WasmCompilationData {
   std::unique_ptr<wasm::AssumptionsJournal> assumptions{};
   SourcePositionTable* source_positions{nullptr};
   int func_index;
+  wasm::Validation validate_callees{wasm::Validation::kAlreadyValidated};
 };
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate

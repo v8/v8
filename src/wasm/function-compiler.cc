@@ -121,6 +121,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
+      data.validate_callees = validation_;
       result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
           env, data, detected, counter_updates);
       // In exceptional cases it can happen that compilation requests for
