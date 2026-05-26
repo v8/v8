@@ -8245,7 +8245,11 @@ class LiftoffCompiler {
                        Value* /* result */) {
     FuzzerChargeSteps(decoder, 0);
 
-    if (prototype_setup_end_ == nullptr &&
+    // We wouldn't need to disable this optimization in code for debugging, but
+    // code for debugging (1) doesn't need optimizations, and (2) relies on
+    // PC offsets not changing, so it's safer to skip all conditional
+    // decision-making for it on general principle.
+    if (prototype_setup_end_ == nullptr && for_debugging_ != kNotForDebugging &&
         decoder->enabled_.has_custom_descriptors() &&
         v8_flags.experimental_wasm_js_interop) {
       PrototypeSetupSequenceDetector matcher(decoder->pc(), decoder->end(),

@@ -183,7 +183,14 @@ WellKnownImportsList::UpdateResult WellKnownImportsList::Update(
       // this case won't ever happen for production modules, so guarding
       // against pathological cases seems more important than being lenient
       // towards almost-well-behaved modules.
+      // Since compile-time imports take precedence over provided imports,
+      // we can keep their status; and that is load-bearing so that
+      // instantiation knows which imports to provide "magically".
       for (size_t j = 0; j < entries.size(); j++) {
+        if (IsCompileTimeImport(statuses_[j].load(std::memory_order_relaxed))) {
+          DCHECK_NE(i, j);
+          continue;
+        }
         statuses_[j].store(WellKnownImport::kGeneric,
                            std::memory_order_relaxed);
       }
