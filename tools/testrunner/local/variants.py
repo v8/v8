@@ -4,7 +4,7 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
-    "assert_types": ["--assert-types"],
+    "assert_types": ["--assert-types", "--maglev-assert-types"],
     "wasm_assert_types": ["--wasm-assert-types", "--no-liftoff"],
     "verify_turboshaft": ["--verify-turboshaft"],
     "code_serializer": ["--cache=code"],
