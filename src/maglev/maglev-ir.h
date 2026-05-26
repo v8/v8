@@ -10674,6 +10674,8 @@ class CheckConstructResult
   DECLARE_INPUTS(ConstructResult, ImplicitReceiver)
   DECLARE_INPUT_TYPES(Tagged, Tagged)
 
+  NodeType type() const { return NodeType::kJSReceiver; }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
@@ -10688,6 +10690,8 @@ class CheckDerivedConstructResult
                                               OpProperties::DeferredCall();
   DECLARE_INPUTS(ConstructResult)
   DECLARE_INPUT_TYPES(Tagged)
+
+  NodeType type() const { return NodeType::kJSReceiver; }
 
   bool for_derived_constructor();
 
