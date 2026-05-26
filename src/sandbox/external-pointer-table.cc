@@ -312,8 +312,10 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   ExternalPointerHandle new_handle = IndexToHandle(new_index);
 
   // The compaction algorithm always moves an entry from the evacuation area to
-  // the front of the table. These DCHECKs verify this invariant.
-  DCHECK_GE(old_index, start_of_evacuation_area);
+  // the front of the table. Verify this invariant. The SBXCHECK below is not
+  // actually necessary but results in early crasher for corruptions with
+  // compaction enabled.
+  SBXCHECK_GE(old_index, start_of_evacuation_area);
   DCHECK_LT(new_index, start_of_evacuation_area);
   auto& new_entry = at(new_index);
   at(old_index).Evacuate(new_entry, EvacuateMarkMode::kLeaveUnmarked);
