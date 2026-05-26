@@ -113,7 +113,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'ff212a1d6a4ab28b7d66ca99dcc736aff2329f66',
+  'partition_alloc_version': '3842bcc38cf3d73470ca8c223ac0db19d81e29fe',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd52d4db8e864175967fcf12287b80bb7460ebccd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e8d4e4ece70623d824ad54169ccbc0a884db0deb',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a35d7c65cee47ceb7929eba330ae8c307b88dd77',
   'buildtools/linux64': {
