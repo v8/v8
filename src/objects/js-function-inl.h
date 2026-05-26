@@ -217,8 +217,9 @@ JSDispatchHandle JSFunction::AllocateDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   DCHECK_EQ(function->raw_feedback_cell()->dispatch_handle(),
             kNullJSDispatchHandle);
-  return function->dispatch_handle_.AllocateAndInstall(
-      function, isolate, parameter_count, code, mode);
+  return HeapObject::AllocateAndInstallJSDispatchHandle(
+      function, offsetof(JSFunction, dispatch_handle_), isolate,
+      parameter_count, code, mode);
 }
 
 void JSFunction::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }

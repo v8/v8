@@ -16,6 +16,7 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-inl.h"
@@ -236,7 +237,8 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
     HeapObject::AllocateAndInstallJSDispatchHandle(
-        cell, &cell->dispatch_handle_, isolate, parameter_count, initial_code);
+        cell, offsetof(FeedbackCell, dispatch_handle_), isolate,
+        parameter_count, initial_code);
     cells.push_back(cell);
   }
 
