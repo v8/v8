@@ -101,10 +101,12 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
 
 Subgraph<MaglevGraphOptimizer>::Subgraph(
     MaglevReducer<MaglevGraphOptimizer>* reducer, int variable_count)
-    : Base(reducer,
-           MaglevCompilationUnit::NewDummy(
-               reducer->zone(), reducer->current_provenance().unit,
-               variable_count, /*parameter_count=*/0, /*max_arguments=*/0)),
+    : Base(
+          reducer,
+          MaglevCompilationUnit::NewDummy(
+              reducer->zone(),
+              reducer->graph()->compilation_info()->toplevel_compilation_unit(),
+              variable_count, /*parameter_count=*/0, /*max_arguments=*/0)),
       zone_(reducer->zone()),
       blocks_(zone_),
       saved_block_(reducer->current_block()),
