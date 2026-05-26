@@ -552,6 +552,10 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                       InstanceType lower_limit,
                                       InstanceType higher_limit,
                                       AbortReason reason);
+#ifdef DEBUG
+  inline void AssertFloat64IsSmi(DoubleRegister value);
+  inline void AssertHoleyFloat64IsSmi(DoubleRegister value);
+#endif
   inline void BranchOnObjectTypeInRange(
       Register heap_object, InstanceType lower_limit, InstanceType higher_limit,
       Label* if_true, Label::Distance true_distance, bool fallthrough_when_true,

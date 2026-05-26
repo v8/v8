@@ -2994,8 +2994,7 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckMaglevType* node,
                                 const maglev::ProcessingState& state) {
-    __ CheckMaglevType(Map(node->input(0)), node->expected_type(),
-                       node->allow_widening_smi_to_int32());
+    __ CheckMaglevType(Map(node->input(0)), node->expected_type());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4390,6 +4389,30 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::UnsafeSmiTagInt32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ TagSmi(Map(node->ValueInput())));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeSmiTagFloat64* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> value = Map<Float64>(node->ValueInput());
+#ifdef DEBUG
+    if (v8_flags.debug_code) {
+      AssertFloat64IsSmi(value);
+    }
+#endif
+    V<Word32> result_int32 = __ JSTruncateFloat64ToWord32(value);
+    SetMap(node, __ TagSmi(result_int32));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UnsafeSmiTagHoleyFloat64* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> value = Map<Float64>(node->ValueInput());
+#ifdef DEBUG
+    if (v8_flags.debug_code) {
+      AssertHoleyFloat64IsSmi(value);
+    }
+#endif
+    V<Word32> result_int32 = __ JSTruncateFloat64ToWord32(value);
+    SetMap(node, __ TagSmi(result_int32));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UnsafeSmiTagUint32* node,
@@ -6497,6 +6520,31 @@ class GraphBuildingNodeProcessor {
     V<Word32> check = __ template Projection<1>(add);
     __ DeoptimizeIf(check, frame_state, DeoptimizeReason::kNotASmi, feedback);
   }
+
+#ifdef DEBUG
+  void AssertFloat64IsSmi(V<Float64> value) {
+    // 1. Verify lossless conversion to Int32
+    V<Word32> as_int32 = __ JSTruncateFloat64ToWord32(value);
+    V<Float64> as_float64 = __ ChangeInt32ToFloat64(as_int32);
+    __ Assert(__ Float64Equal(value, as_float64));
+
+    // 2. Verify Smi range bounds
+    V<Tuple<Word32, Word32>> add = __ Int32AddCheckOverflow(as_int32, as_int32);
+    V<Word32> overflow = __ template Projection<1>(add);
+    __ Assert(__ Word32Equal(overflow, 0));
+
+    // 3. Verify not minus zero
+    __ Assert(__ Word32Equal(__ Float64Is(value, NumericKind::kMinusZero), 0));
+  }
+
+  void AssertHoleyFloat64IsSmi(V<Float64> value) {
+    // 1. Verify not hole NaN or undefined NaN
+    __ Assert(__ Word32Equal(__ Float64IsUndefinedOrHole(value), 0));
+
+    // 2. Verify Float64 Smi range bounds
+    AssertFloat64IsSmi(value);
+  }
+#endif
 
   std::pair<V<WordPtr>, V<Object>> GetTypedArrayDataAndBasePointers(
       V<JSTypedArray> typed_array) {

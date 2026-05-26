@@ -810,7 +810,7 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                 std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
     NodeInfo* known_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), object);
-    node->set_check_type(reducer_.GetCheckType(known_info->type(), object));
+    node->set_check_type(reducer_.GetCheckType(known_info->type()));
   }
 
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
@@ -1996,6 +1996,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagIntPtr(
 
 ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagInt32(
     UnsafeSmiTagInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagFloat64(
+    UnsafeSmiTagFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagHoleyFloat64(
+    UnsafeSmiTagHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

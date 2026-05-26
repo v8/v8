@@ -349,11 +349,7 @@ class MaglevGraphBuilder {
     return known_node_aspects().EnsureType<Function>(broker(), node, type,
                                                      ensure_new_type);
   }
-  NodeType GetType(ValueNode* node,
-                   AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kAllow) {
-    return reducer_.GetType(node, allow_widening_smi_to_int32);
-  }
+  NodeType GetType(ValueNode* node) { return reducer_.GetType(node); }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
   }
@@ -657,8 +653,8 @@ class MaglevGraphBuilder {
     return reducer_.TryGetConstant<T>(node, constant_node);
   }
 
-  enum CheckType GetCheckType(NodeType type, ValueNode* target) {
-    return reducer_.GetCheckType(type, target);
+  enum CheckType GetCheckType(NodeType type) {
+    return reducer_.GetCheckType(type);
   }
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
@@ -746,12 +742,6 @@ class MaglevGraphBuilder {
                                               NodeType allowed_input_type) {
     return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
                                  allowed_input_type);
-  }
-
-  void RecordSmiUse(ValueNode* object) {
-    if (Phi* as_phi = object->TryCast<Phi>()) {
-      as_phi->SetUseRequiresSmi();
-    }
   }
 
   template <typename NodeT>
@@ -1220,10 +1210,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildSmiUntag(ValueNode* node);
   ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
-  ReduceResult BuildCheckSmi(
-      ValueNode* object, bool elidable = true,
-      AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-          AllowWideningSmiToInt32::kDontAllow);
+  ReduceResult BuildCheckSmi(ValueNode* object);
   ReduceResult BuildCheckNumber(ValueNode* object);
   ReduceResult BuildCheckHeapObject(ValueNode* object);
   ReduceResult BuildCheckJSFunction(ValueNode* object);
@@ -1282,16 +1269,7 @@ class MaglevGraphBuilder {
   enum class TrackObjectMode { kLoad, kStore };
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
 
-  // When CanElideWriteBarrier returns true because the input is a known Smi, if
-  // this input happens to be a Smi, we usually need to call SetUseRequiresSmi
-  // to ensure that this Phi remains a Smi even after phi untagging. However,
-  // when CanElideWriteBarrier is called from a DCHECK, we don't want this
-  // side-effect to happen because if it was supposed to happen, it should have
-  // happened elsewhere. So, when calling CanElideWriteBarrier in DCHECKs, we
-  // should pass `RecordSmiUseIfNeeded::kNo` for {record_smi_use}.
-  enum class RecordSmiUseIfNeeded { kYes, kNo };
-  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value,
-                            RecordSmiUseIfNeeded record_smi_use);
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
   ReduceResult BuildLoadMap(ValueNode* object);
 

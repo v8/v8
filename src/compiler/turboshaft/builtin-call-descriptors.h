@@ -142,7 +142,6 @@ struct builtin : CallDescriptorBuilder {
     struct Arguments : ArgumentsBase {
       ARG(V<Object>, object)
       ARG(V<Smi>, type)
-      ARG(V<Smi>, allow_widening_smi_to_int32)
     };
     using returns_t = std::tuple<V<Object>>;
 

@@ -247,6 +247,8 @@ class ExceptionHandlerInfo;
   V(UnsafeInt32ToUint32)                \
   V(UnsafeNumberToFloat64)              \
   V(UnsafeSmiTagInt32)                  \
+  V(UnsafeSmiTagFloat64)                \
+  V(UnsafeSmiTagHoleyFloat64)           \
   V(UnsafeSmiTagIntPtr)                 \
   V(UnsafeSmiTagUint32)                 \
   V(UnsafeSmiUntag)
@@ -4154,6 +4156,8 @@ DEFINE_PURE_CONV(UnsafeFloat64ToInt32, Float64, Int32, Number)
 DEFINE_PURE_CONV(UnsafeHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
 DEFINE_PURE_CONV(UnsafeInt32ToUint32, Int32, Uint32, Number)
 DEFINE_PURE_CONV(UnsafeSmiTagInt32, Int32, TaggedValue, Smi)
+DEFINE_PURE_CONV(UnsafeSmiTagFloat64, Float64, TaggedValue, Smi)
+DEFINE_PURE_CONV(UnsafeSmiTagHoleyFloat64, HoleyFloat64, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagIntPtr, IntPtr, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagUint32, Uint32, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
@@ -7292,15 +7296,10 @@ class CheckCacheIndicesNotCleared
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-enum class AllowWideningSmiToInt32 { kDontAllow, kAllow };
-
 class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
  public:
-  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type,
-                           AllowWideningSmiToInt32 allow_widening_smi_to_int32)
-      : Base(bitfield),
-        expected_type_(expected_type),
-        allow_widening_smi_to_int32_(allow_widening_smi_to_int32) {}
+  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type)
+      : Base(bitfield), expected_type_(expected_type) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Call();
@@ -7311,25 +7310,16 @@ class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
   void set_expected_type(NodeType expected_type) {
     expected_type_ = expected_type;
   }
-  bool allow_widening_smi_to_int32() const {
-    return allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow;
-  }
-  void set_allow_widening_smi_to_int32(AllowWideningSmiToInt32 allow) {
-    allow_widening_smi_to_int32_ = allow;
-  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const {
-    return std::tuple{expected_type_, allow_widening_smi_to_int32_};
-  }
+  auto options() const { return std::tuple{expected_type_}; }
 
  private:
   NodeType expected_type_;
-  AllowWideningSmiToInt32 allow_widening_smi_to_int32_;
 };
 
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
@@ -9863,16 +9853,13 @@ class Phi : public ValueNodeT<Phi> {
 
   NodeType post_loop_type() const { return post_loop_type_; }
   void merge_post_loop_type(NodeType type) {
-    DCHECK(!has_key());
     post_loop_type_ = UnionType(post_loop_type_, type);
   }
   void set_post_loop_type(NodeType type) {
-    DCHECK(!has_key());
     DCHECK(is_unmerged_loop_phi());
     post_loop_type_ = type;
   }
   void promote_post_loop_type() {
-    DCHECK(!has_key());
     DCHECK(is_unmerged_loop_phi());
     // TODO(428667907): Ideally we should bail out early for the kNone type.
     DCHECK(NodeTypeIs(post_loop_type_, type_, NodeTypeIsVariant::kAllowNone));
@@ -9880,47 +9867,13 @@ class Phi : public ValueNodeT<Phi> {
   }
 
   void merge_type(NodeType type) {
-    DCHECK(!has_key());
     type_ = UnionType(type_, type);
   }
   void set_type(NodeType type) {
-    DCHECK(!has_key());
     type_ = type;
   }
   NodeType type() const {
-    DCHECK(!has_key());
     return type_;
-  }
-
-  using Key = compiler::turboshaft::SnapshotTable<ValueNode*>::Key;
-  Key key() const {
-    DCHECK(has_key());
-    return key_;
-  }
-  void set_key(Key key) {
-    set_bitfield(bitfield() | HasKeyFlag::encode(true));
-    key_ = key;
-  }
-
-  // True if the {key_} field has been initialized.
-  bool has_key() const { return HasKeyFlag::decode(bitfield()); }
-
-  // If at some point we rely on a Phi being a Smi or a HeapObject, the
-  // appropriate SetUseRequiresSmi/SetUseRequiresHeapObject should be called.
-  // Phi untagging should then take this into account when untagging and
-  // retagging this Phi: is a Phi is required to be a HeapObject somewhere, then
-  // we shouldn't retag it as Smi, and vice-versa.
-  void SetUseRequiresSmi();
-  bool uses_require_smi() const { return RequiresSmiFlag::decode(bitfield()); }
-  void set_uses_require_smi() {
-    set_bitfield(bitfield() | RequiresSmiFlag::encode(true));
-  }
-  void SetUseRequiresHeapObject();
-  bool uses_require_heap_object() const {
-    return RequiresHeapObjectFlag::decode(bitfield());
-  }
-  void set_uses_require_heap_object() {
-    set_bitfield(bitfield() | RequiresHeapObjectFlag::encode(true));
   }
 
   // Check if a phi has cleared the loop.
@@ -9928,11 +9881,6 @@ class Phi : public ValueNodeT<Phi> {
 
  private:
   Phi** next() { return &next_; }
-
-  using HasKeyFlag = NextBitField<bool, 1>;
-  using RequiresSmiFlag = HasKeyFlag::Next<bool, 1>;
-  using RequiresHeapObjectFlag = RequiresSmiFlag::Next<bool, 1>;
-  using LoopPhiAfterLoopFlag = RequiresHeapObjectFlag::Next<bool, 1>;
 
   const interpreter::Register owner_;
 
@@ -9942,24 +9890,16 @@ class Phi : public ValueNodeT<Phi> {
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
 
-  union {
-    struct {
-      // The type of this Phi based on its predecessors' types.
-      NodeType type_;
-      // {type_} for loop Phis should always be Unknown until their backedge has
-      // been bound (because we don't know what will be the type of the
-      // backedge). However, once the backedge is bound, we might be able to
-      // refine it. {post_loop_type_} is thus used to keep track of loop Phi
-      // types: for loop Phis, we update {post_loop_type_} when we merge
-      // predecessors, but keep {type_} as Unknown. Once the backedge is bound,
-      // we set {type_} as {post_loop_type_}.
-      NodeType post_loop_type_;
-    };
-    // After graph building, {type_} and {post_loop_type_} are not used anymore,
-    // so we reuse this memory to store the SnapshotTable Key for this Phi for
-    // phi untagging.
-    Key key_;
-  };
+  // The type of this Phi based on its predecessors' types.
+  NodeType type_;
+  // {type_} for loop Phis should always be Unknown until their backedge has
+  // been bound (because we don't know what will be the type of the
+  // backedge). However, once the backedge is bound, we might be able to
+  // refine it. {post_loop_type_} is thus used to keep track of loop Phi
+  // types: for loop Phis, we update {post_loop_type_} when we merge
+  // predecessors, but keep {type_} as Unknown. Once the backedge is bound,
+  // we set {type_} as {post_loop_type_}.
+  NodeType post_loop_type_;
 
   friend base::ThreadedListTraits<Phi>;
 };

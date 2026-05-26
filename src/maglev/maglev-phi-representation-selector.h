@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -234,18 +235,7 @@ class MaglevPhiRepresentationSelector {
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(CheckMaglevType* node, Phi* phi,
-                                   int input_index,
-                                   const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreTaggedFieldNoWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreTaggedFieldWithWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
-  ProcessResult UpdateNodePhiInput(StoreFixedArrayElementNoWriteBarrier* node,
-                                   Phi* phi, int input_index,
-                                   const ProcessingState* state);
+
   ProcessResult UpdateNodePhiInput(BranchIfToBooleanTrue* node, Phi* phi,
                                    int input_index,
                                    const ProcessingState* state);
@@ -278,8 +268,7 @@ class MaglevPhiRepresentationSelector {
   ValueNode* EnsurePhiTagged(
       Phi* phi, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
-      std::optional<int> predecessor_index = std::nullopt,
-      bool force_smi = false);
+      std::optional<int> predecessor_index = std::nullopt);
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(BasicBlock* block, BasicBlockPosition pos,
@@ -310,6 +299,10 @@ class MaglevPhiRepresentationSelector {
 
   Zone* zone() const { return graph_->zone(); }
 
+  bool HasKey(Phi* phi) const { return phi_keys_.contains(phi); }
+  Key GetKey(Phi* phi) const { return phi_keys_.at(phi); }
+  void SetKey(Phi* phi, Key key) { phi_keys_[phi] = key; }
+
   Graph* graph_;
 
   MaglevReducer<MaglevPhiRepresentationSelector> reducer_;
@@ -328,6 +321,8 @@ class MaglevPhiRepresentationSelector {
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
 #endif
+
+  ZoneAbslFlatHashMap<Phi*, Key> phi_keys_;
 
   DeoptFrame* eager_deopt_frame_ = nullptr;
 };

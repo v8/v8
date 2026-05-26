@@ -23,13 +23,10 @@ class MaglevAssertTypesReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(MaglevAssertTypes)
 
   V<None> REDUCE(CheckMaglevType)(V<Object> input,
-                                  maglev::NodeType expected_type,
-                                  bool allow_widening_smi_to_int32) {
+                                  maglev::NodeType expected_type) {
     __ template CallBuiltin<builtin::CheckMaglevType>(
         {.object = input,
-         .type = __ SmiConstant(Smi::FromEnum(expected_type)),
-         .allow_widening_smi_to_int32 =
-             __ SmiConstant(Smi::FromInt(allow_widening_smi_to_int32))});
+         .type = __ SmiConstant(Smi::FromEnum(expected_type))});
     return V<None>::Invalid();
   }
 };

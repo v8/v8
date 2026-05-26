@@ -1496,7 +1496,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   ValueRepresentation representation =
       value->properties().value_representation();
   if (representation == ValueRepresentation::kTagged) {
-    return BuildCheckSmi(value, !value->Is<Phi>());
+    return BuildCheckSmi(value);
   }
 
   auto& alternative = node_info->alternative();
@@ -1509,7 +1509,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
                 NumberConversionMode::kCanonicalizeSmi);
     }
 #endif  // DEBUG
-    return BuildCheckSmi(alt, !value->Is<Phi>());
+    return BuildCheckSmi(alt);
   }
 
   switch (representation) {
@@ -1575,9 +1575,9 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
 
   // This node may unwrap ThinStrings.
   ValueNode* maybe_unwrapping_node;
-  GET_VALUE_OR_ABORT(maybe_unwrapping_node,
-                     AddNewNode<CheckedInternalizedString>(
-                         {node}, GetCheckType(old_type, node)));
+  GET_VALUE_OR_ABORT(
+      maybe_unwrapping_node,
+      AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type)));
   known_info->alternative().set_checked_value(maybe_unwrapping_node);
 
   current_interpreter_frame_.set(reg, maybe_unwrapping_node);
@@ -3321,7 +3321,7 @@ ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
 
   NodeType node_type;
   CheckType(value, NodeType::kSmi, &node_type);
-  enum CheckType type = GetCheckType(node_type, value);
+  enum CheckType type = GetCheckType(node_type);
   return AddNewNode<TestUndetectable>({value}, type);
 }
 
@@ -3834,18 +3834,14 @@ ReduceResult MaglevGraphBuilder::VisitStaLookupSlot() {
   return ReduceResult::Done();
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckSmi(
-    ValueNode* object, bool elidable,
-    AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
-  if (object->StaticTypeIs(broker(), NodeType::kSmi) && elidable) return object;
+ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
+  if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(IntersectType(
-          GetType(object, allow_widening_smi_to_int32), NodeType::kSmi))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSmi))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
-  if (EnsureType(object, NodeType::kSmi) && elidable) return object;
-  RecordSmiUse(object);
+  if (EnsureType(object, NodeType::kSmi)) return object;
   // For non-tagged constants, we may be able to skip the runtime check: every
   // non-tagged arm of the switch below emits a value-range check, which is
   // exactly what `Smi::IsValid` proves. For tagged inputs the runtime check
@@ -3892,25 +3888,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   if (IsEmptyNodeType(IntersectType(initial_type, NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
-  if (Phi* phi = object->TryCast<Phi>()) {
-    // Through phi untagging and the default float64->tagged canonicalization, a
-    // Phi could currently be a HeapObject but be retagged as a Smi after phi
-    // representation selection. If we request this Phi has a HeapObject, we
-    // record it so that when we retag it we preserve its HeapObjectness.
-    phi->SetUseRequiresHeapObject();
-  }
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
-  if (object->Is<Phi>() && NodeTypeCanBe(initial_type, NodeType::kSmi)) {
-    // If {initial_type} contains kSmi, then phi untagging could widen this to a
-    // HeapNumber. Since the `EnsureType(.. kAnyHeapObject)` above just removed
-    // `kSmi` from the type, we need to make sure that still don't forget that
-    // HeapNumber is actually still a possibility.
-    // TODO(dmercadier): this is only a small band-aid: actually, any
-    // GetType(phi) could return Smi when the actual type ends up being
-    // HeapNumber.
-    NodeInfo* info = GetOrCreateInfoFor(object);
-    info->UnionType(NodeType::kHeapNumber);
-  }
   return AddNewNode<CheckHeapObject>({object});
 }
 
@@ -3925,8 +3903,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSeqOneByteString(ValueNode* object) {
   if (EnsureType(object, NodeType::kSeqOneByteString, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckSeqOneByteString>({object},
-                                           GetCheckType(known_type, object));
+  return AddNewNode<CheckSeqOneByteString>({object}, GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
@@ -3939,7 +3916,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   if (EnsureType(object, NodeType::kString, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckString>({object}, GetCheckType(known_type, object));
+  return AddNewNode<CheckString>({object}, GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
@@ -3954,8 +3931,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
   if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckStringOrStringWrapper>(
-      {object}, GetCheckType(known_type, object));
+  return AddNewNode<CheckStringOrStringWrapper>({object},
+                                                GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
@@ -3969,8 +3946,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
   if (EnsureType(object, NodeType::kStringOrOddball, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckStringOrOddball>({object},
-                                          GetCheckType(known_type, object));
+  return AddNewNode<CheckStringOrOddball>({object}, GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
@@ -3993,7 +3969,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   if (EnsureType(object, NodeType::kSymbol, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckSymbol>({object}, GetCheckType(known_type, object));
+  return AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
@@ -4006,9 +3982,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
   if (EnsureType(object, NodeType::kJSFunction, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckInstanceType>(
-      {object}, GetCheckType(known_type, object), FIRST_JS_FUNCTION_TYPE,
-      LAST_JS_FUNCTION_TYPE);
+  return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
+                                       FIRST_JS_FUNCTION_TYPE,
+                                       LAST_JS_FUNCTION_TYPE);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
@@ -4021,9 +3997,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   if (EnsureType(object, NodeType::kJSReceiver, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckInstanceType>(
-      {object}, GetCheckType(known_type, object), FIRST_JS_RECEIVER_TYPE,
-      LAST_JS_RECEIVER_TYPE);
+  return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
+                                       FIRST_JS_RECEIVER_TYPE,
+                                       LAST_JS_RECEIVER_TYPE);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
@@ -4039,8 +4015,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
   if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
     return ReduceResult::Done();
   }
-  return AddNewNode<CheckJSReceiverOrNullOrUndefined>(
-      {object}, GetCheckType(known_type, object));
+  return AddNewNode<CheckJSReceiverOrNullOrUndefined>({object},
+                                                      GetCheckType(known_type));
 }
 
 ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
@@ -4179,17 +4155,10 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 }
 }  // namespace
 
-bool MaglevGraphBuilder::CanElideWriteBarrier(
-    ValueNode* object, ValueNode* value, RecordSmiUseIfNeeded record_smi_use) {
+bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
+                                              ValueNode* value) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
   if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
-    if (V8_LIKELY(record_smi_use == RecordSmiUseIfNeeded::kYes)) {
-      RecordSmiUse(value);
-    } else {
-      DCHECK_IMPLIES(value->Is<Phi>(),
-                     value->StaticTypeIs(broker(), NodeType::kSmi) ||
-                         value->Cast<Phi>()->uses_require_smi());
-    }
     return true;
   }
 
@@ -4475,7 +4444,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  if (CanElideWriteBarrier(object, value, RecordSmiUseIfNeeded::kYes)) {
+  if (CanElideWriteBarrier(object, value)) {
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {object, value}, offset, store_mode, property_key, maybe_assigned);
   } else {
@@ -4490,7 +4459,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
       }
     }
     bool value_can_be_smi =
-        GetCheckType(GetType(value), value) == CheckType::kCheckHeapObject;
+        GetCheckType(GetType(value)) == CheckType::kCheckHeapObject;
     return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
         {object, value}, offset, store_mode, value_can_be_smi, property_key,
         maybe_assigned);
@@ -4505,7 +4474,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
-  DCHECK(CanElideWriteBarrier(object, value, RecordSmiUseIfNeeded::kNo));
+  DCHECK(CanElideWriteBarrier(object, value));
   if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
@@ -4576,7 +4545,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   // TODO(victorgomes): Support storing element to a virtual object. If we
   // modify the elements array, we need to modify the original object to point
   // to the new elements array.
-  if (CanElideWriteBarrier(elements, value, RecordSmiUseIfNeeded::kYes)) {
+  if (CanElideWriteBarrier(elements, value)) {
     return AddNewNode<StoreFixedArrayElementNoWriteBarrier>(
         {elements, index, value});
   } else {
@@ -5486,8 +5455,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
 
   RETURN_IF_ABORT(AddNewNode<CheckHomomorphicMap>(
       {lookup_start_object}, feedback.name(), feedback.homomorphic_array(),
-      handler.value(),
-      GetCheckType(GetType(lookup_start_object), lookup_start_object)));
+      handler.value(), GetCheckType(GetType(lookup_start_object))));
 
   ValueNode* holder = lookup_start_object;
   if (!is_inobject) {
@@ -5537,7 +5505,7 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
         return AddNewNodeNoInputConversion<CheckedObjectToIndex>(
-            {object}, GetCheckType(old_type, object));
+            {object}, GetCheckType(old_type));
       }
     case ValueRepresentation::kInt32:
       // Already good.
@@ -7975,8 +7943,7 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf);
     case TypeOfFeedback::kSmi:
-      RETURN_IF_ABORT(
-          BuildCheckSmi(value, true, AllowWideningSmiToInt32::kAllow));
+      RETURN_IF_ABORT(BuildCheckSmi(value));
       SetAccumulator(GetRootConstant(RootIndex::knumber_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kNumber:
@@ -7989,7 +7956,7 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       return ReduceResult::Done();
     case TypeOfFeedback::kFunction:
       RETURN_IF_ABORT(AddNewNode<CheckDetectableCallable>(
-          {value}, GetCheckType(GetType(value), value)));
+          {value}, GetCheckType(GetType(value))));
       EnsureType(value, NodeType::kCallable);
       SetAccumulator(GetRootConstant(RootIndex::kfunction_string));
       return ReduceResult::Done();
@@ -9777,7 +9744,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
       start_arg->IsUndefinedValue() ? GetInt32Constant(0) : start_arg;
 
   RETURN_IF_ABORT(BuildCheckString(receiver));
-  RETURN_IF_ABORT(BuildCheckSmi(start, true, AllowWideningSmiToInt32::kAllow));
+  RETURN_IF_ABORT(BuildCheckSmi(start));
 
   ValueNode* receiver_length;
   GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
@@ -11071,7 +11038,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
       // objects. Thus, we have to insert CheckSmis here, before falling through
       // to the Object case.
       for (ValueNode*& arg : args) {
-        RETURN_IF_ABORT(BuildCheckSmi(arg, !arg->Is<Phi>()));
+        RETURN_IF_ABORT(BuildCheckSmi(arg));
       }
       return ReduceResult::Done();
     }
@@ -14260,8 +14227,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
   switch (broker()->GetFeedbackForBinaryOperation(
       compiler::FeedbackSource(feedback(), slot))) {
     case BinaryOperationHint::kSignedSmall:
-      RETURN_IF_ABORT(
-          BuildCheckSmi(value, true, AllowWideningSmiToInt32::kAllow));
+      RETURN_IF_ABORT(BuildCheckSmi(value));
       break;
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kAdditiveSafeInteger:
@@ -14304,9 +14270,8 @@ ReduceResult MaglevGraphBuilder::VisitToObject() {
                              destination);
   } else {
     ValueNode* object;
-    GET_VALUE_OR_ABORT(object,
-                       AddNewNode<ToObject>({GetContext(), value},
-                                            GetCheckType(old_type, value)));
+    GET_VALUE_OR_ABORT(object, AddNewNode<ToObject>({GetContext(), value},
+                                                    GetCheckType(old_type)));
     StoreRegister(destination, object);
   }
   return ReduceResult::Done();
@@ -16417,8 +16382,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
                                                RootIndex::kempty_string);
   }
   // TODO(verwaest): Number or oddball.
-  return builder.Build<BranchIfToBooleanTrue>({node},
-                                              GetCheckType(old_type, node));
+  return builder.Build<BranchIfToBooleanTrue>({node}, GetCheckType(old_type));
 }
 
 MaglevGraphBuilder::BranchResult

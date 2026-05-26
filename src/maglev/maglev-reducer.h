@@ -573,11 +573,8 @@ class MaglevReducer {
     DCHECK(new_nodes_at_end_.empty());
   }
 
-  static enum CheckType GetCheckType(NodeType type, ValueNode* target) {
+  static enum CheckType GetCheckType(NodeType type) {
     if (NodeTypeIs(type, NodeType::kAnyHeapObject)) {
-      if (target && target->Is<Phi>()) {
-        target->Cast<Phi>()->SetUseRequiresHeapObject();
-      }
       return CheckType::kOmitHeapObjectCheck;
     } else {
       return CheckType::kCheckHeapObject;
@@ -681,9 +678,7 @@ class MaglevReducer {
       ValueNode* context, ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
-  ReduceResult BuildSmiUntag(
-      ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                           AllowWideningSmiToInt32::kDontAllow);
+  ReduceResult BuildSmiUntag(ValueNode* node);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -1096,9 +1091,7 @@ class MaglevReducer {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
-  NodeType GetType(ValueNode* node,
-                   AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kAllow) {
+  NodeType GetType(ValueNode* node) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
@@ -1110,8 +1103,7 @@ class MaglevReducer {
         // TODO(marja): Consider adding different CheckMaglevType variants
         // based on node->value_representation(). Then we wouldn't need to
         // convert the value to tagged.
-        ReduceResult result = AddNewNode<CheckMaglevType>(
-            {node}, type, allow_widening_smi_to_int32);
+        ReduceResult result = AddNewNode<CheckMaglevType>({node}, type);
         CHECK(result.IsDoneWithPayload());
       }
     }
