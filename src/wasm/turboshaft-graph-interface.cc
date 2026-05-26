@@ -1339,7 +1339,7 @@ class TurboshaftGraphBuildingInterface
                Value* result) {
     bool needs_f16_to_f32_conv = false;
     if (type.value() == LoadType::kF32LoadF16 &&
-        !SupportedOperations::float16()) {
+        !SupportedOperations::float16_mem_access()) {
       needs_f16_to_f32_conv = true;
       type = LoadType::kI32Load16U;
     }
@@ -1510,7 +1510,7 @@ class TurboshaftGraphBuildingInterface
                 const Value& value) {
     bool needs_f32_to_f16_conv = false;
     if (type.value() == StoreType::kF32StoreF16 &&
-        !SupportedOperations::float16()) {
+        !SupportedOperations::float16_mem_access()) {
       needs_f32_to_f16_conv = true;
       type = StoreType::kI32Store16;
     }
@@ -3373,7 +3373,7 @@ class TurboshaftGraphBuildingInterface
 #undef HANDLE_BINARY_OPCODE
 #define HANDLE_F16X8_BIN_OPTIONAL_OPCODE(kind, extern_ref)                    \
   case kExprF16x8##kind:                                                      \
-    if (SupportedOperations::float16()) {                                     \
+    if (SupportedOperations::float16_arithmetic()) {                          \
       result->op = __ Simd128Binop(                                           \
           args[0].get<compiler::turboshaft::Simd128>(),                       \
           args[1].get<compiler::turboshaft::Simd128>(),                       \
@@ -3401,7 +3401,7 @@ class TurboshaftGraphBuildingInterface
 
 #define HANDLE_F16X8_INVERSE_COMPARISON(kind, ts_kind, extern_ref)            \
   case kExprF16x8##kind:                                                      \
-    if (SupportedOperations::float16()) {                                     \
+    if (SupportedOperations::float16_arithmetic()) {                          \
       result->op = __ Simd128Binop(                                           \
           args[1].get<compiler::turboshaft::Simd128>(),                       \
           args[0].get<compiler::turboshaft::Simd128>(),                       \
@@ -3472,28 +3472,32 @@ class TurboshaftGraphBuildingInterface
           MemoryRepresentation::Simd128());                         \
     }                                                               \
     break;
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Abs, float16, wasm_f16x8_abs)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Neg, float16, wasm_f16x8_neg)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Sqrt, float16, wasm_f16x8_sqrt)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Ceil, float16, wasm_f16x8_ceil)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Floor, float16, wasm_f16x8_floor)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Trunc, float16, wasm_f16x8_trunc)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8NearestInt, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Abs, float16_arithmetic, wasm_f16x8_abs)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Neg, float16_arithmetic, wasm_f16x8_neg)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Sqrt, float16_arithmetic,
+                                   wasm_f16x8_sqrt)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Ceil, float16_arithmetic,
+                                   wasm_f16x8_ceil)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Floor, float16_arithmetic,
+                                   wasm_f16x8_floor)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Trunc, float16_arithmetic,
+                                   wasm_f16x8_trunc)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8NearestInt, float16_arithmetic,
                                    wasm_f16x8_nearest_int)
-      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8SConvertF16x8, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8SConvertF16x8, float16_arithmetic,
                                    wasm_i16x8_sconvert_f16x8)
-      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8UConvertF16x8, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8UConvertF16x8, float16_arithmetic,
                                    wasm_i16x8_uconvert_f16x8)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8SConvertI16x8, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8SConvertI16x8, float16_arithmetic,
                                    wasm_f16x8_sconvert_i16x8)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8UConvertI16x8, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8UConvertI16x8, float16_arithmetic,
                                    wasm_f16x8_uconvert_i16x8)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF32x4Zero, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF32x4Zero, float16_arithmetic,
                                    wasm_f16x8_demote_f32x4_zero)
       HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF64x2Zero,
-                                   float64_to_float16_raw_bits,
+                                   float16_raw_bits_conversion,
                                    wasm_f16x8_demote_f64x2_zero)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4PromoteLowF16x8, float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4PromoteLowF16x8, float16_arithmetic,
                                    wasm_f32x4_promote_low_f16x8)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Ceil, float32_round_up, wasm_f32x4_ceil)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Floor, float32_round_down,
@@ -3537,7 +3541,7 @@ class TurboshaftGraphBuildingInterface
       FOREACH_SIMD_128_SPLAT_MANDATORY_OPCODE(HANDLE_SPLAT_OPCODE)
 #undef HANDLE_SPLAT_OPCODE
       case kExprF16x8Splat:
-        if (SupportedOperations::float16()) {
+        if (SupportedOperations::float16_arithmetic()) {
           result->op = __ Simd128Splat(
               args[0].op, compiler::turboshaft::Simd128SplatOp::Kind::kF16x8);
         } else {
@@ -3576,7 +3580,7 @@ class TurboshaftGraphBuildingInterface
 
 #define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                          \
   case kExpr##kind:                                                         \
-    if (SupportedOperations::float16()) {                                   \
+    if (SupportedOperations::float16_arithmetic()) {                        \
       result->op = __ Simd128Ternary(                                       \
           args[0].get<compiler::turboshaft::Simd128>(),                     \
           args[1].get<compiler::turboshaft::Simd128>(),                     \
@@ -3631,7 +3635,7 @@ class TurboshaftGraphBuildingInterface
             input_val, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
         break;
       case kExprF16x8ExtractLane:
-        if (SupportedOperations::float16()) {
+        if (SupportedOperations::float16_arithmetic()) {
           result->op = __ Simd128ExtractLane(
               input_val, Simd128ExtractLaneOp::Kind::kF16x8, imm.lane);
         } else {
@@ -3671,7 +3675,7 @@ class TurboshaftGraphBuildingInterface
                                   Simd128ReplaceLaneOp::Kind::kI64x2, imm.lane);
         break;
       case kExprF16x8ReplaceLane:
-        if (SupportedOperations::float16()) {
+        if (SupportedOperations::float16_arithmetic()) {
           result->op = __ Simd128ReplaceLane(input_val, inputs[1].op,
                                              Simd128ReplaceLaneOp::Kind::kF16x8,
                                              imm.lane);

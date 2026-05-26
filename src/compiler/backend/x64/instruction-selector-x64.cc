@@ -6236,7 +6236,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    flags |= MachineOperatorBuilder::kFloat16;
+    // TODO(wasm): Support vector f16 operations with AVX512 or AVX10.2.
+    flags |= MachineOperatorBuilder::kFloat16Arithmetic |
+             MachineOperatorBuilder::kFloat16MemAccess;
     if (CpuFeatures::IsSupported(AVX)) {
       flags |= MachineOperatorBuilder::kFloat16RawBitsConversion;
     }

@@ -1367,9 +1367,9 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(sat_conversion_is_safe, SatConversionIsSafe)           \
   V(word32_select, Word32Select)                           \
   V(word64_select, Word64Select)                           \
-  V(float64_to_float16_raw_bits, Float16RawBitsConversion) \
-  V(float16_raw_bits_to_float64, Float16RawBitsConversion) \
-  V(float16, Float16)
+  V(float16_mem_access, Float16MemAccess)                  \
+  V(float16_raw_bits_conversion, Float16RawBitsConversion) \
+  V(float16_arithmetic, Float16Arithmetic)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
 #define DECLARE_FIELD(name, machine_name) bool name##_;

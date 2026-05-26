@@ -378,40 +378,41 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.
-  enum Flag : unsigned {
-    kNoFlags = 0u,
-    kFloat32RoundDown = 1u << 0,
-    kFloat64RoundDown = 1u << 1,
-    kFloat32RoundUp = 1u << 2,
-    kFloat64RoundUp = 1u << 3,
-    kFloat32RoundTruncate = 1u << 4,
-    kFloat64RoundTruncate = 1u << 5,
-    kFloat32RoundTiesEven = 1u << 6,
-    kFloat64RoundTiesEven = 1u << 7,
-    kFloat64RoundTiesAway = 1u << 8,
-    kInt32DivIsSafe = 1u << 9,
-    kUint32DivIsSafe = 1u << 10,
-    kWord32ShiftIsSafe = 1u << 11,
-    kWord32Ctz = 1u << 12,
-    kWord64Ctz = 1u << 13,
-    kWord64CtzLowerable = 1u << 14,
-    kWord32Popcnt = 1u << 15,
-    kWord64Popcnt = 1u << 16,
-    kWord32ReverseBits = 1u << 17,
-    kWord64ReverseBits = 1u << 18,
-    kFloat32Select = 1u << 19,
-    kFloat64Select = 1u << 20,
-    kInt32AbsWithOverflow = 1u << 21,
-    kInt64AbsWithOverflow = 1u << 22,
-    kWord32Rol = 1u << 23,
-    kWord64Rol = 1u << 24,
-    kWord64RolLowerable = 1u << 25,
-    kSatConversionIsSafe = 1u << 26,
-    kWord32Select = 1u << 27,
-    kWord64Select = 1u << 28,
-    kLoadStorePairs = 1u << 29,
-    kFloat16 = 1u << 30,
-    kFloat16RawBitsConversion = 1u << 31,
+  enum Flag : uint64_t {
+    kNoFlags = 0ull,
+    kFloat32RoundDown = 1ull << 0,
+    kFloat64RoundDown = 1ull << 1,
+    kFloat32RoundUp = 1ull << 2,
+    kFloat64RoundUp = 1ull << 3,
+    kFloat32RoundTruncate = 1ull << 4,
+    kFloat64RoundTruncate = 1ull << 5,
+    kFloat32RoundTiesEven = 1ull << 6,
+    kFloat64RoundTiesEven = 1ull << 7,
+    kFloat64RoundTiesAway = 1ull << 8,
+    kInt32DivIsSafe = 1ull << 9,
+    kUint32DivIsSafe = 1ull << 10,
+    kWord32ShiftIsSafe = 1ull << 11,
+    kWord32Ctz = 1ull << 12,
+    kWord64Ctz = 1ull << 13,
+    kWord64CtzLowerable = 1ull << 14,
+    kWord32Popcnt = 1ull << 15,
+    kWord64Popcnt = 1ull << 16,
+    kWord32ReverseBits = 1ull << 17,
+    kWord64ReverseBits = 1ull << 18,
+    kFloat32Select = 1ull << 19,
+    kFloat64Select = 1ull << 20,
+    kInt32AbsWithOverflow = 1ull << 21,
+    kInt64AbsWithOverflow = 1ull << 22,
+    kWord32Rol = 1ull << 23,
+    kWord64Rol = 1ull << 24,
+    kWord64RolLowerable = 1ull << 25,
+    kSatConversionIsSafe = 1ull << 26,
+    kWord32Select = 1ull << 27,
+    kWord64Select = 1ull << 28,
+    kLoadStorePairs = 1ull << 29,
+    kFloat16RawBitsConversion = 1ull << 30,
+    kFloat16MemAccess = 1ull << 31,
+    kFloat16Arithmetic = 1ull << 32,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -421,9 +422,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
         kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
-        kLoadStorePairs | kFloat16 | kFloat16RawBitsConversion
+        kLoadStorePairs | kFloat16RawBitsConversion | kFloat16MemAccess |
+        kFloat16Arithmetic
   };
-  using Flags = base::Flags<Flag, unsigned>;
+  using Flags = base::Flags<Flag, uint64_t>;
 
   class AlignmentRequirements {
    public:

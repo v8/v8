@@ -7114,6 +7114,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kFloat64RoundTiesAway |
                MachineOperatorBuilder::kFloat32RoundTiesEven |
                MachineOperatorBuilder::kFloat64RoundTiesEven |
+               MachineOperatorBuilder::kFloat16MemAccess |
+               MachineOperatorBuilder::kFloat16RawBitsConversion |
                MachineOperatorBuilder::kWord32Popcnt |
                MachineOperatorBuilder::kWord64Popcnt |
                MachineOperatorBuilder::kWord32ShiftIsSafe |
@@ -7128,8 +7130,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kWord64Select |
                MachineOperatorBuilder::kLoadStorePairs;
   if (CpuFeatures::IsSupported(FP16)) {
-    flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kFloat16RawBitsConversion;
+    flags |= MachineOperatorBuilder::kFloat16Arithmetic;
   }
   if (CpuFeatures::IsSupported(CSSC)) {
     flags |=

@@ -782,7 +782,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       Ldr(dst.fp().S(), src_op);
       break;
     case LoadType::kF32LoadF16: {
-      CpuFeatureScope scope(this, FP16);
       Ldr(dst.fp().H(), src_op);
       Fcvt(dst.fp().S(), dst.fp().H());
       break;
@@ -824,7 +823,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       Str(src.gp().X(), dst_op);
       break;
     case StoreType::kF32StoreF16: {
-      CpuFeatureScope scope(this, FP16);
       Fcvt(src.fp().H(), src.fp().S());
       Str(src.fp().H(), dst_op);
       break;
@@ -4431,9 +4429,7 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
   return true;
 }
 
-bool LiftoffAssembler::supports_f16_mem_access() {
-  return CpuFeatures::IsSupported(FP16);
-}
+bool LiftoffAssembler::supports_f16_mem_access() { return true; }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
