@@ -18294,7 +18294,10 @@ ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
   } else {
     has_input = true;
   }
-  FinishBlockNoAbort<Throw>({input}, function, has_input);
+  // Converting the input can emit an unconditional deopt (e.g. when the input
+  // has the empty type), which already finishes the current block. In that
+  // case FinishBlock produces no Throw block; either way we abort.
+  FinishBlock<Throw>({input}, function, has_input);
   return ReduceResult::DoneWithAbort();
 }
 
