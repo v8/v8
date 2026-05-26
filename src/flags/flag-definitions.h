@@ -2684,7 +2684,7 @@ DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
 DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
-DEFINE_BOOL(enable_allocation_failures_optimize_memory, true,
+DEFINE_BOOL(enable_allocation_failures_optimize_memory, false,
             "Enable eager allocations failures due to memory optimizations")
 DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
             "Enable eager allocations failures due to memory optimizations "
