@@ -8,7 +8,6 @@
 #include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
-#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
@@ -324,8 +323,8 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
                        ? ArrayBufferExtension::Age::kYoung
                        : ArrayBufferExtension::Age::kOld;
-  ArrayBufferExtension* extension = new ArrayBufferExtension(
-      std::move(backing_store), age, is_shared(), is_resizable_by_js());
+  ArrayBufferExtension* extension =
+      new ArrayBufferExtension(std::move(backing_store), age);
   set_extension(extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
@@ -334,8 +333,6 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
 std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
   ArrayBufferExtension* extension = this->extension();
   DCHECK_NOT_NULL(extension);
-  SBXCHECK_EQ(is_shared(), extension->is_shared());
-  SBXCHECK_EQ(is_resizable_by_js(), extension->is_resizable_by_js());
   auto result = extension->RemoveBackingStore();
   // Remove pointer to extension such that the next GC will free it
   // automatically.
