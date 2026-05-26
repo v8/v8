@@ -12,6 +12,7 @@
 #include "src/heap/local-heap.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/check.h"
 #include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -73,6 +74,8 @@ void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
   if (!extension()) return nullptr;
+  SBXCHECK_EQ(is_shared(), extension()->is_shared());
+  SBXCHECK_EQ(is_resizable_by_js(), extension()->is_resizable_by_js());
   return extension()->backing_store();
 }
 
@@ -248,8 +251,19 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
-                    JSArrayBuffer::IsResizableByJsBit)
+
+bool JSArrayBuffer::is_resizable_by_js() const {
+  return JSArrayBuffer::IsResizableByJsBit::decode(bit_field_);
+}
+
+void JSArrayBuffer::set_is_resizable_by_js(bool value) {
+  set_bit_field(JSArrayBuffer::IsResizableByJsBit::update(bit_field(), value));
+
+  if (auto* extension = this->extension()) {
+    extension->set_is_resizable_by_js(value);
+  }
+}
+
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
                     JSArrayBuffer::IsImmutableBit)
 

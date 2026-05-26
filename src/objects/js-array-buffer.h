@@ -276,11 +276,14 @@ class ArrayBufferExtension final
   };
 
   ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store,
-                       ArrayBufferExtension::Age age)
+                       ArrayBufferExtension::Age age, bool is_shared,
+                       bool is_resizable_by_js)
       : backing_store_(std::move(backing_store)),
         accounting_state_(AccountingLengthField::encode(static_cast<size_t>(
                               backing_store_->PerIsolateAccountingLength())) |
-                          AgeField::encode(static_cast<uint8_t>(age))) {
+                          AgeField::encode(static_cast<uint8_t>(age))),
+        is_shared_(is_shared),
+        is_resizable_by_js_(is_resizable_by_js) {
     initialized_for_gc_.store(true, std::memory_order_release);
   }
 
@@ -354,6 +357,11 @@ class ArrayBufferExtension final
   ArrayBufferExtension* next() const { return next_; }
   void set_next(ArrayBufferExtension* extension) { next_ = extension; }
 
+  bool is_shared() const { return is_shared_; }
+
+  bool is_resizable_by_js() const { return is_resizable_by_js_; }
+  void set_is_resizable_by_js(bool value) { is_resizable_by_js_ = value; }
+
   Age age() const {
     return AccountingState{accounting_state_.load(std::memory_order_relaxed)}
         .age();
@@ -388,6 +396,11 @@ class ArrayBufferExtension final
   std::atomic<bool> initialized_for_gc_{false};
   std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
+
+  // Trusted copies of the in-sandbox JSArrayBuffer flags. We verify that the
+  // in-sandbox flags match these trusted copies during critical operations.
+  const bool is_shared_;
+  bool is_resizable_by_js_;
 };
 
 V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
