@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 
+#include "src/base/logging.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -144,6 +145,7 @@ class StringEscapeAnalysisReducer : public Next {
         case Kind::kNotElided:
           return og_index() == other.og_index();
       }
+      UNREACHABLE();
     }
 
     static ElidedStringPart Invalid() {

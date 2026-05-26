@@ -4746,6 +4746,7 @@ class Evacuator final : public Malloced {
       case kObjectsOldToOld:
         return "objects-old-to-old";
     }
+    UNREACHABLE();
   }
 
   static inline EvacuationMode ComputeEvacuationMode(

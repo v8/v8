@@ -1656,6 +1656,7 @@ const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
     case CollectionKind::kSet:
       return &cache_.kFindOrderedHashSetEntry;
   }
+  UNREACHABLE();
 }
 
 const Operator* SimplifiedOperatorBuilder::WeakCollectionGet() {
@@ -1750,6 +1751,7 @@ const Operator* SimplifiedOperatorBuilder::NumberSilenceNaN(
     case SilenceNanMode::kPreserveUndefined:
       return &cache_.kNumberSilenceNanPreserveUndefinedOperator;
   }
+  UNREACHABLE();
 }
 
 const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {

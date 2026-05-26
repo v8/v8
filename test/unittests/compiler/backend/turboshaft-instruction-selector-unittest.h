@@ -9,6 +9,7 @@
 #include <set>
 #include <type_traits>
 
+#include "src/base/logging.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -307,6 +308,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         UNOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 
     OpIndex Emit(TSBinop op, OpIndex left, OpIndex right) {
@@ -317,6 +319,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         BINOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -328,6 +331,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         TERNOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 #endif
 

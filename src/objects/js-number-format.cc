@@ -11,6 +11,7 @@
 #include <set>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/intl-objects.h"
@@ -104,6 +105,7 @@ UNumberUnitWidth ToUNumberUnitWidth(CurrencyDisplay currency_display) {
     case CurrencyDisplay::NARROW_SYMBOL:
       return UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW;
   }
+  UNREACHABLE();
 }
 
 UNumberUnitWidth ToUNumberUnitWidth(UnitDisplay unit_display) {
@@ -115,6 +117,7 @@ UNumberUnitWidth ToUNumberUnitWidth(UnitDisplay unit_display) {
     case UnitDisplay::NARROW:
       return UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW;
   }
+  UNREACHABLE();
 }
 
 UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
@@ -147,6 +150,7 @@ UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
       DCHECK(currency_sign == CurrencySign::STANDARD);
       return UNumberSignDisplay::UNUM_SIGN_NEGATIVE;
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -169,6 +173,7 @@ icu::number::Notation Intl::ToICUNotation(
       DCHECK(compact_display == Intl::CompactDisplay::LONG);
       return icu::number::Notation::compactLong();
   }
+  UNREACHABLE();
 }
 
 namespace {
@@ -195,6 +200,7 @@ UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
     case Intl::RoundingMode::kHalfEven:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFEVEN;
   }
+  UNREACHABLE();
 }
 
 UNumberGroupingStrategy ToUNumberGroupingStrategy(UseGrouping use_grouping) {
@@ -208,6 +214,7 @@ UNumberGroupingStrategy ToUNumberGroupingStrategy(UseGrouping use_grouping) {
     case UseGrouping::ALWAYS:
       return UNumberGroupingStrategy::UNUM_GROUPING_ON_ALIGNED;
   }
+  UNREACHABLE();
 }
 
 std::map<const std::string, icu::MeasureUnit, std::less<>> CreateUnitMap() {

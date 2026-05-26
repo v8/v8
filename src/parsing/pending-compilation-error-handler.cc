@@ -70,6 +70,7 @@ DirectHandle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
     case kAstRawString:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MessageLocation PendingCompilationErrorHandler::MessageDetails::GetLocation(

@@ -62,6 +62,7 @@ std::ostream& operator<<(std::ostream& os,
     case MaglevPhiRepresentationSelector::UntaggingKind::kSpeculativeOSRValue:
       return os << "SpeculativeOSRValue";
   }
+  UNREACHABLE();
 }
 
 MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
@@ -1204,6 +1205,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
@@ -1228,6 +1230,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 void MaglevPhiRepresentationSelector::PostProcessBasicBlock(BasicBlock* block) {
@@ -1265,6 +1268,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // When a ToBoolean/ToBooleanLogicalNot has an untagged Int32/Float64 Phi as
@@ -1329,6 +1333,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // {node} was using {phi} without any untagging, which means that it was using

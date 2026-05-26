@@ -30,6 +30,7 @@
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/globals.h"
@@ -345,6 +346,7 @@ inline int32_t VectorLengthBits(VectorLength length) {
     case VectorLength::kV512:
       return 512;
   }
+  UNREACHABLE();
 }
 
 static constexpr int kLazyDeoptOnThrowSentinel = -1;

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 
@@ -228,6 +229,7 @@ constexpr bool StaticCanonicalForLoopMatcher::BinopIsCommutative(BinOp op) {
     case BinOp::kOverflowCheckedSub:
       return false;
   }
+  UNREACHABLE();
 }
 
 constexpr StaticCanonicalForLoopMatcher::BinOp
@@ -262,6 +264,7 @@ StaticCanonicalForLoopMatcher::BinopFromOverflowCheckedBinopKind(
     case OverflowCheckedBinopOp::Kind::kSignedSub:
       return BinOp::kOverflowCheckedSub;
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, const IterationCount& count) {
@@ -363,6 +366,7 @@ std::optional<Int> Next(Int val, Int incr,
       CASE_ARITH(Sub)
 #undef CASE_CHECKED
   }
+  UNREACHABLE();
 }
 
 template <class Int>
@@ -383,6 +387,7 @@ bool Cmp(Int val, Int max, CmpOp cmp_op) {
     case CmpOp::kEqual:
       return val == max;
   }
+  UNREACHABLE();
 }
 
 template <class Int>
@@ -559,6 +564,7 @@ IterationCount StaticCanonicalForLoopMatcher::CountIterations(
                                              loop_if_cond_is);
       }
   }
+  UNREACHABLE();
 }
 
 constexpr StaticCanonicalForLoopMatcher::CmpOp
@@ -575,6 +581,7 @@ StaticCanonicalForLoopMatcher::ComparisonKindToCmpOp(ComparisonOp::Kind kind) {
     case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
       return CmpOp::kUnsignedLessThanOrEqual;
   }
+  UNREACHABLE();
 }
 constexpr StaticCanonicalForLoopMatcher::CmpOp
 StaticCanonicalForLoopMatcher::InvertComparisonOp(CmpOp op) {
@@ -598,6 +605,7 @@ StaticCanonicalForLoopMatcher::InvertComparisonOp(CmpOp op) {
     case CmpOp::kUnsignedGreaterThanOrEqual:
       return CmpOp::kUnsignedLessThanOrEqual;
   }
+  UNREACHABLE();
 }
 
 }  // namespace v8::internal::compiler::turboshaft

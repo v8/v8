@@ -1964,6 +1964,7 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
     case Event::Type::START:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 void GCTracer::UpdateCurrentEventPriority(GCTracer::Priority priority) {
@@ -2000,6 +2001,7 @@ bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
       return current_.type == Event::Type::MINOR_MARK_SWEEPER ||
              current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER;
   }
+  UNREACHABLE();
 }
 
 bool GCTracer::IsSweepingInProgress() const {

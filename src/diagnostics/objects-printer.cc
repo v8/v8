@@ -8,6 +8,7 @@
 
 #include "include/v8-internal.h"
 #include "src/api/api-arguments.h"
+#include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
@@ -1334,6 +1335,7 @@ const char* SideEffectType2String(SideEffectType type) {
     case SideEffectType::kHasSideEffectToReceiver:
       return "kHasSideEffectToReceiver";
   }
+  UNREACHABLE();
 }
 }  // namespace
 

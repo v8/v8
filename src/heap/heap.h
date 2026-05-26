@@ -22,6 +22,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/enum-set.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -261,6 +262,7 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
     case CompleteSweepingReason::kReadOnly:
       return "read only";
   }
+  UNREACHABLE();
 }
 
 static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
@@ -2536,6 +2538,7 @@ constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
     case Heap::SweepingForcedFinalizationMode::kUnifiedHeap:
       return "unified heap";
   }
+  UNREACHABLE();
 }
 
 constexpr const char* ToString(Heap::HeapGrowingMode mode) {
@@ -2549,6 +2552,7 @@ constexpr const char* ToString(Heap::HeapGrowingMode mode) {
     case Heap::HeapGrowingMode::kDefault:
       return "default";
   }
+  UNREACHABLE();
 }
 
 #define DECL_RIGHT_TRIM(T)                                         \

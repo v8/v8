@@ -5,6 +5,7 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/sandbox/check.h"
@@ -49,6 +50,7 @@ bool SatisfiesAssertion(Assertion::Type type,
     case Assertion::Type::NON_BOUNDARY:
       return !SatisfiesAssertion(Assertion::Type::BOUNDARY, context, position);
   }
+  UNREACHABLE();
 }
 
 base::Vector<Instruction> ToInstructionVector(
@@ -1438,6 +1440,7 @@ class NfaInterpreter {
         return pc_last_input_index_[pc].not_having_consumed_character ==
                input_index_;
     }
+    UNREACHABLE();
   }
 
   // Mark a pc as having been processed since the last increment of

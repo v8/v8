@@ -7,6 +7,7 @@
 #include <limits>
 #include <ostream>
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -541,6 +542,7 @@ TNode<Int32T> InterpreterAssembler::BytecodeSignedOperand(
     case OperandSize::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 TNode<Uint32T> InterpreterAssembler::BytecodeUnsignedOperand(
@@ -557,6 +559,7 @@ TNode<Uint32T> InterpreterAssembler::BytecodeUnsignedOperand(
     case OperandSize::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 TNode<Uint32T> InterpreterAssembler::BytecodeOperandCount(int operand_index) {

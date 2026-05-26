@@ -911,6 +911,7 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd256());
       return kX64Movdqu256;
   }
+  UNREACHABLE();
 }
 
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
@@ -1021,6 +1022,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
     case MemoryRepresentation::Simd256():
       return kX64Movdqu256;
   }
+  UNREACHABLE();
 }
 
 ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {

@@ -8,6 +8,7 @@
 
 #include "src/objects/js-collator.h"
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-locale.h"
@@ -269,6 +270,7 @@ UColAttributeValue ToUColAttributeValue(CaseFirst case_first) {
     case CaseFirst::kUndefined:
       return UCOL_OFF;
   }
+  UNREACHABLE();
 }
 
 void SetNumericOption(icu::Collator* icu_collator, bool numeric) {

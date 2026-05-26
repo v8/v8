@@ -4,6 +4,7 @@
 
 #include "src/heap/heap-controller.h"
 
+#include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/spaces.h"
@@ -29,6 +30,7 @@ double SqrtAllocationLimitFactorFromGrowingMode(
     case Heap::HeapGrowingMode::kDefault:
       return v8_flags.sqrt_allocation_limits_factor;
   }
+  UNREACHABLE();
 }
 
 }  // namespace

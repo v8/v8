@@ -2392,6 +2392,7 @@ OpIndex GraphBuilder::Process(
           case CTypeInfo::Type::kUint8:
             UNREACHABLE();
         }
+        UNREACHABLE();
 
 #undef ELSE_UNREACHABLE
       };

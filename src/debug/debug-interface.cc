@@ -10,6 +10,7 @@
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
@@ -842,6 +843,7 @@ Maybe<WasmScript::DebugSymbols::Type> GetDebugSymbolType(
     case i::wasm::WasmDebugSymbols::Type::None:
       return {};
   }
+  UNREACHABLE();
 }
 
 std::vector<WasmScript::DebugSymbols> WasmScript::GetDebugSymbols() const {

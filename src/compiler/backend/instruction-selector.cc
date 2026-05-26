@@ -9,6 +9,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
@@ -1578,6 +1579,7 @@ FlagsCondition InstructionSelector::GetComparisonFlagCondition(
     case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
       return kUnsignedLessThanOrEqual;
   }
+  UNREACHABLE();
 }
 
 void InstructionSelector::MarkPairProjectionsAsWord32(OpIndex node) {

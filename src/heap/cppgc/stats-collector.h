@@ -431,6 +431,7 @@ StatsCollector::InternalScope<trace_category, scope_category>::TraceCategory() {
     case kDisabled:
       return TRACE_DISABLED_BY_DEFAULT("cppgc");
   }
+  UNREACHABLE();
 }
 
 template <StatsCollector::TraceCategory trace_category,

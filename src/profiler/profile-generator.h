@@ -16,6 +16,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/hashing.h"
+#include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/vm-state.h"
@@ -133,6 +134,7 @@ class CodeEntry {
       case CodeType::OTHER:
         return "other";
     }
+    UNREACHABLE();
   }
 
   // Returns the start address of the instruction segment represented by this

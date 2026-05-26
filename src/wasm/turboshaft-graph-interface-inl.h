@@ -10,6 +10,9 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/turboshaft-graph-interface.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/logging.h"
 
 namespace v8::internal::wasm {
 
@@ -143,6 +146,7 @@ WasmGraphBuilderBase<Assembler>::RepresentationFor(ValueTypeBase type) {
     case kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 template <typename Assembler>

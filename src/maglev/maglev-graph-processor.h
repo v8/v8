@@ -314,6 +314,7 @@ class GraphProcessor {
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   void PreProcess(NodeBase* node, const ProcessingState& state) {}
@@ -517,6 +518,7 @@ class GraphBackwardProcessor {
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   NodeProcessor node_processor_;
@@ -574,6 +576,7 @@ class NodeMultiProcessor<Processor, Processors...>
         // the needs of the actual processors. Implement once needed.
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
   void PreProcessGraph(Graph* graph) {
     processor_.PreProcessGraph(graph);
@@ -596,6 +599,7 @@ class NodeMultiProcessor<Processor, Processors...>
       case BlockProcessResult::kSkip:
         return res;
     }
+    UNREACHABLE();
   }
 
   // Forward splice plumbing to the head processor when it exposes the

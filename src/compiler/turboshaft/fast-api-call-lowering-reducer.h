@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_FAST_API_CALL_LOWERING_REDUCER_H_
 
 #include "include/v8-fast-api-calls.h"
+#include "src/base/logging.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -349,6 +350,7 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kUint8:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<Any> ConvertReturnValue(const CFunctionInfo* c_signature, OpIndex result) {
@@ -391,6 +393,7 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kUint8:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<HeapObject> BuildAllocateJSExternalObject(V<WordPtr> pointer) {

@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <unordered_map>
 
+#include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/simd128.h"
 #include "src/compiler/wasm-compiler.h"
@@ -716,6 +717,7 @@ class DebugInfoImpl {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   // After installing a Liftoff code object with a different set of breakpoints,

@@ -88,6 +88,7 @@ bool IsMacroFused(FirstMacroFusionInstKind first_kind,
     case FirstMacroFusionInstKind::kInvalid:
       return false;
   }
+  UNREACHABLE();
 }
 
 SecondMacroFusionInstKind GetSecondMacroFusionInstKind(

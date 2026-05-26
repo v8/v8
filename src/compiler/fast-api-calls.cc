@@ -4,6 +4,7 @@
 
 #include "src/compiler/fast-api-calls.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/cpu-features.h"
 #include "src/compiler/globals.h"
 
@@ -60,6 +61,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
     case CTypeInfo::Type::kAny:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {

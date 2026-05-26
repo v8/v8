@@ -438,6 +438,7 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_STRING:
       return "string";
   }
+  UNREACHABLE();
 }
 
 // Helper for printing flag values.

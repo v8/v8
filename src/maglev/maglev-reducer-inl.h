@@ -14,6 +14,7 @@
 #include "src/base/container-utils.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
+#include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -295,6 +296,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
         // These conversion should be explicitly done beforehand.
         UNREACHABLE();
     }
+    UNREACHABLE();
   } else {
     // If the input's value representation is not equal to the expected one,
     // it must be because of HoleyFloats.

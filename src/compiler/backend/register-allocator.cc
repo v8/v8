@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
@@ -2945,6 +2946,7 @@ const char* RegisterAllocator::RegisterName(int register_code) const {
     case RegisterKind::kSimd128:
       return i::RegisterName(Simd128Register::from_code(register_code));
   }
+  UNREACHABLE();
 }
 
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,

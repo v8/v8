@@ -8,6 +8,7 @@
 
 #include <limits>
 
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
@@ -491,6 +492,7 @@ bool CheckSpecialClassRanges(uint32_t current_char,
     case StandardCharacterSet::kEverything:
       return true;
   }
+  UNREACHABLE();
 }
 
 }  // namespace

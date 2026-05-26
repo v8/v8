@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -657,6 +658,7 @@ char16_t SeparatorToChar(JSDurationFormat::Separator separator) {
     case JSDurationFormat::Separator::kArabicDecimalSeparator:
       return u'\u066B';
   }
+  UNREACHABLE();
 }
 
 bool FormattedToParts(const char*, icu::number::FormattedNumber&, bool, bool,

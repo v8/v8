@@ -6175,6 +6175,7 @@ class TurboshaftGraphBuildingInterface
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<Word32> LoadStringLength(V<Object> string) {

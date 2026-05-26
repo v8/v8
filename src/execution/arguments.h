@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
+#include "src/base/logging.h"
 #include "src/execution/clobber-registers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -154,6 +155,7 @@ constexpr bool RuntimeFunctionFullNameCanTriggerGC(
     FOR_EACH_INTRINSIC(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 }  // namespace detail
 

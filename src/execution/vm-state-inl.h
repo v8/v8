@@ -8,6 +8,7 @@
 #include "src/execution/vm-state.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/simulator.h"
 #include "src/logging/log.h"
@@ -41,6 +42,7 @@ constexpr const char* ToString(StateTag state) {
     case LOGGING:
       return "LOGGING";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& os, StateTag kind) {

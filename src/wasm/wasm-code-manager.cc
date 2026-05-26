@@ -12,6 +12,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/build_config.h"
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
@@ -1738,6 +1739,7 @@ ThreadIsolation::JitAllocationType ToAllocationType(
     case NativeModule::JumpTableType::kLazyCompileTable:
       return ThreadIsolation::JitAllocationType::kWasmLazyCompileTable;
   }
+  UNREACHABLE();
 }
 
 }  // namespace

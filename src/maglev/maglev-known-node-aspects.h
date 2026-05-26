@@ -119,6 +119,7 @@ class NodeInfo {
         case UseRepresentation::kUint32:
           UNREACHABLE();
       }
+      UNREACHABLE();
     }
 
     bool has_none() const { return store_ == AlternativeNodes().store_; }

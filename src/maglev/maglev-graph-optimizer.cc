@@ -1168,6 +1168,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
@@ -1197,6 +1198,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowIfNotCallable(

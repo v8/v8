@@ -142,6 +142,7 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace

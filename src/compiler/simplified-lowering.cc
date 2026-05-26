@@ -190,6 +190,7 @@ UseInfo TruncatingUseInfoFromRepresentation(
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 UseInfo UseInfoForBasePointer(const FieldAccess& access) {
@@ -2208,6 +2209,7 @@ class RepresentationSelector {
       case CTypeInfo::Type::kApiObject:
         return UseInfo::AnyTagged();
     }
+    UNREACHABLE();
   }
 
   static constexpr int kInitialArgumentsCount = 10;

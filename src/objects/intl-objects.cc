@@ -3112,6 +3112,7 @@ DirectHandle<String> Intl::SourceString(Isolate* isolate,
     case FormatRangeSource::kEndRange:
       return isolate->factory()->endRange_string();
   }
+  UNREACHABLE();
 }
 
 MaybeHandle<String> Intl::TimeZoneIdToString(Isolate* isolate,

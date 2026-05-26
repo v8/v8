@@ -655,6 +655,7 @@ constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
     case RegisterRepresentation::Enum::kSimd256:
       return std::is_same_v<T, Simd256>;
   }
+  UNREACHABLE();
 }
 
 // V<> represents an SSA-value that is parameterized with the type of the value.

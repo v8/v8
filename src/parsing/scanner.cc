@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/ast/ast-value-factory.h"
+#include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/base/vlq-base64.h"
 #include "src/numbers/conversions-inl.h"
@@ -1163,6 +1164,7 @@ double Scanner::DoubleValue() {
     case DECIMAL_WITH_LEADING_ZERO:
       return StringToDouble(literal_one_byte_string(), NO_CONVERSION_FLAG);
   }
+  UNREACHABLE();
 }
 
 const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {

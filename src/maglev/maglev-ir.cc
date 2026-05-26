@@ -720,6 +720,7 @@ ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
     IEEE_754_UNARY_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
@@ -730,6 +731,7 @@ ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
     IEEE_754_BINARY_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 // ---

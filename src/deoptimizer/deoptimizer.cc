@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -622,6 +623,7 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
   }
+  UNREACHABLE();
 }
 
 Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
@@ -820,6 +822,7 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
   }
+  UNREACHABLE();
 }
 
 namespace {
@@ -857,6 +860,7 @@ const char* CodeValidityToString(Deoptimizer::CodeValidity code_validity) {
     case Deoptimizer::CodeValidity::kUnknown:
       return "unknown";
   }
+  UNREACHABLE();
 }
 
 }  // namespace

@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/base/logging.h"
 #include "src/base/memory.h"
 #include "src/common/simd128.h"
 #include "src/handles/handles.h"
@@ -169,6 +170,7 @@ class WasmValue {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   bool zero_byte_representation() {

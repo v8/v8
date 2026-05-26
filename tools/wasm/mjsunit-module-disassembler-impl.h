@@ -8,6 +8,7 @@
 #include <ctime>
 #include <string_view>
 
+#include "src/base/logging.h"
 #include "src/numbers/conversions.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
@@ -359,6 +360,7 @@ class MjsunitNamesProvider {
       case GenericKind::kExternString:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   void PrintValueType(StringBuilder& out, ValueType type, OutputContext mode) {

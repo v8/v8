@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-subtyping.h"
 
+#include "src/base/logging.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
 
@@ -230,6 +231,7 @@ constexpr uint8_t ComputeCondensedIndex(StandardType type) {
     FOREACH_GENERIC_TYPE(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 constexpr StandardType ComputeStandardType(uint8_t condensed_index) {
 #define CASE(name, ...)                                                \

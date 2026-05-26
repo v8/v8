@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/flags.h"
+#include "src/base/logging.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
@@ -270,6 +271,7 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_IMPOSSIBLE_CASE
       UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   Type TypeConstant(Handle<Object> value);
@@ -1241,6 +1243,7 @@ Type Typer::Visitor::TypeFastApiCall(Node* node) {
     case CTypeInfo::Type::kVoid:
       return Type::Any();
   }
+  UNREACHABLE();
 }
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA

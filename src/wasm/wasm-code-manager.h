@@ -19,6 +19,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "src/base/address-region.h"
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
@@ -118,6 +119,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
       case SaveFPRegsMode::kSave:
         return Builtin::kRecordWriteSaveFP;
     }
+    UNREACHABLE();
   }
 
 #ifdef V8_IS_TSAN

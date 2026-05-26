@@ -996,6 +996,7 @@ inline std::ostream& operator<<(std::ostream& os,
     case ValueRepresentation::kNone:
       return os << "None";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(
@@ -1010,6 +1011,7 @@ inline std::ostream& operator<<(
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       return os << "NumberOrOddball";
   }
+  UNREACHABLE();
 }
 
 inline bool HasOnlyJSTypedArrayMaps(base::Vector<const compiler::MapRef> maps) {
@@ -1716,6 +1718,7 @@ inline bool DeoptFrame::IsJsFrame() const {
     case FrameType::kInlinedArgumentsFrame:
       return false;
   }
+  UNREACHABLE();
 }
 
 inline const MaglevCompilationUnit& DeoptFrame::GetCompilationUnit() const {
@@ -1729,6 +1732,7 @@ inline const MaglevCompilationUnit& DeoptFrame::GetCompilationUnit() const {
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return parent()->GetCompilationUnit();
   }
+  UNREACHABLE();
 }
 
 inline BytecodeOffset DeoptFrame::GetBytecodeOffset() const {
@@ -1744,6 +1748,7 @@ inline BytecodeOffset DeoptFrame::GetBytecodeOffset() const {
       return Builtins::GetContinuationBytecodeOffset(
           as_builtin_continuation().builtin_id());
   }
+  UNREACHABLE();
 }
 
 inline SourcePosition DeoptFrame::GetSourcePosition() const {
@@ -1759,6 +1764,7 @@ inline SourcePosition DeoptFrame::GetSourcePosition() const {
       DCHECK_NOT_NULL(parent());
       return parent()->GetSourcePosition();
   }
+  UNREACHABLE();
 }
 
 inline compiler::SharedFunctionInfoRef DeoptFrame::GetSharedFunctionInfo()
@@ -1914,6 +1920,7 @@ class LazyDeoptInfo : public DeoptInfo {
             return false;
         }
     }
+    UNREACHABLE();
   }
 #endif  // DEBUG
 
@@ -2692,6 +2699,7 @@ class ValueNode : public Node {
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   compiler::OptionalHeapObjectRef TryGetConstant(
@@ -4048,6 +4056,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
       case Kind::kTrunc:
         return Builtin::kMathTrunc;
     }
+    UNREACHABLE();
   }
 
   Float64Round(uint64_t bitfield, Kind kind) : Base(bitfield), kind_(kind) {}
@@ -4293,6 +4302,7 @@ class CheckedNumberOrOddballToHoleyFloat64
       case TaggedToFloat64ConversionType::kNumberOrOddball:
         return DeoptimizeReason::kNotANumberOrOddball;
     }
+    UNREACHABLE();
   }
 
   void SetValueLocationConstraints();
@@ -5440,6 +5450,7 @@ constexpr int FieldSizeOf(FieldType type) {
     case FieldType::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // Describes a single field within an object, consisting of the field offset and
@@ -8044,6 +8055,7 @@ class PolymorphicAccessInfo {
         return data_load_.holder_.equals(other.data_load_.holder_) &&
                data_load_.field_index_ == other.data_load_.field_index_;
     }
+    UNREACHABLE();
   }
 
   size_t hash_value() const {
@@ -8180,6 +8192,7 @@ constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
     case LoadType::kAnyHeapObject:
       return NodeType::kAnyHeapObject;
   }
+  UNREACHABLE();
 }
 
 // This is either a NameRef, or an enum value.
@@ -9051,6 +9064,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
       case Kind::kTransitioning:
         return true;
     }
+    UNREACHABLE();
   }
 
   int MaxCallStackArgs() const;
@@ -11294,6 +11308,7 @@ class Throw : public TerminalControlNodeT<1, Throw> {
       THROW_FUNCTIONS_LIST(CASE)
 #undef CASE
     }
+    UNREACHABLE();
   }
 
   bool has_input() const { return HasInputBitField::decode(bitfield()); }
@@ -11672,6 +11687,7 @@ constexpr inline int StaticInputCountForOpcode(Opcode op) {
     NODE_BASE_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode) {
@@ -11682,6 +11698,7 @@ constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode) {
     NODE_BASE_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 constexpr inline int SizeOfNodeForOpcode(Opcode op) {
@@ -11693,6 +11710,7 @@ constexpr inline int SizeOfNodeForOpcode(Opcode op) {
     NODE_BASE_LIST(CASE);
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 template <typename Function>

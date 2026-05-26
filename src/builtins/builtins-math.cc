@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins-iterator-inl.h"
 #include "src/builtins/builtins-math-xsum.h"
 #include "src/builtins/builtins-utils-inl.h"
@@ -96,6 +97,7 @@ BUILTIN(MathSumPrecise) {
     case Xsum::Result::kFinite:
       return *isolate->factory()->NewNumber(std::get<double>(res));
   }
+  UNREACHABLE();
 }
 
 }  // namespace internal

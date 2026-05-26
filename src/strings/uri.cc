@@ -10,6 +10,7 @@
 #include <new>
 #include <vector>
 
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/strings/char-predicates-inl.h"
@@ -411,6 +412,7 @@ MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
     case EncodeStatus::kAllocationFailure:
       THROW_NEW_ERROR(isolate, NewInvalidStringLengthError());
   }
+  UNREACHABLE();
 }
 
 namespace {  // Anonymous namespace for Escape and Unescape

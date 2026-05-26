@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
@@ -1488,6 +1489,7 @@ MaybeDirectHandle<Object> Runtime::GetPrivateMember(
       return Execution::Call(isolate, getter, receiver, {});
     }
   }
+  UNREACHABLE();
 }
 
 MaybeDirectHandle<Object> Runtime::SetPrivateMember(
@@ -1524,6 +1526,7 @@ MaybeDirectHandle<Object> Runtime::SetPrivateMember(
       return Execution::Call(isolate, setter, receiver, base::VectorOf(args));
     }
   }
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GetPrivateMember) {

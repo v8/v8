@@ -416,6 +416,7 @@ Type WordType<Bits>::Intersect(const WordType<Bits>& lhs,
                  ? s_h
                  : s_l;
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>
@@ -489,6 +490,7 @@ bool FloatType<Bits>::Contains(float_t value) const {
       return false;
     }
   }
+  UNREACHABLE();
 }
 
 template <size_t Bits>

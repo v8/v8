@@ -5321,6 +5321,7 @@ class AssemblerOpInterface : public Next {
       case wasm::kTop:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,

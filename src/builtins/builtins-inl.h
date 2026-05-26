@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -21,6 +22,7 @@ constexpr Builtin Builtins::RecordWrite(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kRecordWriteSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -31,6 +33,7 @@ constexpr Builtin Builtins::IndirectPointerBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kIndirectPointerBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static
@@ -41,6 +44,7 @@ constexpr Builtin Builtins::EphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
     case SaveFPRegsMode::kSave:
       return Builtin::kEphemeronKeyBarrierSaveFP;
   }
+  UNREACHABLE();
 }
 
 // static

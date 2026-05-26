@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -315,6 +316,7 @@ Handle<String> GetPropertyString(Factory& factory, DateTimeProperty property) {
     case DateTimeProperty::kTimeZoneName:
       return factory.timeZoneName_string();
   }
+  UNREACHABLE();
 }
 
 const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
@@ -1851,6 +1853,7 @@ Isolate::ICUObjectCacheType ConvertToCacheType(
     case JSDateTimeFormat::DefaultsOption::kAll:
       return Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat;
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -2387,6 +2390,7 @@ icu::DateFormat::EStyle DateTimeStyleToEStyle(
     case JSDateTimeFormat::DateTimeStyle::kUndefined:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,

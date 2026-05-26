@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/base/template-utils.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/signature.h"
@@ -1307,6 +1308,7 @@ class LoadType {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
  private:
@@ -1399,6 +1401,7 @@ class StoreType {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
  private:

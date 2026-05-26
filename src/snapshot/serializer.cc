@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "include/v8-internal.h"
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
@@ -95,6 +96,7 @@ const char* ToString(SnapshotSpace space) {
     case SnapshotSpace::kTrusted:
       return "Trusted";
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -918,6 +920,7 @@ SnapshotSpace GetSnapshotSpace(Isolate* isolate, Tagged<HeapObject> object) {
       case RO_SPACE:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 }
 }  // namespace

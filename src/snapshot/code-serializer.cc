@@ -478,6 +478,7 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
     case SerializedCodeSanityCheckResult::kReadOnlySnapshotChecksumMismatch:
       return "read-only snapshot checksum mismatch";
   }
+  UNREACHABLE();
 }
 }  // namespace
 

@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/wasm/function-body-decoder.h"
@@ -2494,6 +2495,7 @@ class BodyGen {
       case GenericKind::kNoWaitqueue:
         return type;
     }
+    UNREACHABLE();
   }
 
   bool br_on_cast(HeapType type, DataRange* data, Nullability nullable) {
@@ -5149,6 +5151,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
     case kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/macro-assembler.h"
@@ -711,6 +712,7 @@ constexpr bool CallOrConstructBuiltinsAssembler::IsAccessCheckRequired(
     case CallFunctionTemplateMode::kCheckCompatibleReceiver:
       return false;
   }
+  UNREACHABLE();
 }
 
 // This calls an API callback by passing a {FunctionTemplateInfo},

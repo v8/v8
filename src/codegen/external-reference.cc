@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
@@ -1082,6 +1083,7 @@ ExternalReference ExternalReference::invoke_function_callback(
     case CallApiCallbackMode::kOptimizedNoProfiling:
       return ExternalReference();
   }
+  UNREACHABLE();
 }
 
 ExternalReference ExternalReference::invoke_accessor_getter_callback() {

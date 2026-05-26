@@ -76,6 +76,7 @@ base::TimeDelta GetMaxDuration(StepOrigin step_origin) {
     case StepOrigin::kV8:
       return kMaxStepSizeOnAllocation;
   }
+  UNREACHABLE();
 }
 
 }  // namespace

@@ -999,6 +999,7 @@ constexpr const char* ToString(DeoptimizeKind kind) {
     case DeoptimizeKind::kLazyAfterFastCall:
       return "LazyAfterfastCall";
   }
+  UNREACHABLE();
 }
 inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
   return os << ToString(kind);
@@ -1697,6 +1698,7 @@ constexpr const char* ToString(GarbageCollectionReason reason) {
     case GarbageCollectionReason::NUM_REASONS:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -1750,6 +1752,7 @@ inline std::ostream& operator<<(std::ostream& os, TypedArrayAccessMode mode) {
     case TypedArrayAccessMode::kWrite:
       return os << "kWrite";
   }
+  UNREACHABLE();
 }
 
 enum MinimumCapacity {
@@ -1768,6 +1771,7 @@ constexpr const char* ToString(GarbageCollector collector) {
     case GarbageCollector::MINOR_MARK_SWEEPER:
       return "Minor Mark-Sweep";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& os, GarbageCollector collector) {
@@ -2840,6 +2844,7 @@ inline std::ostream& operator<<(std::ostream& os,
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }
+  UNREACHABLE();
 }
 
 enum class BlockingBehavior { kBlock, kDontBlock };
@@ -2860,6 +2865,7 @@ constexpr const char* ToString(ConcurrencyMode mode) {
     case ConcurrencyMode::kConcurrent:
       return "ConcurrencyMode::kConcurrent";
   }
+  UNREACHABLE();
 }
 inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
@@ -3174,6 +3180,7 @@ inline std::ostream& operator<<(std::ostream& os, SilenceNanMode mode) {
     case SilenceNanMode::kPreserveUndefined:
       return os << "PreserveUndefined";
   }
+  UNREACHABLE();
 }
 
 }  // namespace internal

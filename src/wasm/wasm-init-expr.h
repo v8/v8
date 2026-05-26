@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/wasm/value-type.h"
 #include "src/zone/zone-containers.h"
 
@@ -204,6 +205,7 @@ class WasmInitExpr : public ZoneObject {
       case kRef:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
  private:

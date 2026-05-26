@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 
@@ -1896,6 +1897,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
@@ -2187,6 +2189,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StoreIndirectPointer(
@@ -2236,6 +2239,7 @@ const Operator* MachineOperatorBuilder::TrappingStore(
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StoreTrapOnNull(
@@ -2257,6 +2261,7 @@ const Operator* MachineOperatorBuilder::StoreTrapOnNull(
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::StackPointerGreaterThan(

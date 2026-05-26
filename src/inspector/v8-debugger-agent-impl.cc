@@ -17,6 +17,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "src/base/logging.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/crc32.h"
@@ -1251,6 +1252,7 @@ const char* buildStatus(v8::debug::LiveEditResult::Status status) {
     case v8::debug::LiveEditResult::FEATURE_DISABLED:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -2040,6 +2042,7 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
     case V8DebuggerScript::Language::JavaScript:
       return protocol::Debugger::ScriptLanguageEnum::JavaScript;
   }
+  UNREACHABLE();
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2056,6 +2059,7 @@ static const char* getDebugSymbolTypeName(
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           ExternalDWARF;
   }
+  UNREACHABLE();
 }
 
 static void getDebugSymbols(

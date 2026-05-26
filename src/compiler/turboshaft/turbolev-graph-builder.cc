@@ -5824,6 +5824,7 @@ class GraphBuildingNodeProcessor {
       case maglev::DeoptFrame::FrameType::kConstructInvokeStubFrame:
         UNIMPLEMENTED();
     }
+    UNREACHABLE();
   }
 
   OptionalV<LazyFrameState> BuildFrameState(
@@ -5848,6 +5849,7 @@ class GraphBuildingNodeProcessor {
       case maglev::DeoptFrame::FrameType::kInlinedArgumentsFrame:
         UNIMPLEMENTED();
     }
+    UNREACHABLE();
   }
 
   template <typename FrameStateType>
@@ -5877,6 +5879,7 @@ class GraphBuildingNodeProcessor {
         return BuildFrameState<FrameStateType>(frame.as_builtin_continuation(),
                                                virtual_objects);
     }
+    UNREACHABLE();
   }
 
   template <typename FrameStateType>
@@ -6692,6 +6695,7 @@ class GraphBuildingNodeProcessor {
       case maglev::ValueRepresentation::kNone:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   // TODO(dmercadier): Using a Branch would open more optimization opportunities

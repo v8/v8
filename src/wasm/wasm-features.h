@@ -13,6 +13,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/common/globals.h"
 // The feature flags are declared in their own header.
@@ -122,6 +123,7 @@ inline constexpr const char* name(WasmEnabledFeature feature) {
     return #feat;
     FOREACH_WASM_FEATURE_FLAG(NAME)
   }
+  UNREACHABLE();
 #undef NAME
 }
 
@@ -136,6 +138,7 @@ inline constexpr const char* name(WasmDetectedFeature feature) {
     return #feat;
     FOREACH_WASM_FEATURE(NAME)
   }
+  UNREACHABLE();
 #undef NAME
 }
 

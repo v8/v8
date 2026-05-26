@@ -4,6 +4,7 @@
 
 #include "src/wasm/constant-expression.h"
 
+#include "src/base/logging.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/factory.h"
@@ -95,6 +96,7 @@ ValueOrError EvaluateConstantExpression(
       return result;
     }
   }
+  UNREACHABLE();
 }
 
 }  // namespace wasm

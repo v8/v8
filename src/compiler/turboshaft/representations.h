@@ -867,6 +867,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   static constexpr MemoryRepresentation FromMachineRepresentation(

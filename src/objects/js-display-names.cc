@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
@@ -70,6 +71,7 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
     case JSDisplayNames::Style::kNarrow:
       return UDISPCTX_LENGTH_SHORT;
   }
+  UNREACHABLE();
 }
 
 }  // anonymous namespace
@@ -297,6 +299,7 @@ UDateTimePGDisplayWidth StyleToUDateTimePGDisplayWidth(
     case JSDisplayNames::Style::kNarrow:
       return UDATPG_NARROW;
   }
+  UNREACHABLE();
 }
 
 UDateTimePatternField StringToUDateTimePatternField(const char* code) {

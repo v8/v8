@@ -67,6 +67,7 @@ class MachineLoweringReducer : public Next {
       case ObjectIsOp::InputAssumptions::kBigInt:
         return false;
     }
+    UNREACHABLE();
   }
 
   V<Float64OrWord32> REDUCE(TypeHint)(V<Float64OrWord32> input,
@@ -2495,6 +2496,7 @@ class MachineLoweringReducer : public Next {
         return BuildUint32Mod(left_w32, right_w32);
       }
     }
+    UNREACHABLE();
   }
 
   V<BigInt> REDUCE(BigIntBinop)(V<BigInt> left, V<BigInt> right,
@@ -2558,6 +2560,7 @@ class MachineLoweringReducer : public Next {
         return CallBuiltinForBigIntOp(Builtin::kBigIntLessThanOrEqual,
                                       {left, right});
     }
+    UNREACHABLE();
   }
 
   V<BigInt> REDUCE(BigIntUnary)(V<BigInt> input, BigIntUnaryOp::Kind kind) {
@@ -2974,6 +2977,7 @@ class MachineLoweringReducer : public Next {
         return __ template CallBuiltin<builtin::StringLessThanOrEqual>(
             {.left = left, .right = right});
     }
+    UNREACHABLE();
   }
 
   V<Boolean> REDUCE(StringOrOddballStrictEqual)(V<HeapObject> left,
@@ -3225,6 +3229,7 @@ class MachineLoweringReducer : public Next {
              .formal_parameter_count = p_count,
              .arguments_count = arguments_count});
     }
+    UNREACHABLE();
   }
 
   V<Any> REDUCE(LoadTypedElement)(OpIndex buffer, V<Object> base,
@@ -4009,6 +4014,7 @@ class MachineLoweringReducer : public Next {
         return __ template CallBuiltin<builtin::SameValueNumbersOnly>(
             {.left = left, .right = right});
     }
+    UNREACHABLE();
   }
 
   V<Word32> REDUCE(Float64SameValue)(V<Float64> left, V<Float64> right) {
@@ -4242,6 +4248,7 @@ class MachineLoweringReducer : public Next {
         return __ template CallBuiltin<builtin::FindOrderedHashSetEntry>(
             __ NoContextConstant(), {.table = data_structure, .key = key});
     }
+    UNREACHABLE();
   }
 
   V<Object> REDUCE(WeakCollectionGet)(V<JSWeakCollection> receiver,
@@ -4700,6 +4707,7 @@ class MachineLoweringReducer : public Next {
       case BigIntBinopOp::Kind::kShiftRightArithmetic:
         return Builtin::kBigIntShiftRightNoThrow;
     }
+    UNREACHABLE();
   }
 
   V<WordPtr> BuildTypedArrayDataPointer(V<Object> base, V<WordPtr> external) {

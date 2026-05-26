@@ -804,6 +804,7 @@ ValueNode* NonTaggedToTagged(Graph* graph, NodeType node_type, ValueNode* value,
     case ValueRepresentation::kRawPtr:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 ValueNode* EnsureTagged(Graph* graph,
                         const KnownNodeAspects& known_node_aspects,

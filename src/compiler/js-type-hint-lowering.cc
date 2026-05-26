@@ -160,6 +160,7 @@ class JSSpeculativeBinopBuilder final {
         *hint = BigIntOperationHint::kBigInt64;
         return true;
     }
+    UNREACHABLE();
   }
 
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {

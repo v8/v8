@@ -8,6 +8,7 @@
 #include "src/objects/js-regexp.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
@@ -137,6 +138,7 @@ int RegExpData::capture_count() const {
     case Type::IRREGEXP:
       return UncheckedCast<IrRegExpData>(this)->capture_count();
   }
+  UNREACHABLE();
 }
 
 Tagged<RegExpData> RegExpDataWrapper::data(IsolateForSandbox isolate) const {

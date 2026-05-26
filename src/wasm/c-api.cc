@@ -29,6 +29,7 @@
 #include "include/v8-initialization.h"
 #include "include/v8config.h"
 #include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -224,6 +225,7 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
     case i::wasm::kExternalTag:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -666,6 +668,7 @@ WASM_EXPORT auto ExternType::copy() const -> own<ExternType> {
     case ExternKind::MEMORY:
       return memory()->copy();
   }
+  UNREACHABLE();
 }
 
 WASM_EXPORT auto ExternType::kind() const -> ExternKind {
@@ -1448,6 +1451,7 @@ WASM_EXPORT auto Extern::type() const -> own<ExternType> {
     case ExternKind::MEMORY:
       return memory()->type();
   }
+  UNREACHABLE();
 }
 
 WASM_EXPORT auto Extern::func() -> Func* {
@@ -2086,6 +2090,7 @@ WASM_EXPORT auto Global::get() const -> Val {
     case i::wasm::kBottom:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 WASM_EXPORT void Global::set(const Val& val) {

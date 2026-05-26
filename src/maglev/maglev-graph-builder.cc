@@ -144,6 +144,7 @@ bool IsSupported(CpuOperation op) {
 #error "V8 does not support this architecture."
 #endif
   }
+  UNREACHABLE();
 }
 
 class FunctionContextSpecialization final : public AllStatic {
@@ -503,6 +504,7 @@ BasicBlockRef* MaglevGraphBuilder::BranchBuilder::jump_target() {
     case kLabelJumpTarget:
       return data_.label_target.jump_label->ref();
   }
+  UNREACHABLE();
 }
 
 BasicBlockRef* MaglevGraphBuilder::BranchBuilder::fallthrough() {
@@ -512,6 +514,7 @@ BasicBlockRef* MaglevGraphBuilder::BranchBuilder::fallthrough() {
     case kLabelJumpTarget:
       return &data_.label_target.fallthrough;
   }
+  UNREACHABLE();
 }
 
 BasicBlockRef* MaglevGraphBuilder::BranchBuilder::true_target() {
@@ -537,6 +540,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BranchBuilder::FromBool(
     case kLabelJumpTarget:
       return value ? BranchResult::kAlwaysTrue : BranchResult::kAlwaysFalse;
   }
+  UNREACHABLE();
 }
 
 template <typename ControlNodeT, typename... Args>
@@ -1930,6 +1934,7 @@ NodeType BinopHintToNodeTypeAndConversionType(BinaryOperationHint hint) {
     case BinaryOperationHint::kAny:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -2432,6 +2437,7 @@ bool OperationValue(type left, type right) {
     case Operation::kGreaterThanOrEqual:
       return left >= right;
   }
+  UNREACHABLE();
 }
 
 template <Operation kOperation>
@@ -3820,6 +3826,7 @@ Runtime::FunctionId StaLookupSlotFunction(uint8_t sta_lookup_slot_flags) {
         return Runtime::kStoreLookupSlot_Sloppy;
       }
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -4234,6 +4241,7 @@ ReduceResult MaglevGraphBuilder::ConvertForField(
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 void MaglevGraphBuilder::BuildInitializeStore(
@@ -4792,6 +4800,7 @@ LoadType FieldRepresentationToLoadType(Representation repr) {
     case Representation::kNumRepresentations:
       return LoadType::kUnknown;
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -5221,6 +5230,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                                        access_info.elements_kind());
     }
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
@@ -5261,6 +5271,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     case compiler::PropertyAccessInfo::kTypedArrayLength:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
@@ -5282,6 +5293,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
       // TODO(victorgomes): BuildPropertyTest.
       return {};
   }
+  UNREACHABLE();
 }
 
 template <typename GenericAccessFunc>
@@ -5518,6 +5530,7 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // TODO(victorgomes): Consider caching the values and adding an
@@ -5578,6 +5591,7 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
@@ -5663,6 +5677,7 @@ bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
     case AssertCondition::kUnsignedGreaterThanEqual:
       return static_cast<uint32_t>(lhs) >= static_cast<uint32_t>(rhs);
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -5971,6 +5986,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     case compiler::AccessMode::kDefine:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
@@ -11563,6 +11579,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
@@ -11955,6 +11972,7 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(
           {target, GetValueOrUndefined(args.receiver()), args[0],
            GetContext()});
   }
+  UNREACHABLE();
 }
 
 MaybeReduceResult MaglevGraphBuilder::BuildCallSelf(
@@ -13462,6 +13480,7 @@ ReduceResult MaglevGraphBuilder::BuildGenericConstruct(
     case CallArguments::kWithArrayLike:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
@@ -15347,6 +15366,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             rest_length, elements);
       }
   }
+  UNREACHABLE();
 }
 
 template <CreateArgumentsType type>
@@ -16794,6 +16814,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
       DCHECK(value->is_tagged());
       return AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
   }
+  UNREACHABLE();
 }
 ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
   // ThrowSuperNotCalledIfHole
@@ -16808,6 +16829,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
       DCHECK(value->is_tagged());
       return AddNewNode<ThrowSuperNotCalledIfHole>({value});
   }
+  UNREACHABLE();
 }
 ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
   // ThrowSuperAlreadyCalledIfNotHole
@@ -16821,6 +16843,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
       DCHECK(value->is_tagged());
       return AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
   }
+  UNREACHABLE();
 }
 ReduceResult MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   // ThrowIfNotSuperConstructor <constructor>

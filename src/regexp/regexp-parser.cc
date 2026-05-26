@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-parser.h"
 
+#include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/regexp-ast-printer.h"
@@ -2820,6 +2821,7 @@ bool MayContainStrings(ClassSetOperandType type, Tree* operand) {
       if (operand->IsClassRanges()) return false;
       return operand->AsClassSetExpression()->may_contain_strings();
   }
+  UNREACHABLE();
 }
 
 }  // namespace

@@ -2987,6 +2987,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         }
         return HashWithOptions(storage.handle.address());
     }
+    UNREACHABLE();
   }
   bool operator==(const ConstantOp& other) const {
     if (kind != other.kind) return false;
@@ -3026,6 +3027,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTrustedHeapObject:
         return storage.handle.address() == other.storage.handle.address();
     }
+    UNREACHABLE();
   }
 };
 
@@ -3561,6 +3563,7 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
         return 5 + has_index;  // base, index?, value_low, value_high,
                                // expected_low, expected_high
     }
+    UNREACHABLE();
   }
   bool HasIndex() const { return input_count == InputCount(kind, true); }
 
@@ -4990,6 +4993,7 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
       UNREACHABLE();
 #undef NON_TERMINATOR_CASE
   }
+  UNREACHABLE();
 }
 
 V8_EXPORT_PRIVATE base::SmallVector<Block*, 4> SuccessorBlocks(
@@ -5444,6 +5448,7 @@ struct ConvertJSPrimitiveToUntaggedOp
       case UntaggedKind::kHoleyFloat64:
         return RepVector<RegisterRepresentation::Float64()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5512,6 +5517,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
         return Is64() ? RepVector<RegisterRepresentation::Word64()>()
                       : RepVector<RegisterRepresentation::Word32()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5581,6 +5587,7 @@ struct TruncateJSPrimitiveToUntaggedOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5621,6 +5628,7 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
       case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
     }
+    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -6744,6 +6752,7 @@ struct TransitionAndStoreArrayElementOp
       case Kind::kSignedSmallElement:
         return RegisterRepresentation::Word32();
     }
+    UNREACHABLE();
   }
 
   size_t hash_value(
@@ -9674,6 +9683,7 @@ struct Simd128LoadPairDeinterleaveOp
       case Kind::k64x4:
         return 64;
     }
+    UNREACHABLE();
   }
 
   void Validate(const Graph& graph) const { DCHECK(!load_kind.tagged_base); }
@@ -10484,6 +10494,7 @@ inline base::Vector<const RegisterRepresentation> Operation::outputs_rep()
     TURBOSHAFT_OPERATION_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
@@ -10497,6 +10508,7 @@ inline base::Vector<const MaybeRegisterRepresentation> Operation::inputs_rep(
     TURBOSHAFT_OPERATION_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 bool IsUnlikelySuccessor(const Block* block, const Block* successor,
@@ -10626,6 +10638,7 @@ auto VisitOperation(const Operation& op, F&& f) {
     TURBOSHAFT_OPERATION_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 // Checking that throwing operations have the required members and options.

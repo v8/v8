@@ -13,6 +13,7 @@
 
 #include "absl/functional/overload.h"
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -1091,6 +1092,7 @@ HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
     case StringTransitionStrategy::kAlreadyTransitioned:
       return string;
   }
+  UNREACHABLE();
 }
 
 template <typename T, template <typename> typename HandleType>

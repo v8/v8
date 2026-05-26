@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
@@ -1084,6 +1085,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MachineRepresentation InstructionSequence::GetRepresentation(

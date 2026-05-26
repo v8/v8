@@ -1710,6 +1710,7 @@ class MaglevGraphBuilder {
       case BranchType::kBranchIfFalse:
         return BranchType::kBranchIfTrue;
     }
+    UNREACHABLE();
   }
 
   // This class encapsulates the logic of branch nodes (using the graph builder

@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/logging.h"
 #include "src/base/numbers/double.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/register.h"
@@ -599,6 +600,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   // Return true if the locations can be moved to one another.

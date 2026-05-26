@@ -472,6 +472,7 @@ class WordType : public Type {
       case SubKind::kSet:
         return set_element(0);
     }
+    UNREACHABLE();
   }
   word_t unsigned_max() const {
     switch (sub_kind()) {
@@ -481,6 +482,7 @@ class WordType : public Type {
         DCHECK_GE(set_size(), 1);
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
 
   // Misc
@@ -700,6 +702,7 @@ class FloatType : public Type {
         if (has_minus_zero()) return std::min(float_t{-0.0}, set_element(0));
         return set_element(0);
     }
+    UNREACHABLE();
   }
   float_t max() const {
     switch (sub_kind()) {
@@ -716,6 +719,7 @@ class FloatType : public Type {
         }
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
   std::pair<float_t, float_t> minmax() const { return {min(), max()}; }
   std::optional<float_t> try_get_constant() const {
@@ -741,6 +745,7 @@ class FloatType : public Type {
       case SubKind::kSet:
         return set_element(0);
     }
+    UNREACHABLE();
   }
   // Returns the maximum value of a range or set, ignoring any special values
   // (in contrast to max() above).
@@ -753,6 +758,7 @@ class FloatType : public Type {
       case SubKind::kSet:
         return set_element(set_size() - 1);
     }
+    UNREACHABLE();
   }
   std::pair<float_t, float_t> range_or_set_minmax() const {
     return {range_or_set_min(), range_or_set_max()};

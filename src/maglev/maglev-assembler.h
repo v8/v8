@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
+#include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
@@ -1172,6 +1173,7 @@ inline Condition ToCondition(AssertCondition cond) {
     ASSERT_CONDITION(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 constexpr Condition ConditionFor(Operation operation) {

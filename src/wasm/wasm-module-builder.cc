@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-module-builder.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
@@ -87,6 +88,7 @@ WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
     case WasmInitExpr::kExternConvertAny:
       return kExprExternConvertAny;
   }
+  UNREACHABLE();
 }
 
 void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,

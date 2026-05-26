@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/logging.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
@@ -581,6 +582,7 @@ CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
     case ASM:
       return CallInterfaceDescriptorFor(builtin).sandboxing_mode();
   }
+  UNREACHABLE();
 }
 
 // static

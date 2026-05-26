@@ -1843,6 +1843,7 @@ class MachineOptimizationReducer : public Next {
                 case Kind::kEqual:
                   UNREACHABLE();
               }
+              UNREACHABLE();
             };
             return __ Comparison(
                 UndoWord32ToWord64Conversion(V<Word64>::Cast(left)),

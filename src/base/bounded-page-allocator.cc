@@ -4,6 +4,8 @@
 
 #include "src/base/bounded-page-allocator.h"
 
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace base {
 
@@ -331,6 +333,7 @@ const char* BoundedPageAllocator::AllocationStatusToString(
     case AllocationStatus::kHintedAddressTakenOrNotFound:
       return "Hinted address was taken or not found";
   }
+  UNREACHABLE();
 }
 
 BoundedPageAllocator::Stats BoundedPageAllocator::RecordStats() {

@@ -8,6 +8,7 @@
 
 #include "hwy/highway.h"
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -972,6 +973,7 @@ V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
     case JsonToken::WHITESPACE:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 template <typename Char>

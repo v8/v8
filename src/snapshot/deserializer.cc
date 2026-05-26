@@ -771,6 +771,7 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
     case SnapshotSpace::kTrusted:
       return AllocationType::kTrusted;
   }
+  UNREACHABLE();
 }
 }  // namespace
 

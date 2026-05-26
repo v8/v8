@@ -1167,6 +1167,7 @@ class Typer {
         // TODO(nicohartmann@): Support these representations.
         return Type::Any();
     }
+    UNREACHABLE();
   }
 
   static Type TypeForRepresentation(
@@ -1301,6 +1302,7 @@ class Typer {
         FLOAT_BINOP(Power, 32)
         FLOAT_BINOP(Atan2, 32)
       }
+      UNREACHABLE();
     } else {
       DCHECK_EQ(rep, FloatRepresentation::Float64());
       switch (kind) {
@@ -1314,6 +1316,7 @@ class Typer {
         FLOAT_BINOP(Power, 64)
         FLOAT_BINOP(Atan2, 64)
       }
+      UNREACHABLE();
     }
 
 #undef FLOAT_BINOP
@@ -1371,6 +1374,7 @@ class Typer {
           return TupleType::Tuple(Word32Type::Any(),
                                   Word32Type::Set({0, 1}, zone), zone);
       }
+      UNREACHABLE();
     } else {
       DCHECK_EQ(rep, WordRepresentation::Word64());
       switch (kind) {
@@ -1381,6 +1385,7 @@ class Typer {
           return TupleType::Tuple(Word64Type::Any(),
                                   Word32Type::Set({0, 1}, zone), zone);
       }
+      UNREACHABLE();
     }
   }
 
@@ -1436,6 +1441,7 @@ class Typer {
         // TODO(nicohartmann@): Support those cases.
         return Word32Type::Set({0, 1}, zone);
     }
+    UNREACHABLE();
   }
 
   static Type TypeWord32Comparison(const Type& lhs, const Type& rhs,
@@ -1493,6 +1499,7 @@ class Typer {
       case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   static Type TypeFloat64Comparison(const Type& lhs, const Type& rhs,
@@ -1512,6 +1519,7 @@ class Typer {
       case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   static Word64Type ExtendWord32ToWord64(const Word32Type& t, Zone* zone) {

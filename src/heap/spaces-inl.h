@@ -8,6 +8,7 @@
 #include "src/heap/spaces.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -85,6 +86,7 @@ MutablePage* OldGenerationMemoryChunkIterator::next() {
     case kFinished:
       return nullptr;
   }
+  UNREACHABLE();
 }
 
 bool MemoryChunkIterator::HasNext() {
