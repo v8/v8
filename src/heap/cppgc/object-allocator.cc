@@ -144,12 +144,11 @@ ObjectAllocator::ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
       oom_handler_(oom_handler),
       garbage_collector_(garbage_collector) {}
 
-void ObjectAllocator::OutOfLineAllocateGCSafePoint(NormalPageSpace& space,
-                                                   size_t size,
-                                                   AlignVal alignment,
-                                                   GCInfoIndex gcinfo,
-                                                   void** object) {
-  *object = OutOfLineAllocateImpl(space, size, alignment, gcinfo);
+void ObjectAllocator::OutOfLineAllocateGCSafePoint(
+    NormalPageSpace& space, size_t size, AlignVal alignment, GCInfoIndex gcinfo,
+    MayContainMixins may_contain_mixins, void** object) {
+  *object =
+      OutOfLineAllocateImpl(space, size, alignment, gcinfo, may_contain_mixins);
   stats_collector_.NotifySafePointForConservativeCollection();
   if (prefinalizer_handler_.IsInvokingPreFinalizers()) {
     // Objects allocated during pre finalizers should be allocated as black
@@ -163,9 +162,9 @@ void ObjectAllocator::OutOfLineAllocateGCSafePoint(NormalPageSpace& space,
   }
 }
 
-void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
-                                             size_t size, AlignVal alignment,
-                                             GCInfoIndex gcinfo) {
+void* ObjectAllocator::OutOfLineAllocateImpl(
+    NormalPageSpace& space, size_t size, AlignVal alignment, GCInfoIndex gcinfo,
+    MayContainMixins may_contain_mixins) {
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
   // Out-of-line allocation allows for checking this is all situations.
@@ -227,9 +226,11 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   }
 
   // The allocation must succeed, as we just refilled the LAB.
-  void* result = (dynamic_alignment == kAllocationGranularity)
-                     ? AllocateObjectOnSpace(space, size, gcinfo)
-                     : AllocateObjectOnSpace(space, size, alignment, gcinfo);
+  void* result =
+      (dynamic_alignment == kAllocationGranularity)
+          ? AllocateObjectOnSpace(space, size, gcinfo, may_contain_mixins)
+          : AllocateObjectOnSpace(space, size, alignment, gcinfo,
+                                  may_contain_mixins);
   CHECK(result);
   return result;
 }

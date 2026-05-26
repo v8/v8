@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 
 namespace cppgc {
@@ -59,10 +60,19 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   size_t AllocatedBytesAtLastGC() const;
 
   // |address| must refer to real object.
+  // These methods must run on the main thread as they may fix up object start
+  // bits.
   template <AccessMode = AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
   template <AccessMode = AccessMode::kNonAtomic>
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
+      const void* address) const;
+  // These methods assume that the object start bit exists for the object and
+  // don't perform any fixups.
+  template <AccessMode = AccessMode::kNonAtomic>
+  HeapObjectHeader& ObjectHeaderFromInnerAddressConcurrent(void* address) const;
+  template <AccessMode = AccessMode::kNonAtomic>
+  const HeapObjectHeader& ObjectHeaderFromInnerAddressConcurrent(
       const void* address) const;
 
   // |address| is guaranteed to point into the page but not payload. Returns
@@ -239,10 +249,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     allocated_bytes_at_last_gc_ = bytes;
   }
 
-  PlatformAwareObjectStartBitmap& object_start_bitmap() {
-    return object_start_bitmap_;
-  }
-  const PlatformAwareObjectStartBitmap& object_start_bitmap() const {
+  PlatformAwareObjectStartBitmap& object_start_bitmap() const {
     return object_start_bitmap_;
   }
 
@@ -251,7 +258,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   ~NormalPage() = default;
 
   size_t allocated_bytes_at_last_gc_ = 0;
-  PlatformAwareObjectStartBitmap object_start_bitmap_;
+  mutable PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
@@ -340,12 +347,66 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   if (is_large()) {
     return *LargePage::From(this)->ObjectHeader();
   }
-  const PlatformAwareObjectStartBitmap& bitmap =
+  // We may find other headers (before this object) because not all object start
+  // bits are initially set. The fixup then makes sure that we indeed find the
+  // right one.
+  PlatformAwareObjectStartBitmap& bitmap =
       NormalPage::From(this)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
-  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
-                         header->AllocatedSize<AccessMode::kAtomic>());
+  ConstAddress object_end =
+      (!header || static_cast<const void*>(header) < PayloadStart())
+          ? PayloadStart()
+          : reinterpret_cast<ConstAddress>(header) +
+                header->AllocatedSize<AccessMode::kAtomic>();
+  const ConstAddress page_end = PayloadEnd();
+  USE(page_end);
+  const auto& lab = NormalPageSpace::From(space()).linear_allocation_buffer();
+  ConstAddress lab_start = lab.size() ? lab.start() : nullptr;
+  const size_t lab_size = lab.size();
+  while (object_end <= address) {
+    // Assuming no past-the-end pointers, object_end may not refer to the
+    // payload end.
+    DCHECK_NE(object_end, page_end);
+    if (lab_start && object_end == lab_start) {
+      // Jump over current lab.
+      object_end = lab_start + lab_size;
+      continue;
+    }
+    bitmap.SetBit<AccessMode::kAtomic>(object_end);
+    header = reinterpret_cast<const HeapObjectHeader*>(object_end);
+    object_end += header->AllocatedSize<AccessMode::kAtomic>();
+  }
+  DCHECK_LT(address, object_end);
+  // Make sure that the pointer is within the object bounds.
+  CHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                        header->AllocatedSize<AccessMode::kAtomic>());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
+  return *header;
+}
+
+template <AccessMode mode>
+HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddressConcurrent(
+    void* address) const {
+  return const_cast<HeapObjectHeader&>(
+      ObjectHeaderFromInnerAddressConcurrent<mode>(
+          const_cast<const void*>(address)));
+}
+
+template <AccessMode mode>
+const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddressConcurrent(
+    const void* address) const {
+  SynchronizedLoad();
+  if (is_large()) {
+    return *LargePage::From(this)->ObjectHeader();
+  }
+  PlatformAwareObjectStartBitmap& bitmap =
+      NormalPage::From(this)->object_start_bitmap();
+  const HeapObjectHeader* header =
+      bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
+  // Make sure that the pointer is within the object bounds.
+  CHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                        header->AllocatedSize<AccessMode::kAtomic>());
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }

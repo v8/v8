@@ -17,7 +17,8 @@ TraceDescriptor TraceTraitFromInnerAddressImpl::GetTraceDescriptor(
   const BasePage* page = BasePage::FromPayload(address);
   page->SynchronizedLoad();
   const HeapObjectHeader& header =
-      page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
+      page->ObjectHeaderFromInnerAddressConcurrent<AccessMode::kAtomic>(
+          address);
   return {header.ObjectStart(),
           GlobalGCInfoTable::GCInfoFromIndex(
               header.GetGCInfoIndex<AccessMode::kAtomic>())

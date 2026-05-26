@@ -129,8 +129,10 @@ HeapObjectHeader* ObjectStartBitmap::FindHeader(
     DCHECK_LT(0u, cell_index);
     byte = load<mode>(--cell_index);
   }
-  // Crash safely instead of returning page_base - 8.
-  CHECK_NE(0, byte);
+  if (!byte) {
+    return nullptr;
+  }
+
   const int leading_zeroes = v8::base::bits::CountLeadingZeros(byte);
   object_start_number =
       (cell_index * kBitsPerCell) + (kBitsPerCell - 1) - leading_zeroes;

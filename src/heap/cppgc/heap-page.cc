@@ -119,16 +119,38 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
                 .linear_allocation_buffer()
                 .size());
 
-    const PlatformAwareObjectStartBitmap& bitmap =
+    PlatformAwareObjectStartBitmap& bitmap =
         NormalPage::From(this)->object_start_bitmap();
     const HeapObjectHeader* header = bitmap.FindHeader<AccessMode::kNonAtomic>(
         static_cast<ConstAddress>(address));
+
+    // We may find other headers (before this object) because not all object
+    // start bits are initially set. The fixup then makes sure that we indeed
+    // find the right one.
+    ConstAddress object_end =
+        (!header || static_cast<const void*>(header) < PayloadStart())
+            ? PayloadStart()
+            : reinterpret_cast<ConstAddress>(header) +
+                  header->AllocatedSize<AccessMode::kAtomic>();
+    const ConstAddress page_end = PayloadEnd();
+    USE(page_end);
+    while (object_end <= address) {
+      DCHECK_NE(object_end, page_end);
+      bitmap.SetBit<AccessMode::kAtomic>(object_end);
+      header = reinterpret_cast<const HeapObjectHeader*>(object_end);
+      object_end += header->AllocatedSize<AccessMode::kAtomic>();
+    }
+
+    if (!header) return nullptr;
+
+    // Boundary check.
     if (address >= reinterpret_cast<ConstAddress>(header) +
                        header->AllocatedSize<AccessMode::kAtomic>()) {
       // Found an object below the current address.
       return nullptr;
     }
     if (header->IsFree()) return nullptr;
+
     DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
     return header;
   }

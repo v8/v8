@@ -260,20 +260,21 @@ class InlinedFinalizationBuilderBase {
   struct ResultType {
     bool is_empty = false;
     size_t largest_new_free_list_entry = 0;
+    FreeList free_list;
   };
 
  protected:
   ResultType result_;
 };
 
-// Builder that finalizes objects and adds freelist entries right away.
+// Builder that finalizes objects and defers freelist merging until sweeping is
+// done.
 template <typename FreeHandler>
 class InlinedFinalizationBuilder final : public InlinedFinalizationBuilderBase,
                                          public FreeHandler {
  public:
   InlinedFinalizationBuilder(BasePage& page, PageAllocator& page_allocator)
-      : FreeHandler(page_allocator,
-                    NormalPageSpace::From(page.space()).free_list(), page) {}
+      : FreeHandler(page_allocator, result_.free_list, page) {}
 
   void AddFinalizer(HeapObjectHeader* header, size_t size) {
     header->Finalize();
@@ -363,14 +364,14 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
       // Clear only if not the first freed entry.
       bitmap.ClearBit<AccessMode::kAtomic>(address);
     } else {
-      // Otherwise check that the bit is set.
-      DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(address));
+      // Otherwise, set the bit.
+      bitmap.SetBit<AccessMode::kAtomic>(address);
     }
   };
 
   for (Address begin = page->PayloadStart(), end = page->PayloadEnd();
        begin != end;) {
-    DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(begin));
+    bitmap.SetBit<AccessMode::kAtomic>(begin);
     HeapObjectHeader* header = reinterpret_cast<HeapObjectHeader*>(begin);
     const size_t size = header->AllocatedSize();
     // Check if this is a free list entry.
@@ -396,7 +397,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
       const size_t new_free_list_entry_size =
           static_cast<size_t>(header_address - start_of_gap);
       builder.AddFreeListEntry(start_of_gap, new_free_list_entry_size);
-      DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(start_of_gap));
+      bitmap.SetBit<AccessMode::kAtomic>(start_of_gap);
     }
     StickyUnmark(header, sticky_bits);
     begin += size;
@@ -413,7 +414,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
   if (!is_empty && start_of_gap != page->PayloadEnd()) {
     builder.AddFreeListEntry(
         start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap));
-    DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(start_of_gap));
+    bitmap.SetBit<AccessMode::kAtomic>(start_of_gap);
   }
   page->SetAllocatedBytesAtLastGC(live_bytes);
   page->ResetMarkedBytes(sticky_bits == StickyBits::kDisabled ? 0 : live_bytes);
@@ -715,7 +716,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     if (ShouldDiscardMemory(free_memory_handling_)) {
       page.ResetDiscardedMemory();
     }
-    const auto result =
+    auto result =
         ShouldDiscardMemory(free_memory_handling_)
             ? SweepNormalPage<
                   InlinedFinalizationBuilder<DiscardingFreeHandler>>(
@@ -735,8 +736,9 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       target_space.AddPage(&page);
       if (result.is_empty) {
         target_space.free_list().Add({page.PayloadStart(), page.PayloadSize()});
+      } else {
+        target_space.free_list().Append(std::move(result.free_list));
       }
-      // The page was eagerly finalized and all the freelist have been merged.
       // Verify that the bitmap is consistent with headers.
       ObjectStartBitmapVerifier().Verify(page);
       largest_consecutive_block_ =
@@ -1011,9 +1013,6 @@ class Sweeper::SweeperImpl final {
         low_priority_foreground_task_runner_.reset();
       }
     }
-
-    // Verify bitmap for all spaces regardless of |compactable_space_handling|.
-    ObjectStartBitmapVerifier().Verify(heap_);
 
     if (ShouldDiscardMemory(config_.free_memory_handling)) {
       // The discarded counter will be recomputed.
