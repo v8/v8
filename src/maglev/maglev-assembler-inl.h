@@ -1180,16 +1180,19 @@ inline void MaglevAssembler::AssertFloat64IsSmi(DoubleRegister value) {
 }
 
 inline void MaglevAssembler::AssertHoleyFloat64IsSmi(DoubleRegister value) {
-  TemporaryRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Label ok, fail;
-  JumpIfHoleNan(value, scratch, &fail);
+  Label ok;
+  ZoneLabelRef fail(this);
+  {
+    TemporaryRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    JumpIfHoleNan(value, scratch, *fail);
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  JumpIfUndefinedNan(value, scratch, &fail);
+    JumpIfUndefinedNan(value, scratch, *fail);
 #endif
+  }
   AssertFloat64IsSmi(value);
   Jump(&ok);
-  bind(&fail);
+  bind(*fail);
   Abort(AbortReason::kInputDoesNotFitSmi);
   bind(&ok);
 }

@@ -296,6 +296,8 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
   PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
   PROCESS_SAFE_CONV(CheckedSmiTagFloat64, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagFloat64, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagHoleyFloat64, tagged, Smi)
   PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
                     truncated_int32_to_number, NumberOrOddball)
   PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,

@@ -561,10 +561,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     }
     case ValueRepresentation::kFloat64: {
       if (node_info->is_smi()) {
-        // TODO(victorgomes): Add UnsafeSmiTagFloat64.
         return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
-                {AddNewNodeNoInputConversion<UnsafeFloat64ToInt32>({value})}));
+            AddNewNodeNoInputConversion<UnsafeSmiTagFloat64>({value}));
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
@@ -572,11 +570,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     }
     case ValueRepresentation::kHoleyFloat64: {
       if (node_info->is_smi()) {
-        // TODO(victorgomes): Add UnsafeSmiTagHoleyFloat64.
         return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
-                {AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToInt32>(
-                    {value})}));
+            AddNewNodeNoInputConversion<UnsafeSmiTagHoleyFloat64>({value}));
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
