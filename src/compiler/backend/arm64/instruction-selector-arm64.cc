@@ -1232,9 +1232,21 @@ void InstructionSelector::VisitMemoryCopy(OpIndex node) {
   Arm64OperandGenerator g(this);
   const auto& memcpy_op = this->Get(node).Cast<MemoryCopyOp>();
 
-  Emit(kArm64Cpy, g.NoOutput(), g.UseRegister(memcpy_op.dst_base()),
-       g.UseRegister(memcpy_op.src_base()),
-       g.UseRegister(memcpy_op.num_bytes()));
+  InstructionOperand inputs[3];
+  inputs[0] = g.UseRegister(memcpy_op.dst_base());
+  inputs[1] = g.UseRegister(memcpy_op.src_base());
+  inputs[2] = g.UseRegister(memcpy_op.num_bytes());
+
+  // Use outputs to represent the clobbered inputs.
+  int out1 = g.AllocateVirtualRegister();
+  int out2 = g.AllocateVirtualRegister();
+  int out3 = g.AllocateVirtualRegister();
+  InstructionOperand outputs[3];
+  outputs[0] = g.DefineSameAsFirstForVreg(out1);
+  outputs[1] = g.DefineSameAsInputForVreg(out2, 1);
+  outputs[2] = g.DefineSameAsInputForVreg(out3, 2);
+
+  Emit(kArm64Cpy, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 void InstructionSelector::VisitMemoryFill(OpIndex node) {
@@ -1242,8 +1254,21 @@ void InstructionSelector::VisitMemoryFill(OpIndex node) {
   Arm64OperandGenerator g(this);
   const auto& memset_op = this->Get(node).Cast<MemoryFillOp>();
 
-  Emit(kArm64Set, g.NoOutput(), g.UseRegister(memset_op.dst_base()),
-       g.UseRegister(memset_op.value()), g.UseRegister(memset_op.num_bytes()));
+  InstructionOperand inputs[3];
+  // This order doesn't match kArm64Set, which will swap the order of 'value'
+  // and 'num_bytes'.
+  inputs[0] = g.UseRegister(memset_op.dst_base());
+  inputs[1] = g.UseRegister(memset_op.value());
+  inputs[2] = g.UseRegister(memset_op.num_bytes());
+
+  // Use outputs to represent the clobbered inputs.
+  int out1 = g.AllocateVirtualRegister();
+  int out2 = g.AllocateVirtualRegister();
+  InstructionOperand outputs[2];
+  outputs[0] = g.DefineSameAsFirstForVreg(out1);
+  outputs[1] = g.DefineSameAsInputForVreg(out2, 2);
+
+  Emit(kArm64Set, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
