@@ -386,7 +386,14 @@ void V8RuntimeAgentImpl::evaluate(
   if (silent.value_or(false)) scope.ignoreExceptionsAndMuteConsole();
   if (userGesture.value_or(false)) scope.pretendUserGesture();
 
-  if (includeCommandLineAPI.value_or(false)) scope.installCommandLineAPI();
+  if (includeCommandLineAPI.value_or(false)) {
+    scope.installCommandLineAPI();
+    if (scope.tryCatch().HasCaught()) {
+      callback->sendFailure(
+          Response::ServerError("Failed to install command line API"));
+      return;
+    }
+  }
 
   const bool replMode = maybeReplMode.value_or(false);
 
