@@ -3178,6 +3178,7 @@ class LiftoffCompiler {
     __ PushRegister(kI64, dest_high);
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_S390X
+    __ SpillLoopArgs(4);
     __ SpillAllRegisters();
 
     // Compute the lowest address of the four 64bit inputs.
