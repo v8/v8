@@ -929,6 +929,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorPrototypeJoin:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_join);
 
+    // --js-iterator-includes
+    case Builtin::kIteratorPrototypeIncludes:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_includes);
+
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants
     case Builtin::kLocalePrototypeVariants:

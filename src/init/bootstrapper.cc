@@ -5685,6 +5685,15 @@ void Genesis::InitializeGlobal_js_iterator_join() {
                         Builtin::kIteratorPrototypeJoin, 1, kAdapt);
 }
 
+void Genesis::InitializeGlobal_js_iterator_includes() {
+  if (!v8_flags.js_iterator_includes) return;
+
+  DirectHandle<JSObject> iterator_prototype(
+      native_context()->initial_iterator_prototype(), isolate());
+  SimpleInstallFunction(isolate(), iterator_prototype, "includes",
+                        Builtin::kIteratorPrototypeIncludes, 1, kDontAdapt);
+}
+
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!v8_flags.harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();

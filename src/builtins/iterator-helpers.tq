@@ -2079,4 +2079,88 @@ transitioning builtin IteratorZipKeyedHelperNext(
   }
 }
 
+// --- includes helper
+
+// https://tc39.es/proposal-iterator-includes/
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeIncludes(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.includes';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  const searchElement = arguments[0];
+  const skippedElements = arguments[1];
+
+  // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+  // undefined, [[Done]]: false }.
+  let toSkip: Number;
+
+  // 4. If skippedElements is undefined, then
+  if (skippedElements == Undefined) {
+    // a. Let toSkip be +0𝔽.
+    toSkip = 0;
+  } else {
+    // 5. Else,
+    //  a. If skippedElements is not one of +∞𝔽, -∞𝔽, or an integral Number,
+    //     then
+    if (!IsIntegerOrSomeInfinity(skippedElements)) {
+      // i. Let error be ThrowCompletion(a newly created TypeError object).
+      // ii. Return ? IteratorClose(iterated, error).
+      IteratorCloseOnException(o);
+      ThrowTypeError(
+          MessageTemplate::kArgumentIsNotUndefinedOrInteger, 'skippedElements');
+    }
+    // b. Let toSkip be skippedElements.
+    toSkip = Cast<Number>(skippedElements) otherwise unreachable;
+  }
+
+  // 6. If toSkip < -0𝔽, then
+  if (toSkip < 0) {
+    // a. Let error be ThrowCompletion(a newly created RangeError object).
+    // b. Return ? IteratorClose(iterated, error).
+    IteratorCloseOnException(o);
+    ThrowRangeError(MessageTemplate::kMustBePositive, skippedElements);
+  }
+
+  // 7. Let skipped be +0𝔽.
+  let skipped: Number = 0;
+
+  // 8. Set iterated to ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 9. Repeat,
+  while (true) {
+    // a. Let value be ? IteratorStepValue(iterated).
+    let value: JSAny;
+    try {
+      value = IteratorStepValue(iterated, fastIteratorResultMap)
+          otherwise Done, DoneWithException;
+    } label Done {
+      // b. If value is done, return false.
+      return False;
+    } label DoneWithException(e: JSAny, message: JSMessageObject|TheHole) {
+      ReThrowWithMessage(context, e, message);
+    }
+    // c. If skipped < toSkip, then
+    if (skipped < toSkip) {
+      // i. Set skipped to skipped + 1𝔽.
+      skipped = skipped + 1;
+    } else {
+      // d. Else if SameValueZero(value, searchElement) is true, then
+      if (SameValueZero(value, searchElement)) {
+        // i. Return ? IteratorClose(iterated, NormalCompletion(true)).
+        IteratorClose(iterated);
+        return True;
+      }
+    }
+  }
+  unreachable;
+}
+
 }  // namespace iterator

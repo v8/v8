@@ -335,7 +335,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_joint_iteration, "joint iteration")             \
   V(js_import_text, "import text")                     \
-  V(js_defer_import_eval, "defer import eval")
+  V(js_defer_import_eval, "defer import eval")         \
+  V(js_iterator_includes, "Iterator.prototype.includes")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)

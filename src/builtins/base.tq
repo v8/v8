@@ -521,6 +521,7 @@ extern enum MessageTemplate {
   kObjectSetterCallable,
   kPropertyDescObject,
   kMustBePositive,
+  kArgumentIsNotUndefinedOrInteger,
   kIteratorReduceNoInitial,
   kSizeIsNaN,
   kArgumentIsNonObject,
@@ -1691,6 +1692,25 @@ extern macro BranchIfSameValue(
 macro SameValue(
     a: JSAny|TaggedWithIdentity, b: JSAny|TaggedWithIdentity): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
+}
+
+// https://tc39.es/ecma262/#sec-samevaluezero
+// https://tc39.es/ecma262/#sec-numeric-types-number-sameValueZero
+macro SameValueZero(a: JSAny, b: JSAny): bool {
+  // According to the spec, SameValueZero(x, y) differs from StrictEqual(x, y)
+  // and SameValue(x, y) only in how it handles NaN and zeroes. All three agree
+  // in all other cases:
+  //
+  // |               | NaN vs NaN | +0 vs -0 |
+  // | :---          | :---       | :---     |
+  // | StrictEqual   | false      | true     |
+  // | SameValue     | true       | false    |
+  // | SameValueZero | true       | true     |
+  //
+  // By taking the disjunction of StrictEqual and SameValue, we catch all cases
+  // where SameValueZero should return true. SameValue only catches the NaN vs
+  // NaN case.
+  return (StrictEqual(a, b) == True) || SameValue(a, b);
 }
 
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
