@@ -2868,6 +2868,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<String> source;
   if (!ReadSource(info, 1, CodeType::kString).ToLocal(&source)) {
+    if (reinterpret_cast<i::Isolate*>(isolate)->has_exception()) return;
     if (!ValidateRealmIndex(isolate, data, index)) return;
     ThrowError(isolate, "Invalid argument");
     return;
@@ -3692,21 +3693,23 @@ void Shell::GetExtrasBindingObject(
   info.GetReturnValue().Set(context->GetExtrasBindingObject());
 }
 
-void Shell::ReadCodeTypeAndArguments(
+bool Shell::ReadCodeTypeAndArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info, int index,
     CodeType* code_type, Local<Value>* arguments) {
   Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (info.Length() > index && info[index]->IsObject()) {
     Local<Object> object = info[index].As<Object>();
     Local<Context> context = isolate->GetCurrentContext();
     Local<Value> value;
     if (!TryGetValue(isolate, context, object, "type").ToLocal(&value)) {
+      if (i_isolate->has_exception()) return false;
       *code_type = CodeType::kNone;
-      return;
+      return true;
     }
     if (!value->IsString()) {
       *code_type = CodeType::kInvalid;
-      return;
+      return true;
     }
     Local<String> worker_type_string =
         value->ToString(context).ToLocalChecked();
@@ -3721,13 +3724,15 @@ void Shell::ReadCodeTypeAndArguments(
       *code_type = CodeType::kInvalid;
     }
     if (arguments != nullptr) {
-      bool got_arguments =
-          TryGetValue(isolate, context, object, "arguments").ToLocal(arguments);
-      USE(got_arguments);
+      if (!TryGetValue(isolate, context, object, "arguments")
+               .ToLocal(arguments)) {
+        if (i_isolate->has_exception()) return false;
+      }
     }
   } else {
     *code_type = CodeType::kNone;
   }
+  return true;
 }
 
 bool Shell::FunctionAndArgumentsToString(Local<Function> function,
@@ -3809,7 +3814,9 @@ MaybeLocal<String> Shell::ReadSource(
     CodeType default_type) {
   CodeType code_type;
   Local<Value> arguments;
-  ReadCodeTypeAndArguments(info, index + 1, &code_type, &arguments);
+  if (!ReadCodeTypeAndArguments(info, index + 1, &code_type, &arguments)) {
+    return MaybeLocal<String>();
+  }
 
   Isolate* isolate = info.GetIsolate();
   Local<String> source;
@@ -3861,6 +3868,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<String> source;
   if (!ReadSource(info, 0, CodeType::kFileName).ToLocal(&source)) {
+    if (reinterpret_cast<i::Isolate*>(isolate)->has_exception()) return;
     ThrowError(isolate, "Invalid argument");
     return;
   }

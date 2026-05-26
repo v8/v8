@@ -741,7 +741,8 @@ class Shell : public i::AllStatic {
   static void FreeUnicodeFilenameArgs();
 #endif
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void ReadCodeTypeAndArguments(
+  // Returns false if any exception occurred. Otherwise returns true.
+  static bool ReadCodeTypeAndArguments(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
       CodeType* code_type, Local<Value>* arguments = nullptr);
   static bool FunctionAndArgumentsToString(Local<Function> function,
