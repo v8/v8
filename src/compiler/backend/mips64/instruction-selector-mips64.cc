@@ -797,8 +797,6 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode = is_add ? kMips64Add128 : kMips64Sub128;
   InstructionCode opcode_no_high = is_add ? kMips64Dadd : kMips64Dsub;
 
-  DCHECK(out_low.valid());
-
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
     InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
     selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
@@ -818,7 +816,8 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   inputs[input_count++] = g.UseUniqueRegister(op.left_high());
   inputs[input_count++] = g.UseUniqueRegister(op.right_high());
 
-  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
   outputs[output_count++] = g.DefineAsRegister(out_high.value());
 
   selector->Emit(opcode, output_count, outputs, input_count, inputs);

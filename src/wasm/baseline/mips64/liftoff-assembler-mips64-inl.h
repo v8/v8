@@ -1561,6 +1561,39 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
   MacroAssembler::Daddu(dst.gp(), lhs.gp(), Operand(imm));
 }
 
+void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, bl);
+  DCHECK_NE(dst_low, dst_high);
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  Daddu(dst_low, al, bl);
+  Daddu(scratch, ah, bh);
+  Sltu(dst_high, dst_low, bl);
+  Daddu(dst_high, scratch, dst_high);
+}
+
+void LiftoffAssembler::emit_i64_sub128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  Sltu(scratch, al, bl);
+  Dsubu(dst_low, al, bl);
+  Dsubu(dst_high, ah, bh);
+  Dsubu(dst_high, dst_high, scratch);
+}
+
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   MacroAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
@@ -1578,9 +1611,41 @@ void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
   MacroAssembler::Dmul(dst.gp(), lhs.gp(), scratch);
 }
 
-void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+void LiftoffAssembler::emit_i64_mul_wide_s() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
 
-void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
+  LiftoffRegister low_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister high_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{low_result});
+
+  Dmult(lhs.gp(), rhs.gp());
+  mflo(low_result.gp());
+  mfhi(high_result.gp());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_u() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
+
+  LiftoffRegister low_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister high_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{low_result});
+
+  Dmultu(lhs.gp(), rhs.gp());
+  mflo(low_result.gp());
+  mfhi(high_result.gp());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
