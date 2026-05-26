@@ -574,55 +574,8 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
 
   // Otherwise, do a best effort to get the value without allocation.
   switch (kind()) {
-    case kTagged: {
-      Tagged<Object> object = raw_literal();
-      if (IsSlicedString(object)) {
-        // If {object} is a sliced string of length smaller than
-        // SlicedString::kMinLength, then trim the underlying SeqString and
-        // return it. This assumes that such sliced strings are only built by
-        // the fast string builder optimization of Turbofan's
-        // StringBuilderOptimizer/EffectControlLinearizer.
-        Tagged<SlicedString> string = Cast<SlicedString>(object);
-        if (string->length() < SlicedString::kMinLength) {
-          Tagged<String> backing_store = string->parent();
-          CHECK(IsSeqString(backing_store));
-
-          // Creating filler at the end of the backing store if needed.
-          int string_size =
-              IsSeqOneByteString(backing_store)
-                  ? SeqOneByteString::SizeFor(backing_store->length())
-                  : SeqTwoByteString::SizeFor(backing_store->length());
-          int needed_size = IsSeqOneByteString(backing_store)
-                                ? SeqOneByteString::SizeFor(string->length())
-                                : SeqTwoByteString::SizeFor(string->length());
-          if (needed_size < string_size) {
-            Address new_end = backing_store.address() + needed_size;
-            isolate()->heap()->CreateFillerObjectAt(
-                new_end, (string_size - needed_size));
-          }
-
-          // Updating backing store's length, effectively trimming it.
-          backing_store->set_length(string->length());
-
-          // Zeroing the padding bytes of {backing_store}.
-          SeqString::DataAndPaddingSizes sz =
-              Cast<SeqString>(backing_store)->GetDataAndPaddingSizes();
-          auto padding =
-              reinterpret_cast<char*>(backing_store.address() + sz.data_size);
-          for (int i = 0; i < sz.padding_size; ++i) {
-            padding[i] = 0;
-          }
-
-          // Overwriting {string} with a filler, so that we don't leave around a
-          // potentially-too-small SlicedString.
-          isolate()->heap()->CreateFillerObjectAt(string.address(),
-                                                  sizeof(SlicedString));
-
-          return backing_store;
-        }
-      }
-      return object;
-    }
+    case kTagged:
+      return raw_literal();
 
     case kInt32: {
       bool is_smi = Smi::IsValid(int32_value());
