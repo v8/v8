@@ -313,10 +313,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
-#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
-  V(js_decorators, "decorators")                     \
-  V(js_source_phase_imports, "source phase imports") \
-  V(js_defer_import_eval, "defer import eval")
+#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V) \
+  V(js_decorators, "decorators")               \
+  V(js_source_phase_imports, "source phase imports")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -335,7 +334,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_iterator_join, "Iterator.prototype.join")       \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_joint_iteration, "joint iteration")             \
-  V(js_import_text, "import text")
+  V(js_import_text, "import text")                     \
+  V(js_defer_import_eval, "defer import eval")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
