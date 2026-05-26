@@ -4058,7 +4058,7 @@ JSNativeContextSpecialization::
     // Load the base pointer for the {receiver}. This will always be Smi
     // zero unless we allow on-heap TypedArrays, which is only the case
     // for Chrome. Node and Electron both set this limit to 0. Setting
-    // the base to Smi zero here allows the EffectControlLinearizer to
+    // the base to Smi zero here allows the MachineLoweringReducer to
     // optimize away the tricky part of the access later.
     if (JSTypedArray::kMaxSizeInHeap == 0) {
       base_pointer = jsgraph()->ZeroConstant();

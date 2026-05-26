@@ -271,8 +271,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintTurboshaftGraph)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
-                              ScheduledEffectControlLinearization)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ScheduledMachineLowering)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)                \

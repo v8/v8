@@ -620,12 +620,12 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Using same algorithm as in EffectControlLinearizer:
+  // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     // Different from EffectControlLinearizer, using mod.w directly.
+  //     // Different from MachineLoweringReducer, using mod.w directly.
   //     let out = lhs_abs % rhs in
   //     deopt if out == 0
   //   else

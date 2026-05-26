@@ -100,7 +100,7 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
     USE(i);
 
 #ifdef V8_TARGET_ARCH_X64
-    // Clamp lowering in EffectControlLinearizer uses rounding.
+    // Clamp lowering in FastApiCallLoweringReducer uses rounding.
     uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
     if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
       return CpuFeatures::IsSupported(SSE4_2);
