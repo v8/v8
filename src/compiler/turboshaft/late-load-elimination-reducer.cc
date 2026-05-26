@@ -29,7 +29,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem) {
   return os << "MemoryAddress{base=" << mem.base << ", index=" << mem.index
             << ", offset=" << mem.offset << ", elem_size_log2="
             << static_cast<uint32_t>(mem.element_size_log2)
-            << ", repr=" << mem.representation << "}";
+            << ", size=" << static_cast<uint32_t>(mem.size) << "}";
 }
 
 void LateLoadEliminationAnalyzer::Run() {
@@ -309,21 +309,31 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
 namespace {
 
-// Returns true if replacing a Load with a MemoryRepresentation of
-// {expected_loaded_repr} with an operation with RegisterRepresentation {actual}
-// is valid. It is currently not valid to load-eliminate when the replacement
-// was truncated when being stored or should be truncated (or sign-extended)
-// during the load. Since we don't have enough truncations operators in
-// Turboshaft (e.g. we don't have Int32 to Int8 truncation), we just prevent
-// load elimination in this case.
-// TODO(dmercadier): add more truncations operators to Turboshaft, and insert
-// the correct truncation when there is a mismatch between
-// {expected_loaded_repr} and {actual}.
-bool RepSizeIsCompatible(RegisterRepresentation actual,
-                         MemoryRepresentation expected_loaded_repr) {
-  return expected_loaded_repr.SizeInBytes() ==
-         MemoryRepresentation::FromRegisterRepresentation(actual, true)
-             .SizeInBytes();
+// Returns true if replacing a Load with a RegisterRepresentation
+// {expected_reg_rep} and MemoryRepresentation of {expected_loaded_repr} with an
+// operation with RegisterRepresentation {actual} is valid. For instance,
+// replacing an operation that returns a Float64 by one that returns a Word64 is
+// not valid. Similarly, replacing a Tagged with an untagged value is probably
+// not valid because of the GC.
+bool RepIsCompatible(RegisterRepresentation actual,
+                     RegisterRepresentation expected_reg_repr,
+                     MemoryRepresentation expected_loaded_repr) {
+  if (expected_loaded_repr.SizeInBytes() !=
+      MemoryRepresentation::FromRegisterRepresentation(actual, true)
+          .SizeInBytes()) {
+    // The replacement was truncated when being stored or should be truncated
+    // (or sign-extended) during the load. Since we don't have enough
+    // truncations operators in Turboshaft (eg, we don't have Int32 to Int8
+    // truncation), we just prevent load elimination in this case.
+
+    // TODO(dmercadier): add more truncations operators to Turboshaft, and
+    // insert the correct truncation when there is a mismatch between
+    // {expected_loaded_repr} and {actual}.
+
+    return false;
+  }
+
+  return expected_reg_repr == actual;
 }
 
 }  // namespace
@@ -352,20 +362,22 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
   if (OpIndex existing = memory_.Find(load); existing.valid()) {
     const Operation& replacement = graph_.Get(existing);
+    // We need to make sure that {load} and {replacement} have the same output
+    // representation. In particular, in unreachable code, it's possible that
+    // the two of them have incompatible representations (like one could be
+    // Tagged and the other one Float64).
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    // This is true because MemoryRepresentation is part of MemoryAddress,
-    // and compatible MemoryRepresentations imply compatible
-    // RegisterRerpesentations.
-    DCHECK_EQ(replacement.outputs_rep()[0], load.outputs_rep()[0]);
     TRACE(">> Found potential replacement at offset " << existing);
-    if (RepSizeIsCompatible(replacement.outputs_rep()[0], load.loaded_rep)) {
+    if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
+                        load.loaded_rep)) {
       TRACE(">>> Confirming replacement");
       replacements_[op_idx] = Replacement::LoadElimination(existing);
       return;
     } else {
-      TRACE(">>> Replacement incompatible, needs truncation: "
-            << load.loaded_rep);
+      TRACE(">>> Replacement has wrong representation: "
+            << replacement.outputs_rep()[0] << " instead of "
+            << load.outputs_rep()[0]);
     }
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a

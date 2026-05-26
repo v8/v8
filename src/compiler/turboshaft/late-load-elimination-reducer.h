@@ -121,9 +121,8 @@ namespace v8::internal::compiler::turboshaft {
 //     5. Invalidate everything (for an indexed store into an arbitrary base)
 //
 // To have 1. in constant time, we maintain a global hashmap (`all_keys`) from
-// MemoryAddress (= {base, index, offset, element_size_log2,
-// MemoryRepresentation}) to Keys, and from these Keys, we have constant-time
-// lookup in the SnapshotTable.
+// MemoryAddress (= {base, index, offset, element_size_log2, size}) to Keys, and
+// from these Keys, we have constant-time lookup in the SnapshotTable.
 // To have 3. efficiently, we maintain a Map from offsets to lists of every
 // MemoryAddress at this offset (`offset_keys_`).
 // To have 4. efficiently, we have a similar map from bases to lists of every
@@ -193,26 +192,25 @@ struct MemoryAddress {
   OptionalOpIndex index;
   int32_t offset;
   uint8_t element_size_log2;
-  MemoryRepresentation representation;
+  uint8_t size;
 
   bool operator==(const MemoryAddress& other) const {
     return base == other.base && index == other.index &&
            offset == other.offset &&
-           element_size_log2 == other.element_size_log2 &&
-           representation == other.representation;
+           element_size_log2 == other.element_size_log2 && size == other.size;
   }
 
   template <typename H>
   friend H AbslHashValue(H h, const MemoryAddress& mem) {
     return H::combine(std::move(h), mem.base, mem.index, mem.offset,
-                      mem.element_size_log2, mem.representation.value());
+                      mem.element_size_log2, mem.size);
   }
 };
 std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
 
 inline size_t hash_value(MemoryAddress const& mem) {
   return fast_hash_combine(mem.base, mem.index, mem.offset,
-                           mem.element_size_log2, mem.representation.value());
+                           mem.element_size_log2, mem.size);
 }
 
 struct KeyData {
@@ -461,8 +459,9 @@ class MemoryContentTable
     OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
+    uint8_t size = load.loaded_rep.SizeInBytes();
 
-    MemoryAddress mem{base, index, offset, element_size_log2, load.loaded_rep};
+    MemoryAddress mem{base, index, offset, element_size_log2, size};
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
@@ -474,12 +473,12 @@ class MemoryContentTable
     int32_t offset = store.offset;
     uint8_t element_size_log2 = index.valid() ? store.element_size_log2 : 0;
     OpIndex value = store.value();
+    uint8_t size = store.stored_rep.SizeInBytes();
 
     if (store.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, store.stored_rep,
-                      value);
+      InsertImmutable(base, index, offset, element_size_log2, size, value);
     } else {
-      Insert(base, index, offset, element_size_log2, store.stored_rep, value);
+      Insert(base, index, offset, element_size_log2, size, value);
     }
   }
 
@@ -488,12 +487,12 @@ class MemoryContentTable
     OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
+    uint8_t size = load.loaded_rep.SizeInBytes();
 
     if (load.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, load.loaded_rep,
-                      load_idx);
+      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
     } else {
-      Insert(base, index, offset, element_size_log2, load.loaded_rep, load_idx);
+      Insert(base, index, offset, element_size_log2, size, load_idx);
     }
   }
 
@@ -501,10 +500,11 @@ class MemoryContentTable
   OpIndex Find(const LoadTrustedPointerOp& load) {
     OpIndex base = ResolveBase(load.base());
     int32_t offset = load.offset;
-    constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
+    uint8_t element_size_log2 = 0;  // Unused;
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
-    MemoryAddress mem{base, OpIndex::Invalid(), offset, kElementSizeLog2,
-                      MemoryRepresentation::TrustedPointer()};
+    MemoryAddress mem{base, OpIndex::Invalid(), offset, element_size_log2,
+                      size};
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
@@ -513,14 +513,15 @@ class MemoryContentTable
   void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
     OpIndex base = ResolveBase(load.base());
     int32_t offset = load.offset;
-    constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
+    uint8_t element_size_log2 = 0;  // Unused.
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
     if (load.kind.is_immutable) {
-      InsertImmutable(base, OpIndex::Invalid(), offset, kElementSizeLog2,
-                      MemoryRepresentation::TrustedPointer(), load_idx);
+      InsertImmutable(base, OpIndex::Invalid(), offset, element_size_log2, size,
+                      load_idx);
     } else {
-      Insert(base, OpIndex::Invalid(), offset, kElementSizeLog2,
-             MemoryRepresentation::TrustedPointer(), load_idx);
+      Insert(base, OpIndex::Invalid(), offset, element_size_log2, size,
+             load_idx);
     }
   }
 #endif
@@ -571,11 +572,10 @@ class MemoryContentTable
   static constexpr size_t kMaxKeys = 10000;
 
   void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
-              uint8_t element_size_log2, MemoryRepresentation representation,
-              OpIndex value) {
+              uint8_t element_size_log2, uint8_t size, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
-    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    MemoryAddress mem{base, index, offset, element_size_log2, size};
     TRACE("> MemoryContentTable: will insert " << mem
                                                << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
@@ -601,11 +601,10 @@ class MemoryContentTable
   }
 
   void InsertImmutable(OpIndex base, OptionalOpIndex index, int32_t offset,
-                       uint8_t element_size_log2,
-                       MemoryRepresentation representation, OpIndex value) {
+                       uint8_t element_size_log2, uint8_t size, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
-    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    MemoryAddress mem{base, index, offset, element_size_log2, size};
     TRACE("> MemoryContentTable: will insert immutable "
           << mem << " with value=" << value);
     auto existing_key = all_keys_.find(mem);

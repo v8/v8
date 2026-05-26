@@ -966,9 +966,6 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
-    case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return {kArm64StrIndirectPointer, kLoadStoreImm32};
     case MemoryRepresentation::SandboxedPointer():
@@ -1346,9 +1343,6 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return {kArm64LdrDecompressProtected, kNoImmediate};
     case MemoryRepresentation::IndirectPointer():
-      UNREACHABLE();
-    case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};

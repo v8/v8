@@ -72,8 +72,6 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
       return os << "IndirectPointer";
     case MemoryRepresentation::SandboxedPointer():
       return os << "SandboxedPointer";
-    case MemoryRepresentation::TrustedPointer():
-      return os << "TrustedPointer";
     case MemoryRepresentation::Simd128():
       return os << "Simd128";
     case MemoryRepresentation::Simd256():

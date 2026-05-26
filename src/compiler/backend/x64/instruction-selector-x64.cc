@@ -902,9 +902,6 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       return kX64MovqDecompressProtected;
     case MemoryRepresentation::IndirectPointer():
       UNREACHABLE();
-    case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
-      UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return kX64MovqDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -1015,9 +1012,6 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       return kX64Movq;
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
-      UNREACHABLE();
-    case MemoryRepresentation::TrustedPointer():
-      // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return kX64MovqStoreIndirectPointer;
