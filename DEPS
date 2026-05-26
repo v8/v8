@@ -158,9 +158,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e7d8c725e6bb8784aa139fb7a738ef84c3a2a1d2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd52d4db8e864175967fcf12287b80bb7460ebccd',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '152ef14c5ed0be1a786dcaee440f5bbbf1ec9dbf',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a35d7c65cee47ceb7929eba330ae8c307b88dd77',
   'buildtools/linux64': {
     'packages': [
       {
@@ -581,7 +581,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5c1dfd53066bf58d3d28197f715717dd88762443',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3246f1b60849cc505e231c5d19d0cbf358093555',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7c732b779bfeb5cf0255c42a8375fac0d9ae0bc4',
   'tools/protoc_wrapper':
