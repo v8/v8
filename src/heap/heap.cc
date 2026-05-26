@@ -1340,15 +1340,12 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
                                             ? PerformHeapLimitCheck::kNo
                                             : PerformHeapLimitCheck::kYes;
-  const auto perform_ineffective_mc_check =
-      v8_flags.ineffective_gcs_forces_last_resort
-          ? PerformIneffectiveMarkCompactCheck::kNo
-          : PerformIneffectiveMarkCompactCheck::kYes;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
     CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
-                   perform_heap_limit_check, perform_ineffective_mc_check);
+                   perform_heap_limit_check,
+                   PerformIneffectiveMarkCompactCheck::kNo);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 
     // As long as we are at or above the heap limit, we need another GC to
@@ -1364,11 +1361,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
 
   CheckHeapLimitReached();
-  if (v8_flags.ineffective_gcs_forces_last_resort) {
-    CheckIneffectiveMarkCompact(
-        OldGenerationConsumedBytes(), GlobalConsumedBytes(),
-        tracer()->AverageMarkCompactMutatorUtilization());
-  }
+  CheckIneffectiveMarkCompact(OldGenerationConsumedBytes(),
+                              GlobalConsumedBytes(),
+                              tracer()->AverageMarkCompactMutatorUtilization());
 
   CompleteArrayBufferSweeping();
 

@@ -539,8 +539,7 @@ bool HeapAllocator::CollectGarbageAndRetryAllocation(
                                             : PerformHeapLimitCheck::kYes;
 
   for (int i = 0; i < 2; i++) {
-    if (v8_flags.ineffective_gcs_forces_last_resort &&
-        allocation != AllocationType::kYoung &&
+    if (allocation != AllocationType::kYoung &&
         heap_for_allocation(allocation)
             ->HasConsecutiveIneffectiveMarkCompact()) {
       return false;

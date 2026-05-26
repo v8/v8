@@ -2598,8 +2598,6 @@ DEFINE_BOOL(
 // ArrayBuffer::kMaxByteLength.
 DEFINE_INT(maximum_global_heap_limit_factor, 8,
            "Ratio from v8 to global maximum heap size")
-DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
-            "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
     ineffective_gc_size_threshold, 0.95,
     "Threshold on heap size to trigger out-of-memory failure near heap limit.")
