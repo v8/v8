@@ -1011,13 +1011,8 @@ bool RegExpMacroAssemblerX64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
 
 bool RegExpMacroAssemblerX64::SkipUntilOneOfMasked3UseSimd(
     const SkipUntilOneOfMasked3Args& args) {
-  // TODO(476966362): Temporarily disabled due to regressions on
-  // Speedometer3/TodoMVC-jQuery.
-  return false;
-  // To use the SIMD variant we require SSSE3 as there is no shuffle equivalent
-  // in older extensions.
-  // return v8_flags.regexp_simd && char_size() == 1 &&
-  //        CpuFeatures::IsSupported(SSSE3);
+  return v8_flags.regexp_simd && char_size() == 1 &&
+         CpuFeatures::IsSupported(SSSE3);
 }
 
 void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
@@ -1069,9 +1064,11 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
         // If no match is found, it is reverted to the previous state before
         // returning to simd code for the next loop iteration.
         // The callee_saved register must be preserved across the inner block.
-        static constexpr int kPushedRegisters = 2;
-        __ pushq(rdi);
-        __ pushq(callee_saved);
+        // We use free scratch registers r10 and r9 to save rdi and
+        // callee_saved, avoiding slow stack push/pop memory operations on the
+        // mismatch path.
+        __ movq(r10, rdi);
+        __ movq(r9, callee_saved);
         __ addq(rdi, index);
 
         // bc2: Load.
@@ -1094,21 +1091,18 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
                                   &continue_outer_loop);
 
         // Success cases:
-        __ Drop(kPushedRegisters);
         GoTo(args.fallthrough_jump_target);
 
         Bind(&pop_and_goto_bc6_on_equal);
-        __ Drop(kPushedRegisters);
         GoTo(args.bc6_on_equal);
 
         Bind(&pop_and_goto_bc7_on_equal);
-        __ Drop(kPushedRegisters);
         GoTo(args.bc7_on_equal);
 
         Bind(&continue_outer_loop);
         // Restore the previous current position before continuing.
-        __ popq(callee_saved);
-        __ popq(rdi);
+        __ movq(callee_saved, r9);
+        __ movq(rdi, r10);
       });
 
   Bind(&scalar_fallback);

@@ -961,10 +961,7 @@ bool RegExpMacroAssemblerARM64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
 
 bool RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3UseSimd(
     const SkipUntilOneOfMasked3Args& args) {
-  // TODO(476966362): Temporarily disabled due to regressions on
-  // Speedometer3/TodoMVC-jQuery.
-  return false;
-  // return v8_flags.regexp_simd && char_size() == 1;
+  return v8_flags.regexp_simd && char_size() == 1;
 }
 
 void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
@@ -998,8 +995,11 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
         // The current position is temporarily advanced for this inner block.
         // If no match is found, it is reverted to the previous state before
         // returning to simd code for the next loop iteration.
-        static constexpr int kPushedRegisters = 2;
-        __ Push(callee_saved, current_input_offset().X());
+        // We use free scratch registers x14 and x15 to save
+        // current_input_offset and callee_saved, avoiding slow stack push/pop
+        // memory operations on the mismatch path.
+        __ Mov(x14, current_input_offset().X());
+        __ Mov(x15, callee_saved);
         __ Add(current_input_offset(), current_input_offset(),
                Operand(index, SXTW));
 
@@ -1023,21 +1023,18 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
                                   &continue_outer_loop);
 
         // Success cases:
-        __ Drop(kPushedRegisters);
         GoTo(args.fallthrough_jump_target);
 
         Bind(&pop_and_goto_bc6_on_equal);
-        __ Drop(kPushedRegisters);
         GoTo(args.bc6_on_equal);
 
         Bind(&pop_and_goto_bc7_on_equal);
-        __ Drop(kPushedRegisters);
         GoTo(args.bc7_on_equal);
 
         Bind(&continue_outer_loop);
         // Restore the previous current position before continuing.
-        static_assert(kPushedRegisters == 2);
-        __ Pop(current_input_offset().X(), callee_saved);
+        __ Mov(callee_saved, x15);
+        __ Mov(current_input_offset().X(), x14);
       });
 
   Bind(&scalar_fallback);
