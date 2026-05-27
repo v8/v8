@@ -4131,6 +4131,8 @@ class TurboshaftGraphBuildingInterface
          __ TagSmi(
              __ RelocatableWasmCanonicalSignatureId(new_csig_index.index))},
         native_context);
+    // The continuation is used above, so we don't need to Retain it explicitly
+    // to keep the external stack pointer alive.
     result->op = cont;
   }
 
@@ -4207,6 +4209,9 @@ class TurboshaftGraphBuildingInterface
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
                                     HandleEffects::kYes>(
             decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    // Keep the continuation object alive to ensure that the external stack
+    // pointer is not freed prematurely.
+    __ Retain(V<Object>::Cast(cont_ref.op));
     UnpackResumeReturns(sig->returns(), returns, result_buffer);
   }
 
@@ -4257,6 +4262,9 @@ class TurboshaftGraphBuildingInterface
             decoder,
             {stack, tag, array, trusted_instance_data(SharedFlag::kNo)},
             CheckForException::kCatchInThisFrame);
+    // Keep the continuation object alive to ensure that the external stack
+    // pointer is not freed prematurely.
+    __ Retain(V<Object>::Cast(cont_ref.op));
     const FunctionSig* sig =
         decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
     UnpackResumeReturns(sig->returns(), returns, result_buffer);
@@ -4274,6 +4282,9 @@ class TurboshaftGraphBuildingInterface
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrowRef,
                                     HandleEffects::kYes>(
             decoder, {stack, exn.op}, CheckForException::kCatchInThisFrame);
+    // Keep the continuation object alive to ensure that the external stack
+    // pointer is not freed prematurely.
+    __ Retain(V<Object>::Cast(cont_ref.op));
     const FunctionSig* sig =
         decoder->module_->signature(cont_imm.cont_type->contfun_typeindex());
     UnpackResumeReturns(sig->returns(), returns, result_buffer);
@@ -4339,6 +4350,9 @@ class TurboshaftGraphBuildingInterface
         {wanted_tag, cont, stack, result_buffer,
          __ RelocatableWasmCanonicalSignatureId(return_csig_index.index)},
         CheckForException::kCatchInThisFrame);
+    // Keep the continuation object alive to ensure that the external stack
+    // pointer is not freed prematurely.
+    __ Retain(V<Object>::Cast(cont_ref.op));
 
     instance_cache_.ReloadCachedMemory();
     UnpackResumeReturns(return_sig->parameters(), returns, result_buffer);
