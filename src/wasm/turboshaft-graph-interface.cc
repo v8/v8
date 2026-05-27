@@ -232,6 +232,14 @@ class TurboshaftGraphBuildingInterface
   using Value = wasm::Value;
   using Control = wasm::Control;
 
+  static constexpr bool kTurboshaftNeedsStackSlotForWideArithmetic =
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_S390X
+      true;
+#else
+      false;
+#endif
+
  public:
   // For non-inlined functions.
   TurboshaftGraphBuildingInterface(
@@ -432,6 +440,12 @@ class TurboshaftGraphBuildingInterface
       branch_hinting_mode_ = BranchHintingMode::kModuleProvided;
     } else {
       branch_hinting_mode_ = BranchHintingMode::kNone;
+    }
+
+    if (kTurboshaftNeedsStackSlotForWideArithmetic &&
+        decoder->enabled_.has_wide_arithmetic()) {
+      wide_ops_stack_buffer_ =
+          __ StackSlot(kWideOpsStackBufferSize, kInt64Size);
     }
   }
 
@@ -931,59 +945,58 @@ class TurboshaftGraphBuildingInterface
   void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& al,
                const Value& ah, const Value& bl, const Value& bh,
                Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_S390X
-    // Possible future ops that might want to reuse the wide op stack buffer
-    // might need other sizes.
-    static_assert(4 * kInt64Size <= kWideOpsStackBufferSize);
-    V<WordPtr> stack_slot = GetWideOpsStackBuffer();
+    if constexpr (kTurboshaftNeedsStackSlotForWideArithmetic) {
+      // Possible future ops that might want to reuse the wide op stack buffer
+      // might need other sizes.
+      static_assert(4 * kInt64Size <= kWideOpsStackBufferSize);
+      V<WordPtr> stack_slot = GetWideOpsStackBuffer();
 
-    __ Store(stack_slot, bh.get<Word64>(), StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier, 0);
-    __ Store(stack_slot, bl.get<Word64>(), StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
-             kInt64Size);
-    __ Store(stack_slot, ah.get<Word64>(), StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
-             2 * kInt64Size);
-    __ Store(stack_slot, al.get<Word64>(), StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
-             3 * kInt64Size);
+      __ Store(stack_slot, bh.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier, 0);
+      __ Store(stack_slot, bl.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               kInt64Size);
+      __ Store(stack_slot, ah.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               2 * kInt64Size);
+      __ Store(stack_slot, al.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               3 * kInt64Size);
 
-    MachineType reps[]{MachineType::Pointer()};
-    MachineSignature sig(0, 1, reps);
-    switch (opcode) {
-      case kExprI64Add128:
-        CallC(&sig, ExternalReference::wasm_int128_add(), stack_slot);
-        break;
-      case kExprI64Sub128:
-        CallC(&sig, ExternalReference::wasm_int128_sub(), stack_slot);
-        break;
-      default:
-        UNREACHABLE();
+      MachineType reps[]{MachineType::Pointer()};
+      MachineSignature sig(0, 1, reps);
+      switch (opcode) {
+        case kExprI64Add128:
+          CallC(&sig, ExternalReference::wasm_int128_add(), stack_slot);
+          break;
+        case kExprI64Sub128:
+          CallC(&sig, ExternalReference::wasm_int128_sub(), stack_slot);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      result_low->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
+                               MemoryRepresentation::Uint64(), 3 * kInt64Size);
+      result_high->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
+                                MemoryRepresentation::Uint64(), 2 * kInt64Size);
+    } else {
+      V<compiler::turboshaft::Word64Pair> op;
+      switch (opcode) {
+        case kExprI64Add128:
+          op = __ Add128(al.get<Word64>(), ah.get<Word64>(), bl.get<Word64>(),
+                         bh.get<Word64>());
+          break;
+        case kExprI64Sub128:
+          op = __ Sub128(al.get<Word64>(), ah.get<Word64>(), bl.get<Word64>(),
+                         bh.get<Word64>());
+          break;
+
+        default:
+          UNREACHABLE();
+      }
+      result_low->op = __ template Projection<0>(op);
+      result_high->op = __ template Projection<1>(op);
     }
-    result_low->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
-                             MemoryRepresentation::Uint64(), 3 * kInt64Size);
-    result_high->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
-                              MemoryRepresentation::Uint64(), 2 * kInt64Size);
-#else
-    V<compiler::turboshaft::Word64Pair> op;
-    switch (opcode) {
-      case kExprI64Add128:
-        op = __ Add128(al.get<Word64>(), ah.get<Word64>(), bl.get<Word64>(),
-                       bh.get<Word64>());
-        break;
-      case kExprI64Sub128:
-        op = __ Sub128(al.get<Word64>(), ah.get<Word64>(), bl.get<Word64>(),
-                       bh.get<Word64>());
-        break;
-
-      default:
-        UNREACHABLE();
-    }
-    result_low->op = __ template Projection<0>(op);
-    result_high->op = __ template Projection<1>(op);
-#endif
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
@@ -9826,10 +9839,8 @@ class TurboshaftGraphBuildingInterface
   static constexpr int kWideOpsStackBufferSize = 4 * kInt64Size;
 
   V<WordPtr> GetWideOpsStackBuffer() {
-    if (!wide_ops_stack_buffer_.has_value()) {
-      wide_ops_stack_buffer_ =
-          __ StackSlot(kWideOpsStackBufferSize, kInt64Size);
-    }
+    DCHECK(kTurboshaftNeedsStackSlotForWideArithmetic);
+    DCHECK(wide_ops_stack_buffer_.has_value());
     return wide_ops_stack_buffer_.value();
   }
 
