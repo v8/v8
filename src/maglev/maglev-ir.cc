@@ -874,12 +874,12 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 
 void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
   Base::VerifyInputs();
-  if (auto host_alloc =
-          input(kObjectIndex).node()->TryCast<InlinedAllocation>()) {
-    if (input(kValueIndex).node()->Is<InlinedAllocation>()) {
-      CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
-               AllocationType::kYoung);
-    }
+  auto host_alloc = input(kObjectIndex).node()->TryCast<InlinedAllocation>();
+  auto value_alloc = input(kValueIndex).node()->TryCast<InlinedAllocation>();
+  if (host_alloc && value_alloc &&
+      host_alloc->allocation_block() == value_alloc->allocation_block()) {
+    CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
+             AllocationType::kYoung);
   }
 }
 
