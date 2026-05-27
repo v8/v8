@@ -3895,8 +3895,24 @@ ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   if (IsEmptyNodeType(IntersectType(initial_type, NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
+
+  if (object->value_representation() != ValueRepresentation::kTagged) {
+    // Tagging {object} could produce an object whose static type is known to be
+    // Smi. If this happens, we just want to emit an unconditional deopt, so we
+    // just recursively call BuildCheckHeapObject and let the initial
+    // IsEmptyNodeType check insert the deopt. Note that we could force tagging
+    // to produce a HeapObject rather than a Smi but this would also introduce
+    // complications: the node could end up having both a Smi and a HeapObject
+    // alternative, which is awkward. So, we'll just deopt and we should then
+    // reoptimize with better feedback.
+    ValueNode* tagged_object;
+    GET_VALUE_OR_ABORT(tagged_object, GetTaggedValue(object));
+    return BuildCheckHeapObject(tagged_object);
+  }
+  DCHECK_EQ(object->value_representation(), ValueRepresentation::kTagged);
+
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
-  return AddNewNode<CheckHeapObject>({object});
+  return AddNewNodeNoInputConversion<CheckHeapObject>({object});
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckSeqOneByteString(ValueNode* object) {
