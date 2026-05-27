@@ -1622,6 +1622,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(IsContext(context(kRelaxedLoad)));
   Object::VerifyPointer(isolate, raw_feedback_cell());
   CHECK(IsFeedbackCell(raw_feedback_cell()));
+  JSDispatchHandle handle = dispatch_handle();
+  if (handle == kNullJSDispatchHandle) {
+    // The function is not yet fully initialized. This can happen if GC occurs
+    // during the allocation of the dispatch handle.
+    return;
+  }
+
   Object::VerifyPointer(isolate, code(isolate));
   CHECK(IsCode(code(isolate)));
   CHECK(map()->is_callable());
@@ -1629,8 +1636,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
   JSDispatchTable& jdt = isolate->js_dispatch_table();
-  JSDispatchHandle handle = dispatch_handle();
-  CHECK_NE(handle, kNullJSDispatchHandle);
   uint16_t parameter_count = jdt.GetParameterCount(handle);
   CHECK_EQ(parameter_count,
            shared()->internal_formal_parameter_count_with_receiver());
