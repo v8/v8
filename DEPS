@@ -113,7 +113,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '58bfcaec0f5ca337379e269dfe7a2400b650fbdc',
+  'partition_alloc_version': '6be374aead819a4516bc0e4e9fcf4bbdfcd6d956',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -142,7 +142,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': '99f7008eeb11de7f1f822b4bbe6e2f6622699098',
+  'agents_internal_revision': '13e3097f5fc5073869fd26d98e5bb8fdeab080d6',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -158,9 +158,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '97605124fde7c58b9bdb304483e13bcfce5cf34e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3dd1aaa3811ac7fe82b38c04e3e8262601c93de3',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'dd44e9e6151ade8d9d58dcc0af7c17e58d370246',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0497db4ed64af4c323c16f360bb2fdcfce6c765c',
   'buildtools/linux64': {
     'packages': [
       {
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd211be3e8dc2001d6cb3be8884a4533ecee9d6b7',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a64594bb5f0d04fa8ec2e565360372dd3af54a3d',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '96835044c7edeb1cfa2b2dbfd3057c51588952b3',
   'third_party/re2/src':
@@ -583,7 +583,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3246f1b60849cc505e231c5d19d0cbf358093555',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '849a659ab68fbf2869c370ede1c3979e40d82c73',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7c9eb5b245754701ab268cffeac5bf1148d84a52',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
