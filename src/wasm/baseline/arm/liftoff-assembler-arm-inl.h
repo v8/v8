@@ -499,8 +499,15 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
+    // There is only one temp register on this architecture, and it might be
+    // needed for the str/ldr below when the offsets can't be encoded as
+    // immediates. So we cannot reserve a temp from the temp list with
+    // "UseScratchRegisterScope" here.
+    // We cannot use an arbitrary allocatable register either because it might
+    // hold the call target or the arguments.
+    // Use "lr" as a scratch register to shift the frame. Its value is not
+    // needed anymore since we restore the caller lr before the tail call.
+    Register scratch = lr;
 
     // Push the return address and frame pointer to complete the stack frame.
     sub(sp, sp, Operand(8));
