@@ -258,8 +258,7 @@ class HeapEntry {
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
-  HeapSnapshot(HeapProfiler* profiler,
-               v8::HeapProfiler::NumericsMode numerics_mode);
+  explicit HeapSnapshot(HeapProfiler* profiler);
   HeapSnapshot(const HeapSnapshot&) = delete;
   HeapSnapshot& operator=(const HeapSnapshot&) = delete;
   void Delete();
@@ -283,10 +282,6 @@ class HeapSnapshot {
     return max_snapshot_js_object_id_;
   }
   bool is_complete() const { return !children_.empty(); }
-  bool capture_numeric_value() const {
-    return numerics_mode_ ==
-           v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  }
   size_t extra_native_bytes() const { return extra_native_bytes_; }
   void set_extra_native_bytes(size_t bytes) { extra_native_bytes_ = bytes; }
 
@@ -327,7 +322,6 @@ class HeapSnapshot {
       entries_by_id_cache_;
   std::vector<EntrySourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
-  v8::HeapProfiler::NumericsMode numerics_mode_;
   size_t extra_native_bytes_ = 0;
 
   // The ScriptsLineEndsMap instance stores the line ends of scripts that did

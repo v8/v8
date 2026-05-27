@@ -596,7 +596,14 @@ TEST(HeapSnapshotHeapNumbers) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK(!GetProperty(env.isolate(), global, v8::HeapGraphEdge::kProperty, "a"));
+  const v8::HeapGraphNode* a =
+      GetProperty(env.isolate(), global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK(a);
+  CHECK_EQ(1, a->GetChildrenCount());
+  v8::String::Utf8Value value_a(CcTest::isolate(),
+                                a->GetChild(0)->GetToNode()->GetName());
+  CHECK_EQ(0, strcmp("1", *value_a));
+
   const v8::HeapGraphNode* b =
       GetProperty(env.isolate(), global, v8::HeapGraphEdge::kProperty, "b");
   CHECK(b);

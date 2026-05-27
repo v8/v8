@@ -477,10 +477,7 @@ const char* HeapEntry::TypeAsString() const {
   }
 }
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
-                           v8::HeapProfiler::NumericsMode numerics_mode)
-    : profiler_(profiler),
-      numerics_mode_(numerics_mode) {
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler) : profiler_(profiler) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
   static_assert(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
@@ -1552,9 +1549,7 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
   } else if (IsWeakCell(obj)) {
     ExtractWeakCellReferences(entry, Cast<WeakCell>(obj));
   } else if (IsHeapNumber(obj)) {
-    if (snapshot_->capture_numeric_value()) {
-      ExtractNumberReference(entry, obj);
-    }
+    ExtractNumberReference(entry, obj);
   } else if (Is<BytecodeArray>(obj)) {
     ExtractBytecodeArrayReferences(entry, TrustedCast<BytecodeArray>(obj));
   } else if (IsScopeInfo(obj)) {
@@ -2403,11 +2398,6 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
       PropertyDetails details = descs->GetDetails(i);
       switch (details.location()) {
         case PropertyLocation::kField: {
-          if (!snapshot_->capture_numeric_value()) {
-            Representation r = details.representation();
-            if (r.IsSmi() || r.IsDouble()) break;
-          }
-
           Tagged<Name> k = descs->GetKey(i);
           FieldIndex field_index =
               FieldIndex::ForDetails(js_obj->map(), details);
@@ -2552,7 +2542,6 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
       case wasm::kF32:
       case wasm::kF64:
       case wasm::kS128: {
-        if (!snapshot_->capture_numeric_value()) continue;
         std::string value_string = obj->GetFieldValue(i).to_string();
         const char* value_name = names_->GetCopy(value_string.c_str());
         SnapshotObjectId id = heap_object_map_->get_next_id();
@@ -2593,13 +2582,7 @@ void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
   ReadOnlyRoots roots(isolate);
   for (uint32_t i = 0; i < obj->length(); i++) {
     Tagged<Object> value = obj->ElementSlot(i).load(isolate);
-    // By default, don't show {null} entries, to reduce noise: they can make
-    // it difficult to find non-null entries in sparse arrays. We piggyback
-    // on the "capture numeric values" flag as an opt-in to produce more
-    // detailed/verbose snapshots, including {null} entries.
-    if (value != roots.wasm_null() || snapshot_->capture_numeric_value()) {
-      SetElementReference(entry, i, value);
-    }
+    SetElementReference(entry, i, value);
     MarkVisitedField(obj->element_offset(i));
   }
 }
@@ -2672,9 +2655,6 @@ HeapEntry* V8HeapExplorer::GetEntry(Tagged<Object> obj) {
   }
 
   DCHECK(IsSmi(obj));
-  if (!snapshot_->capture_numeric_value()) {
-    return nullptr;
-  }
   return generator_->FindOrAddEntry(Cast<Smi>(obj), this);
 }
 
