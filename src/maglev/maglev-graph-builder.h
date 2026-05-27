@@ -1268,6 +1268,7 @@ class MaglevGraphBuilder {
 
   enum class TrackObjectMode { kLoad, kStore };
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
+  bool IsFieldConstant(ValueNode* object, int offset);
 
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 

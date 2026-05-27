@@ -4397,6 +4397,20 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
   return true;
 }
 
+bool MaglevGraphBuilder::IsFieldConstant(ValueNode* receiver, int offset) {
+  if (!receiver->Is<InlinedAllocation>()) {
+    return false;
+  }
+  InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
+  VirtualObject* vobject = GetObjectFromAllocation(alloc);
+  if (vobject && static_cast<size_t>(offset) < vobject->size() &&
+      vobject->FieldForOffset(offset).constness ==
+          vobj::FieldConstness::kConstAfterInit) {
+    return true;
+  }
+  return false;
+}
+
 VirtualObject* MaglevGraphBuilder::GetObjectFromAllocation(
     InlinedAllocation* allocation) {
   VirtualObject* vobject = allocation->object();
@@ -18577,7 +18591,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
   // loads, and missed JSArray elements kind transitions. We should understand
   // whether this is an issue with --maglev-object-tracking.
   if (offset == offsetof(HeapObject, map_) ||
-      !CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+      !(IsFieldConstant(object, offset) ||
+        CanTrackObjectChanges(object, TrackObjectMode::kLoad))) {
     return AddNewNode<LoadTaggedField>({object}, offset, type, is_const, key);
   }
 

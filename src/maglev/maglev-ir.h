@@ -5437,6 +5437,11 @@ enum class FieldType {
   kFloat64,
 };
 
+enum class FieldConstness {
+  kMutable,
+  kConstAfterInit,
+};
+
 constexpr int FieldSizeOf(FieldType type) {
   switch (type) {
     case FieldType::kTagged:
@@ -5457,14 +5462,23 @@ constexpr int FieldSizeOf(FieldType type) {
 // type. For convenience, we also maintain the link to the VirtualObject's
 // corresponding slot index.
 struct Field {
-  constexpr Field(int offset, FieldType type)
-      : slot_index(kNoSlotIndex), offset(offset), type(type) {}
-  constexpr Field(int slot_index, int offset, FieldType type)
-      : slot_index(slot_index), offset(offset), type(type) {}
+  constexpr Field(int offset, FieldType type,
+                  FieldConstness constness = FieldConstness::kMutable)
+      : slot_index(kNoSlotIndex),
+        offset(offset),
+        type(type),
+        constness(constness) {}
+  constexpr Field(int slot_index, int offset, FieldType type,
+                  FieldConstness constness = FieldConstness::kMutable)
+      : slot_index(slot_index),
+        offset(offset),
+        type(type),
+        constness(constness) {}
   static constexpr int kNoSlotIndex = -1;
   int slot_index;
   int offset;
   FieldType type;
+  FieldConstness constness;
 };
 
 // Describes the layout of an entire object. This can be seen as a set of header
@@ -5553,14 +5567,21 @@ constexpr auto MakeOffsetToSlotMap(const std::array<Field, N>& fields) {
 
 // Helper macros for Shape class definitions. They are undef'd at the end of
 // this file.
-#define DEF_SHAPE_FIELD_ENUM(NAME, OFFSET, TYPE) NAME##_slot,
+#define DEF_SHAPE_FIELD_ENUM(NAME, ...) NAME##_slot,
 
-#define DEF_SHAPE_FIELD_DESC(NAME, OFFSET, TYPE) \
+#define DEF_SHAPE_FIELD_DESC_3(NAME, OFFSET, TYPE) \
   static constexpr vobj::Field NAME##_desc = {NAME##_slot, OFFSET, TYPE};
+#define DEF_SHAPE_FIELD_DESC_4(NAME, OFFSET, TYPE, CONSTNESS)            \
+  static constexpr vobj::Field NAME##_desc = {NAME##_slot, OFFSET, TYPE, \
+                                              CONSTNESS};
+#define GET_DEF_SHAPE_FIELD_DESC_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+#define DEF_SHAPE_FIELD_DESC(...)                                     \
+  GET_DEF_SHAPE_FIELD_DESC_MACRO(__VA_ARGS__, DEF_SHAPE_FIELD_DESC_4, \
+                                 DEF_SHAPE_FIELD_DESC_3)(__VA_ARGS__)
 
-#define DEF_SHAPE_FIELD_LIST(NAME, OFFSET, TYPE) , NAME##_desc
+#define DEF_SHAPE_FIELD_LIST(NAME, ...) , NAME##_desc
 
-#define DEF_SHAPE_STATIC_ASSERTS(NAME, OFFSET, TYPE)        \
+#define DEF_SHAPE_STATIC_ASSERTS(NAME, OFFSET, TYPE, ...)   \
   static_assert(NAME##_slot == NAME##_desc.slot_index);     \
   static_assert(FieldSizeOf(NAME##_desc.type) >=            \
                 vobj::detail::kOffsetToSlotMapElementSize); \
@@ -5892,12 +5913,20 @@ struct VirtualJSArrayShape : VirtualJSObjectShape {
 #undef FIELD_LIST
 };
 
+// We never modify the [[IteratedObject]] of a JSArrayIterator. This is
+// different from what the specification says, which is changing the
+// [[IteratedObject]] field to undefined when the iteration ends. Keeping it
+// constant allows for generating more efficient code, since we don't need to
+// re-read the iterated_object inside loops.
+
 struct VirtualJSArrayIteratorShape : VirtualJSObjectShape {
   using T = JSArrayIterator;
 #define FIELD_LIST(V)                                                         \
-  V(iterated_object, offsetof(T, iterated_object_), vobj::FieldType::kTagged) \
+  V(iterated_object, offsetof(T, iterated_object_), vobj::FieldType::kTagged, \
+    vobj::FieldConstness::kConstAfterInit)                                    \
   V(next_index, offsetof(T, next_index_), vobj::FieldType::kTagged)           \
-  V(kind, offsetof(T, kind_), vobj::FieldType::kTagged)
+  V(kind, offsetof(T, kind_), vobj::FieldType::kTagged,                       \
+    vobj::FieldConstness::kConstAfterInit)
   DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
@@ -11765,6 +11794,9 @@ ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
 
 #undef DEF_SHAPE_FIELD_ENUM
 #undef DEF_SHAPE_FIELD_DESC
+#undef DEF_SHAPE_FIELD_DESC_3
+#undef DEF_SHAPE_FIELD_DESC_4
+#undef GET_DEF_SHAPE_FIELD_DESC_MACRO
 #undef DEF_SHAPE_FIELD_LIST
 #undef DEF_SHAPE_STATIC_ASSERTS
 #undef DEF_SHAPE
