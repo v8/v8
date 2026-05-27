@@ -4921,18 +4921,17 @@ class TurboshaftGraphBuildingInterface
     }
 #endif  // V8_TARGET_ARCH_ARM64
 
-    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                   .Params(MachineType::Pointer(), MachineType::Uint32(),
-                           MachineType::Uint32(), MachineType::UintPtr(),
-                           MachineType::UintPtr(), MachineType::UintPtr());
-    // TODO(14616): Fix sharedness.
-    V<Word32> result = CallC(
-        &sig, ExternalReference::wasm_memory_copy(),
-        {__ BitcastHeapObjectToWordPtr(trusted_instance_data(SharedFlag::kNo)),
-         __ Word32Constant(imm.memory_dst.index),
-         __ Word32Constant(imm.memory_src.index), dst_offset, src_offset,
-         size_op});
-    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
+    MemCopyBoundsCheck(dst_memory, src_memory, dst_offset, src_offset, size_op);
+    V<WordPtr> src_mem_start = MemStart(src_memory->index);
+    V<WordPtr> dst_mem_start = MemStart(dst_memory->index);
+    V<WordPtr> src_base = __ WordPtrAdd(src_mem_start, src_offset);
+    V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
+
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
+                   .Params(MachineType::Pointer(), MachineType::Pointer(),
+                           MachineType::UintPtr());
+    CallC(&sig, ExternalReference::libc_memmove_function(),
+          {dst_base, src_base, size_op});
   }
 
   void MemFillBoundsCheck(const WasmMemory* memory, V<WordPtr> offset,
@@ -5039,17 +5038,16 @@ class TurboshaftGraphBuildingInterface
     }
 #endif  // V8_TARGET_ARCH_ARM64
 
-    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                   .Params(MachineType::Pointer(), MachineType::Uint32(),
-                           MachineType::UintPtr(), MachineType::Uint8(),
-                           MachineType::UintPtr());
-    // TODO(14616): Fix sharedness.
-    V<Word32> result = CallC(
-        &sig, ExternalReference::wasm_memory_fill(),
-        {__ BitcastHeapObjectToWordPtr(trusted_instance_data(SharedFlag::kNo)),
-         __ Word32Constant(imm.index), dst_offset, value.op, size_op});
+    const WasmMemory* memory = imm.memory;
+    MemFillBoundsCheck(memory, dst_offset, size_op);
+    V<WordPtr> dst_mem_start = MemStart(memory->index);
+    V<WordPtr> dst_base = __ WordPtrAdd(dst_mem_start, dst_offset);
 
-    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
+                   .Params(MachineType::Pointer(), MachineType::Int32(),
+                           MachineType::UintPtr());
+    CallC(&sig, ExternalReference::libc_memset_function(),
+          {dst_base, __ Word32BitwiseAnd(value.get<Word32>(), 0xFF), size_op});
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
