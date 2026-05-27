@@ -42,6 +42,7 @@
 .vscode
 .agents
 .gemini
+.jetskicli
 
 # Directories added by standalone gclient setup.
 /.cipd
