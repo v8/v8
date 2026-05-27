@@ -96,7 +96,7 @@ vars = {
   'chromium_jetstream_git': 'https://chromium.googlesource.com/external/github.com/WebKit/JetStream.git',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e44942b445d9376451f7d519965dae036efde5bc',
+  'gn_version': 'git_revision:3357c4f51b1a9e676378c695dd9c7e9911c35ee6',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -113,7 +113,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '3842bcc38cf3d73470ca8c223ac0db19d81e29fe',
+  'partition_alloc_version': '58bfcaec0f5ca337379e269dfe7a2400b650fbdc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -158,9 +158,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e8d4e4ece70623d824ad54169ccbc0a884db0deb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '97605124fde7c58b9bdb304483e13bcfce5cf34e',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a35d7c65cee47ceb7929eba330ae8c307b88dd77',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'dd44e9e6151ade8d9d58dcc0af7c17e58d370246',
   'buildtools/linux64': {
     'packages': [
       {
@@ -275,7 +275,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'edcece7fb3d5e266a0f60ceb77fb37e94bfff3ca',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f1323a95090e5a71394aa3a14d9ac55ba7b30195',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -341,7 +341,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd6c7a21e978f0adaa43accaad53bc64f0b64f6ec',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '7109ca799dd238773bc908989304351710cbcb8f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '61c087c882d6cf2e5e31566cc8ebbc085cf1033e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9b50320fedf1b2e7aca3fcb62420cf1700dccb72',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd211be3e8dc2001d6cb3be8884a4533ecee9d6b7',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '96835044c7edeb1cfa2b2dbfd3057c51588952b3',
   'third_party/re2/src':
@@ -535,7 +535,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'faefd1b6fa9eeb033ad6fe60368ccb9bf908cbd0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '3418a0a593e197553a4ceb1b9b644c6149c62c89',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '205485ea587dfd5d97c0de8cab07653de5b36992',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -583,7 +583,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3246f1b60849cc505e231c5d19d0cbf358093555',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7c732b779bfeb5cf0255c42a8375fac0d9ae0bc4',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '849a659ab68fbf2869c370ede1c3979e40d82c73',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
