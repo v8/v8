@@ -186,9 +186,30 @@ def v8_root_dir() -> Path:
 
 V8_ROOT_DIR = v8_root_dir()
 
+RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
+
+if (V8_ROOT_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_ROOT_DIR.parent
+else:
+  CHROMIUM_DIR = None
+
+GCLIENT_FILE_PATH = (CHROMIUM_DIR.parent
+                     if CHROMIUM_DIR else V8_ROOT_DIR.parent) / ".gclient"
+
+out_dir_override = os.getenv("V8_GM_OUTDIR")
+if out_dir_override and Path(out_dir_override).is_dir:
+  OUTDIR = Path(out_dir_override).absolute()
+  OUTDIR_BASENAME = OUTDIR.parts[-1]
+else:
+  OUTDIR_BASENAME = "out"
+  if CHROMIUM_DIR:
+    OUTDIR = Path(CHROMIUM_DIR / OUTDIR_BASENAME)
+  else:
+    OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
+
 
 def get_most_recent_config():
-  out_dir = V8_ROOT_DIR / "out"
+  out_dir = OUTDIR
   if not out_dir.exists() or not out_dir.is_dir():
     return None
 
@@ -256,13 +277,13 @@ def check_worktree_changes(config):
   try:
     git_diff_out = subprocess.check_output(
         ["git", "diff", "--name-only", last_built_commit],
-        cwd=V8_ROOT_DIR,
+        cwd=V8_DIR,
         text=True).strip()
     if git_diff_out:
       changed_files = git_diff_out.splitlines()
     git_untracked_out = subprocess.check_output(
         ["git", "ls-files", "--others", "--exclude-standard"],
-        cwd=V8_ROOT_DIR,
+        cwd=V8_DIR,
         text=True).strip()
     if git_untracked_out:
       changed_files.extend(git_untracked_out.splitlines())
@@ -276,7 +297,7 @@ def check_worktree_changes(config):
     if is_js_test(f) or f.startswith(".agents/") or f.startswith("agents/"):
       continue
     if build_pattern.search(f):
-      filepath = V8_ROOT_DIR / f
+      filepath = V8_DIR / f
       if filepath.exists() and filepath.stat().st_mtime > oldest_binary_mtime:
         return True, True
 
@@ -288,33 +309,12 @@ def check_worktree_changes(config):
 
   for f in changed_files:
     if is_js_test(f):
-      filepath = V8_ROOT_DIR / f
+      filepath = V8_DIR / f
       if filepath.exists() and filepath.stat().st_mtime > last_test_mtime:
         return False, True
 
   # Skipping tests is OK if the default test set was requested.
   return False, set(config.tests) == set(DEFAULT_TESTS)
-
-RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
-
-if (V8_ROOT_DIR.parent / "chrome").exists():
-  CHROMIUM_DIR = V8_ROOT_DIR.parent
-else:
-  CHROMIUM_DIR = None
-
-GCLIENT_FILE_PATH = (CHROMIUM_DIR.parent
-                     if CHROMIUM_DIR else V8_ROOT_DIR.parent) / ".gclient"
-
-out_dir_override = os.getenv("V8_GM_OUTDIR")
-if out_dir_override and Path(out_dir_override).is_dir:
-  OUTDIR = Path(out_dir_override).absolute()
-  OUTDIR_BASENAME = OUTDIR.parts[-1]
-else:
-  OUTDIR_BASENAME = "out"
-  if CHROMIUM_DIR:
-    OUTDIR = Path(CHROMIUM_DIR / OUTDIR_BASENAME)
-  else:
-    OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
@@ -688,7 +688,7 @@ class RawConfig:
     if return_code == 0:
       try:
         head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"],
-                                              cwd=V8_ROOT_DIR,
+                                              cwd=V8_DIR,
                                               text=True).strip()
         last_built_commit_file = self.path / "last_built_commit"
         last_built_commit_file.write_text(head_commit)
