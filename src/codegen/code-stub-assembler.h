@@ -2189,6 +2189,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags allocation_flags = AllocationFlag::kNone,
       int array_header_size = JSArray::kHeaderSize);
 
+  std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
+  AllocateUninitializedJSArrayWithElementsFolded(
+      ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
+      std::optional<TNode<AllocationSite>> allocation_site,
+      TNode<IntPtrT> capacity, Label* bailout,
+      int array_header_size = JSArray::kHeaderSize);
+
   // Allocate a JSArray and fill elements with the hole.
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
@@ -2214,6 +2221,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, capacity, length, std::nullopt,
                            allocation_flags);
+  }
+
+  TNode<JSArray> AllocateJSArrayFolded(
+      ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
+      TNode<Smi> length, Label* bailout,
+      std::optional<TNode<AllocationSite>> allocation_site = std::nullopt);
+
+  TNode<JSArray> AllocateJSArrayFolded(
+      ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
+      TNode<Smi> length, Label* bailout,
+      std::optional<TNode<AllocationSite>> allocation_site = std::nullopt) {
+    return AllocateJSArrayFolded(kind, array_map, PositiveSmiUntag(capacity),
+                                 length, bailout, allocation_site);
   }
 
   // Allocate a JSArray and initialize the header fields.

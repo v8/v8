@@ -148,6 +148,9 @@ extern macro AllocateJSArray(
     constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
+extern macro AllocateJSArrayFolded(
+    constexpr ElementsKind, Map, Smi, Smi): JSArray
+    labels Bailout;
 
 macro LoadElementNoHole<T : type extends FixedArrayBase>(
     a: JSArray, index: Smi): JSAny

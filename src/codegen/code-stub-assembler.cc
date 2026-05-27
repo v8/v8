@@ -5448,6 +5448,92 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   return {array.value(), elements.value()};
 }
 
+std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
+CodeStubAssembler::AllocateUninitializedJSArrayWithElementsFolded(
+    ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
+    std::optional<TNode<AllocationSite>> allocation_site,
+    TNode<IntPtrT> capacity, Label* bailout, int array_header_size) {
+  Comment("begin folded allocation of JSArray with elements");
+  CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
+
+  TVARIABLE(JSArray, array);
+  TVARIABLE(FixedArrayBase, elements);
+
+  Label out(this), empty(this), nonempty(this);
+
+  int capacity_int;
+  if (TryToInt32Constant(capacity, &capacity_int)) {
+    if (capacity_int == 0) {
+      TNode<FixedArray> empty_array = EmptyFixedArrayConstant();
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site,
+                              array_header_size);
+      return {array.value(), empty_array};
+    } else {
+      Goto(&nonempty);
+    }
+  } else {
+    Branch(WordEqual(capacity, IntPtrConstant(0)), &empty, &nonempty);
+
+    BIND(&empty);
+    {
+      TNode<FixedArray> empty_array = EmptyFixedArrayConstant();
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site,
+                              array_header_size);
+      elements = empty_array;
+      Goto(&out);
+    }
+  }
+
+  BIND(&nonempty);
+  {
+    int base_size = ALIGN_TO_ALLOCATION_ALIGNMENT(array_header_size);
+    if (allocation_site) {
+      DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
+      base_size += ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
+    }
+
+    const int elements_offset = base_size;
+
+    // Compute space for elements
+    base_size += OFFSET_OF_DATA_START(FixedArray);
+    TNode<IntPtrT> size = AlignToAllocationAlignment(
+        ElementOffsetFromIndex(capacity, kind, base_size));
+
+    // Bail out if size isn't a regular heap object size anymore.
+    GotoIfNot(IsRegularHeapObjectSize(size), bailout);
+
+    // Fold all objects into a single new space allocation.
+    array =
+        AllocateUninitializedJSArray(array_map, length, allocation_site, size);
+    elements = InnerAllocateElements(this, array.value(), elements_offset);
+
+    StoreObjectFieldNoWriteBarrier(array.value(), offsetof(JSObject, elements_),
+                                   elements.value());
+
+    // Setup elements object.
+    static_assert(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
+    RootIndex elements_map_index = IsDoubleElementsKind(kind)
+                                       ? RootIndex::kFixedDoubleArrayMap
+                                       : RootIndex::kFixedArrayMap;
+    DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
+    StoreMapNoWriteBarrier(elements.value(), elements_map_index);
+
+    CSA_DCHECK(this, WordNotEqual(capacity, IntPtrConstant(0)));
+    StoreObjectFieldNoWriteBarrier(elements.value(),
+                                   offsetof(FixedArray, length_),
+                                   Unsigned(TruncateIntPtrToInt32(capacity)));
+#if TAGGED_SIZE_8_BYTES
+    StoreObjectFieldNoWriteBarrier(elements.value(),
+                                   offsetof(FixedArray, optional_padding_),
+                                   Uint32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
+    Goto(&out);
+  }
+
+  BIND(&out);
+  return {array.value(), elements.value()};
+}
+
 TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
     TNode<Map> array_map, TNode<Smi> length,
     std::optional<TNode<AllocationSite>> allocation_site,
@@ -5484,6 +5570,33 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
       kind, array_map, length, allocation_site, capacity, allocation_flags);
+
+  Label out(this), nonempty(this);
+
+  Branch(WordEqual(capacity, IntPtrConstant(0)), &out, &nonempty);
+
+  BIND(&nonempty);
+  {
+    FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
+                            RootIndex::kTheHoleValue);
+    Goto(&out);
+  }
+
+  BIND(&out);
+  return array;
+}
+
+TNode<JSArray> CodeStubAssembler::AllocateJSArrayFolded(
+    ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
+    TNode<Smi> length, Label* bailout,
+    std::optional<TNode<AllocationSite>> allocation_site) {
+  CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
+
+  TNode<JSArray> array;
+  TNode<FixedArrayBase> elements;
+
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElementsFolded(
+      kind, array_map, length, allocation_site, capacity, bailout);
 
   Label out(this), nonempty(this);
 

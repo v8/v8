@@ -11,14 +11,6 @@ macro HandleSimpleArgumentsSlice(
     context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
     count: Smi): JSArray
     labels Bailout {
-  // If the resulting array doesn't fit in new space, use the slow path.
-  // We subtract the JSArray header size to ensure the JSArray and elements
-  // allocation can be safely folded together into a single object.
-  if (count >= kMaxNewSpaceFixedArrayElements - kJSArrayHeaderSizeSlots) {
-    goto Bailout;
-  }
-
-
   const end: intptr = SmiUntag(start) + SmiUntag(count);
   const sourceElements: FixedArray =
       Cast<FixedArray>(args.elements) otherwise Bailout;
@@ -26,8 +18,9 @@ macro HandleSimpleArgumentsSlice(
 
   const arrayMap: Map =
       LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
-  const result: JSArray =
-      AllocateJSArray(ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count);
+  const result: JSArray = AllocateJSArrayFolded(
+      ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count)
+      otherwise Bailout;
   const newElements: FixedArray =
       Cast<FixedArray>(result.elements) otherwise Bailout;
   CopyElements(
@@ -40,13 +33,6 @@ macro HandleFastAliasedSloppyArgumentsSlice(
     context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
     count: Smi): JSArray
     labels Bailout {
-  // If the resulting array doesn't fit in new space, use the slow path.
-  // We subtract the JSArray header size to ensure the JSArray and elements
-  // allocation can be safely folded together into a single object.
-  if (count >= kMaxNewSpaceFixedArrayElements - kJSArrayHeaderSizeSlots) {
-    goto Bailout;
-  }
-
   const sloppyElements: SloppyArgumentsElements =
       Cast<SloppyArgumentsElements>(args.elements) otherwise Bailout;
   const parameterMapLength: intptr = sloppyElements.length_intptr;
@@ -64,8 +50,12 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   const arrayMap: Map =
       LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
-  const result: JSArray =
-      AllocateJSArray(ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count);
+  // Removing the write barrier below requires a folded allocation. This is only
+  // possible if the combined size is still below the threshold for large
+  // objects.
+  const result: JSArray = AllocateJSArrayFolded(
+      ElementsKind::HOLEY_ELEMENTS, arrayMap, count, count)
+      otherwise Bailout;
 
   let indexOut: Smi = 0;
   const resultElements: FixedArray = UnsafeCast<FixedArray>(result.elements);
