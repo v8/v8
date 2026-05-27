@@ -2918,6 +2918,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   for (StackFrameIterator iter(this, thread_local_top());; iter.Advance()) {
     if (ignore_next_frame) {
       ignore_next_frame = false;
+      // Since we are skipping the next frame, we must manually perform the
+      // unwinding cleanup for it here, as the 'continue' will bypass the
+      // cleanup at the end of the loop body.
+      if (iter.frame()->is_optimized_js()) {
+        materialized_object_store_->Remove(iter.frame()->fp());
+      }
       continue;
     }
     int visited_frames = iter.frame()->iteration_depth();
