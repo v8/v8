@@ -66,11 +66,11 @@ Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
       Tagged<Object> code_obj = raw_data->get(base + Fields::kCode);
       CHECK(IsCodeWrapper(code_obj));
       Tagged<Code> code = Cast<CodeWrapper>(code_obj)->code(isolate);
-      int pc_offset = Smi::ToInt(raw_data->get(base + Fields::kOffset));
-      Tagged<BytecodeArray> bytecode_array =
-          Cast<JSFunction>(raw_data->get(base + Fields::kFunction))
-              ->shared()
-              ->GetBytecodeArray(isolate);
+      uint32_t pc_offset = Smi::ToUInt(raw_data->get(base + Fields::kOffset));
+      // pc_offset is not trusted, make sure it matches the code.
+      SBXCHECK_LT(pc_offset, code->instruction_size());
+
+      Tagged<BytecodeArray> bytecode_array = code->GetBaselineBytecodeArray();
       int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
           code->instruction_start() + pc_offset, bytecode_array);
 

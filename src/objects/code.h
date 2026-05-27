@@ -161,6 +161,11 @@ V8_OBJECT class Code : public ExposedTrustedObject {
   inline void set_bytecode_or_interpreter_data(
       Tagged<UnionOf<BytecodeArray, InterpreterData>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Returns the bytecode array for baseline code. It's allowed to be called
+  // only for baseline code.
+  inline Tagged<BytecodeArray> GetBaselineBytecodeArray() const;
+
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<TrustedByteArray>)

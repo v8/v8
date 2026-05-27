@@ -152,6 +152,14 @@ void Code::set_bytecode_or_interpreter_data(
       this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
+Tagged<BytecodeArray> Code::GetBaselineBytecodeArray() const {
+  auto data = bytecode_or_interpreter_data();
+  if (Tagged<BytecodeArray> bytecode_array; TryCast(data, &bytecode_array)) {
+    return bytecode_array;
+  }
+  return SbxCast<InterpreterData>(data)->bytecode_array();
+}
+
 inline Tagged<TrustedByteArray> Code::source_position_table() const {
   DCHECK(has_source_position_table());
   return ReadProtectedPointerField<TrustedByteArray>(kPositionTableOffset);
@@ -344,11 +352,14 @@ int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc,
   DisallowGarbageCollection no_gc;
   CHECK(!is_baseline_trampoline_builtin());
   if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
-  CHECK_EQ(kind(), CodeKind::BASELINE);
+  DCHECK_EQ(kind(), CodeKind::BASELINE);
+  // Make sure the provided bytecode array matches the bytecode offset table.
+  SBXCHECK_EQ(bytecodes, GetBaselineBytecodeArray());
   baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
                                                    bytecodes);
-  Address pc = baseline_pc - instruction_start();
-  offset_iterator.AdvanceToPCOffset(pc);
+  Address pc_offset = baseline_pc - instruction_start();
+  DCHECK_LT(pc_offset, instruction_size());
+  offset_iterator.AdvanceToPCOffset(pc_offset);
   return offset_iterator.current_bytecode_offset();
 }
 
@@ -356,19 +367,12 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(
     int bytecode_offset, BytecodeToPCPosition position,
     Tagged<BytecodeArray> bytecodes) {
   DisallowGarbageCollection no_gc;
-  CHECK_EQ(kind(), CodeKind::BASELINE);
+  DCHECK_EQ(kind(), CodeKind::BASELINE);
   // The following check ties together the bytecode being executed in
   // Generate_BaselineOrInterpreterEntry with the bytecode that was used to
   // compile this baseline code. Together, this ensures that we don't OSR into a
   // wrong code object.
-  auto maybe_bytecodes = bytecode_or_interpreter_data();
-  if (IsBytecodeArray(maybe_bytecodes)) {
-    SBXCHECK_EQ(maybe_bytecodes, bytecodes);
-  } else {
-    CHECK(IsInterpreterData(maybe_bytecodes));
-    SBXCHECK_EQ(TrustedCast<InterpreterData>(maybe_bytecodes)->bytecode_array(),
-                bytecodes);
-  }
+  SBXCHECK_EQ(bytecodes, GetBaselineBytecodeArray());
   baseline::BytecodeOffsetIterator offset_iterator(bytecode_offset_table(),
                                                    bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
