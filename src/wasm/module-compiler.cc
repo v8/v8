@@ -4062,18 +4062,9 @@ void CompilationStateImpl::OnCompilationStopped(
   // New detected features can only happen during eager compilation.
   // Compilation hints enables eager compilation if there are
   // compilation-priority hints in the module, so it should be included here.
-  // The exceptions are currently stringref and imported strings, which are only
-  // detected on top-tier compilation.
   DCHECK(!v8_flags.wasm_lazy_compilation ||
          (v8_flags.experimental_wasm_compilation_hints &&
-          !native_module_->module()->compilation_priorities.empty()) ||
-         (new_detected_features -
-          WasmDetectedFeatures{{WasmDetectedFeature::stringref,
-                                WasmDetectedFeature::imported_strings_utf8,
-                                WasmDetectedFeature::imported_strings}})
-             .empty());
-  // TODO(clemensb): Fix reporting of late detected features (relevant for
-  // stringref).
+          !native_module_->module()->compilation_priorities.empty()));
 }
 
 WasmDetectedFeatures CompilationStateImpl::UpdateDetectedFeatures(
