@@ -17,9 +17,6 @@ namespace baseline {
 
 namespace detail {
 
-static constexpr Register kScratchRegisters[] = {r9, r10, ip};
-static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
-
 #ifdef DEBUG
 inline bool Clobbers(Register target, MemOperand op) {
   return op.rb() == target || op.ra() == target;
@@ -32,21 +29,20 @@ class BaselineAssembler::ScratchRegisterScope {
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
       : assembler_(assembler),
         prev_scope_(assembler->scratch_register_scope_),
-        registers_used_(prev_scope_ == nullptr ? 0
-                                               : prev_scope_->registers_used_) {
+        wrapped_scope_(assembler->masm()) {
+    if (!assembler_->scratch_register_scope_) {
+      wrapped_scope_.Include(r9, r10);
+    }
     assembler_->scratch_register_scope_ = this;
   }
   ~ScratchRegisterScope() { assembler_->scratch_register_scope_ = prev_scope_; }
 
-  Register AcquireScratch() {
-    DCHECK_LT(registers_used_, detail::kNumScratchRegisters);
-    return detail::kScratchRegisters[registers_used_++];
-  }
+  Register AcquireScratch() { return wrapped_scope_.Acquire(); }
 
  private:
   BaselineAssembler* assembler_;
   ScratchRegisterScope* prev_scope_;
-  int registers_used_;
+  UseScratchRegisterScope wrapped_scope_;
 };
 
 #define __ assm->
@@ -137,7 +133,9 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ AndU64(r0, value, Operand(mask), ip, SetRC);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ AndU64(r0, value, Operand(mask), scratch, SetRC);
   __ b(to_condition(cc), target, cr0);
 }
 
@@ -216,16 +214,22 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedField(ip, operand, r0);
-  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, ip, target);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ LoadTaggedField(scratch, operand, r0);
+  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, scratch,
+                                                 target);
 }
 
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadTaggedField(ip, operand, r0);
-  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, ip, target);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ LoadTaggedField(scratch, operand, r0);
+  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, scratch,
+                                                 target);
 }
 
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
@@ -581,7 +585,8 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
 }
 
 void BaselineAssembler::IncrementSmi(MemOperand lhs) {
-  Register scratch = ip;
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
   if (SmiValuesAre31Bits()) {
     __ LoadS32(scratch, lhs, r0);
     __ AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
@@ -608,8 +613,10 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   int entry_size_log2 = 3;
   __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
   DCHECK_NE(reg, r0);
-  __ GetLabelAddress(ip, &jump_table, r0);
-  __ AddS64(reg, reg, ip);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ GetLabelAddress(scratch, &jump_table, r0);
+  __ AddS64(reg, reg, scratch);
   __ Jump(reg);
   __ b(&fallthrough);
   __ bind(&jump_table);
