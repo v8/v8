@@ -226,6 +226,8 @@ namespace internal {
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 1, load_handler1)    \
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 2, load_handler2)    \
   V(_, LOAD_HANDLER_TYPE, LoadHandler, 3, load_handler3)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 4, load_handler4)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 5, load_handler5)    \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 0, store_handler0) \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 1, store_handler1) \
   V(_, STORE_HANDLER_TYPE, StoreHandler, 2, store_handler2) \

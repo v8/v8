@@ -4677,6 +4677,12 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
     case 3:
       map = load_handler3_map();
       break;
+    case 4:
+      map = load_handler4_map();
+      break;
+    case 5:
+      map = load_handler5_map();
+      break;
     default:
       UNREACHABLE();
   }

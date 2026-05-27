@@ -50,6 +50,12 @@ V8_OBJECT class DataHandler : public Struct {
   inline Tagged<MaybeObject> data3() const;
   inline void set_data3(Tagged<MaybeObject> value,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<MaybeObject> data4() const;
+  inline void set_data4(Tagged<MaybeObject> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<MaybeObject> data5() const;
+  inline void set_data5(Tagged<MaybeObject> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(DataHandler)
   DECL_PRINTER(DataHandler)

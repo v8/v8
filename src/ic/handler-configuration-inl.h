@@ -107,6 +107,18 @@ Handle<Smi> LoadHandler::LoadProxy(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+bool LoadHandler::IsFastProxyHandler(Tagged<MaybeObject> handler) {
+  Tagged<HeapObject> heap_object;
+  if (!handler.GetHeapObject(&heap_object)) return false;
+  if (Tagged<DataHandler> data_handler; TryCast(heap_object, &data_handler)) {
+    if (data_handler->data_field_count() != kProxyDataFieldCount) return false;
+    DCHECK_EQ(KindBits::decode(Cast<Smi>(data_handler->smi_handler()).value()),
+              Kind::kProxy);
+    return true;
+  }
+  return false;
+}
+
 Handle<Smi> LoadHandler::LoadNativeDataProperty(Isolate* isolate,
                                                 InternalIndex descriptor) {
   int config = KindBits::encode(Kind::kNativeDataProperty) |

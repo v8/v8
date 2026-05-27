@@ -230,6 +230,34 @@ Handle<Object> LoadHandler::LoadNonExistent(
 }
 
 // static
+Handle<LoadHandler> LoadHandler::LoadProxyFast(
+    Isolate* isolate, DirectHandle<Map> target_map,
+    DirectHandle<Map> handler_map, DirectHandle<Smi> get_smi_handler,
+    DirectHandle<Object> trap_method) {
+  Handle<Smi> smi_handler = LoadProxy(isolate);
+
+  Handle<LoadHandler> handler =
+      isolate->factory()->NewLoadHandler(LoadHandler::kProxyDataFieldCount);
+  handler->set_smi_handler(*smi_handler);
+  handler->set_validity_cell(Map::kNoValidityCellSentinel);
+
+  // data1: target map
+  handler->set_data1(MakeWeak(Cast<HeapObject>(*target_map)));
+  // LoadIC
+  // data2: handler map
+  handler->set_data2(MakeWeak(Cast<HeapObject>(*handler_map)));
+  // data3: smi handler
+  handler->set_data3(*get_smi_handler);
+  // CallIC
+  // data4: trap method
+  handler->set_data4(MakeWeak(Cast<HeapObject>(*trap_method)));
+  // data5: counter
+  handler->set_data5(Smi::zero());
+
+  return handler;
+}
+
+// static
 Handle<LoadHandler> LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
     DirectHandle<InterceptorInfo> interceptor_info) {
@@ -582,6 +610,9 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kModuleExport, exports index = "
          << LoadHandler::ExportsIndexBits::decode(raw_handler);
       break;
+    case LoadHandler::Kind::kGeneric:
+      os << "kGeneric";
+      break;
     default:
       os << "<invalid value " << static_cast<int>(kind) << ">";
       break;
@@ -682,6 +713,14 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     if (load_handler->data_field_count() >= 3) {
       os << ", data3 = ";
       ShortPrint(load_handler->data3(), os);
+    }
+    if (load_handler->data_field_count() >= 4) {
+      os << ", data4 = ";
+      ShortPrint(load_handler->data4(), os);
+    }
+    if (load_handler->data_field_count() >= 5) {
+      os << ", data5 = ";
+      ShortPrint(load_handler->data5(), os);
     }
     os << ", validity cell = ";
     ShortPrint(load_handler->validity_cell(), os);

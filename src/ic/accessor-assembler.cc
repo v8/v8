@@ -58,7 +58,7 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
   // data_index is 1-indexed, so subtract one to make it 0-indexed.
   data_index -= 1;
   CHECK_GE(data_index, 0);
-  CHECK_LT(data_index, 3);
+  CHECK_LT(data_index, 5);
   int offset = DataHandler::OffsetOf(data_index);
   CSA_DCHECK(this, UintPtrGreaterThanOrEqual(
                        LoadMapInstanceSizeInWords(handler_map),
@@ -975,10 +975,27 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     // handling with proxies which is currently not supported by builtins. So
     // for such cases, we should install a slow path and never reach here. Fix
     // it to not generate this for LoadGlobals.
+    Label slow_proxy(this);
+    GotoIf(TaggedIsSmi(handler), &slow_proxy);
+    TNode<HeapObject> handler_object = CAST(handler);
+    GotoIfNot(TaggedEqual(LoadMap(handler_object), LoadHandler5MapConstant()),
+              &slow_proxy);
+    {
+      TNode<DataHandler> data_handler = CAST(handler_object);
+      TNode<JSProxy> proxy_obj = CAST(p->lookup_start_object());
+      TNode<Object> result =
+          CallBuiltin(Builtin::kProxyGetPropertyFastPath, p->context(),
+                      proxy_obj, p->name(), p->receiver(), data_handler);
+      GotoIf(TaggedEqual(result, TheHoleConstant()), miss);
+      exit_point->Return(result);
+    }
+    BIND(&slow_proxy);
+
     CSA_DCHECK(this,
                WordNotEqual(IntPtrConstant(static_cast<int>(on_nonexistent)),
                             IntPtrConstant(static_cast<int>(
                                 OnNonExistent::kThrowReferenceError))));
+
     TVARIABLE(IntPtrT, var_index);
     TVARIABLE(Name, var_unique);
 

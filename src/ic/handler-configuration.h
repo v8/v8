@@ -179,6 +179,25 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for calling a getter on a proxy.
   static inline Handle<Smi> LoadProxy(Isolate* isolate);
 
+  static Handle<LoadHandler> LoadProxyFast(Isolate* isolate,
+                                           DirectHandle<Map> target_map,
+                                           DirectHandle<Map> handler_map,
+                                           DirectHandle<Smi> get_smi_handler,
+                                           DirectHandle<Object> trap_method);
+
+  static inline bool IsFastProxyHandler(Tagged<MaybeObject> handler);
+
+  // ProxyIC
+  static constexpr int kProxyTargetMapDataIndex = 1;
+  // Inner LoadIC
+  static constexpr int kProxyHandlerMapDataIndex = 2;
+  static constexpr int kProxyGetSmiHandlerDataIndex = 3;
+  // Inner CallIC
+  static constexpr int kProxyTrapMethodDataIndex = 4;
+  static constexpr int kProxyCounterDataIndex = 5;
+  // Size
+  static constexpr int kProxyDataFieldCount = 5;
+
   // Creates a Smi-handler for loading a native data property from fast object.
   static inline Handle<Smi> LoadNativeDataProperty(Isolate* isolate,
                                                    InternalIndex descriptor);

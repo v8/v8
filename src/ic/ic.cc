@@ -727,6 +727,7 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
 
+  MaybeObjectDirectHandle override_handler = handler;
   {
     DisallowGarbageCollection no_gc;
     int i = 0;
@@ -763,10 +764,17 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
           return false;
         }
 
-        // If the receiver type is a dictionary map and the handler is
-        // different, it means the dictionary rehashed. Go MEGAMORPHIC to
-        // prevent deopt loops.
-        if (map->is_dictionary_map()) {
+        if (LoadHandler::IsFastProxyHandler(*handler)) {
+          // Special case for FastProxy: if we are seeing the same map again,
+          // this means the inner loadIC or the inner callIC missed. We
+          // downgrade to a normal slow proxy handler and not directly to
+          // MEGAMORPHIC.
+          override_handler =
+              MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate()));
+        } else if (map->is_dictionary_map()) {
+          // If the receiver type is a dictionary map and the handler is
+          // different, it means the dictionary rehashed. Go MEGAMORPHIC to
+          // prevent deopt loops.
           return false;
         }
 
@@ -800,17 +808,17 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
 
   number_of_valid_maps++;
   if (number_of_valid_maps == 1) {
-    ConfigureVectorState(name, lookup_start_object_map(), handler);
+    ConfigureVectorState(name, lookup_start_object_map(), override_handler);
   } else {
     if (is_keyed() && nexus()->GetName() != *name) return false;
     if (handler_to_overwrite >= 0) {
-      maps_and_handlers.set_handler(handler_to_overwrite, handler);
+      maps_and_handlers.set_handler(handler_to_overwrite, override_handler);
       if (!map.is_identical_to(
               maps_and_handlers.maps()[handler_to_overwrite])) {
         maps_and_handlers.set_map(handler_to_overwrite, map);
       }
     } else {
-      maps_and_handlers.emplace_back(map, handler);
+      maps_and_handlers.emplace_back(map, override_handler);
     }
 
     ConfigureVectorState(name, maps_and_handlers);
@@ -1106,7 +1114,16 @@ StubCache* IC::stub_cache() {
 void IC::UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                                 const MaybeObjectDirectHandle& handler) {
   if (!IsAnyHas()) {
-    stub_cache()->Set(*name, *map, *handler);
+    if (LoadHandler::IsFastProxyHandler(*handler)) {
+      // Special case for FastProxy: if we are seeing the same map again,
+      // this means the inner loadIC or the inner callIC missed. We downgrade
+      // to a normal slow proxy handler and not directly to MEGAMORPHIC.
+      stub_cache()->Set(
+          *name, *map,
+          *MaybeObjectDirectHandle(LoadHandler::LoadProxy(isolate())));
+    } else {
+      stub_cache()->Set(*name, *map, *handler);
+    }
   }
 }
 
@@ -1408,12 +1425,77 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       if (lookup->name()->IsAnyPrivate()) {
         return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       }
-      Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
-      if (holder_is_lookup_start_object) return MaybeObjectHandle(smi_handler);
+      auto slow_proxy_handler =
+          MaybeObjectHandle(LoadHandler::LoadProxy(isolate()));
+      if (holder_is_lookup_start_object) {
+        if (!v8_flags.fast_proxy_ic || IsAnyHas() || lookup->IsElement()) {
+          return slow_proxy_handler;
+        }
+        // Try to install a fast proxy IC
+        DirectHandle<JSProxy> proxy = lookup->GetHolder<JSProxy>();
+        DirectHandle<Object> proxy_handler(proxy->handler(), isolate());
+        DirectHandle<Object> proxy_target(proxy->target(), isolate());
+        if (IsJSReceiver(*proxy_handler) && IsJSReceiver(*proxy_target)) {
+          DirectHandle<JSReceiver> js_proxy_handler =
+              Cast<JSReceiver>(proxy_handler);
+          DirectHandle<Map> handler_map(js_proxy_handler->map(), isolate());
+          DirectHandle<JSReceiver> target = Cast<JSReceiver>(proxy_target);
+          DirectHandle<Map> target_map(target->map(), isolate());
+          // We require the target object to be extensible (to avoid proxy
+          // consistency checks) and neither handler nor target to have special
+          // properties (such as interceptors or access checks).
+          if (!target_map->is_extensible() || target_map->is_dictionary_map() ||
+              handler_map->is_dictionary_map() ||
+              IsSpecialReceiverMap(*target_map) ||
+              IsSpecialReceiverMap(*handler_map)) {
+            return slow_proxy_handler;
+          }
+
+          DirectHandle<Name> name = lookup->GetName();
+
+          // Non configurable property on the target object requires more checks
+          // (e.g., the proxy must return a value compatible with the target
+          // object value). The fast case only supports cases where the check is
+          // not needed.
+          bool has_non_configurable = false;
+          DirectHandle<DescriptorArray> descriptors(
+              target_map->instance_descriptors(), isolate());
+          InternalIndex descriptor = descriptors->Search(*name, *target_map);
+          if (descriptor.is_found()) {
+            PropertyDetails details =
+                target_map->instance_descriptors()->GetDetails(descriptor);
+            if (!details.IsConfigurable()) {
+              has_non_configurable = true;
+            }
+          }
+          if (has_non_configurable) {
+            return slow_proxy_handler;
+          }
+
+          // Finally, check if the get trap can be loaded as a fast property and
+          // if it is a JSFunction.
+          DirectHandle<String> get_string = isolate()->factory()->get_string();
+          LookupIterator it(isolate(), js_proxy_handler, get_string,
+                            js_proxy_handler,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
+          if (it.state() == LookupIterator::DATA && it.HolderIsReceiver() &&
+              js_proxy_handler->HasFastProperties() &&
+              it.property_details().location() == PropertyLocation::kField) {
+            DirectHandle<Object> trap_method = it.GetDataValue();
+            DirectHandle<Smi> get_smi_handler = LoadHandler::LoadField(
+                isolate(), it.GetFieldIndex(), it.GetFieldDescriptorIndex());
+            if (DirectHandle<JSFunction> trap; TryCast(trap_method, &trap)) {
+              return MaybeObjectHandle(LoadHandler::LoadProxyFast(
+                  isolate(), target_map, handler_map, get_smi_handler, trap));
+            }
+          }
+        }
+        return slow_proxy_handler;
+      }
 
       DirectHandle<JSProxy> holder_proxy = lookup->GetHolder<JSProxy>();
       return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
-          isolate(), map, holder_proxy, *smi_handler));
+          isolate(), map, holder_proxy, *LoadHandler::LoadProxy(isolate())));
     }
 
     case LookupIterator::MODULE_NAMESPACE:
