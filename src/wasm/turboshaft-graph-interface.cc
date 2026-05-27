@@ -1726,21 +1726,24 @@ class TurboshaftGraphBuildingInterface
                               DataViewOp op_type) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::ThrowDataViewTypeError>(
-        decoder, {V<JSDataView>::Cast(dataview)});
+        decoder, {V<JSDataView>::Cast(dataview)},
+        CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
   void ThrowDataViewOutOfBoundsError(FullDecoder* decoder, DataViewOp op_type) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::ThrowDataViewOutOfBounds>(decoder, {});
+        BuiltinCallDescriptor::ThrowDataViewOutOfBounds>(
+        decoder, {}, CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
   void ThrowDataViewDetachedError(FullDecoder* decoder, DataViewOp op_type) {
     SetDataViewOpForErrorMessage(op_type);
     CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::ThrowDataViewDetachedError>(decoder, {});
+        BuiltinCallDescriptor::ThrowDataViewDetachedError>(
+        decoder, {}, CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
@@ -2451,7 +2454,8 @@ class TurboshaftGraphBuildingInterface
       case WKI::kIntToString: {
         V<String> result_value =
             CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
-                decoder, {args[0].get<Word32>(), args[1].op});
+                decoder, {args[0].get<Word32>(), args[1].op},
+                CheckForException::kCatchInThisFrame);
         result = AnnotateAsString(result_value, returns[0].type);
         decoder->detected_->Add(
             returns[0].type.is_reference_to(wasm::GenericKind::kString)
@@ -2489,7 +2493,8 @@ class TurboshaftGraphBuildingInterface
         if (args[0].type.is_nullable()) {
           IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
-                BuiltinCallDescriptor::ThrowIndexOfCalledOnNull>(decoder, {});
+                BuiltinCallDescriptor::ThrowIndexOfCalledOnNull>(
+                decoder, {}, CheckForException::kCatchInThisFrame);
             __ Unreachable();
           }
         }
@@ -2532,8 +2537,8 @@ class TurboshaftGraphBuildingInterface
         if (args[0].type.is_nullable()) {
           IF (__ IsNull(string, args[0].type)) {
             CallBuiltinThroughJumptable<
-                BuiltinCallDescriptor::ThrowToLowerCaseCalledOnNull>(decoder,
-                                                                     {});
+                BuiltinCallDescriptor::ThrowToLowerCaseCalledOnNull>(
+                decoder, {}, CheckForException::kCatchInThisFrame);
             __ Unreachable();
           }
         }
