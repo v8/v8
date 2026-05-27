@@ -1169,6 +1169,17 @@ ProcessResult MaglevPhiRepresentationSelector ::UpdateNodePhiInput(
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     CheckSmi* node, Phi* phi, int input_index, const ProcessingState* state) {
   DCHECK_EQ(input_index, 0);
+
+  if (phi->value_representation() == ValueRepresentation::kTagged) {
+    // Note that it's important to get this case out of the way before the
+    // `CHECK(NodeTypeCanBe(...))` below, since with loop phis, we could end up
+    // with a Phi with non-Smi static type flowing into this CheckSmi. With
+    // Turbolev, the GraphOptimizer should replace such smi checks by
+    // unconditional deopts, but with Maglev, the GraphOptimizer doesn't run so
+    // we can end up in this situation.
+    return ProcessResult::kContinue;
+  }
+
   // The retagging rule is that Phis whose type cannot be Smi are always
   // retagged to HeapNumber, and every other Phi is retagged to Number with
   // CanonicalizeSmi=true. So, if we somehow end up with a Phi with non-smi type
@@ -1182,9 +1193,6 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   CHECK(NodeTypeCanBe(phi->type(), NodeType::kSmi));
 
   switch (phi->value_representation()) {
-    case ValueRepresentation::kTagged:
-      return ProcessResult::kContinue;
-
     case ValueRepresentation::kInt32:
       if (!SmiValuesAre32Bits()) {
         node->OverwriteWith<CheckInt32IsSmi>();
@@ -1199,6 +1207,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     case ValueRepresentation::kHoleyFloat64:
       node->OverwriteWith<CheckHoleyFloat64IsSmi>();
       return ProcessResult::kContinue;
+    case ValueRepresentation::kTagged:
+      // kTagged is handled at the beginning of this function.
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kRawPtr:
