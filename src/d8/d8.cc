@@ -2309,9 +2309,12 @@ PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
   realm_->Enter();
   previous_index_ = data->realm_current_;
   data->realm_current_ = data->realm_switch_ = index_;
+  data->realm_stack_.push_back(index_);
 }
 
 PerIsolateData::ExplicitRealmScope::~ExplicitRealmScope() {
+  DCHECK_EQ(data_->realm_stack_.back(), index_);
+  data_->realm_stack_.pop_back();
   realm_->Exit();
   data_->realm_current_ = data_->realm_switch_ = previous_index_;
 }
@@ -2663,9 +2666,12 @@ bool Shell::ValidateRealmIndex(Isolate* isolate, PerIsolateData* data,
 bool Shell::ValidateRestrictedRealmIndex(Isolate* isolate, PerIsolateData* data,
                                          int index) {
   if (index == PerIsolateData::kMainRealmIndex ||
-      index == data->realm_current_ || index == data->realm_switch_) {
+      index == data->realm_current_ || index == data->realm_switch_ ||
+      std::find(data->realm_stack_.begin(), data->realm_stack_.end(), index) !=
+          data->realm_stack_.end()) {
     // We cannot dispose or navigate away from the main realm, the current
-    // realm, or the realm we are currently switching to.
+    // realm, the realm we are currently switching to, or any realm on the
+    // stack.
     ThrowError(isolate, "Invalid realm index");
     return false;
   }

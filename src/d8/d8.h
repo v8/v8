@@ -375,6 +375,7 @@ class PerIsolateData {
   bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
+  std::vector<int> realm_stack_;
   AsyncHooks* async_hooks_wrapper_;
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
