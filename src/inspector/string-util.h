@@ -54,9 +54,6 @@ class V8_EXPORT Binary {
   size_t size() const { return bytes_->size(); }
   String toBase64() const;
   static Binary fromBase64(const String& base64, bool* success);
-  static Binary fromSpan(v8_crdtp::span<uint8_t> span) {
-    return fromSpan(v8::MemorySpan<const uint8_t>(span.begin(), span.size()));
-  }
   static Binary fromSpan(v8::MemorySpan<const uint8_t> span) {
     return Binary(
         std::make_shared<std::vector<uint8_t>>(span.begin(), span.end()));

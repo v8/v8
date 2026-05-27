@@ -870,8 +870,7 @@ std::vector<WasmScript::DebugSymbols> WasmScript::GetDebugSymbols() const {
         script->wasm_native_module()->wire_bytes());
     i::wasm::WasmName external_url =
         wire_bytes.GetNameOrNull(symbol.external_url);
-    MemorySpan<const char> span = {external_url.data(), external_url.size()};
-    debug_symbols.push_back({type.FromJust(), span});
+    debug_symbols.push_back({type.FromJust(), external_url});
   }
   return debug_symbols;
 }

@@ -51,5 +51,45 @@ TEST(MemorySpanTest, Reserved) {
   EXPECT_EQ(0, count);
 }
 
+TEST(MemorySpanTest, ImplicitConversions) {
+  auto test = [](const v8::MemorySpan<int>& span, int expected_count,
+                 int expected_sum) {
+    int count = 0;
+    int sum = 0;
+    for (int i : span) {
+      ++count;
+      sum += i;
+    }
+    EXPECT_EQ(expected_count, count);
+    EXPECT_EQ(expected_sum, sum);
+  };
+
+  {
+    int a[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    test(a, 10, 55);
+  }
+  {
+    std::array<int, 10> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    test(a, 10, 55);
+  }
+  {
+    std::vector<int> v{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    test(v, 10, 55);
+  }
+  {
+    std::array<int, 0> empty;
+    test(empty, 0, 0);
+  }
+  {
+    std::vector<int> empty;
+    test(empty, 0, 0);
+  }
+  {
+    std::vector<int> ready;
+    ready.reserve(10);
+    test(ready, 0, 0);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

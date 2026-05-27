@@ -79,7 +79,7 @@ class ConsoleHelper {
     v8::LocalVector<v8::Value> arguments(isolate());
     arguments.reserve(m_info.Length());
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
-    reportCall(type, {arguments.begin(), arguments.end()});
+    reportCall(type, arguments);
   }
 
   void reportCallWithDefaultArgument(ConsoleAPIType type,
@@ -88,7 +88,7 @@ class ConsoleHelper {
     arguments.reserve(m_info.Length());
     for (int i = 0; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
     if (!m_info.Length()) arguments.push_back(toV8String(isolate(), message));
-    reportCall(type, {arguments.begin(), arguments.end()});
+    reportCall(type, arguments);
   }
 
   void reportCallAndReplaceFirstArgument(ConsoleAPIType type,
@@ -96,7 +96,7 @@ class ConsoleHelper {
     v8::LocalVector<v8::Value> arguments(isolate());
     arguments.push_back(toV8String(isolate(), message));
     for (int i = 1; i < m_info.Length(); ++i) arguments.push_back(m_info[i]);
-    reportCall(type, {arguments.begin(), arguments.end()});
+    reportCall(type, arguments);
   }
 
   void reportCallWithArgument(ConsoleAPIType type, const String16& message) {
@@ -370,8 +370,7 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
   if (info.Length() < 2) {
     arguments.push_back(toV8String(isolate, String16("console.assert")));
   }
-  helper.reportCall(ConsoleAPIType::kAssert,
-                    {arguments.begin(), arguments.end()});
+  helper.reportCall(ConsoleAPIType::kAssert, arguments);
   m_inspector->debugger()->breakProgramOnAssert(helper.groupId());
 }
 

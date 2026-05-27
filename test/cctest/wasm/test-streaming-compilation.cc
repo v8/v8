@@ -257,8 +257,7 @@ class StreamTester {
     stream_->Finish(
         [cached_bytes](
             WasmStreaming::ModuleCachingInterface& caching_interface) {
-          caching_interface.SetCachedCompiledModuleBytes(
-              {cached_bytes.begin(), cached_bytes.size()});
+          caching_interface.SetCachedCompiledModuleBytes(cached_bytes);
         });
   }
 

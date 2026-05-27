@@ -165,8 +165,8 @@ TEST_F(ApiWasmTest, WasmStreamingAbortWithoutReject) {
 TEST_F(ApiWasmTest, WasmCompileToWasmModuleObject) {
   Local<Context> context = Context::New(isolate());
   Context::Scope context_scope(context);
-  auto maybe_module = WasmModuleObject::Compile(
-      isolate(), {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)});
+  auto maybe_module =
+      WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes);
   CHECK(!maybe_module.IsEmpty());
 }
 

@@ -1821,9 +1821,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     }
 
     Tagged<Map> tmap = old_map->FindElementsKindTransitionedMap(
-        isolate(),
-        MapHandlesSpan(old_maps_and_handlers->maps().begin(),
-                       old_maps_and_handlers->maps().end()),
+        isolate(), old_maps_and_handlers->maps(),
         ConcurrencyMode::kSynchronous);
     if (!tmap.is_null()) {
       // Mark all stable receiver maps that have elements kind transition map
@@ -2927,9 +2925,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(),
-            MapHandlesSpan(receiver_maps.begin(), receiver_maps.end()),
-            ConcurrencyMode::kSynchronous);
+            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());

@@ -1624,9 +1624,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
 
   {
     Local<v8::WasmModuleObject> wasm_module =
-        v8::WasmModuleObject::Compile(
-            isolate(),
-            {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)})
+        v8::WasmModuleObject::Compile(isolate(), kMinimalWasmModuleBytes)
             .ToLocalChecked();
     wasm_module_global.Reset(isolate(), wasm_module);
   }

@@ -1369,8 +1369,8 @@ Response V8DebuggerAgentImpl::getScriptSource(
                      });
     if (cachedScriptIt != m_cachedScripts.end()) {
       *scriptSource = cachedScriptIt->source;
-      *bytecode = protocol::Binary::fromSpan(v8::MemorySpan<const uint8_t>(
-          cachedScriptIt->bytecode.begin(), cachedScriptIt->bytecode.size()));
+      *bytecode = protocol::Binary::fromSpan(
+          v8::MemorySpan<const uint8_t>(cachedScriptIt->bytecode));
       return Response::Success();
     }
     return Response::ServerError("No script for id: " + scriptId.utf8());

@@ -413,7 +413,7 @@ void AsyncStreamingDecoder::Finish(
 
       // Public API:
       MemorySpan<const uint8_t> GetWireBytes() const override {
-        return {wire_bytes.data(), wire_bytes.size()};
+        return wire_bytes;
       }
 
       bool SetCachedCompiledModuleBytes(

@@ -1683,6 +1683,11 @@ struct MaybeDefineIteratorConcept<Iterator> {
       typename std::iterator_traits<Iterator>::iterator_concept;
 };
 
+template <typename T>
+struct MaybeDefineIteratorConcept<T*> {
+  using iterator_concept = std::contiguous_iterator_tag;
+};
+
 // A class of iterators that wrap some different iterator type.
 // If specified, ElementType is the type of element accessed by the wrapper
 // iterator; in this case, the actual reference and pointer types of Iterator

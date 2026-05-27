@@ -10,6 +10,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 
 #include "include/v8config.h"
@@ -18,8 +19,23 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
-namespace v8 {
-namespace base {
+namespace v8::base {
+
+template <typename T>
+class Vector;
+
+}  // namespace v8::base
+
+// Mark `Vector` as satisfying the `view` and `borrowed_range` concepts.
+// This should be done before the definition of `Vector`, so that any
+// inlined calls to range functionality use the correct specializations.
+template <typename T>
+inline constexpr bool std::ranges::enable_view<v8::base::Vector<T>> = true;
+template <typename T>
+inline constexpr bool std::ranges::enable_borrowed_range<v8::base::Vector<T>> =
+    true;
+
+namespace v8::base {
 
 template <typename T>
 class Vector final {
@@ -448,7 +464,6 @@ class EmbeddedVector final {
   size_t length_ = kSize;
 };
 
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_VECTOR_H_

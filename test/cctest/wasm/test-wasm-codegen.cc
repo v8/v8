@@ -96,7 +96,7 @@ TEST(PropertiesOfCodegenCallbacks) {
   Zone zone(&allocator, ZONE_NAME);
   ZoneBuffer buffer(&zone);
   BuildTrivialModule(&zone, &buffer);
-  v8::MemorySpan<const uint8_t> wire_bytes = {buffer.begin(), buffer.size()};
+  v8::MemorySpan<const uint8_t> wire_bytes{buffer};
   Isolate* isolate = CcTest::InitIsolateOnce();
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -112,9 +112,7 @@ TEST(PropertiesOfCodegenCallbacks) {
 }
 
 TEST(WasmModuleObjectCompileFailure) {
-  const uint8_t wire_bytes_arr[] = {0xDE, 0xAD, 0xBE, 0xEF};
-  v8::MemorySpan<const uint8_t> wire_bytes = {wire_bytes_arr,
-                                              arraysize(wire_bytes_arr)};
+  const uint8_t wire_bytes[] = {0xDE, 0xAD, 0xBE, 0xEF};
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   CHECK(!TestModule(isolate, wire_bytes));

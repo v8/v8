@@ -358,12 +358,9 @@ void MemoryMeasurement::ReportResults() {
       contexts.push_back(context);
       size_in_bytes.push_back(request.sizes[i]);
     }
-    request.delegate->MeasurementComplete(
-        {{contexts.begin(), contexts.end()},
-         {size_in_bytes.begin(), size_in_bytes.end()},
-         request.shared,
-         request.wasm_code,
-         request.wasm_metadata});
+    request.delegate->MeasurementComplete({contexts, size_in_bytes,
+                                           request.shared, request.wasm_code,
+                                           request.wasm_metadata});
     isolate_->counters()->measure_memory_delay_ms()->AddSample(
         static_cast<int>(request.timer.Elapsed().InMilliseconds()));
   }
