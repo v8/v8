@@ -225,6 +225,56 @@ TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32TooSmall) {
   FinalizeAndRun(&cannot_convert, &can_convert);
 }
 
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Denormal) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::denorm_min());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32DenormalNegative) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -std::numeric_limits<double>::denorm_min());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32NaN) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::quiet_NaN());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32Inf) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, std::numeric_limits<double>::infinity());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
+TEST_F(MaglevAssemblerTest, TryTruncateDoubleToInt32InfNegative) {
+  as.CodeEntry();
+  as.Move(kFPReturnRegister0, -std::numeric_limits<double>::infinity());
+  Label can_convert, cannot_convert;
+  as.TryTruncateDoubleToInt32(kReturnRegister0, kFPReturnRegister0,
+                              &cannot_convert);
+  as.jmp(&can_convert);
+  FinalizeAndRun(&cannot_convert, &can_convert);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

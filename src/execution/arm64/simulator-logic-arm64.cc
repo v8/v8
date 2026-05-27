@@ -3480,6 +3480,7 @@ int32_t Simulator::FPToFixedJS(double value) {
   nzcv().SetZ(Z);
   nzcv().SetC(0);
   nzcv().SetV(0);
+  LogSystemRegister(NZCV);
   return result;
 }
 
