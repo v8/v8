@@ -246,6 +246,9 @@ ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
       // Vectors do not support MRI mode, only MRR is available.
       *mode = kNoImmediate;
       return kPPC_LoadSimd128;
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::ProtectedPointer():
     case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::SandboxedPointer():
@@ -488,6 +491,9 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MemoryRepresentation::TrustedPointer():
+        // Only LoadTrustedPointer uses this representation.
+        UNREACHABLE();
       case MemoryRepresentation::IndirectPointer():
       case MemoryRepresentation::SandboxedPointer():
       case MemoryRepresentation::Simd256():
