@@ -1316,7 +1316,8 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ vcvtph2ps(tmp1, i.InputSimd128Register(0));       \
     __ vcvtph2ps(tmp2, i.InputSimd128Register(1));       \
     __ instr(tmp2, tmp1, tmp2);                          \
-    __ vpackssdw(i.OutputSimd128Register(), tmp2, tmp2); \
+    __ vextractf128(tmp1, tmp2, 1);                      \
+    __ vpackssdw(i.OutputSimd128Register(), tmp2, tmp1); \
   } while (false)
 
 #define ASSEMBLE_SIMD256_BINOP(opcode, cpu_feature)                    \

@@ -4760,7 +4760,8 @@ bool F16x8CmpOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->vcvtph2ps(ydst, lhs.fp());
   assm->vcvtph2ps(kScratchSimd256Reg, rhs.fp());
   (assm->*avx_op)(ydst, ydst, kScratchSimd256Reg);
-  assm->vpackssdw(ydst, ydst, ydst);
+  assm->vextractf128(kScratchDoubleReg, ydst, 1);
+  assm->vpackssdw(dst.fp(), dst.fp(), kScratchDoubleReg);
   return true;
 }
 
