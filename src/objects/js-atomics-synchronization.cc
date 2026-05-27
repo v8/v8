@@ -6,6 +6,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/yield-processor.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -62,6 +63,7 @@ class V8_NODISCARD WaiterQueueLockGuard final {
         state_->load()));
     new_state_ = JSSynchronizationPrimitive::IsWaiterQueueLockedField::update(
         new_state_, false);
+    TSAN_RELEASE(state_);
     state_->store(new_state_, std::memory_order_release);
   }
 
@@ -86,9 +88,13 @@ bool JSSynchronizationPrimitive::TryLockWaiterQueueExplicit(
     std::atomic<StateT>* state, StateT& expected) {
   // Try to acquire the queue lock.
   expected = IsWaiterQueueLockedField::update(expected, false);
-  return state->compare_exchange_weak(
+  bool success = state->compare_exchange_weak(
       expected, IsWaiterQueueLockedField::update(expected, true),
       std::memory_order_acquire, std::memory_order_relaxed);
+  if (success) {
+    TSAN_ACQUIRE(state);
+  }
+  return success;
 }
 
 // static
@@ -100,6 +106,7 @@ void JSSynchronizationPrimitive::SetWaiterQueueStateOnly(
   StateT desired;
   do {
     desired = new_state | (expected & ~kWaiterQueueMask);
+    TSAN_RELEASE(state);
   } while (!state->compare_exchange_weak(
       expected, desired, std::memory_order_release, std::memory_order_relaxed));
 }
@@ -295,6 +302,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     // We also need to unlock the waiter queue lock.
     current_state = IsWaiterQueueLockedField::update(current_state, true);
     DCHECK(!IsWaiterQueueLockedField::decode(new_state));
+    TSAN_RELEASE(state);
     if (state->compare_exchange_strong(current_state, new_state,
                                        std::memory_order_acq_rel,
                                        std::memory_order_relaxed)) {
@@ -304,6 +312,7 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     }
 
     DCHECK(IsLockedField::decode(state->load()));
+    TSAN_RELEASE(state);
     state->store(new_state, std::memory_order_release);
     return false;
   }

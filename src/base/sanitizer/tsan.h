@@ -11,9 +11,17 @@
 
 #define DISABLE_TSAN __attribute__((no_sanitize_thread))
 
+extern "C" void __tsan_acquire(void* addr);
+extern "C" void __tsan_release(void* addr);
+
+#define TSAN_ACQUIRE(addr) __tsan_acquire(reinterpret_cast<void*>(addr))
+#define TSAN_RELEASE(addr) __tsan_release(reinterpret_cast<void*>(addr))
+
 #else  // !defined(THREAD_SANITIZER)
 
 #define DISABLE_TSAN
+#define TSAN_ACQUIRE(addr) ((void)0)
+#define TSAN_RELEASE(addr) ((void)0)
 
 #endif  // !defined(THREAD_SANITIZER)
 
