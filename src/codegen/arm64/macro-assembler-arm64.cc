@@ -49,9 +49,9 @@ namespace {
 // For WebAssembly we care about the full floating point register. If we are not
 // running Wasm, we can get away with saving half of those registers.
 #if V8_ENABLE_WEBASSEMBLY
-constexpr int kStackSavedSavedFPSizeInBits = kQRegSizeInBits;
+constexpr bool kSaveFullFPRegistersOnStack = true;
 #else
-constexpr int kStackSavedSavedFPSizeInBits = kDRegSizeInBits;
+constexpr bool kSaveFullFPRegistersOnStack = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace
@@ -147,7 +147,11 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   int bytes = list.TotalSizeInBytes();
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    // TODO(all): consider splitting SaveFPRegsMode::kSave into kSaveFPOnly
+    // and kSaveFPAndSIMD. The former is useful for those functions that don't
+    // use SIMD registers.
+    auto fp_list = kSaveFullFPRegistersOnStack ? CPURegList::GetCallerSavedV()
+                                               : CPURegList::GetCallerSavedD();
     DCHECK_EQ(fp_list.Count() % 2, 0);
     bytes += fp_list.TotalSizeInBytes();
   }
@@ -166,7 +170,11 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   int bytes = list.TotalSizeInBytes();
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    // TODO(all): consider splitting SaveFPRegsMode::kSave into kSaveFPOnly
+    // and kSaveFPAndSIMD. The former is useful for those functions that don't
+    // use SIMD registers.
+    auto fp_list = kSaveFullFPRegistersOnStack ? CPURegList::GetCallerSavedV()
+                                               : CPURegList::GetCallerSavedD();
     DCHECK_EQ(fp_list.Count() % 2, 0);
     PushCPURegList(fp_list);
     bytes += fp_list.TotalSizeInBytes();
@@ -178,7 +186,11 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    auto fp_list = CPURegList::GetCallerSavedV(kStackSavedSavedFPSizeInBits);
+    // TODO(all): consider splitting SaveFPRegsMode::kSave into kSaveFPOnly
+    // and kSaveFPAndSIMD. The former is useful for those functions that don't
+    // use SIMD registers.
+    auto fp_list = kSaveFullFPRegistersOnStack ? CPURegList::GetCallerSavedV()
+                                               : CPURegList::GetCallerSavedD();
     DCHECK_EQ(fp_list.Count() % 2, 0);
     PopCPURegList(fp_list);
     bytes += fp_list.TotalSizeInBytes();

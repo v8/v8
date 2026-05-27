@@ -4255,7 +4255,9 @@ void CodeGenerator::FinishFrame(Frame* frame) {
       CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
-    DCHECK(saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
+    DCHECK_EQ(saves_fp.bits(), CPURegList::GetCalleeSavedD().bits());
+    // None of V registers are expected to be preserved besides D registers.
+    DCHECK(CPURegList::GetCalleeSavedV().IsEmpty());
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kSystemPointerSize));
   }
@@ -4450,7 +4452,9 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,
-                 saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
+                 saves_fp.bits() == CPURegList::GetCalleeSavedD().bits());
+  // None of V registers are expected to be preserved besides D registers.
+  DCHECK(CPURegList::GetCalleeSavedV().IsEmpty());
   __ PushCPURegList(saves_fp);
 
   // Save registers.

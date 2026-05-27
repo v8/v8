@@ -207,21 +207,24 @@ void Simulator::CheckPCSComplianceAndRun() {
 
 #ifdef DEBUG
   DCHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
+  DCHECK_EQ(kNumberOfCalleeSavedDRegisters, kCalleeSavedD.Count());
   DCHECK_EQ(kNumberOfCalleeSavedVRegisters, kCalleeSavedV.Count());
 
   int64_t saved_registers[kNumberOfCalleeSavedRegisters];
-  uint64_t saved_fpregisters[kNumberOfCalleeSavedVRegisters];
+  uint64_t saved_dregisters[kNumberOfCalleeSavedDRegisters];
+  // None of the V registers are expected to be preserved besides D registers.
+  static_assert(kNumberOfCalleeSavedVRegisters == 0);
 
   CPURegList register_list = kCalleeSaved;
-  CPURegList fpregister_list = kCalleeSavedV;
+  CPURegList dregister_list = kCalleeSavedD;
 
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
     // x31 is not a caller saved register, so no need to specify if we want
     // the stack or zero.
     saved_registers[i] = xreg(PopLowestIndexAsCode(&register_list));
   }
-  for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
-    saved_fpregisters[i] = dreg_bits(PopLowestIndexAsCode(&fpregister_list));
+  for (int i = 0; i < kNumberOfCalleeSavedDRegisters; i++) {
+    saved_dregisters[i] = dreg_bits(PopLowestIndexAsCode(&dregister_list));
   }
   int64_t original_stack = sp();
   int64_t original_fp = fp();
@@ -233,13 +236,13 @@ void Simulator::CheckPCSComplianceAndRun() {
   DCHECK_EQ(original_fp, fp());
   // Check that callee-saved registers have been preserved.
   register_list = kCalleeSaved;
-  fpregister_list = kCalleeSavedV;
+  dregister_list = kCalleeSavedD;
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
     DCHECK_EQ(saved_registers[i], xreg(PopLowestIndexAsCode(&register_list)));
   }
-  for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
-    DCHECK(saved_fpregisters[i] ==
-           dreg_bits(PopLowestIndexAsCode(&fpregister_list)));
+  for (int i = 0; i < kNumberOfCalleeSavedDRegisters; i++) {
+    DCHECK(saved_dregisters[i] ==
+           dreg_bits(PopLowestIndexAsCode(&dregister_list)));
   }
 
   // Corrupt caller saved register minus the return regiters.
@@ -252,18 +255,20 @@ void Simulator::CheckPCSComplianceAndRun() {
 
   // In theory d0 to d7 can be used for return values, but V8 only uses d0
   // for now .
-  fpregister_list = kCallerSavedV;
-  fpregister_list.Remove(d0);
+  dregister_list = kCallerSavedD;
+  dregister_list.Remove(d0);
 
   CorruptRegisters(&register_list, kCallerSavedRegisterCorruptionValue);
-  CorruptRegisters(&fpregister_list, kCallerSavedVRegisterCorruptionValue);
+  CorruptRegisters(&dregister_list, kCallerSavedVRegisterCorruptionValue);
+  // None of the V registers are expected to be preserved besides D registers.
+  static_assert(kNumberOfCalleeSavedVRegisters == 0);
 #endif
 }
 
 #ifdef DEBUG
 // The least significant byte of the curruption value holds the corresponding
 // register's code.
-void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
+void Simulator::CorruptRegisters(CPURegList* list, uint64_t value, int lane) {
   if (list->type() == CPURegister::kRegister) {
     while (!list->IsEmpty()) {
       unsigned code = PopLowestIndexAsCode(list);
@@ -273,7 +278,11 @@ void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
     DCHECK_EQ(list->type(), CPURegister::kVRegister);
     while (!list->IsEmpty()) {
       unsigned code = PopLowestIndexAsCode(list);
-      set_dreg_bits(code, value | code);
+      if (lane == 0) {
+        set_dreg_bits(code, value | code);
+      } else {
+        vreg(code).Insert<uint64_t>(lane, value | code);
+      }
     }
   }
 }
@@ -281,10 +290,16 @@ void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
 void Simulator::CorruptAllCallerSavedCPURegisters() {
   // Corrupt alters its parameter so copy them first.
   CPURegList register_list = kCallerSaved;
-  CPURegList fpregister_list = kCallerSavedV;
+  CPURegList dregister_list = kCallerSavedD;
+  CPURegList vregister_list = kCallerSavedV;
 
   CorruptRegisters(&register_list, kCallerSavedRegisterCorruptionValue);
-  CorruptRegisters(&fpregister_list, kCallerSavedVRegisterCorruptionValue);
+  CorruptRegisters(&dregister_list, kCallerSavedVRegisterCorruptionValue);
+  // Corrupt only lane 1 of the full V registers since lane 0 overlaps with
+  // respective D registers.
+  const int kLane = 1;
+  CorruptRegisters(&vregister_list, kCallerSavedVRegisterCorruptionValue,
+                   kLane);
 }
 #endif
 

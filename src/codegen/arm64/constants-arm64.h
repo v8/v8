@@ -44,7 +44,11 @@ constexpr int kNumberOfZRegisters = kNumberOfVRegisters;
 // Callee saved registers are x19-x28.
 constexpr int kNumberOfCalleeSavedRegisters = 10;
 // Callee saved FP registers are d8-d15.
-constexpr int kNumberOfCalleeSavedVRegisters = 8;
+constexpr int kNumberOfCalleeSavedDRegisters = 8;
+// AAPCS64 only requires the callee to preserve the *lower* 64 bits of v8-v15
+// (which are essentially the d8-d15 registers), thus none of the 128-bit
+// V registers are callee-saved.
+constexpr int kNumberOfCalleeSavedVRegisters = 0;
 constexpr int kWRegSizeInBits = 32;
 constexpr int kWRegSizeInBitsLog2 = 5;
 constexpr int kWRegSize = kWRegSizeInBits >> 3;

@@ -2374,7 +2374,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
       0x7ffbad007f8bad00UL;
 
   void CorruptRegisters(CPURegList* list,
-                        uint64_t value = kDefaultCPURegisterCorruptionValue);
+                        uint64_t value = kDefaultCPURegisterCorruptionValue,
+                        int lane = 0);
   void CorruptAllCallerSavedCPURegisters();
 #endif
 
