@@ -133,7 +133,8 @@ class InterpreterTester {
   inline bool HasFeedbackMetadata() { return !feedback_metadata_.is_null(); }
 
   template <typename EmbeddedFeedbackType>
-    requires std::is_same_v<EmbeddedFeedbackType, CompareOperationFeedback>
+    requires std::is_same_v<EmbeddedFeedbackType, CompareOperationFeedback> ||
+             std::is_same_v<EmbeddedFeedbackType, BinaryOperationFeedback>
   typename EmbeddedFeedbackType::Type GetEmbeddedFeedback(
       Token::Value token, size_t bytecode_offset, int feedback_value_offset);
 
@@ -194,6 +195,9 @@ class InterpreterTester {
 extern template CompareOperationFeedback::Type
 InterpreterTester::GetEmbeddedFeedback<CompareOperationFeedback>(Token::Value,
                                                                  size_t, int);
+extern template BinaryOperationFeedback::Type
+InterpreterTester::GetEmbeddedFeedback<BinaryOperationFeedback>(Token::Value,
+                                                                size_t, int);
 
 }  // namespace interpreter
 }  // namespace internal

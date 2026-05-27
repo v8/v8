@@ -2709,11 +2709,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Label* if_number, TVariable<Word32T>* var_word32,
                               Label* if_bigint, Label* if_bigint64,
                               TVariable<BigInt>* var_maybe_bigint);
+  using FeedbackUpdater = std::function<void(TNode<Smi>)>;
   struct FeedbackValues {
     TVariable<Smi>* var_feedback = nullptr;
     const LazyNode<HeapObject>* maybe_feedback_vector = nullptr;
     TNode<UintPtrT>* slot = nullptr;
     UpdateFeedbackMode update_mode = UpdateFeedbackMode::kNoFeedback;
+    const FeedbackUpdater* feedback_updater = nullptr;
   };
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
@@ -3911,6 +3913,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TNode<HeapObject> maybe_feedback_vector,
                            TNode<UintPtrT> slot_id);
 
+  template <typename Feedback>
   void UpdateEmbeddedFeedback(TNode<Smi> feedback,
                               TNode<BytecodeArray> bytecode_array,
                               TNode<IntPtrT> feedback_offset);
@@ -3929,12 +3932,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // existing_feedback is nullptr.
   void OverwriteFeedback(TVariable<Smi>* existing_feedback, int new_feedback);
 
-  // Convert comparison feedback to corresponding feedback index.
-  TNode<Int32T> EncodeCompareOperationFeedback(TNode<Smi> feedback_value);
+  // Convert feedback value to corresponding feedback index.
+  template <typename Feedback>
+  TNode<Int32T> EncodeEmbeddedFeedback(TNode<Smi> feedback_value);
 
-  // Combine comparison feedback index using transition map.
-  TNode<Uint8T> CombineCompareOperationFeedback(
-      TNode<Int32T> old_feedback_index, TNode<Int32T> current_feedback_index);
+  // Combine feedback index using transition map.
+  template <typename Feedback>
+  TNode<Uint8T> CombineEmbeddedFeedback(TNode<Int32T> old_feedback_index,
+                                        TNode<Int32T> current_feedback_index);
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.

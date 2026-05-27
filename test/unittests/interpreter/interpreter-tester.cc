@@ -73,12 +73,16 @@ std::string InterpreterTester::function_name() {
 const char InterpreterTester::kFunctionName[] = "f";
 
 template <typename EmbeddedFeedbackType>
-  requires std::is_same_v<EmbeddedFeedbackType, CompareOperationFeedback>
+  requires std::is_same_v<EmbeddedFeedbackType, CompareOperationFeedback> ||
+           std::is_same_v<EmbeddedFeedbackType, BinaryOperationFeedback>
 EmbeddedFeedbackType::Type InterpreterTester::GetEmbeddedFeedback(
     Token::Value token, size_t bytecode_offset, int feedback_value_offset) {
   if constexpr (std::is_same_v<EmbeddedFeedbackType,
                                CompareOperationFeedback>) {
     DCHECK(Token::IsCompareOpWithEmbeddedFeedback(token));
+  } else if constexpr (std::is_same_v<EmbeddedFeedbackType,
+                                      BinaryOperationFeedback>) {
+    DCHECK(Token::IsBinaryOpWithEmbeddedFeedback(token));
   }
 
   auto bytecode_array = bytecode_.ToHandleChecked();
@@ -91,6 +95,9 @@ EmbeddedFeedbackType::Type InterpreterTester::GetEmbeddedFeedback(
 template CompareOperationFeedback::Type
 InterpreterTester::GetEmbeddedFeedback<CompareOperationFeedback>(Token::Value,
                                                                  size_t, int);
+template BinaryOperationFeedback::Type
+InterpreterTester::GetEmbeddedFeedback<BinaryOperationFeedback>(Token::Value,
+                                                                size_t, int);
 
 }  // namespace interpreter
 }  // namespace internal

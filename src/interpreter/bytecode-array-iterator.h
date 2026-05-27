@@ -70,6 +70,26 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
   int case_value_base_;
 };
 
+template <typename Feedback>
+struct EmbeddedFeedbackHintTraits;
+
+template <>
+struct EmbeddedFeedbackHintTraits<CompareOperationFeedback> {
+  using Hint = CompareOperationHint;
+  static Hint FromFeedback(uint32_t feedback_value);
+  static bool IsWithEmbeddedFeedbackOp(Bytecode bc) {
+    return Bytecodes::IsCompareWithEmbeddedFeedback(bc);
+  }
+};
+template <>
+struct EmbeddedFeedbackHintTraits<BinaryOperationFeedback> {
+  using Hint = BinaryOperationHint;
+  static Hint FromFeedback(uint32_t feedback_value);
+  static bool IsWithEmbeddedFeedbackOp(Bytecode bc) {
+    return Bytecodes::IsBinaryOpWithEmbeddedFeedback(bc);
+  }
+};
+
 class V8_EXPORT_PRIVATE BytecodeArrayIterator {
  public:
   explicit BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
@@ -185,7 +205,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
 
   void UpdatePointers();
 
-  CompareOperationHint GetEmbeddedCompareOperationHint();
+  template <typename Feedback>
+  typename EmbeddedFeedbackHintTraits<Feedback>::Hint
+  GetEmbeddedOperationHint();
+
+  CompareOperationHint GetEmbeddedCompareOperationHint() {
+    return GetEmbeddedOperationHint<CompareOperationFeedback>();
+  }
   int GetEmbeddedFeedbackOffset(int operand_index) const;
 
   inline bool done() const { return cursor_ == nullptr; }

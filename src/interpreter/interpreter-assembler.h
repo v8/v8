@@ -355,7 +355,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns a pointer to the current function's BytecodeArray object.
   TNode<BytecodeArray> BytecodeArrayTaggedPointer();
 
-  // Update feedback value embedded in BytecodeArray
+  // Update feedback value embedded in BytecodeArray.
+  template <typename Feedback>
   void UpdateEmbeddedFeedback(TNode<Smi> feedback, int feedback_operand_index);
 
  private:

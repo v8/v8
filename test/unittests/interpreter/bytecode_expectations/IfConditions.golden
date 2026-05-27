@@ -116,7 +116,7 @@ bytecodes: [
                 B(Star0),
   /*   30 S> */ B(JumpIfToBooleanFalse), U8(10),
   /*   43 S> */ B(Ldar), R(0),
-                B(AddSmi), I8(1), FBV(0),
+                B(AddSmi), I8(1), EmbeddedFeedback(),
                 B(Star0),
                 B(Jump), U8(5),
   /*   66 S> */ B(LdaSmi), I8(2),

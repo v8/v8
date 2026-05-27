@@ -381,7 +381,7 @@ class JSBinopReduction final {
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+    if (node_->op()->ValueInputCount() > 2) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.
@@ -419,7 +419,7 @@ class JSBinopReduction final {
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+    if (node_->op()->ValueInputCount() > 2) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.
@@ -486,6 +486,10 @@ class JSBinopReduction final {
   }
 
   BinaryOperationHint GetBinaryOperationHint(Node* node) const {
+    if (node->op()->ValueInputCount() == 2) {
+      const EmbeddedHintParameter& p = EmbeddedHintParameterOf(node->op());
+      return std::get<BinaryOperationHint>(p.hint());
+    }
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
     return lowering_->broker()->GetFeedbackForBinaryOperation(p.feedback());
   }
@@ -539,7 +543,7 @@ class JSBinopReduction final {
   }
 
   CompareOperationHint GetCompareOperationHint(Node* node) const {
-    if (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())) {
+    if (node->op()->ValueInputCount() == 2) {
       const EmbeddedHintParameter& p = EmbeddedHintParameterOf(node->op());
       return std::get<CompareOperationHint>(p.hint());
     } else {
@@ -853,7 +857,9 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-    node->RemoveInput(JSAddNode::FeedbackVectorIndex());
+    if (node->op()->ValueInputCount() > 2) {
+      node->RemoveInput(JSAddNode::FeedbackVectorIndex());
+    }
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstantNoHole(callable.code()));
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));

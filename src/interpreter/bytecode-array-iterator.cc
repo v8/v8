@@ -8,6 +8,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects-inl.h"
 
@@ -425,12 +426,32 @@ uint8_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
   return BytecodeDecoder::RacyDecodeEmbeddedFeedback(embedded_feedback_start);
 }
 
-CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
-  DCHECK(Bytecodes::IsCompareWithEmbeddedFeedback(current_bytecode()));
-  uint32_t type_feedback = CompareOperationFeedback::DecodeTypeIndex(
-      static_cast<CompareOperationFeedback::TypeIndex>(GetEmbeddedFeedback(1)));
-  return v8::internal::CompareOperationHintFromFeedback(type_feedback);
+// static
+CompareOperationHint EmbeddedFeedbackHintTraits<
+    CompareOperationFeedback>::FromFeedback(uint32_t feedback_value) {
+  return v8::internal::CompareOperationHintFromFeedback(feedback_value);
 }
+
+// static
+BinaryOperationHint EmbeddedFeedbackHintTraits<
+    BinaryOperationFeedback>::FromFeedback(uint32_t feedback_value) {
+  return v8::internal::BinaryOperationHintFromFeedback(feedback_value);
+}
+
+template <typename Feedback>
+typename EmbeddedFeedbackHintTraits<Feedback>::Hint
+BytecodeArrayIterator::GetEmbeddedOperationHint() {
+  using Traits = EmbeddedFeedbackHintTraits<Feedback>;
+  DCHECK(Traits::IsWithEmbeddedFeedbackOp(current_bytecode()));
+  uint32_t type_feedback = Feedback::DecodeTypeIndex(
+      static_cast<typename Feedback::TypeIndex>(GetEmbeddedFeedback(1)));
+  return Traits::FromFeedback(type_feedback);
+}
+
+template CompareOperationHint
+BytecodeArrayIterator::GetEmbeddedOperationHint<CompareOperationFeedback>();
+template BinaryOperationHint
+BytecodeArrayIterator::GetEmbeddedOperationHint<BinaryOperationFeedback>();
 
 int BytecodeArrayIterator::GetEmbeddedFeedbackOffset(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),

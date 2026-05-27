@@ -111,11 +111,11 @@ bytecodes: [
   /*   54 S> */ B(Star2),
   /*   54 S> */ B(Star1),
   /*   70 S> */ B(Ldar), R(2),
-  /*   75 E> */ B(Add), R(0), FBV(2),
+  /*   75 E> */ B(Add), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(8),
                 B(Star0),
   /*   72 E> */ B(ForInStep), R(7),
-  /*   45 E> */ B(JumpLoop), U8(24), I8(0), FBV(3),
+  /*   45 E> */ B(JumpLoop), U8(24), I8(0), FBV(2),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]

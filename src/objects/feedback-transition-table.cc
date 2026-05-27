@@ -25,5 +25,23 @@ Address CompareOperationFeedback::GetFeedbackEncodeTableAddress() {
   return reinterpret_cast<Address>(kFeedbackEncodeTable.lut);
 }
 
+inline const BinaryOperationFeedback::TransitionMap
+    BinaryOperationFeedback::kTransitionMap =
+        BinaryOperationFeedback::BuildTransitionMap();
+
+inline const BinaryOperationFeedback::FeedbackEncodeTable
+    BinaryOperationFeedback::kFeedbackEncodeTable =
+        BinaryOperationFeedback::BuildFeedbackEncodeTable();
+
+// static
+Address BinaryOperationFeedback::GetTransitionMapAddress() {
+  return reinterpret_cast<Address>(kTransitionMap.map);
+}
+
+// static
+Address BinaryOperationFeedback::GetFeedbackEncodeTableAddress() {
+  return reinterpret_cast<Address>(kFeedbackEncodeTable.lut);
+}
+
 }  // namespace internal
 }  // namespace v8

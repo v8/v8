@@ -1644,6 +1644,16 @@ ExternalReference ExternalReference::compare_operation_feedback_encode_table() {
       CompareOperationFeedback::GetFeedbackEncodeTableAddress());
 }
 
+ExternalReference
+ExternalReference::binary_operation_feedback_transition_table() {
+  return ExternalReference(BinaryOperationFeedback::GetTransitionMapAddress());
+}
+
+ExternalReference ExternalReference::binary_operation_feedback_encode_table() {
+  return ExternalReference(
+      BinaryOperationFeedback::GetFeedbackEncodeTableAddress());
+}
+
 ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
   return ExternalReference(isolate->promise_hook_address());
 }

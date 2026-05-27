@@ -476,7 +476,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(29),
                 B(Jump), U8(30),
   /*   70 S> */ B(Ldar), R(0),
-  /*   79 E> */ B(AddSmi), I8(1), FBV(0),
+  /*   79 E> */ B(AddSmi), I8(1), EmbeddedFeedback(),
                 B(Star1),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),

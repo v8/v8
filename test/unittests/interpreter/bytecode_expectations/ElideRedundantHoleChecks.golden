@@ -56,7 +56,7 @@ bytecodes: [
                 B(Star0),
                 B(LdaImmutableCurrentContextSlot), C8(3),
   /*   42 E> */ B(ThrowReferenceErrorIfHole), U8(1:"y"),
-  /*   40 E> */ B(Add), R(0), FBV(0),
+  /*   40 E> */ B(Add), R(0), EmbeddedFeedback(),
                 B(LdaUndefined),
   /*   47 S> */ B(Return),
 ]

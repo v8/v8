@@ -516,6 +516,10 @@ enum class IsolateFieldId : uint8_t;
     "compare_operation_feedback_transition_table")                             \
   V(compare_operation_feedback_encode_table,                                   \
     "compare_operation_feedback_encode_table")                                 \
+  V(binary_operation_feedback_transition_table,                                \
+    "binary_operation_feedback_transition_table")                              \
+  V(binary_operation_feedback_encode_table,                                    \
+    "binary_operation_feedback_encode_table")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
   EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)

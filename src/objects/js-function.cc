@@ -16,6 +16,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type-inl.h"
@@ -1626,6 +1628,23 @@ void JSFunction::ClearAllTypeFeedbackInfoForTesting(Isolate* isolate) {
     if (vector->ClearAllSlotsForTesting(isolate)) {
       IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(),
                             "ClearAllTypeFeedbackInfoForTesting");
+    }
+  }
+  // Also zero any embedded-feedback bytes inside the BytecodeArray so tests
+  // that rely on %ClearFunctionFeedback observe a truly reset feedback state.
+  if (shared()->HasBytecodeArray()) {
+    Handle<BytecodeArray> bytecode_array(shared()->GetBytecodeArray(isolate),
+                                         isolate);
+    for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
+         it.Advance()) {
+      if (!interpreter::Bytecodes::IsEmbeddedFeedbackBytecode(
+              it.current_bytecode())) {
+        continue;
+      }
+      bytecode_array->set(
+          it.GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex) +
+              kHeapObjectTag - BytecodeArray::kHeaderSize,
+          kUninitializedEmbeddedFeedback);
     }
   }
 }

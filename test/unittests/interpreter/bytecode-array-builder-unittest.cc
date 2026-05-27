@@ -95,7 +95,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Ldar and Star taking care to foil the register optimizer.
   builder.LoadAccumulatorWithRegister(other)
-      .BinaryOperation(Token::kAdd, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .StoreAccumulatorInRegister(reg)
       .LoadNull();
 
@@ -313,40 +313,53 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.
-  builder.BinaryOperation(Token::kAdd, reg, 1)
-      .BinaryOperation(Token::kSub, reg, 2)
-      .BinaryOperation(Token::kMul, reg, 3)
-      .BinaryOperation(Token::kDiv, reg, 4)
-      .BinaryOperation(Token::kMod, reg, 5)
-      .BinaryOperation(Token::kExp, reg, 6);
+  builder.BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kSub, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kMul, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kDiv, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kMod, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kExp, reg, kFeedbackIsEmbedded);
 
   using ASVariant = AddStringConstantAndInternalizeVariant;
   builder.Add_StringConstant_Internalize(Token::kAdd, reg, 1,
                                          ASVariant::kLhsIsStringConstant);
 
   // Emit bitwise operator invocations
-  builder.BinaryOperation(Token::kBitOr, reg, 6)
-      .BinaryOperation(Token::kBitXor, reg, 7)
-      .BinaryOperation(Token::kBitAnd, reg, 8);
+  builder.BinaryOperation(Token::kBitOr, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kBitXor, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kBitAnd, reg, kFeedbackIsEmbedded);
 
   // Emit shift operator invocations
-  builder.BinaryOperation(Token::kShl, reg, 9)
-      .BinaryOperation(Token::kSar, reg, 10)
-      .BinaryOperation(Token::kShr, reg, 11);
+  builder.BinaryOperation(Token::kShl, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kSar, reg, kFeedbackIsEmbedded)
+      .BinaryOperation(Token::kShr, reg, kFeedbackIsEmbedded);
 
   // Emit Smi binary operations.
-  builder.BinaryOperationSmiLiteral(Token::kAdd, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kSub, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kMul, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kDiv, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kMod, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kExp, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kBitOr, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kBitXor, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kBitAnd, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kShl, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kSar, Smi::FromInt(42), 2)
-      .BinaryOperationSmiLiteral(Token::kShr, Smi::FromInt(42), 2);
+  builder
+      .BinaryOperationSmiLiteral(Token::kAdd, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kSub, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kMul, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kDiv, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kMod, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kExp, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kBitOr, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kBitXor, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kBitAnd, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kShl, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kSar, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded)
+      .BinaryOperationSmiLiteral(Token::kShr, Smi::FromInt(42),
+                                 kFeedbackIsEmbedded);
 
   // Emit unary and count operator invocations.
   builder.UnaryOperation(Token::kInc, 1)
@@ -705,9 +718,9 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &near1)
       .CompareOperation(Token::kEq, reg, kFeedbackIsEmbedded)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &near2)
-      .BinaryOperation(Token::kAdd, reg, 1)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &near3)
-      .BinaryOperation(Token::kAdd, reg, 2)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &near4)
       .Bind(&near0)
       .Bind(&near1)
@@ -721,9 +734,9 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &far1)
       .CompareOperation(Token::kEq, reg, kFeedbackIsEmbedded)
       .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &far2)
-      .BinaryOperation(Token::kAdd, reg, 3)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .JumpIfTrue(ToBooleanMode::kConvertToBoolean, &far3)
-      .BinaryOperation(Token::kAdd, reg, 4)
+      .BinaryOperation(Token::kAdd, reg, kFeedbackIsEmbedded)
       .JumpIfFalse(ToBooleanMode::kConvertToBoolean, &far4);
   for (int i = 0; i < kFarJumpDistance - 22; i++) {
     builder.Debugger();

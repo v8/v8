@@ -914,44 +914,44 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(SameValue, CompareNoContext)                                             \
   TFC(SameValueNumbersOnly, CompareNoContext)                                  \
                                                                                \
-  /* Binary ops with feedback collection */                                    \
-  TFC(Add_Baseline, BinaryOp_Baseline)                                         \
-  TFC(AddSmi_Baseline, BinarySmiOp_Baseline)                                   \
-  TFC(Subtract_Baseline, BinaryOp_Baseline)                                    \
-  TFC(SubtractSmi_Baseline, BinarySmiOp_Baseline)                              \
-  TFC(Multiply_Baseline, BinaryOp_Baseline)                                    \
-  TFC(MultiplySmi_Baseline, BinarySmiOp_Baseline)                              \
-  TFC(Divide_Baseline, BinaryOp_Baseline)                                      \
-  TFC(DivideSmi_Baseline, BinarySmiOp_Baseline)                                \
-  TFC(Modulus_Baseline, BinaryOp_Baseline)                                     \
-  TFC(ModulusSmi_Baseline, BinarySmiOp_Baseline)                               \
-  TFC(Exponentiate_Baseline, BinaryOp_Baseline)                                \
-  TFC(ExponentiateSmi_Baseline, BinarySmiOp_Baseline)                          \
-  TFC(BitwiseAnd_Baseline, BinaryOp_Baseline)                                  \
-  TFC(BitwiseAndSmi_Baseline, BinarySmiOp_Baseline)                            \
-  TFC(BitwiseOr_Baseline, BinaryOp_Baseline)                                   \
-  TFC(BitwiseOrSmi_Baseline, BinarySmiOp_Baseline)                             \
-  TFC(BitwiseXor_Baseline, BinaryOp_Baseline)                                  \
-  TFC(BitwiseXorSmi_Baseline, BinarySmiOp_Baseline)                            \
-  TFC(ShiftLeft_Baseline, BinaryOp_Baseline)                                   \
-  TFC(ShiftLeftSmi_Baseline, BinarySmiOp_Baseline)                             \
-  TFC(ShiftRight_Baseline, BinaryOp_Baseline)                                  \
-  TFC(ShiftRightSmi_Baseline, BinarySmiOp_Baseline)                            \
-  TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
-  TFC(ShiftRightLogicalSmi_Baseline, BinarySmiOp_Baseline)                     \
+  /* Binary ops with embedded feedback */                                      \
+  TFC(Add_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                       \
+  TFC(AddSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                    \
+  TFC(Subtract_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                  \
+  TFC(SubtractSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)               \
+  TFC(Multiply_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                  \
+  TFC(MultiplySmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)               \
+  TFC(Divide_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                    \
+  TFC(DivideSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                 \
+  TFC(Modulus_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                   \
+  TFC(ModulusSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                \
+  TFC(Exponentiate_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)              \
+  TFC(ExponentiateSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)           \
+  TFC(BitwiseAnd_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                \
+  TFC(BitwiseAndSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)             \
+  TFC(BitwiseOr_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                 \
+  TFC(BitwiseOrSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)              \
+  TFC(BitwiseXor_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                \
+  TFC(BitwiseXorSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)             \
+  TFC(ShiftLeft_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                 \
+  TFC(ShiftLeftSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)              \
+  TFC(ShiftRight_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)                \
+  TFC(ShiftRightSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)             \
+  TFC(ShiftRightLogical_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)         \
+  TFC(ShiftRightLogicalSmi_Baseline, BinaryOp_WithEmbeddedFeedbackOffset)      \
                                                                                \
-  IF_TSA(TFC_TSA, TFC, Add_WithFeedback, BinaryOp_WithFeedback)                \
-  TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \
-  TFC(Multiply_WithFeedback, BinaryOp_WithFeedback)                            \
-  TFC(Divide_WithFeedback, BinaryOp_WithFeedback)                              \
-  TFC(Modulus_WithFeedback, BinaryOp_WithFeedback)                             \
-  TFC(Exponentiate_WithFeedback, BinaryOp_WithFeedback)                        \
-  TFC(BitwiseAnd_WithFeedback, BinaryOp_WithFeedback)                          \
-  TFC(BitwiseOr_WithFeedback, BinaryOp_WithFeedback)                           \
-  TFC(BitwiseXor_WithFeedback, BinaryOp_WithFeedback)                          \
-  TFC(ShiftLeft_WithFeedback, BinaryOp_WithFeedback)                           \
-  TFC(ShiftRight_WithFeedback, BinaryOp_WithFeedback)                          \
-  TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithFeedback)                   \
+  IF_TSA(TFC_TSA, TFC, Add_WithFeedback, BinaryOp_WithEmbeddedFeedback)        \
+  TFC(Subtract_WithFeedback, BinaryOp_WithEmbeddedFeedback)                    \
+  TFC(Multiply_WithFeedback, BinaryOp_WithEmbeddedFeedback)                    \
+  TFC(Divide_WithFeedback, BinaryOp_WithEmbeddedFeedback)                      \
+  TFC(Modulus_WithFeedback, BinaryOp_WithEmbeddedFeedback)                     \
+  TFC(Exponentiate_WithFeedback, BinaryOp_WithEmbeddedFeedback)                \
+  TFC(BitwiseAnd_WithFeedback, BinaryOp_WithEmbeddedFeedback)                  \
+  TFC(BitwiseOr_WithFeedback, BinaryOp_WithEmbeddedFeedback)                   \
+  TFC(BitwiseXor_WithFeedback, BinaryOp_WithEmbeddedFeedback)                  \
+  TFC(ShiftLeft_WithFeedback, BinaryOp_WithEmbeddedFeedback)                   \
+  TFC(ShiftRight_WithFeedback, BinaryOp_WithEmbeddedFeedback)                  \
+  TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithEmbeddedFeedback)           \
                                                                                \
   /* Like Add_WithFeedback, but lhs is a known constant and the result is */   \
   /* used as a property key and thus should be internalized early.        */   \

@@ -980,6 +980,18 @@ JS_BINOP_WITH_FEEDBACK(BINARY_OP)
 JS_COMPARE_BINOP_COMMON_LIST(COMPARE_OP_WITH_EMBEDDED_FEEDBACK)
 #undef COMPARE_OP_WITH_EMBEDDED_FEEDBACK
 
+#define BINOP_WITH_EMBEDDED_FEEDBACK(JSName, Name)                            \
+  const Operator* JSOperatorBuilder::Name(BinaryOperationHint hint) {         \
+    static constexpr auto kProperties = BinopProperties(IrOpcode::k##JSName); \
+    EmbeddedHintParameter hint_parameter(hint);                               \
+    return zone()->New<Operator1<EmbeddedHintParameter>>(                     \
+        IrOpcode::k##JSName, kProperties, #JSName, 2, 1, 1, 1, 1,             \
+        Operator::ZeroIfNoThrow(kProperties), hint_parameter);                \
+  }
+JS_ARITH_BINOP_LIST(BINOP_WITH_EMBEDDED_FEEDBACK)
+JS_BITWISE_BINOP_LIST(BINOP_WITH_EMBEDDED_FEEDBACK)
+#undef BINOP_WITH_EMBEDDED_FEEDBACK
+
 const Operator* JSOperatorBuilder::DefineKeyedOwnPropertyInLiteral(
     const FeedbackSource& feedback) {
   static constexpr int kObject = 1;

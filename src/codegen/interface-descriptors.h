@@ -42,7 +42,8 @@ namespace internal {
   V(BinaryOp)                                                   \
   V(BinaryOp_Baseline)                                          \
   V(BinaryOp_WithFeedback)                                      \
-  V(BinarySmiOp_Baseline)                                       \
+  V(BinaryOp_WithEmbeddedFeedback)                              \
+  V(BinaryOp_WithEmbeddedFeedbackOffset)                        \
   V(CallForwardVarargs)                                         \
   V(CallFunctionTemplate)                                       \
   V(CallFunctionTemplateGeneric)                                \
@@ -2356,19 +2357,6 @@ class BinaryOp_BaselineDescriptor
   static constexpr inline auto registers();
 };
 
-class BinarySmiOp_BaselineDescriptor
-    : public StaticCallInterfaceDescriptor<BinarySmiOp_BaselineDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kLeft
-                         MachineType::TaggedSigned(),  // kRight
-                         MachineType::UintPtr())       // kSlot
-  DECLARE_DESCRIPTOR(BinarySmiOp_BaselineDescriptor)
-
-  static constexpr inline auto registers();
-};
 
 class StringAtAsStringDescriptor final
     : public StaticCallInterfaceDescriptor<StringAtAsStringDescriptor> {
@@ -2984,6 +2972,35 @@ class BinaryOp_WithFeedbackDescriptor
                          MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kFeedbackVector
   DECLARE_DESCRIPTOR(BinaryOp_WithFeedbackDescriptor)
+};
+
+class BinaryOp_WithEmbeddedFeedbackDescriptor
+    : public StaticCallInterfaceDescriptor<
+          BinaryOp_WithEmbeddedFeedbackDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kLeft, kRight, kFeedbackOffset, kBytecodeArray)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::UintPtr(),    // kFeedbackOffset
+                         MachineType::AnyTagged())  // kBytecodeArray
+  DECLARE_DESCRIPTOR(BinaryOp_WithEmbeddedFeedbackDescriptor)
+};
+
+class BinaryOp_WithEmbeddedFeedbackOffsetDescriptor
+    : public StaticCallInterfaceDescriptor<
+          BinaryOp_WithEmbeddedFeedbackOffsetDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(BinaryOp_WithEmbeddedFeedbackOffsetDescriptor)
+
+  static constexpr inline auto registers();
 };
 
 class CallTrampoline_Baseline_CompactDescriptor

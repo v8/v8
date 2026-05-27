@@ -50,7 +50,10 @@ struct JSOperatorGlobalCache;
   JS_BITWISE_BINOP_LIST(V)        \
   V(JSInstanceOf, InstanceOf)
 
-#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) JS_COMPARE_BINOP_COMMON_LIST(V)
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_COMPARE_BINOP_COMMON_LIST(V)          \
+  JS_ARITH_BINOP_LIST(V)                   \
+  JS_BITWISE_BINOP_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -1028,6 +1031,19 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Modulus(FeedbackSource const& feedback);
   const Operator* Exponentiate(FeedbackSource const& feedback);
 
+  const Operator* Add(BinaryOperationHint hint);
+  const Operator* Subtract(BinaryOperationHint hint);
+  const Operator* Multiply(BinaryOperationHint hint);
+  const Operator* Divide(BinaryOperationHint hint);
+  const Operator* Modulus(BinaryOperationHint hint);
+  const Operator* Exponentiate(BinaryOperationHint hint);
+  const Operator* BitwiseOr(BinaryOperationHint hint);
+  const Operator* BitwiseXor(BinaryOperationHint hint);
+  const Operator* BitwiseAnd(BinaryOperationHint hint);
+  const Operator* ShiftLeft(BinaryOperationHint hint);
+  const Operator* ShiftRight(BinaryOperationHint hint);
+  const Operator* ShiftRightLogical(BinaryOperationHint hint);
+
   const Operator* BitwiseNot(FeedbackSource const& feedback);
   const Operator* Decrement(FeedbackSource const& feedback);
   const Operator* Increment(FeedbackSource const& feedback);
@@ -1330,7 +1346,7 @@ JS_BINOP_WITH_FEEDBACK(V)
 #undef V
 
 #define V(JSName, ...) using JSName##Node = JSBinaryOpWithEmbeddedFeedbackNode;
-JS_BINOP_WITH_EMBEDDED_FEEDBACK(V)
+JS_COMPARE_BINOP_COMMON_LIST(V)
 #undef V
 
 class JSGetIteratorNode final : public JSNodeWrapperBase {

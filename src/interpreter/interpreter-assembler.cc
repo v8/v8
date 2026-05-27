@@ -146,15 +146,21 @@ TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
   return bytecode_array_.value();
 }
 
+template <typename Feedback>
 void InterpreterAssembler::UpdateEmbeddedFeedback(TNode<Smi> feedback,
                                                   int feedback_operand_index) {
 #ifndef V8_JITLESS
   TNode<IntPtrT> feedback_index_offset =
       BytecodeOperandOffset(feedback_operand_index);
-  CodeStubAssembler::UpdateEmbeddedFeedback(
+  CodeStubAssembler::UpdateEmbeddedFeedback<Feedback>(
       feedback, BytecodeArrayTaggedPointer(), feedback_index_offset);
 #endif  // V8_JITLESS
 }
+
+template void InterpreterAssembler::UpdateEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Smi>, int);
+template void InterpreterAssembler::UpdateEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Smi>, int);
 
 TNode<ExternalReference> InterpreterAssembler::DispatchTablePointer() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&

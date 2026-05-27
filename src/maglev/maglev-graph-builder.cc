@@ -1545,15 +1545,6 @@ consteval bool BinaryOperationIsBitwiseInt32() {
   }
 }
 
-static constexpr bool IsOperationWithEmbeddedFeedback(Operation op) {
-#define OP_WITH_EMBEDDED_FEEDBACK_CASE(op) case Operation::k##op:
-  switch (op) {
-    COMPARISON_OPERATION_LIST(OP_WITH_EMBEDDED_FEEDBACK_CASE)
-    return true;
-    default:
-      return false;
-  }
-}
 }  // namespace
 
 namespace {
@@ -1597,17 +1588,11 @@ template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
-  if constexpr (IsOperationWithEmbeddedFeedback(kOperation)) {
-    return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
-        {left, right},
-        compiler::EmbeddedFeedbackSource{
-            indirect_handle(iterator_.bytecode_array(), local_isolate()),
-            iterator_.GetEmbeddedFeedbackOffset(1)}));
-  } else {
-    FeedbackSlot slot_index = GetSlotOperand(1);
-    return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
-        {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
-  }
+  return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+      {left, right},
+      compiler::EmbeddedFeedbackSource{
+          indirect_handle(iterator_.bytecode_array(), local_isolate()),
+          iterator_.GetEmbeddedFeedbackOffset(1)}));
 }
 
 template <Operation kOperation>
@@ -1615,9 +1600,11 @@ ReduceResult MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
   ValueNode* left = GetAccumulator();
   int constant = iterator_.GetImmediateOperand(0);
   ValueNode* right = GetSmiConstant(constant);
-  FeedbackSlot slot_index = GetSlotOperand(1);
   return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
-      {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+      {left, right},
+      compiler::EmbeddedFeedbackSource{
+          indirect_handle(iterator_.bytecode_array(), local_isolate()),
+          iterator_.GetEmbeddedFeedbackOffset(1)}));
 }
 
 template <Operation kOperation>
@@ -2154,8 +2141,8 @@ ReduceResult MaglevGraphBuilder::BuildFloat64SpeculateSafeAdd(
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
-  FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  BinaryOperationHint feedback_hint =
+      iterator_.GetEmbeddedOperationHint<BinaryOperationFeedback>();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
@@ -2239,8 +2226,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
 
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
-  FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
+  BinaryOperationHint feedback_hint =
+      iterator_.GetEmbeddedOperationHint<BinaryOperationFeedback>();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
@@ -2487,7 +2474,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   };
 
-  CompareOperationHint hint = iterator_.GetEmbeddedCompareOperationHint();
+  CompareOperationHint hint =
+      iterator_.GetEmbeddedOperationHint<CompareOperationFeedback>();
 
   switch (hint) {
     case CompareOperationHint::kNone:

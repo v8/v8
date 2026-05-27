@@ -154,7 +154,7 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()) ||
          (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())));
-  if (JSOperator::IsBinaryWithFeedback(node->opcode())) {
+  if (node->op()->ValueInputCount() > 2) {
     node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
   }
   ReplaceWithBuiltinCall(node, builtin_without_feedback);
@@ -193,6 +193,7 @@ DEF_BINARY_LOWERING(InstanceOf)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThan)
 DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
+#undef DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   // The === operator doesn't need the current context.

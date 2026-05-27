@@ -706,17 +706,17 @@ TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
     DirectHandle<JSFunction> f = GetFunction("testcompound");
 
     // There should be 1 LOAD_GLOBAL_IC for load of a and 2 LOAD_ICs, for load
-    // of x.old and x.young.
+    // of x.old and x.young. The `+` in `x.old + x.young` carries embedded
+    // feedback in the BytecodeArray, so no FeedbackVector slot is allocated.
     Handle<FeedbackVector> feedback_vector(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
-    CHECK_EQ(7, helper.slot_count());
+    CHECK_EQ(6, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetNamedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kSetNamedStrict);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kSetNamedStrict);
-    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kBinaryOp);
+    CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
-    CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kLoadProperty);
   }
 }
 

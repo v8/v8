@@ -420,42 +420,44 @@ void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
                                                             Register reg,
                                                             int feedback_slot) {
+  // feedback is embedded into bytecode array for binary operations
+  DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
   switch (op) {
     case Token::kAdd:
-      OutputAdd(reg, feedback_slot);
+      OutputAdd(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kSub:
-      OutputSub(reg, feedback_slot);
+      OutputSub(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kMul:
-      OutputMul(reg, feedback_slot);
+      OutputMul(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kDiv:
-      OutputDiv(reg, feedback_slot);
+      OutputDiv(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kMod:
-      OutputMod(reg, feedback_slot);
+      OutputMod(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kExp:
-      OutputExp(reg, feedback_slot);
+      OutputExp(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitOr:
-      OutputBitwiseOr(reg, feedback_slot);
+      OutputBitwiseOr(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitXor:
-      OutputBitwiseXor(reg, feedback_slot);
+      OutputBitwiseXor(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitAnd:
-      OutputBitwiseAnd(reg, feedback_slot);
+      OutputBitwiseAnd(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kShl:
-      OutputShiftLeft(reg, feedback_slot);
+      OutputShiftLeft(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kSar:
-      OutputShiftRight(reg, feedback_slot);
+      OutputShiftRight(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kShr:
-      OutputShiftRightLogical(reg, feedback_slot);
+      OutputShiftRightLogical(reg, kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();
@@ -479,42 +481,44 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Add_StringConstant_Internalize(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Tagged<Smi> literal, int feedback_slot) {
+  DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
   switch (op) {
     case Token::kAdd:
-      OutputAddSmi(literal.value(), feedback_slot);
+      OutputAddSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kSub:
-      OutputSubSmi(literal.value(), feedback_slot);
+      OutputSubSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kMul:
-      OutputMulSmi(literal.value(), feedback_slot);
+      OutputMulSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kDiv:
-      OutputDivSmi(literal.value(), feedback_slot);
+      OutputDivSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kMod:
-      OutputModSmi(literal.value(), feedback_slot);
+      OutputModSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kExp:
-      OutputExpSmi(literal.value(), feedback_slot);
+      OutputExpSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitOr:
-      OutputBitwiseOrSmi(literal.value(), feedback_slot);
+      OutputBitwiseOrSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitXor:
-      OutputBitwiseXorSmi(literal.value(), feedback_slot);
+      OutputBitwiseXorSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kBitAnd:
-      OutputBitwiseAndSmi(literal.value(), feedback_slot);
+      OutputBitwiseAndSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kShl:
-      OutputShiftLeftSmi(literal.value(), feedback_slot);
+      OutputShiftLeftSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kSar:
-      OutputShiftRightSmi(literal.value(), feedback_slot);
+      OutputShiftRightSmi(literal.value(), kUninitializedEmbeddedFeedback);
       break;
     case Token::kShr:
-      OutputShiftRightLogicalSmi(literal.value(), feedback_slot);
+      OutputShiftRightLogicalSmi(literal.value(),
+                                 kUninitializedEmbeddedFeedback);
       break;
     default:
       UNREACHABLE();

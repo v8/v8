@@ -1462,31 +1462,9 @@ void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
 }
 
 template <class Derived, Operation kOperation>
-void BinaryWithFeedbackNode<Derived,
-                            kOperation>::SetValueLocationConstraints() {
-  using D = BinaryOp_WithFeedbackDescriptor;
-  UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
-  UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
-  DefineAsFixed(this, kReturnRegister0);
-}
-
-template <class Derived, Operation kOperation>
-void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  __ CallBuiltin<BuiltinFor(kOperation)>(
-      masm->native_context().object(),  // context
-      LeftInput(),                      // left
-      RightInput(),                     // right
-      feedback().index(),               // feedback slot
-      feedback().vector                 // feedback vector
-  );
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-template <class Derived, Operation kOperation>
 void BinaryWithEmbeddedFeedbackNode<Derived,
                                     kOperation>::SetValueLocationConstraints() {
-  using D = BinaryOp_WithFeedbackDescriptor;
+  using D = BinaryOp_WithEmbeddedFeedbackDescriptor;
   UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
   UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   DefineAsFixed(this, kReturnRegister0);

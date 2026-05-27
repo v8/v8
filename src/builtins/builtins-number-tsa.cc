@@ -402,12 +402,11 @@ TS_BUILTIN(Add_WithFeedback, NumberBuiltinsAssemblerTS) {
   V<Object> lhs = Parameter<Object>(Descriptor::kLeft);
   V<Object> rhs = Parameter<Object>(Descriptor::kRight);
   V<Context> context = Parameter<Context>(Descriptor::kContext);
-  V<FeedbackVector> feedback_vector =
-      Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  V<WordPtr> slot = Parameter<WordPtr>(Descriptor::kSlot);
+  V<BytecodeArray> bytecode_array =
+      Parameter<BytecodeArray>(Descriptor::kBytecodeArray);
+  V<WordPtr> feedback_offset = Parameter<WordPtr>(Descriptor::kFeedbackOffset);
 
-  SetFeedbackSlot(slot);
-  SetFeedbackVector(feedback_vector);
+  SetEmbeddedFeedback(bytecode_array, feedback_offset);
 
   V<Object> result = AddWithFeedback(
       context, lhs, rhs, UpdateFeedbackMode::kGuaranteedFeedback, false);

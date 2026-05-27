@@ -7243,11 +7243,16 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
 
       if (feedback.var_feedback != nullptr) {
         BIND(&if_exception);
-        DCHECK(feedback.slot != nullptr);
-        DCHECK(feedback.maybe_feedback_vector != nullptr);
-        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
-                       (*feedback.maybe_feedback_vector)(), *feedback.slot,
-                       feedback.update_mode);
+        if (feedback.feedback_updater != nullptr) {
+          (*feedback.feedback_updater)(
+              SmiConstant(BinaryOperationFeedback::kAny));
+        } else {
+          DCHECK(feedback.slot != nullptr);
+          DCHECK(feedback.maybe_feedback_vector != nullptr);
+          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                         (*feedback.maybe_feedback_vector)(), *feedback.slot,
+                         feedback.update_mode);
+        }
         CallRuntime(Runtime::kReThrow, context, var_exception.value());
         Unreachable();
       }
@@ -13736,6 +13741,36 @@ void CodeStubAssembler::ReportFeedbackUpdate(
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 
+namespace {
+
+// Trait supplying per-feedback-category external references used by the
+// embedded-feedback helpers.
+template <typename Feedback>
+struct EmbeddedFeedbackTraits;
+
+template <>
+struct EmbeddedFeedbackTraits<CompareOperationFeedback> {
+  static ExternalReference transition_table() {
+    return ExternalReference::compare_operation_feedback_transition_table();
+  }
+  static ExternalReference encode_table() {
+    return ExternalReference::compare_operation_feedback_encode_table();
+  }
+};
+
+template <>
+struct EmbeddedFeedbackTraits<BinaryOperationFeedback> {
+  static ExternalReference transition_table() {
+    return ExternalReference::binary_operation_feedback_transition_table();
+  }
+  static ExternalReference encode_table() {
+    return ExternalReference::binary_operation_feedback_encode_table();
+  }
+};
+
+}  // namespace
+
+template <typename Feedback>
 void CodeStubAssembler::UpdateEmbeddedFeedback(
     TNode<Smi> feedback, TNode<BytecodeArray> bytecode_array,
     TNode<IntPtrT> feedback_offset) {
@@ -13743,9 +13778,9 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
 
   TNode<Uint8T> previous_feedback =
       Load<Uint8T>(bytecode_array, feedback_offset);
-  TNode<Int32T> feedback_index = EncodeCompareOperationFeedback(feedback);
+  TNode<Int32T> feedback_index = EncodeEmbeddedFeedback<Feedback>(feedback);
   TNode<Uint8T> new_feedback =
-      CombineCompareOperationFeedback(previous_feedback, feedback_index);
+      CombineEmbeddedFeedback<Feedback>(previous_feedback, feedback_index);
 
   GotoIf(Word32Equal(previous_feedback, new_feedback), &end);
   {
@@ -13766,6 +13801,11 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
   BIND(&end);
 }
 
+template void CodeStubAssembler::UpdateEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Smi>, TNode<BytecodeArray>, TNode<IntPtrT>);
+template void CodeStubAssembler::UpdateEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Smi>, TNode<BytecodeArray>, TNode<IntPtrT>);
+
 void CodeStubAssembler::OverwriteFeedback(TVariable<Smi>* existing_feedback,
                                           int new_feedback) {
   if (existing_feedback == nullptr) return;
@@ -13784,28 +13824,41 @@ void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
   *existing_feedback = SmiOr(existing_feedback->value(), feedback);
 }
 
-TNode<Int32T> CodeStubAssembler::EncodeCompareOperationFeedback(
+template <typename Feedback>
+TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback(
     TNode<Smi> feedback_value) {
   TVARIABLE(Int32T, result);
-  TNode<RawPtrT> feedback_encode_table =
-      UncheckedCast<RawPtrT>(ExternalConstant(
-          ExternalReference::compare_operation_feedback_encode_table()));
+  TNode<RawPtrT> feedback_encode_table = UncheckedCast<RawPtrT>(
+      ExternalConstant(EmbeddedFeedbackTraits<Feedback>::encode_table()));
   result = Load<Uint8T>(feedback_encode_table,
                         ChangeUint32ToWord(SmiToInt32(feedback_value)));
   return result.value();
 }
 
-TNode<Uint8T> CodeStubAssembler::CombineCompareOperationFeedback(
+template TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Smi>);
+template TNode<Int32T> CodeStubAssembler::EncodeEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Smi>);
+
+template <typename Feedback>
+TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback(
     TNode<Int32T> old_feedback_index, TNode<Int32T> current_feedback_index) {
   TVARIABLE(Uint8T, new_feedback);
-  TNode<RawPtrT> feedback_transition_table =
-      UncheckedCast<RawPtrT>(ExternalConstant(
-          ExternalReference::compare_operation_feedback_transition_table()));
-  TNode<UintPtrT> offset = ChangeUint32ToWord(Word32Or(
-      Word32Shl(old_feedback_index, Int32Constant(5)), current_feedback_index));
+  TNode<RawPtrT> feedback_transition_table = UncheckedCast<RawPtrT>(
+      ExternalConstant(EmbeddedFeedbackTraits<Feedback>::transition_table()));
+  constexpr int kShift =
+      base::bits::WhichPowerOfTwo(Feedback::kTransitionMapStride);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Or(Word32Shl(old_feedback_index, Int32Constant(kShift)),
+               current_feedback_index));
   new_feedback = Load<Uint8T>(feedback_transition_table, offset);
   return new_feedback.value();
 }
+
+template TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback<
+    CompareOperationFeedback>(TNode<Int32T>, TNode<Int32T>);
+template TNode<Uint8T> CodeStubAssembler::CombineEmbeddedFeedback<
+    BinaryOperationFeedback>(TNode<Int32T>, TNode<Int32T>);
 
 void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
                                                     Label* if_protector) {
@@ -16109,9 +16162,11 @@ void CodeStubAssembler::GenerateStrictEqualAndTryPatchCode(
 
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
   TNode<Int32T> feedback_index =
-      EncodeCompareOperationFeedback(var_type_feedback.value());
+      EncodeEmbeddedFeedback<CompareOperationFeedback>(
+          var_type_feedback.value());
   TNode<Uint8T> new_feedback =
-      CombineCompareOperationFeedback(current_type_feedback, feedback_index);
+      CombineEmbeddedFeedback<CompareOperationFeedback>(current_type_feedback,
+                                                        feedback_index);
 
   // Update embedded feedback in the runtime function to avoid
   // repeatedly entering/exiting hardware sandbox.
@@ -16139,18 +16194,20 @@ void CodeStubAssembler::GenerateEqualAndTryPatchCode(
         lhs, rhs, [&]() { return LoadContextFromBaseline(); },
         &var_type_feedback);
   }
-  feedback_index = EncodeCompareOperationFeedback(var_type_feedback.value());
-  new_feedback = CombineCompareOperationFeedback(current_type_feedback,
-                                                 feedback_index.value());
+  feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value());
+  new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(
+      current_type_feedback, feedback_index.value());
   TailCallRuntime(Runtime::kPatchBaselineCode, NoContextConstant(),
                   SmiFromInt32(new_feedback.value()), result, bytecode_array,
                   ChangeUintPtrToTagged(feedback_offset));
 
   BIND(&if_exception);
   {
-    feedback_index = EncodeCompareOperationFeedback(var_type_feedback.value());
-    new_feedback = CombineCompareOperationFeedback(current_type_feedback,
-                                                   feedback_index.value());
+    feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(
+        var_type_feedback.value());
+    new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(
+        current_type_feedback, feedback_index.value());
     TailCallRuntime(Runtime::kPatchBaselineCodeAndThrow, NoContextConstant(),
                     SmiFromInt32(new_feedback.value()), var_exception.value(),
                     bytecode_array, ChangeUintPtrToTagged(feedback_offset));
@@ -16357,20 +16414,20 @@ void CodeStubAssembler::GenerateNumberEqual(TNode<Object> lhs,
           Operation::k##Name, lhs, rhs,                                        \
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback);    \
     }                                                                          \
-    feedback_index =                                                           \
-        EncodeCompareOperationFeedback(var_type_feedback.value());             \
-    new_feedback = CombineCompareOperationFeedback(current_type_feedback,      \
-                                                   feedback_index.value());    \
+    feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(         \
+        var_type_feedback.value());                                            \
+    new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(          \
+        current_type_feedback, feedback_index.value());                        \
     TailCallRuntime(Runtime::kPatchBaselineCode, NoContextConstant(),          \
                     SmiFromInt32(new_feedback.value()), result,                \
                     bytecode_array, ChangeUintPtrToTagged(feedback_offset));   \
                                                                                \
     BIND(&if_exception);                                                       \
     {                                                                          \
-      feedback_index =                                                         \
-          EncodeCompareOperationFeedback(var_type_feedback.value());           \
-      new_feedback = CombineCompareOperationFeedback(current_type_feedback,    \
-                                                     feedback_index.value());  \
+      feedback_index = EncodeEmbeddedFeedback<CompareOperationFeedback>(       \
+          var_type_feedback.value());                                          \
+      new_feedback = CombineEmbeddedFeedback<CompareOperationFeedback>(        \
+          current_type_feedback, feedback_index.value());                      \
       TailCallRuntime(Runtime::kPatchBaselineCodeAndThrow,                     \
                       NoContextConstant(), SmiFromInt32(new_feedback.value()), \
                       var_exception.value(), bytecode_array,                   \

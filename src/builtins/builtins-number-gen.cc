@@ -33,21 +33,6 @@ namespace internal {
                                                                              \
     Return(result);                                                          \
   }
-#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
-DEF_BINOP(Add_WithFeedback, Generate_AddWithFeedback)
-#endif
-DEF_BINOP(Subtract_WithFeedback, Generate_SubtractWithFeedback)
-DEF_BINOP(Multiply_WithFeedback, Generate_MultiplyWithFeedback)
-DEF_BINOP(Divide_WithFeedback, Generate_DivideWithFeedback)
-DEF_BINOP(Modulus_WithFeedback, Generate_ModulusWithFeedback)
-DEF_BINOP(Exponentiate_WithFeedback, Generate_ExponentiateWithFeedback)
-DEF_BINOP(BitwiseOr_WithFeedback, Generate_BitwiseOrWithFeedback)
-DEF_BINOP(BitwiseXor_WithFeedback, Generate_BitwiseXorWithFeedback)
-DEF_BINOP(BitwiseAnd_WithFeedback, Generate_BitwiseAndWithFeedback)
-DEF_BINOP(ShiftLeft_WithFeedback, Generate_ShiftLeftWithFeedback)
-DEF_BINOP(ShiftRight_WithFeedback, Generate_ShiftRightWithFeedback)
-DEF_BINOP(ShiftRightLogical_WithFeedback,
-          Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_WithFeedback,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
 DEF_BINOP(Add_RhsIsStringConstant_Internalize_WithFeedback,
@@ -68,52 +53,91 @@ DEF_BINOP(Add_RhsIsStringConstant_Internalize_WithFeedback,
                                                                      \
     Return(result);                                                  \
   }
-DEF_BINOP(Add_Baseline, Generate_AddWithFeedback)
-DEF_BINOP(Subtract_Baseline, Generate_SubtractWithFeedback)
-DEF_BINOP(Multiply_Baseline, Generate_MultiplyWithFeedback)
-DEF_BINOP(Divide_Baseline, Generate_DivideWithFeedback)
-DEF_BINOP(Modulus_Baseline, Generate_ModulusWithFeedback)
-DEF_BINOP(Exponentiate_Baseline, Generate_ExponentiateWithFeedback)
-DEF_BINOP(BitwiseOr_Baseline, Generate_BitwiseOrWithFeedback)
-DEF_BINOP(BitwiseXor_Baseline, Generate_BitwiseXorWithFeedback)
-DEF_BINOP(BitwiseAnd_Baseline, Generate_BitwiseAndWithFeedback)
-DEF_BINOP(ShiftLeft_Baseline, Generate_ShiftLeftWithFeedback)
-DEF_BINOP(ShiftRight_Baseline, Generate_ShiftRightWithFeedback)
-DEF_BINOP(ShiftRightLogical_Baseline, Generate_ShiftRightLogicalWithFeedback)
 DEF_BINOP(Add_LhsIsStringConstant_Internalize_Baseline,
           Generate_AddLhsIsStringConstantInternalizeWithFeedback)
 DEF_BINOP(Add_RhsIsStringConstant_Internalize_Baseline,
           Generate_AddRhsIsStringConstantInternalizeWithFeedback)
 #undef DEF_BINOP
 
-#define DEF_BINOP_RHS_SMI(Name, Generator)                           \
-  TF_BUILTIN(Name, CodeStubAssembler) {                              \
-    auto lhs = Parameter<Object>(Descriptor::kLeft);                 \
-    auto rhs = Parameter<Object>(Descriptor::kRight);                \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);     \
-                                                                     \
-    BinaryOpAssembler binop_asm(state());                            \
-    TNode<Object> result = binop_asm.Generator(                      \
-        [&]() { return LoadContextFromBaseline(); }, lhs, rhs, slot, \
-        [&]() { return LoadFeedbackVectorFromBaseline(); },          \
-        UpdateFeedbackMode::kGuaranteedFeedback, true);              \
-                                                                     \
-    Return(result);                                                  \
+#define DEF_BINOP(Name, Generator)                                 \
+  TF_BUILTIN(Name, CodeStubAssembler) {                            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto context = Parameter<Context>(Descriptor::kContext);       \
+    auto bytecode_array =                                          \
+        Parameter<BytecodeArray>(Descriptor::kBytecodeArray);      \
+    auto feedback_offset =                                         \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);  \
+                                                                   \
+    BinaryOpAssembler binop_asm(state());                          \
+    TNode<Object> result =                                         \
+        binop_asm.Generator([&]() { return context; }, lhs, rhs,   \
+                            binop_asm.MakeEmbeddedFeedbackUpdater( \
+                                bytecode_array, feedback_offset),  \
+                            false);                                \
+                                                                   \
+    Return(result);                                                \
   }
-DEF_BINOP_RHS_SMI(AddSmi_Baseline, Generate_AddWithFeedback)
-DEF_BINOP_RHS_SMI(SubtractSmi_Baseline, Generate_SubtractWithFeedback)
-DEF_BINOP_RHS_SMI(MultiplySmi_Baseline, Generate_MultiplyWithFeedback)
-DEF_BINOP_RHS_SMI(DivideSmi_Baseline, Generate_DivideWithFeedback)
-DEF_BINOP_RHS_SMI(ModulusSmi_Baseline, Generate_ModulusWithFeedback)
-DEF_BINOP_RHS_SMI(ExponentiateSmi_Baseline, Generate_ExponentiateWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseOrSmi_Baseline, Generate_BitwiseOrWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseXorSmi_Baseline, Generate_BitwiseXorWithFeedback)
-DEF_BINOP_RHS_SMI(BitwiseAndSmi_Baseline, Generate_BitwiseAndWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftLeftSmi_Baseline, Generate_ShiftLeftWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftRightSmi_Baseline, Generate_ShiftRightWithFeedback)
-DEF_BINOP_RHS_SMI(ShiftRightLogicalSmi_Baseline,
-                  Generate_ShiftRightLogicalWithFeedback)
-#undef DEF_BINOP_RHS_SMI
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+DEF_BINOP(Add_WithFeedback, Generate_AddWithFeedback)
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+DEF_BINOP(Subtract_WithFeedback, Generate_SubtractWithFeedback)
+DEF_BINOP(Multiply_WithFeedback, Generate_MultiplyWithFeedback)
+DEF_BINOP(Divide_WithFeedback, Generate_DivideWithFeedback)
+DEF_BINOP(Modulus_WithFeedback, Generate_ModulusWithFeedback)
+DEF_BINOP(Exponentiate_WithFeedback, Generate_ExponentiateWithFeedback)
+DEF_BINOP(BitwiseOr_WithFeedback, Generate_BitwiseOrWithFeedback)
+DEF_BINOP(BitwiseXor_WithFeedback, Generate_BitwiseXorWithFeedback)
+DEF_BINOP(BitwiseAnd_WithFeedback, Generate_BitwiseAndWithFeedback)
+DEF_BINOP(ShiftLeft_WithFeedback, Generate_ShiftLeftWithFeedback)
+DEF_BINOP(ShiftRight_WithFeedback, Generate_ShiftRightWithFeedback)
+DEF_BINOP(ShiftRightLogical_WithFeedback,
+          Generate_ShiftRightLogicalWithFeedback)
+#undef DEF_BINOP
+
+#define DEF_BINOP(Name, Generator, RhsIsSmi)                                   \
+  TF_BUILTIN(Name, CodeStubAssembler) {                                        \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                           \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                          \
+    auto feedback_offset =                                                     \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);              \
+                                                                               \
+    BinaryOpAssembler binop_asm(state());                                      \
+    TNode<Object> result = binop_asm.Generator(                                \
+        [&]() { return LoadContextFromBaseline(); }, lhs, rhs,                 \
+        binop_asm.MakeEmbeddedFeedbackUpdater(LoadBytecodeArrayFromBaseline(), \
+                                              feedback_offset),                \
+        RhsIsSmi);                                                             \
+                                                                               \
+    Return(result);                                                            \
+  }
+DEF_BINOP(Add_Baseline, Generate_AddWithFeedback, false)
+DEF_BINOP(Subtract_Baseline, Generate_SubtractWithFeedback, false)
+DEF_BINOP(Multiply_Baseline, Generate_MultiplyWithFeedback, false)
+DEF_BINOP(Divide_Baseline, Generate_DivideWithFeedback, false)
+DEF_BINOP(Modulus_Baseline, Generate_ModulusWithFeedback, false)
+DEF_BINOP(Exponentiate_Baseline, Generate_ExponentiateWithFeedback, false)
+DEF_BINOP(BitwiseOr_Baseline, Generate_BitwiseOrWithFeedback, false)
+DEF_BINOP(BitwiseXor_Baseline, Generate_BitwiseXorWithFeedback, false)
+DEF_BINOP(BitwiseAnd_Baseline, Generate_BitwiseAndWithFeedback, false)
+DEF_BINOP(ShiftLeft_Baseline, Generate_ShiftLeftWithFeedback, false)
+DEF_BINOP(ShiftRight_Baseline, Generate_ShiftRightWithFeedback, false)
+DEF_BINOP(ShiftRightLogical_Baseline, Generate_ShiftRightLogicalWithFeedback,
+          false)
+DEF_BINOP(AddSmi_Baseline, Generate_AddWithFeedback, true)
+DEF_BINOP(SubtractSmi_Baseline, Generate_SubtractWithFeedback, true)
+DEF_BINOP(MultiplySmi_Baseline, Generate_MultiplyWithFeedback, true)
+DEF_BINOP(DivideSmi_Baseline, Generate_DivideWithFeedback, true)
+DEF_BINOP(ModulusSmi_Baseline, Generate_ModulusWithFeedback, true)
+DEF_BINOP(ExponentiateSmi_Baseline, Generate_ExponentiateWithFeedback, true)
+DEF_BINOP(BitwiseOrSmi_Baseline, Generate_BitwiseOrWithFeedback, true)
+DEF_BINOP(BitwiseXorSmi_Baseline, Generate_BitwiseXorWithFeedback, true)
+DEF_BINOP(BitwiseAndSmi_Baseline, Generate_BitwiseAndWithFeedback, true)
+DEF_BINOP(ShiftLeftSmi_Baseline, Generate_ShiftLeftWithFeedback, true)
+DEF_BINOP(ShiftRightSmi_Baseline, Generate_ShiftRightWithFeedback, true)
+DEF_BINOP(ShiftRightLogicalSmi_Baseline, Generate_ShiftRightLogicalWithFeedback,
+          true)
+#undef DEF_BINOP
 
 #define DEF_UNOP(Name, Generator)                                \
   TF_BUILTIN(Name, CodeStubAssembler) {                          \
@@ -177,14 +201,14 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
       result = RelationalComparison(Operation::k##Name, lhs, rhs, context, \
                                     &var_type_feedback);                   \
     }                                                                      \
-    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,      \
-                           feedback_offset);                               \
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(                      \
+        var_type_feedback.value(), bytecode_array, feedback_offset);       \
                                                                            \
     Return(result);                                                        \
     BIND(&if_exception);                                                   \
     {                                                                      \
-      UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,    \
-                             feedback_offset);                             \
+      UpdateEmbeddedFeedback<CompareOperationFeedback>(                    \
+          var_type_feedback.value(), bytecode_array, feedback_offset);     \
       CallRuntime(Runtime::kReThrow, context, var_exception.value());      \
       Unreachable();                                                       \
     }                                                                      \
@@ -213,15 +237,15 @@ DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback); \
     }                                                                       \
     auto bytecode_array = LoadBytecodeArrayFromBaseline();                  \
-    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,       \
-                           feedback_offset);                                \
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(                       \
+        var_type_feedback.value(), bytecode_array, feedback_offset);        \
                                                                             \
     Return(result);                                                         \
     BIND(&if_exception);                                                    \
     {                                                                       \
       bytecode_array = LoadBytecodeArrayFromBaseline();                     \
-      UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,     \
-                             feedback_offset);                              \
+      UpdateEmbeddedFeedback<CompareOperationFeedback>(                     \
+          var_type_feedback.value(), bytecode_array, feedback_offset);      \
       CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),             \
                   var_exception.value());                                   \
       Unreachable();                                                        \
@@ -307,13 +331,13 @@ TF_BUILTIN(Equal_WithEmbeddedFeedback, CodeStubAssembler) {
     ScopedExceptionHandler handler(this, &if_exception, &var_exception);
     result = Equal(lhs, rhs, [&]() { return context; }, &var_type_feedback);
   }
-  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   Return(result);
 
   BIND(&if_exception);
-  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
               var_exception.value());
   Unreachable();
@@ -328,8 +352,8 @@ TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
 
   Return(result);
 }
@@ -351,15 +375,15 @@ TF_BUILTIN(Equal_Generic_Baseline, CodeStubAssembler) {
         &var_type_feedback);
   }
   auto bytecode_array = LoadBytecodeArrayFromBaseline();
-  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
-                         feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), bytecode_array, feedback_offset);
   Return(result);
 
   BIND(&if_exception);
   {
     bytecode_array = LoadBytecodeArrayFromBaseline();
-    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
-                           feedback_offset);
+    UpdateEmbeddedFeedback<CompareOperationFeedback>(
+        var_type_feedback.value(), bytecode_array, feedback_offset);
     CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
                 var_exception.value());
     Unreachable();
@@ -374,8 +398,9 @@ TF_BUILTIN(StrictEqual_Generic_Baseline, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(var_type_feedback.value(),
-                         LoadBytecodeArrayFromBaseline(), feedback_offset);
+  UpdateEmbeddedFeedback<CompareOperationFeedback>(
+      var_type_feedback.value(), LoadBytecodeArrayFromBaseline(),
+      feedback_offset);
 
   Return(result);
 }

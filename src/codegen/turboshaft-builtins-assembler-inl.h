@@ -227,6 +227,8 @@ class FeedbackCollectorReducer : public Next {
   using FeedbackVectorOrUndefined = Union<FeedbackVector, Undefined>;
   static constexpr bool HasFeedbackCollector() { return true; }
 
+  enum class FeedbackMode { kVectorSlot, kEmbedded };
+
   void CombineFeedback(int additional_feedback) {
     __ CodeComment("CombineFeedback");
     feedback_ = __ SmiBitwiseOr(
@@ -323,6 +325,16 @@ class FeedbackCollectorReducer : public Next {
     maybe_feedback_vector_ = feedback_vector;
     feedback_ = __ SmiConstant(Smi::FromInt(0));
     feedback_on_exception_ = feedback_.Get();
+    feedback_mode_ = FeedbackMode::kVectorSlot;
+  }
+
+  void SetEmbeddedFeedback(V<BytecodeArray> bytecode_array,
+                           V<WordPtr> feedback_offset) {
+    bytecode_array_ = bytecode_array;
+    embedded_feedback_offset_ = feedback_offset;
+    feedback_ = __ SmiConstant(Smi::FromInt(0));
+    feedback_on_exception_ = feedback_.Get();
+    feedback_mode_ = FeedbackMode::kEmbedded;
   }
 
   void LoadFeedbackVectorOrUndefinedIfJitless() {
@@ -344,6 +356,11 @@ class FeedbackCollectorReducer : public Next {
   }
 
   void UpdateFeedback() {
+    if (feedback_mode_ == FeedbackMode::kEmbedded) {
+      UpdateEmbeddedFeedback();
+      return;
+    }
+
     __ CodeComment("UpdateFeedback");
     if (mode_ == UpdateFeedbackMode::kNoFeedback) {
 #ifdef V8_JITLESS
@@ -424,8 +441,61 @@ class FeedbackCollectorReducer : public Next {
   }
 
  private:
+  void UpdateEmbeddedFeedback() {
+    __ CodeComment("UpdateEmbeddedFeedback");
+    Label<> done(this);
+
+    // Load old encoded feedback byte from BytecodeArray.
+    V<Word32> old_feedback =
+        __ Load(bytecode_array_, embedded_feedback_offset_,
+                compiler::turboshaft::LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Uint8());
+
+    // Encode current feedback (Smi bits → type index via encode table).
+    V<WordPtr> encode_table = __ ExternalConstant(
+        ExternalReference::binary_operation_feedback_encode_table());
+    V<WordPtr> feedback_word = __ ChangeUint32ToUintPtr(__ UntagSmi(feedback_));
+    V<Word32> current_index =
+        __ Load(encode_table, feedback_word,
+                compiler::turboshaft::LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8(), 0, 0);
+
+    // Combine via transition table: table[old << kShift | current].
+    constexpr int kShift = base::bits::WhichPowerOfTwo(
+        BinaryOperationFeedback::kTransitionMapStride);
+    V<WordPtr> transition_table = __ ExternalConstant(
+        ExternalReference::binary_operation_feedback_transition_table());
+    V<Word32> table_index = __ Word32BitwiseOr(
+        __ Word32ShiftLeft(old_feedback, kShift), current_index);
+    V<Word32> new_feedback =
+        __ Load(transition_table, __ ChangeUint32ToUintPtr(table_index),
+                compiler::turboshaft::LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Uint8(), 0, 0);
+
+    GOTO_IF(__ Word32Equal(old_feedback, new_feedback), done);
+    {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      __ SwitchSandboxMode(CodeSandboxingMode::kUnsandboxed);
+#endif
+      // Store updated feedback byte back to BytecodeArray.
+      __ Store(bytecode_array_, embedded_feedback_offset_, new_feedback,
+               compiler::turboshaft::StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::Uint8(),
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      __ SwitchSandboxMode(CodeSandboxingMode::kSandboxed);
+#endif
+    }
+    GOTO(done);
+
+    BIND(done);
+  }
+
   V<FeedbackVectorOrUndefined> maybe_feedback_vector_;
   V<WordPtr> slot_id_;
+  V<BytecodeArray> bytecode_array_;
+  V<WordPtr> embedded_feedback_offset_;
+  FeedbackMode feedback_mode_ = FeedbackMode::kVectorSlot;
   compiler::turboshaft::Var<Smi, assembler_t> feedback_{this};
   compiler::turboshaft::Var<Smi, assembler_t> feedback_on_exception_{this};
   UpdateFeedbackMode mode_ = DefaultUpdateFeedbackMode();

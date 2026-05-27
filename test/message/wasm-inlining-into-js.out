@@ -1,5 +1,5 @@
 TestInlining
-Considering {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} for inlining with {ADDRESS} {{ADDRESS} <FeedbackVector[9]>}
+Considering {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} for inlining with {ADDRESS} {{ADDRESS} <FeedbackVector[8]>}
 Budget used: 0/920 -- 1 candidate(s) for inlining:
 - candidate: JSCall node #75 with frequency 1, has_heapnum_param:0, 1 target(s):
   - target: {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>}, bytecode size: 43

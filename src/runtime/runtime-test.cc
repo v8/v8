@@ -2420,7 +2420,13 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
       if (interpreter::Bytecodes::IsCompareWithEmbeddedFeedback(bytecode)) {
         out << "CompareOp";
         feedback_value.slot_kind_ = out.str();
-        out << ":" << it.GetEmbeddedCompareOperationHint();
+        out << ":" << it.GetEmbeddedOperationHint<CompareOperationFeedback>();
+        feedback_value.details_ = out.str();
+      } else if (interpreter::Bytecodes::IsBinaryOpWithEmbeddedFeedback(
+                     bytecode)) {
+        out << "BinaryOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedOperationHint<BinaryOperationFeedback>();
         feedback_value.details_ = out.str();
       } else {
         UNREACHABLE();
