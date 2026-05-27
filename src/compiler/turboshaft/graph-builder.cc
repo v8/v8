@@ -229,6 +229,11 @@ struct GraphBuilder {
         UNIMPLEMENTED();
     }
   }
+
+  std::tuple<OpIndex, MemoryRepresentation, WriteBarrierKind>
+  TurnTaggedSignedInputIntoSmi(OpIndex value, MemoryRepresentation rep,
+                               WriteBarrierKind write_barrier);
+
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
                   V<EagerFrameState>& dominating_frame_state,
@@ -375,6 +380,37 @@ std::optional<BailoutReason> GraphBuilder::Run() {
   }
 
   return std::nullopt;
+}
+
+std::tuple<OpIndex, MemoryRepresentation, WriteBarrierKind>
+GraphBuilder::TurnTaggedSignedInputIntoSmi(OpIndex value,
+                                           MemoryRepresentation rep,
+                                           WriteBarrierKind write_barrier) {
+  if (rep.value() == any_of(MemoryRepresentation::Enum::kAnyTagged,
+                            MemoryRepresentation::Enum::kTaggedSigned)) {
+    if constexpr (Is64()) {
+      if (const ConstantOp* value_cst =
+              __ Get(value).TryCast<Opmask::kWord64Constant>()) {
+        // This is storing a Smi as a raw Word64. Instead, we'll convert the
+        // raw Word64 to a proper Smi.
+        if (IsValidSmi(value_cst->signed_integral())) {
+          value = __ SmiConstant(Tagged<Smi>(value_cst->signed_integral()));
+          rep = MemoryRepresentation::TaggedSigned();
+          write_barrier = WriteBarrierKind::kNoWriteBarrier;
+        }
+      }
+    } else if (const ConstantOp* value_cst =
+                   __ Get(value).TryCast<Opmask::kWord32Constant>()) {
+      // This is storing a Smi as a raw Word32. Instead, we'll convert the
+      // raw Word32 to a proper Smi.
+      if (IsValidSmi(value_cst->signed_integral())) {
+        value = __ SmiConstant(Tagged<Smi>(value_cst->signed_integral()));
+        rep = MemoryRepresentation::TaggedSigned();
+        write_barrier = WriteBarrierKind::kNoWriteBarrier;
+      }
+    }
+  }
+  return {value, rep, write_barrier};
 }
 
 OpIndex GraphBuilder::Process(
@@ -1657,18 +1693,22 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
     }
     case IrOpcode::kStoreElement: {
-      Node* object = node->InputAt(0);
-      Node* index = node->InputAt(1);
-      Node* value = node->InputAt(2);
+      OpIndex object = Map(node->InputAt(0));
+      OpIndex index = Map(node->InputAt(1));
+      OpIndex value = Map(node->InputAt(2));
       ElementAccess const& access = ElementAccessOf(node->op());
       DCHECK(!access.machine_type.IsMapWord());
       StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(access.machine_type);
       bool initializing_transitioning = inside_region;
-      __ Store(Map(object), Map(index), Map(value), kind, rep,
-               access.write_barrier_kind, access.header_size,
-               rep.SizeInBytesLog2(), initializing_transitioning);
+
+      auto [final_value, final_rep, final_write_barrier] =
+          TurnTaggedSignedInputIntoSmi(value, rep, access.write_barrier_kind);
+
+      __ Store(object, index, final_value, kind, final_rep, final_write_barrier,
+               access.header_size, final_rep.SizeInBytesLog2(),
+               initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kStoreField: {
@@ -1707,19 +1747,10 @@ OpIndex GraphBuilder::Process(
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
 
-      if (const ConstantOp* value_cst =
-              __ Get(value).TryCast<Opmask::kWord64Constant>()) {
-        if (rep.value() == any_of(MemoryRepresentation::Enum::kAnyTagged,
-                                  MemoryRepresentation::Enum::kTaggedSigned)) {
-          // This is storing a Smi as a raw Word64. Instead, we'll convert the
-          // raw Word64 to a proper Smi.
-          if (IsValidSmi(value_cst->signed_integral())) {
-            value = __ SmiConstant(Tagged<Smi>(value_cst->signed_integral()));
-          }
-        }
-      }
+      auto [final_value, final_rep, final_write_barrier] =
+          TurnTaggedSignedInputIntoSmi(value, rep, access.write_barrier_kind);
 
-      __ Store(object, value, kind, rep, access.write_barrier_kind,
+      __ Store(object, final_value, kind, final_rep, final_write_barrier,
                access.offset, initializing_transitioning,
                access.indirect_pointer_tag);
       return OpIndex::Invalid();
