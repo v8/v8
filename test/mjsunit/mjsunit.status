@@ -2760,6 +2760,7 @@
 ['not pointer_compression', {
   # Mutable Heap Int32 is not enabled in builds with 32-bit smis.
   'mutable-int32-slot': [SKIP],
+  'turbolev/phi-untagging-call-launder-1': [SKIP],
 }],
 
 ##############################################################################
