@@ -866,15 +866,15 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     switch (type.value()) {
       case StoreType::kI64Store8:
       case StoreType::kI32Store8:
-        mov_b(dst_op, src.gp());
+        mov_b(dst_op, src_gp);
         return;
       case StoreType::kI64Store16:
       case StoreType::kI32Store16:
-        mov_w(dst_op, src.gp());
+        mov_w(dst_op, src_gp);
         return;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
-        mov(dst_op, src.gp());
+        mov(dst_op, src_gp);
         return;
       default:
         UNREACHABLE();
