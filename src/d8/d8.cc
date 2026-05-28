@@ -6155,6 +6155,7 @@ void SourceGroup::ExecuteInThread() {
     Shell::ResetOnProfileEndListener(isolate);
   }
 
+  platform::NotifyIsolateShutdown(g_default_platform, isolate);
   isolate->Dispose();
 }
 
