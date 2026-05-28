@@ -276,6 +276,7 @@ void MaglevGraphOptimizer::PreProcessNode(Node* node,
                                           const ProcessingState& state) {
   TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
                               << PrintNode(node));
+  reducer_.ResetPeriodThrowingNode();
 #ifdef DEBUG
   reducer_.StartNewPeriod();
 #endif  // DEBUG
@@ -331,7 +332,14 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
                                  << PrintNodeLabel(current_node()));
   }
   if (current_node()->properties().can_throw()) {
-    kna_processor_.ProcessThrowingNode(current_node());
+    // Merge the throwing-edge known-node-aspects into the catch handler, which
+    // may still be reachable via other throwing nodes. But only keep it
+    // reachable through this reduction if a node emitted while lowering can
+    // still throw to it (e.g. lowering to `if (c) { throw } return Bar`).
+    // Otherwise it is now dead and must not be force-kept reachable.
+    kna_processor_.ProcessThrowingNode(
+        current_node(),
+        /*mark_handler_reachable=*/reducer_.period_added_throwing_node());
   }
   ValueNode* current_value = current_node()->Cast<ValueNode>();
   TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)

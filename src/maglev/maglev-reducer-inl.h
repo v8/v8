@@ -265,6 +265,7 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
         std::make_pair(current_block_position_.index(), node));
   }
   node->set_owner(current_block());
+  if (node->properties().can_throw()) period_added_throwing_node_ = true;
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
   TRACE(TraceNewNode{node});
 #ifdef DEBUG

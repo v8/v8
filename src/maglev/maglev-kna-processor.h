@@ -109,12 +109,14 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
-  void ProcessThrowingNode(NodeBase* node) {
+  void ProcessThrowingNode(NodeBase* node, bool mark_handler_reachable = true) {
     DCHECK(node->properties().can_throw());
     ExceptionHandlerInfo* info = node->exception_handler_info();
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
       BasicBlock* exception_handler = info->catch_block();
-      reachable_exception_handlers_.insert(exception_handler);
+      if (mark_handler_reachable) {
+        reachable_exception_handlers_.insert(exception_handler);
+      }
       Merge(exception_handler);
     }
   }

@@ -970,6 +970,16 @@ class MaglevReducer {
   }
 #endif  // DEBUG
 
+  // Tracks whether any node that can throw was emitted since the last
+  // ResetPeriodThrowingNode(). Used by the optimizer to decide whether a
+  // reduced node's exception handler is still reachable: a reduction can lower
+  // a throwing node into several nodes where an intermediate throws but the
+  // returned value does not.
+  void ResetPeriodThrowingNode() { period_added_throwing_node_ = false; }
+  bool period_added_throwing_node() const {
+    return period_added_throwing_node_;
+  }
+
   void PushInlineCandidate(MaglevCallSiteInfo* call_site) {
     graph()->inlineable_calls().push(call_site);
   }
@@ -1221,6 +1231,8 @@ class MaglevReducer {
   // New node buffers.
   ZoneVector<std::pair<int, Node*>> new_nodes_at_;
   ZoneVector<Node*> new_nodes_at_end_;
+
+  bool period_added_throwing_node_ = false;
 
   compiler::FeedbackSource current_speculation_feedback_ = {};
   SpeculationMode current_speculation_mode_ =
