@@ -309,21 +309,38 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
 namespace {
 
-// Returns true if replacing a Load with a MemoryRepresentation of
-// {expected_loaded_repr} with an operation with RegisterRepresentation {actual}
-// is valid. It is currently not valid to load-eliminate when the replacement
-// was truncated when being stored or should be truncated (or sign-extended)
-// during the load. Since we don't have enough truncations operators in
-// Turboshaft (e.g. we don't have Int32 to Int8 truncation), we just prevent
-// load elimination in this case.
-// TODO(dmercadier): add more truncations operators to Turboshaft, and insert
-// the correct truncation when there is a mismatch between
-// {expected_loaded_repr} and {actual}.
-bool RepSizeIsCompatible(RegisterRepresentation actual,
-                         MemoryRepresentation expected_loaded_repr) {
-  return expected_loaded_repr.SizeInBytes() ==
-         MemoryRepresentation::FromRegisterRepresentation(actual, true)
-             .SizeInBytes();
+// Returns true if replacing a Load with a RegisterRepresentation
+// {expected_reg_rep} and MemoryRepresentation of {expected_loaded_repr} with an
+// operation with RegisterRepresentation {actual} is valid. For instance,
+// replacing an operation that returns a Float64 by one that returns a Word64 is
+// not valid. Similarly, replacing a Tagged with an untagged value is probably
+// not valid because of the GC.
+bool RepIsCompatible(RegisterRepresentation actual,
+                     RegisterRepresentation expected_reg_repr,
+                     MemoryRepresentation expected_loaded_repr) {
+  if (expected_loaded_repr.SizeInBytes() !=
+      MemoryRepresentation::FromRegisterRepresentation(actual, true)
+          .SizeInBytes()) {
+    // The replacement was truncated when being stored or should be truncated
+    // (or sign-extended) during the load. Since we don't have enough
+    // truncations operators in Turboshaft (eg, we don't have Int32 to Int8
+    // truncation), we just prevent load elimination in this case.
+
+    // TODO(dmercadier): add more truncations operators to Turboshaft, and
+    // insert the correct truncation when there is a mismatch between
+    // {expected_loaded_repr} and {actual}.
+
+    return false;
+  }
+
+  // Ideally, this should be a DCHECK, since MemoryRepresentation is part of
+  // MemoryAddress, and compatible MemoryRepresentations imply compatible
+  // RegisterRerpesentations. However, Turbofan sometimes creates an
+  // Int64Constant/Int32Constant to represent a Smi, and then stores it with
+  // Tagged MemoryRepresentation; thus we reach this point with incompatible
+  // RegisterRepresentations.
+  // TODO(manoskouk): Make this into a DCHECK in ProcessLoad when possible.
+  return expected_reg_repr == actual;
 }
 
 }  // namespace
@@ -354,18 +371,16 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     const Operation& replacement = graph_.Get(existing);
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    // This is true because MemoryRepresentation is part of MemoryAddress,
-    // and compatible MemoryRepresentations imply compatible
-    // RegisterRerpesentations.
-    DCHECK_EQ(replacement.outputs_rep()[0], load.outputs_rep()[0]);
     TRACE(">> Found potential replacement at offset " << existing);
-    if (RepSizeIsCompatible(replacement.outputs_rep()[0], load.loaded_rep)) {
+    if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
+                        load.loaded_rep)) {
       TRACE(">>> Confirming replacement");
       replacements_[op_idx] = Replacement::LoadElimination(existing);
       return;
     } else {
-      TRACE(">>> Replacement incompatible, needs truncation: "
-            << load.loaded_rep);
+      TRACE(">>> Replacement has wrong representation: "
+            << replacement.outputs_rep()[0] << " instead of "
+            << load.outputs_rep()[0]);
     }
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
