@@ -39,30 +39,29 @@ Node* ResolveRenames(Node* node) {
 }
 
 bool MayAlias(Node* a, Node* b) {
-  if (a != b) {
-    if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
-      return false;
-    } else if (IsRename(b)) {
-      return MayAlias(a, b->InputAt(0));
-    } else if (IsRename(a)) {
-      return MayAlias(a->InputAt(0), b);
-    } else if (b->opcode() == IrOpcode::kAllocate) {
-      switch (a->opcode()) {
-        case IrOpcode::kAllocate:
-        case IrOpcode::kHeapConstant:
-        case IrOpcode::kParameter:
-          return false;
-        default:
-          break;
-      }
-    } else if (a->opcode() == IrOpcode::kAllocate) {
-      switch (b->opcode()) {
-        case IrOpcode::kHeapConstant:
-        case IrOpcode::kParameter:
-          return false;
-        default:
-          break;
-      }
+  if (a == b) return true;
+  if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
+    return false;
+  } else if (IsRename(b)) {
+    return MayAlias(a, b->InputAt(0));
+  } else if (IsRename(a)) {
+    return MayAlias(a->InputAt(0), b);
+  } else if (b->opcode() == IrOpcode::kAllocate) {
+    switch (a->opcode()) {
+      case IrOpcode::kAllocate:
+      case IrOpcode::kHeapConstant:
+      case IrOpcode::kParameter:
+        return false;
+      default:
+        break;
+    }
+  } else if (a->opcode() == IrOpcode::kAllocate) {
+    switch (b->opcode()) {
+      case IrOpcode::kHeapConstant:
+      case IrOpcode::kParameter:
+        return false;
+      default:
+        break;
     }
   }
   return true;
