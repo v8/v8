@@ -472,6 +472,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
  private:
+  friend class RandomRescheduler;
+
   template <bool trace_reduction>
   void VisitAllBlocks() {
     base::SmallVector<const Block*, 128> visit_stack;
@@ -551,7 +553,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // mappings: phis were emitted before using the old mapping, and all of
     // the other operations will use the new mapping (as they should).
     //
-    // Note that Phis are not always at the begining of blocks, but when they
+    // Note that Phis are not always at the beginning of blocks, but when they
     // aren't, they can't have inputs from the current block (except on their
     // backedge for loop phis, but they start as PendingLoopPhis without
     // backedge input), so visiting all Phis first is safe.

@@ -25,6 +25,7 @@
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/memory-optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/random-rescheduling-phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/tracing.h"
@@ -228,6 +229,10 @@ class V8_EXPORT_PRIVATE Pipeline {
     RUN_MAYBE_ABORT(turboshaft::LoadEliminationPhase);
 
     RUN_MAYBE_ABORT(turboshaft::MemoryOptimizationPhase);
+
+    if (v8_flags.turboshaft_random_rescheduling) {
+      RUN_MAYBE_ABORT(turboshaft::RandomReschedulingPhase);
+    }
 
     if (v8_flags.turboshaft_typed_optimizations) {
       RUN_MAYBE_ABORT(turboshaft::TypedOptimizationsPhase);

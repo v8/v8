@@ -405,8 +405,8 @@ declare_args() {
   # The flag enables disabling the feature, to test this data's overhead.
   v8_enable_continuation_preserved_embedder_data = true
 
-  # Enable allocation folding globally (sets -DV8_ALLOCATION_FOLDING).
-  # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
+  # Enable allocation folding globally (sets -DV8_ALLOCATION_FOLDING). When it's
+  # disabled, the --turbo-allocation-folding runtime flag will be ignored.
   v8_enable_allocation_folding = true
 
   # Enable runtime verification of heap snapshots produced for devtools.
@@ -3955,6 +3955,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/phase.h",
     "src/compiler/turboshaft/pipelines.h",
     "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
+    "src/compiler/turboshaft/random-rescheduling-phase.h",
     "src/compiler/turboshaft/reducer-traits.h",
     "src/compiler/turboshaft/register-allocation-phase.h",
     "src/compiler/turboshaft/representations.h",
@@ -5549,6 +5550,7 @@ v8_compiler_sources = [
   "src/compiler/turboshaft/phase.cc",
   "src/compiler/turboshaft/pipelines.cc",
   "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
+  "src/compiler/turboshaft/random-rescheduling-phase.cc",
   "src/compiler/turboshaft/representations.cc",
   "src/compiler/turboshaft/sidetable.cc",
   "src/compiler/turboshaft/simplify-tf-loops.cc",
