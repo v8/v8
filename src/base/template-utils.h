@@ -223,8 +223,7 @@ struct index_of_type;
 template <typename SearchT, typename... Ts>
 constexpr size_t index_of_type_v = index_of_type<SearchT, Ts...>::value;
 template <typename SearchT, typename... Ts>
-constexpr bool has_type_v =
-    index_of_type<SearchT, Ts...>::value < sizeof...(Ts);
+constexpr bool has_type_v = (std::is_same_v<SearchT, Ts> || ...);
 
 // Not found / empty list.
 template <typename SearchT>
