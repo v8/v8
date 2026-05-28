@@ -222,11 +222,11 @@ def build_file_list(options):
     return [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]
   result = []
   gn_files = [
-      ("BUILD.gn", re.compile('"([^"]*?\.cc)"'), ""),
-      ("test/cctest/BUILD.gn", re.compile('"(test-[^"]*?\.cc)"'),
+      ("BUILD.gn", re.compile(r'"([^"]*?\.cc)"'), ""),
+      ("test/cctest/BUILD.gn", re.compile(r'"(test-[^"]*?\.cc)"'),
        Path("test/cctest/")),
   ]
-  gn_re = re.compile(f"### gcmole\((all|{options.v8_target_cpu})\) ###(.*?)\]",
+  gn_re = re.compile(fr"### gcmole\((all|{options.v8_target_cpu})\) ###(.*?)\]",
                      re.MULTILINE | re.DOTALL)
   for filename, file_pattern, prefix in gn_files:
     path = options.v8_root_dir / filename
@@ -332,8 +332,8 @@ class CallGraph:
     """Merge multiple call graphs from a list of files."""
     callgraph = CallGraph()
     for file_name in file_names:
-      funcs = CallGraph.from_file(file_name).funcs
-      for callee, callers in funcs.items():
+      cg = CallGraph.from_file(file_name)
+      for callee, callers in cg.funcs.items():
         callgraph.funcs[callee].update(callers)
     return callgraph
 
@@ -370,7 +370,7 @@ class GCSuspectsCollector:
     log("Propagating GC information")
 
     def mark(funcname):
-      for caller in self.funcs[funcname]:
+      for caller in self.funcs.get(funcname, []):
         if caller not in self.gc:
           self.gc[caller] = True
           mark(caller)
@@ -390,16 +390,462 @@ def generate_callgraph(files, options):
   """
   callgraph = CallGraph()
 
+  # Clean up old class hierarchy JSONs
+  for p in Path(options.out_dir).glob("class_hierarchy_*.json"):
+    p.unlink(missing_ok=True)
+
   log(f"Building call graph for {options.v8_target_cpu}")
-  for _, stdout, _ in invoke_clang_plugin_for_each_file(
-      files, "dump-callees", [], options):
+  plugin_args = [f"output-dir:{options.out_dir}"]
+  for _, stdout, _ in invoke_clang_plugin_for_each_file(files, "dump-callees",
+                                                        plugin_args, options):
     callgraph.parse(stdout.splitlines())
 
   return callgraph
 
 
+class SynthesizedNode:
+  """Parses and represents a synthesized devirtualization node in GCMole."""
+
+  def __init__(self, key):
+    self.key = key
+    self.is_valid = False
+    self.type = None  # 'VIRTUAL', 'VIRTUALTHIS', 'SYNTHOVER'
+    self.base_method_mangled = None
+    self.derived_class_qualified = None
+
+    if "," in key:
+      mangled, qualified = key.split(",", 1)
+    else:
+      mangled = key
+      qualified = ""
+
+    if mangled.startswith("VIRTUAL-"):
+      self.type = 'VIRTUAL'
+      if not qualified:
+        return
+      self.derived_class_qualified = qualified.rsplit("::", 1)[0]
+      prefix = f"VIRTUAL-{self.derived_class_qualified}-"
+      if mangled.startswith(prefix):
+        self.base_method_mangled = mangled[len(prefix):]
+        self.is_valid = True
+
+    elif mangled.startswith("VIRTUALTHIS-"):
+      self.type = 'VIRTUALTHIS'
+      if not qualified:
+        return
+      self.derived_class_qualified = qualified.rsplit("::", 1)[0]
+      prefix = f"VIRTUALTHIS-{self.derived_class_qualified}-"
+      if mangled.startswith(prefix):
+        self.base_method_mangled = mangled[len(prefix):]
+        self.is_valid = True
+
+    elif mangled.startswith("SYNTHOVER-"):
+      self.type = 'SYNTHOVER'
+      if not qualified:
+        return
+      self.derived_class_qualified = qualified.rsplit("::", 1)[0]
+      prefix = f"SYNTHOVER-{self.derived_class_qualified}-"
+      if mangled.startswith(prefix):
+        self.base_method_mangled = mangled[len(prefix):]
+        self.is_valid = True
+
+
+class ClassNode:
+  """Represents a single class in the C++ hierarchy."""
+
+  def __init__(self, name):
+    self.name = name
+    self.bases = []  # List of base class qualified names (strings)
+    self.overrides = {}  # Map of mangled base method -> mangled derived method
+    self.json_overrides = {}  # Map of original (JSON-defined) overrides
+    self.virtual_methods = set()
+
+  def add_base(self, base_name):
+    if base_name not in self.bases:
+      self.bases.append(base_name)
+
+  def update_overrides(self, overrides_dict):
+    self.overrides.update(overrides_dict)
+    self.json_overrides.update(overrides_dict)
+
+
+class ClassHierarchy:
+  """Manages the global C++ class hierarchy tree."""
+
+  def __init__(self):
+    self.classes = {}  # Map of qualified class name -> ClassNode
+    self.subclasses = collections.defaultdict(
+        list)  # Map of parent -> list of derived
+    self._descendant_overrides_memo = {}
+    self.parent_method = {}
+
+  def get_or_create(self, class_name):
+    if class_name not in self.classes:
+      self.classes[class_name] = ClassNode(class_name)
+    return self.classes[class_name]
+
+  def load_from_json(self, filepath):
+    """Merges partial class hierarchy JSON into the global tree."""
+    try:
+      with open(filepath) as f:
+        data = json.load(f)
+        for class_name, info in data.items():
+          node = self.get_or_create(class_name)
+          for base in info['bases']:
+            node.add_base(base)
+            # Register subclass link
+            if class_name not in self.subclasses[base]:
+              self.subclasses[base].append(class_name)
+          node.update_overrides(info['overrides'])
+          for parent_m, child_m in info['overrides'].items():
+            self.parent_method[child_m] = parent_m
+          if 'virtual_methods' in info:
+            node.virtual_methods.update(info['virtual_methods'])
+    except Exception as e:
+      log(f"Warning: failed to load {filepath}: {e}")
+
+  def find_root_virtual_method(self, mangled):
+    curr = mangled
+    visited = set()
+    while curr in self.parent_method:
+      if curr in visited:
+        break
+      visited.add(curr)
+      curr = self.parent_method[curr]
+    return curr
+
+  def normalize_overrides(self):
+    for class_name, node in self.classes.items():
+      normalized = {}
+      for parent_m, child_m in node.overrides.items():
+        root_m = self.find_root_virtual_method(parent_m)
+        normalized[root_m] = child_m
+      node.overrides = normalized
+
+
+  def is_subclass(self, derived, base):
+    if derived == base:
+      return True
+    node = self.classes.get(derived)
+    if not node:
+      return False
+    for parent in node.bases:
+      if self.is_subclass(parent, base):
+        return True
+    return False
+
+  def find_descendant_overrides(self, derived_class, active_mangled):
+    """Recursively finds all descendants overriding the virtual method (Gap 1)."""
+    memo_key = (derived_class, active_mangled)
+    if memo_key in self._descendant_overrides_memo:
+      return self._descendant_overrides_memo[memo_key]
+
+    results = []
+    visited = set()
+
+    def visit(sub, target_mangled):
+      if (sub, target_mangled) in visited:
+        return
+      visited.add((sub, target_mangled))
+
+      node = self.classes.get(sub)
+      next_mangled = target_mangled
+
+      # Resolve synthetic overrides to their underlying base methods
+      underlying_mangled = target_mangled
+      if target_mangled.startswith("SYNTHOVER-"):
+        underlying_mangled = target_mangled[len("SYNTHOVER-"):].rsplit("-",
+                                                                       1)[1]
+
+      if node and underlying_mangled in node.overrides:
+        override = node.overrides[underlying_mangled]
+        results.append(override)
+        next_mangled = override
+
+      for child in self.subclasses[sub]:
+        visit(child, next_mangled)
+
+    for sub in self.subclasses[derived_class]:
+      visit(sub, active_mangled)
+
+    self._descendant_overrides_memo[memo_key] = results
+    return results
+
+  def propagate_all_overrides(self, mangled_to_keys):
+    """Transitively propagates overrides down the class hierarchy DAG."""
+    visited = {}
+
+    def get_class_of_mangled(mangled):
+      underlying = mangled
+      if mangled.startswith("SYNTHOVER-"):
+        underlying = mangled[len("SYNTHOVER-"):].rsplit("-", 1)[1]
+
+      keys = mangled_to_keys.get(underlying, [])
+      if keys:
+        _, qualified = keys[0].split(",", 1)
+        return qualified.rsplit("::", 1)[0]
+      return None
+
+    def propagate(name):
+      if name in visited:
+        return visited[name]
+      node = self.classes.get(name)
+      if not node:
+        return {}
+
+      # Initialize self virtual methods as overrides (root mappings)
+      for vm in node.virtual_methods:
+        if vm not in node.overrides:
+          node.overrides[vm] = vm
+
+      original_overrides = dict(node.overrides)
+
+      for base in node.bases:
+        base_overrides = propagate(base)
+        for base_ov, impl in base_overrides.items():
+          if impl in original_overrides:
+            node.overrides[base_ov] = original_overrides[impl]
+          elif base_ov not in node.overrides:
+            node.overrides[base_ov] = impl
+          else:
+            # Handle Multiple Inheritance dominance!
+            existing_impl = node.overrides[base_ov]
+            if existing_impl != impl:
+              class_existing = get_class_of_mangled(existing_impl)
+              class_new = get_class_of_mangled(impl)
+              if class_existing and class_new:
+                if self.is_subclass(class_new, class_existing):
+                  # New impl is more derived, it dominates!
+                  node.overrides[base_ov] = impl
+
+      visited[name] = node.overrides
+      return node.overrides
+
+    for class_name in list(self.classes.keys()):
+      propagate(class_name)
+
+
+def synthesize_virtual_links(callgraph, options):
+  hierarchy = ClassHierarchy()
+  for filepath in Path(options.out_dir).glob("class_hierarchy_*.json"):
+    hierarchy.load_from_json(filepath)
+
+  hierarchy.normalize_overrides()
+
+  # Build static O(1) lookup maps first!
+  mangled_to_keys = collections.defaultdict(list)
+  callees_of = collections.defaultdict(list)
+
+  for key, callers in callgraph.funcs.items():
+    mangled = key.split(",", 1)[0]
+    mangled_to_keys[mangled].append(key)
+    for caller in callers:
+      callees_of[caller].append(key)
+
+  # Transitively propagate overrides down the class hierarchy DAG (respecting MI dominance)
+  hierarchy.propagate_all_overrides(mangled_to_keys)
+
+  # ===========================================================================
+  # 1. Helper to get all virtual methods transitively (introduced or inherited)
+  # ===========================================================================
+  vm_memo = {}
+
+  def get_all_virtual_methods(class_name):
+    if class_name in vm_memo:
+      return vm_memo[class_name]
+    node = hierarchy.classes.get(class_name)
+    if not node:
+      return set()
+    vms = set(node.virtual_methods)
+    for base in node.bases:
+      vms.update(get_all_virtual_methods(base))
+    vm_memo[class_name] = vms
+    return vms
+
+  # ===========================================================================
+  # 2. Helper to insert synthetic overrides top-down
+  # ===========================================================================
+  def insert_synthetic_overrides_for(class_name):
+    node = hierarchy.classes.get(class_name)
+    if not node:
+      return
+
+    # Keep a copy of overrides defined directly in JSON (not propagated)
+    original_overrides = dict(node.json_overrides)
+
+    inherited_vms = set()
+    for base in node.bases:
+      inherited_vms.update(get_all_virtual_methods(base))
+
+    for base_vm_mangled in inherited_vms:
+      if base_vm_mangled not in original_overrides:
+        # C inherits base_vm_mangled and does NOT override it directly.
+        # The dominant override is already resolved and propagated into node.overrides!
+        ancestor_mangled = node.overrides.get(base_vm_mangled)
+        if not ancestor_mangled:
+          continue
+
+        # Resolve ancestor key matching the current TU context if ambiguous
+        ancestor_keys = mangled_to_keys.get(ancestor_mangled, [])
+        ancestor_key = None
+        class_tu = class_name.split("$", 1)[1] if "$" in class_name else ""
+        for k in ancestor_keys:
+          k_qualified = k.split(",", 1)[1]
+          k_class = k_qualified.rsplit("::", 1)[0]
+          k_tu = k_class.split("$", 1)[1] if "$" in k_class else ""
+          if k_tu == class_tu:
+            ancestor_key = k
+            break
+        if not ancestor_key and ancestor_keys:
+          ancestor_key = ancestor_keys[0]
+
+        if ancestor_key:
+          _, ancestor_qualified = ancestor_key.split(",", 1)
+          method_name = ancestor_qualified.rsplit("::", 1)[1]
+
+          synth_mangled = f"SYNTHOVER-{class_name}-{base_vm_mangled}"
+          synth_qualified = f"{class_name}::{method_name}"
+          synth_key = f"{synth_mangled},{synth_qualified}"
+
+          # Inherit callgraph (copy callees of ancestor, specializing VIRTUALTHIS)
+          ancestor_callees = callees_of.get(ancestor_key, [])
+          for callee_key in ancestor_callees:
+            callee_synth = SynthesizedNode(callee_key)
+            if callee_synth.is_valid and callee_synth.type == 'VIRTUALTHIS':
+              # Specialize VIRTUALTHIS for the new receiver class_name
+              _, callee_qualified = callee_key.split(",", 1)
+              callee_method_name = callee_qualified.rsplit("::", 1)[1]
+
+              synth_callee_mangled = f"VIRTUALTHIS-{class_name}-{callee_synth.base_method_mangled}"
+              synth_callee_qualified = f"{class_name}::{callee_method_name}"
+              synth_callee_key = f"{synth_callee_mangled},{synth_callee_qualified}"
+
+              callgraph.funcs[synth_callee_key].add(synth_key)
+              callees_of[synth_key].append(synth_callee_key)
+              mangled_to_keys[synth_callee_mangled].append(synth_callee_key)
+            else:
+              # Non-VIRTUALTHIS callee, link directly
+              callgraph.funcs[callee_key].add(synth_key)
+              callees_of[synth_key].append(callee_key)
+
+          # Update maps
+          mangled_to_keys[synth_mangled].append(synth_key)
+          node.overrides[base_vm_mangled] = synth_mangled
+
+  # Resolve classes top-down
+  resolved_classes = set()
+
+  def resolve_class(class_name):
+    if class_name in resolved_classes:
+      return
+    node = hierarchy.classes.get(class_name)
+    if not node:
+      return
+    for base in node.bases:
+      resolve_class(base)
+    insert_synthetic_overrides_for(class_name)
+    resolved_classes.add(class_name)
+
+  for class_name in list(hierarchy.classes.keys()):
+    resolve_class(class_name)
+
+  # ===========================================================================
+  # 3. Expand VIRTUALTHIS calls (link them to resolved targets)
+  # ===========================================================================
+  for method_key in list(callgraph.funcs.keys()):
+    synth_node = SynthesizedNode(method_key)
+    if synth_node.is_valid and synth_node.type == 'VIRTUALTHIS':
+      class_node = hierarchy.classes.get(synth_node.derived_class_qualified)
+      active_mangled = synth_node.base_method_mangled
+      if class_node:
+        override_mangled = class_node.overrides.get(
+            synth_node.base_method_mangled)
+        if override_mangled:
+          active_mangled = override_mangled
+
+      # Link the VIRTUALTHIS node to active implementation
+      active_keys = mangled_to_keys.get(active_mangled, [])
+      active_key = None
+      # Find key with matching TU suffix
+      class_tu = synth_node.derived_class_qualified.split("$", 1)[1] if "$" in synth_node.derived_class_qualified else ""
+      for k in active_keys:
+        k_qualified = k.split(",", 1)[1]
+        k_class = k_qualified.rsplit("::", 1)[0]
+        k_tu = k_class.split("$", 1)[1] if "$" in k_class else ""
+        if k_tu == class_tu:
+          active_key = k
+          break
+      if not active_key and active_keys:
+        active_key = active_keys[0]
+
+      if active_key:
+        callgraph.funcs[active_key].add(method_key)
+
+      # Link to descendant overrides (linking to ALL matching keys globally)
+      desc_overrides = hierarchy.find_descendant_overrides(
+          synth_node.derived_class_qualified, active_mangled)
+      for o_mangled in desc_overrides:
+        override_keys = mangled_to_keys.get(o_mangled, [])
+        for override_key in override_keys:
+          callgraph.funcs[override_key].add(method_key)
+
+  # ===========================================================================
+  # 4. Resolve virtual callsite nodes (VIRTUAL-Receiver-Method)
+  # ===========================================================================
+  processed_synth_nodes = set()
+  worklist = collections.deque(
+      [k for k in callgraph.funcs.keys() if k.startswith("VIRTUAL-")])
+
+  while worklist:
+    synth_key = worklist.popleft()
+    if synth_key in processed_synth_nodes:
+      continue
+
+    synth_node = SynthesizedNode(synth_key)
+    if not synth_node.is_valid or synth_node.type != 'VIRTUAL':
+      continue
+
+    processed_synth_nodes.add(synth_key)
+
+    # Find active implementation at receiver
+    class_node = hierarchy.classes.get(synth_node.derived_class_qualified)
+    active_mangled = synth_node.base_method_mangled
+    if class_node:
+      override_mangled = class_node.overrides.get(
+          synth_node.base_method_mangled)
+      if override_mangled:
+        active_mangled = override_mangled
+
+    # Link to active implementation (matching TU suffix)
+    active_keys = mangled_to_keys.get(active_mangled, [])
+    active_key = None
+    class_tu = synth_node.derived_class_qualified.split("$", 1)[1] if "$" in synth_node.derived_class_qualified else ""
+    for k in active_keys:
+      k_qualified = k.split(",", 1)[1]
+      k_class = k_qualified.rsplit("::", 1)[0]
+      k_tu = k_class.split("$", 1)[1] if "$" in k_class else ""
+      if k_tu == class_tu:
+        active_key = k
+        break
+    if not active_key and active_keys:
+      active_key = active_keys[0]
+
+    if active_key:
+      callgraph.funcs[active_key].add(synth_key)
+
+    # Link to descendant overrides in subclasses (linking to ALL matching keys globally)
+    desc_overrides = hierarchy.find_descendant_overrides(
+        synth_node.derived_class_qualified, active_mangled)
+    for o_mangled in desc_overrides:
+      override_keys = mangled_to_keys.get(o_mangled, [])
+      for override_key in override_keys:
+        callgraph.funcs[override_key].add(synth_key)
+
+
 def generate_gc_suspects_from_callgraph(callgraph, options):
   """Calculate and store gc-suspect information from a given call graph."""
+  synthesize_virtual_links(callgraph, options)
+
   collector = GCSuspectsCollector(options, callgraph.funcs)
   collector.propagate()
   # TODO(cbruni): remove once gcmole.cc is migrated
@@ -473,7 +919,7 @@ def check_correctness_for_arch(files, options):
                                                         plugin_args, options):
     processed_files = processed_files + 1
     if not errors_found:
-      errors_found = re.search("^[^:]+:\d+:\d+: (warning|error)", stderr,
+      errors_found = re.search(r"^[^:]+:\d+:\d+: (warning|error)", stderr,
                                re.MULTILINE) is not None
     sys.stderr.write(stderr)
 

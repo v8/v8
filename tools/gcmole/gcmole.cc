@@ -98,9 +98,114 @@ static bool GetMangledName(clang::MangleContext* ctx,
 }
 
 static bool InV8Namespace(const clang::NamedDecl* decl) {
-  return decl->getQualifiedNameAsString().compare(0, 4, "v8::") == 0;
+  const clang::DeclContext* ctx = decl->getDeclContext();
+  const clang::NamespaceDecl* last_ns = nullptr;
+  while (ctx) {
+    if (const auto* ns = llvm::dyn_cast<clang::NamespaceDecl>(ctx)) {
+      last_ns = ns;
+    }
+    ctx = ctx->getParent();
+  }
+  if (!last_ns) return false;
+  return last_ns->getIdentifier() == &decl->getASTContext().Idents.get("v8");
+}
+static bool HasAnonymousBase(const clang::CXXRecordDecl* record) {
+  if (!record->hasDefinition()) return false;
+  for (const auto& base : record->bases()) {
+    if (const clang::CXXRecordDecl* base_record =
+            base.getType()->getAsCXXRecordDecl()) {
+      const clang::CXXRecordDecl* base_def = base_record->getDefinition();
+      if (base_def) {
+        if (base_def->isInAnonymousNamespace() || HasAnonymousBase(base_def)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
+static std::string GetRecordQualifiedName(const clang::CXXRecordDecl* record) {
+  std::string name = record->getQualifiedNameAsString();
+  if (record->isInAnonymousNamespace() || HasAnonymousBase(record)) {
+    clang::SourceManager& sm = record->getASTContext().getSourceManager();
+    clang::FileID main_file_id = sm.getMainFileID();
+    auto file_entry = sm.getFileEntryForID(main_file_id);
+    std::string filename_str =
+        file_entry ? file_entry->tryGetRealPathName().str() : "unknown";
+
+    std::string sanitized_path = filename_str;
+    for (char& c : sanitized_path) {
+      if (c == '/' || c == '\\' || c == '.' || c == ' ' || c == '-' || c == ':')
+        c = '_';
+    }
+    name += "$" + sanitized_path;
+  }
+  return name;
+}
+
+static std::string GetFunctionQualifiedName(const clang::FunctionDecl* decl) {
+  if (const auto* method = llvm::dyn_cast<clang::CXXMethodDecl>(decl)) {
+    const clang::CXXRecordDecl* record = method->getParent();
+    if (record) {
+      std::string class_name = GetRecordQualifiedName(record);
+      return class_name + "::" + method->getNameAsString();
+    }
+  }
+  return decl->getQualifiedNameAsString();
+}
+
+
+static std::string EscapeJSONString(const std::string& s) {
+  std::string out;
+  for (char c : s) {
+    if (c == '"')
+      out += "\\\"";
+    else if (c == '\\')
+      out += "\\\\";
+    else
+      out += c;
+  }
+  return out;
+}
+
+static bool IsVirtualCall(clang::MangleContext* ctx,
+                          const clang::CallExpr* expr,
+                          const clang::CXXRecordDecl** receiver_record,
+                          const clang::CXXMethodDecl** method_decl,
+                          bool* is_this_call) {
+  if (const clang::CXXMemberCallExpr* memcall =
+          llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(expr)) {
+    const clang::CXXMethodDecl* method = memcall->getMethodDecl();
+    if (method && method->isVirtual()) {
+      if (const auto* member_expr =
+              llvm::dyn_cast<clang::MemberExpr>(memcall->getCallee())) {
+        if (member_expr->hasQualifier()) return false;
+      }
+      const clang::Expr* receiver =
+          memcall->getImplicitObjectArgument()->IgnoreParenImpCasts();
+      *is_this_call = llvm::isa<clang::CXXThisExpr>(receiver);
+
+      clang::QualType receiver_type = receiver->getType();
+      if (receiver_type->isPointerType()) {
+        receiver_type = receiver_type->getPointeeType();
+      }
+      if (const clang::CXXRecordDecl* record =
+              receiver_type->getAsCXXRecordDecl()) {
+        if (InV8Namespace(record)) {
+          const clang::CXXRecordDecl* parent = method->getParent();
+          if (record->getCanonicalDecl() == parent->getCanonicalDecl() ||
+              record->isDerivedFrom(parent)) {
+            *receiver_record = record;
+            *method_decl = method;
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
 static std::string EXTERNAL("EXTERNAL");
 static std::string STATE_TAG("enum v8::internal::StateTag");
 
@@ -183,6 +288,12 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
                           clang::CXXRecordDecl* no_gc_mole_decl)
       : ctx_(ctx), no_gc_mole_decl_(no_gc_mole_decl) {}
 
+  virtual ~CalleesPrinter() {
+    for (auto& [_, set_ptr] : callgraph_) {
+      delete set_ptr;
+    }
+  }
+
   struct GCScope {
     bool is_guarded = false;
   };
@@ -219,6 +330,33 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
 
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
     if (IsGuarded()) return true;
+
+    const clang::CXXRecordDecl* receiver_record = nullptr;
+    const clang::CXXMethodDecl* method_decl = nullptr;
+    bool is_this_call = false;
+    if (IsVirtualCall(ctx_, expr, &receiver_record, &method_decl,
+                      &is_this_call)) {
+      MangledName base_method_mangled;
+      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
+        MangledName dummy_mangled;
+        std::string dummy_qualified;
+        std::string derived_name = GetRecordQualifiedName(receiver_record);
+        if (is_this_call) {
+          dummy_mangled =
+              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
+          dummy_qualified =
+              derived_name + "::" + method_decl->getNameAsString();
+        } else {
+          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
+          dummy_qualified =
+              derived_name + "::" + method_decl->getNameAsString();
+        }
+
+        mangled_to_function_[dummy_mangled] = dummy_qualified;
+        AddCallee(dummy_mangled, dummy_qualified);
+        return true;  // Skip default
+      }
+    }
     const clang::FunctionDecl* callee = expr->getDirectCallee();
     if (callee != nullptr) AnalyzeFunction(callee);
     return true;
@@ -238,7 +376,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     if (!InV8Namespace(f)) return;
     MangledName name;
     if (!GetMangledName(ctx_, f, &name)) return;
-    const std::string function = f->getQualifiedNameAsString();
+    const std::string function = GetFunctionQualifiedName(f);
     AddCallee(name, function);
 
     const clang::FunctionDecl* body = nullptr;
@@ -246,14 +384,6 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
       EnterScope(name);
       TraverseStmt(body->getBody());
       LeaveScope();
-    }
-
-    if (const clang::CXXMethodDecl* method =
-            llvm::dyn_cast<clang::CXXMethodDecl>(f)) {
-      for (const clang::CXXMethodDecl* overridden :
-           method->overridden_methods()) {
-        AddVirtualLink(overridden, method);
-      }
     }
   }
 
@@ -282,26 +412,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     mangled_to_function_[name] = function;
   }
 
-  void AddVirtualLink(const clang::CXXMethodDecl* base,
-                      const clang::CXXMethodDecl* derived) {
-    if (!InV8Namespace(base) || !InV8Namespace(derived)) return;
-    MangledName base_mangled;
-    MangledName derived_mangled;
-    if (!GetMangledName(ctx_, base, &base_mangled)) return;
-    if (!GetMangledName(ctx_, derived, &derived_mangled)) return;
 
-    const std::string base_function = base->getQualifiedNameAsString();
-    const std::string derived_function = derived->getQualifiedNameAsString();
-
-    mangled_to_function_[base_mangled] = base_function;
-    mangled_to_function_[derived_mangled] = derived_function;
-
-    CalleesSet* callees = callgraph_[base_mangled];
-    if (callees == nullptr) {
-      callgraph_[base_mangled] = callees = new CalleesSet();
-    }
-    callees->insert(derived_mangled);
-  }
 
   void PrintCallGraph() {
     for (Callgraph::const_iterator i = callgraph_.begin(), e = callgraph_.end();
@@ -351,6 +462,7 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   Callgraph callgraph_;
   CalleesMap mangled_to_function_;
   CalleesSet analyzed_;
+
   std::vector<GCScope> gc_scopes_;
 };
 
@@ -363,9 +475,24 @@ class FunctionDeclarationFinder
       clang::SourceManager& source_manager,
       const std::vector<std::string>& args)
       : diagnostics_engine_(diagnostics_engine),
-        source_manager_(source_manager) {}
+        source_manager_(source_manager),
+        mangle_context_(nullptr),
+        callees_printer_(nullptr),
+        args_(args) {}
+
+  ~FunctionDeclarationFinder() override {
+    delete callees_printer_;
+    delete mangle_context_;
+  }
+
+  struct ClassInfo {
+    std::vector<std::string> bases;
+    std::map<std::string, std::string> overrides;
+    std::vector<std::string> virtual_methods;
+  };
 
   void HandleTranslationUnit(clang::ASTContext& ctx) override {
+    if (TranslationUnitIgnored()) return;
     mangle_context_ =
         clang::ItaniumMangleContext::create(ctx, diagnostics_engine_);
 
@@ -377,6 +504,7 @@ class FunctionDeclarationFinder
     callees_printer_ = new CalleesPrinter(mangle_context_, no_gc_mole_decl);
     TraverseDecl(ctx.getTranslationUnitDecl());
     callees_printer_->PrintCallGraph();
+    DumpClassHierarchy();
   }
 
   virtual bool VisitFunctionDecl(clang::FunctionDecl* decl) {
@@ -384,12 +512,152 @@ class FunctionDeclarationFinder
     return true;
   }
 
+  virtual bool VisitCXXRecordDecl(clang::CXXRecordDecl* record) {
+    if (record->isCompleteDefinition() && InV8Namespace(record)) {
+      RecordClassHierarchy(record);
+    }
+    return true;
+  }
+
  private:
+  void RecordClassHierarchy(const clang::CXXRecordDecl* record) {
+    std::string class_name = GetRecordQualifiedName(record);
+    if (class_hierarchy_.find(class_name) != class_hierarchy_.end()) return;
+
+    ClassInfo info;
+    for (const auto& base : record->bases()) {
+      if (const clang::CXXRecordDecl* base_record =
+              base.getType()->getAsCXXRecordDecl()) {
+        info.bases.push_back(GetRecordQualifiedName(base_record));
+      }
+    }
+
+    for (const auto* method : record->methods()) {
+      if (method->isVirtual()) {
+        MangledName method_mangled;
+        if (GetMangledName(mangle_context_, method, &method_mangled)) {
+          info.virtual_methods.push_back(method_mangled);
+          for (const auto* overridden : method->overridden_methods()) {
+            MangledName overridden_mangled;
+            if (GetMangledName(mangle_context_, overridden,
+                               &overridden_mangled)) {
+              info.overrides[overridden_mangled] = method_mangled;
+            }
+          }
+        }
+      }
+    }
+    class_hierarchy_[class_name] = info;
+  }
+
+  std::string GetOutputFilePath(const std::string& prefix) {
+    std::string output_dir = ".";
+    for (const auto& arg : args_) {
+      if (arg.compare(0, 11, "output-dir:") == 0) {
+        output_dir = arg.substr(11);
+      }
+    }
+
+    clang::FileID main_file_id = source_manager_.getMainFileID();
+    auto file_entry = source_manager_.getFileEntryForID(main_file_id);
+    std::string filename_str =
+        file_entry ? file_entry->tryGetRealPathName().str() : "unknown";
+
+    std::string sanitized_path = filename_str;
+    for (char& c : sanitized_path) {
+      if (c == '/' || c == '\\' || c == '.' || c == ' ' || c == '-' || c == ':')
+        c = '_';
+    }
+
+    return output_dir + "/" + prefix + "_" + sanitized_path + ".json";
+  }
+
+  void DumpClassHierarchy() {
+    std::string filepath = GetOutputFilePath("class_hierarchy");
+    std::ofstream fout(filepath);
+    if (!fout.is_open()) return;
+
+    fout << "{\n";
+    bool first_class = true;
+    for (const auto& [class_name, info] : class_hierarchy_) {
+      if (!first_class) fout << ",\n";
+      first_class = false;
+
+      fout << "  \"" << EscapeJSONString(class_name) << "\": {\n";
+      fout << "    \"bases\": [";
+      bool first_base = true;
+      for (const auto& base : info.bases) {
+        if (!first_base) fout << ", ";
+        first_base = false;
+        fout << "\"" << EscapeJSONString(base) << "\"";
+      }
+      fout << "],\n";
+
+      fout << "    \"overrides\": {\n";
+      bool first_override = true;
+      for (const auto& [base_m, der_m] : info.overrides) {
+        if (!first_override) fout << ",\n";
+        first_override = false;
+        fout << "      \"" << base_m << "\": \"" << der_m << "\"";
+      }
+      fout << "\n    },\n";
+
+      fout << "    \"virtual_methods\": [";
+      bool first_vm = true;
+      for (const auto& vm : info.virtual_methods) {
+        if (!first_vm) fout << ", ";
+        first_vm = false;
+        fout << "\"" << vm << "\"";
+      }
+      fout << "]\n";
+
+      fout << "  }";
+    }
+    fout << "\n}\n";
+  }
+
+  bool TranslationUnitIgnored() {
+    if (!ignored_files_loaded_) {
+      auto fileOrError =
+          llvm::MemoryBuffer::getFile("tools/gcmole/ignored_files");
+      if (auto error = fileOrError.getError()) {
+        llvm::errs() << "Failed to open ignored_files file\n";
+        std::terminate();
+      }
+      for (llvm::line_iterator it(*fileOrError->get()); !it.is_at_end(); ++it) {
+        ignored_files_.insert(*it);
+      }
+      ignored_files_loaded_ = true;
+    }
+
+    clang::FileID main_file_id = source_manager_.getMainFileID();
+    auto file_entry = source_manager_.getFileEntryForID(main_file_id);
+    if (!file_entry) return false;
+    llvm::StringRef filename = file_entry->tryGetRealPathName();
+
+    bool result = false;
+    for (const auto& entry : ignored_files_) {
+      if (filename.ends_with(entry.getKey())) {
+        result = true;
+        break;
+      }
+    }
+    if (result) {
+      llvm::outs() << "Ignoring file " << filename << "\n";
+    }
+    return result;
+  }
+
   clang::DiagnosticsEngine& diagnostics_engine_;
   clang::SourceManager& source_manager_;
   clang::MangleContext* mangle_context_;
 
   CalleesPrinter* callees_printer_;
+  std::vector<std::string> args_;
+  std::map<std::string, ClassInfo> class_hierarchy_;
+
+  bool ignored_files_loaded_ = false;
+  llvm::StringSet<> ignored_files_;
 };
 
 static bool gc_suspects_loaded = false;
@@ -499,7 +767,7 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
       suspects_allowlist.end()) {
     return false;
   }
-  if (gc_functions.find(decl->getQualifiedNameAsString()) !=
+  if (gc_functions.find(GetFunctionQualifiedName(decl)) !=
       gc_functions.end()) {
     TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
@@ -798,6 +1066,8 @@ class FunctionAnalyzer {
         d_(d),
         sm_(sm),
         block_(nullptr) {}
+
+  ~FunctionAnalyzer() { delete ctx_; }
 
   // --------------------------------------------------------------------------
   // Expressions
@@ -1137,6 +1407,32 @@ class FunctionAnalyzer {
 
     clang::FunctionDecl* callee = call->getDirectCallee();
     if (callee == nullptr) return out;
+
+    const clang::CXXRecordDecl* receiver_record = nullptr;
+    const clang::CXXMethodDecl* method_decl = nullptr;
+    bool is_this_call = false;
+    if (IsVirtualCall(ctx_, call, &receiver_record, &method_decl,
+                      &is_this_call)) {
+      MangledName base_method_mangled;
+      if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
+        MangledName dummy_mangled;
+        std::string derived_name = GetRecordQualifiedName(receiver_record);
+        if (is_this_call) {
+          dummy_mangled =
+              "VIRTUALTHIS-" + derived_name + "-" + base_method_mangled;
+        } else {
+          dummy_mangled = "VIRTUAL-" + derived_name + "-" + base_method_mangled;
+        }
+
+        LoadGCSuspects();
+        if (gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
+          out.setGC();
+          scopes_.back().SetGCCauseLocation(
+              clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
+        }
+      }
+      return out;  // Always return out early for virtual calls!
+    }
 
     if (IsKnownToCauseGC(ctx_, callee)) {
       out.setGC();
@@ -1739,7 +2035,7 @@ class ProblemsFinder : public clang::ASTConsumer,
  public:
   ProblemsFinder(clang::DiagnosticsEngine& d, clang::SourceManager& sm,
                  const std::vector<std::string>& args)
-      : d_(d), sm_(sm) {
+      : d_(d), sm_(sm), function_analyzer_(nullptr) {
     for (unsigned i = 0; i < args.size(); ++i) {
       if (args[i] == "--dead-vars") {
         g_dead_vars_analysis = true;
@@ -1748,6 +2044,8 @@ class ProblemsFinder : public clang::ASTConsumer,
       if (args[i] == "--verbose") g_verbose = true;
     }
   }
+
+  ~ProblemsFinder() override { delete function_analyzer_; }
 
   bool TranslationUnitIgnored() {
     if (!ignored_files_loaded_) {
@@ -1764,10 +2062,17 @@ class ProblemsFinder : public clang::ASTConsumer,
     }
 
     clang::FileID main_file_id = sm_.getMainFileID();
-    llvm::StringRef filename =
-        sm_.getFileEntryForID(main_file_id)->tryGetRealPathName();
+    auto file_entry = sm_.getFileEntryForID(main_file_id);
+    if (!file_entry) return false;
+    llvm::StringRef filename = file_entry->tryGetRealPathName();
 
-    bool result = ignored_files_.contains(filename);
+    bool result = false;
+    for (const auto& entry : ignored_files_) {
+      if (filename.ends_with(entry.getKey())) {
+        result = true;
+        break;
+      }
+    }
     if (result) {
       llvm::outs() << "Ignoring file " << filename << "\n";
     }
