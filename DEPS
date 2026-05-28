@@ -113,7 +113,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '6be374aead819a4516bc0e4e9fcf4bbdfcd6d956',
+  'partition_alloc_version': '0059a764097188d89c60b6d4bebff3b0e0726e40',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -146,7 +146,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
-  'agents_public_revision': '36edcee9526c18e12da08de3c432bd89429cbf8b',
+  'agents_public_revision': 'e75efa515896f6bf1dea92eaffbcf8ee711a65d8',
 }
 
 deps = {
@@ -158,9 +158,9 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3dd1aaa3811ac7fe82b38c04e3e8262601c93de3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ff508fc4f0657103e03956a776952d1fe3d20234',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0497db4ed64af4c323c16f360bb2fdcfce6c765c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '17495e454aae81b581e8b3caccbb53054509b280',
   'buildtools/linux64': {
     'packages': [
       {
@@ -257,7 +257,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'adf9876b520c074d76fc3f7f0a89170ba45b2db7',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '2852bb7e91e4995502ffb72b7ed21412ee157914',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -275,7 +275,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f1323a95090e5a71394aa3a14d9ac55ba7b30195',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2f9bc10799af5aeb4a0ed903742ad69bb1d0ef75',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -283,7 +283,7 @@ deps = {
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '05087a303dad9c98768b33c829d398223a649bc6',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '1b201add6776a68bcb7b7e01e9d5a1ded7548d83',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '9d33285133509ea2c2926acbeabc8a244c8b4727',
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
@@ -341,7 +341,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd6c7a21e978f0adaa43accaad53bc64f0b64f6ec',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '61c087c882d6cf2e5e31566cc8ebbc085cf1033e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'be95a36286a288c9437f5ed991720ccece1a6391',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a64594bb5f0d04fa8ec2e565360372dd3af54a3d',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '82ad4b69cbaf64e26c639061b1712756a9cc5e20',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '96835044c7edeb1cfa2b2dbfd3057c51588952b3',
   'third_party/re2/src':
@@ -535,7 +535,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'faefd1b6fa9eeb033ad6fe60368ccb9bf908cbd0',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '205485ea587dfd5d97c0de8cab07653de5b36992',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '2094b4b0326367af05de99c50dd43255024b3202',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -583,7 +583,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3246f1b60849cc505e231c5d19d0cbf358093555',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7c9eb5b245754701ab268cffeac5bf1148d84a52',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '45f4b9e25124809497a27a8ae0e63d603b0f9f1b',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
