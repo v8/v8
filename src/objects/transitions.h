@@ -9,7 +9,6 @@
 
 #include "src/common/checks.h"
 #include "src/execution/isolate.h"
-#include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"

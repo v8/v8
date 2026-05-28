@@ -11,6 +11,7 @@
 #include <ranges>
 #include <type_traits>
 
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"

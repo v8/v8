@@ -18,7 +18,6 @@
 #include "src/heap/memory-chunk.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
-#include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
 
