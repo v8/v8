@@ -325,12 +325,15 @@ void HeapEntry::VerifyReference(HeapGraphEdge::Type type, HeapEntry* entry,
   }
   Tagged<HeapObject> from_obj = Cast<HeapObject>(Tagged<Object>(from_address));
   Tagged<HeapObject> to_obj = Cast<HeapObject>(Tagged<Object>(to_address));
-  if (MemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace()) {
-    // We can't verify pointers into read-only space, because marking visitors
-    // might not mark those. For example, every Map has a pointer to the
-    // MetaMap, but marking visitors don't bother with following that link.
-    // Read-only objects are immortal and can never point to things outside of
-    // read-only space, so ignoring these objects is safe from the perspective
+  if (MemoryChunk::FromHeapObject(to_obj)->InReadOnlySpace() ||
+      (!isolate()->is_shared_space_isolate() &&
+       MemoryChunk::FromHeapObject(to_obj)->InWritableSharedSpace())) {
+    // We can't verify pointers into read-only space or shared space (for client
+    // isolates), because marking visitors might not mark those. For example,
+    // every Map has a pointer to the MetaMap, but marking visitors don't bother
+    // with following that link. Read-only and shared objects are immortal (or
+    // managed externally) and can never point to things outside of their
+    // respective spaces, so ignoring these objects is safe from the perspective
     // of ensuring accurate retaining paths for normal read-write objects.
     // Therefore, do nothing.
   } else if (verification == kEphemeron) {
