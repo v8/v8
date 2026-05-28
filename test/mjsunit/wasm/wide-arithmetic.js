@@ -118,17 +118,7 @@ function testAdd128() {
       kNumericPrefix, kExprI64Add128,
     ]);
 
-  let instance;
-  try {
-    instance = builder.instantiate();
-  } catch (e) {
-    if (e instanceof WebAssembly.CompileError &&
-      e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
-      console.log("add128 not implemented on this architecture/compiler.");
-      return;
-    }
-    throw e;
-  }
+  let instance = builder.instantiate();
   let add128 = instance.exports.add128;
   assertEquals([0n, 0n], add128(0n, 0n, 0n, 0n));
   assertEquals([5n, 0n], add128(2n, 0n, 3n, 0n));
@@ -212,17 +202,7 @@ function testSub128() {
       kExprLocalGet, 2,
       kNumericPrefix, kExprI64Sub128,
     ]);
-  let instance;
-  try {
-    instance = builder.instantiate();
-  } catch (e) {
-    if (e instanceof WebAssembly.CompileError &&
-      e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
-      console.log("sub128 not implemented on this architecture/compiler.");
-      return;
-    }
-    throw e;
-  }
+  let instance = builder.instantiate();
   let sub128 = instance.exports.sub128;
   // Order of args a_lo, a_hi, b_lo, b_hi
   assertEquals([0n, 0n], sub128(0n, 0n, 0n, 0n));
@@ -278,17 +258,7 @@ function testMulWideS() {
       kExprDrop, kExprDrop
     ]);
 
-  let instance;
-  try {
-    instance = builder.instantiate();
-  } catch (e) {
-    if (e instanceof WebAssembly.CompileError &&
-        e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
-      console.log("mulWideS not implemented on this architecture/compiler.");
-      return;
-    }
-    throw e;
-  }
+  let instance = builder.instantiate();
 
   let mulWideS = instance.exports.mulWideS;
   assertEquals([0n, 0n], mulWideS(0n, 0n));
@@ -355,17 +325,7 @@ function testMulWideU() {
       kExprDrop, kExprDrop
     ]);
 
-  let instance;
-  try {
-    instance = builder.instantiate();
-  } catch (e) {
-    if (e instanceof WebAssembly.CompileError &&
-        e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
-      console.log("mulWideU not implemented on this architecture/compiler.");
-      return;
-    }
-    throw e;
-  }
+  let instance = builder.instantiate();
 
   let mulWideU = instance.exports.mulWideU;
   assertEquals([0n, 0n], mulWideU(0n, 0n));

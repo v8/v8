@@ -3090,20 +3090,7 @@ class LiftoffCompiler {
 
   void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
                const Value& rhs_val, Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 ||      \
-    V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_LOONG64
-    switch (opcode) {
-      case kExprI64MulWideS:
-        __ emit_i64_mul_wide_s();
-        break;
-      case kExprI64MulWideU:
-        __ emit_i64_mul_wide_u();
-        break;
-      default:
-        UNREACHABLE();
-    }
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_32_BIT
     // Spill the two 64-bit arguments to multiplication.
     __ SpillLoopArgs(2);
     // Spill the remaining registers (if any).
@@ -3131,15 +3118,51 @@ class LiftoffCompiler {
     }
     GenerateCCall(kVoid, {VarState{kIntPtrKind, addr_reg, 0}}, ext_ref);
 #else
-    unsupported(decoder, kUnsupportedArchitecture, "wide multiplication");
+    switch (opcode) {
+      case kExprI64MulWideS:
+        __ emit_i64_mul_wide_s();
+        break;
+      case kExprI64MulWideU:
+        __ emit_i64_mul_wide_u();
+        break;
+      default:
+        UNREACHABLE();
+    }
 #endif
   }
 
   void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_lo_val,
                const Value& lhs_hi_val, const Value& rhs_lo_val,
                const Value& rhs_hi_val, Value* result_low, Value* result_high) {
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_RISCV64 || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
+#if V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X
+    __ SpillLoopArgs(4);
+    __ SpillAllRegisters();
+
+    // Compute the lowest address of the four 64bit inputs.
+    // The top of the stack has the lowest address (stack grows down).
+    // The top value is at the back of the stack_state.
+    int stack_offset = __ cache_state() -> stack_state.back().offset();
+
+    LiftoffRegister addr_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadSpillAddress(addr_reg.gp(), stack_offset,
+                        __ cache_state()->stack_state.back().kind());
+
+    ExternalReference ext_ref;
+    switch (opcode) {
+      case kExprI64Add128:
+        ext_ref = ExternalReference::wasm_int128_add();
+        break;
+      case kExprI64Sub128:
+        ext_ref = ExternalReference::wasm_int128_sub();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    GenerateCCall(kVoid, {VarState{kIntPtrKind, addr_reg, 0}}, ext_ref);
+
+    __ DropValues(2);
+
+#else
     static constexpr RegClass rc = reg_class_for(kI64);
 
     LiftoffRegList pinned;
@@ -3178,37 +3201,6 @@ class LiftoffCompiler {
 
     __ PushRegister(kI64, dest_low);
     __ PushRegister(kI64, dest_high);
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_S390X
-    __ SpillLoopArgs(4);
-    __ SpillAllRegisters();
-
-    // Compute the lowest address of the four 64bit inputs.
-    // The top of the stack has the lowest address (stack grows down).
-    // The top value is at the back of the stack_state.
-    int stack_offset = __ cache_state() -> stack_state.back().offset();
-
-    LiftoffRegister addr_reg = __ GetUnusedRegister(kGpReg, {});
-    __ LoadSpillAddress(addr_reg.gp(), stack_offset,
-                        __ cache_state()->stack_state.back().kind());
-
-    ExternalReference ext_ref;
-    switch (opcode) {
-      case kExprI64Add128:
-        ext_ref = ExternalReference::wasm_int128_add();
-        break;
-      case kExprI64Sub128:
-        ext_ref = ExternalReference::wasm_int128_sub();
-        break;
-      default:
-        UNREACHABLE();
-    }
-    GenerateCCall(kVoid, {VarState{kIntPtrKind, addr_reg, 0}}, ext_ref);
-
-    __ DropValues(2);
-
-#else
-    unsupported(decoder, kUnsupportedArchitecture, "wide arithmetic");
 #endif
   }
 
