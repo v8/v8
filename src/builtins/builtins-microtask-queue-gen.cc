@@ -37,6 +37,9 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
                                            TNode<IntPtrT> start,
                                            TNode<IntPtrT> index);
 
+  TNode<IntPtrT> CalculateRingBufferStartOffsetWithoutCapacityMask(
+      TNode<IntPtrT> start);
+
   void PrepareForContext(TNode<Context> microtask_context,
                          TNode<IntPtrT> baseline_entered_context_count,
                          Label* bailout);
@@ -111,6 +114,11 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
     TNode<IntPtrT> capacity, TNode<IntPtrT> start, TNode<IntPtrT> index) {
   return TimesSystemPointerSize(
       WordAnd(IntPtrAdd(start, index), IntPtrSub(capacity, IntPtrConstant(1))));
+}
+
+TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::
+    CalculateRingBufferStartOffsetWithoutCapacityMask(TNode<IntPtrT> start) {
+  return TimesSystemPointerSize(start);
 }
 
 void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
@@ -853,7 +861,7 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   TNode<IntPtrT> start = GetMicrotaskQueueStart(microtask_queue);
 
   TNode<IntPtrT> offset =
-      CalculateRingBufferOffset(capacity, start, IntPtrConstant(0));
+      CalculateRingBufferStartOffsetWithoutCapacityMask(start);
   TNode<RawPtrT> microtask_pointer = Load<RawPtrT>(ring_buffer, offset);
   TNode<Microtask> microtask = CAST(BitcastWordToTagged(microtask_pointer));
 
