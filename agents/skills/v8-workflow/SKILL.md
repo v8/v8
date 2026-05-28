@@ -10,26 +10,19 @@ development environment in V8.
 
 ## 1. Task Initialization (Isolation Strategy)
 
-Before starting any feature or bug fix, you MUST PROMPT the user to choose an
-isolation strategy:
+Before starting any feature or bug fix, you MUST decide on a strategy:
 
 - **Isolated Strategy (Recommended)**: Create a dedicated git worktree and
-  branch. This prevents cross-contamination between tasks.
-
-  - Ask: "Would you like me to set up a dedicated worktree and fresh branch for
-    this task?"
-  - Use `new_git_task.sh` if accepted.
+  branch. This prevents cross-contamination between tasks. Use
+  `create_worktree.sh`.
 
 - **Reuse Strategy**: Work in the current directory and branch.
 
   - Use this only if the user explicitly requests to continue previous work or
     prefers a single-branch workflow.
-  - Ask: "Would you like to reuse the current branch and CL association?"
 
 - **Issue Reset**: If starting a *new* task without a worktree, always ask
-  before resetting the `git cl` issue:
-
-  - Ask: "Should I reset the current git cl issue to start clean?"
+  before resetting the `git cl` issue.
 
 ## 2. Environment Setup
 
@@ -43,7 +36,7 @@ development:
 
 ## 3. Available Tools
 
-- **[new_git_task.sh](../../scripts/new_git_task.sh)**: Automates the git
+- **[create_worktree.sh](../../scripts/create_worktree.sh)**: Automates the git
   worktree isolation and setup process. Use this at the start of every new task.
-- **[cleanup_git_task.sh](../../scripts/cleanup_git_task.sh)**: Safely removes
+- **[cleanup_worktree.sh](../../scripts/cleanup_worktree.sh)**: Safely removes
   task worktrees and prunes remnants once a CL is landed or abandoned.

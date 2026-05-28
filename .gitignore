@@ -149,3 +149,4 @@ launch.json
 MODULE.bazel.lock
 GEMINI.md
 AGENTS.md
+/worktrees

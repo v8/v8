@@ -50,10 +50,12 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **Always Test Before Upload**: Always run tests (at least in release mode)
     before uploading, unless conditional testing (e.g., via `gm.py` or
     `check_and_test.sh`) indicates that it is unnecessary.
-  - **ALWAYS keep CLs separate**: Use standard `git worktree` to create an
-    isolated workspace for each independent task or CL. NEVER upload a CL from a
-    workspace containing unrelated modifications. Always verify that the diff
-    relative to upstream contains ONLY the intended changes before uploading.
+  - **ALWAYS keep CLs separate**: If you are working on more than one task at
+    the same time always use `agents/scripts/create_worktree.sh <task_id>` to
+    create an isolated workspace for each independent task or CL. Worktrees are
+    created at `REPOSITORY_ROOT/worktrees/`. NEVER upload a CL from a workspace
+    containing unrelated modifications. Always verify that the diff relative to
+    upstream contains ONLY the intended changes before uploading.
   - **Consult user on external changes**: When `git cl upload` detects external
     changes on Gerrit and prompts to fetch them or override, the agent MUST stop
     and ask the user for guidance, unless explicitly instructed otherwise.

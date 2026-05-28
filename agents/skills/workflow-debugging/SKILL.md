@@ -40,9 +40,11 @@ general debugging approach for tracked issues.
    - Store the test source in the workspace (e.g.,
      `scratch/regress-<issue_id>.js`) to avoid modifying the user's environment
      directly.
-5. **Worktree Isolation**: For issue debugging, you MUST create and switch to an
-   isolated git worktree BEFORE running any builds or tests, to avoid clobbering
-   the main workspace or rebuilding unnecessarily.
+5. **Worktree Isolation**: If you debug with a repository in use (e.g., with
+   unrelated changes) or debug multiple issues at once you MUST create and
+   switch to an isolated git worktree using
+   `agents/scripts/create_worktree.sh <issue_id>` BEFORE running any builds or
+   tests, to avoid clobbering the main workspace or rebuilding unnecessarily.
 6. **Cross-Pollination & Communication**: The Orchestrator MUST actively relay
    relevant discoveries and hypotheses between subagents working on overlapping
    or related tasks to avoid duplicate work and find matching patterns.
@@ -53,7 +55,8 @@ general debugging approach for tracked issues.
 
 - Analyze the request and extract the Issue ID if available.
 - **Worktree Setup**: If an issue ID is identified, immediately create and
-  switch to a separate git worktree to isolate the investigation.
+  switch to a separate git worktree using
+  `agents/scripts/create_worktree.sh <issue_id>` to isolate the investigation.
 - **Eager Delegation (MANDATORY)**: The Orchestrator MUST proactively spawn
   subagents to handle all of the following tracks in PARALLEL:
   - **Track A: Heavy Infrastructure**: Spawn a subagent to build `d8` and

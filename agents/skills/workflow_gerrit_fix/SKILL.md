@@ -34,7 +34,8 @@ Gerrit Change List (CL).
 
 ### 2. Workspace Setup
 
-- **Worktree**: Create a new isolated worktree for the CL to avoid polluting the
+- **Worktree**: Create a new isolated worktree using
+  `agents/scripts/create_worktree.sh <cl_id>` for the CL to avoid polluting the
   main workspace.
 - **Checkout**: Patch the CL in the new worktree (e.g., `git cl patch X`).
 - **Rebase**: Rebase the branch to `origin/main` to ensure it builds against the
