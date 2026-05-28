@@ -10,7 +10,6 @@
 // Only tier-up the test functions to get a cleaner and stable trace.
 // Flags: --trace-turbo-inlining --turbo-filter='js_*'
 // Concurrent inlining leads to additional traces.
-// Flags: --no-concurrent-inlining
 // Flags: --no-stress-concurrent-inlining
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");

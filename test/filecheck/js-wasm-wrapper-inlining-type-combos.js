@@ -8,7 +8,6 @@
 // Flags: --trace-turbo-inlining
 // Flags: --turbofan --no-stress-maglev
 // Concurrent inlining leads to additional traces.
-// Flags: --no-concurrent-inlining
 // Flags: --no-stress-concurrent-inlining
 
 // Comprehensive test for JS-to-Wasm wrapper inlining with all combinations of:

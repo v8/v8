@@ -9,7 +9,6 @@
 // Flags: --turbofan --no-stress-maglev
 // Flags: --trace-turbo-inlining
 // Concurrent inlining leads to additional traces.
-// Flags: --no-concurrent-inlining
 // Flags: --no-stress-concurrent-inlining
 
 d8.file.execute("test/mjsunit/mjsunit.js");
