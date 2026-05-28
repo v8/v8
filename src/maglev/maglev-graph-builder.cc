@@ -6828,8 +6828,17 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     }
   }
 
-  if (generic_access.has_value() &&
-      !sub_graph.TrimPredecessorsAndBind(&*generic_access).IsDoneWithAbort()) {
+  if (generic_access.has_value()) {
+    iterator_.SetOffset(start_offset);
+    source_position_iterator_.RestoreState(
+        start_source_position_iterator_state);
+    // The generic path is guaranteed to have at least one live predecessor
+    // (the kFail arm's jump), so it can never abort.
+    ReduceResult bind_result =
+        sub_graph.TrimPredecessorsAndBind(&*generic_access);
+    DCHECK(!bind_result.IsDoneWithAbort());
+    USE(bind_result);
+
     MaybeReduceResult generic_result = build_generic_access();
     DCHECK(generic_result.IsDone());
     DCHECK_EQ(generic_result.IsDoneWithValue(), !is_any_store);
