@@ -286,7 +286,7 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   } else if (value().get_scalar() == 0) {  // If value is +0.0 or -0.0.
     Register scratch = temps.AcquireScratch();
     __ Move(double_scratch, value().get_scalar());
-    __ CompareF64(target, double_scratch, CUN);
+    __ CompareF64(target, double_scratch, CUNE);
     __ BranchTrueF(fail);
     __ movfr2gr_d(scratch, target);
     if (value().get_bits() == 0) {
