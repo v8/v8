@@ -147,7 +147,8 @@ struct FlagError : public std::ostringstream {
     base::PrintStackTraceIfAvailable();
 
     FlagProcessingMode mode = FlagList::GetFlagProcessingMode();
-    if (mode == FlagProcessingMode::kExitOnError) {
+    if (mode == FlagProcessingMode::kExitOnError ||
+        base::FatalErrorsWithNoSecurityImpactShouldExit()) {
       base::OS::ExitProcess(-1);
     } else {
       base::OS::Abort();
