@@ -2689,14 +2689,6 @@ DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
 DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
-DEFINE_BOOL(enable_allocation_failures_optimize_memory, false,
-            "Enable eager allocations failures due to memory optimizations")
-DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
-            "Enable eager allocations failures due to memory optimizations "
-            "ignoring isolate being backgrounded")
-DEFINE_NEG_IMPLICATION(
-    enable_allocation_failures_optimize_memory,
-    enable_allocation_failures_optimize_memory_ignoring_priority)
 DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.1,
     "This is the upper bound for growing factor imposed on external memory.")
