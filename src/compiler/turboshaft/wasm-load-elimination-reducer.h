@@ -1125,13 +1125,34 @@ bool WasmLoadEliminationAnalyzer::BeginBlock(const Block* block) {
       }
     }
     // Check if any loop Phi replacement would change.
-    for (OpIndex op_idx : graph_.OperationIndices(*block)) {
-      if (const PhiOp* phi = graph_.Get(op_idx).TryCast<PhiOp>()) {
-        OpIndex new_replacement = MaybeReplacePhi(*phi);
-        if (new_replacement != phi_replacements_backups_[op_idx]) {
-          loop_needs_revisit = true;
-        }
-        replacements_[op_idx] = new_replacement;
+    // Importantly, we do not store the computed {new_replacement}; we'll let
+    // the actual loop revisitation do that. The reason is that looking at Phis
+    // multiple times can find more replacements, so if we stored replacements
+    // here then the loop revisit might find more, and then next time we get
+    // here we'd erroneously conclude that those need to be reset and the loop
+    // needs to be revisited again, endlessly.
+    //
+    // We could be more ambitious: whenever a loop Phi is replaced, we could
+    // revisit any other loop Phis for which it is an input, until we find no
+    // more replacements. That would cost more time, but would yield more
+    // optimizations. For example, consider a chain of Phis, which before the
+    // loop are all set to o.x, and inside the loop we have:
+    //   phi1 = phi2; phi2 = phi3; ...; phiN-1 = phiN; phiN = o.x.
+    // Checking them all only once, in order, we'll replace only phiN. Visiting
+    // either the entire block N times, or visiting each Phi consumer of a
+    // replaced Phi, we could replace all of them.
+    for (auto [phi_idx, backup] : phi_replacements_backups_) {
+      const PhiOp& phi = graph_.Get(phi_idx).Cast<PhiOp>();
+      OpIndex new_replacement = MaybeReplacePhi(phi);
+      if (new_replacement != backup) {
+        loop_needs_revisit = true;
+        break;
+      }
+    }
+    // If we're not going to revisit, restore the replacements we had.
+    if (!loop_needs_revisit) {
+      for (auto [phi_idx, backup] : phi_replacements_backups_) {
+        replacements_[phi_idx] = backup;
       }
     }
   }
