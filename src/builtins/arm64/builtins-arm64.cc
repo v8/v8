@@ -4424,7 +4424,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
 
       Label finish_stack_params;
       __ Cmp(last_stack_param, params_end);
-      __ B(ge, &finish_stack_params);
+      __ B(hs, &finish_stack_params);
 
       // Push parameter
       {
