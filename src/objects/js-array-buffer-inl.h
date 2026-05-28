@@ -12,6 +12,7 @@
 #include "src/heap/local-heap.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/check.h"
 #include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -72,27 +73,28 @@ void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
-  if (!extension()) return nullptr;
-  return extension()->backing_store();
+  auto* ext = extension();
+  return ext == nullptr ? nullptr : ext->backing_store();
 }
 
 size_t JSArrayBuffer::GetByteLength() const {
-  if (V8_UNLIKELY(is_shared() && is_resizable_by_js())) {
+  const bool is_shared_ = is_shared();
+  const bool is_resizable = is_resizable_by_js();
+  auto* ext = extension();
+  if (V8_UNLIKELY(is_shared_ && is_resizable)) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
     // BackingStore). Don't use the byte_length getter, which DCHECKs that it's
     // not used on growable SharedArrayBuffers.
     DCHECK_EQ(0, byte_length_unchecked());
 
-    // If the byte length is read after the JSArrayBuffer object is allocated
-    // but before it's attached to the backing store, GetBackingStore returns
-    // nullptr. This is rare, but can happen e.g., when memory measurements
-    // are enabled (via performance.measureMemory()).
-    auto backing_store = GetBackingStore();
-    if (!backing_store) {
+    // The extension might be null if the byte length is read after allocation
+    // but before the backing store is attached (e.g., during memory
+    // measurement).
+    if (ext == nullptr) {
       return 0;
     }
-
-    return backing_store->byte_length(std::memory_order_seq_cst);
+    SBXCHECK(ext->is_shared() && ext->is_resizable_by_js());
+    return ext->backing_store()->byte_length(std::memory_order_seq_cst);
   }
 
   // We should not be reading the JS-visible byte length of a RAB from a
@@ -248,8 +250,19 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,
-                    JSArrayBuffer::IsResizableByJsBit)
+
+bool JSArrayBuffer::is_resizable_by_js() const {
+  return JSArrayBuffer::IsResizableByJsBit::decode(bit_field_);
+}
+
+void JSArrayBuffer::set_is_resizable_by_js(bool value) {
+  set_bit_field(JSArrayBuffer::IsResizableByJsBit::update(bit_field(), value));
+
+  if (auto* extension = this->extension()) {
+    extension->set_is_resizable_by_js(value);
+  }
+}
+
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_immutable,
                     JSArrayBuffer::IsImmutableBit)
 

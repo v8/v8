@@ -323,8 +323,8 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
                        ? ArrayBufferExtension::Age::kYoung
                        : ArrayBufferExtension::Age::kOld;
-  ArrayBufferExtension* extension =
-      new ArrayBufferExtension(std::move(backing_store), age);
+  ArrayBufferExtension* extension = new ArrayBufferExtension(
+      std::move(backing_store), age, is_shared(), is_resizable_by_js());
   set_extension(extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
