@@ -215,6 +215,8 @@ class Subgraph<MaglevGraphOptimizer>
   BasicBlock* saved_block_;
   BasicBlockPosition saved_position_;
   KnownNodeAspects* saved_kna_;
+  // Enclosing subgraph, or nullptr if this is a top-level subgraph.
+  Subgraph<MaglevGraphOptimizer>* parent_;
 };
 
 }  // namespace maglev

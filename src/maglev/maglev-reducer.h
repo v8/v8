@@ -916,12 +916,6 @@ class MaglevReducer {
   void RecordPendingSplice(BasicBlock* entry, BasicBlock* exit,
                            ZoneVector<BasicBlock*> all_blocks) {
     DCHECK(!pending_splice_.has_value());
-    // // Copy `all_blocks` into the zone — the Subgraph that produced it may go
-    // // out of scope before the GraphProcessor consumes the splice, and we
-    // // don't want to depend on its internal storage outliving it.
-    // size_t n = all_blocks.size();
-    // BasicBlock** copy = zone()->template AllocateArray<BasicBlock*>(n);
-    // for (size_t i = 0; i < n; ++i) copy[i] = all_blocks[i];
     pending_splice_ = PendingSplice{entry, exit, all_blocks};
   }
   bool HasPendingSplice() const { return pending_splice_.has_value(); }
@@ -1238,6 +1232,11 @@ class MaglevReducer {
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
   std::optional<PendingSplice> pending_splice_;
+
+  // The innermost optimizer-side Subgraph currently being built, or nullptr.
+  // Lets a nested Subgraph splice directly into its enclosing subgraph instead
+  // of recording a separate top-level pending splice.
+  Subgraph<BaseT>* active_subgraph_ = nullptr;
 };
 
 template <typename DerivedT, typename BaseT>
