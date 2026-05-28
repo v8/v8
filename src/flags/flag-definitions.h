@@ -4237,7 +4237,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     superspreading,
     "Allow arbitrary length spread arguments on supported builtins")
 
-DEFINE_BOOL(fast_proxy_ic, false, "Support proxy traps in ICs")
+DEFINE_EXPERIMENTAL_FEATURE(fast_proxy_ic, "Support proxy traps in ICs")
+DEFINE_WEAK_IMPLICATION(experimental, fast_proxy_ic)
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "
