@@ -1959,10 +1959,10 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
   UNREACHABLE();
 }
 
-#define PURE(Name, properties, value_input_count, control_input_count, \
-             output_count)                                             \
-  const OptionalOperator MachineOperatorBuilder::Name() {              \
-    return OptionalOperator(flags_ & k##Name, &cache_.k##Name);        \
+#define PURE(Name, properties, value_input_count, control_input_count,  \
+             output_count)                                              \
+  const OptionalOperator MachineOperatorBuilder::Name() {               \
+    return OptionalOperator(flags_.contains(k##Name), &cache_.k##Name); \
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
@@ -1972,11 +1972,11 @@ PURE_OPTIONAL_OP_LIST(PURE)
 // so the getters generated from PURE_OPTIONAL_OP_LIST would fail.
 const OptionalOperator
 MachineOperatorBuilder::TruncateFloat64ToFloat16RawBits() {
-  return OptionalOperator(flags_ & kFloat16RawBitsConversion,
+  return OptionalOperator(flags_.contains(kFloat16RawBitsConversion),
                           &cache_.kTruncateFloat64ToFloat16RawBits);
 }
 const OptionalOperator MachineOperatorBuilder::ChangeFloat16RawBitsToFloat64() {
-  return OptionalOperator(flags_ & kFloat16RawBitsConversion,
+  return OptionalOperator(flags_.contains(kFloat16RawBitsConversion),
                           &cache_.kChangeFloat16RawBitsToFloat64);
 }
 

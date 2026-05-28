@@ -2270,7 +2270,8 @@ void SupportedOperations::Initialize() {
   MachineOperatorBuilder::Flags supported =
       InstructionSelector::SupportedMachineOperatorFlags();
 #define SET_SUPPORTED(name, machine_name) \
-  instance_.name##_ = supported & MachineOperatorBuilder::Flag::k##machine_name;
+  instance_.name##_ =                     \
+      supported.contains(MachineOperatorBuilder::Flag::k##machine_name);
 
   SUPPORTED_OPERATIONS_LIST(SET_SUPPORTED)
 #undef SET_SUPPORTED

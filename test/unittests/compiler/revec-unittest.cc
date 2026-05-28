@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/machine-type.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -34,7 +35,7 @@ class RevecTest : public TestWithIsolateAndZone {
       : graph_(zone()),
         common_(zone()),
         machine_(zone(), MachineRepresentation::kWord64,
-                 MachineOperatorBuilder::Flag::kAllOptionalOps),
+                 InstructionSelector::SupportedMachineOperatorFlags()),
         mcgraph_(&graph_, &common_, &machine_),
         source_positions_(
             mcgraph()->zone()->New<SourcePositionTable>(mcgraph()->graph())) {}

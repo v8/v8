@@ -49,8 +49,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   RawMachineAssembler(
       Isolate* isolate, TFGraph* graph, CallDescriptor* call_descriptor,
       MachineRepresentation word = MachineType::PointerRepresentation(),
-      MachineOperatorBuilder::Flags flags =
-          MachineOperatorBuilder::Flag::kNoFlags,
+      MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags,
       MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
           MachineOperatorBuilder::AlignmentRequirements::
               FullUnalignedAccessSupport());
