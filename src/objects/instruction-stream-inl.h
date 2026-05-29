@@ -152,7 +152,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
               code->instruction_size() + code->metadata_size());
 
     promise.emplace(RelocateFromDesc(writable_allocation, heap, desc,
-                                     code->constant_pool(), no_gc));
+                                     constant_pool(), no_gc));
 
     // Publish the code pointer after the istream has been fully initialized.
     writable_allocation.WriteProtectedPointerHeaderSlot<Code, kCodeOffset>(
@@ -162,8 +162,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
   InstructionStream::ValidateJSDispatchHandles(heap, desc);
 
   // Trigger the write barriers after we dropped the JIT write permissions.
-  RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
-                                no_gc);
+  RelocateFromDescWriteBarriers(heap, desc, constant_pool(), *promise, no_gc);
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kCodeOffset, code,
                                               UPDATE_WRITE_BARRIER);
 
