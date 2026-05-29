@@ -167,6 +167,12 @@ void InstructionStream::Finalize(Tagged<Code> code,
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kCodeOffset, code,
                                               UPDATE_WRITE_BARRIER);
 
+  // Publishes the Code object by linking the instruction stream and
+  // transitioning its CPT entrypoint tag from kUninitializedEntrypointTag to
+  // the final executable tag (e.g., kJSEntrypointTag) by setting the
+  // instruction start.
+  code->SetInstructionStreamAndInstructionStart(
+      heap->isolate(), Tagged<InstructionStream>(this));
   code->FlushICache();
 }
 

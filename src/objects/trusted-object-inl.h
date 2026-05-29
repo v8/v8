@@ -88,6 +88,11 @@ void ExposedTrustedObject::InitAndPublish(Isolate* isolate) {
   InitSelfIndirectPointerField(&self_indirect_pointer_, isolate,
                                isolate->trusted_pointer_publishing_scope());
 #endif
+#ifdef VERIFY_HEAP
+  if (!isolate->has_active_deserializer() && !IsCode(this)) {
+    this->HeapObjectVerify(isolate);
+  }
+#endif
 }
 
 void ExposedTrustedObject::InitAndPublish(LocalIsolate* isolate) {
@@ -112,6 +117,15 @@ void ExposedTrustedObject::InitDontPublish(LocalIsolate* isolate) {
       reinterpret_cast<Address>(&self_indirect_pointer_), isolate, this,
       kUnpublishedIndirectPointerTag, nullptr);
 #endif
+}
+
+void ExposedTrustedObject::Publish(Isolate* isolate) {
+#ifdef VERIFY_HEAP
+  if (!isolate->has_active_deserializer() && !IsCode(this)) {
+    this->HeapObjectVerify(isolate);
+  }
+#endif
+  this->Publish(IsolateForSandbox(isolate));
 }
 
 void ExposedTrustedObject::Publish(IsolateForSandbox isolate) {

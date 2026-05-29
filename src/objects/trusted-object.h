@@ -124,6 +124,7 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
   // This is only needed if the object was initialized without publishing it,
   // in which case its pointer table entry will not be usable (as it uses an
   // invalid type tag) until this method is called.
+  inline void Publish(Isolate* isolate);
   inline void Publish(IsolateForSandbox isolate);
 
   // Undoes earlier publishing of this object, making it inaccessible from

@@ -22,7 +22,7 @@ void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address pointer,
                                                        bool mark_as_alive) {
   auto payload = Payload(pointer, tag);
   if (mark_as_alive) payload.SetMarkBit();
-  payload_.store(payload, std::memory_order_relaxed);
+  payload_.store(payload, std::memory_order_release);
 }
 
 void TrustedPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
@@ -38,7 +38,7 @@ void TrustedPointerTableEntry::MakeZappedEntry() {
 Address TrustedPointerTableEntry::GetPointer(
     IndirectPointerTagRange tag_range) const {
   DCHECK(!IsFreelistEntry());
-  return payload_.load(std::memory_order_relaxed).Untag(tag_range);
+  return payload_.load(std::memory_order_acquire).Untag(tag_range);
 }
 
 void TrustedPointerTableEntry::SetPointer(Address pointer,
@@ -50,19 +50,19 @@ void TrustedPointerTableEntry::SetPointer(Address pointer,
   DCHECK(!payload_.load(std::memory_order_relaxed).HasMarkBitSet());
   auto new_payload = Payload(pointer, tag);
   DCHECK(!new_payload.HasMarkBitSet());
-  payload_.store(new_payload, std::memory_order_relaxed);
+  payload_.store(new_payload, std::memory_order_release);
 }
 
 bool TrustedPointerTableEntry::HasPointer(
     IndirectPointerTagRange tag_range) const {
-  auto payload = payload_.load(std::memory_order_relaxed);
+  auto payload = payload_.load(std::memory_order_acquire);
   if (!payload.ContainsPointer()) return false;
   return payload.IsTaggedWithTagIn(tag_range);
 }
 
 Address TrustedPointerTableEntry::GetMaybeUnpublished(
     IndirectPointerTagRange tag_range) const {
-  auto payload = payload_.load(std::memory_order_relaxed);
+  auto payload = payload_.load(std::memory_order_acquire);
   if (payload.IsTaggedWithTagIn(kUnpublishedIndirectPointerTag)) {
     return payload.Untag(kUnpublishedIndirectPointerTag);
   }
@@ -77,7 +77,7 @@ void TrustedPointerTableEntry::Unpublish() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
   auto new_payload = old_payload;
   new_payload.SetTag(kUnpublishedIndirectPointerTag);
-  payload_.store(new_payload, std::memory_order_relaxed);
+  payload_.store(new_payload, std::memory_order_release);
 }
 
 void TrustedPointerTableEntry::Publish(IndirectPointerTag tag) {
@@ -85,7 +85,7 @@ void TrustedPointerTableEntry::Publish(IndirectPointerTag tag) {
   CHECK(old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
   auto new_payload = old_payload;
   new_payload.SetTag(tag);
-  payload_.store(new_payload, std::memory_order_relaxed);
+  payload_.store(new_payload, std::memory_order_release);
 }
 
 bool TrustedPointerTableEntry::IsFreelistEntry() const {

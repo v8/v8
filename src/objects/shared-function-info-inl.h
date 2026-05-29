@@ -1197,13 +1197,13 @@ void UncompiledData::InitAfterBytecodeFlush(
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<HeapObject> target)>
         gc_notify_updated_slot) {
-#ifdef V8_ENABLE_SANDBOX
-  InitAndPublish(isolate);
-#endif
   set_inferred_name(inferred_name);
   gc_notify_updated_slot(this, ObjectSlot(&inferred_name_), inferred_name);
   set_start_position(start_position);
   set_end_position(end_position);
+#ifdef V8_ENABLE_SANDBOX
+  InitAndPublish(isolate);
+#endif
 }
 
 bool SharedFunctionInfo::is_repl_mode() const {
