@@ -78,57 +78,69 @@ class Union final : public AllStatic {
 
 namespace detail {
 
+#if !V8_HAS_BUILTIN_DEDUP_PACK
+template <typename Result, typename... Ts>
+struct Deduplicate;
+
+template <typename... ResultTs>
+struct Deduplicate<Union<ResultTs...>> {
+  using type = Union<ResultTs...>;
+};
+
+template <typename... ResultTs, typename Head, typename... Tail>
+struct Deduplicate<Union<ResultTs...>, Head, Tail...> {
+  using type = std::conditional_t<
+      base::has_type_v<Head, ResultTs...>,
+      typename Deduplicate<Union<ResultTs...>, Tail...>::type,
+      typename Deduplicate<Union<ResultTs..., Head>, Tail...>::type>;
+};
+#endif
+
+template <typename T>
+struct FinalizeUnion {
+  using type = T;
+};
+template <>
+struct FinalizeUnion<Union<>> {
+  using type = void;
+};
+template <typename T>
+struct FinalizeUnion<Union<T>> {
+  using type = T;
+};
+template <typename... Ts>
+struct FinalizeUnion<Union<Ts...>> {
+  using type = Union<Ts...>;
+};
+
 template <typename Accumulator, typename... InputTypes>
 struct FlattenUnionHelper;
 
-// Base case: No input types, return the accumulated types.
+// Base case: No input types, deduplicate and return the accumulated types.
 template <typename... OutputTs>
 struct FlattenUnionHelper<Union<OutputTs...>> {
-  using type = Union<OutputTs...>;
-};
-
-// Other base case: Union of single type, just return the type.
-template <typename SingleOutputT>
-struct FlattenUnionHelper<Union<SingleOutputT>> {
-  using type = SingleOutputT;
-};
-
-// Final base case: Union of no type, error, return void.
-template <>
-struct FlattenUnionHelper<Union<>> {
-  using type = void;
+#if V8_HAS_BUILTIN_DEDUP_PACK
+  using deduped = Union<__builtin_dedup_pack<OutputTs...>...>;
+#else
+  using deduped = typename Deduplicate<Union<>, OutputTs...>::type;
+#endif
+  using type = typename FinalizeUnion<deduped>::type;
 };
 
 // Recursive case: Non-union input, accumulate and continue.
 template <typename... OutputTs, typename Head, typename... Ts>
-struct FlattenUnionHelper<Union<OutputTs...>, Head, Ts...> {
-  // Don't accumulate duplicate types.
-  using type = std::conditional_t<
-      base::has_type_v<Head, OutputTs...>,
-      typename FlattenUnionHelper<Union<OutputTs...>, Ts...>::type,
-      typename FlattenUnionHelper<Union<OutputTs..., Head>, Ts...>::type>;
-};
+struct FlattenUnionHelper<Union<OutputTs...>, Head, Ts...>
+    : FlattenUnionHelper<Union<OutputTs..., Head>, Ts...> {};
 
 // Recursive case: Smi input, normalize to always be the first element.
-//
-// This is a small optimization to try reduce the number of template
-// specializations -- ideally we would fully sort the types but this probably
-// costs more templates than it saves.
 template <typename... OutputTs, typename... Ts>
-struct FlattenUnionHelper<Union<OutputTs...>, Smi, Ts...> {
-  // Don't accumulate duplicate types.
-  using type = std::conditional_t<
-      base::has_type_v<Smi, OutputTs...>,
-      typename FlattenUnionHelper<Union<OutputTs...>, Ts...>::type,
-      typename FlattenUnionHelper<Union<Smi, OutputTs...>, Ts...>::type>;
-};
+struct FlattenUnionHelper<Union<OutputTs...>, Smi, Ts...>
+    : FlattenUnionHelper<Union<Smi, OutputTs...>, Ts...> {};
 
 // Recursive case: Union input, flatten and continue.
 template <typename... OutputTs, typename... HeadTs, typename... Ts>
-struct FlattenUnionHelper<Union<OutputTs...>, Union<HeadTs...>, Ts...> {
-  using type =
-      typename FlattenUnionHelper<Union<OutputTs...>, HeadTs..., Ts...>::type;
-};
+struct FlattenUnionHelper<Union<OutputTs...>, Union<HeadTs...>, Ts...>
+    : FlattenUnionHelper<Union<OutputTs...>, HeadTs..., Ts...> {};
 
 }  // namespace detail
 
