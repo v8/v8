@@ -215,6 +215,12 @@ struct is_subtype : public std::integral_constant<
 
 namespace detail {
 
+template <typename From, typename To>
+concept is_pointer_convertible = requires(From* from, To* to) { to = from; };
+
+template <typename T>
+concept is_complete = requires { sizeof(T); };
+
 template <typename T>
 struct normalize_type {
   using type = T;
@@ -474,7 +480,8 @@ class Tagged<HeapObject> : public StrongTaggedBase {
   // Implicit conversion for subclasses.
   template <typename U>
   V8_INLINE constexpr Tagged& operator=(Tagged<U> other)
-    requires(is_subtype_v<U, HeapObject>)
+    requires(!std::is_base_of_v<Tagged<HeapObject>, Tagged<U>> &&
+             is_subtype_v<U, HeapObject>)
   {
     return *this = Tagged(other);
   }
@@ -483,7 +490,8 @@ class Tagged<HeapObject> : public StrongTaggedBase {
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(Tagged<U> other)
-    requires(is_subtype_v<U, HeapObject>)
+    requires(!std::is_base_of_v<Tagged<HeapObject>, Tagged<U>> &&
+             is_subtype_v<U, HeapObject>)
       : Base(other) {}
 
   V8_INLINE HeapObject& operator*() const;
@@ -674,6 +682,13 @@ class Tagged<Union<Ts...>> : public detail::BaseForTagged<Union<Ts...>>::type {
   V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
 };
 
+namespace detail {
+template <typename From, typename To>
+concept is_tagged_convertible =
+    is_pointer_convertible<From, To> ||
+    (is_complete<From> && is_complete<To> && SubtypeOf<From, To>);
+}  // namespace detail
+
 // Generic Tagged<T> for any T that is a subclass of HeapObject. There are
 // separate Tagged<T> specialaizations for T==Smi and T==Object, so we know that
 // all other Tagged<T> are definitely pointers and not Smis.
@@ -693,7 +708,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // Implicit conversion for subclasses.
   template <typename U>
   V8_INLINE constexpr Tagged& operator=(Tagged<U> other)
-    requires(is_subtype_v<U, T>)
+    requires(detail::is_tagged_convertible<U, T>)
   {
     *this = Tagged(other);
     return *this;
@@ -703,7 +718,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(Tagged<U> other)
-    requires(is_subtype_v<U, T>)
+    requires(detail::is_tagged_convertible<U, T>)
       : Base(other) {}
 
   V8_INLINE T& operator*() const { return *ToRawPtr(); }
