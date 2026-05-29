@@ -135,6 +135,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
                                                                                \
   /* ThreadLocalTop fields. */                                                 \
   V(Context, context, thread_local_top, offsetof(ThreadLocalTop, context_))    \
+  V(LastEnteredContext, last_entered_context, thread_local_top,                \
+    offsetof(ThreadLocalTop, last_entered_context_))                           \
   V(Exception, exception, thread_local_top,                                    \
     offsetof(ThreadLocalTop, exception_))                                      \
   V(TopmostScriptHavingContext, topmost_script_having_context,                 \

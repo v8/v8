@@ -12192,6 +12192,9 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 char* HandleScopeImplementer::RestoreThread(char* storage) {
   MemCopy(this, storage, sizeof(*this));
   *isolate_->handle_scope_data() = handle_scope_data_;
+  isolate_->set_last_entered_context(entered_contexts_.empty()
+                                         ? Tagged<NativeContext>()
+                                         : entered_contexts_.back());
   return storage + ArchiveSpacePerThread();
 }
 
@@ -12234,6 +12237,9 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
                          FullObjectSlot(blocks()->back()),
                          FullObjectSlot(handle_scope_data_.next));
   }
+
+  v->VisitRootPointer(Root::kHandleScope, nullptr,
+                      FullObjectSlot(isolate_->last_entered_context_address()));
 
   saved_contexts_.shrink_to_fit();
   if (!saved_contexts_.empty()) {

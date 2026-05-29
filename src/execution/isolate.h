@@ -799,6 +799,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &thread_local_top()->topmost_script_having_context_;
   }
 
+  Tagged<NativeContext> last_entered_context() const {
+    return thread_local_top()->last_entered_context_;
+  }
+
+  void set_last_entered_context(Tagged<NativeContext> value) {
+    thread_local_top()->last_entered_context_ = value;
+  }
+
+  Address last_entered_context_address() {
+    return reinterpret_cast<Address>(
+        &thread_local_top()->last_entered_context_);
+  }
+
   // Access to current thread id.
   inline void set_thread_id(ThreadId id) {
     thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);

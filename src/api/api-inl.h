@@ -506,6 +506,7 @@ namespace internal {
 
 void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
   entered_contexts_.push_back(context);
+  isolate_->set_last_entered_context(context);
 }
 
 DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
