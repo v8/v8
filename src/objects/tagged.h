@@ -239,6 +239,9 @@ consteval bool is_subtype_helper() {
   using std::is_base_of_v;
   using std::is_same_v;
 
+  // Bailout for identical types before normalization.
+  if constexpr (is_same_v<D, B>) return true;
+
   // Normalize Union-like types and layout types to a canonical representation.
   using Derived = typename normalize_type<D>::type;
   using Base = typename normalize_type<B>::type;
@@ -260,12 +263,15 @@ consteval bool is_subtype_helper() {
     // If Derived is a union, ALL of its members must be a subtype of Base.
     // Unpack it by passing it to a templated lambda.
     return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
-      return (... && is_subtype_helper<Ts, Base>());
+      return (is_subtype_helper<Ts, Base>() && ...);
     }(std::type_identity<Derived>{});
   } else if constexpr (is_union_v<Base>) {
     // If Base is a union, Derived must be a subtype of AT LEAST ONE member.
     return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
-      return (... || is_subtype_helper<Derived, Ts>());
+      if constexpr (v8::base::has_type_v<Derived, Ts...>) {
+        return true;
+      }
+      return (is_subtype_helper<Derived, Ts>() || ...);
     }(std::type_identity<Base>{});
   } else if constexpr (is_same_v<Derived, Smi> || is_same_v<Base, Smi> ||
                        is_same_v<Derived, TaggedIndex> ||
