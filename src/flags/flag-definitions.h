@@ -313,9 +313,11 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
-#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V) \
-  V(js_decorators, "decorators")               \
-  V(js_source_phase_imports, "source phase imports")
+#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
+  V(js_decorators, "decorators")                     \
+  V(js_source_phase_imports, "source phase imports") \
+  V(js_regexp_buffer_boundaries,                     \
+    "RegExp \\A \\z \\Z buffer boundary assertions")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \

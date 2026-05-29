@@ -112,6 +112,9 @@ void* AstNodePrinter::VisitAssertion(Assertion* that, void* data) {
     case Assertion::Type::END_OF_INPUT:
       os() << "@$i";
       break;
+    case Assertion::Type::END_OF_BUFFER:
+      os() << "@$Z";
+      break;
     case Assertion::Type::START_OF_LINE:
       os() << "@^l";
       break;

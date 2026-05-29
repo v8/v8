@@ -302,8 +302,9 @@ class Assertion final : public Tree {
     START_OF_INPUT = 1,
     END_OF_LINE = 2,
     END_OF_INPUT = 3,
-    BOUNDARY = 4,
-    NON_BOUNDARY = 5,
+    END_OF_BUFFER = 4,
+    BOUNDARY = 5,
+    NON_BOUNDARY = 6,
     LAST_ASSERTION_TYPE = NON_BOUNDARY,
   };
   explicit Assertion(Type type) : assertion_type_(type) {}

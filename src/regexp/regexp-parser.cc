@@ -1047,8 +1047,39 @@ Tree* ParserImpl<CharT>::ParseDisjunction() {
       }
       // Atom ::
       //   \ AtomEscape
-      case '\\':
-        switch (Next()) {
+      case '\\': {
+        const base::uc32 escaped_char = Next();
+        if (v8_flags.js_regexp_buffer_boundaries && IsUnicodeMode()) {
+          bool is_buffer_boundary_assertion = true;
+          Assertion::Type assertion_type = Assertion::Type::START_OF_INPUT;
+          switch (escaped_char) {
+            // Assertion ::
+            //   [+UnicodeMode] \A
+            //   [+UnicodeMode] \z
+            //   [+UnicodeMode] \Z
+            case 'A':
+              assertion_type = Assertion::Type::START_OF_INPUT;
+              set_contains_anchor();
+              break;
+            case 'z':
+              assertion_type = Assertion::Type::END_OF_INPUT;
+              break;
+            case 'Z':
+              assertion_type = Assertion::Type::END_OF_BUFFER;
+              break;
+            default:
+              is_buffer_boundary_assertion = false;
+              break;
+          }
+          if (is_buffer_boundary_assertion) {
+            Advance(2);
+            builder->AddAssertion(
+                zone()->template New<Assertion>(assertion_type));
+            continue;
+          }
+        }
+
+        switch (escaped_char) {
           case kEndMarker:
             return ReportError(Error::kEscapeAtEndOfPattern);
           // AtomEscape ::
@@ -1217,6 +1248,7 @@ Tree* ParserImpl<CharT>::ParseDisjunction() {
           }
         }
         break;
+      }
       case '{': {
         int dummy;
         bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);

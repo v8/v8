@@ -30,6 +30,10 @@ bool SatisfiesAssertion(Assertion::Type type,
       return position == 0;
     case Assertion::Type::END_OF_INPUT:
       return position == context.length();
+    case Assertion::Type::END_OF_BUFFER:
+      // \Z requires /u, which the experimental engine doesn't accept,
+      // so this assertion type never reaches the interpreter.
+      UNREACHABLE();
     case Assertion::Type::START_OF_LINE:
       if (position == 0) return true;
       return unibrow::IsLineTerminator(context[position - 1]);

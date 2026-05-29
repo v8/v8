@@ -47,6 +47,10 @@ std::ostream& operator<<(std::ostream& os, const Instruction& inst) {
         case Assertion::Type::END_OF_INPUT:
           os << "END_OF_INPUT";
           break;
+        case Assertion::Type::END_OF_BUFFER:
+          // \Z requires /u, which the experimental engine doesn't accept,
+          // so this assertion type never reaches experimental bytecode.
+          UNREACHABLE();
         case Assertion::Type::START_OF_LINE:
           os << "START_OF_LINE";
           break;
