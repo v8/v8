@@ -147,11 +147,17 @@ InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
 
   // Find the first descriptor whose key's hash is greater-than-or-equal-to the
   // search hash.
-  int number = *std::ranges::lower_bound(std::views::iota(0, end), hash,
-                                         std::less<>(), [&](int i) {
-                                           Tagged<Name> entry = GetSortedKey(i);
-                                           return entry->hash();
-                                         });
+  int low = 0;
+  int high = end;
+  while (low < high) {
+    int mid = low + (high - low) / 2;
+    if (GetSortedKey(mid)->hash() < hash) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  int number = low;
 
   // There may have been hash collisions, so search for the name from the first
   // index until the first non-matching hash.
