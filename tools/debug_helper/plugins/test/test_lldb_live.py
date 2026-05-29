@@ -5,12 +5,26 @@
 
 import os
 import unittest
+from typing import cast
 
 from .helpers.backtrace import check_backtrace
 from .helpers.corruptions import check_corruption
+from .helpers.corruptions import check_corrupted_map_inspect
 from .helpers.corruptions import get_corruption_cases
+from .helpers.inspect import check_inspect_receiver
+from .helpers.inspect import check_inspect_recurses_into_map
+from .helpers.session import LldbSession
+from .helpers.utils import DebuggerTestConfig
+from .helpers.utils import FIXTURES_DIR
 from .helpers.utils import get_lldb_live_test_config
 from .helpers.utils import run_debugger_command
+
+_CONFIG = cast(DebuggerTestConfig, None)
+
+
+def setUpModule():
+  global _CONFIG
+  _CONFIG = get_lldb_live_test_config()
 
 
 def run_lldb_live(config, binary_path, run_arguments):
@@ -37,17 +51,12 @@ def run_lldb_live(config, binary_path, run_arguments):
 class LldbBacktraceTest(unittest.TestCase):
   """Checks the normal d8 throw.js backtrace under LLDB."""
 
-  @classmethod
-  def setUpClass(cls):
-    cls.config = get_lldb_live_test_config()
-    cls.backtrace_script = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "fixtures", "throw.js")
-
   def test_backtrace(self):
     """Ensure the regular nested JS backtrace is annotated as expected."""
+    script = os.path.join(FIXTURES_DIR, "throw.js")
     output = run_lldb_live(
-        self.config, self.config.d8_binary, '--abort-on-uncaught-exception '
-        f'"{self.backtrace_script}"')
+        _CONFIG, _CONFIG.d8_binary,
+        f'{_CONFIG.d8_args} --abort-on-uncaught-exception "{script}"')
     failure = check_backtrace(output, "LLDB")
     if failure is not None:
       self.fail(failure)
@@ -56,19 +65,58 @@ class LldbBacktraceTest(unittest.TestCase):
 class LldbCorruptionTest(unittest.TestCase):
   """Checks corruption-harness backtraces under LLDB."""
 
-  @classmethod
-  def setUpClass(cls):
-    cls.config = get_lldb_live_test_config()
-
   def test_corruption_cases(self):
     """Verify each corruption case yields the expected trace."""
     for case in get_corruption_cases(__file__):
       with self.subTest(corruption=case.name):
-        output = run_lldb_live(self.config, self.config.corruption_binary,
+        output = run_lldb_live(_CONFIG, _CONFIG.corruption_binary,
                                f'"{case.script_path}"')
         failure = check_corruption(output, case, "LLDB")
         if failure is not None:
           self.fail(failure)
+
+
+class LldbInspectLiveTest(unittest.TestCase):
+  """Checks `v8 inspect` end-to-end with a live d8 process in LLDB."""
+
+  def _session(self):
+    script = os.path.join(FIXTURES_DIR, "inspect-fixture.js")
+    return LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        target_args=f'{_CONFIG.d8_args} --abort-on-uncaught-exception '
+        f'"{script}"',
+    )
+
+  def test_inspect_receiver(self):
+    """Checks `v8 inspect` on a receiver in a live session."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_inspect_receiver(session)
+
+  def test_inspect_recurses_into_map(self):
+    """Checks `v8 inspect` on a Map by following the receiver's `.map` address in a live session."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_inspect_recurses_into_map(session)
+
+
+class LldbCorruptedMapTest(unittest.TestCase):
+  """Checks `v8 inspect` on objects with corrupted Map with a live d8 process in LLDB."""
+
+  def _session(self):
+    script = os.path.join(FIXTURES_DIR, "corrupted-map.js")
+    return LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.corruption_binary,
+        target_args=f'"{script}"',
+    )
+
+  def test_inspect_corrupted_map_degrades(self):
+    """Checks `v8 inspect` on a corrupted Map slot can be rendered without crashes."""
+    with self._session() as session:
+      session.run_to_abort()
+      check_corrupted_map_inspect(session)
 
 
 if __name__ == "__main__":

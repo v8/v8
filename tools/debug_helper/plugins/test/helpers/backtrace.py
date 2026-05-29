@@ -8,36 +8,40 @@ import os
 import re
 
 _BACKTRACE_ANNOTATION_LINE_RE = re.compile(
-    r"(?P<annotation>\[(?:[^\]]+ @ .+?(?::\d+:\d+)?|<anonymous>)\])(?:\s*\([^\)]*\))?\s*$"
-)
+    r"(?P<annotation>\[(?:[^\]]+ @ .+?(?::\d+:\d+)?|<anonymous>)\])"
+    r"(?P<trailer>\s*\(this=[^\)]*\))?(?:\s*\([^\)]*\))?\s*$")
 _SCRIPT_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+?):(?P<line>\d+):(?P<column>\d+)\]$"
 )
 _SCRIPT_ONLY_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+)\]$")
+# Receiver pointer in `(this=0xADDR, argc=N)`.
+_ADDR_RE = re.compile(r"0x[0-9a-fA-F]+")
 
 _DEFAULT_EXPECTED_ANNOTATIONS = (
-    "[test_func_3 @ <base>/throw.js:15:21]",
-    "[<anonymous> @ <base>/throw.js:10:19]",
-    "[test_func_2 @ <base>/throw.js:9:21]",
-    "[test_func_1 @ <base>/throw.js:5:21]",
-    "[<anonymous> @ <base>/throw.js:1:1]",
+    "[test_func_3 @ <base>/throw.js:15:21] (this=<addr>, argc=4)",
+    "[<anonymous> @ <base>/throw.js:10:19] (this=<addr>, argc=4)",
+    "[test_func_2 @ <base>/throw.js:9:21] (this=<addr>, argc=4)",
+    "[test_func_1 @ <base>/throw.js:5:21] (this=<addr>, argc=4)",
+    "[<anonymous> @ <base>/throw.js:1:1] (this=<addr>, argc=1)",
 )
 
 
-def _normalize_annotation(annotation):
+def _normalize_annotation(annotation, trailer):
   """Reduce debugger-specific paths to a stable, basename-only annotation."""
   annotation = annotation.strip()
+  # Mask the receiver pointer so the trailer compares stably across runs.
+  suffix = "" if not trailer else " " + _ADDR_RE.sub("<addr>", trailer.strip())
   match = _SCRIPT_ANNOTATION_RE.match(annotation)
   if match:
     return (f"[{match.group('function').strip()} @ <base>/"
             f"{os.path.basename(match.group('script'))}:"
-            f"{match.group('line')}:{match.group('column')}]")
+            f"{match.group('line')}:{match.group('column')}]{suffix}")
   match = _SCRIPT_ONLY_ANNOTATION_RE.match(annotation)
   if not match:
-    return annotation
+    return annotation + suffix
   return (f"[{match.group('function').strip()} @ <base>/"
-          f"{os.path.basename(match.group('script'))}]")
+          f"{os.path.basename(match.group('script'))}]{suffix}")
 
 
 def extract_backtrace_annotations(output):
@@ -47,7 +51,9 @@ def extract_backtrace_annotations(output):
     match = _BACKTRACE_ANNOTATION_LINE_RE.search(line)
     if not match:
       continue
-    annotations.append(_normalize_annotation(match.group("annotation")))
+    annotations.append(
+        _normalize_annotation(
+            match.group("annotation"), match.group("trailer")))
   return annotations
 
 

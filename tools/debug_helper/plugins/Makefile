@@ -17,19 +17,21 @@ CORRUPTION_BIN ?= $(dir $(DEBUG_HELPER_LIB))corruption_harness
 TEST_DIR ?= ./test
 FIXTURES_DIR ?= $(TEST_DIR)/fixtures
 BACKTRACE_SCRIPT ?= $(FIXTURES_DIR)/throw.js
+INSPECT_SCRIPT ?= $(FIXTURES_DIR)/inspect-fixture.js
 CORRUPTION_SCRIPT ?= $(FIXTURES_DIR)/invalid-script-source.js
 # d8 enables --sandbox-prohibit-insecure-mode on macOS/Linux, which makes
 # sandbox initialization abort with a fatal OOM when launched under a debugger
-# that disable ASLR by default. Disable it to make it load in debuggers.
-D8_ARGS ?= --abort-on-uncaught-exception --no-sandbox-prohibit-insecure-mode
+# that disables ASLR by default.
+D8_ARGS ?= --no-sandbox-prohibit-insecure-mode
 GDBINIT ?= ../../gdbinit
 GDB_PLUGIN ?= ./gdb_plugin.py
 LLDB_PLUGIN ?= ./lldb_plugin.py
 TEST_PACKAGE ?= test
 CORE_DIR ?= $(OUT_DIR)/debug_helper.cores
 BACKTRACE_CORE ?= $(CORE_DIR)/throw.core
+INSPECT_CORE ?= $(CORE_DIR)/inspect-fixture.core
 CORRUPTION_CORE ?= $(CORE_DIR)/$(basename $(notdir $(CORRUPTION_SCRIPT))).core
-CORRUPTION_CORE_CASES := invalid-script-source invalid-shared-function-info
+CORRUPTION_CORE_CASES := invalid-script-source invalid-shared-function-info corrupted-map
 CORRUPTION_CORES := $(foreach case,$(CORRUPTION_CORE_CASES),$(CORE_DIR)/$(case).core)
 
 define generate_core_gdb
@@ -110,31 +112,28 @@ define run_lldb_core
 		-O 'quit'
 endef
 
-define run_gdb_test
+# Runs one unittest spec ($(1) = module or module.Class) with the full environment.
+define run_test
 	GDB='$(GDB)' \
 	GDB_PLUGIN='$(abspath $(GDB_PLUGIN))' \
 	GDBINIT='$(abspath $(GDBINIT))' \
-	D8='$(abspath $(D8))' \
-	CORRUPTION_BIN='$(abspath $(CORRUPTION_BIN))' \
-	DEBUG_HELPER_LIB='$(abspath $(DEBUG_HELPER_LIB))' \
-	CORE_DIR='$(abspath $(CORE_DIR))' \
-	$(PYTHON) -m unittest -v $(TEST_PACKAGE).$(1)
-endef
-
-define run_lldb_test
 	LLDB='$(LLDB)' \
 	LLDB_PLUGIN='$(abspath $(LLDB_PLUGIN))' \
 	D8='$(abspath $(D8))' \
+	D8_ARGS='$(D8_ARGS)' \
 	CORRUPTION_BIN='$(abspath $(CORRUPTION_BIN))' \
 	DEBUG_HELPER_LIB='$(abspath $(DEBUG_HELPER_LIB))' \
 	CORE_DIR='$(abspath $(CORE_DIR))' \
 	$(PYTHON) -m unittest -v $(TEST_PACKAGE).$(1)
 endef
 
-.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live test-core-gdb test-core-lldb test-core test
+.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores clean-pyc test-live test-core test test-gdb test-lldb
 
 $(BACKTRACE_CORE): $(BACKTRACE_SCRIPT) $(D8)
-	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))",$(abspath $@))
+	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(BACKTRACE_SCRIPT))",$(abspath $@))
+
+$(INSPECT_CORE): $(INSPECT_SCRIPT) $(D8)
+	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(INSPECT_SCRIPT))",$(abspath $@))
 
 # The corruption cores depend on the harness binary too, so they get
 # regenerated whenever the harness changes.
@@ -144,12 +143,12 @@ $(CORE_DIR)/%.core: $(FIXTURES_DIR)/%.js $(CORRUPTION_BIN)
 run-live-gdb: run-live-backtrace-gdb run-live-corruption-gdb
 
 run-live-backtrace-gdb:
-	$(call run_gdb_live,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
+	$(call run_gdb_live,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(BACKTRACE_SCRIPT))")
 
 run-live-lldb: run-live-backtrace-lldb run-live-corruption-lldb
 
 run-live-backtrace-lldb:
-	$(call run_lldb_live,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
+	$(call run_lldb_live,$(abspath $(D8)),$(D8_ARGS) --abort-on-uncaught-exception "$(abspath $(BACKTRACE_SCRIPT))")
 
 run-live-corruption-gdb:
 	$(call run_gdb_live,$(abspath $(CORRUPTION_BIN)),"$(abspath $(CORRUPTION_SCRIPT))")
@@ -175,37 +174,27 @@ run-core-corruption-lldb: $(CORRUPTION_CORE)
 
 run-core: run-core-gdb run-core-lldb
 
-prepare-cores: $(BACKTRACE_CORE) $(CORRUPTION_CORES)
+prepare-cores: $(BACKTRACE_CORE) $(INSPECT_CORE) $(CORRUPTION_CORES)
 
 clean-cores:
 	rm -rf "$(CORE_DIR)"
 
-test-live-gdb:
-	$(call run_gdb_test,test_gdb_live)
+clean-pyc:
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
-test-live-backtrace-gdb:
-	$(call run_gdb_test,test_gdb_live.GdbBacktraceTest)
+.SECONDEXPANSION:
 
-test-live-corruption-gdb:
-	$(call run_gdb_test,test_gdb_live.GdbCorruptionTest)
+# Run any unittest spec directly. The target name is the spec, e.g.
+#   make test_gdb_live
+#   make test_gdb_live.GdbBacktraceTest
+#   make test_gdb_core.GdbInspectCoreTest
+# Specs for the coredump tests (name contains "core") depend on prepared cores.
+test_%: $$(if $$(findstring core,$$*),prepare-cores)
+	$(call run_test,$@)
 
-test-live-lldb:
-	$(call run_lldb_test,test_lldb_live)
-
-test-live-backtrace-lldb:
-	$(call run_lldb_test,test_lldb_live.LldbBacktraceTest)
-
-test-live-corruption-lldb:
-	$(call run_lldb_test,test_lldb_live.LldbCorruptionTest)
-
-test-core-gdb: prepare-cores
-	$(call run_gdb_test,test_gdb_core)
-
-test-core-lldb: prepare-cores
-	$(call run_lldb_test,test_lldb_core)
-
-test-live: test-live-gdb test-live-lldb
-
-test-core: test-core-gdb test-core-lldb
-
-test: test-live
+# Convenience helpers for common test groups
+test-live: test_gdb_live test_lldb_live
+test-core: test_gdb_core test_lldb_core
+test-gdb: test_gdb_live test_gdb_core
+test-lldb: test_lldb_live test_lldb_core
+test: test-live test-core

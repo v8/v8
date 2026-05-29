@@ -24,7 +24,10 @@
 #include "include/v8-value.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-objects.h"
+#include "src/objects/map.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 
@@ -84,6 +87,26 @@ void CorruptSFIAndAbort(const v8::FunctionCallbackInfo<v8::Value>& info) {
   abort();
 }
 
+void CorruptObjectMapAndAbort(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (!info[0]->IsObject()) {
+    info.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+        info.GetIsolate(), "The first argument must be an object"));
+    return;
+  }
+  v8::Local<v8::Object> obj_arg = info[0].As<v8::Object>();
+  auto target_object = *v8::Utils::OpenDirectHandle(*obj_arg);
+
+  constexpr uint16_t kInvalidInstanceType = i::LAST_TYPE + 1;
+  target_object->WriteField<uint16_t>(offsetof(i::Map, instance_type_),
+                                      kInvalidInstanceType);
+
+  i::Tagged_t corrupted =
+      i::V8HeapCompressionScheme::CompressObject(target_object.ptr());
+  target_object->Relaxed_WriteField<i::Tagged_t>(offsetof(i::HeapObject, map_),
+                                                 corrupted);
+  abort();
+}
+
 void InstallFunction(v8::Isolate* isolate, v8::Local<v8::Context> context,
                      const char* name, v8::FunctionCallback callback) {
   v8::Local<v8::Function> function =
@@ -98,6 +121,8 @@ void InstallHelpers(v8::Isolate* isolate, v8::Local<v8::Context> context) {
   InstallFunction(isolate, context, "corruptScriptSourceAndAbort",
                   CorruptScriptSourceAndAbort);
   InstallFunction(isolate, context, "corruptSFIAndAbort", CorruptSFIAndAbort);
+  InstallFunction(isolate, context, "corruptObjectMapAndAbort",
+                  CorruptObjectMapAndAbort);
 }
 
 bool RunScript(v8::Isolate* isolate, v8::Local<v8::Context> context,

@@ -6,7 +6,10 @@
 import os
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+FIXTURES_DIR = str(Path(__file__).resolve().parent.parent / "fixtures")
 
 
 @dataclass(frozen=True)
@@ -16,6 +19,7 @@ class DebuggerTestConfig:
   d8_binary: str
   corruption_binary: str
   debug_helper_lib: str
+  d8_args: Optional[str] = None
   gdbinit_path: Optional[str] = None
   core_dir: Optional[str] = None
 
@@ -37,6 +41,7 @@ def get_gdb_live_test_config():
       corruption_binary=_require_env("CORRUPTION_BIN"),
       debug_helper_lib=_require_env("DEBUG_HELPER_LIB"),
       gdbinit_path=_require_env("GDBINIT"),
+      d8_args=_require_env("D8_ARGS"),
   )
 
 
@@ -48,6 +53,7 @@ def get_lldb_live_test_config():
       d8_binary=_require_env("D8"),
       corruption_binary=_require_env("CORRUPTION_BIN"),
       debug_helper_lib=_require_env("DEBUG_HELPER_LIB"),
+      d8_args=_require_env("D8_ARGS"),
   )
 
 
