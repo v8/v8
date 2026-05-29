@@ -10,7 +10,6 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
