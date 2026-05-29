@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/v8-platform.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
@@ -15,6 +16,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -156,6 +158,12 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap,
 
   bool collection_performed = false;
   local_heap->ExecuteWhileParked([this, &collection_performed, kind]() {
+    // Notify Chromium that this thread is about to block. This allows the
+    // ThreadPool to spawn a new thread to prevent starvation.
+    std::unique_ptr<v8::ScopedBlockingCall> scoped_blocking_call =
+        V8::GetCurrentPlatform()->CreateBlockingScope(
+            v8::BlockingType::kWillBlock);
+
     base::MutexGuard guard(&mutex_);
 
     while (collection_request_.Has(kind)) {
