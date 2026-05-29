@@ -604,7 +604,9 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.
-  MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
+  if (IsHeapObject(maybe_code)) {
+    MemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedLoad();
+  }
 #endif
   if (!IsCode(maybe_code)) return false;
   Tagged<Code> code = TrustedCast<Code>(maybe_code);
