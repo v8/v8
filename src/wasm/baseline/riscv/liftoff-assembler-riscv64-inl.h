@@ -83,6 +83,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kRefNull:
       assm->Ld(dst.gp(), src);
       break;
+    case kI16:
+      assm->Lh(dst.gp(), src);
+      break;
     case kF32:
       assm->LoadFloat(dst.fp(), src);
       break;
@@ -179,6 +182,8 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
     assm->StoreWord(src_reg, dst);
   } else if (src.is_reg()) {
     switch (src.kind()) {
+      case kI16:
+        return assm->Sh(src.reg().gp(), dst);
       case kI32:
         return assm->Sw(src.reg().gp(), dst);
       case kI64:
