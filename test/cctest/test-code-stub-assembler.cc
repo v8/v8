@@ -284,7 +284,7 @@ TEST(NumberToString) {
     DirectHandle<String> expected = factory->NumberToString(input);
 
     DirectHandle<Object> result = ft.Call(input).ToHandleChecked();
-    if (IsUndefined(*result, isolate)) {
+    if (IsUndefined(*result)) {
       // Query may fail if cache was resized, in which case the entry is not
       // added to the cache.
       if (IsSmi(*input)) {
@@ -301,7 +301,7 @@ TEST(NumberToString) {
       expected = factory->NumberToString(input);
       result = ft.Call(input).ToHandleChecked();
     }
-    CHECK(!IsUndefined(*result, isolate));
+    CHECK(!IsUndefined(*result));
     CHECK_EQ(*expected, *result);
   }
 }
@@ -422,9 +422,9 @@ void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value) {
 
   bool expected = i::PlatformSmiTagging::IsValidSmi(value) && (value >= 0);
   if (expected) {
-    CHECK(IsTrue(*maybe_handle.ToHandleChecked(), isolate));
+    CHECK(IsTrue(*maybe_handle.ToHandleChecked()));
   } else {
-    CHECK(IsFalse(*maybe_handle.ToHandleChecked(), isolate));
+    CHECK(IsFalse(*maybe_handle.ToHandleChecked()));
   }
 }
 }  // namespace
@@ -1708,7 +1708,7 @@ TEST(TryGetOwnProperty) {
         Handle<Name> name = non_existing_names[key_index];
         DirectHandle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
-        CHECK(IsUndefined(*expected_value, isolate));
+        CHECK(IsUndefined(*expected_value));
         DirectHandle<Object> value = ft.Call(object, name).ToHandleChecked();
         CHECK_EQ(*not_found_symbol, *value);
       }
@@ -3745,11 +3745,11 @@ TEST(CloneFixedArray) {
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(5u, result->length().value());
-  CHECK(IsTheHole(result->get(0), isolate));
+  CHECK(IsTheHole(result->get(0)));
   CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
-  CHECK(IsTheHole(result->get(2), isolate));
-  CHECK(IsTheHole(result->get(3), isolate));
-  CHECK(IsTheHole(result->get(4), isolate));
+  CHECK(IsTheHole(result->get(2)));
+  CHECK(IsTheHole(result->get(3)));
+  CHECK(IsTheHole(result->get(4)));
 }
 
 TEST(CloneFixedArrayCOW) {
@@ -3793,11 +3793,11 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);
   CHECK_EQ(5u, result->length().value());
-  CHECK(IsTheHole(result->get(0), isolate));
+  CHECK(IsTheHole(result->get(0)));
   CHECK_EQ(Cast<Smi>(result->get(1)).value(), 1234);
-  CHECK(IsTheHole(result->get(2), isolate));
-  CHECK(IsTheHole(result->get(3), isolate));
-  CHECK(IsTheHole(result->get(4), isolate));
+  CHECK(IsTheHole(result->get(2)));
+  CHECK(IsTheHole(result->get(3)));
+  CHECK(IsTheHole(result->get(4)));
 }
 
 TEST(ExtractFixedArraySimple) {
@@ -3826,7 +3826,7 @@ TEST(ExtractFixedArraySimple) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
-  CHECK(IsTheHole(result->get(1), isolate));
+  CHECK(IsTheHole(result->get(1)));
 }
 
 TEST(ExtractFixedArraySimpleSmiConstant) {
@@ -3852,7 +3852,7 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
-  CHECK(IsTheHole(result->get(1), isolate));
+  CHECK(IsTheHole(result->get(1)));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstant) {
@@ -3878,7 +3878,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
-  CHECK(IsTheHole(result->get(1), isolate));
+  CHECK(IsTheHole(result->get(1)));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
@@ -3902,7 +3902,7 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
-  CHECK(IsTheHole(result->get(1), isolate));
+  CHECK(IsTheHole(result->get(1)));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrParameters) {
@@ -3927,7 +3927,7 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(2u, result->length().value());
   CHECK_EQ(Cast<Smi>(result->get(0)).value(), 1234);
-  CHECK(IsTheHole(result->get(1), isolate));
+  CHECK(IsTheHole(result->get(1)));
 
   Handle<FixedDoubleArray> source_double =
       Cast<FixedDoubleArray>(isolate->factory()->NewFixedDoubleArray(5));
@@ -4678,14 +4678,13 @@ TEST(IntPtrMulWithOverflow) {
     m.Return(m.SelectBooleanConstant(overflow));
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
-                 isolate));
-    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
-                  isolate));
-    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked(),
-                 isolate));
-    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(0), isolate)).ToHandleChecked(),
-                  isolate));
+    CHECK(
+        IsTrue(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked()));
+    CHECK(
+        IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked()));
+    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked()));
+    CHECK(
+        IsFalse(*ft.Call(handle(Smi::FromInt(0), isolate)).ToHandleChecked()));
   }
 
   {
@@ -4699,12 +4698,11 @@ TEST(IntPtrMulWithOverflow) {
     m.Return(m.SelectBooleanConstant(overflow));
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
-                  isolate));
-    CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
-                  isolate));
-    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked(),
-                 isolate));
+    CHECK(
+        IsFalse(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked()));
+    CHECK(
+        IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked()));
+    CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(2), isolate)).ToHandleChecked()));
   }
 }
 

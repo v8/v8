@@ -1284,8 +1284,7 @@ TEST(CachedHashOverflow) {
             .ToLocalChecked()
             ->Run(context)
             .ToLocalChecked();
-    CHECK_EQ(IsUndefined(*results[i], CcTest::i_isolate()),
-             result->IsUndefined());
+    CHECK_EQ(IsUndefined(*results[i]), result->IsUndefined());
     CHECK_EQ(IsNumber(*results[i]), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;

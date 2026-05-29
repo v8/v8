@@ -93,7 +93,7 @@ inline void IteratorClose(Isolate* isolate, DirectHandle<JSReceiver> iterator) {
     has_inner_exception = true;
     inner_exception = handle(isolate->exception(), isolate);
     isolate->clear_exception();
-  } else if (!IsNullOrUndefined(*return_method, isolate)) {
+  } else if (!IsNullOrUndefined(*return_method)) {
     // 4. If innerResult.[[Type]] is normal, then
     //   a. Let return be innerResult.[[Value]].
     //   b. If return is undefined, return Completion(completion).
@@ -215,7 +215,7 @@ MaybeDirectHandle<Object> IterableForEach(
           DirectHandle<FixedArray> smi_elements = Cast<FixedArray>(elements);
           for (uint32_t i = 0; i < len; ++i) {
             Tagged<Object> obj = smi_elements->get(i);
-            if (IsTheHole(obj, isolate)) {
+            if (IsTheHole(obj)) {
               if (!generic_visitor(
                       isolate->root_handle(RootIndex::kUndefinedValue))) {
                 return abort;
@@ -254,7 +254,7 @@ MaybeDirectHandle<Object> IterableForEach(
           DirectHandle<Object> obj_handle(Smi::zero(), isolate);
           for (uint32_t i = 0; i < len; ++i) {
             Tagged<Object> obj = fast_elements->get(i);
-            if (IsTheHole(obj, isolate)) {
+            if (IsTheHole(obj)) {
               if (!generic_visitor(
                       isolate->root_handle(RootIndex::kUndefinedValue))) {
                 return abort;
@@ -356,7 +356,7 @@ MaybeDirectHandle<Object> IterableForEach(
       }
     }
   }
-  if (IsUndefined(*iterator_fn, isolate)) {
+  if (IsUndefined(*iterator_fn)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kNotIterable, receiver));
   }
@@ -421,7 +421,7 @@ MaybeDirectHandle<Object> IterableForEach(
                   DirectHandle<FixedArray> smi_elements =
                       Cast<FixedArray>(elements);
                   Tagged<Object> obj = smi_elements->get(current_index);
-                  if (IsTheHole(obj, isolate)) {
+                  if (IsTheHole(obj)) {
                     if (!generic_visitor(
                             isolate->root_handle(RootIndex::kUndefinedValue))) {
                       break;
@@ -460,7 +460,7 @@ MaybeDirectHandle<Object> IterableForEach(
                   DirectHandle<FixedArray> fast_elements =
                       Cast<FixedArray>(elements);
                   Tagged<Object> obj = fast_elements->get(current_index);
-                  if (IsTheHole(obj, isolate)) {
+                  if (IsTheHole(obj)) {
                     if (!generic_visitor(
                             isolate->root_handle(RootIndex::kUndefinedValue))) {
                       break;
@@ -539,7 +539,7 @@ MaybeDirectHandle<Object> IterableForEach(
           for (; current_index < capacity; ++current_index) {
             InternalIndex entry(current_index);
             Tagged<Object> key = table->KeyAt(entry);
-            if (!IsHashTableHole(key, isolate)) {
+            if (!IsHashTableHole(key)) {
               key_handle.SetValue(key);
               if (!dispatch(key_handle)) break;
             }

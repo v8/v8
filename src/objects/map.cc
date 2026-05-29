@@ -738,7 +738,7 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
 void Map::ReplaceDescriptors(Isolate* isolate,
                              Tagged<DescriptorArray> new_descriptors) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
-  if (NumberOfOwnDescriptors() == 0 || IsUndefined(GetBackPointer(), isolate)) {
+  if (NumberOfOwnDescriptors() == 0 || IsUndefined(GetBackPointer())) {
     return;
   }
 
@@ -953,12 +953,12 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   // (exclusive). In the case that {map} is the initial map, update it.
   map->UpdateDescriptors(*new_descriptors, map->NumberOfOwnDescriptors());
   Tagged<Object> next = map->GetBackPointer();
-  if (IsUndefined(next, isolate)) return;
+  if (IsUndefined(next)) return;
 
   Tagged<Map> current = Cast<Map>(next);
   while (current->instance_descriptors() == *descriptors) {
     next = current->GetBackPointer();
-    if (IsUndefined(next, isolate)) break;
+    if (IsUndefined(next)) break;
     current->UpdateDescriptors(*new_descriptors,
                                current->NumberOfOwnDescriptors());
     current = Cast<Map>(next);
@@ -971,7 +971,7 @@ DirectHandle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   DirectHandle<Map> map(
       isolate->native_context()->object_function()->initial_map(), isolate);
   if (map->prototype() == *prototype) return map;
-  if (IsNull(*prototype, isolate)) {
+  if (IsNull(*prototype)) {
     return isolate->slow_object_with_null_prototype_map();
   }
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
@@ -1167,7 +1167,7 @@ DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate,
     }
   }
 
-  DCHECK(!IsUndefined(*map, isolate));
+  DCHECK(!IsUndefined(*map));
 
   bool allow_store_transition = IsTransitionElementsKind(from_kind);
   // Only store fast element maps in ascending generality.
@@ -1391,7 +1391,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
   if (use_cache) {
     Tagged<Object> normalized_map_cache =
         meta_map->native_context()->normalized_map_cache();
-    use_cache = !IsUndefined(normalized_map_cache, isolate);
+    use_cache = !IsUndefined(normalized_map_cache);
     if (use_cache) {
       cache = Cast<NormalizedMapCache>(
           direct_handle(normalized_map_cache, isolate));
@@ -1638,7 +1638,7 @@ void Map::ConnectTransition(Isolate* isolate, DirectHandle<Map> parent,
                  child->may_have_interesting_properties());
   DCHECK_IMPLIES(parent->may_have_interesting_properties(),
                  child->may_have_interesting_properties());
-  if (!IsUndefined(parent->GetBackPointer(), isolate)) {
+  if (!IsUndefined(parent->GetBackPointer())) {
     parent->set_owns_descriptors(false);
   } else if (!parent->IsDetached(isolate)) {
     // |parent| is initial map and it must not contain descriptors in the
@@ -2217,7 +2217,7 @@ DirectHandle<Map> Map::TransitionToAccessorProperty(
           : RuntimeCallCounterId::kMap_TransitionToAccessorProperty);
 
   // At least one of the accessors needs to be a new value.
-  DCHECK(!IsNull(*getter, isolate) || !IsNull(*setter, isolate));
+  DCHECK(!IsNull(*getter) || !IsNull(*setter));
   DCHECK(IsUniqueName(*name));
 
   // Migrate to the newest map before transitioning to the new property.
@@ -2286,13 +2286,11 @@ DirectHandle<Map> Map::TransitionToAccessorProperty(
     if (current_pair->Equals(*getter, *setter)) return map;
 
     bool overwriting_accessor = false;
-    if (!IsNull(*getter, isolate) &&
-        !IsNull(current_pair->get(ACCESSOR_GETTER), isolate) &&
+    if (!IsNull(*getter) && !IsNull(current_pair->get(ACCESSOR_GETTER)) &&
         current_pair->get(ACCESSOR_GETTER) != *getter) {
       overwriting_accessor = true;
     }
-    if (!IsNull(*setter, isolate) &&
-        !IsNull(current_pair->get(ACCESSOR_SETTER), isolate) &&
+    if (!IsNull(*setter) && !IsNull(current_pair->get(ACCESSOR_SETTER)) &&
         current_pair->get(ACCESSOR_SETTER) != *setter) {
       overwriting_accessor = true;
     }
@@ -2327,7 +2325,7 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, DirectHandle<Map> map,
 
   // Share descriptors only if map owns descriptors and is not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
-      !IsUndefined(map->GetBackPointer(), isolate) &&
+      !IsUndefined(map->GetBackPointer()) &&
       TransitionsAccessor::CanHaveMoreTransitions(isolate, map)) {
     return ShareDescriptor(isolate, map, descriptors, descriptor);
   }
@@ -2489,7 +2487,7 @@ bool Map::EquivalentToForNormalization(const Tagged<Map> other,
 
 int Map::ComputeMinObjectSlack(Isolate* isolate) {
   // Has to be an initial map.
-  DCHECK(IsUndefined(GetBackPointer(), isolate));
+  DCHECK(IsUndefined(GetBackPointer()));
 
   int slack = UnusedPropertyFields();
   TransitionsAccessor transitions(isolate, this);
@@ -2681,13 +2679,13 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<JSObject> prototype_jsobj = Cast<JSObject>(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
-    DCHECK(IsNull(*prototype, isolate) || IsJSProxy(*prototype) ||
+    DCHECK(IsNull(*prototype) || IsJSProxy(*prototype) ||
            IsWasmObject(*prototype) ||
            HeapLayout::InWritableSharedSpace(*prototype));
   }
 
   WriteBarrierMode wb_mode =
-      IsNull(*prototype, isolate) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+      IsNull(*prototype) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   map->set_prototype(*prototype, wb_mode);
 }
 

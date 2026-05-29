@@ -362,9 +362,7 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
     accumulator->Put('>');
   }
 
-  Isolate* isolate = Isolate::Current();
-
-  if (depth > 0 && !IsUninitializedHole(obj, isolate)) {
+  if (depth > 0 && !IsUninitializedHole(obj)) {
     if (IsJSObject(obj)) {
       if (obj->HasFastProperties()) {
         JSObjectFuzzingPrintFastProperties(obj, accumulator, depth);

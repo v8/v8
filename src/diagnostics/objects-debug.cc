@@ -410,7 +410,7 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   const bool has_hash = TryGetHash(&hash);
   CHECK(has_hash);
   CHECK_GT(hash, 0);
-  CHECK(IsUndefined(description(), isolate) || IsString(description()));
+  CHECK(IsUndefined(description()) || IsString(description()));
   CHECK_IMPLIES(IsAnyPrivateName(), IsAnyPrivate());
   CHECK_IMPLIES(IsPrivateBrand(), IsAnyPrivateName());
 }
@@ -518,7 +518,7 @@ void VerifyJSObjectElements(Isolate* isolate, Tagged<JSObject> object) {
     // allow the hole + smi values.
     for (uint32_t i = 0; i < elements_len; i++) {
       Tagged<Object> value = elements->get(i);
-      CHECK(IsSmi(value) || IsTheHole(value, isolate));
+      CHECK(IsSmi(value) || IsTheHole(value));
     }
   } else if (object->HasObjectElements()) {
     for (uint32_t i = 0; i < elements_len; i++) {
@@ -613,7 +613,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         }
         Tagged<Object> value = RawFastPropertyAt(index);
         CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
-        if (IsUninitializedHole(value, isolate)) continue;
+        if (IsUninitializedHole(value)) continue;
         CHECK_IMPLIES(r.IsSmi(), IsSmi(value));
         CHECK_IMPLIES(r.IsHeapObject(), IsHeapObject(value));
         Tagged<FieldType> field_type = descriptors->GetFieldType(i);
@@ -826,7 +826,7 @@ void Map::MapVerify(Isolate* isolate) {
         // TODO(v8:14089): Verify what should be checked in this configuration
         // and again merge with the else-branch below.
         // CHECK(InSharedHeap());
-        CHECK(IsUndefined(GetBackPointer(), isolate));
+        CHECK(IsUndefined(GetBackPointer()));
         // Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
         // if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
         CHECK(!is_extensible());
@@ -838,7 +838,7 @@ void Map::MapVerify(Isolate* isolate) {
         }
       } else {
         CHECK(HeapLayout::InAnySharedSpace(this));
-        CHECK(IsUndefined(GetBackPointer(), isolate));
+        CHECK(IsUndefined(GetBackPointer()));
         Tagged<Object> maybe_cell = prototype_validity_cell(kRelaxedLoad);
         if (IsCell(maybe_cell)) {
           CHECK(HeapLayout::InAnySharedSpace(Cast<Cell>(maybe_cell)));
@@ -1313,7 +1313,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
           *(GetDescriptorSlot(descriptor.as_int()) + kEntryKeyIndex);
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
-      if (IsUndefined(key, isolate)) continue;
+      if (IsUndefined(key)) continue;
       PropertyDetails details = GetDetails(descriptor);
       if (Cast<Name>(key)->IsAnyPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
@@ -1437,7 +1437,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
     Tagged<Object> mapped = elements->mapped_entries(i, kRelaxedLoad);
-    if (IsTheHole(mapped, isolate)) {
+    if (IsTheHole(mapped)) {
       // Both slow and fast sloppy arguments can be holey. Ensure that the fixed
       // array backing the fast sloppy arguments is large enough.
       CHECK(!is_fast || i < arg_elements_len);
@@ -1454,7 +1454,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   }
   for (uint32_t i = mapped_elements_length; i < elements_len; ++i) {
     // Ensure that any overshooted element is the hole
-    CHECK(IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate));
+    CHECK(IsTheHole(elements->mapped_entries(i, kRelaxedLoad)));
   }
   CHECK_LE(nofMappedParameters, static_cast<uint32_t>(context_object_len));
   if (is_fast) {
@@ -1753,7 +1753,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
 
   {
     Tagged<HeapObject> script = this->script(kAcquireLoad);
-    CHECK(IsUndefined(script, roots) || IsScript(script));
+    CHECK(IsUndefined(script) || IsScript(script));
   }
 
   if (!is_compiled()) {
@@ -2061,7 +2061,7 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
   if (!self->ElementsAreSafeToExamine()) return;
-  if (IsUndefined(elements(), isolate)) return;
+  if (IsUndefined(elements())) return;
   CHECK(IsFixedArray(elements()) || IsFixedDoubleArray(elements()));
   uint32_t elements_len = elements()->ulength().value();
   if (elements_len == 0) {
@@ -2102,13 +2102,13 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
 
 void JSSet::JSSetVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsOrderedHashSet(table()) || IsUndefined(table(), isolate));
+  CHECK(IsOrderedHashSet(table()) || IsUndefined(table()));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
 void JSMap::JSMapVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsOrderedHashMap(table()) || IsUndefined(table(), isolate));
+  CHECK(IsOrderedHashMap(table()) || IsUndefined(table()));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
@@ -2401,45 +2401,43 @@ void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperVerify(
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell(this));
 
-  CHECK(IsUndefined(target(), isolate) || Object::CanBeHeldWeakly(target()));
+  CHECK(IsUndefined(target()) || Object::CanBeHeldWeakly(target()));
 
-  CHECK(IsWeakCell(prev()) || IsUndefined(prev(), isolate));
+  CHECK(IsWeakCell(prev()) || IsUndefined(prev()));
   if (IsWeakCell(prev())) {
     CHECK_EQ(Cast<WeakCell>(prev())->next(), this);
   }
 
-  CHECK(IsWeakCell(next()) || IsUndefined(next(), isolate));
+  CHECK(IsWeakCell(next()) || IsUndefined(next()));
   if (IsWeakCell(next())) {
     CHECK_EQ(Cast<WeakCell>(next())->prev(), this);
   }
 
-  CHECK_IMPLIES(IsUndefined(unregister_token(), isolate),
-                IsUndefined(key_list_prev(), isolate));
-  CHECK_IMPLIES(IsUndefined(unregister_token(), isolate),
-                IsUndefined(key_list_next(), isolate));
+  CHECK_IMPLIES(IsUndefined(unregister_token()), IsUndefined(key_list_prev()));
+  CHECK_IMPLIES(IsUndefined(unregister_token()), IsUndefined(key_list_next()));
 
-  CHECK(IsWeakCell(key_list_prev()) || IsUndefined(key_list_prev(), isolate));
+  CHECK(IsWeakCell(key_list_prev()) || IsUndefined(key_list_prev()));
 
-  CHECK(IsWeakCell(key_list_next()) || IsUndefined(key_list_next(), isolate));
+  CHECK(IsWeakCell(key_list_next()) || IsUndefined(key_list_next()));
 
-  CHECK(IsUndefined(finalization_registry(), isolate) ||
+  CHECK(IsUndefined(finalization_registry()) ||
         IsJSFinalizationRegistry(finalization_registry()));
 }
 
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(IsJSWeakRef(this));
   JSObjectVerify(isolate);
-  CHECK(IsUndefined(target(), isolate) || Object::CanBeHeldWeakly(target()));
+  CHECK(IsUndefined(target()) || Object::CanBeHeldWeakly(target()));
 }
 
 void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
   CHECK(IsJSFinalizationRegistry(this));
   JSObjectVerify(isolate);
   if (IsWeakCell(active_cells())) {
-    CHECK(IsUndefined(Cast<WeakCell>(active_cells())->prev(), isolate));
+    CHECK(IsUndefined(Cast<WeakCell>(active_cells())->prev()));
   }
   if (IsWeakCell(cleared_cells())) {
-    CHECK(IsUndefined(Cast<WeakCell>(cleared_cells())->prev(), isolate));
+    CHECK(IsUndefined(Cast<WeakCell>(cleared_cells())->prev()));
   }
 }
 
@@ -2452,7 +2450,7 @@ void AccessCheckInfo::AccessCheckInfoVerify(Isolate* isolate) {
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsEphemeronHashTable(table()) || IsUndefined(table(), isolate));
+  CHECK(IsEphemeronHashTable(table()) || IsUndefined(table()));
 }
 
 void ScriptOrModule::ScriptOrModuleVerify(Isolate* isolate) {
@@ -2506,7 +2504,7 @@ void JSPrimitiveWrapper::JSPrimitiveWrapperVerify(Isolate* isolate) {
 
 void JSWeakSet::JSWeakSetVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  CHECK(IsEphemeronHashTable(table()) || IsUndefined(table(), isolate));
+  CHECK(IsEphemeronHashTable(table()) || IsUndefined(table()));
 }
 
 void CallbackTask::CallbackTaskVerify(Isolate* isolate) {
@@ -2620,7 +2618,7 @@ void SmallOrderedHashTableImpl<Derived>::SmallOrderedHashTableVerify(
        entry < Capacity(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      CHECK(IsTheHole(val, isolate));
+      CHECK(IsTheHole(val));
     }
   }
 }
@@ -2633,7 +2631,7 @@ void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
        entry++) {
     for (int offset = 0; offset < kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      CHECK(IsTheHole(val, isolate));
+      CHECK(IsTheHole(val));
     }
   }
 }
@@ -2646,7 +2644,7 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
        entry++) {
     for (int offset = 0; offset < kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      CHECK(IsTheHole(val, isolate));
+      CHECK(IsTheHole(val));
     }
   }
 }
@@ -2660,7 +2658,7 @@ void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
        entry++) {
     for (int offset = 0; offset < kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      CHECK(IsTheHole(val, isolate) ||
+      CHECK(IsTheHole(val) ||
             (PropertyDetails::Empty().AsSmi() == Cast<Smi>(val)));
     }
   }
@@ -2881,7 +2879,7 @@ void JSProxy::JSProxyVerify(Isolate* isolate) {
     CHECK_EQ(IsCallable(target()), map()->is_callable());
     CHECK_EQ(IsConstructor(target()), map()->is_constructor());
   }
-  CHECK(IsNull(map()->prototype(), isolate));
+  CHECK(IsNull(map()->prototype()));
   // There should be no properties on a Proxy.
   CHECK_EQ(0, map()->NumberOfOwnDescriptors());
 }
@@ -3035,13 +3033,13 @@ void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
   Object::VerifyPointer(isolate, import_name());
   CHECK_IMPLIES(IsString(import_name()), module_request() >= 0);
   CHECK_IMPLIES(IsString(export_name()) && IsString(import_name()),
-                IsUndefined(local_name(), isolate));
+                IsUndefined(local_name()));
 }
 
 void Module::ModuleVerify(Isolate* isolate) {
-  CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception(), isolate));
+  CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception()));
 
-  CHECK(IsUndefined(module_namespace(), isolate) || IsCell(module_namespace()));
+  CHECK(IsUndefined(module_namespace()) || IsCell(module_namespace()));
   if (IsCell(module_namespace())) {
     // Technically kLinking should be the correct check, however we can end up
     // here in SourceTextModule::FinishInstantiate before updating the status.
@@ -3632,7 +3630,7 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
   Object::VerifyPointer(isolate, access_check_info());
   Object::VerifyPointer(isolate, c_function_overloads());
   CHECK(IsFixedArray(c_function_overloads()) ||
-        IsUndefined(c_function_overloads(), isolate));
+        IsUndefined(c_function_overloads()));
 }
 
 void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
@@ -3793,7 +3791,7 @@ void Script::ScriptVerify(Isolate* isolate) {
     Tagged<HeapObject> heap_object;
     CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||
           (maybe_object.GetHeapObjectIfStrong(&heap_object) &&
-           IsUndefined(heap_object, isolate)) ||
+           IsUndefined(heap_object)) ||
           Is<SharedFunctionInfo>(heap_object) || Is<ScopeInfo>(heap_object));
   }
 }
@@ -3809,7 +3807,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
         Cast<Map>(heap_object)->DictionaryMapVerify(isolate);
       } else {
         CHECK(e.IsCleared() || (e.GetHeapObjectIfStrong(&heap_object) &&
-                                IsUndefined(heap_object, isolate)));
+                                IsUndefined(heap_object)));
       }
     }
   }
@@ -4017,7 +4015,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
       Tagged<FixedArray> e = Cast<FixedArray>(elements());
       uint32_t len = e->ulength().value();
       for (uint32_t i = 0; i < len; i++) {
-        if (IsTheHole(e->get(i), isolate)) holes++;
+        if (IsTheHole(e->get(i))) holes++;
       }
       info->number_of_fast_used_elements_ += len - holes;
       info->number_of_fast_unused_elements_ += holes;

@@ -300,7 +300,7 @@ void CopyDictionaryToObjectElements(Isolate* isolate,
     InternalIndex entry = from->FindEntry(isolate, i + from_start);
     if (entry.is_found()) {
       Tagged<Object> value = from->ValueAt(entry);
-      DCHECK(!IsTheHole(value, isolate));
+      DCHECK(!IsTheHole(value));
       to->set(i + to_start, value, *mode);
     } else {
       to->set_the_hole(isolate, i + to_start);
@@ -573,7 +573,7 @@ void SortIndices(Isolate* isolate, DirectHandle<FixedArray> indices,
   // store operations that are safe for concurrent marking.
   AtomicSlot start(indices->RawFieldOfFirstElement());
   AtomicSlot end(start + sort_size);
-  std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
+  std::sort(start, end, [](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
     Tagged<Object> a(V8HeapCompressionScheme::DecompressTagged(elementA));
     Tagged<Object> b(V8HeapCompressionScheme::DecompressTagged(elementB));
@@ -581,14 +581,14 @@ void SortIndices(Isolate* isolate, DirectHandle<FixedArray> indices,
     Tagged<Object> a(elementA);
     Tagged<Object> b(elementB);
 #endif
-    if (IsSmi(a) || !IsUndefined(a, isolate)) {
-      if (!IsSmi(b) && IsUndefined(b, isolate)) {
+    if (IsSmi(a) || !IsUndefined(a)) {
+      if (!IsSmi(b) && IsUndefined(b)) {
         return true;
       }
       return Object::NumberValue(Cast<Number>(a)) <
              Object::NumberValue(Cast<Number>(b));
     }
-    return !IsSmi(b) && IsUndefined(b, isolate);
+    return !IsSmi(b) && IsUndefined(b);
   });
   WriteBarrier::ForRange(isolate->heap(), *indices, ObjectSlot(start),
                          ObjectSlot(end));
@@ -598,7 +598,7 @@ Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
                                   DirectHandle<JSObject> receiver,
                                   DirectHandle<Object> value, size_t start_from,
                                   size_t length) {
-  bool search_for_hole = IsUndefined(*value, isolate);
+  bool search_for_hole = IsUndefined(*value);
   for (size_t k = start_from; k < length; ++k) {
     LookupIterator it(isolate, receiver, k);
     if (!it.IsFound()) {
@@ -1856,7 +1856,7 @@ class DictionaryElementsAccessor
     DisallowGarbageCollection no_gc;
     Tagged<NumberDictionary> dict = Cast<NumberDictionary>(store);
     Tagged<Object> index = dict->KeyAt(entry);
-    return !IsTheHole(index, isolate);
+    return !IsTheHole(index);
   }
 
   static InternalIndex GetEntryForIndexImpl(Isolate* isolate,
@@ -1972,7 +1972,7 @@ class DictionaryElementsAccessor
       Tagged<Object> k = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
-      DCHECK(!IsTheHole(value, isolate));
+      DCHECK(!IsTheHole(value));
       DCHECK(!IsAccessorPair(value));
       DCHECK(!IsAccessorInfo(value));
       RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(value, convert));
@@ -2024,7 +2024,7 @@ class DictionaryElementsAccessor
                                        DirectHandle<Object> value,
                                        size_t start_from, size_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
-    bool search_for_hole = IsUndefined(*value, isolate);
+    bool search_for_hole = IsUndefined(*value);
 
     if (!search_for_hole) {
       Maybe<bool> result = Nothing<bool>();
@@ -2457,8 +2457,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       HandleScope scope(isolate);
       for (uint32_t i = 0; i < ulength; i++) {
         Tagged<Object> element = Cast<FixedArray>(backing_store)->get(i);
-        DCHECK(IsSmi(element) || (IsHoleyElementsKind(KindTraits::Kind) &&
-                                  IsTheHole(element, isolate)));
+        DCHECK(IsSmi(element) ||
+               (IsHoleyElementsKind(KindTraits::Kind) && IsTheHole(element)));
       }
     } else if (KindTraits::Kind == PACKED_ELEMENTS ||
                KindTraits::Kind == PACKED_DOUBLE_ELEMENTS) {
@@ -2763,7 +2763,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     raw_receiver->set_length(Smi::FromUInt(new_length));
 
-    if (IsHoleyElementsKind(kind) && IsTheHole(result, isolate)) {
+    if (IsHoleyElementsKind(kind) && IsTheHole(result)) {
       return ReadOnlyRoots(isolate).undefined_value();
     }
     return result;
@@ -3857,13 +3857,13 @@ class TypedElementsAccessor
     bool out_of_bounds = false;
     size_t new_length = typed_array->GetLengthOrOutOfBounds(out_of_bounds);
     if (V8_UNLIKELY(out_of_bounds)) {
-      return Just(IsUndefined(*value, isolate) && length > start_from);
+      return Just(IsUndefined(*value) && length > start_from);
     }
 
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
     if (new_length < length) {
-      if (IsUndefined(*value, isolate) && length > start_from) {
+      if (IsUndefined(*value) && length > start_from) {
         return Just(true);
       }
       length = new_length;
@@ -4286,7 +4286,7 @@ class TypedElementsAccessor
 
     // Null prototypes are OK - we don't need to do prototype chain lookups on
     // them.
-    if (IsNull(source_proto, isolate)) return false;
+    if (IsNull(source_proto)) return false;
     if (IsJSProxy(source_proto)) return true;
     if (IsJSObject(source_proto) &&
         !context->native_context()->is_initial_array_prototype(
@@ -5060,10 +5060,10 @@ class SloppyArgumentsElementsAccessor
       DisallowGarbageCollection no_gc;
       Tagged<Object> probe =
           elements->mapped_entries(entry.as_uint32(), kRelaxedLoad);
-      DCHECK(!IsTheHole(probe, isolate));
+      DCHECK(!IsTheHole(probe));
       Tagged<Context> context = elements->context();
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry)));
       return handle(context->GetNoCell(context_entry), isolate);
     } else {
       // Entry is not context mapped, defer to the arguments.
@@ -5242,8 +5242,7 @@ class SloppyArgumentsElementsAccessor
     uint32_t length = elements->ulength().value();
     if (index >= length) return false;
     return !IsTheHole(
-        elements->mapped_entries(static_cast<uint32_t>(index), kRelaxedLoad),
-        isolate);
+        elements->mapped_entries(static_cast<uint32_t>(index), kRelaxedLoad));
   }
 
   static void DeleteImpl(Isolate* isolate, DirectHandle<JSObject> obj,
@@ -5298,7 +5297,7 @@ class SloppyArgumentsElementsAccessor
     uint32_t length = elements->ulength().value();
 
     for (uint32_t i = 0; i < length; ++i) {
-      if (IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate)) {
+      if (IsTheHole(elements->mapped_entries(i, kRelaxedLoad))) {
         continue;
       }
       if (convert == GetKeysConversion::kConvertToString) {
@@ -5325,7 +5324,7 @@ class SloppyArgumentsElementsAccessor
     DirectHandle<Map> original_map(object->map(), isolate);
     DirectHandle<SloppyArgumentsElements> elements(
         Cast<SloppyArgumentsElements>(object->elements()), isolate);
-    bool search_for_hole = IsUndefined(*value, isolate);
+    bool search_for_hole = IsUndefined(*value);
 
     for (size_t k = start_from; k < length; ++k) {
       DCHECK_EQ(object->map(), *original_map);
@@ -5417,7 +5416,7 @@ class SlowSloppyArgumentsElementsAccessor
           Cast<AliasedArgumentsEntry>(*result);
       Tagged<Context> context = elements->context();
       int context_entry = alias->aliased_context_slot();
-      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry)));
       return handle(context->GetNoCell(context_entry), isolate);
     }
     return result;
@@ -5465,10 +5464,10 @@ class SlowSloppyArgumentsElementsAccessor
     if (entry.as_uint32() < length) {
       Tagged<Object> probe =
           elements->mapped_entries(entry.as_uint32(), kRelaxedLoad);
-      DCHECK(!IsTheHole(probe, isolate));
+      DCHECK(!IsTheHole(probe));
       Tagged<Context> context = elements->context();
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry)));
       context->SetNoCell(context_entry, *value);
 
       // Redefining attributes of an aliased element destroys fast aliasing.

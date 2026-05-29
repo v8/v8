@@ -1147,8 +1147,8 @@ class VectorBackedMatch : public String::Match {
         captures_(captures) {
     subject_ = String::Flatten(isolate, subject);
 
-    DCHECK(IsUndefined(*groups_obj, isolate) || IsJSReceiver(*groups_obj));
-    has_named_captures_ = !IsUndefined(*groups_obj, isolate);
+    DCHECK(IsUndefined(*groups_obj) || IsJSReceiver(*groups_obj));
+    has_named_captures_ = !IsUndefined(*groups_obj);
     if (has_named_captures_) groups_obj_ = Cast<JSReceiver>(groups_obj);
   }
 
@@ -1176,7 +1176,7 @@ class VectorBackedMatch : public String::Match {
 
   MaybeDirectHandle<String> GetCapture(int i, bool* capture_exists) override {
     DirectHandle<Object> capture_obj = captures_[i];
-    if (IsUndefined(*capture_obj, isolate_)) {
+    if (IsUndefined(*capture_obj)) {
       *capture_exists = false;
       return isolate_->factory()->empty_string();
     }
@@ -1201,7 +1201,7 @@ class VectorBackedMatch : public String::Match {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate_, capture_obj,
         Object::GetProperty(isolate_, groups_obj_, name));
-    if (IsUndefined(*capture_obj, isolate_)) {
+    if (IsUndefined(*capture_obj)) {
       *state = UNMATCHED;
       return isolate_->factory()->empty_string();
     } else {
@@ -1244,14 +1244,14 @@ DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
     DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
 
     DirectHandle<Object> capture_value(f_get_capture(capture_ix), isolate);
-    DCHECK(IsUndefined(*capture_value, isolate) || IsString(*capture_value));
+    DCHECK(IsUndefined(*capture_value) || IsString(*capture_value));
 
     LookupIterator it(isolate, groups, capture_name, groups,
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.IsFound()) {
       DCHECK(v8_flags.js_regexp_duplicate_named_groups);
-      if (!IsUndefined(*capture_value, isolate)) {
-        DCHECK(IsUndefined(*it.GetDataValue(), isolate));
+      if (!IsUndefined(*capture_value)) {
+        DCHECK(IsUndefined(*it.GetDataValue()));
         CHECK(Object::SetDataProperty(&it, capture_value).ToChecked());
       }
     } else {
@@ -1493,7 +1493,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
                               last_match_info));
     }
 
-    if (IsNull(*match_indices_obj, isolate)) {
+    if (IsNull(*match_indices_obj)) {
       if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
       return string;
     }
@@ -1638,7 +1638,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
                             last_match_info));
   }
 
-  if (IsNull(*match_indices_obj, isolate)) {
+  if (IsNull(*match_indices_obj)) {
     if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
     return *subject;
   }
@@ -1722,7 +1722,7 @@ namespace {
 
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> ToUint32(
     Isolate* isolate, DirectHandle<Object> object, uint32_t* out) {
-  if (IsUndefined(*object, isolate)) {
+  if (IsUndefined(*object)) {
     *out = kMaxUInt32;
     return object;
   }
@@ -1811,7 +1811,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
         regexp::Utils::RegExpExec(isolate, splitter, string,
                                   factory->undefined_value()));
 
-    if (!IsNull(*result, isolate)) return *factory->NewJSArray(0);
+    if (!IsNull(*result)) return *factory->NewJSArray(0);
 
     DirectHandle<FixedArray> elems = factory->NewFixedArray(1);
     elems->set(0, *string);
@@ -1835,7 +1835,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
         regexp::Utils::RegExpExec(isolate, splitter, string,
                                   factory->undefined_value()));
 
-    if (IsNull(*result, isolate)) {
+    if (IsNull(*result)) {
       string_index = static_cast<uint32_t>(
           regexp::Utils::AdvanceStringIndex(*string, string_index, unicode));
       continue;
@@ -2007,7 +2007,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       result = inner_scope.CloseAndEscape(result);
     }
 
-    if (IsNull(*result, isolate)) break;
+    if (IsNull(*result)) break;
 
     results.emplace_back(result);
     if (!global) break;
@@ -2077,7 +2077,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, n));
 
-      if (!IsUndefined(*capture, isolate)) {
+      if (!IsUndefined(*capture)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, capture,
                                            Object::ToString(isolate, capture));
       }
@@ -2089,7 +2089,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
         isolate, groups_obj,
         Object::GetProperty(isolate, result, factory->groups_string()));
 
-    const bool has_named_captures = !IsUndefined(*groups_obj, isolate);
+    const bool has_named_captures = !IsUndefined(*groups_obj);
 
     DirectHandle<String> replacement;
     if (functional_replace) {
@@ -2125,7 +2125,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
           isolate, replacement, Object::ToString(isolate, replacement_obj));
     } else {
       DCHECK(!functional_replace);
-      if (!IsUndefined(*groups_obj, isolate)) {
+      if (!IsUndefined(*groups_obj)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, groups_obj, Object::ToObject(isolate, groups_obj));
       }

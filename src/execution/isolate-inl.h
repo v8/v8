@@ -78,7 +78,7 @@ DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
 }
 
 void Isolate::set_pending_message(Tagged<Object> message_obj) {
-  DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
+  DCHECK(IsTheHole(message_obj) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;
 }
 
@@ -90,23 +90,21 @@ void Isolate::clear_pending_message() {
   set_pending_message(ReadOnlyRoots(this).the_hole_value());
 }
 
-bool Isolate::has_pending_message() {
-  return !IsTheHole(pending_message(), this);
-}
+bool Isolate::has_pending_message() { return !IsTheHole(pending_message()); }
 
 Tagged<Object> Isolate::exception() {
   CHECK(has_exception());
-  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_));
   return thread_local_top()->exception_;
 }
 
 void Isolate::set_exception(Tagged<Object> exception_obj) {
-  DCHECK(!IsExceptionHole(exception_obj, this));
+  DCHECK(!IsExceptionHole(exception_obj));
   thread_local_top()->exception_ = exception_obj;
 }
 
 void Isolate::clear_internal_exception() {
-  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_));
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
@@ -117,8 +115,8 @@ void Isolate::clear_exception() {
 
 bool Isolate::has_exception() {
   ThreadLocalTop* top = thread_local_top();
-  DCHECK(!IsExceptionHole(top->exception_, this));
-  return !IsTheHole(top->exception_, this);
+  DCHECK(!IsExceptionHole(top->exception_));
+  return !IsTheHole(top->exception_);
 }
 
 bool Isolate::is_execution_terminating() {

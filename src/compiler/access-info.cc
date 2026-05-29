@@ -792,7 +792,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       // JS.
       return PropertyAccessInfo::Invalid(zone);
     }
-    if (IsTheHole(cell->value(kRelaxedLoad), isolate)) {
+    if (IsTheHole(cell->value(kRelaxedLoad))) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }

@@ -134,7 +134,7 @@ void Heap::SetMessageListeners(Tagged<ArrayList> value) {
 }
 
 void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
-  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table, isolate()));
+  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table));
   roots_table()[RootIndex::kFunctionsMarkedForManualOptimization] =
       hash_table.ptr();
 }

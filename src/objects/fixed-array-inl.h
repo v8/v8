@@ -401,7 +401,7 @@ inline SafeHeapObjectSize WeakArrayList::ulength() const { return length(); }
 inline void WeakArrayList::set_length(uint32_t value) { length_ = value; }
 
 bool FixedArray::is_the_hole(Isolate* isolate, uint32_t index) {
-  return IsTheHole(get(index), isolate);
+  return IsTheHole(get(index));
 }
 
 void FixedArray::set_the_hole(Isolate* isolate, uint32_t index) {

@@ -17,7 +17,7 @@ namespace internal {
 // https://tc39.es/ecma262/#sec-symbol-constructor
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
-  if (!IsUndefined(*args.new_target(), isolate)) {  // [[Construct]]
+  if (!IsUndefined(*args.new_target())) {  // [[Construct]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor,
                               isolate->factory()->Symbol_string()));
@@ -25,7 +25,7 @@ BUILTIN(SymbolConstructor) {
   // [[Call]]
   DirectHandle<Symbol> result = isolate->factory()->NewSymbol();
   Handle<Object> description = args.atOrUndefined(isolate, 1);
-  if (!IsUndefined(*description, isolate)) {
+  if (!IsUndefined(*description)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
     result->set_description(Cast<String>(*description));

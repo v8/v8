@@ -265,7 +265,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step
   // produces the value 0.)
   int64_t index = 0;
-  if (!IsUndefined(*from_index, isolate)) {
+  if (!IsUndefined(*from_index)) {
     double start_from;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, start_from, Object::IntegerValue(isolate, from_index));

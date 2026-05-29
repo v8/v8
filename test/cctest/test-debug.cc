@@ -5032,7 +5032,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
       for (i::Tagged<i::Script> script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
         if (script->type() == i::Script::Type::kNative &&
-            IsUndefined(script->name(), i_isolate)) {
+            IsUndefined(script->name())) {
           continue;
         }
         ++count_by_type[script->type()];

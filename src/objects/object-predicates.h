@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-definitions.h"
+#include "src/objects/oddball-predicates.h"
 #include "src/objects/tagged.h"
 
 namespace v8::internal {
@@ -65,20 +66,6 @@ IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
 
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
-
-// Oddball checks are faster when they are raw pointer comparisons, so the
-// isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, ...)                                 \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);         \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate);    \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);      \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots); \
-  V8_INLINE bool Is##Type(Tagged<Object> obj);
-ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined)
-#undef IS_TYPE_FUNCTION_DECL
 
 V8_INLINE bool IsZero(Tagged<Object> obj);
 V8_INLINE bool IsNoSharedNameSentinel(Tagged<Object> obj);

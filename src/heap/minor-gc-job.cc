@@ -10,7 +10,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/tasks/cancelable-task.h"
 

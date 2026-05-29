@@ -1278,7 +1278,7 @@ uint32_t BuiltinExitFrame::ComputeParametersCount() const {
 }
 
 bool BuiltinExitFrame::IsConstructor() const {
-  return !IsUndefined(new_target_slot_object(), isolate());
+  return !IsUndefined(new_target_slot_object());
 }
 
 // Ensure layout of v8::FunctionCallbackInfo is in sync with

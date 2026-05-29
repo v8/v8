@@ -681,7 +681,7 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
     DisallowGarbageCollection no_gc;
 
     // Has to be an initial map.
-    DCHECK(IsUndefined(map.object()->GetBackPointer(), broker->isolate()));
+    DCHECK(IsUndefined(map.object()->GetBackPointer()));
 
     static constexpr bool kConcurrentAccess = true;
     TransitionsAccessor(broker->isolate(), *map.object(), kConcurrentAccess)
@@ -898,13 +898,12 @@ std::optional<bool> HeapObjectData::TryGetBooleanValueImpl(
     JSHeapBroker* broker) const {
   DisallowGarbageCollection no_gc;
   Tagged<Object> o = *object();
-  Isolate* isolate = broker->isolate();
   const InstanceType t = GetMapInstanceType();
-  if (IsTrue(o, isolate)) {
+  if (IsTrue(o)) {
     return true;
-  } else if (IsFalse(o, isolate)) {
+  } else if (IsFalse(o)) {
     return false;
-  } else if (IsNullOrUndefined(o, isolate)) {
+  } else if (IsNullOrUndefined(o)) {
     return false;
   } else if (MapRef{map()}.is_undetectable()) {
     return false;  // Undetectable object is false.
@@ -1815,7 +1814,7 @@ OptionalObjectRef FunctionTemplateInfoRef::callback_data(
 
 bool FunctionTemplateInfoRef::is_signature_undefined(
     JSHeapBroker* broker) const {
-  return i::IsUndefined(object()->signature(), broker->isolate());
+  return i::IsUndefined(object()->signature());
 }
 
 HEAP_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)

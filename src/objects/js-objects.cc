@@ -622,7 +622,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     } else if (IsFunctionTemplateInfo(*maybe_constructor)) {
       DirectHandle<FunctionTemplateInfo> function_template =
           Cast<FunctionTemplateInfo>(maybe_constructor);
-      if (!IsUndefined(function_template->class_name(), isolate)) {
+      if (!IsUndefined(function_template->class_name())) {
         return std::make_pair(
             MaybeHandle<JSFunction>(),
             handle(Cast<String>(function_template->class_name()), isolate));
@@ -652,7 +652,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
       if (IsFunctionTemplateInfo(*maybe_constructor)) {
         DirectHandle<FunctionTemplateInfo> function_template =
             Cast<FunctionTemplateInfo>(maybe_constructor);
-        if (!IsUndefined(function_template->class_name(), isolate)) {
+        if (!IsUndefined(function_template->class_name())) {
           return std::make_pair(
               MaybeHandle<JSFunction>(),
               handle(Cast<String>(function_template->class_name()), isolate));
@@ -2181,7 +2181,7 @@ typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
       isolate, exotic_to_prim,
       Object::GetMethod(isolate, receiver,
                         isolate->factory()->to_primitive_symbol()));
-  if (!IsUndefined(*exotic_to_prim, isolate)) {
+  if (!IsUndefined(*exotic_to_prim)) {
     DirectHandle<Object> hint_string =
         isolate->factory()->ToPrimitiveHintString(hint);
     HandleType<Object> result;
@@ -2450,7 +2450,7 @@ bool JSReceiver::IsCodeLike(Isolate* isolate) const {
                                          ->shared()
                                          ->api_func_data()
                                          ->GetInstanceTemplate();
-  if (IsUndefined(instance_template, isolate)) return false;
+  if (IsUndefined(instance_template)) return false;
   return Cast<ObjectTemplateInfo>(instance_template)->code_like();
 }
 
@@ -2855,8 +2855,8 @@ Maybe<bool> JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
     if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
                      !global_obj->map()->IsPrototypeValidityCellValid());
-      auto cell_type = IsUndefined(*value, roots) ? PropertyCellType::kUndefined
-                                                  : PropertyCellType::kConstant;
+      auto cell_type = IsUndefined(*value) ? PropertyCellType::kUndefined
+                                           : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
       auto cell = isolate->factory()->NewPropertyCell(name, details, value);
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -3329,7 +3329,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
       value = handle(object->RawFastPropertyAt(index), isolate);
       if (!old_representation.IsDouble() && representation.IsDouble()) {
         DCHECK_IMPLIES(old_representation.IsNone(),
-                       IsUninitializedHole(*value, isolate));
+                       IsUninitializedHole(*value));
         value = Object::NewStorageFor(isolate, value, representation);
       } else if (old_representation.IsDouble() && !representation.IsDouble()) {
         value = Object::WrapForRead(isolate, Cast<JSAny>(value),
@@ -3556,7 +3556,7 @@ void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
       // Ensure that no transition was inserted for prototype migrations.
       DCHECK_EQ(0,
                 TransitionsAccessor(isolate, *old_map).NumberOfTransitions());
-      DCHECK(IsUndefined(new_map->GetBackPointer(), isolate));
+      DCHECK(IsUndefined(new_map->GetBackPointer()));
       DCHECK(object->map() != *old_map);
     }
   } else {
@@ -4895,10 +4895,10 @@ MaybeDirectHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
     return it->factory()->undefined_value();
   }
 
-  DCHECK(IsCallable(*getter) || IsUndefined(*getter, isolate) ||
-         IsNull(*getter, isolate) || IsFunctionTemplateInfo(*getter));
-  DCHECK(IsCallable(*setter) || IsUndefined(*setter, isolate) ||
-         IsNull(*setter, isolate) || IsFunctionTemplateInfo(*setter));
+  DCHECK(IsCallable(*getter) || IsUndefined(*getter) || IsNull(*getter) ||
+         IsFunctionTemplateInfo(*getter));
+  DCHECK(IsCallable(*setter) || IsUndefined(*setter) || IsNull(*setter) ||
+         IsFunctionTemplateInfo(*setter));
   RETURN_ON_EXCEPTION(
       isolate, it->TransitionToAccessorProperty(getter, setter, attributes));
 

@@ -311,10 +311,10 @@ class V8_NODISCARD LocalIsolateScope {
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id,
                          DirectHandle<SharedFunctionInfo> shared) {
-  if (!IsUndefined(shared->script(), isolate)) {
+  if (!IsUndefined(shared->script())) {
     DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
 
-    if (!IsUndefined(script->source(), isolate)) {
+    if (!IsUndefined(script->source())) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
       Tagged<Object> source_name = script->name();
       auto& os = tracing_scope.stream();
@@ -607,7 +607,7 @@ void PrintCode(Isolate* isolate, DirectHandle<Code> code,
     if (print_source) {
       DirectHandle<SharedFunctionInfo> shared = info->shared_info();
       if (IsScript(shared->script()) &&
-          !IsUndefined(Cast<Script>(shared->script())->source(), isolate)) {
+          !IsUndefined(Cast<Script>(shared->script())->source())) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
             Cast<String>(Cast<Script>(shared->script())->source()),

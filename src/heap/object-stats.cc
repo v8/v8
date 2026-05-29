@@ -683,7 +683,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     Tagged<FunctionTemplateInfo> fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  if (!IsUndefined(fti->GetInstanceCallHandler(), isolate())) {
+  if (!IsUndefined(fti->GetInstanceCallHandler())) {
     RecordSimpleVirtualObjectStats(
         fti, Cast<FunctionTemplateInfo>(fti->GetInstanceCallHandler()),
         StatsEnum::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);

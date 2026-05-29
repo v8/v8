@@ -15,7 +15,7 @@ MaybeDirectHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
                                                DirectHandle<Object> options,
                                                const char* method_name) {
   // 1. If options is undefined, then
-  if (IsUndefined(*options, isolate)) {
+  if (IsUndefined(*options)) {
     // a. Return ! ObjectCreate(null).
     return isolate->factory()->NewJSObjectWithNullProto();
   }
@@ -32,7 +32,7 @@ MaybeDirectHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
 MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
     Isolate* isolate, DirectHandle<Object> options, const char* method_name) {
   // 1. If options is undefined, then
-  if (IsUndefined(*options, isolate)) {
+  if (IsUndefined(*options)) {
     // a. Return ! ObjectCreate(null).
     return isolate->factory()->NewJSObjectWithNullProto();
   }
@@ -51,7 +51,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
-  if (IsUndefined(*value, isolate)) {
+  if (IsUndefined(*value)) {
     return Just(false);
   }
 
@@ -77,7 +77,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
       isolate, value, Object::GetPropertyOrElement(isolate, options, property));
 
   // 2. If value is not undefined, then
-  if (!IsUndefined(*value, isolate)) {
+  if (!IsUndefined(*value)) {
     // 2. b. i. Let value be ToBoolean(value).
     *result = Object::BooleanValue(*value, isolate);
 

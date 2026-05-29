@@ -86,7 +86,7 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Tagged<Smi> smi_index = Cast<Smi>(names->get(index_offset));
     DirectHandle<Object> capture_indices(indices_array->get(smi_index.value()),
                                          isolate);
-    if (!IsUndefined(*capture_indices, isolate)) {
+    if (!IsUndefined(*capture_indices)) {
       capture_indices = Cast<JSArray>(capture_indices);
     }
     InternalIndex group_entry = group_names_dict->FindEntry(isolate, name);
@@ -98,8 +98,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     // case we update the entry.
     if (group_entry.is_found()) {
       DCHECK(v8_flags.js_regexp_duplicate_named_groups);
-      if (!IsUndefined(*capture_indices, isolate)) {
-        DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry), isolate));
+      if (!IsUndefined(*capture_indices)) {
+        DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry)));
         group_names_dict->ValueAtPut(group_entry, *capture_indices);
       }
     } else {

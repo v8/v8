@@ -36,7 +36,7 @@ MaybeDirectHandle<JSV8BreakIterator> JSV8BreakIterator::New(
       maybe_requested_locales.FromJust();
 
   DirectHandle<JSReceiver> options;
-  if (IsUndefined(*options_obj, isolate)) {
+  if (IsUndefined(*options_obj)) {
     options = factory->NewJSObjectWithNullProto();
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,

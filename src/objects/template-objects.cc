@@ -56,7 +56,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
       EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
   MaybeDirectHandle<ArrayList> maybe_cached_templates;
 
-  if (!IsUndefined(native_context->template_weakmap(), isolate)) {
+  if (!IsUndefined(native_context->template_weakmap())) {
     DisallowGarbageCollection no_gc;
     // The no_gc keeps this safe, and gcmole is confused because
     // CachedTemplateMatches calls JSReceiver::GetDataProperty.
@@ -66,7 +66,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
         Cast<EphemeronHashTable>(native_context->template_weakmap());
     Tagged<Object> cached_templates_lookup =
         template_weakmap->Lookup(script, hash);
-    if (!IsTheHole(cached_templates_lookup, roots)) {
+    if (!IsTheHole(cached_templates_lookup)) {
       Tagged<ArrayList> cached_templates =
           Cast<ArrayList>(cached_templates_lookup);
       maybe_cached_templates = direct_handle(cached_templates, isolate);

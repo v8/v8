@@ -618,7 +618,7 @@ MaybeDirectHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
     CHECK(isolate_->has_exception());
     return MaybeDirectHandle<Object>();
   }
-  if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
+  if (!IsUndefined(*gap) && !InitializeGap(gap)) {
     CHECK(isolate_->has_exception());
     return MaybeDirectHandle<Object>();
   }
@@ -963,7 +963,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+      IsExceptionHole(isolate_->stack_guard()->HandleInterrupts())) {
     return EXCEPTION;
   }
 
@@ -1110,7 +1110,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
   } else if (IsBoolean(raw)) {
-    if (IsTrue(raw, isolate_)) {
+    if (IsTrue(raw)) {
       AppendCStringLiteral("true");
     } else {
       AppendCStringLiteral("false");
@@ -1238,8 +1238,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
     DCHECK_LT(limit, kMaxAllowedFastPackedLength);
     limit = std::min(length, limit + kInterruptLength);
     if (interrupt_check.InterruptRequested() &&
-        IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(),
-                        isolate_)) {
+        IsExceptionHole(isolate_->stack_guard()->HandleInterrupts())) {
       return EXCEPTION;
     }
   }
@@ -2746,7 +2745,7 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
     SerializeDouble(Cast<HeapNumber>(raw)->value());
     return SUCCESS;
   } else if (IsBoolean(raw)) {
-    if (IsTrue(raw, isolate_)) {
+    if (IsTrue(raw)) {
       AppendCStringLiteral("true");
     } else {
       AppendCStringLiteral("false");
@@ -3029,8 +3028,7 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
       AllowGarbageCollection allow_gc;
       if (interrupt_check.InterruptRequested() &&
           IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
-                              StackGuard::InterruptLevel::kNoGC),
-                          isolate_)) {
+              StackGuard::InterruptLevel::kNoGC))) {
         return EXCEPTION;
       }
     }
@@ -3308,8 +3306,7 @@ FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
     AllowGarbageCollection allow_gc;
     if (V8_UNLIKELY(interrupt_check.InterruptRequested() &&
                     IsExceptionHole(isolate_->stack_guard()->HandleInterrupts(
-                                        StackGuard::InterruptLevel::kNoGC),
-                                    isolate_))) {
+                        StackGuard::InterruptLevel::kNoGC)))) {
       return EXCEPTION;
     }
   }

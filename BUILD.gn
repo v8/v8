@@ -4426,6 +4426,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/objects-inl.h",
     "src/objects/objects.h",
     "src/objects/oddball-inl.h",
+    "src/objects/oddball-predicates-inl.h",
+    "src/objects/oddball-predicates.h",
     "src/objects/oddball.h",
     "src/objects/off-heap-hash-table-inl.h",
     "src/objects/off-heap-hash-table.h",

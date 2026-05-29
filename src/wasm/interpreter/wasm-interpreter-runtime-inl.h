@@ -166,7 +166,7 @@ inline Tagged<Object> WasmInterpreterRuntime::GetNullValue(
 inline bool WasmInterpreterRuntime::IsNull(Isolate* isolate, const WasmRef obj,
                                            const ValueType obj_type) {
   if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
-    return i::IsNull(*obj, isolate);
+    return i::IsNull(*obj);
   } else {
     return i::IsWasmNull(*obj);
   }
@@ -175,7 +175,7 @@ inline bool WasmInterpreterRuntime::IsNull(Isolate* isolate, const WasmRef obj,
 inline bool WasmInterpreterRuntime::IsRefNull(
     DirectHandle<Object> object) const {
   // This function assumes that it is executed in a HandleScope.
-  return i::IsNull(*object, isolate_) || IsWasmNull(*object);
+  return i::IsNull(*object) || IsWasmNull(*object);
 }
 
 inline DirectHandle<Object> WasmInterpreterRuntime::GetFunctionRef(

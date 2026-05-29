@@ -594,7 +594,7 @@ ElementsKind Object::OptimalElementsKind(Tagged<Object> obj) {
   //   return PACKED_SMI_ELEMENTS;
   // }
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  if (IsUndefined(heap_object, GetReadOnlyRoots())) {
+  if (IsUndefined(heap_object)) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE

@@ -9,11 +9,10 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
-#include "src/common/ptr-compr.h"
 #include "src/objects/casting.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/oddball.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
@@ -39,119 +38,6 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DEF(PropertyDictionary)
 IS_TYPE_FUNCTION_DEF(AnyHole)
 #undef IS_TYPE_FUNCTION_DEF
-
-#define IS_TYPE_FUNCTION_DEF(Type, ...)                                        \
-  inline bool Is##Type(Tagged<Object> obj, Isolate*) { return Is##Type(obj); } \
-  inline bool Is##Type(Tagged<Object> obj, LocalIsolate*) {                    \
-    return Is##Type(obj);                                                      \
-  }                                                                            \
-  inline bool Is##Type(Tagged<Object> obj, ReadOnlyRoots) {                    \
-    return Is##Type(obj);                                                      \
-  }                                                                            \
-  inline bool Is##Type(Tagged<HeapObject> obj) {                               \
-    return Is##Type(Tagged<Object>(obj));                                      \
-  }                                                                            \
-  inline bool Is##Type(const HeapObject* obj, Isolate*) {                      \
-    return Is##Type(Tagged<Object>(obj));                                      \
-  }                                                                            \
-  inline bool Is##Type(const HeapObject* obj) {                                \
-    return Is##Type(Tagged<Object>(obj));                                      \
-  }
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-#if V8_STATIC_ROOTS_BOOL
-#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                           \
-  bool Is##Type(Tagged<Object> obj) {                                          \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(                                  \
-        obj.ptr(), GetReadOnlyRoots().Value().ptr()));                         \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }                                                                            \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) {                \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(obj.ptr(), roots.Value().ptr())); \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }
-#else
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                    \
-  bool Is##Type(Tagged<Object> obj) {                           \
-    return obj == GetReadOnlyRoots().Value();                   \
-  }                                                             \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) { \
-    return obj == roots.Value();                                \
-  }
-#endif
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
-                     UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-namespace detail {
-#if V8_STATIC_ROOTS_BOOL
-#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
-constexpr Tagged_t kMinStaticHoleValue = std::min({HOLE_LIST(GET_HOLE_ROOT)});
-constexpr Tagged_t kMaxStaticHoleValue = std::max({HOLE_LIST(GET_HOLE_ROOT)});
-#undef GET_HOLE_ROOT
-#endif
-
-inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinStaticHoleValue,
-                         kMaxStaticHoleValue);
-#else
-  return obj->map()->instance_type() == HOLE_TYPE;
-#endif
-}
-}  // namespace detail
-
-bool IsAnyHole(Tagged<HeapObject> obj) {
-  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if V8_STATIC_ROOTS_BOOL
-    if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
-      return false;
-    }
-#endif
-    return true;
-  }
-  return false;
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, Isolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, LocalIsolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, ReadOnlyRoots) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, EarlyReadOnlyRoots roots) {
-  return IsNull(obj, roots) || IsUndefined(obj, roots);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj) {
-  return IsNull(obj) || IsUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  static_assert(StaticReadOnlyRoot::kUndefinedValue ==
-                StaticReadOnlyRoot::kFirstAllocatedRoot);
-  static_assert(StaticReadOnlyRoot::kNullValue ==
-                StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined));
-  return V8HeapCompressionScheme::CompressObject(obj.ptr()) <=
-         StaticReadOnlyRoot::kNullValue;
-#else
-  return IsNull(obj) || IsUndefined(obj);
-#endif
-}
 
 bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
 

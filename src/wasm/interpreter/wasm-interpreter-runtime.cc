@@ -97,7 +97,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   // Reference parameters are either absent (Undefined) or provided as a
   // GC-visible FixedArray.
-  SBXCHECK(IsUndefined(*ref_param_array_obj, isolate) ||
+  SBXCHECK(IsUndefined(*ref_param_array_obj) ||
            IsFixedArray(*ref_param_array_obj));
 
   // Reserve buffers for argument and return values.
@@ -256,7 +256,7 @@ V8_EXPORT_PRIVATE DirectHandle<Managed<InterpreterHandle>> GetInterpreterHandle(
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
-  CHECK(!IsUndefined(*handle, isolate));
+  CHECK(!IsUndefined(*handle));
   return TrustedCast<Managed<InterpreterHandle>>(handle);
 }
 
@@ -266,7 +266,7 @@ GetOrCreateInterpreterHandle(Isolate* isolate,
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
-  if (IsUndefined(*handle, isolate)) {
+  if (IsUndefined(*handle)) {
     // Use the maximum stack size to estimate the maximum size of the
     // interpreter. The interpreter keeps its own stack internally, and the size
     // of the stack should dominate the overall size of the interpreter. We
@@ -662,7 +662,7 @@ void WasmInterpreterRuntime::UnpackException(
         DirectHandle<Object> ref(encoded_values->get(encoded_index++),
                                  isolate_);
         if (sig->GetParam(i).value_type_code() == wasm::kFuncRefCode &&
-            i::IsNull(*ref, isolate_)) {
+            i::IsNull(*ref)) {
           ref = isolate_->factory()->wasm_null();
         }
         StoreWasmRef(first_param_ref_stack_index++, ref);
@@ -1240,7 +1240,7 @@ WasmRef WasmInterpreterRuntime::ExtractWasmRef(uint32_t ref_stack_index) {
   int index =
       static_cast<int>(ref_stack_index) + current_frame_.ref_array_current_sp_;
   DirectHandle<Object> ref(reference_stack()->get(index), isolate_);
-  DCHECK(!IsTheHole(*ref, isolate_));
+  DCHECK(!IsTheHole(*ref));
   return WasmRef(ref);
 }
 
@@ -2441,7 +2441,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
         }
         DirectHandle<Object>& ref = ref_returns[ref_idx++];
         if (sig->GetReturn(i).value_type_code() == wasm::kFuncRefCode &&
-            i::IsNull(*ref, isolate_)) {
+            i::IsNull(*ref)) {
           ref = isolate_->factory()->wasm_null();
         }
         ref = JSToWasmObject(ref, sig->GetReturn(i));
@@ -2827,7 +2827,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
   // wasm object and fail.
   if (obj_type.is_nullable() && (!is_cast_from_any || null_succeeds)) {
     if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
-      if (i::IsNull(*obj, isolate_)) return null_succeeds;
+      if (i::IsNull(*obj)) return null_succeeds;
     } else {
       if (i::IsWasmNull(*obj)) return null_succeeds;
     }

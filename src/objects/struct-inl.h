@@ -9,8 +9,8 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
+#include "src/objects/oddball-predicates-inl.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):

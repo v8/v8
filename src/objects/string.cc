@@ -1508,7 +1508,7 @@ uint32_t ToValidIndex(Tagged<String> str, Tagged<Object> number) {
 Tagged<Object> String::IndexOf(Isolate* isolate, DirectHandle<Object> receiver,
                                DirectHandle<Object> search,
                                DirectHandle<Object> position) {
-  if (IsNullOrUndefined(*receiver, isolate)) {
+  if (IsNullOrUndefined(*receiver)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1772,7 +1772,7 @@ Tagged<Object> String::LastIndexOf(Isolate* isolate,
                                    DirectHandle<Object> receiver,
                                    DirectHandle<Object> search,
                                    DirectHandle<Object> position) {
-  if (IsNullOrUndefined(*receiver, isolate)) {
+  if (IsNullOrUndefined(*receiver)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

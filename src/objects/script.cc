@@ -47,8 +47,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   Tagged<MaybeObject> shared =
       script->infos()->get(function_literal_id, kAcquireLoad);
   Tagged<HeapObject> heap_object;
-  if (!shared.GetHeapObject(&heap_object) ||
-      IsUndefined(heap_object, isolate)) {
+  if (!shared.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
   Handle<SharedFunctionInfo> result(Cast<SharedFunctionInfo>(heap_object),
@@ -123,7 +122,7 @@ void Script::InitLineEndsInternal(IsolateT* isolate,
   DCHECK(script->CanHaveLineEnds());
   Tagged<Object> src_obj = script->source();
   if (!IsString(src_obj)) {
-    DCHECK(IsUndefined(src_obj, isolate));
+    DCHECK(IsUndefined(src_obj));
     script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     DCHECK(IsString(src_obj));

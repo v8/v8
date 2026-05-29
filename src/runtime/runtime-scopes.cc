@@ -389,7 +389,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
           context->scope_info()->is_declaration_scope()) ||
          is_debug_evaluate_in_module);
 
-  bool is_var = IsUndefined(*value, isolate);
+  bool is_var = IsUndefined(*value);
   DCHECK_IMPLIES(!is_var, IsJSFunction(*value));
 
   int index;
@@ -846,7 +846,7 @@ MaybeDirectHandle<Object> LoadLookupSlot(
     }
     if (receiver_return) *receiver_return = receiver;
     DirectHandle<Object> value = Context::Get(holder_context, index, isolate);
-    DCHECK(!IsTheHole(*value, isolate));
+    DCHECK(!IsTheHole(*value));
     return value;
   }
 

@@ -126,7 +126,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
 // fuzzing mode.
 #define CONVERT_BOOLEAN_ARG_FUZZ_SAFE(name, index) \
   CHECK_UNLESS_FUZZING(IsBoolean(args[index]));    \
-  bool name = IsTrue(args[index], isolate);
+  bool name = IsTrue(args[index]);
 
 bool IsAsmWasmFunction(Isolate* isolate, Tagged<JSFunction> function) {
   DisallowGarbageCollection no_gc;
@@ -1602,13 +1602,13 @@ RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
   SealHandleScope shs(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
   Tagged<Object> arg = args[0];
-  if (IsTrue(arg, isolate)) {
+  if (IsTrue(arg)) {
     isolate->set_force_slow_path(true);
   } else {
     // This function is fuzzer exposed and as such we might not always have an
     // input that IsTrue or IsFalse. In these cases we assume that if !IsTrue
     // then it IsFalse when fuzzing.
-    DCHECK(IsFalse(arg, isolate) || v8_flags.fuzzing);
+    DCHECK(IsFalse(arg) || v8_flags.fuzzing);
     isolate->set_force_slow_path(false);
   }
   return ReadOnlyRoots(isolate).undefined_value();

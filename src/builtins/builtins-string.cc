@@ -197,7 +197,7 @@ BUILTIN(StringPrototypeNormalize) {
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   DirectHandle<Object> form_input = args.atOrUndefined(isolate, 1);
-  if (IsUndefined(*form_input, isolate)) return *string;
+  if (IsUndefined(*form_input)) return *string;
 
   DirectHandle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
@@ -381,7 +381,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
 
   Tagged<Object> answer =
       ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (IsExceptionHole(answer, isolate) || IsString(answer)) return answer;
+  if (IsExceptionHole(answer) || IsString(answer)) return answer;
 
   DCHECK(IsSmi(answer));
   // In this case we need to retry with a new string of the given length.

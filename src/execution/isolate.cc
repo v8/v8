@@ -1223,7 +1223,7 @@ class CallSiteBuilder {
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
                    DirectHandle<Union<Code, BytecodeArray, Undefined>> code_obj,
                    int offset, int flags) {
-    if (IsTheHole(*receiver_or_instance, isolate_)) {
+    if (IsTheHole(*receiver_or_instance)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
@@ -1299,7 +1299,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       } else {
         auto async_generator_object =
             Cast<JSAsyncGeneratorObject>(generator_object);
-        if (IsUndefined(async_generator_object->queue(), isolate)) return;
+        if (IsUndefined(async_generator_object->queue())) return;
         DirectHandle<AsyncGeneratorRequest> async_generator_request(
             Cast<AsyncGeneratorRequest>(async_generator_object->queue()),
             isolate);
@@ -1401,7 +1401,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
             direct_handle(Cast<JSPromise>(capability->promise()), isolate);
       } else {
         // Otherwise the {promise_or_capability} must be undefined here.
-        CHECK(IsUndefined(*promise_or_capability, isolate));
+        CHECK(IsUndefined(*promise_or_capability));
         return;
       }
     }
@@ -1437,7 +1437,7 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
           auto async_generator_object =
               Cast<JSAsyncGeneratorObject>(generator_object);
           DirectHandle<Object> queue(async_generator_object->queue(), isolate);
-          if (!IsUndefined(*queue, isolate)) {
+          if (!IsUndefined(*queue)) {
             auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
             DirectHandle<JSPromise> promise(
                 Cast<JSPromise>(async_generator_request->promise()), isolate);
@@ -1500,7 +1500,7 @@ MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
         // triggers this stack capture. V8 has no separate ~draining-queue~
         // state (spec sec-asyncgeneratorstart), so is_executing() remains true
         // throughout; the empty queue is the tell that we're in that phase.
-        if (IsUndefined(*queue, isolate)) return MaybeDirectHandle<JSPromise>();
+        if (IsUndefined(*queue)) return MaybeDirectHandle<JSPromise>();
         auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
         DirectHandle<JSPromise> promise(
             Cast<JSPromise>(async_generator_request->promise()), isolate);
@@ -1738,7 +1738,7 @@ MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
     DirectHandle<StackTraceInfo> stack_trace;
-    if (IsUndefined(*call_site_infos_or_formatted_stack, this) ||
+    if (IsUndefined(*call_site_infos_or_formatted_stack) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
       stack_trace = CaptureDetailedStackTrace(
@@ -3548,8 +3548,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   FrameSummary summary = it.GetTopValidFrame();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
-  if (!IsScript(*script) ||
-      IsUndefined(Cast<Script>(*script)->source(), this)) {
+  if (!IsScript(*script) || IsUndefined(Cast<Script>(*script)->source())) {
     return false;
   }
 
@@ -3757,7 +3756,7 @@ void Isolate::ReportPendingMessages(bool report) {
   }
 
   // Actually report the pending message to all message handlers.
-  if (!IsTheHole(message_obj, this) && should_report_exception) {
+  if (!IsTheHole(message_obj) && should_report_exception) {
     HandleScope scope(this);
     DirectHandle<JSMessageObject> message(Cast<JSMessageObject>(message_obj),
                                           this);
@@ -3789,7 +3788,7 @@ bool ReceiverIsForwardingHandler(Isolate* isolate,
       isolate->factory()->promise_forwarding_handler_symbol();
   DirectHandle<Object> forwarding_handler =
       JSReceiver::GetDataProperty(isolate, handler, key);
-  return !IsUndefined(*forwarding_handler, isolate);
+  return !IsUndefined(*forwarding_handler);
 }
 
 bool WalkPromiseTreeInternal(
@@ -3808,7 +3807,7 @@ bool WalkPromiseTreeInternal(
     auto reaction = Cast<PromiseReaction>(current);
     DirectHandle<HeapObject> promise_or_capability(
         reaction->promise_or_capability(), isolate);
-    if (!IsUndefined(*promise_or_capability, isolate)) {
+    if (!IsUndefined(*promise_or_capability)) {
       if (!IsJSPromise(*promise_or_capability)) {
         promise_or_capability = direct_handle(
             Cast<PromiseCapability>(promise_or_capability)->promise(), isolate);
@@ -3818,7 +3817,7 @@ bool WalkPromiseTreeInternal(
             Cast<JSPromise>(promise_or_capability);
         bool caught = false;
         DirectHandle<JSReceiver> reject_handler;
-        if (!IsUndefined(reaction->reject_handler(), isolate)) {
+        if (!IsUndefined(reaction->reject_handler())) {
           reject_handler = direct_handle(
               Cast<JSReceiver>(reaction->reject_handler()), isolate);
           if (!ReceiverIsForwardingHandler(isolate, reject_handler) &&
@@ -3836,7 +3835,7 @@ bool WalkPromiseTreeInternal(
           callback({async_function->function()->shared(), true});
         } else {
           // Not an async function, look at individual handlers
-          if (!IsUndefined(reaction->fulfill_handler(), isolate)) {
+          if (!IsUndefined(reaction->fulfill_handler())) {
             DirectHandle<JSReceiver> fulfill_handler(
                 Cast<JSReceiver>(reaction->fulfill_handler()), isolate);
             if (!ReceiverIsForwardingHandler(isolate, fulfill_handler)) {
@@ -5408,7 +5407,7 @@ bool Isolate::PropagateExceptionToExternalTryCatch(
   } else {
     v8::TryCatch* handler = try_catch_handler();
     DCHECK(IsJSMessageObject(pending_message()) ||
-           IsTheHole(pending_message(), this));
+           IsTheHole(pending_message()));
     handler->set_can_continue(true);
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
@@ -5596,11 +5595,11 @@ void Isolate::ReportExceptionFunctionCallback(
   DirectHandle<Object> maybe_message(pending_message(), this);
 
   DirectHandle<String> property_name =
-      IsUndefined(function->class_name(), this)
+      IsUndefined(function->class_name())
           ? factory()->empty_string()
           : Handle<String>(Cast<String>(function->class_name()), this);
   DirectHandle<String> interface_name =
-      IsUndefined(function->interface_name(), this)
+      IsUndefined(function->interface_name())
           ? factory()->empty_string()
           : Handle<String>(Cast<String>(function->interface_name()), this);
   if (exception_context != ExceptionContext::kConstructor) {
@@ -6847,12 +6846,12 @@ bool Isolate::NeedsSourcePositions() const {
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Tagged<Object> value) {
-  DCHECK(IsUndefined(value, this) || IsArrayList(value));
+  DCHECK(IsUndefined(value) || IsArrayList(value));
   heap()->set_feedback_vectors_for_profiling_tools(value);
 }
 
 void Isolate::MaybeInitializeVectorListFromHeap() {
-  if (!IsUndefined(heap()->feedback_vectors_for_profiling_tools(), this)) {
+  if (!IsUndefined(heap()->feedback_vectors_for_profiling_tools())) {
     // Already initialized, return early.
     DCHECK(IsArrayList(heap()->feedback_vectors_for_profiling_tools()));
     return;
@@ -7404,7 +7403,7 @@ void Isolate::SetHostImportModuleWithPhaseDynamicallyCallback(
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     DirectHandle<SourceTextModule> module) {
-  CHECK(IsTheHole(module->import_meta(kAcquireLoad), this));
+  CHECK(IsTheHole(module->import_meta(kAcquireLoad)));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
   if (host_initialize_import_meta_object_callback_ != nullptr) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
@@ -8010,13 +8009,13 @@ namespace {
 
 std::string GetStringFromLocales(Isolate* isolate,
                                  DirectHandle<Object> locales) {
-  if (IsUndefined(*locales, isolate)) return "";
+  if (IsUndefined(*locales)) return "";
   return std::string(Cast<String>(*locales)->ToCString().get());
 }
 
 bool StringEqualsLocales(Isolate* isolate, const std::string& str,
                          DirectHandle<Object> locales) {
-  if (IsUndefined(*locales, isolate)) return str.empty();
+  if (IsUndefined(*locales)) return str.empty();
   return Cast<String>(locales)->IsEqualTo(
       base::VectorOf(str.c_str(), str.length()));
 }

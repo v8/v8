@@ -20,7 +20,7 @@ BUILTIN(MathSumPrecise) {
   Handle<Object> items = args.atOrUndefined(isolate, 1);
 
   // 1. Perform ? RequireObjectCoercible(items).
-  if (IsNullOrUndefined(*items, isolate)) {
+  if (IsNullOrUndefined(*items)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

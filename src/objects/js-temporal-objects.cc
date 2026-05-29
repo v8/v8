@@ -2169,8 +2169,7 @@ temporal_rs::TimeZone SystemTimeZoneIdentifier() { return UTCTimeZone(); }
 // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
 temporal_rs::I128Nanoseconds SystemUTCEpochNanoseconds(Isolate* isolate) {
   DirectHandle<NativeContext> context = isolate->native_context();
-  if (!IsUndefined(context->temporal_get_epoch_nanoseconds_callback(),
-                   isolate)) {
+  if (!IsUndefined(context->temporal_get_epoch_nanoseconds_callback())) {
     v8::TemporalHostSystemUTCEpochNanosecondsCallback callback =
         v8::ToCData<v8::TemporalHostSystemUTCEpochNanosecondsCallback,
                     kApiTemporalHostSystemUTCEpochNanosecondsCallbackTag>(
@@ -3689,7 +3688,7 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
     DirectHandle<Object> milliseconds, DirectHandle<Object> microseconds,
     DirectHandle<Object> nanoseconds) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -4201,7 +4200,7 @@ MaybeDirectHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
     DirectHandle<Object> iso_month_obj, DirectHandle<Object> iso_day_obj,
     DirectHandle<Object> calendar_like) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -4555,7 +4554,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
     DirectHandle<Object> microsecond_obj, DirectHandle<Object> nanosecond_obj,
     DirectHandle<Object> calendar_like) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -5041,7 +5040,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
     DirectHandle<Object> iso_day_obj, DirectHandle<Object> calendar_like,
     DirectHandle<Object> reference_iso_year_obj) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -5250,7 +5249,7 @@ JSTemporalPlainYearMonth::Constructor(
     DirectHandle<Object> iso_month_obj, DirectHandle<Object> calendar_like,
     DirectHandle<Object> reference_iso_day_obj) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -5535,7 +5534,7 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
     DirectHandle<Object> millisecond_obj, DirectHandle<Object> microsecond_obj,
     DirectHandle<Object> nanosecond_obj) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
@@ -5954,7 +5953,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
     DirectHandle<Object> epoch_nanoseconds_obj,
     DirectHandle<Object> time_zone_like, DirectHandle<Object> calendar_like) {
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  isolate->factory()->NewStringFromAsciiChecked(
@@ -6631,7 +6630,7 @@ MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     DirectHandle<HeapObject> new_target,
     DirectHandle<Object> epoch_nanoseconds_obj) {
   // 1. If NewTarget is undefined, then
-  if (IsUndefined(*new_target, isolate)) {
+  if (IsUndefined(*new_target)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,

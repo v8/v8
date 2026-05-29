@@ -191,7 +191,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> DateTimeFormatRange(
   // exception.
   DirectHandle<Object> start_date = args.atOrUndefined(isolate, 1);
   DirectHandle<Object> end_date = args.atOrUndefined(isolate, 2);
-  if (IsUndefined(*start_date, isolate) || IsUndefined(*end_date, isolate)) {
+  if (IsUndefined(*start_date) || IsUndefined(*end_date)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidTimeValue));
   }
@@ -257,7 +257,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   DirectHandle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
   // function object, else let newTarget be NewTarget.
-  if (IsUndefined(*args.new_target(), isolate)) {
+  if (IsUndefined(*args.new_target())) {
     new_target = args.target();
   } else {
     new_target = Cast<JSReceiver>(args.new_target());
@@ -279,7 +279,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, format, T::New(isolate, map, locales, options, method_name));
   // 4. Let this be the this value.
-  if (IsUndefined(*args.new_target(), isolate)) {
+  if (IsUndefined(*args.new_target())) {
     DirectHandle<JSAny> receiver = args.receiver();
     // 5. If NewTarget is undefined and ? OrdinaryHasInstance(%<T>%, this)
     // is true, then Look up the intrinsic value that has been stored on
@@ -329,7 +329,7 @@ Tagged<Object> DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   isolate->CountUsage(feature);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target())) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -362,7 +362,7 @@ Tagged<Object> CallOrConstructConstructor(BuiltinArguments args,
                                           const char* method_name) {
   DirectHandle<JSReceiver> new_target;
 
-  if (IsUndefined(*args.new_target(), isolate)) {
+  if (IsUndefined(*args.new_target())) {
     new_target = args.target();
   } else {
     new_target = Cast<JSReceiver>(args.new_target());
@@ -527,7 +527,7 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
   DirectHandle<Object> bound_format(number_format->bound_format(), isolate);
 
   // 4. If nf.[[BoundFormat]] is undefined, then
-  if (!IsUndefined(*bound_format, isolate)) {
+  if (!IsUndefined(*bound_format)) {
     DCHECK(IsJSFunction(*bound_format));
     // 5. Return nf.[[BoundFormat]].
     return *bound_format;
@@ -579,13 +579,13 @@ V8_WARN_UNUSED_RESULT Tagged<Object> NumberFormatRange(
 
   Factory* factory = isolate->factory();
   // 3. If start is undefined or end is undefined, throw a TypeError exception.
-  if (IsUndefined(*start, isolate)) {
+  if (IsUndefined(*start)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kInvalid,
                      factory->NewStringFromStaticChars("start"), start));
   }
-  if (IsUndefined(*end, isolate)) {
+  if (IsUndefined(*end)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalid,
                               factory->NewStringFromStaticChars("end"), end));
@@ -639,7 +639,7 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
       DirectHandle<Object>(format->bound_format(), isolate);
 
   // 4. If dtf.[[BoundFormat]] is undefined, then
-  if (!IsUndefined(*bound_format, isolate)) {
+  if (!IsUndefined(*bound_format)) {
     DCHECK(IsJSFunction(*bound_format));
     // 5. Return dtf.[[BoundFormat]].
     return *bound_format;
@@ -732,7 +732,7 @@ BUILTIN(LocaleConstructor) {
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocale);
 
   const char* method_name = "Intl.Locale";
-  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target())) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1196,7 +1196,7 @@ BUILTIN(CollatorPrototypeCompare) {
 
   // 4. If collator.[[BoundCompare]] is undefined, then
   DirectHandle<Object> bound_compare(collator->bound_compare(), isolate);
-  if (!IsUndefined(*bound_compare, isolate)) {
+  if (!IsUndefined(*bound_compare)) {
     DCHECK(IsJSFunction(*bound_compare));
     // 5. Return collator.[[BoundCompare]].
     return *bound_compare;
@@ -1357,7 +1357,7 @@ BUILTIN(V8BreakIteratorPrototypeAdoptText) {
 
   DirectHandle<Object> bound_adopt_text(break_iterator->bound_adopt_text(),
                                         isolate);
-  if (!IsUndefined(*bound_adopt_text, isolate)) {
+  if (!IsUndefined(*bound_adopt_text)) {
     DCHECK(IsJSFunction(*bound_adopt_text));
     return *bound_adopt_text;
   }
@@ -1393,7 +1393,7 @@ BUILTIN(V8BreakIteratorPrototypeFirst) {
   CHECK_RECEIVER(JSV8BreakIterator, break_iterator, method_name);
 
   DirectHandle<Object> bound_first(break_iterator->bound_first(), isolate);
-  if (!IsUndefined(*bound_first, isolate)) {
+  if (!IsUndefined(*bound_first)) {
     DCHECK(IsJSFunction(*bound_first));
     return *bound_first;
   }
@@ -1423,7 +1423,7 @@ BUILTIN(V8BreakIteratorPrototypeNext) {
   CHECK_RECEIVER(JSV8BreakIterator, break_iterator, method_name);
 
   DirectHandle<Object> bound_next(break_iterator->bound_next(), isolate);
-  if (!IsUndefined(*bound_next, isolate)) {
+  if (!IsUndefined(*bound_next)) {
     DCHECK(IsJSFunction(*bound_next));
     return *bound_next;
   }
@@ -1452,7 +1452,7 @@ BUILTIN(V8BreakIteratorPrototypeCurrent) {
   CHECK_RECEIVER(JSV8BreakIterator, break_iterator, method_name);
 
   DirectHandle<Object> bound_current(break_iterator->bound_current(), isolate);
-  if (!IsUndefined(*bound_current, isolate)) {
+  if (!IsUndefined(*bound_current)) {
     DCHECK(IsJSFunction(*bound_current));
     return *bound_current;
   }
@@ -1483,7 +1483,7 @@ BUILTIN(V8BreakIteratorPrototypeBreakType) {
 
   DirectHandle<Object> bound_break_type(break_iterator->bound_break_type(),
                                         isolate);
-  if (!IsUndefined(*bound_break_type, isolate)) {
+  if (!IsUndefined(*bound_break_type)) {
     DCHECK(IsJSFunction(*bound_break_type));
     return *bound_break_type;
   }

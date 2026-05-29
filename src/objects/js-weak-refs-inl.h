@@ -94,7 +94,7 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
     DirectHandle<JSFinalizationRegistry> finalization_registry,
     DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   Handle<SimpleNumberDictionary> key_map;
-  if (IsUndefined(finalization_registry->key_map(), isolate)) {
+  if (IsUndefined(finalization_registry->key_map())) {
     key_map = SimpleNumberDictionary::New(isolate, 1);
   } else {
     key_map =
@@ -139,7 +139,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
   DisallowGarbageCollection no_gc;
-  if (IsUndefined(key_map(), isolate)) {
+  if (IsUndefined(key_map())) {
     return false;
   }
 
@@ -148,7 +148,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // If the token doesn't have a hash, it was not used as a key inside any hash
   // tables.
   Tagged<Object> hash = Object::GetHash(unregister_token);
-  if (IsUndefined(hash, isolate)) {
+  if (IsUndefined(hash)) {
     return false;
   }
   uint32_t key = Smi::ToInt(hash);
@@ -165,7 +165,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // Compute a new key list that doesn't have unregister_token. Because
   // unregister tokens are held weakly, key_map is keyed using the tokens'
   // identity hashes, and identity hashes may collide.
-  while (!IsUndefined(value, isolate)) {
+  while (!IsUndefined(value)) {
     Tagged<WeakCell> weak_cell = Cast<WeakCell>(value);
     value = weak_cell->key_list_next();
     if (weak_cell->unregister_token() == unregister_token) {
@@ -190,7 +190,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
       gc_notify_updated_slot(weak_cell, ObjectSlot(&weak_cell->key_list_prev_),
                              new_key_list_prev);
       weak_cell->set_key_list_next(undefined, SKIP_WRITE_BARRIER);
-      if (IsUndefined(new_key_list_prev, isolate)) {
+      if (IsUndefined(new_key_list_prev)) {
         new_key_list_head = weak_cell;
       } else {
         Tagged<WeakCell> prev_cell = Cast<WeakCell>(new_key_list_prev);
@@ -201,7 +201,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
       new_key_list_prev = weak_cell;
     }
   }
-  if (IsUndefined(new_key_list_head, isolate)) {
+  if (IsUndefined(new_key_list_head)) {
     DCHECK(was_present);
     key_map->ClearEntry(entry);
     key_map->ElementRemoved();
@@ -365,7 +365,7 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
   Tagged<JSFinalizationRegistry> fr =
       Cast<JSFinalizationRegistry>(finalization_registry());
   if (fr->active_cells() == this) {
-    DCHECK(IsUndefined(prev(), isolate));
+    DCHECK(IsUndefined(prev()));
     fr->set_active_cells(next());
   } else if (fr->cleared_cells() == this) {
     DCHECK(!IsWeakCell(prev()));

@@ -147,7 +147,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
         DirectHandle<JSPrototype> prototype;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
-        if (IsNull(*prototype, isolate)) {
+        if (IsNull(*prototype)) {
           return ReadOnlyRoots(isolate).undefined_value();
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
@@ -258,7 +258,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   HandleScope scope(isolate);
   // 1. Let O be ? RequireObjectCoercible(this value).
   DirectHandle<Object> object = args.receiver();
-  if (IsNullOrUndefined(*object, isolate)) {
+  if (IsNullOrUndefined(*object)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -267,7 +267,7 @@ BUILTIN(ObjectPrototypeSetProto) {
 
   // 2. If Type(proto) is neither Object nor Null, return undefined.
   DirectHandle<Object> proto = args.at(1);
-  if (!IsNull(*proto, isolate) && !IsJSReceiver(*proto)) {
+  if (!IsNull(*proto) && !IsJSReceiver(*proto)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

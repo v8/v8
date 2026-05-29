@@ -218,10 +218,9 @@ void StartupSerializer::SerializeUsingStartupObjectCache(
 
 void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
   Isolate* isolate = this->isolate();
-  CHECK(IsUndefined(isolate->heap()->dirty_js_finalization_registries_list(),
-                    isolate));
+  CHECK(IsUndefined(isolate->heap()->dirty_js_finalization_registries_list()));
   CHECK(IsUndefined(
-      isolate->heap()->dirty_js_finalization_registries_list_tail(), isolate));
+      isolate->heap()->dirty_js_finalization_registries_list_tail()));
 }
 
 void SerializedHandleChecker::AddToSet(Tagged<FixedArray> serialized) {

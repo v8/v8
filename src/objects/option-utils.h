@@ -124,11 +124,11 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
       isolate, value,
       Object::GetPropertyOrElement(isolate, options, property_str));
   // 2. If value is undefined, then return fallback.
-  if (IsUndefined(*value, isolate)) {
+  if (IsUndefined(*value)) {
     return Just(fallback_value);
   }
   // 3. If value is true, then return trueValue.
-  if (IsTrue(*value, isolate)) {
+  if (IsTrue(*value)) {
     return Just(true_value);
   }
   // 4. Let valueBoolean be ToBoolean(value).

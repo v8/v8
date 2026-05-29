@@ -217,7 +217,7 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
   // an undefined name to have the same origin.
   Handle<Object> name;
   if (!name_.ToHandle(&name)) {
-    return IsUndefined(script->name(), isolate_);
+    return IsUndefined(script->name());
   }
   // Do the fast bailout checks first.
   if (line_offset_ != script->line_offset()) return false;
@@ -408,7 +408,7 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 
   Tagged<Object> obj = table->PrimaryValueAt(entry);
   Tagged<SharedFunctionInfo> toplevel_sfi;
-  if (!IsUndefined(obj, isolate)) {
+  if (!IsUndefined(obj)) {
     toplevel_sfi = Cast<SharedFunctionInfo>(obj);
     DCHECK_EQ(toplevel_sfi->script(), script);
   }

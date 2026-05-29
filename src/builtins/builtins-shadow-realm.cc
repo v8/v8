@@ -14,7 +14,7 @@ namespace internal {
 BUILTIN(ShadowRealmConstructor) {
   HandleScope scope(isolate);
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target())) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->ShadowRealm_string()));

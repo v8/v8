@@ -568,7 +568,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
       return args.at(stack_arg_count - i - 1);
     }
     DirectHandle<Object> element(arglist->get(i - stack_arg_count), isolate);
-    if (IsTheHole(*element, isolate)) {
+    if (IsTheHole(*element)) {
       return isolate->factory()->undefined_value();
     }
     return element;
@@ -970,7 +970,7 @@ class ArrayConcatVisitor {
     FOR_WITH_HANDLE_SCOPE(isolate_, uint32_t i = 0, i, i < current_length,
                           i++) {
       DirectHandle<Object> element(current_storage->get(i), isolate_);
-      if (!IsTheHole(*element, isolate_)) {
+      if (!IsTheHole(*element)) {
         // The object holding this backing store has just been allocated, so
         // it cannot yet be used as a prototype.
         DirectHandle<JSObject> not_a_prototype_holder;
@@ -1043,7 +1043,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
       int fast_length = static_cast<int>(length);
       Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
       for (int i = 0; i < fast_length; i++) {
-        if (!IsTheHole(elements->get(i), isolate)) element_count++;
+        if (!IsTheHole(elements->get(i))) element_count++;
       }
       break;
     }
@@ -1118,7 +1118,7 @@ void CollectElementIndices(Isolate* isolate, DirectHandle<JSObject> object,
       uint32_t length = elements->ulength().value();
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
-        if (!IsTheHole(elements->get(i), isolate)) {
+        if (!IsTheHole(elements->get(i))) {
           indices->push_back(i);
         }
       }
@@ -1323,7 +1323,7 @@ bool IterateElements(Isolate* isolate, DirectHandle<JSReceiver> receiver,
       DCHECK_LE(length, elements->ulength().value());
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t j = 0, j, j < length, j++) {
         DirectHandle<Object> element_value(elements->get(j), isolate);
-        if (!IsTheHole(*element_value, isolate)) {
+        if (!IsTheHole(*element_value)) {
           if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
@@ -1456,7 +1456,7 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate,
     MaybeDirectHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, receiver, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!IsUndefined(*value, isolate)) {
+    if (!IsUndefined(*value)) {
       return Just(Object::BooleanValue(*value, isolate));
     }
   }

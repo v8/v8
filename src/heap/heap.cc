@@ -2627,7 +2627,7 @@ void Heap::ExternalStringTable::Verify() {
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
     DCHECK(!HeapLayout::InYoungGeneration(obj));
-    DCHECK(!IsTheHole(obj, heap_->isolate()));
+    DCHECK(!IsTheHole(obj));
     DCHECK(IsExternalString(obj));
     // Note: we can have repeated elements in the table.
     DCHECK_EQ(0, visited_map.count(obj));
@@ -2685,7 +2685,7 @@ void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
   set_dirty_js_finalization_registries_list(head);
   // If the list is empty, set the tail to undefined. Otherwise the tail is set
   // by WeakListVisitor<JSFinalizationRegistry>::VisitLiveObject.
-  if (IsUndefined(head, isolate())) {
+  if (IsUndefined(head)) {
     set_dirty_js_finalization_registries_list_tail(head);
   }
 }
@@ -2707,10 +2707,9 @@ void Heap::AddToWeakNativeContextList(Tagged<Context> context) {
 
 #ifdef DEBUG
   {
-    DCHECK(IsUndefined(context->next_context_link(), isolate()));
+    DCHECK(IsUndefined(context->next_context_link()));
     // Check that context is not in the list yet.
-    for (Tagged<Object> current = native_contexts_list();
-         !IsUndefined(current, isolate());
+    for (Tagged<Object> current = native_contexts_list(); !IsUndefined(current);
          current = Cast<Context>(current)->next_context_link()) {
       DCHECK(current != context);
     }
@@ -6944,10 +6943,9 @@ size_t Heap::GetExternalStrinBytesForTesting() const {
 void Heap::ExternalStringTable::CleanUp() {
   size_t last = 0;
   size_t bytes = 0;
-  Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
-    if (IsTheHole(o, isolate)) {
+    if (IsTheHole(o)) {
       continue;
     }
     // The real external string is already in one of these vectors and was or
@@ -7106,7 +7104,7 @@ void Heap::SetDetachedContexts(Tagged<WeakArrayList> detached_contexts) {
 }
 
 bool Heap::HasDirtyJSFinalizationRegistries() {
-  return !IsUndefined(dirty_js_finalization_registries_list(), isolate());
+  return !IsUndefined(dirty_js_finalization_registries_list());
 }
 
 void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
@@ -7129,11 +7127,11 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
   // Add a FinalizationRegistry to the tail of the dirty list.
   DCHECK(!HasDirtyJSFinalizationRegistries() ||
          IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
-  DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
+  DCHECK(IsUndefined(finalization_registry->next_dirty()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
-  if (IsUndefined(dirty_js_finalization_registries_list_tail(), isolate())) {
-    DCHECK(IsUndefined(dirty_js_finalization_registries_list(), isolate()));
+  if (IsUndefined(dirty_js_finalization_registries_list_tail())) {
+    DCHECK(IsUndefined(dirty_js_finalization_registries_list()));
     set_dirty_js_finalization_registries_list(finalization_registry);
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
@@ -7175,11 +7173,11 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(
   Isolate* isolate = this->isolate();
   Tagged<Object> prev = ReadOnlyRoots(isolate).undefined_value();
   Tagged<Object> current = dirty_js_finalization_registries_list();
-  while (!IsUndefined(current, isolate)) {
+  while (!IsUndefined(current)) {
     Tagged<JSFinalizationRegistry> finalization_registry =
         Cast<JSFinalizationRegistry>(current);
     if (finalization_registry->native_context() == context) {
-      if (IsUndefined(prev, isolate)) {
+      if (IsUndefined(prev)) {
         set_dirty_js_finalization_registries_list(
             finalization_registry->next_dirty());
       } else {
@@ -7202,7 +7200,7 @@ void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
   DCHECK(IsUndefined(weak_refs_keep_during_job()) ||
          IsOrderedHashSet(weak_refs_keep_during_job()));
   Handle<OrderedHashSet> table;
-  if (IsUndefined(weak_refs_keep_during_job(), isolate())) {
+  if (IsUndefined(weak_refs_keep_during_job())) {
     table = isolate()->factory()->NewOrderedHashSet();
   } else {
     table =
@@ -7270,7 +7268,7 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
 size_t Heap::NumberOfNativeContexts() {
   int result = 0;
   Tagged<Object> context = native_contexts_list();
-  while (!IsUndefined(context, isolate())) {
+  while (!IsUndefined(context)) {
     ++result;
     Tagged<Context> native_context = Cast<Context>(context);
     context = native_context->next_context_link();
@@ -7281,7 +7279,7 @@ size_t Heap::NumberOfNativeContexts() {
 std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
   std::vector<Handle<NativeContext>> result;
   Tagged<Object> context = native_contexts_list();
-  while (!IsUndefined(context, isolate())) {
+  while (!IsUndefined(context)) {
     Tagged<NativeContext> native_context = Cast<NativeContext>(context);
     result.push_back(handle(native_context, isolate()));
     context = native_context->next_context_link();
@@ -7292,7 +7290,7 @@ std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
 std::vector<Tagged<WeakArrayList>> Heap::FindAllRetainedMaps() {
   std::vector<Tagged<WeakArrayList>> result;
   Tagged<Object> context = native_contexts_list();
-  while (!IsUndefined(context, isolate())) {
+  while (!IsUndefined(context)) {
     Tagged<NativeContext> native_context = Cast<NativeContext>(context);
     result.push_back(Cast<WeakArrayList>(native_context->retained_maps()));
     context = native_context->next_context_link();

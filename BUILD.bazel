@@ -2277,6 +2277,8 @@ filegroup(
         "src/objects/object-type.h",
         "src/objects/object-predicates.h",
         "src/objects/object-predicates-inl.h",
+        "src/objects/oddball-predicates.h",
+        "src/objects/oddball-predicates-inl.h",
         "src/objects/objects.cc",
         "src/objects/objects.h",
         "src/objects/objects-body-descriptors.h",

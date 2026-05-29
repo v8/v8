@@ -148,8 +148,8 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
 
   // Materialize receiver.
   DirectHandle<Object> this_value(it.frame()->receiver(), isolate);
-  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
-  if (!IsTheHole(*this_value, isolate)) {
+  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value));
+  if (!IsTheHole(*this_value)) {
     DirectHandle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)

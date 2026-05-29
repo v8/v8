@@ -81,7 +81,7 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
     // Spec step 7.2: Initialize the new mutable binding to undefined.
     DirectHandle<Cell> cell = isolate->factory()->NewCell();
     DirectHandle<String> name(Cast<String>(export_names->get(i)), isolate);
-    CHECK(IsTheHole(exports->Lookup(name), isolate));
+    CHECK(IsTheHole(exports->Lookup(name)));
     exports = ObjectHashTable::Put(isolate, exports, name, cell);
   }
   module->set_exports(*exports);

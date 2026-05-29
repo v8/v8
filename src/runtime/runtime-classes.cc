@@ -80,7 +80,7 @@ Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
     super_name =
         direct_handle(Cast<JSFunction>(constructor)->shared()->Name(), isolate);
   } else if (IsOddball(*constructor)) {
-    DCHECK(IsNull(*constructor, isolate));
+    DCHECK(IsNull(*constructor));
     super_name = isolate->factory()->null_string();
   } else {
     super_name = Object::NoSideEffectsToString(isolate, constructor);
@@ -597,10 +597,10 @@ MaybeDirectHandle<Object> DefineClass(
   DirectHandle<JSPrototype> prototype_parent;
   DirectHandle<JSPrototype> constructor_parent;
 
-  if (IsTheHole(*super_class, isolate)) {
+  if (IsTheHole(*super_class)) {
     prototype_parent = isolate->initial_object_prototype();
   } else {
-    if (IsNull(*super_class, isolate)) {
+    if (IsNull(*super_class)) {
       prototype_parent = isolate->factory()->null_value();
     } else if (IsConstructor(*super_class)) {
       DCHECK(!IsJSFunction(*super_class) ||

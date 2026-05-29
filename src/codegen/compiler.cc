@@ -3542,7 +3542,7 @@ Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
   // the same.
-  if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
+  if (!IsFalse(context->allow_code_gen_from_strings()) &&
       IsString(*original_source)) {
     return {Cast<String>(original_source), false};
   }
@@ -3562,7 +3562,7 @@ Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
     return {Cast<String>(modified_source), false};
   }
 
-  if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
+  if (!IsFalse(context->allow_code_gen_from_strings()) &&
       Object::IsCodeLike(*original_source, isolate)) {
     // Codegen is unconditionally allowed, and we're been given a CodeLike
     // object. Stringify.

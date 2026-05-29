@@ -145,7 +145,7 @@ BUILTIN(SharedStructTypeConstructor) {
                    ReadOnlyRoots(isolate).exception());
     }
 
-    if (IsUndefined(*args.atOrUndefined(isolate, 2), isolate)) {
+    if (IsUndefined(*args.atOrUndefined(isolate, 2))) {
       // Create a new instance map if this type isn't registered.
       instance_map = JSSharedStruct::CreateInstanceMap(
           isolate, base::VectorOf(field_names), element_names, {},

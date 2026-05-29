@@ -236,8 +236,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
     DCHECK_EQ(raw.ToSmi(), Smi::uninitialized_deserialization_value());
     return false;
   }
-  if (raw.GetHeapObjectIfStrong(&heap_object) &&
-      IsUndefined(heap_object, isolate)) {
+  if (raw.GetHeapObjectIfStrong(&heap_object) && IsUndefined(heap_object)) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);

@@ -69,7 +69,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
       from = CapRelativeIndex(num, 0, len);
 
       DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
-      if (!IsUndefined(*end, isolate)) {
+      if (!IsUndefined(*end)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
                                            Object::IntegerValue(isolate, end));
         final = CapRelativeIndex(num, 0, len);
@@ -190,7 +190,7 @@ BUILTIN(TypedArrayPrototypeFill) {
     // 10. If end is undefined, let relativeEnd be len; else let relativeEnd be
     //     ? ToIntegerOrInfinity(end).
     num = args.atOrUndefined(isolate, 3);
-    if (!IsUndefined(*num, isolate)) {
+    if (!IsUndefined(*num)) {
       // 11. If relativeEnd = -∞, let endIndex be 0.
       // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
       // 13. Else, let endIndex be min(relativeEnd, len).

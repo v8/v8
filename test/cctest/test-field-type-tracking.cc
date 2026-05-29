@@ -426,16 +426,16 @@ class Expectations {
 
     DirectHandle<String> name = CcTest::MakeName("prop", property_index);
 
-    CHECK(!IsNull(*getter, isolate_) || !IsNull(*setter, isolate_));
+    CHECK(!IsNull(*getter) || !IsNull(*setter));
     Factory* factory = isolate_->factory();
 
-    if (!IsNull(*getter, isolate_)) {
+    if (!IsNull(*getter)) {
       DirectHandle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *factory->null_value());
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
       map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
     }
-    if (!IsNull(*setter, isolate_)) {
+    if (!IsNull(*setter)) {
       DirectHandle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *setter);
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
@@ -549,7 +549,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   DirectHandle<JSObject> obj = factory->NewJSObjectFromMap(map);
   JSObject::MigrateToMap(isolate, obj, prepared_map);
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, first);
-  CHECK(IsUninitializedHole(obj->RawFastPropertyAt(index), isolate));
+  CHECK(IsUninitializedHole(obj->RawFastPropertyAt(index)));
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*obj, isolate);
 #endif
@@ -767,7 +767,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     Tagged<Map> tmp = *new_map;
     while (true) {
       Tagged<Object> back = tmp->GetBackPointer();
-      if (IsUndefined(back, isolate)) break;
+      if (IsUndefined(back)) break;
       tmp = Cast<Map>(back);
       CHECK(!tmp->is_stable());
     }
@@ -1425,7 +1425,7 @@ struct CheckNormalize {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
-    CHECK(IsUndefined(new_map->GetBackPointer(), isolate));
+    CHECK(IsUndefined(new_map->GetBackPointer()));
     CHECK(!new_map->is_deprecated());
     CHECK(expectations.CheckNormalized(*new_map));
   }
@@ -2258,7 +2258,7 @@ static void TestGeneralizeFieldWithSpecialTransition(
 
         CHECK(expectations_a.Check(*new_map_a));
         CHECK(expectations_b.Check(*new_map_b));
-        CHECK(!IsUndefined(new_map_b->GetBackPointer(), isolate));
+        CHECK(!IsUndefined(new_map_b->GetBackPointer()));
         break;
       }
       case kFieldOwnerDependency: {

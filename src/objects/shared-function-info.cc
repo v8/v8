@@ -386,9 +386,8 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  return !IsUndefined(script(), roots) &&
-         !IsUndefined(Cast<Script>(script())->source(), roots) &&
+  return !IsUndefined(script()) &&
+         !IsUndefined(Cast<Script>(script())->source()) &&
          Cast<String>(Cast<Script>(script())->source())->length() > 0;
 }
 

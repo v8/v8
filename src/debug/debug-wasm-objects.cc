@@ -227,7 +227,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
         isolate->factory()->wasm_debug_proxy_names_symbol();
     DirectHandle<Object> table_or_undefined =
         JSReceiver::GetProperty(isolate, holder, symbol).ToHandleChecked();
-    if (!IsUndefined(*table_or_undefined, isolate)) {
+    if (!IsUndefined(*table_or_undefined)) {
       return Cast<NameDictionary>(table_or_undefined);
     }
     auto provider = T::GetProvider(holder, isolate);
@@ -498,7 +498,7 @@ DirectHandle<FixedArray> GetOrCreateInstanceProxyCache(
   DirectHandle<Symbol> symbol =
       isolate->factory()->wasm_debug_proxy_cache_symbol();
   if (!Object::GetProperty(isolate, instance, symbol).ToHandle(&cache) ||
-      IsUndefined(*cache, isolate)) {
+      IsUndefined(*cache)) {
     cache = isolate->factory()->NewFixedArrayWithHoles(kNumInstanceProxies);
     Object::SetProperty(isolate, instance, symbol, cache).Check();
   }
@@ -620,11 +620,11 @@ class ContextProxy {
         ASSIGN_RETURN_ON_EXCEPTION(isolate, delegate,
                                    Cast<JSAny>(JSReceiver::GetProperty(
                                        isolate, receiver, delegate_name)));
-        if (!IsUndefined(*delegate, isolate)) {
+        if (!IsUndefined(*delegate)) {
           DirectHandle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, Object::GetProperty(isolate, delegate, name));
-          if (!IsUndefined(*value, isolate)) return value;
+          if (!IsUndefined(*value)) return value;
         }
       }
     }

@@ -427,7 +427,7 @@ Tagged<Object> BytecodeBudgetInterruptWithStackCheck(Isolate* isolate,
     return isolate->StackOverflow();
   } else if (check.InterruptRequested()) {
     Tagged<Object> return_value = isolate->stack_guard()->HandleInterrupts();
-    if (!IsUndefined(return_value, isolate)) {
+    if (!IsUndefined(return_value)) {
       return return_value;
     }
   }

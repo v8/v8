@@ -1724,7 +1724,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   // The JSArrayBuffer will be allocated lazily later.
-  DCHECK(IsUndefined(memory_obj->array_buffer(), i_isolate));
+  DCHECK(IsUndefined(memory_obj->array_buffer()));
 
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(memory_obj)));
 }
@@ -3170,11 +3170,9 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
   CHECK(IsUndefined(
-      native_context->GetNoCell(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
-      isolate));
+      native_context->GetNoCell(Context::WASM_WEBASSEMBLY_OBJECT_INDEX)));
   CHECK(IsUndefined(
-      native_context->GetNoCell(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
-      isolate));
+      native_context->GetNoCell(Context::WASM_MODULE_CONSTRUCTOR_INDEX)));
 
   Factory* const f = isolate->factory();
   static constexpr PropertyAttributes ro_attributes =

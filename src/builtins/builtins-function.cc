@@ -104,7 +104,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // function has wrong initial map. To fix that we create a new
   // function object with correct initial map.
   DirectHandle<Object> unchecked_new_target = args.new_target();
-  if (!IsUndefined(*unchecked_new_target, isolate) &&
+  if (!IsUndefined(*unchecked_new_target) &&
       !unchecked_new_target.is_identical_to(target)) {
     DirectHandle<JSReceiver> new_target =
         Cast<JSReceiver>(unchecked_new_target);

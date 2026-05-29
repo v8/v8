@@ -1090,8 +1090,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
         isolate->stack_guard()->HandleInterrupts();
     // Interrupt handling can create an exception, including the
     // termination exception.
-    if (IsExceptionHole(interrupt_object, isolate)) return interrupt_object;
-    DCHECK(IsUndefined(interrupt_object, isolate));
+    if (IsExceptionHole(interrupt_object)) return interrupt_object;
+    DCHECK(IsUndefined(interrupt_object));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

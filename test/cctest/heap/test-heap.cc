@@ -39,9 +39,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
-#include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/execution.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/combined-heap.h"
@@ -54,16 +52,14 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-page-inl.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/mutable-page.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
-#include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/call-site-info-inl.h"
@@ -1998,7 +1994,7 @@ static void OptimizeEmptyFunction(const char* name) {
 int CountNativeContexts() {
   int count = 0;
   Tagged<Object> object = CcTest::heap()->native_contexts_list();
-  while (!IsUndefined(object, CcTest::i_isolate())) {
+  while (!IsUndefined(object)) {
     count++;
     object = Cast<Context>(object)->next_context_link();
   }
@@ -5590,7 +5586,7 @@ static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = CcTest::i_isolate();
   Tagged<Object> message(
       *reinterpret_cast<Address*>(isolate->pending_message_address()));
-  CHECK(IsTheHole(message, isolate));
+  CHECK(IsTheHole(message));
 }
 
 TEST(MessageObjectLeak) {

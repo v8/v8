@@ -161,7 +161,7 @@ void MessageHandler::ReportMessageNoExceptions(
   } else {
     for (uint32_t i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (IsUndefined(global_listeners->get(i), isolate)) continue;
+      if (IsUndefined(global_listeners->get(i))) continue;
       Tagged<FixedArray> listener = Cast<FixedArray>(global_listeners->get(i));
       Tagged<Foreign> callback_obj = Cast<Foreign>(listener->get(0));
       int32_t message_levels =
@@ -177,7 +177,7 @@ void MessageHandler::ReportMessageNoExceptions(
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-        callback(api_message_obj, IsUndefined(*callback_data, isolate)
+        callback(api_message_obj, IsUndefined(*callback_data)
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));
       }
@@ -589,7 +589,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   //     true, [[Enumerable]]: false, [[Configurable]]: true}.
   //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
   // 4. Return O.
-  if (!IsUndefined(*message, isolate)) {
+  if (!IsUndefined(*message)) {
     DirectHandle<String> msg_string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
                                Object::ToString(isolate, message));
@@ -605,7 +605,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     }
   }
 
-  if (!IsUndefined(*options, isolate)) {
+  if (!IsUndefined(*options)) {
     // If Type(options) is Object and ? HasProperty(options, "cause") then
     //   a. Let cause be ? Get(options, "cause").
     //   b. Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
@@ -652,7 +652,7 @@ MaybeHandle<String> GetStringPropertyOrDefault(Isolate* isolate,
                              JSReceiver::GetProperty(isolate, recv, key));
 
   Handle<String> str;
-  if (IsUndefined(*obj, isolate)) {
+  if (IsUndefined(*obj)) {
     str = default_str;
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, str, Object::ToString(isolate, obj));
@@ -702,7 +702,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
     LookupIterator it(isolate, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR,
                       recv, isolate->factory()->error_message_symbol());
     Handle<Object> result = JSReceiver::GetDataProperty(&it);
-    if (it.IsFound() && IsUndefined(*result, isolate)) {
+    if (it.IsFound() && IsUndefined(*result)) {
       msg = msg_default;
     } else if (it.IsFound()) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, msg,
@@ -845,8 +845,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
     int pos =
         summary.abstract_code()->SourcePosition(isolate, summary.code_offset());
-    if (IsScript(*script) &&
-        !(IsUndefined(Cast<Script>(script)->source(), isolate))) {
+    if (IsScript(*script) && !(IsUndefined(Cast<Script>(script)->source()))) {
       Handle<Script> casted_script = Cast<Script>(script);
       *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
@@ -875,11 +874,11 @@ DirectHandle<String> BuildDefaultCallSite(Isolate* isolate,
       builder.AppendCStringLiteral("<...>");
     }
     builder.AppendCStringLiteral("\"");
-  } else if (IsNull(*object, isolate)) {
+  } else if (IsNull(*object)) {
     builder.AppendCStringLiteral(" null");
-  } else if (IsTrue(*object, isolate)) {
+  } else if (IsTrue(*object)) {
     builder.AppendCStringLiteral(" true");
-  } else if (IsFalse(*object, isolate)) {
+  } else if (IsFalse(*object)) {
     builder.AppendCStringLiteral(" false");
   } else if (IsNumber(*object)) {
     builder.AppendCharacter(' ');

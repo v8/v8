@@ -863,7 +863,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     Isolate* isolate, DirectHandle<Object> locales,
     bool only_return_one_result) {
   // 1. If locales is undefined, then
-  if (IsUndefined(*locales, isolate)) {
+  if (IsUndefined(*locales)) {
     // 1a. Return a new empty List.
     return Just(std::vector<std::string>());
   }
@@ -1001,7 +1001,7 @@ template <class IsolateT>
 Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
     IsolateT* isolate, DirectHandle<Object> locales,
     DirectHandle<Object> options) {
-  if (!IsUndefined(*options, isolate)) {
+  if (!IsUndefined(*options)) {
     return CompareStringsOptions::kNone;
   }
 
@@ -1019,7 +1019,7 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
       "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
   };
 
-  if (IsUndefined(*locales, isolate)) {
+  if (IsUndefined(*locales)) {
     const std::string& default_locale = isolate->DefaultLocale();
     for (const char* fast_locale : kFastLocales) {
       if (strcmp(fast_locale, default_locale.c_str()) == 0) {
@@ -1058,8 +1058,7 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
   const bool can_cache =
-      (IsString(*locales) || IsUndefined(*locales, isolate)) &&
-      IsUndefined(*options, isolate);
+      (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   // We may be able to take the fast path, depending on the `locales` and
   // `options` arguments.
   const CompareStringsOptions compare_strings_options =
@@ -1571,8 +1570,8 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
-                   IsUndefined(*options, isolate);
+  bool can_cache =
+      (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
     icu::number::LocalizedNumberFormatter* cached_number_format =
         static_cast<icu::number::LocalizedNumberFormatter*>(
@@ -1766,15 +1765,13 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // a. Set hasSd to true.
   // 18. Else,
   // a. Set hasSd to false.
-  bool has_sd =
-      (!IsUndefined(*mnsd_obj, isolate)) || (!IsUndefined(*mxsd_obj, isolate));
+  bool has_sd = (!IsUndefined(*mnsd_obj)) || (!IsUndefined(*mxsd_obj));
 
   // 19. If mnfd is not undefined or mxfd is not undefined, then
   // a. Set hasFd to true.
   // 22. Else,
   // a. Set hasFd to false.
-  bool has_fd =
-      (!IsUndefined(*mnfd_obj, isolate)) || (!IsUndefined(*mxfd_obj, isolate));
+  bool has_fd = (!IsUndefined(*mnfd_obj)) || (!IsUndefined(*mxfd_obj));
 
   // 21. Let needSd be true.
   bool need_sd = true;
@@ -1841,9 +1838,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
         return Nothing<NumberFormatDigitOptions>();
       }
       // iii. If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
-      if (IsUndefined(*mnfd_obj, isolate)) {
+      if (IsUndefined(*mnfd_obj)) {
         mnfd = std::min(mnfd_default, mxfd);
-      } else if (IsUndefined(*mxfd_obj, isolate)) {
+      } else if (IsUndefined(*mxfd_obj)) {
         // iv. Else if mxfd is undefined, set mxfd to max(mxfdDefault,
         // mnfd).
         mxfd = std::max(mxfd_default, mnfd);
@@ -2071,7 +2068,7 @@ icu::LocaleMatcher BuildLocaleMatcher(
 
 class Iterator : public icu::Locale::Iterator {
  public:
-  Iterator(const std::vector<icu::Locale>& locales)
+  explicit Iterator(const std::vector<icu::Locale>& locales)
       : locales_(locales), iter_(locales.cbegin()) {}
   ~Iterator() override = default;
 
@@ -2676,7 +2673,7 @@ MaybeDirectHandle<String> Intl::Normalize(Isolate* isolate,
                                           DirectHandle<Object> form_input) {
   const char* form_name;
   UNormalization2Mode form_mode;
-  if (IsUndefined(*form_input, isolate)) {
+  if (IsUndefined(*form_input)) {
     // default is FNC
     form_name = "nfc";
     form_mode = UNORM2_COMPOSE;

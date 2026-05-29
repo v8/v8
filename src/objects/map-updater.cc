@@ -469,7 +469,7 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
 void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
                                                Tagged<Map> initial_map) {
   // Has to be an initial map.
-  CHECK(IsUndefined(initial_map->GetBackPointer(), isolate));
+  CHECK(IsUndefined(initial_map->GetBackPointer()));
 
   const int slack = initial_map->ComputeMinObjectSlack(isolate);
   DCHECK_GE(slack, 0);

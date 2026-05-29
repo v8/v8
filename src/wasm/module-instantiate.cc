@@ -3026,7 +3026,7 @@ void InstanceBuilder::InitializeTags() {
   DirectHandle<FixedArray> tags_table(trusted_data_->tags_table(), isolate_);
   uint32_t tags_table_len = tags_table->ulength().value();
   for (uint32_t index = 0; index < tags_table_len; ++index) {
-    if (!IsUndefined(tags_table->get(index), isolate_)) continue;
+    if (!IsUndefined(tags_table->get(index))) continue;
     DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
     tags_table->set(index, *tag);
   }

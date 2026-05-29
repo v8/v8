@@ -133,7 +133,7 @@ Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
   } else {
     // Detach key is undefined; allow not passing maybe_key but disallow passing
     // something else than undefined.
-    key_mismatch = !maybe_key.is_null() && !IsUndefined(*maybe_key, isolate);
+    key_mismatch = !maybe_key.is_null() && !IsUndefined(*maybe_key);
   }
   if (key_mismatch) {
     THROW_NEW_ERROR(

@@ -51,7 +51,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
         }
       }
       // Retained object is new tail.
-      DCHECK(!IsUndefined(retained, heap->isolate()));
+      DCHECK(!IsUndefined(retained));
       tail = Cast<T>(retained);
 
       // tail is a live object, visit it.

@@ -99,7 +99,7 @@ HEAP_TEST(StressHandles) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   DirectHandle<Object> o = TestAllocateAfterFailures();
-  CHECK(IsTrue(*o, CcTest::i_isolate()));
+  CHECK(IsTrue(*o));
   env->Exit();
 }
 

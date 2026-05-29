@@ -337,7 +337,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
       InternalizeJsonProperty<reviver_mode>(holder, name, val_node, snapshot),
       false);
   Maybe<bool> change_result = Nothing<bool>();
-  if (IsUndefined(*result, isolate_)) {
+  if (IsUndefined(*result)) {
     change_result = JSReceiver::DeletePropertyOrElement(isolate_, holder, name,
                                                         LanguageMode::kSloppy);
   } else {

@@ -63,7 +63,7 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
           DirectHandle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
                                      JSProxy::GetPrototype(proxy));
-          if (IsNull(*prototype, isolate)) {
+          if (IsNull(*prototype)) {
             return isolate->factory()->undefined_value();
           }
           // We already have a stack-check in JSProxy::GetPrototype.
@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));
-  return ReadOnlyRoots(isolate).boolean_value(!IsUndefined(*result, isolate));
+  return ReadOnlyRoots(isolate).boolean_value(!IsUndefined(*result));
 }
 
 }  // namespace internal

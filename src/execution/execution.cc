@@ -393,7 +393,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   if (params.execution_target == Execution::Target::kCallable) {
     DirectHandle<NativeContext> context = isolate->native_context();
-    if (!IsUndefined(context->script_execution_callback(), isolate)) {
+    if (!IsUndefined(context->script_execution_callback())) {
       v8::Context::AbortScriptExecutionCallback callback =
           v8::ToCData<v8::Context::AbortScriptExecutionCallback,
                       kApiAbortScriptExecutionCallbackTag>(
@@ -502,7 +502,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = IsExceptionHole(value, isolate);
+  bool has_exception = IsExceptionHole(value);
   DCHECK_EQ(has_exception, isolate->has_exception());
   if (has_exception) {
     isolate->ReportPendingMessages(params.message_handling ==

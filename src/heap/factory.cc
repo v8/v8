@@ -4324,7 +4324,7 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
                                     ? isolate()->proxy_constructor_map()
                                     : isolate()->proxy_callable_map()
                               : isolate()->proxy_map();
-  DCHECK(IsNull(map->prototype(), isolate()));
+  DCHECK(IsNull(map->prototype()));
   Tagged<JSProxy> result = Cast<JSProxy>(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
   result->initialize_properties(isolate());

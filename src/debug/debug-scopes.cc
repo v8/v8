@@ -224,7 +224,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Catch the case when the debugger stops in an internal function.
   DirectHandle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   DirectHandle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
-  if (IsUndefined(shared_info->script(), isolate_)) {
+  if (IsUndefined(shared_info->script())) {
     current_scope_ = closure_scope_ = nullptr;
     context_ = handle(function_->context(), isolate_);
     function_ = Handle<JSFunction>();
@@ -638,11 +638,11 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=, this](DirectHandle<String> name,
                            DirectHandle<Object> value, ScopeType scope_type) {
-    if (IsOptimizedOut(*value, isolate_)) {
+    if (IsOptimizedOut(*value)) {
       JSObject::SetAccessor(
           scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)
           .Check();
-    } else if (IsTheHole(*value, isolate_)) {
+    } else if (IsTheHole(*value)) {
       const bool is_overriden_repl_let =
           scope_type == ScopeTypeScript &&
           JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true);
@@ -972,14 +972,14 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             CHECK_LT(index, frame->ComputeExpressionsCount());
           }
           value = frame_inspector_->GetExpression(index);
-          if (IsOptimizedOut(*value, isolate_)) {
+          if (IsOptimizedOut(*value)) {
             // We'll rematerialize this later.
             if (current_scope_->is_declaration_scope() &&
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
           } else if (IsLexicalVariableMode(var->mode()) &&
-                     IsUndefined(*value, isolate_) &&
+                     IsUndefined(*value) &&
                      GetSourcePosition() != kNoSourcePosition &&
                      GetSourcePosition() <= var->initializer_position()) {
             // Variables that are `undefined` could also mean an elided hole
@@ -1066,7 +1066,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
             CHECK_LT(index, frame->ComputeExpressionsCount());
           }
           arguments_optimized_out =
-              IsOptimizedOut(*frame_inspector_->GetExpression(index), isolate_);
+              IsOptimizedOut(*frame_inspector_->GetExpression(index));
         }
 
         if (arguments_optimized_out) {

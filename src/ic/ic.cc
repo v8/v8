@@ -293,7 +293,7 @@ void IC::UpdateState(DirectHandle<Object> lookup_start_object,
   update_lookup_start_object_map(lookup_start_object);
   if (!IsName(*name)) return;
   if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
-  if (IsNullOrUndefined(*lookup_start_object, isolate())) return;
+  if (IsNullOrUndefined(*lookup_start_object)) return;
 
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
@@ -409,8 +409,7 @@ MaybeDirectHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
 
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
-  if (IsAnyHas() ? !IsJSReceiver(*object)
-                 : IsNullOrUndefined(*object, isolate())) {
+  if (IsAnyHas() ? !IsJSReceiver(*object) : IsNullOrUndefined(*object)) {
     if (use_ic) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
@@ -422,7 +421,7 @@ MaybeDirectHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
     if (IsAnyHas()) {
       return TypeError(MessageTemplate::kInvalidInOperatorUse, object, name);
     } else {
-      DCHECK(IsNullOrUndefined(*object, isolate()));
+      DCHECK(IsNullOrUndefined(*object));
       ErrorUtils::ThrowLoadFromNullOrUndefined(isolate(), object, name);
       return MaybeDirectHandle<Object>();
     }
@@ -2256,7 +2255,7 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
   bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic;
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
-  if (IsNullOrUndefined(*object, isolate())) {
+  if (IsNullOrUndefined(*object)) {
     if (use_ic) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
@@ -3370,7 +3369,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
   }
@@ -3429,7 +3428,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
   }
@@ -3457,7 +3456,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   // when feedback vector is available.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     DCHECK(!vector_slot.IsInvalid());
     vector = Cast<FeedbackVector>(maybe_vector);
@@ -3486,7 +3485,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   // feedback kind. There _should_ be a vector, though.
   FeedbackSlotKind kind = FeedbackSlotKind::kDefineNamedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     DCHECK(!vector_slot.IsInvalid());
     vector = Cast<FeedbackVector>(maybe_vector);
@@ -3624,7 +3623,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // and StoreInArrayLiteral kinds.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetKeyedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
     int slot = args.tagged_index_value_at(1);
@@ -3664,7 +3663,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
 
   FeedbackSlotKind kind = FeedbackSlotKind::kDefineKeyedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
     kind = vector->GetKind(vector_slot);
@@ -3688,7 +3687,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   DirectHandle<JSAny> receiver = args.at<JSAny>(3);
   Handle<Object> key = args.at(4);
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
   }
@@ -4430,7 +4429,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
   DCHECK(!source_map->is_deprecated());
   DCHECK(!target_map->is_deprecated());
   DCHECK(target_map->is_extensible());
-  DCHECK(!IsUndefined(*source, isolate) && !IsNull(*source, isolate));
+  DCHECK(!IsUndefined(*source) && !IsNull(*source));
   DCHECK(source_map->BelongsToSameNativeContextAs(isolate->context()));
 
   ReadOnlyRoots roots(isolate);
@@ -4631,7 +4630,7 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!IsUndefined(*maybe_vector, isolate)) {
+  if (!IsUndefined(*maybe_vector)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Cast<FeedbackVector>(maybe_vector);
   }

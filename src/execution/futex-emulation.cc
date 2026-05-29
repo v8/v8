@@ -468,7 +468,7 @@ DirectHandle<Object> FutexEmulation::WaitSyncImpl(
 
       lock_guard.Lock();
 
-      if (IsExceptionHole(interrupt_object, isolate)) {
+      if (IsExceptionHole(interrupt_object)) {
         result = direct_handle(interrupt_object, isolate);
         break;
       }

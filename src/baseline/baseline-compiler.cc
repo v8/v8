@@ -24,6 +24,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/local-isolate-inl.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/logging/runtime-call-stats-scope.h"

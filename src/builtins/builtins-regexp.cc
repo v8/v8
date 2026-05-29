@@ -85,8 +85,8 @@ BUILTIN(RegExpInputGetter) {
   isolate->CountUsage(v8::Isolate::kRegExpStaticProperties);
   DirectHandle<Object> obj(isolate->regexp_last_match_info()->last_input(),
                            isolate);
-  return IsUndefined(*obj, isolate) ? ReadOnlyRoots(isolate).empty_string()
-                                    : Cast<String>(*obj);
+  return IsUndefined(*obj) ? ReadOnlyRoots(isolate).empty_string()
+                           : Cast<String>(*obj);
 }
 
 BUILTIN(RegExpInputSetter) {

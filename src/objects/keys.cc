@@ -1306,7 +1306,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
       Object::GetMethod(isolate_, Cast<JSReceiver>(handler),
                         isolate_->factory()->ownKeys_string()));
   // 6. If trap is undefined, then
-  if (IsUndefined(*trap, isolate_)) {
+  if (IsUndefined(*trap)) {
     // 6a. Return target.[[OwnPropertyKeys]]().
     return CollectOwnJSProxyTargetKeys(proxy, target);
   }

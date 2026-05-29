@@ -208,7 +208,7 @@ class V8_NODISCARD CallDepthScope {
         microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto &&
         !isolate_->is_execution_terminating();
     return !did_perform_microtask_checkpoint ||
-           IsUndefined(isolate_->heap()->weak_refs_keep_during_job(), isolate_);
+           IsUndefined(isolate_->heap()->weak_refs_keep_during_job());
   }
 #endif
 

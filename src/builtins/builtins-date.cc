@@ -57,7 +57,7 @@ Tagged<Object> SetDateValue(Isolate* isolate, DirectHandle<JSDate> date,
 // https://tc39.es/ecma262/#sec-date-constructor
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
-  if (IsUndefined(*args.new_target(), isolate)) {
+  if (IsUndefined(*args.new_target())) {
     double const time_val =
         static_cast<double>(JSDate::CurrentTimeValue(isolate));
     DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),

@@ -11,7 +11,6 @@
 #include <type_traits>
 
 #include "src/execution/local-isolate-inl.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/map.h"

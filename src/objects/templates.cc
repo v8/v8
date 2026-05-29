@@ -150,7 +150,7 @@ Tagged<FunctionTemplateRareData>
 FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate,
     DirectHandle<FunctionTemplateInfo> function_template_info) {
-  DCHECK(IsUndefined(function_template_info->rare_data(kAcquireLoad), isolate));
+  DCHECK(IsUndefined(function_template_info->rare_data(kAcquireLoad)));
   DirectHandle<FunctionTemplateRareData> rare_data =
       isolate->factory()->NewFunctionTemplateRareData();
   function_template_info->set_rare_data(*rare_data, kReleaseStore);
@@ -169,7 +169,7 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
   // Check if the accessor uses a cached property.
   Tagged<Object> maybe_name =
       Cast<FunctionTemplateInfo>(getter)->cached_property_name();
-  if (IsTheHole(maybe_name, isolate)) return {};
+  if (IsTheHole(maybe_name)) return {};
   return Cast<Name>(maybe_name);
 }
 

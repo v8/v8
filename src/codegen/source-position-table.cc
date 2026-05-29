@@ -8,8 +8,8 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

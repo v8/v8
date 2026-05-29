@@ -102,8 +102,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   int start = 0;
   int end = 0;
-  if (!script.is_null() && !IsUndefined(*script, isolate) &&
-      !shared.is_null()) {
+  if (!script.is_null() && !IsUndefined(*script) && !shared.is_null()) {
     Tagged<Object> source_name = script->name();
     os << ", \"sourceName\": \"";
     if (IsString(source_name)) {

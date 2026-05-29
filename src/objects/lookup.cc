@@ -686,7 +686,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (map->is_dictionary_map()) {
     state_ = TRANSITION;
     if (IsJSGlobalObjectMap(*map)) {
-      DCHECK(!IsTheHole(*value, isolate_));
+      DCHECK(!IsTheHole(*value));
       // Don't set enumeration index (it will be set during value store).
       property_details_ =
           PropertyDetails(PropertyKind::kData, attributes,
@@ -851,7 +851,7 @@ void LookupIterator::Delete() {
 Maybe<bool> LookupIterator::TransitionToAccessorProperty(
     DirectHandle<Object> getter, DirectHandle<Object> setter,
     PropertyAttributes attributes) {
-  DCHECK(!IsNull(*getter, isolate_) || !IsNull(*setter, isolate_));
+  DCHECK(!IsNull(*getter) || !IsNull(*setter));
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
@@ -1039,7 +1039,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
-  if (IsUninitializedHole(value, isolate())) {
+  if (IsUninitializedHole(value)) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -1060,7 +1060,7 @@ bool LookupIterator::CanStayConst(Tagged<Object> value) const {
   }
 
   Tagged<Object> current_value = holder->RawFastPropertyAt(field_index);
-  return IsUninitializedHole(current_value, isolate());
+  return IsUninitializedHole(current_value);
 }
 
 bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
@@ -1073,7 +1073,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
 
   DisallowHeapAllocation no_gc;
 
-  if (IsUninitializedHole(value, isolate())) {
+  if (IsUninitializedHole(value)) {
     // Storing uninitialized value means that we are preparing for a computed
     // property value in an object literal. The initializing store will follow
     // and it will properly update constness based on the actual value.
@@ -1089,7 +1089,7 @@ bool LookupIterator::DictCanStayConst(Tagged<Object> value) const {
     current_value = dict->ValueAt(dictionary_entry());
   }
 
-  return IsUninitializedHole(current_value, isolate());
+  return IsUninitializedHole(current_value);
 }
 
 InternalIndex LookupIterator::GetFieldDescriptorIndex() const {
@@ -1395,7 +1395,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         number_ = dict->FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
         Tagged<PropertyCell> cell = dict->CellAt(number_);
-        if (IsPropertyCellHole(cell->value(), isolate_)) {
+        if (IsPropertyCellHole(cell->value())) {
           return NOT_FOUND;
         }
         property_details_ = cell->property_details();

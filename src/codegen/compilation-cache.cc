@@ -30,7 +30,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
       enabled_script_and_eval_(true) {}
 
 Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
-  if (IsUndefined(table_, isolate())) {
+  if (IsUndefined(table_)) {
     return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
   return handle(Cast<CompilationCacheTable>(table_), isolate());
@@ -40,7 +40,7 @@ DirectHandle<CompilationCacheTable> CompilationCacheRegExp::GetTable(
     int generation) {
   DCHECK_LT(generation, kGenerations);
   DirectHandle<CompilationCacheTable> result;
-  if (IsUndefined(tables_[generation], isolate())) {
+  if (IsUndefined(tables_[generation])) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
@@ -65,7 +65,7 @@ void CompilationCacheRegExp::Age() {
 
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
-  if (IsUndefined(table_, isolate())) return;
+  if (IsUndefined(table_)) return;
   Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
@@ -74,7 +74,7 @@ void CompilationCacheScript::Age() {
     DCHECK(IsWeakFixedArray(key));
 
     Tagged<Object> value = table->PrimaryValueAt(entry);
-    if (!IsUndefined(value, isolate())) {
+    if (!IsUndefined(value)) {
       Tagged<SharedFunctionInfo> info = Cast<SharedFunctionInfo>(value);
       // Clear entries after Bytecode was flushed from SFI.
       if (!info->HasBytecodeArray()) {
@@ -88,7 +88,7 @@ void CompilationCacheScript::Age() {
 
 void CompilationCacheEval::Age() {
   DisallowGarbageCollection no_gc;
-  if (IsUndefined(table_, isolate())) return;
+  if (IsUndefined(table_)) return;
   Tagged<CompilationCacheTable> table = Cast<CompilationCacheTable>(table_);
 
   for (InternalIndex entry : table->IterateEntries()) {
@@ -128,7 +128,7 @@ void CompilationCacheRegExp::Clear() {
 
 void CompilationCacheEvalOrScript::Remove(
     DirectHandle<SharedFunctionInfo> function_info) {
-  if (IsUndefined(table_, isolate())) return;
+  if (IsUndefined(table_)) return;
   Cast<CompilationCacheTable>(table_)->Remove(*function_info);
 }
 

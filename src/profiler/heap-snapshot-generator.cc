@@ -2485,7 +2485,7 @@ void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
                           ? Smi::ToUInt(Cast<JSArray>(js_obj)->length())
                           : elements->ulength().value();
     for (uint32_t i = 0; i < length; ++i) {
-      if (!IsTheHole(elements->get(i), roots)) {
+      if (!IsTheHole(elements->get(i))) {
         SetElementReference(entry, i, elements->get(i));
       }
     }

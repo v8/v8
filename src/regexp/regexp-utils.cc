@@ -95,7 +95,7 @@ MaybeDirectHandle<JSAny> Utils::RegExpExec(Isolate* isolate,
                                            DirectHandle<JSReceiver> regexp,
                                            DirectHandle<String> string,
                                            DirectHandle<Object> exec) {
-  if (IsUndefined(*exec, isolate)) {
+  if (IsUndefined(*exec)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
         Object::GetProperty(isolate, regexp,
@@ -112,7 +112,7 @@ MaybeDirectHandle<JSAny> Utils::RegExpExec(Isolate* isolate,
         Cast<JSAny>(
             Execution::Call(isolate, exec, regexp, base::VectorOf(args))));
 
-    if (!IsJSReceiver(*result) && !IsNull(*result, isolate)) {
+    if (!IsJSReceiver(*result) && !IsNull(*result)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kInvalidRegExpExecResult));
     }

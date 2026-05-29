@@ -14,7 +14,7 @@
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"

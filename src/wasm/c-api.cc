@@ -525,7 +525,7 @@ void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key,
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate());
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
-  if (IsTheHole(raw, i_isolate())) return nullptr;
+  if (IsTheHole(raw)) return nullptr;
   return i::Cast<i::Managed<ManagedData>>(raw)->raw(no_gc)->info;
 }
 
@@ -1685,7 +1685,7 @@ WASM_EXPORT auto Func::result_arity() const -> size_t {
 namespace {
 
 own<Ref> V8RefValueToWasm(StoreImpl* store, i::DirectHandle<i::Object> value) {
-  if (IsNull(*value, store->i_isolate())) return nullptr;
+  if (IsNull(*value)) return nullptr;
   return implement<Ref>::type::make(store, i::Cast<i::JSReceiver>(value));
 }
 
@@ -2228,7 +2228,7 @@ WASM_EXPORT auto Table::get(size_t index) const -> own<Ref> {
   if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();
   }
-  DCHECK(IsNull(*result, isolate) || IsJSReceiver(*result));
+  DCHECK(IsNull(*result) || IsJSReceiver(*result));
   return V8RefValueToWasm(impl(this)->store(), result);
 }
 

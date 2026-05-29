@@ -1091,7 +1091,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       // grew the shared memory, broadcasting should have reset the ArrayBuffer
       // so we reallocate it on the next access to the `buffer` property of the
       // Wasm memory.
-      CHECK(IsUndefined(memory_object->array_buffer(), isolate));
+      CHECK(IsUndefined(memory_object->array_buffer()));
     }
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
@@ -1169,7 +1169,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 DirectHandle<JSArrayBuffer> WasmMemoryObject::GetArrayBuffer(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
   DirectHandle<JSArrayBuffer> buffer =
-      IsUndefined(memory_object->array_buffer(), isolate)
+      IsUndefined(memory_object->array_buffer())
           ? i::WasmMemoryObject::RefreshBuffer(isolate, memory_object,
                                                memory_object->backing_store())
           : handle(Cast<JSArrayBuffer>(memory_object->array_buffer()), isolate);
@@ -3274,7 +3274,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          CanonicalValueType expected,
                                          const char** error_message) {
   DCHECK(expected.is_ref());
-  if (expected.is_nullable() && IsNull(*value, isolate)) {
+  if (expected.is_nullable() && IsNull(*value)) {
     if (expected.is_abstract_ref()) {
       switch (expected.generic_kind()) {
         case GenericKind::kStringViewWtf8:
@@ -3367,7 +3367,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                      error_message)) {
         return {};
       }
-      if (!IsNull(*value, isolate)) return value;
+      if (!IsNull(*value)) return value;
       *error_message = "null is not allowed for (ref extern)";
       return {};
     }
@@ -3382,7 +3382,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                      error_message)) {
         return {};
       }
-      if (!IsNull(*value, isolate)) return value;
+      if (!IsNull(*value)) return value;
       *error_message = "null is not allowed for (ref any)";
       return {};
     }

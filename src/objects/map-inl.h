@@ -257,7 +257,7 @@ bool Map::CanHaveFastTransitionableElementsKind() const {
 bool Map::IsDetached(Isolate* isolate) const {
   if (is_prototype_map()) return true;
   return instance_type() == JS_OBJECT_TYPE && NumberOfOwnDescriptors() > 0 &&
-         IsUndefined(GetBackPointer(), isolate);
+         IsUndefined(GetBackPointer());
 }
 
 // static

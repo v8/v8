@@ -138,7 +138,7 @@ BUILTIN(ArrayBufferConstructor) {
   DirectHandle<JSFunction> target = args.target();
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
          *target == target->native_context()->shared_array_buffer_fun());
-  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target())) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kConstructorNotFunction,
@@ -164,7 +164,7 @@ BUILTIN(ArrayBufferConstructor) {
       JSObject::ReadFromOptionsBag(
           options, isolate->factory()->max_byte_length_string(), isolate));
 
-  if (!IsUndefined(*max_length, isolate)) {
+  if (!IsUndefined(*max_length)) {
     if (*target == target->native_context()->array_buffer_fun()) {
       isolate->CountUsage(
           v8::Isolate::UseCounterFeature::kResizableArrayBuffer);
@@ -240,7 +240,7 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
     // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
     //   ToInteger(end).
     double relative_end;
-    if (IsUndefined(*end, isolate)) {
+    if (IsUndefined(*end)) {
       relative_end = len;
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_end,
@@ -652,7 +652,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
   CHECK_SHARED(false, array_buffer, method_name);
 
   size_t new_byte_length;
-  if (IsUndefined(*new_length, isolate)) {
+  if (IsUndefined(*new_length)) {
     // 3. If newLength is undefined, then
     //   a. Let newByteLength be arrayBuffer.[[ArrayBufferByteLength]].
     new_byte_length = array_buffer->GetByteLength();

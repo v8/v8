@@ -29,7 +29,7 @@ MaybeDirectHandle<Object> Runtime::GetObjectProperty(
   if (receiver.is_null()) {
     receiver = lookup_start_object;
   }
-  if (IsNullOrUndefined(*lookup_start_object, isolate)) {
+  if (IsNullOrUndefined(*lookup_start_object)) {
     ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, lookup_start_object, key);
     return MaybeDirectHandle<Object>();
   }
@@ -187,7 +187,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
         key.is_element()
             ? key.index() < static_cast<size_t>(Cast<String>(*object)->length())
             : key.name()->Equals(ReadOnlyRoots(isolate).length_string()));
-  } else if (IsNullOrUndefined(*object, isolate)) {
+  } else if (IsNullOrUndefined(*object)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
@@ -337,7 +337,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
       isolate, obj, JSObject::ObjectCreate(isolate, prototype));
 
   // 3. If Properties is not undefined, then
-  if (!IsUndefined(*properties, isolate)) {
+  if (!IsUndefined(*properties)) {
     // a. Return ? ObjectDefineProperties(obj, Properties).
     // Define the properties if properties was specified and is not undefined.
     RETURN_RESULT_OR_FAILURE(
@@ -356,7 +356,7 @@ MaybeDirectHandle<Object> Runtime::SetObjectProperty(
   if (!maybe_receiver.ToHandle(&receiver)) {
     receiver = lookup_start_obj;
   }
-  if (IsNullOrUndefined(*lookup_start_obj, isolate)) {
+  if (IsNullOrUndefined(*lookup_start_obj)) {
     MaybeDirectHandle<String> maybe_property =
         Object::NoSideEffectsToMaybeString(isolate, key);
     DirectHandle<String> property_name;
@@ -402,7 +402,7 @@ MaybeDirectHandle<Object> Runtime::SetObjectProperty(
 MaybeDirectHandle<Object> Runtime::DefineObjectOwnProperty(
     Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Object> key,
     DirectHandle<Object> value, StoreOrigin store_origin) {
-  if (IsNullOrUndefined(*object, isolate)) {
+  if (IsNullOrUndefined(*object)) {
     MaybeDirectHandle<String> maybe_property =
         Object::NoSideEffectsToMaybeString(isolate, key);
     DirectHandle<String> property_name;
@@ -645,7 +645,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           Tagged<PropertyCell> cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == PropertyKind::kData) {
             Tagged<Object> value = cell->value();
-            if (!IsPropertyCellHole(value, isolate)) return value;
+            if (!IsPropertyCellHole(value)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
           }
         }
@@ -931,7 +931,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstanceAndMarkMapAsMigrationTarget) {
 }
 
 static bool IsValidAccessor(Isolate* isolate, DirectHandle<Object> obj) {
-  return IsNullOrUndefined(*obj, isolate) || IsCallable(*obj);
+  return IsNullOrUndefined(*obj) || IsCallable(*obj);
 }
 
 // Implements part of 8.12.9 DefineOwnProperty.
@@ -944,7 +944,7 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   DirectHandle<JSObject> obj = args.at<JSObject>(0);
-  CHECK(!IsNull(*obj, isolate));
+  CHECK(!IsNull(*obj));
   DirectHandle<Name> name = args.at<Name>(1);
   DirectHandle<Object> getter = args.at(2);
   CHECK(IsValidAccessor(isolate, getter));
@@ -1094,7 +1094,7 @@ RUNTIME_FUNCTION(Runtime_SetDataProperties) {
   DirectHandle<Object> source = args.at(1);
 
   // 2. If source is undefined or null, let keys be an empty List.
-  if (IsUndefined(*source, isolate) || IsNull(*source, isolate)) {
+  if (IsUndefined(*source) || IsNull(*source)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -1112,7 +1112,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   DirectHandle<Object> source = args.at(1);
 
   // 2. If source is undefined or null, let keys be an empty List.
-  if (IsUndefined(*source, isolate) || IsNull(*source, isolate)) {
+  if (IsUndefined(*source) || IsNull(*source)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -1175,7 +1175,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
       excluded_property_count);
 
   // If source is undefined or null, throw a non-coercible error.
-  if (IsNullOrUndefined(*source, isolate)) {
+  if (IsNullOrUndefined(*source)) {
     return ErrorUtils::ThrowLoadFromNullOrUndefined(
         isolate, source, MaybeDirectHandle<Object>());
   }

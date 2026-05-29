@@ -14,9 +14,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/logging/local-logger.h"
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
@@ -1113,7 +1112,7 @@ Handle<String> FactoryBase<Impl>::DoubleToString(double value,
     if (mode == NumberCacheMode::kBoth) {
       Handle<Object> cached =
           DoubleStringCache::Get(isolate(), entry, value_bits);
-      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+      if (!IsUndefined(*cached)) return Cast<String>(cached);
     }
   }
 
@@ -1163,7 +1162,7 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
     }
     if (mode == NumberCacheMode::kBoth) {
       Handle<Object> cached = SmiStringCache::Get(isolate(), entry, number);
-      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+      if (!IsUndefined(*cached)) return Cast<String>(cached);
     }
   }
 

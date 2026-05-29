@@ -359,8 +359,7 @@ bool Script::HasSourceMappingURLComment() const {
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
   // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
   // value.
-  return IsUndefined(source(), isolate) ||
-         Cast<String>(source())->length() == 0;
+  return IsUndefined(source()) || Cast<String>(source())->length() == 0;
 }
 
 Tagged<Script> Script::GetEvalOrigin() {

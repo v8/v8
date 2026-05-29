@@ -146,7 +146,7 @@ BUILTIN(Trace) {
 
   uint32_t flags = TRACE_EVENT_FLAG_COPY;
   int32_t id = 0;
-  if (!IsNullOrUndefined(*id_arg, isolate)) {
+  if (!IsNullOrUndefined(*id_arg)) {
     if (!IsNumber(*id_arg)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kTraceEventIDError));
@@ -167,7 +167,7 @@ BUILTIN(Trace) {
   static const char* arg_name = "data";
   DirectHandle<Object> arg_json;
   bool has_arg = false;
-  if (!IsUndefined(*data_arg, isolate)) {
+  if (!IsUndefined(*data_arg)) {
     // Serializes the data argument as a JSON string, which is then
     // copied into an object. This eliminates duplicated code but
     // could have perf costs. It is also subject to all the same

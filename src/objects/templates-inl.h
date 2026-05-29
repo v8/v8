@@ -199,7 +199,7 @@ void FunctionTemplateInfo::RestoreCallbackRedirectionAfterDeserialization(
 
 template <class IsolateT>
 bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {
-  return !IsTheHole(callback_data(kAcquireLoad), isolate);
+  return !IsTheHole(callback_data(kAcquireLoad));
 }
 
 // static
@@ -208,7 +208,7 @@ FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate,
     DirectHandle<FunctionTemplateInfo> function_template_info) {
   Tagged<HeapObject> extra = function_template_info->rare_data(kAcquireLoad);
-  if (IsUndefined(extra, isolate)) {
+  if (IsUndefined(extra)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
     return Cast<FunctionTemplateRareData>(extra);
@@ -313,20 +313,20 @@ inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
 
 Tagged<FunctionTemplateInfo> FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> parent = GetParentTemplate();
-  return IsUndefined(parent, isolate) ? Tagged<FunctionTemplateInfo>{}
-                                      : Cast<FunctionTemplateInfo>(parent);
+  return IsUndefined(parent) ? Tagged<FunctionTemplateInfo>{}
+                             : Cast<FunctionTemplateInfo>(parent);
 }
 
 Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Tagged<Object> maybe_ctor = constructor();
-  if (IsUndefined(maybe_ctor, isolate)) return {};
+  if (IsUndefined(maybe_ctor)) return {};
   Tagged<FunctionTemplateInfo> constructor_val =
       Cast<FunctionTemplateInfo>(maybe_ctor);
   while (true) {
     constructor_val = constructor_val->GetParent(isolate);
     if (constructor_val.is_null()) return {};
     Tagged<Object> maybe_obj = constructor_val->GetInstanceTemplate();
-    if (!IsUndefined(maybe_obj, isolate)) {
+    if (!IsUndefined(maybe_obj)) {
       return Cast<ObjectTemplateInfo>(maybe_obj);
     }
   }
@@ -427,7 +427,7 @@ MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
     Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
     Tagged<Object> object = fast_cache->get(serial_number);
-    if (IsTheHole(object, isolate)) {
+    if (IsTheHole(object)) {
       return {};
     }
     return handle(object, isolate);
@@ -484,7 +484,7 @@ void TemplateInfo::UncacheTemplateInstantiation(
   if (serial_number < kFastTemplateInstantiationsCacheSize) {
     Tagged<FixedArray> fast_cache =
         native_context->fast_template_instantiations_cache();
-    DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
+    DCHECK(!IsUndefined(fast_cache->get(serial_number)));
     fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
                     SKIP_WRITE_BARRIER);
     return;

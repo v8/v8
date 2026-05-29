@@ -210,7 +210,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     SimulateFullSpace(heap()->old_space());
 
     // Calling Lookup() should not cause GC ever.
-    CHECK(IsTheHole(table->Lookup(key), isolate()));
+    CHECK(IsTheHole(table->Lookup(key)));
 
     // Calling Put() should request GC by returning a failure.
     GCEpoch gc_count = heap()->gc_count();

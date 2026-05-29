@@ -827,8 +827,7 @@ EscapableHandleScopeBase::EscapableHandleScopeBase(Isolate* v8_isolate) {
 
 i::Address* EscapableHandleScopeBase::EscapeSlot(i::Address* escape_value) {
   DCHECK_NOT_NULL(escape_value);
-  DCHECK(i::IsTheHole(i::Tagged<i::Object>(*escape_slot_),
-                      reinterpret_cast<i::Isolate*>(GetIsolate())));
+  DCHECK(i::IsTheHole(i::Tagged<i::Object>(*escape_slot_)));
   *escape_slot_ = *escape_value;
   return escape_slot_;
 }
@@ -1125,7 +1124,7 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::DirectHandle<i::HeapObject> heap_obj(self->GetPrototypeTemplate(),
                                           i_isolate);
-  if (i::IsUndefined(*heap_obj, i_isolate)) {
+  if (i::IsUndefined(*heap_obj)) {
     // Do not cache prototype objects.
     constexpr bool do_not_cache = true;
     i::DirectHandle<i::ObjectTemplateInfo> proto_template =
@@ -1144,10 +1143,10 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::DirectHandle<i::FunctionTemplateInfo> result =
       Utils::OpenDirectHandle(*prototype_provider);
-  Utils::ApiCheck(i::IsUndefined(self->GetPrototypeTemplate(), i_isolate),
+  Utils::ApiCheck(i::IsUndefined(self->GetPrototypeTemplate()),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
                   "Protoype must be undefined");
-  Utils::ApiCheck(i::IsUndefined(self->GetParentTemplate(), i_isolate),
+  Utils::ApiCheck(i::IsUndefined(self->GetParentTemplate()),
                   "v8::FunctionTemplate::SetPrototypeProviderTemplate",
                   "Prototype provider must be empty");
   i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, self,
@@ -1199,9 +1198,9 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
   EnsureNotPublished(info, "v8::FunctionTemplate::Inherit");
   i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  Utils::ApiCheck(
-      i::IsUndefined(info->GetPrototypeProviderTemplate(), i_isolate),
-      "v8::FunctionTemplate::Inherit", "Protoype provider must be empty");
+  Utils::ApiCheck(i::IsUndefined(info->GetPrototypeProviderTemplate()),
+                  "v8::FunctionTemplate::Inherit",
+                  "Protoype provider must be empty");
   i::FunctionTemplateInfo::SetParentTemplate(i_isolate, info,
                                              Utils::OpenDirectHandle(*value));
 }
@@ -1419,7 +1418,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   i::Isolate* i_isolate = i::Isolate::Current();
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   auto maybe_templ = constructor->GetInstanceTemplate();
-  if (!i::IsUndefined(maybe_templ, i_isolate)) {
+  if (!i::IsUndefined(maybe_templ)) {
     return Utils::ToLocal(i::direct_handle(
         i::Cast<i::ObjectTemplateInfo>(maybe_templ), i_isolate));
   }
@@ -1507,7 +1506,7 @@ i::DirectHandle<i::FunctionTemplateInfo> EnsureConstructor(
     i::Isolate* i_isolate, ObjectTemplate* object_template) {
   i::Tagged<i::Object> obj =
       Utils::OpenDirectHandle(object_template)->constructor();
-  if (!IsUndefined(obj, i_isolate)) {
+  if (!IsUndefined(obj)) {
     i::Tagged<i::FunctionTemplateInfo> info =
         i::Cast<i::FunctionTemplateInfo>(obj);
     return i::DirectHandle<i::FunctionTemplateInfo>(info, i_isolate);
@@ -2087,14 +2086,13 @@ Local<Value> Script::GetResourceName() {
 std::vector<int> Script::GetProducedCompileHints() const {
   i::DisallowGarbageCollection no_gc;
   auto func = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = i::Isolate::Current();
   i::Tagged<i::SharedFunctionInfo> sfi = func->shared();
   CHECK(IsScript(sfi->script()));
   i::Tagged<i::Script> script = i::Cast<i::Script>(sfi->script());
   i::Tagged<i::Object> maybe_array_list =
       script->compiled_lazy_function_positions();
   std::vector<int> result;
-  if (!IsUndefined(maybe_array_list, i_isolate)) {
+  if (!IsUndefined(maybe_array_list)) {
     i::Tagged<i::ArrayList> array_list =
         i::Cast<i::ArrayList>(maybe_array_list);
     result.reserve(array_list->length());
@@ -2122,11 +2120,10 @@ std::vector<int> CompileHintsCollector::GetCompileHints(
     Isolate* v8_isolate) const {
   i::DisallowGarbageCollection no_gc;
   auto script = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Tagged<i::Object> maybe_array_list =
       script->compiled_lazy_function_positions();
   std::vector<int> result;
-  if (!IsUndefined(maybe_array_list, i_isolate)) {
+  if (!IsUndefined(maybe_array_list)) {
     i::Tagged<i::ArrayList> array_list =
         i::Cast<i::ArrayList>(maybe_array_list);
     result.reserve(array_list->length());
@@ -3010,7 +3007,7 @@ void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 void v8::TryCatch::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
-  return !IsTheHole(ToObject(exception_), i_isolate_);
+  return !IsTheHole(ToObject(exception_));
 }
 
 bool v8::TryCatch::HasTerminated() const {
@@ -3053,8 +3050,8 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   i::Tagged<i::Object> message = ToObject(message_obj_);
-  DCHECK(IsJSMessageObject(message) || IsTheHole(message, i_isolate_));
-  if (HasCaught() && !IsTheHole(message, i_isolate_)) {
+  DCHECK(IsJSMessageObject(message) || IsTheHole(message));
+  if (HasCaught() && !IsTheHole(message)) {
     return v8::Utils::MessageToLocal(i::direct_handle(message, i_isolate_));
   } else {
     return {};
@@ -4505,7 +4502,7 @@ Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
   if (!i::Object::InstanceOf(i_isolate, left, right).ToHandle(&result)) {
     return {};
   }
-  return Just(i::IsTrue(*result, i_isolate));
+  return Just(i::IsTrue(*result));
 }
 
 uint32_t Value::GetHash() {
@@ -5124,7 +5121,7 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
            .ToHandle(&result)) {
     return {};
   }
-  if (i::IsUndefined(*result, i_isolate)) return Just(false);
+  if (i::IsUndefined(*result)) return Just(false);
   if (fast) {
     i::JSObject::MigrateSlowToFast(obj, 0, "APISetAccessor");
   }
@@ -6665,7 +6662,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
       // Migrate security handlers from global_template to
       // proxy_template.  Temporarily removing access check
       // information from the global template.
-      if (!IsUndefined(global_constructor->GetAccessCheckInfo(), i_isolate)) {
+      if (!IsUndefined(global_constructor->GetAccessCheckInfo())) {
         i::FunctionTemplateInfo::SetAccessCheckInfo(
             i_isolate, proxy_constructor,
             direct_handle(global_constructor->GetAccessCheckInfo(), i_isolate));
@@ -7193,8 +7190,7 @@ void Context::AllowCodeGenerationFromStrings(bool allow) {
 
 bool Context::IsCodeGenerationFromStringsAllowed() const {
   auto context = Utils::OpenDirectHandle(this);
-  return !IsFalse(context->allow_code_gen_from_strings(),
-                  i::Isolate::Current());
+  return !IsFalse(context->allow_code_gen_from_strings());
 }
 
 void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
@@ -7317,7 +7313,7 @@ i::ValueHelper::InternalRepresentationType GetSerializedDataFromFixedArray(
   if (index < list_len) {
     uint32_t uint_index = static_cast<uint32_t>(index);
     i::Tagged<i::Object> object = list->get(uint_index);
-    if (!IsTheHole(object, i_isolate)) {
+    if (!IsTheHole(object)) {
       list->set_the_hole(i_isolate, uint_index);
       // Shrink the list so that the last element is not the hole (unless it's
       // the first element, because we don't want to end up with a non-canonical
@@ -7924,7 +7920,7 @@ bool v8::BooleanObject::ValueOf() const {
   i::Isolate* i_isolate = i::Isolate::Current();
   ApiRuntimeCallStatsScope rcs_scope(i_isolate,
                                      RCCId::kAPI_BooleanObject_BooleanValue);
-  return i::IsTrue(js_primitive_wrapper->value(), i_isolate);
+  return i::IsTrue(js_primitive_wrapper->value());
 }
 
 Local<v8::Value> v8::StringObject::New(Isolate* v8_isolate,
@@ -8456,7 +8452,7 @@ Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
            .ToHandle(&result)) {
     return {};
   }
-  return Just(i::IsTrue(*result, i_isolate));
+  return Just(i::IsTrue(*result));
 }
 
 Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
@@ -8470,7 +8466,7 @@ Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
            .ToHandle(&result)) {
     return {};
   }
-  return Just(i::IsTrue(*result, i_isolate));
+  return Just(i::IsTrue(*result));
 }
 
 namespace {
@@ -8572,7 +8568,7 @@ Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
            .ToHandle(&result)) {
     return {};
   }
-  return Just(i::IsTrue(*result, i_isolate));
+  return Just(i::IsTrue(*result));
 }
 
 Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
@@ -8586,7 +8582,7 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
            .ToHandle(&result)) {
     return {};
   }
-  return Just(i::IsTrue(*result, i_isolate));
+  return Just(i::IsTrue(*result));
 }
 
 namespace {
@@ -11030,7 +11026,7 @@ void Isolate::RemoveMessageListeners(MessageCallback callback) {
   i::Tagged<i::ArrayList> listeners = i_isolate->heap()->message_listeners();
   i::ReadOnlyRoots roots(i_isolate);
   for (int i = 0; i < listeners->length(); i++) {
-    if (i::IsUndefined(listeners->get(i), roots)) {
+    if (i::IsUndefined(listeners->get(i))) {
       continue;  // skip deleted ones
     }
     i::Tagged<i::FixedArray> listener =

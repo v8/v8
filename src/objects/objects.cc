@@ -233,7 +233,7 @@ Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
     Representation representation) {
   if (!representation.IsDouble()) return object;
   Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
-  if (IsUninitializedHole(*object, isolate)) {
+  if (IsUninitializedHole(*object)) {
     result->set_value_as_bits(kHoleNanInt64);
   } else if (IsHeapNumber(*object)) {
     // Ensure that all bits of the double value are preserved.
@@ -247,7 +247,7 @@ Handle<UnionOf<JSAny, Hole>> Object::NewStorageFor(
 template <AllocationType allocation_type, typename IsolateT>
 Handle<JSAny> Object::WrapForRead(IsolateT* isolate, Handle<JSAny> object,
                                   Representation representation) {
-  DCHECK(!IsUninitializedHole(*object, isolate));
+  DCHECK(!IsUninitializedHole(*object));
   if (!representation.IsDouble()) {
     DCHECK(Object::FitsRepresentation(*object, representation));
     return object;
@@ -296,7 +296,7 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
 MaybeDirectHandle<JSReceiver> Object::ConvertReceiver(
     Isolate* isolate, DirectHandle<Object> object) {
   if (IsJSReceiver(*object)) return Cast<JSReceiver>(object);
-  if (IsNullOrUndefined(*object, isolate)) {
+  if (IsNullOrUndefined(*object)) {
     return isolate->global_proxy();
   }
   return Object::ToObject(isolate, object);
@@ -759,7 +759,7 @@ template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
 typename HandleType<Number>::MaybeType Object::ConvertToIndex(
     Isolate* isolate, HandleType<Object> input, MessageTemplate error_index) {
-  if (IsUndefined(*input, isolate)) {
+  if (IsUndefined(*input)) {
     return HandleType<Number>(Smi::zero(), isolate);
   }
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input));
@@ -786,8 +786,8 @@ bool Object::BooleanValue(Tagged<Object> obj, IsolateT* isolate) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasmNull(obj));
 #endif
-  if (IsBoolean(obj)) return IsTrue(obj, isolate);
-  if (IsNullOrUndefined(obj, isolate)) return false;
+  if (IsBoolean(obj)) return IsTrue(obj);
+  if (IsNullOrUndefined(obj)) return false;
   if (IsUndetectable(obj)) return false;  // Undetectable object is false.
   if (IsString(obj)) return Cast<String>(obj)->length() != 0;
   if (IsHeapNumber(obj)) return DoubleToBoolean(Cast<HeapNumber>(obj)->value());
@@ -1108,7 +1108,7 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate,
       isolate, inst_of_handler,
       Object::GetMethod(isolate, Cast<JSReceiver>(callable),
                         isolate->factory()->has_instance_symbol()));
-  if (!IsUndefined(*inst_of_handler, isolate)) {
+  if (!IsUndefined(*inst_of_handler)) {
     // Call the {inst_of_handler} on the {callable}.
     DirectHandle<Object> result;
     DirectHandle<Object> args[] = {object};
@@ -1139,7 +1139,7 @@ MaybeDirectHandle<Object> Object::GetMethod(Isolate* isolate,
   Handle<Object> func;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
                              JSReceiver::GetProperty(isolate, receiver, name));
-  if (IsNullOrUndefined(*func, isolate)) {
+  if (IsNullOrUndefined(*func)) {
     return isolate->factory()->undefined_value();
   }
   if (!IsCallable(*func)) {
@@ -1419,7 +1419,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     // 7.a Return target.[[Get]](P, Receiver).
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, receiver, key, target);
@@ -1480,12 +1480,12 @@ MaybeHandle<JSAny> JSProxy::CheckGetSetTrapResult(
     if (access_kind == kGet) {
       inconsistent = PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
                      !target_desc.configurable() &&
-                     IsUndefined(*target_desc.get(), isolate) &&
-                     !IsUndefined(*trap_result, isolate);
+                     IsUndefined(*target_desc.get()) &&
+                     !IsUndefined(*trap_result);
     } else {
       inconsistent = PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
                      !target_desc.configurable() &&
-                     IsUndefined(*target_desc.set(), isolate);
+                     IsUndefined(*target_desc.set());
     }
     if (inconsistent) {
       if (access_kind == kGet) {
@@ -1545,7 +1545,7 @@ MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
                              Object::GetMethod(isolate, handler, trap_name));
   // 6. If trap is undefined, then return target.[[GetPrototypeOf]]().
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     return JSReceiver::GetPrototype(isolate, target);
   }
   // 7. Let handlerProto be ? Call(trap, handler, «target»).
@@ -1834,12 +1834,12 @@ MaybeDirectHandle<Object> Object::ArraySpeciesConstructor(
           isolate, constructor,
           JSReceiver::GetProperty(isolate, Cast<JSReceiver>(constructor),
                                   isolate->factory()->species_symbol()));
-      if (IsNull(*constructor, isolate)) {
+      if (IsNull(*constructor)) {
         constructor = isolate->factory()->undefined_value();
       }
     }
   }
-  if (IsUndefined(*constructor, isolate)) {
+  if (IsUndefined(*constructor)) {
     return default_species;
   } else {
     if (!IsConstructor(*constructor)) {
@@ -1860,7 +1860,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Object::SpeciesConstructor(
       JSReceiver::GetProperty(isolate, recv,
                               isolate->factory()->constructor_string()));
 
-  if (IsUndefined(*ctor_obj, isolate)) return default_ctor;
+  if (IsUndefined(*ctor_obj)) return default_ctor;
 
   if (!IsJSReceiver(*ctor_obj)) {
     THROW_NEW_ERROR(isolate,
@@ -1875,7 +1875,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Object::SpeciesConstructor(
       JSReceiver::GetProperty(isolate, ctor,
                               isolate->factory()->species_symbol()));
 
-  if (IsNullOrUndefined(*species, isolate)) {
+  if (IsNullOrUndefined(*species)) {
     return default_ctor;
   }
 
@@ -2786,7 +2786,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
                       it->index() >= receiver_ta->GetLength())) {
         return Just(true);
       }
-    } else if (!IsNumber(*value) && !IsUndefined(*value, isolate)) {
+    } else if (!IsNumber(*value) && !IsUndefined(*value)) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, to_assign,
                                  Object::ToNumber(isolate, value));
       if (V8_UNLIKELY(receiver_ta->IsDetachedOrOutOfBounds() ||
@@ -3074,7 +3074,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler),
                         isolate->factory()->has_string()));
   // 7. If trap is undefined, then
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     // 7a. Return target.[[HasProperty]](P).
     return JSReceiver::HasProperty(isolate, target, name);
   }
@@ -3144,7 +3144,7 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
   DirectHandle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
                              Object::GetMethod(isolate, handler, trap_name));
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, receiver, key, target);
 
@@ -3194,7 +3194,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
   DirectHandle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
                              Object::GetMethod(isolate, handler, trap_name));
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     return JSReceiver::DeletePropertyOrElement(isolate, target, name,
                                                language_mode);
   }
@@ -3508,7 +3508,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then:
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     // 7a. Return target.[[DefineOwnProperty]](P, Desc).
     return JSReceiver::DefineOwnProperty(isolate, target, key, desc,
                                          should_throw);
@@ -3677,7 +3677,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     // 7a. Return target.[[GetOwnProperty]](P).
     return JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, desc);
   }
@@ -3690,8 +3690,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
           Execution::Call(isolate, trap, handler, base::VectorOf(args))));
   // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
   //    TypeError exception.
-  if (!IsJSReceiver(*trap_result_obj) &&
-      !IsUndefined(*trap_result_obj, isolate)) {
+  if (!IsJSReceiver(*trap_result_obj) && !IsUndefined(*trap_result_obj)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyGetOwnPropertyDescriptorInvalid, name));
     return Nothing<bool>();
@@ -3702,7 +3701,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
   MAYBE_RETURN(found, Nothing<bool>());
   // 11. If trapResultObj is undefined, then
-  if (IsUndefined(*trap_result_obj, isolate)) {
+  if (IsUndefined(*trap_result_obj)) {
     // 11a. If targetDesc is undefined, return undefined.
     if (!found.FromJust()) return Just(false);
     // 11b. If targetDesc.[[Configurable]] is false, throw a TypeError
@@ -3793,7 +3792,7 @@ Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
   DirectHandle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
                              Object::GetMethod(isolate, handler, trap_name));
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
 
@@ -3836,7 +3835,7 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
   DirectHandle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
                              Object::GetMethod(isolate, handler, trap_name));
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     return JSReceiver::IsExtensible(isolate, target);
   }
 
@@ -4191,7 +4190,7 @@ Handle<JSAny> AccessorPair::GetComponent(
     accessor_pair->set(component, *function, kReleaseStore);
     return function;
   }
-  if (IsNull(*accessor, isolate)) {
+  if (IsNull(*accessor)) {
     return isolate->factory()->undefined_value();
   }
   return Cast<JSAny>(accessor);
@@ -4217,7 +4216,7 @@ MaybeDirectHandle<String> Name::ToFunctionName(Isolate* isolate,
   if (IsString(*name)) return Cast<String>(name);
   // ES6 section 9.2.11 SetFunctionName, step 4.
   DirectHandle<Object> description(Cast<Symbol>(name)->description(), isolate);
-  if (IsUndefined(*description, isolate)) {
+  if (IsUndefined(*description)) {
     return isolate->factory()->empty_string();
   }
   IncrementalStringBuilder builder(isolate);
@@ -4510,7 +4509,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   STACK_CHECK(isolate, Nothing<bool>());
   DirectHandle<Name> trap_name = isolate->factory()->setPrototypeOf_string();
   // 1. Assert: Either Type(V) is Object or Type(V) is Null.
-  DCHECK(IsJSReceiver(*value) || IsNull(*value, isolate));
+  DCHECK(IsJSReceiver(*value) || IsNull(*value));
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   DirectHandle<Object> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
@@ -4528,7 +4527,7 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
-  if (IsUndefined(*trap, isolate)) {
+  if (IsUndefined(*trap)) {
     return JSReceiver::SetPrototype(isolate, target, value, from_javascript,
                                     should_throw);
   }
@@ -5870,7 +5869,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 
   // If the object does not have an identity hash, it was never used as a key.
   Tagged<Object> hash = Object::GetHash(*key);
-  if (IsUndefined(hash, roots)) {
+  if (IsUndefined(hash)) {
     return roots.the_hole_value();
   }
   return Lookup(key, Smi::ToInt(hash));
@@ -5905,7 +5904,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
     Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     DirectHandle<Object> value) {
   DCHECK(table->IsKey(ReadOnlyRoots(isolate), *key));
-  DCHECK(!IsTheHole(*value, ReadOnlyRoots(isolate)));
+  DCHECK(!IsTheHole(*value));
 
   // Make sure the key object has an identity hash code.
   int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
@@ -5946,7 +5945,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
     DirectHandle<Object> value, int32_t hash) {
   ReadOnlyRoots roots(isolate);
   DCHECK(table->IsKey(roots, *key));
-  DCHECK(!IsTheHole(*value, roots));
+  DCHECK(!IsTheHole(*value));
 
   InternalIndex entry = table->FindEntry(roots, key, hash);
 
@@ -6024,7 +6023,7 @@ std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
   DCHECK(this->IsKey(roots, *key));
 
   Tagged<Object> hash_obj = Object::GetHash(*key);
-  if (IsUndefined(hash_obj, roots)) {
+  if (IsUndefined(hash_obj)) {
     return {roots.the_hole_value(), roots.the_hole_value()};
   }
   int32_t hash = Smi::ToInt(hash_obj);
@@ -6219,7 +6218,7 @@ void JSDisposableStackBase::InitializeJSDisposableStackBase(
 }
 
 void PropertyCell::ClearAndInvalidate(Isolate* isolate) {
-  DCHECK(!IsPropertyCellHole(value(), isolate));
+  DCHECK(!IsPropertyCellHole(value()));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
   Transition(details, isolate->factory()->property_cell_hole_value());
@@ -6263,8 +6262,8 @@ static bool RemainsConstantType(Tagged<PropertyCell> cell,
 // static
 PropertyCellType PropertyCell::InitialType(Isolate* isolate,
                                            Tagged<Object> value) {
-  return IsUndefined(value, isolate) ? PropertyCellType::kUndefined
-                                     : PropertyCellType::kConstant;
+  return IsUndefined(value) ? PropertyCellType::kUndefined
+                            : PropertyCellType::kConstant;
 }
 
 // static
@@ -6423,7 +6422,7 @@ Tagged<AccessCheckInfo> AccessCheckInfo::Get(Isolate* isolate,
   if (IsFunctionTemplateInfo(maybe_constructor)) {
     Tagged<Object> data_obj =
         Cast<FunctionTemplateInfo>(maybe_constructor)->GetAccessCheckInfo();
-    if (IsUndefined(data_obj, isolate)) return {};
+    if (IsUndefined(data_obj)) return {};
     return Cast<AccessCheckInfo>(data_obj);
   }
   // Might happen for a detached context.
@@ -6434,7 +6433,7 @@ Tagged<AccessCheckInfo> AccessCheckInfo::Get(Isolate* isolate,
 
   Tagged<Object> data_obj =
       constructor->shared()->api_func_data()->GetAccessCheckInfo();
-  if (IsUndefined(data_obj, isolate)) return {};
+  if (IsUndefined(data_obj)) return {};
 
   return Cast<AccessCheckInfo>(data_obj);
 }

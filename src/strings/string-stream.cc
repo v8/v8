@@ -333,10 +333,9 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
 }
 
 void StringStream::PrintFixedArray(Tagged<FixedArray> array, uint32_t limit) {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (uint32_t i = 0; i < 10 && i < limit; i++) {
     Tagged<Object> element = array->get(i);
-    if (IsTheHole(element, roots)) continue;
+    if (IsTheHole(element)) continue;
     for (int len = 1; len < 18; len++) {
       Put(' ');
     }
@@ -424,7 +423,7 @@ void StringStream::PrintPrototype(Isolate* isolate, Tagged<JSFunction> fun,
                                   Tagged<Object> receiver) {
   Tagged<Object> name = fun->shared()->Name();
   bool print_name = false;
-  if (IsNullOrUndefined(receiver, isolate) || IsTheHole(receiver, isolate) ||
+  if (IsNullOrUndefined(receiver) || IsTheHole(receiver) ||
       IsJSProxy(receiver) || IsWasmObject(receiver)) {
     print_name = true;
   } else if (!isolate->context().is_null()) {
@@ -438,7 +437,7 @@ void StringStream::PrintPrototype(Isolate* isolate, Tagged<JSFunction> fun,
          !iter.IsAtEnd(); iter.Advance()) {
       if (!IsJSObject(iter.GetCurrent())) break;
       Tagged<Object> key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
-      if (!IsUndefined(key, isolate)) {
+      if (!IsUndefined(key)) {
         if (!IsString(name) || !IsString(key) ||
             !Cast<String>(name)->Equals(Cast<String>(key))) {
           print_name = true;

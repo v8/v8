@@ -1940,7 +1940,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
     // Serialization versions less than 11 encode the hole the same as
     // undefined. For consistency with previous behavior, store these as the
     // hole. Past version 11, undefined means undefined.
-    if (version_ < 11 && IsUndefined(*element, isolate_)) continue;
+    if (version_ < 11 && IsUndefined(*element)) continue;
 
     // Safety check.
     if (i >= elements_length) return MaybeDirectHandle<JSArray>();
@@ -2781,8 +2781,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
 }
 
 bool ValueDeserializer::HasObjectWithID(uint32_t id) {
-  return id < id_map_->ulength().value() &&
-         !IsTheHole(id_map_->get(id), isolate_);
+  return id < id_map_->ulength().value() && !IsTheHole(id_map_->get(id));
 }
 
 MaybeDirectHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
@@ -2790,7 +2789,7 @@ MaybeDirectHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
     return MaybeDirectHandle<JSReceiver>();
   }
   Tagged<Object> value = id_map_->get(id);
-  if (IsTheHole(value, isolate_)) return MaybeDirectHandle<JSReceiver>();
+  if (IsTheHole(value)) return MaybeDirectHandle<JSReceiver>();
   DCHECK(IsJSReceiver(value));
   return DirectHandle<JSReceiver>(Cast<JSReceiver>(value), isolate_);
 }

@@ -486,7 +486,7 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
   // shared prototype?
-  if (!IsResumableFunction(info->kind()) && IsTheHole(*prototype, isolate)) {
+  if (!IsResumableFunction(info->kind()) && IsTheHole(*prototype)) {
     prototype = factory->NewFunctionPrototype(result);
   }
   JSFunction::SetInitialMap(isolate, result, initial_map,
@@ -583,7 +583,7 @@ V8_NOINLINE void SetConstructorInstanceType(
   DCHECK_NE(map, *isolate->strict_function_with_readonly_prototype_map());
   // Constructor function map is always a root map, and thus we don't have to
   // deal with updating the whole transition tree.
-  DCHECK(IsUndefined(map->GetBackPointer(), isolate));
+  DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK_EQ(JS_FUNCTION_TYPE, map->instance_type());
 
   map->set_instance_type(constructor_type);
@@ -1384,7 +1384,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
         Cast<FunctionTemplateInfo>(data->constructor()), isolate());
     DirectHandle<Object> proto_template(
         global_constructor->GetPrototypeTemplate(), isolate());
-    if (!IsUndefined(*proto_template, isolate())) {
+    if (!IsUndefined(*proto_template)) {
       js_global_object_template = Cast<ObjectTemplateInfo>(proto_template);
     }
   }
@@ -1453,9 +1453,9 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Set the global proxy of the native context. If the native context has been
   // deserialized, the global proxy is already correctly set up by the
   // deserializer. Otherwise it's undefined.
-  DCHECK(IsUndefined(native_context()->GetNoCell(Context::GLOBAL_PROXY_INDEX),
-                     isolate()) ||
-         native_context()->global_proxy_object() == *global_proxy);
+  DCHECK(
+      IsUndefined(native_context()->GetNoCell(Context::GLOBAL_PROXY_INDEX)) ||
+      native_context()->global_proxy_object() == *global_proxy);
   native_context()->set_global_proxy_object(*global_proxy);
 
   return global_object;
@@ -6853,7 +6853,7 @@ bool Genesis::ConfigureGlobalObject(
     DirectHandle<FunctionTemplateInfo> proxy_constructor(
         Cast<FunctionTemplateInfo>(global_proxy_data->constructor()),
         isolate());
-    if (!IsUndefined(proxy_constructor->GetPrototypeTemplate(), isolate())) {
+    if (!IsUndefined(proxy_constructor->GetPrototypeTemplate())) {
       DirectHandle<ObjectTemplateInfo> global_object_data(
           Cast<ObjectTemplateInfo>(proxy_constructor->GetPrototypeTemplate()),
           isolate());
@@ -6967,7 +6967,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       DirectHandle<Object> value(cell->value(), isolate());
-      if (IsTheHole(*value, isolate())) continue;
+      if (IsTheHole(*value)) continue;
       PropertyDetails details = cell->property_details();
       if (details.kind() == PropertyKind::kData) {
         JSObject::AddProperty(isolate(), to, key, value, details.attributes());
@@ -6996,7 +6996,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
       // Set the property.
       DirectHandle<Object> value(properties->ValueAt(entry), isolate());
       DCHECK(!IsCell(*value));
-      DCHECK(!IsTheHole(*value, isolate()));
+      DCHECK(!IsTheHole(*value));
       PropertyDetails details = properties->DetailsAt(entry);
       DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
@@ -7020,7 +7020,7 @@ void Genesis::TransferNamedProperties(DirectHandle<JSObject> from,
       // Set the property.
       DirectHandle<Object> value(properties->ValueAt(key_index), isolate());
       DCHECK(!IsCell(*value));
-      DCHECK(!IsTheHole(*value, isolate()));
+      DCHECK(!IsTheHole(*value));
       PropertyDetails details = properties->DetailsAt(key_index);
       DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());

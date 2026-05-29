@@ -296,7 +296,7 @@ IrregexpInterpreter::Result HandleInterrupts(
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();
       }
-      if (IsExceptionHole(result, isolate)) {
+      if (IsExceptionHole(result)) {
         return IrregexpInterpreter::EXCEPTION;
       }
 

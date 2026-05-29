@@ -158,7 +158,7 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(
 
   Tagged<Object> hash = Object::GetHash(key);
   // If the object does not have an identity hash, it was never used as a key
-  if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
+  if (IsUndefined(hash)) return InternalIndex::NotFound();
   DCHECK(IsSmi(hash));
 
   // Walk the chain in the bucket to find the key.
@@ -299,7 +299,7 @@ HandleType<Derived>::MaybeType OrderedHashTable<Derived, entrysize>::Rehash(
   for (InternalIndex old_entry : table->IterateEntries()) {
     int old_entry_raw = old_entry.as_int();
     Tagged<Object> key = table->KeyAt(old_entry);
-    if (IsHashTableHole(key, isolate)) {
+    if (IsHashTableHole(key)) {
       table->SetRemovedIndexAt(removed_holes_index++, old_entry_raw);
       continue;
     }
@@ -435,7 +435,7 @@ Address OrderedHashMap::GetHash(Isolate* isolate, Address raw_key) {
   Tagged<Object> key(raw_key);
   Tagged<Object> hash = Object::GetHash(key);
   // If the object does not have an identity hash, it was never used as a key
-  if (IsUndefined(hash, isolate)) return Smi::FromInt(-1).ptr();
+  if (IsUndefined(hash)) return Smi::FromInt(-1).ptr();
   DCHECK(IsSmi(hash));
   DCHECK_GE(Cast<Smi>(hash).value(), 0);
   return hash.ptr();
@@ -947,7 +947,7 @@ Handle<Derived> SmallOrderedHashTableImpl<Derived>::Rehash(
     DisallowGarbageCollection no_gc;
     for (InternalIndex old_entry : table->IterateEntries()) {
       Tagged<Object> key = table->KeyAt(old_entry);
-      if (IsTheHole(key, isolate)) continue;
+      if (IsTheHole(key)) continue;
 
       int hash = Smi::ToInt(Object::GetHash(key));
       int bucket = new_table->HashToBucket(hash);
@@ -1033,7 +1033,7 @@ InternalIndex SmallOrderedHashTableImpl<Derived>::FindEntry(
   DisallowGarbageCollection no_gc;
   Tagged<Object> hash = Object::GetHash(key);
 
-  if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
+  if (IsUndefined(hash)) return InternalIndex::NotFound();
 
   // Walk the chain in the bucket to find the key.
   for (int raw_entry = HashToFirstEntry(Smi::ToInt(hash));
@@ -1167,7 +1167,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
     DirectHandle<Object> key(table->KeyAt(entry), isolate);
-    if (IsTheHole(*key, isolate)) continue;
+    if (IsTheHole(*key)) continue;
     DirectHandle<Object> value(
         table->GetDataEntry(entry.as_int(), SmallOrderedHashMap::kValueIndex),
         isolate);
@@ -1194,7 +1194,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSetHandler::AdjustRepresentation(
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
     DirectHandle<Object> key(table->KeyAt(entry), isolate);
-    if (IsTheHole(*key, isolate)) continue;
+    if (IsTheHole(*key)) continue;
     new_table_candidate = OrderedHashSet::Add(isolate, new_table, key);
     if (!new_table_candidate.ToHandle(&new_table)) {
       return new_table_candidate;
@@ -1219,7 +1219,7 @@ OrderedNameDictionaryHandler::AdjustRepresentation(
   // the proper capacity.
   for (InternalIndex entry : table->IterateEntries()) {
     DirectHandle<Name> key(Cast<Name>(table->KeyAt(entry)), isolate);
-    if (IsTheHole(*key, isolate)) continue;
+    if (IsTheHole(*key)) continue;
     DirectHandle<Object> value(table->ValueAt(entry), isolate);
     PropertyDetails details = table->DetailsAt(entry);
     new_table_candidate =
@@ -1488,7 +1488,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   int used_capacity = table->UsedCapacity();
 
   while (index < used_capacity &&
-         IsHashTableHole(table->KeyAt(InternalIndex(index)), ro_roots)) {
+         IsHashTableHole(table->KeyAt(InternalIndex(index)))) {
     index++;
   }
 

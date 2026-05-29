@@ -106,12 +106,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
         *isolate_->factory()->this_string());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     DirectHandle<Object> value(context->GetNoCell(slot_index), isolate_);
-    if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
+    if (IsTheHole(*value)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
   DirectHandle<Object> value = frame_inspector_->GetReceiver();
-  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
+  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value))) {
     return Utils::ToLocal(value);
   }
   return v8::MaybeLocal<v8::Value>();

@@ -85,7 +85,7 @@ bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
 
   // If there is no break point info object or no break points in the break
   // point info object there is no break point at this code offset.
-  if (IsUndefined(break_point_info, isolate)) return false;
+  if (IsUndefined(break_point_info)) return false;
   return Cast<BreakPointInfo>(break_point_info)->GetBreakPointCount(isolate) >
          0;
 }
@@ -96,7 +96,7 @@ Tagged<Object> DebugInfo::GetBreakPointInfo(Isolate* isolate,
   DCHECK(HasBreakInfo());
   const uint32_t break_points_len = break_points()->ulength().value();
   for (uint32_t i = 0; i < break_points_len; i++) {
-    if (!IsUndefined(break_points()->get(i), isolate)) {
+    if (!IsUndefined(break_points()->get(i))) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(break_points()->get(i));
       if (break_point_info->source_position() == source_position) {
@@ -114,7 +114,7 @@ bool DebugInfo::ClearBreakPoint(Isolate* isolate,
   const uint32_t break_points_len =
       debug_info->break_points()->ulength().value();
   for (uint32_t i = 0; i < break_points_len; i++) {
-    if (IsUndefined(debug_info->break_points()->get(i), isolate)) continue;
+    if (IsUndefined(debug_info->break_points()->get(i))) continue;
     DirectHandle<BreakPointInfo> break_point_info(
         Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
     if (BreakPointInfo::HasBreakPoint(isolate, break_point_info, break_point)) {
@@ -132,7 +132,7 @@ void DebugInfo::SetBreakPoint(Isolate* isolate,
   DCHECK(debug_info->HasBreakInfo());
   DirectHandle<Object> break_point_info(
       debug_info->GetBreakPointInfo(isolate, source_position), isolate);
-  if (!IsUndefined(*break_point_info, isolate)) {
+  if (!IsUndefined(*break_point_info)) {
     BreakPointInfo::SetBreakPoint(
         isolate, Cast<BreakPointInfo>(break_point_info), break_point);
     return;
@@ -144,7 +144,7 @@ void DebugInfo::SetBreakPoint(Isolate* isolate,
   const uint32_t break_points_len =
       debug_info->break_points()->ulength().value();
   for (uint32_t i = 0; i < break_points_len; i++) {
-    if (IsUndefined(debug_info->break_points()->get(i), isolate)) {
+    if (IsUndefined(debug_info->break_points()->get(i))) {
       index = i;
       break;
     }
@@ -177,7 +177,7 @@ DirectHandle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
                                                int source_position) {
   DCHECK(HasBreakInfo());
   Tagged<Object> break_point_info = GetBreakPointInfo(isolate, source_position);
-  if (IsUndefined(break_point_info, isolate)) {
+  if (IsUndefined(break_point_info)) {
     return isolate->factory()->undefined_value();
   }
   return DirectHandle<Object>(
@@ -190,7 +190,7 @@ uint32_t DebugInfo::GetBreakPointCount(Isolate* isolate) {
   uint32_t count = 0;
   uint32_t break_points_len = break_points()->ulength().value();
   for (uint32_t i = 0; i < break_points_len; i++) {
-    if (!IsUndefined(break_points()->get(i), isolate)) {
+    if (!IsUndefined(break_points()->get(i))) {
       Tagged<BreakPointInfo> break_point_info =
           Cast<BreakPointInfo>(break_points()->get(i));
       count += break_point_info->GetBreakPointCount(isolate);
@@ -206,7 +206,7 @@ DirectHandle<Object> DebugInfo::FindBreakPointInfo(
   const uint32_t break_points_len =
       debug_info->break_points()->ulength().value();
   for (uint32_t i = 0; i < break_points_len; i++) {
-    if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
+    if (!IsUndefined(debug_info->break_points()->get(i))) {
       DirectHandle<BreakPointInfo> break_point_info(
           Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
       if (BreakPointInfo::HasBreakPoint(isolate, break_point_info,
@@ -252,7 +252,7 @@ void BreakPointInfo::ClearBreakPoint(
     Isolate* isolate, DirectHandle<BreakPointInfo> break_point_info,
     DirectHandle<BreakPoint> break_point) {
   // If there are no break points just ignore.
-  if (IsUndefined(break_point_info->break_points(), isolate)) return;
+  if (IsUndefined(break_point_info->break_points())) return;
   // If there is a single break point clear it if it is the same.
   if (!IsFixedArray(break_point_info->break_points())) {
     if (IsEqual(Cast<BreakPoint>(break_point_info->break_points()),
@@ -288,7 +288,7 @@ void BreakPointInfo::SetBreakPoint(
     Isolate* isolate, DirectHandle<BreakPointInfo> break_point_info,
     DirectHandle<BreakPoint> break_point) {
   // If there was no break point objects before just set it.
-  if (IsUndefined(break_point_info->break_points(), isolate)) {
+  if (IsUndefined(break_point_info->break_points())) {
     break_point_info->set_break_points(*break_point);
     return;
   }
@@ -325,7 +325,7 @@ bool BreakPointInfo::HasBreakPoint(
     Isolate* isolate, DirectHandle<BreakPointInfo> break_point_info,
     DirectHandle<BreakPoint> break_point) {
   // No break point.
-  if (IsUndefined(break_point_info->break_points(), isolate)) {
+  if (IsUndefined(break_point_info->break_points())) {
     return false;
   }
   // Single break point.
@@ -348,7 +348,7 @@ MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
     Isolate* isolate, DirectHandle<BreakPointInfo> break_point_info,
     int breakpoint_id) {
   // No break point.
-  if (IsUndefined(break_point_info->break_points(), isolate)) {
+  if (IsUndefined(break_point_info->break_points())) {
     return MaybeDirectHandle<BreakPoint>();
   }
   // Single break point.
@@ -376,7 +376,7 @@ MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
 // Get the number of break points.
 uint32_t BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   // No break point.
-  if (IsUndefined(break_points(), isolate)) return 0;
+  if (IsUndefined(break_points())) return 0;
   // Single break point.
   if (!IsFixedArray(break_points())) return 1;
   // Multiple break points.

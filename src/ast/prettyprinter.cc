@@ -649,13 +649,13 @@ void CallPrinter::PrintLiteral(DirectHandle<Object> value, bool quote) {
     if (quote) Print("\"");
     Print(Cast<String>(value));
     if (quote) Print("\"");
-  } else if (IsNull(*value, isolate_)) {
+  } else if (IsNull(*value)) {
     Print("null");
-  } else if (IsTrue(*value, isolate_)) {
+  } else if (IsTrue(*value)) {
     Print("true");
-  } else if (IsFalse(*value, isolate_)) {
+  } else if (IsFalse(*value)) {
     Print("false");
-  } else if (IsUndefined(*value, isolate_)) {
+  } else if (IsUndefined(*value)) {
     Print("undefined");
   } else if (IsNumber(*value)) {
     Print(isolate_->factory()->NumberToString(value));

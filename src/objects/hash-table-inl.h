@@ -175,7 +175,7 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Tagged<Object> k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
-  return !IsUndefined(k, roots) && !IsTheHole(k, roots);
+  return !IsUndefined(k) && !IsTheHole(k);
 }
 
 // static

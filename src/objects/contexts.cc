@@ -260,7 +260,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
     // 1. Check global objects, subjects of with, and extension objects.
     DCHECK_IMPLIES(context->IsEvalContext() && context->has_extension(),
-                   IsTheHole(context->extension(), isolate));
+                   IsTheHole(context->extension()));
     if ((IsNativeContext(*context) || context->IsWithContext() ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         context->has_extension() && !context->extension_receiver().is_null()) {
@@ -548,7 +548,7 @@ void Context::Set(DirectHandle<Context> context, int index,
     return;
   }
 
-  if (IsTheHole(*old_value, isolate)) {
+  if (IsTheHole(*old_value)) {
     // Setting the initial value.
     DirectHandle<ContextCell> cell =
         isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
@@ -561,7 +561,7 @@ void Context::Set(DirectHandle<Context> context, int index,
     return;
   }
 
-  if (IsUndefinedContextCell(*old_value, isolate)) {
+  if (IsUndefinedContextCell(*old_value)) {
     if (IsUndefined(*new_value)) return;
     if (IsTheHole(*new_value)) {
       // This can happened in let-variable in function contexts.
@@ -665,7 +665,7 @@ bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Isolate* isolate = Isolate::Current();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
-  if (!IsUndefined(*result, isolate)) return result;
+  if (!IsUndefined(*result)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
 }
@@ -673,7 +673,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
   Isolate* isolate = Isolate::Current();
   DirectHandle<Object> result(error_message_for_wasm_code_gen(), isolate);
-  if (!IsUndefined(*result, isolate)) return result;
+  if (!IsUndefined(*result)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Wasm code generation disallowed by embedder");
 }

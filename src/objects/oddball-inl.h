@@ -63,7 +63,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBoolean) {
 
 bool Boolean::ToBool(Isolate* isolate) const {
   DCHECK(IsBoolean(this));
-  return IsTrue(this, isolate);
+  return IsTrue(this);
 }
 
 }  // namespace internal

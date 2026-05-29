@@ -464,7 +464,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   DCHECK_EQ(array->ulength().value(), length);
   for (uint32_t i = 0; i < length; i++) {
     Tagged<Object> value = frame->GetParameter(i);
-    if (IsTheHole(value, isolate)) {
+    if (IsTheHole(value)) {
       // Generators currently use holes as dummy arguments when resuming.  We
       // must not leak those.
       DCHECK(IsResumableFunction(function->shared()->kind()));

@@ -273,7 +273,7 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
 
   if (ignore_return_value) return Just(InterceptorResult::kTrue);
 
-  bool result = IsTrue(*GetReturnValue<Boolean>(), isolate);
+  bool result = IsTrue(*GetReturnValue<Boolean>());
   return Just(result ? InterceptorResult::kTrue : InterceptorResult::kFalse);
 }
 
@@ -644,7 +644,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
   DirectHandle<Boolean> result = GetReturnValue<Boolean>();
-  return IsTrue(*result, isolate);
+  return IsTrue(*result);
 }
 
 #undef PREPARE_CALLBACK_INFO_ACCESSOR

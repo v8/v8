@@ -144,7 +144,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Tagged<Object> interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (IsExceptionHole(interrupt_object, isolate)) {
+  if (IsExceptionHole(interrupt_object)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
@@ -255,7 +255,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
         iter.Advance();
         prototype = PrototypeIterator::GetCurrent(iter);
       }
-      if (!IsNull(*prototype, isolate)) {
+      if (!IsNull(*prototype)) {
         result = ArrayList::Add(
             isolate, result,
             isolate->factory()->NewStringFromStaticChars("[[Prototype]]"),
@@ -404,7 +404,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(
           isolate->factory()->array_buffer_wasm_memory_symbol();
       DirectHandle<Object> memory_object =
           JSReceiver::GetDataProperty(isolate, js_array_buffer, memory_symbol);
-      if (!IsUndefined(*memory_object, isolate)) {
+      if (!IsUndefined(*memory_object)) {
         result = ArrayList::Add(isolate, result,
                                 isolate->factory()->NewStringFromAsciiChecked(
                                     "[[WebAssemblyMemory]]"),
@@ -521,7 +521,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   // Find the number of break points
   DirectHandle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
-  if (IsUndefined(*break_locations, isolate)) {
+  if (IsUndefined(*break_locations)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   // Return array as JS array
@@ -684,13 +684,13 @@ DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
   // additionally subtracting corresponding offsets.
 
   int32_t line = 0;
-  if (!IsNullOrUndefined(*opt_line, isolate)) {
+  if (!IsNullOrUndefined(*opt_line)) {
     CHECK(IsNumber(*opt_line));
     line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
   int32_t column = 0;
-  if (!IsNullOrUndefined(*opt_column, isolate)) {
+  if (!IsNullOrUndefined(*opt_column)) {
     CHECK(IsNumber(*opt_column));
     column = NumberToInt32(*opt_column);
     if (line == 0) column -= script->column_offset();

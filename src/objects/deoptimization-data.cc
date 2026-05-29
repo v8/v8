@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/deoptimizer/translated-state.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/casting.h"
 #include "src/objects/code.h"

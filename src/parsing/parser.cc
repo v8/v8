@@ -20,6 +20,7 @@
 #include "src/common/message-template.h"
 #include "src/common/scoped-modification.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -3611,7 +3612,7 @@ void Parser::HandleDebugMagicComments(IsolateT* isolate,
   // The API can provide a source map URL and the API should take precedence.
   // Let's make sure we do not override the API with the magic comment.
   if (!source_mapping_url.is_null() &&
-      IsUndefined(script->source_mapping_url(), isolate)) {
+      IsUndefined(script->source_mapping_url())) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 
