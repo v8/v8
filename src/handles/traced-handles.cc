@@ -349,7 +349,9 @@ void TracedHandles::ResetDeadNodes(
 
 void TracedHandles::ResetYoungDeadNodes(
     WeakSlotCallbackWithHeap should_reset_handle) {
-  for (auto* block : young_blocks_) {
+  // Manual iteration as the block may be deleted in `FreeNode()`.
+  for (auto it = young_blocks_.begin(); it != young_blocks_.end();) {
+    auto* block = *(it++);
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());

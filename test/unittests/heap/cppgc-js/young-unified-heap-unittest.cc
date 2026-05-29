@@ -370,6 +370,37 @@ TEST_F(YoungUnifiedHeapTest, GenerationalBarrierCppGCToV8ReferenceMove) {
   EXPECT_TRUE(local->IsObject());
 }
 
+TEST_F(YoungUnifiedHeapTest, Regress_513324065) {
+  // TracedNodeBlock::kMinCapacity is 256 on 64-bit, 1 on ASAN.
+  // With 1200 handles we'll have at least two blocks.
+  constexpr size_t kNumHandles = 1200;
+  std::vector<v8::TracedReference<v8::Object>> handles;
+  handles.reserve(kNumHandles);
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(v8_isolate());
+  TracedHandles* traced_handles = i_isolate->traced_handles();
+  size_t initial_used_nodes = traced_handles->used_node_count();
+
+  {
+    v8::HandleScope scope(v8_isolate());
+    for (size_t i = 0; i < kNumHandles; ++i) {
+      v8::Local<v8::Object> obj = v8::Object::New(v8_isolate());
+      handles.emplace_back(v8_isolate(), obj);
+    }
+  }
+
+  EXPECT_EQ(initial_used_nodes + kNumHandles,
+            traced_handles->used_node_count());
+
+  // Trigger a minor GC.
+  CollectYoungGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+
+  // We expect all handles to be reset because they were all unreachable.
+  size_t used_after_gc = traced_handles->used_node_count();
+
+  EXPECT_EQ(initial_used_nodes, used_after_gc);
+}
+
 }  // namespace internal
 }  // namespace v8
 
