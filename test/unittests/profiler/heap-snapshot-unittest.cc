@@ -554,4 +554,47 @@ TEST_F(HeapSnapshotTest, EphemeronHashTableEdges) {
       std::string_view(key_to_val_edge->name()).ends_with(expected_name));
 }
 
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
+using HeapSnapshotSharedHeapTest = TestJSSharedMemoryWithIsolate;
+
+TEST_F(HeapSnapshotSharedHeapTest, ClientIsolateSnapshot) {
+  IsolateWrapper isolate_wrapper(kNoCounters, false);
+  v8::Isolate* client_isolate = isolate_wrapper.isolate();
+  Isolate* i_client_isolate = reinterpret_cast<Isolate*>(client_isolate);
+  EXPECT_FALSE(i_client_isolate->is_shared_space_isolate());
+
+  v8::Isolate::Scope isolate_scope(client_isolate);
+  HandleScope handle_scope(i_client_isolate);
+  v8::Local<v8::Context> context = v8::Context::New(client_isolate);
+  v8::Context::Scope context_scope(context);
+
+  i_client_isolate->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+
+  HeapProfiler* heap_profiler = i_client_isolate->heap()->heap_profiler();
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(options);
+
+  ASSERT_NE(nullptr, snapshot);
+  EXPECT_GT(snapshot->entries().size(), 0u);
+}
+
+TEST_F(HeapSnapshotSharedHeapTest, MainIsolateSnapshot) {
+  EXPECT_TRUE(i_isolate()->is_shared_space_isolate());
+
+  HandleScope handle_scope(i_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+
+  i_isolate()->factory()->NewFixedArray(10, AllocationType::kSharedOld);
+
+  HeapProfiler* heap_profiler = i_isolate()->heap()->heap_profiler();
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(options);
+
+  ASSERT_NE(nullptr, snapshot);
+  EXPECT_GT(snapshot->entries().size(), 0u);
+}
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL &&
+        // !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
+
 }  // namespace v8::internal
