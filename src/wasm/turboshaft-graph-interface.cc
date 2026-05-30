@@ -9854,7 +9854,6 @@ class TurboshaftGraphBuildingInterface
 
   V<WordPtr> GetWideOpsStackBuffer() {
     DCHECK(kTurboshaftNeedsStackSlotForWideArithmetic);
-    DCHECK(wide_ops_stack_buffer_.has_value());
     return wide_ops_stack_buffer_.value();
   }
 
