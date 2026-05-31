@@ -1183,4 +1183,12 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/FallbackSymbol/per-realm': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
