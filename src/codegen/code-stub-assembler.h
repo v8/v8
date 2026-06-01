@@ -1030,12 +1030,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TrustedObject> LoadIndirectPointerFromObject(
       TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
-  // Determines whether the given indirect pointer handle is a trusted pointer
-  // handle or a code pointer handle.
-  TNode<BoolT> IsTrustedPointerHandle(TNode<IndirectPointerHandleT> handle);
-
-  // Retrieve the heap object referenced by the given indirect pointer handle,
-  // which can either be a trusted pointer handle or a code pointer handle.
+  // Retrieve the heap object referenced by the given indirect pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
@@ -1044,24 +1039,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TVariable<Uint16T>* type_out, Label* if_default,
       const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
       IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
-
-  // Retrieve the Code object referenced by the given trusted pointer handle.
-  TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
-
-  // Retrieve the heap object referenced by the given trusted pointer handle.
-  TNode<TrustedObject> ResolveTrustedPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
-
-  // Helper function to compute the offset into the code pointer table from a
-  // code pointer handle.
-  TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
-      TNode<IndirectPointerHandleT> handle);
-
-  // Load the value of Code pointer table corresponding to
-  // IsolateGroup::current()->code_pointer_table_.
-  // Only available when the sandbox is enabled.
-  TNode<RawPtrT> LoadCodePointerTableBase();
-
 #endif
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();

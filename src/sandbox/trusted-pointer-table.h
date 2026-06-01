@@ -20,6 +20,7 @@ namespace internal {
 
 class Counters;
 class Isolate;
+class ReadOnlyArtifacts;
 class TrustedPointerPublishingScope;
 
 /**
@@ -140,6 +141,10 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // The Spaces used by a TrustedPointerTable.
   using Space = ExternalEntityTable<TrustedPointerTableEntry,
                                     kTrustedPointerTableReservationSize>::Space;
+
+  // Initializes all slots in the RO space from pre-existing artifacts.
+  void SetUpFromReadOnlyArtifacts(Space* read_only_space,
+                                  const ReadOnlyArtifacts* artifacts);
 
   // Retrieves the content of the entry referenced by the given handle.
   //

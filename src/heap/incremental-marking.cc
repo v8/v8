@@ -422,7 +422,7 @@ void IncrementalMarking::StartPointerTableBlackAllocation() {
   heap()->cpp_heap_pointer_space()->set_allocate_black(true);
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
-  heap()->code_pointer_space()->set_allocate_black(true);
+
   heap()->trusted_pointer_space()->set_allocate_black(true);
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(true);
@@ -444,7 +444,7 @@ void IncrementalMarking::StopPointerTableBlackAllocation() {
   heap()->cpp_heap_pointer_space()->set_allocate_black(false);
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
-  heap()->code_pointer_space()->set_allocate_black(false);
+
   heap()->trusted_pointer_space()->set_allocate_black(false);
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(false);

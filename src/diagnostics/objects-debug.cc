@@ -48,6 +48,7 @@
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
@@ -1957,12 +1958,13 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   // If the object is in the read-only space, the self indirect pointer entry
   // must be in the read-only segment, and vice versa.
   if (tag == kCodeIndirectPointerTag) {
-    CodePointerTable::Space* space =
-        IsolateForSandbox(isolate).GetCodePointerTableSpaceFor(slot.address());
+    TrustedPointerTable::Space* space =
+        IsolateForSandbox(isolate).GetTrustedPointerTableSpaceFor(
+            kCodeIndirectPointerTag, slot.address());
     // During snapshot creation, the code pointer space of the read-only heap is
     // not marked as an internal read-only space.
-    bool is_space_read_only =
-        space == isolate->read_only_heap()->code_pointer_space();
+    const bool is_space_read_only =
+        space == isolate->heap()->read_only_trusted_pointer_space();
     CHECK_EQ(is_space_read_only, HeapLayout::InReadOnlySpace(this));
   } else {
     CHECK(!HeapLayout::InReadOnlySpace(this));

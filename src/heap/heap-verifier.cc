@@ -415,12 +415,13 @@ void HeapVerification::VerifyPointerTables() {
                                              heap()->cpp_heap_pointer_space());
   isolate()->trusted_pointer_table().Verify(isolate(),
                                             heap()->trusted_pointer_space());
+  isolate()->trusted_pointer_table().Verify(
+      isolate(), heap()->read_only_trusted_pointer_space());
   if (isolate()->has_shared_trusted_pointer_table()) {
     isolate()->shared_trusted_pointer_table().Verify(
         isolate(), isolate()->shared_trusted_pointer_space());
   }
-  IsolateGroup::current()->code_pointer_table()->Verify(
-      isolate(), heap()->code_pointer_space());
+
   isolate()->js_dispatch_table().Verify(isolate(),
                                         heap()->js_dispatch_table_space());
 }

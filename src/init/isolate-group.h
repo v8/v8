@@ -18,7 +18,6 @@
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/check.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
 #include "src/sandbox/js-dispatch-table.h"
@@ -296,8 +295,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   Sandbox* sandbox() { return sandbox_; }
 
-  CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
-
   BasePageTableEntry* metadata_pointer_table() {
     return metadata_pointer_table_;
   }
@@ -421,7 +418,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;
-  CodePointerTable code_pointer_table_;
   BasePageTableEntry metadata_pointer_table_
       [MemoryChunkConstants::kMetadataPointerTableSize]{};
 #ifdef V8_ENABLE_PARTITION_ALLOC

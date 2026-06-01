@@ -47,7 +47,6 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged.h"
 #include "src/runtime/runtime.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/allocation.h"
@@ -2328,9 +2327,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     isolate_data_.trusted_pointer_publishing_scope_ = scope;
   }
 
-  Address code_pointer_table_base_address() {
-    return isolate_data_.code_pointer_table_base_address_;
-  }
 #endif  // V8_ENABLE_SANDBOX
 
   JSDispatchTable& js_dispatch_table() {

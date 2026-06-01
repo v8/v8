@@ -854,6 +854,7 @@ void Code::ClearInstructionStartForSerialization(IsolateForSandbox isolate) {
       kNullCodePointerHandle);
 #endif  // V8_ENABLE_SANDBOX
   set_instruction_start(isolate, kNullAddress);
+  ExternalCodeField<Object>::Release_Store(this, Smi::zero());
 }
 
 void Code::UpdateInstructionStart(IsolateForSandbox isolate,

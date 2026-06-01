@@ -1774,7 +1774,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (TryEvacuateWithoutCopy(object)) return true;
     Tagged<HeapObject> target_object;
 
-
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       heap_->FatalProcessOutOfMemory(
           "MarkCompactCollector: young object promotion failed");
@@ -2384,7 +2383,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
                   "kDeadlineCheckInterval must be power of 2");
     // The below check is an optimized version of
     // `(objects_processed % kDeadlineCheckInterval) == 0`
-    if ((objects_processed & (kDeadlineCheckInterval -1)) == 0 &&
+    if ((objects_processed & (kDeadlineCheckInterval - 1)) == 0 &&
         ((v8::base::TimeTicks::Now() - start) > max_duration)) {
       break;
     }
@@ -3273,35 +3272,34 @@ void MarkCompactCollector::ClearNonLiveReferences() {
         JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
-        jdt
-            .Sweep(heap_->js_dispatch_table_space(),
-                   heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
-                     Tagged<Code> code = entry.GetCode();
-                     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                             heap_, marking_state_, code)) {
-                       // Baseline flushing: if the Code object is no longer
-                       // alive, it must have been flushed and so we replace it
-                       // with the CompileLazy builtin. Once we use leaptiering
-                       // on all platforms, we can probably simplify the other
-                       // code related to baseline flushing.
+        jdt.Sweep(heap_->js_dispatch_table_space(),
+                  heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
+                    Tagged<Code> code = entry.GetCode();
+                    if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
+                            heap_, marking_state_, code)) {
+                      // Baseline flushing: if the Code object is no longer
+                      // alive, it must have been flushed and so we replace it
+                      // with the CompileLazy builtin. Once we use leaptiering
+                      // on all platforms, we can probably simplify the other
+                      // code related to baseline flushing.
 
-                       // Currently, we can also see optimized code here. This
-                       // happens when a FeedbackCell for which no JSFunctions
-                       // remain references optimized code. However, in that
-                       // case we probably do want to delete the optimized code,
-                       // so that is working as intended. It does mean, however,
-                       // that we cannot DCHECK here that we only see baseline
-                       // code.
-                       DCHECK(code->kind() == CodeKind::FOR_TESTING_JS ||
-                              code->kind() == CodeKind::BASELINE ||
-                              code->kind() == CodeKind::MAGLEV ||
-                              code->kind() == CodeKind::TURBOFAN_JS ||
-                              code->is_interpreter_trampoline_builtin());
-                       entry.SetCodeAndEntrypointPointer(
-                           compile_lazy.ptr(),
-                           compile_lazy->instruction_start());
-                     }
-                   });
+                      // Currently, we can also see optimized code here. This
+                      // happens when a FeedbackCell for which no JSFunctions
+                      // remain references optimized code. However, in that
+                      // case we probably do want to delete the optimized code,
+                      // so that is working as intended. It does mean, however,
+                      // that we cannot DCHECK here that we only see baseline
+                      // code.
+                      DCHECK(code->kind() == CodeKind::FOR_TESTING_JS ||
+                             code->kind() == CodeKind::BASELINE ||
+                             code->kind() == CodeKind::MAGLEV ||
+                             code->kind() == CodeKind::TURBOFAN_JS ||
+                             code->is_interpreter_trampoline_builtin());
+                      entry.SetCodeAndEntrypointPointer(
+                          compile_lazy.ptr(),
+                          compile_lazy->instruction_start());
+                    }
+                  });
       })
       // MarkDependentCodeForDeoptimization updates dispatch table entries.
       .DependsOn(mark_dependent_code_for_deopt)
@@ -3462,17 +3460,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       .DependsOn(process_old_code_candidates_item)
       .Enqueue(parallel_clearing_job);
 
-  MakeParallelItem(
-      "SweepCodePointerTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_CLEAR_SWEEP_CODE_POINTER_TABLE, delegate);
-        IsolateGroup::current()->code_pointer_table()->Sweep(
-            heap_->code_pointer_space(), heap_->isolate()->counters());
-      })
-      // Flushing old SFIs modifies code pointer table.
-      .DependsOn(process_old_code_candidates_item)
-      .Enqueue(parallel_clearing_job);
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -3736,12 +3723,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Mark the new entry in the trusted pointer table as alive.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   TrustedPointerTable::Space* space = heap_->trusted_pointer_space();
-  IndirectPointerSlot self_indirect_pointer_slot =
-      Cast<ExposedTrustedObject>(uncompiled_data)
-          ->RawIndirectPointerField(
-              offsetof(ExposedTrustedObject, self_indirect_pointer_),
-              kUncompiledDataIndirectPointerTag);
-  table.Mark(space, self_indirect_pointer_slot.Relaxed_LoadHandle());
+  table.Mark(space, uncompiled_data->self_indirect_pointer_handle());
 #endif
 
   shared_info->set_uncompiled_data(uncompiled_data);
@@ -4847,9 +4829,8 @@ void Evacuator::Finalize() {
   heap_->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
   heap_->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
                                       new_to_old_page_visitor_.moved_bytes());
-  heap_->IncrementYoungSurvivorsCounter(
-      new_space_visitor_.promoted_size() +
-      new_to_old_page_visitor_.moved_bytes());
+  heap_->IncrementYoungSurvivorsCounter(new_space_visitor_.promoted_size() +
+                                        new_to_old_page_visitor_.moved_bytes());
 }
 
 class LiveObjectVisitor final : AllStatic {
@@ -6027,16 +6008,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         }
       });
 
-  CodePointerTable* const cpt = IsolateGroup::current()->code_pointer_table();
-  cpt->IterateActiveEntriesIn(
-      heap_->code_pointer_space(),
-      [&](CodePointerHandle handle, Address content) {
-        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
-        if (!relocated_object.is_null()) {
-          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
-          cpt->SetCodeObject(handle, relocated_object.address());
-        }
-      });
 #endif  // V8_ENABLE_SANDBOX
 
   JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();

@@ -4881,10 +4881,6 @@ void Isolate::CheckIsolateLayout() {
   static_assert(static_cast<int>(OFFSET_OF(
                     Isolate, isolate_data_.shared_trusted_pointer_table_)) ==
                 Internals::kIsolateSharedTrustedPointerTableAddressOffset);
-
-  static_assert(static_cast<int>(OFFSET_OF(
-                    Isolate, isolate_data_.code_pointer_table_base_address_)) ==
-                Internals::kIsolateCodePointerTableBaseAddressOffset);
 #endif
 
   static_assert(
@@ -5226,6 +5222,10 @@ void Isolate::Deinit() {
 
 #ifdef V8_ENABLE_SANDBOX
   trusted_pointer_table().TearDownSpace(heap()->trusted_pointer_space());
+  trusted_pointer_table().DetachSpaceFromReadOnlySegments(
+      heap()->read_only_trusted_pointer_space());
+  trusted_pointer_table().TearDownSpace(
+      heap()->read_only_trusted_pointer_space());
   trusted_pointer_table().TearDown();
   if (owns_shareable_data()) {
     shared_trusted_pointer_table().TearDownSpace(
@@ -5236,9 +5236,6 @@ void Isolate::Deinit() {
     delete shared_trusted_pointer_space_;
     shared_trusted_pointer_space_ = nullptr;
   }
-
-  IsolateGroup::current()->code_pointer_table()->TearDownSpace(
-      heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   js_dispatch_table().TearDownSpace(heap()->js_dispatch_table_space());
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
@@ -6237,6 +6234,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_ENABLE_SANDBOX
     trusted_pointer_table().Initialize();
+    trusted_pointer_table().InitializeSpace(
+        heap()->read_only_trusted_pointer_space());
+    trusted_pointer_table().AttachSpaceToReadOnlySegments(
+        heap()->read_only_trusted_pointer_space());
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   }
@@ -6323,8 +6324,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-  IsolateGroup::current()->code_pointer_table()->InitializeSpace(
-      heap()->code_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_trusted_pointer_table_ = new TrustedPointerTable();
     shared_trusted_pointer_space_ = new TrustedPointerTable::Space();

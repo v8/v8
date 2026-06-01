@@ -524,12 +524,8 @@ class IndirectPointerSlot
   // Retrieve the object referenced through the given trusted pointer handle
   // from the trusted pointer table.
   template <TagCheckStrictness allow_unpublished = kRequireExactMatch>
-  inline Tagged<Object> ResolveTrustedPointerHandle(
+  inline Tagged<Object> ResolveIndirectPointerHandle(
       IndirectPointerHandle handle, IsolateForSandbox isolate) const;
-  // Retrieve the Code object referenced through the given code pointer handle
-  // from the code pointer table.
-  inline Tagged<Object> ResolveCodePointerHandle(
-      IndirectPointerHandle handle) const;
 
   // The tag associated with this slot.
   IndirectPointerTagRange tag_range_;

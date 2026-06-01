@@ -428,8 +428,16 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
   ExternalPointerTable::UnsealReadOnlySegmentScope unseal_scope(
       &isolate()->external_pointer_table());
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+  TrustedPointerTable::UnsealReadOnlySegmentScope trusted_unseal_scope(
+      &isolate()->trusted_pointer_table());
+#endif  // V8_ENABLE_SANDBOX
   ObjectPostProcessor post_processor(isolate());
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+#ifdef V8_ENABLE_SANDBOX
+  std::vector<ReadOnlyArtifacts::TrustedPointerRegistryEntry>
+      trusted_pointer_entries;
+#endif  // V8_ENABLE_SANDBOX
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     const InstanceType instance_type = o->map()->instance_type();
     if (should_rehash()) {
@@ -443,8 +451,24 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
     }
 
     post_processor.PostProcessIfNeeded(o, instance_type);
+
+#ifdef V8_ENABLE_SANDBOX
+    if (IsExposedTrustedObject(o)) {
+      SharedFlag shared = SharedFlag(HeapLayout::InAnySharedSpace(o));
+      IndirectPointerTag tag =
+          IndirectPointerTagFromInstanceType(instance_type, shared);
+      Tagged<ExposedTrustedObject> exposed =
+          TrustedCast<ExposedTrustedObject>(o);
+      TrustedPointerHandle handle = exposed->self_indirect_pointer_handle();
+      trusted_pointer_entries.emplace_back(handle, exposed.ptr(), tag);
+    }
+#endif  // V8_ENABLE_SANDBOX
   }
   post_processor.Finalize();
+#ifdef V8_ENABLE_SANDBOX
+  isolate()->read_only_artifacts()->set_trusted_pointer_registry(
+      std::move(trusted_pointer_entries));
+#endif  // V8_ENABLE_SANDBOX
 }
 
 }  // namespace internal

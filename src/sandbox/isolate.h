@@ -5,7 +5,6 @@
 #ifndef V8_SANDBOX_ISOLATE_H_
 #define V8_SANDBOX_ISOLATE_H_
 
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/indirect-pointer-tag.h"
@@ -32,13 +31,10 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
       ExternalPointerTagRange tag_range, Address host);
 
-  inline CodePointerTable::Space* GetCodePointerTableSpaceFor(
-      Address owning_slot);
-
   inline TrustedPointerTable& GetTrustedPointerTableFor(
       IndirectPointerTagRange tag_range);
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
-      IndirectPointerTagRange tag_range);
+      IndirectPointerTagRange tag_range, Address host);
 
   inline JSDispatchTable& GetJSDispatchTable();
 

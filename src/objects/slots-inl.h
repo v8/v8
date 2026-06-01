@@ -16,7 +16,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/objects/tagged.h"
-#include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 #include "src/utils/memcopy.h"
@@ -419,19 +418,7 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
   // returns Smi::zero for kNullCodePointerHandle?
   if (!handle) return Smi::zero();
 
-  // Resolve the handle. The tag implies the pointer table to use.
-  if (tag_range_ == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    // In this case we have to rely on the handle marking to determine which
-    // pointer table to use.
-    if (tag_range_.Contains(kCodeIndirectPointerTag) &&
-        (handle & kCodePointerHandleMarker)) {
-      return ResolveCodePointerHandle(handle);
-    } else {
-      return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
-    }
-  }
+  return ResolveIndirectPointerHandle<allow_unpublished>(handle, isolate);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -439,7 +426,7 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
 
 #ifdef V8_ENABLE_SANDBOX
 template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
-Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
+Tagged<Object> IndirectPointerSlot::ResolveIndirectPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   const TrustedPointerTable& table =
@@ -448,14 +435,6 @@ Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     return Tagged<Object>(table.GetMaybeUnpublished(handle, tag_range_));
   }
   return Tagged<Object>(table.Get(handle, tag_range_));
-}
-
-Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
-    IndirectPointerHandle handle) const {
-  DCHECK_NE(handle, kNullIndirectPointerHandle);
-  Address addr =
-      IsolateGroup::current()->code_pointer_table()->GetCodeObject(handle);
-  return Tagged<Object>(addr);
 }
 #endif  // V8_ENABLE_SANDBOX
 

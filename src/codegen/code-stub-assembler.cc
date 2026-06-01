@@ -2014,11 +2014,7 @@ void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
     TVariable<Uint16T>* type_out, Label* if_default,
     const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
     IndirectPointerTagRange tag_range) {
-  *value_out = Select<TrustedObject>(
-      IsTrustedPointerHandle(handle),
-      [=, this] { return ResolveTrustedPointerHandle(handle, tag_range); },
-      [=, this] { return ResolveCodePointerHandle(handle); });
-
+  *value_out = ResolveIndirectPointerHandle(handle, tag_range);
   DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
 }
 #endif  // V8_ENABLE_SANDBOX
@@ -2118,41 +2114,7 @@ TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
   return ResolveIndirectPointerHandle(handle, tag_range);
 }
 
-TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
-    TNode<IndirectPointerHandleT> handle) {
-  return Word32Equal(Word32And(handle, Int32Constant(kCodePointerHandleMarker)),
-                     Int32Constant(0));
-}
-
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
-  // The tag implies which pointer table to use.
-  if (tag_range == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    // We don't currently support ranges that include the code pointer tag
-    // here. If we ever need that, we'd have to look at the handle to determine
-    // if it is a code pointer handle.
-    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
-    return ResolveTrustedPointerHandle(handle, tag_range);
-  }
-}
-
-TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
-    TNode<IndirectPointerHandleT> handle) {
-  TNode<RawPtrT> table = LoadCodePointerTableBase();
-  TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
-  offset = UintPtrAdd(offset,
-                      UintPtrConstant(kCodePointerTableEntryCodeObjectOffset));
-  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // The LSB is used as marking bit by the code pointer table, so here we have
-  // to set it using a bitwise OR as it may or may not be set.
-  value =
-      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return TrustedCast<Code>(BitcastWordToTagged(value), "from trusted table");
-}
-
-TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
@@ -2189,29 +2151,6 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
                                     "from trusted table");
 }
 
-TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
-    TNode<IndirectPointerHandleT> handle) {
-  TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kCodePointerHandleShift));
-  // We're using a 32-bit shift here to reduce code size, but for that we need
-  // to be sure that the offset will always fit into a 32-bit integer.
-  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
-  TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, Uint32Constant(kCodePointerTableEntrySizeLog2)));
-  return offset;
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  // Embed the code pointer table address into the code.
-  return ExternalConstant(
-      ExternalReference::code_pointer_table_base_address(isolate()));
-#else
-  // Embed the code pointer table address into the code.
-  return ExternalConstant(
-      ExternalReference::global_code_pointer_table_base_address());
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-}
 #endif  // V8_ENABLE_SANDBOX
 
 void CodeStubAssembler::SetSupportsDynamicParameterCount(

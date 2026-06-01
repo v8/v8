@@ -8,7 +8,7 @@
 #include "src/sandbox/trusted-pointer-table.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/sandbox/external-entity-table-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-scope.h"
 
@@ -219,7 +219,14 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
     // This CHECK is mostly just here to force tags to be taken out of the
     // IsTrustedSpaceMigrationInProgressForObjectsWithTag function once the
     // objects are fully migrated into trusted space.
-    DCHECK(Sandbox::current()->Contains(pointer));
+    return;
+  }
+
+  if (ReadOnlyHeap::Contains(pointer)) {
+    // Only Code and UncompiledData are allowed to reside in the Read-Only Heap
+    // and have entries in the Trusted Pointer Table.
+    CHECK(tag == kCodeIndirectPointerTag ||
+          tag == kUncompiledDataIndirectPointerTag);
     return;
   }
 

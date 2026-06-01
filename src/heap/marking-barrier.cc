@@ -81,7 +81,6 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // We don't need to record a slot here because the entries in the pointer
   // tables are not compacted and because the pointers stored in the table
   // entries are updated after compacting GC.
-  static_assert(!CodePointerTable::kSupportsCompaction);
   static_assert(!TrustedPointerTable::kSupportsCompaction);
 #else
   UNREACHABLE();

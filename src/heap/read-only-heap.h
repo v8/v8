@@ -13,7 +13,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/js-dispatch-table.h"
 
 namespace v8 {
@@ -79,10 +78,6 @@ class ReadOnlyHeap final {
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
-#ifdef V8_ENABLE_SANDBOX
-  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
-#endif  // V8_ENABLE_SANDBOX
-
   void InitializeIsolateRoots(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);
 
@@ -112,12 +107,6 @@ class ReadOnlyHeap final {
 #if V8_ENABLE_WEBASSEMBLY
   Address wasm_null_payload_ = kNullAddress;
 #endif
-
-#ifdef V8_ENABLE_SANDBOX
-  // The read-only heap has its own code pointer space. Entries in this space
-  // are never deallocated.
-  CodePointerTable::Space code_pointer_space_;
-#endif  // V8_ENABLE_SANDBOX
 
  private:
   friend ReadOnlyRoots GetReadOnlyRoots();

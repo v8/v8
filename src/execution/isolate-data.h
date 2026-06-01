@@ -14,7 +14,6 @@
 #include "src/heap/linear-allocation-area.h"
 #include "src/init/isolate-group.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -97,9 +96,7 @@ class IsolateData final {
         stack_guard_(isolate)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        trusted_cage_base_(group->GetTrustedPtrComprCageBase()),
-        code_pointer_table_base_address_(
-            group->code_pointer_table()->base_address())
+        trusted_cage_base_(group->GetTrustedPtrComprCageBase())
 #endif
   {
   }
@@ -402,8 +399,6 @@ class IsolateData final {
   TrustedPointerTable trusted_pointer_table_;
   TrustedPointerTable* shared_trusted_pointer_table_ = nullptr;
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope_ = nullptr;
-
-  const Address code_pointer_table_base_address_;
 #endif  // V8_ENABLE_SANDBOX
 
   JSDispatchTable js_dispatch_table_;

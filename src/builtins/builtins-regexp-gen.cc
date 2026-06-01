@@ -852,7 +852,9 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
         TrustedCast<IrRegExpData>(data, "type checked above");
 
 #ifdef V8_ENABLE_SANDBOX
-    TNode<Code> code = ResolveCodePointerHandle(var_code.value());
+    TNode<Code> code = TrustedCast<Code>(
+        ResolveIndirectPointerHandle(var_code.value(), kCodeIndirectPointerTag),
+        "from trusted table");
 #else
     TNode<Code> code = TrustedCast<Code>(var_code.value(), "no sandbox");
 #endif

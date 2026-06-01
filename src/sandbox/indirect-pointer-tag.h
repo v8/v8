@@ -143,8 +143,6 @@ constexpr IndirectPointerTagRange kAllSharedIndirectPointerTags(
     kFirstSharedTrustedPointerTag, kLastSharedTrustedPointerTag);
 constexpr IndirectPointerTagRange kAllPerIsolateIndirectPointerTags(
     kFirstPerIsolateTrustedPointerTag, kLastPerIsolateTrustedPointerTag);
-constexpr IndirectPointerTagRange kAllTrustedPointerTags(
-    kFirstSharedTrustedPointerTag, static_cast<IndirectPointerTag>(0x3f));
 constexpr IndirectPointerTagRange kAllIndirectPointerTags(
     kFirstSharedTrustedPointerTag, static_cast<IndirectPointerTag>(0x7f));
 constexpr IndirectPointerTagRange kAllIndirectPointerTagsIncludingUnpublished(
@@ -154,25 +152,18 @@ constexpr IndirectPointerTagRange kWasmFunctionDataIndirectPointerTagRange(
     kWasmExportedFunctionDataIndirectPointerTag,
     kWasmCapiFunctionDataIndirectPointerTag);
 
-// The kAllTrustedPointerTags contains all trusted pointer tags but not code.
-static_assert(kAllTrustedPointerTags.Contains(kAllSharedIndirectPointerTags));
-static_assert(
-    kAllTrustedPointerTags.Contains(kAllPerIsolateIndirectPointerTags));
-static_assert(!kAllTrustedPointerTags.Contains(kCodeIndirectPointerTag));
-
 // The kAllIndirectPointerTags contains all regular tags including the code tag.
-static_assert(kAllIndirectPointerTags.Contains(kAllTrustedPointerTags));
-static_assert(kAllIndirectPointerTags.Contains(kAllTrustedPointerTags));
+static_assert(kAllIndirectPointerTags.Contains(kAllSharedIndirectPointerTags));
+static_assert(
+    kAllIndirectPointerTags.Contains(kAllPerIsolateIndirectPointerTags));
 static_assert(kAllIndirectPointerTags.Contains(kCodeIndirectPointerTag));
 
 // None of the above must contain any special entries though.
 static_assert(
     !kAllIndirectPointerTags.Contains(kUnpublishedIndirectPointerTag));
-static_assert(!kAllTrustedPointerTags.Contains(kUnpublishedIndirectPointerTag));
 
-// Both ranges are expected to be fast.
+// The range is expected to be fast.
 static_assert(IsFastIndirectPointerTagRange(kAllIndirectPointerTags));
-static_assert(IsFastIndirectPointerTagRange(kAllTrustedPointerTags));
 
 // These are only included in kAllIndirectPointerTagsIncludingUnpublished.
 static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(

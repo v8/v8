@@ -14,6 +14,16 @@
 namespace v8 {
 namespace internal {
 
+void TrustedPointerTable::SetUpFromReadOnlyArtifacts(
+    Space* read_only_space, const ReadOnlyArtifacts* artifacts) {
+  UnsealReadOnlySegmentScope unseal_scope(this);
+  for (const auto& registry_entry : artifacts->trusted_pointer_registry()) {
+    TrustedPointerHandle handle = AllocateAndInitializeEntry(
+        read_only_space, registry_entry.value, registry_entry.tag, nullptr);
+    CHECK_EQ(handle, registry_entry.handle);
+  }
+}
+
 uint32_t TrustedPointerTable::Sweep(Space* space, Counters* counters) {
   uint32_t num_live_entries = GenericSweep(space);
   counters->trusted_pointers_count()->AddSample(num_live_entries);
@@ -24,7 +34,7 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
   IterateEntriesIn(space, [&](uint32_t index) {
     auto& entry = at(index);
     IndirectPointerTag tag = entry.GetTag();
-    if (tag == kIndirectPointerFreeEntryTag ||
+    if (tag == kIndirectPointerNullTag || tag == kIndirectPointerFreeEntryTag ||
         tag == kIndirectPointerZappedEntryTag ||
         tag == kUnpublishedIndirectPointerTag) {
       return;
@@ -32,8 +42,15 @@ void TrustedPointerTable::Verify(Isolate* isolate, Space* space) {
 
     Address pointer = entry.GetPointer(tag);
 
-    // 1. The pointer must point outside of the sandbox.
-    CHECK(OutsideSandbox(pointer));
+    // 1. The pointer must point outside of the sandbox or be write-protected in
+    // Read-Only space.
+    if (ReadOnlyHeap::Contains(pointer)) {
+      CHECK(tag == kCodeIndirectPointerTag ||
+            tag == kUncompiledDataIndirectPointerTag);
+    } else {
+      CHECK(OutsideSandbox(pointer) ||
+            IsTrustedSpaceMigrationInProgressForObjectsWithTag(tag));
+    }
 
     // 2. The object must be a valid HeapObject.
     Tagged<Object> obj_ptr(pointer);

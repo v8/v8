@@ -10,6 +10,7 @@
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
 #include "src/objects/trusted-pointer.h"
+#include "src/sandbox/code-entrypoint-tag.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

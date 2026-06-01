@@ -52,7 +52,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -828,7 +827,9 @@ class Heap final {
     return &trusted_pointer_space_;
   }
 
-  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+  TrustedPointerTable::Space* read_only_trusted_pointer_space() {
+    return &read_only_trusted_pointer_space_;
+  }
 
 #endif  // V8_ENABLE_SANDBOX
 
@@ -2186,9 +2187,8 @@ class Heap final {
 #ifdef V8_ENABLE_SANDBOX
   // Likewise, but for the trusted pointer table.
   TrustedPointerTable::Space trusted_pointer_space_;
+  TrustedPointerTable::Space read_only_trusted_pointer_space_;
 
-  // The space in the process-wide code pointer table managed by this heap.
-  CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
   // The spaces in the JSDispatchTable containing entries owned by objects

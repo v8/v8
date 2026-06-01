@@ -149,6 +149,10 @@ class ObjectPreProcessor final {
     // Clear disabled builtin flag to make snapshot state predictable.
     if (o->is_builtin()) {
       o->set_is_disabled_builtin(false);
+      // Builtins might have source position tables generated during compilation
+      // (e.g. RecordWriteSaveFP). Clear them for the snapshot as they are not
+      // needed and read-only space expects no source positions.
+      o->clear_source_position_table_and_bytecode_offset_table();
     }
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());

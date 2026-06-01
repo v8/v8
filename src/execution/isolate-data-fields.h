@@ -112,9 +112,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(SharedTrustedPointerTable, kSystemPointerSize,                           \
     shared_trusted_pointer_table)                                            \
   V(TrustedPointerPublishingScope, kSystemPointerSize,                       \
-    trusted_pointer_publishing_scope)                                        \
-  V(CodePointerTableBaseAddress, kSystemPointerSize,                         \
-    code_pointer_table_base_address)
+    trusted_pointer_publishing_scope)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX

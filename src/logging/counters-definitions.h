@@ -91,8 +91,6 @@ namespace internal {
   /* Counted after sweeping the table at the end of mark-compact GC. */        \
   HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
      kMaxExternalPointers, 101)                                                \
-  HR(code_pointers_count, V8.SandboxedCodePointersCount, 0, kMaxCodePointers,  \
-     101)                                                                      \
   HR(trusted_pointers_count, V8.SandboxedTrustedPointersCount, 0,              \
      kMaxTrustedPointers, 101)                                                 \
   HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \

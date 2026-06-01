@@ -18,7 +18,6 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/init/v8.h"
-#include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
@@ -133,7 +132,6 @@ IsolateGroup::~IsolateGroup() {
   }
 
 #ifdef V8_ENABLE_SANDBOX
-  code_pointer_table_.TearDown();
   trusted_range_.Free();
 #endif  // V8_ENABLE_SANDBOX
 
@@ -197,7 +195,6 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   trusted_pointer_compression_cage_ = &trusted_range_;
   sandbox_ = sandbox;
 
-  code_pointer_table()->Initialize();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
 

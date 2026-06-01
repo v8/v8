@@ -34,13 +34,6 @@ JSDispatchTable& IsolateForSandbox::GetJSDispatchTable() {
   return isolate_->js_dispatch_table();
 }
 
-CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
-    Address owning_slot) {
-  return ReadOnlyHeap::Contains(owning_slot)
-             ? isolate_->read_only_heap()->code_pointer_space()
-             : isolate_->heap()->code_pointer_space();
-}
-
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
     IndirectPointerTagRange tag_range) {
   return IsSharedTrustedPointerType(tag_range)
@@ -49,10 +42,17 @@ TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
 }
 
 TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
-    IndirectPointerTagRange tag_range) {
-  return IsSharedTrustedPointerType(tag_range)
-             ? isolate_->shared_trusted_pointer_space()
-             : isolate_->heap()->trusted_pointer_space();
+    IndirectPointerTagRange tag_range, Address host) {
+  if (V8_UNLIKELY(IsSharedTrustedPointerType(tag_range))) {
+    DCHECK(!ReadOnlyHeap::Contains(host));
+    return isolate_->shared_trusted_pointer_space();
+  }
+
+  if (V8_UNLIKELY(ReadOnlyHeap::Contains(host))) {
+    return isolate_->heap()->read_only_trusted_pointer_space();
+  }
+
+  return isolate_->heap()->trusted_pointer_space();
 }
 
 ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(

@@ -948,28 +948,6 @@ constexpr uint32_t kCodePointerHandleShift = 8;
 // A null handle always references an entry that contains nullptr.
 constexpr CodePointerHandle kNullCodePointerHandle = kNullIndirectPointerHandle;
 
-// It can sometimes be necessary to distinguish a code pointer handle from a
-// trusted pointer handle. A typical example would be a union trusted pointer
-// field that can refer to both Code objects and other trusted objects. To
-// support these use-cases, we use a simple marking scheme where some of the
-// low bits of a code pointer handle are set, while they will be unset on a
-// trusted pointer handle. This way, the correct table to resolve the handle
-// can be determined even in the absence of a type tag.
-constexpr uint32_t kCodePointerHandleMarker = 0x1;
-static_assert(kCodePointerHandleShift > 0);
-static_assert(kTrustedPointerHandleShift > 0);
-
-// The byte size of an entry in a code pointer table.
-constexpr int kCodePointerTableEntrySize = 8;
-constexpr int kCodePointerTableEntrySizeLog2 = 3;
-// The maximum number of entries in a code pointer table.
-constexpr size_t kMaxCodePointers =
-    kCodePointerTableReservationSize / kCodePointerTableEntrySize;
-static_assert(
-    (1 << (32 - kCodePointerHandleShift)) == kMaxCodePointers,
-    "kCodePointerTableReservationSize and kCodePointerHandleShift don't match");
-
-constexpr int kCodePointerTableEntryCodeObjectOffset = 0;
 
 // Constants that can be used to mark places that should be modified once
 // certain types of objects are moved out of the sandbox and into trusted space.
@@ -1129,10 +1107,8 @@ class Internals {
       kIsolateTrustedPointerTableOffset + kExternalEntityTableSize;
   static const int kIsolateTrustedPointerPublishingScopeOffset =
       kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
-  static const int kIsolateCodePointerTableBaseAddressOffset =
-      kIsolateTrustedPointerPublishingScopeOffset + kApiSystemPointerSize;
   static const int kIsolateJSDispatchTableOffset =
-      kIsolateCodePointerTableBaseAddressOffset + kApiSystemPointerSize;
+      kIsolateTrustedPointerPublishingScopeOffset + kApiSystemPointerSize;
 #else
   static const int kIsolateJSDispatchTableOffset =
       kIsolateCppHeapPointerTableOffset + kExternalEntityTableSize;

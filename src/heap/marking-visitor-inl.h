@@ -499,6 +499,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
 template <typename ConcreteVisitor>
 bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     Tagged<SharedFunctionInfo> sfi) const {
+  if (HeapLayout::InReadOnlySpace(sfi)) return false;
   if (IsFlushingDisabled(code_flush_mode_)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
@@ -970,23 +971,15 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
   // otherwise fail to mark the table entry as alive.
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
-  if (tag_range == kCodeIndirectPointerTag) {
-    CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
-    CodePointerTable::Space* space = this->heap_->code_pointer_space();
-    table->Mark(space, handle);
-  } else {
-    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
-    bool use_shared_table = IsSharedTrustedPointerType(tag_range);
-    DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
-    TrustedPointerTable* table = use_shared_table
-                                     ? this->shared_trusted_pointer_table_
-                                     : this->trusted_pointer_table_;
-    TrustedPointerTable::Space* space =
-        use_shared_table
-            ? this->heap_->isolate()->shared_trusted_pointer_space()
-            : this->heap_->trusted_pointer_space();
-    table->Mark(space, handle);
-  }
+  const bool use_shared_table = IsSharedTrustedPointerType(tag_range);
+  DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
+  TrustedPointerTable* table = use_shared_table
+                                   ? this->shared_trusted_pointer_table_
+                                   : this->trusted_pointer_table_;
+  TrustedPointerTable::Space* space =
+      use_shared_table ? this->heap_->isolate()->shared_trusted_pointer_space()
+                       : this->heap_->trusted_pointer_space();
+  table->Mark(space, handle);
 #else
   UNREACHABLE();
 #endif

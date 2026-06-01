@@ -92,7 +92,6 @@ bool TrustedPointerField::IsTrustedPointerFieldUnpublished(
       base::AsAtomic32::Acquire_Load(reinterpret_cast<IndirectPointerHandle*>(
           host->ptr() + offset - kHeapObjectTag));
   if (handle == kNullIndirectPointerHandle) return false;
-  if (handle & kCodePointerHandleMarker) return false;
   const TrustedPointerTable& table =
       isolate.GetTrustedPointerTableFor(tag_range);
   return table.IsUnpublished(handle);
@@ -206,7 +205,6 @@ bool TrustedPointerMember<T, kTagRange>::is_unpublished(
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = handle_.load(std::memory_order_acquire);
   if (handle == kNullIndirectPointerHandle) return false;
-  if (handle & kCodePointerHandleMarker) return false;
   const TrustedPointerTable& table =
       isolate.GetTrustedPointerTableFor(kTagRange);
   return table.IsUnpublished(handle);

@@ -22,6 +22,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/utils/allocation.h"
 
@@ -35,10 +36,6 @@ ReadOnlyHeap::~ReadOnlyHeap() {
                                           WasmNull::kPayloadSize);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
-#ifdef V8_ENABLE_SANDBOX
-  IsolateGroup::current()->code_pointer_table()->TearDownSpace(
-      &code_pointer_space_);
-#endif
 }
 
 // static
@@ -65,6 +62,10 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
       isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
           isolate->heap()->read_only_external_pointer_space(), artifacts);
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+      isolate->trusted_pointer_table().SetUpFromReadOnlyArtifacts(
+          isolate->heap()->read_only_trusted_pointer_space(), artifacts);
+#endif  // V8_ENABLE_SANDBOX
       artifacts->read_only_heap()->InitializeIsolateRoots(isolate);
     }
     artifacts->VerifyChecksum(read_only_snapshot_data, read_only_heap_created);
@@ -186,10 +187,7 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
 
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
     : read_only_space_(ro_space) {
-#ifdef V8_ENABLE_SANDBOX
-  IsolateGroup::current()->code_pointer_table()->InitializeSpace(
-      &code_pointer_space_);
-#endif  // V8_ENABLE_SANDBOX
+
 }
 
 // static
