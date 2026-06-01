@@ -3509,7 +3509,8 @@ void InstructionSelector::VisitNode(OpIndex node) {
           return VisitWord32AtomicLoad(node);
         } else if (load.result_rep == Rep::Word64()) {
           return VisitWord64AtomicLoad(node);
-        } else if (load.result_rep == Rep::Tagged()) {
+        } else if (load.result_rep == Rep::Tagged() ||
+                   load.result_rep == Rep::Compressed()) {
           return kTaggedSize == 4 ? VisitWord32AtomicLoad(node)
                                   : VisitWord64AtomicLoad(node);
         }
