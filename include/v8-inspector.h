@@ -178,7 +178,8 @@ class V8_EXPORT V8InspectorSession {
 
   // Dispatching protocol messages.
   static bool canDispatchMethod(StringView method);
-  virtual void dispatchProtocolMessage(StringView message) = 0;
+  virtual void dispatchProtocolMessage(StringView message,
+                                       StringView associated_data = {}) = 0;
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;

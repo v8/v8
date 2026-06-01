@@ -78,7 +78,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void releaseObjectGroup(const String16& objectGroup);
 
   // V8InspectorSession implementation.
-  void dispatchProtocolMessage(StringView message) override;
+  void dispatchProtocolMessage(StringView message,
+                               StringView associated_data) override;
   std::vector<uint8_t> state() override;
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> supportedDomains()
       override;
@@ -130,8 +131,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       int callId, std::unique_ptr<protocol::Serializable> message) override;
   void SendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
-  void FallThrough(int callId, v8_crdtp::span<uint8_t> method,
-                   v8_crdtp::span<uint8_t> message) override;
   void FlushProtocolNotifications() override;
 
   std::unique_ptr<StringBuffer> serializeForFrontend(

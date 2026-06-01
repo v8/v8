@@ -201,13 +201,6 @@ void V8InspectorSessionImpl::SendProtocolNotification(
   m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::FallThrough(int callId,
-                                         const v8_crdtp::span<uint8_t> method,
-                                         v8_crdtp::span<uint8_t> message) {
-  // There's no other layer to handle the command.
-  UNREACHABLE();
-}
-
 void V8InspectorSessionImpl::FlushProtocolNotifications() {
   m_channel->flushProtocolNotifications();
 }
@@ -364,7 +357,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
                               });
 }
 
-void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
+void V8InspectorSessionImpl::dispatchProtocolMessage(
+    StringView message, StringView associated_data) {
   KeepSessionAliveScope keepAlive(*this);
 
   using v8_crdtp::span;
@@ -387,7 +381,18 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
     }
     cbor = SpanFrom(converted_cbor);
   }
-  v8_crdtp::Dispatchable dispatchable(cbor);
+  std::string associated_data_copy;
+  std::string_view associated_data_view;
+  if (associated_data.is8Bit()) {
+    associated_data_view = std::string_view(
+        reinterpret_cast<const char*>(associated_data.characters8()),
+        associated_data.length());
+  } else {
+    associated_data_copy = toString16(associated_data).utf8();
+    associated_data_view = associated_data_copy;
+  }
+  v8_crdtp::Dispatchable dispatchable(cbor, associated_data_view,
+                                      v8_crdtp::FallthroughCallback());
   if (!dispatchable.ok()) {
     if (!dispatchable.HasCallId()) {
       m_channel->sendNotification(serializeForFrontend(
@@ -400,7 +405,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
     }
     return;
   }
-  m_dispatcher.Dispatch(dispatchable).Run();
+  m_dispatcher.Dispatch(dispatchable);
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
