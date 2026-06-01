@@ -234,6 +234,23 @@ struct normalize_type<FieldType> {
   using type = Union<Smi, Map>;
 };
 
+template <typename DerivedUnion, typename Base>
+struct are_all_subtype_of;
+
+template <typename... Ts, typename Base>
+struct are_all_subtype_of<Union<Ts...>, Base> {
+  static constexpr bool value = (is_subtype_helper<Ts, Base>() && ...);
+};
+
+template <typename Derived, typename BaseUnion>
+struct is_subtype_of_any;
+
+template <typename Derived, typename... Ts>
+struct is_subtype_of_any<Derived, Union<Ts...>> {
+  static constexpr bool value = v8::base::has_type_v<Derived, Ts...> ||
+                                (is_subtype_helper<Derived, Ts>() || ...);
+};
+
 template <typename D, typename B>
 consteval bool is_subtype_helper() {
   using std::is_base_of_v;
@@ -261,18 +278,10 @@ consteval bool is_subtype_helper() {
     return true;
   } else if constexpr (is_union_v<Derived>) {
     // If Derived is a union, ALL of its members must be a subtype of Base.
-    // Unpack it by passing it to a templated lambda.
-    return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
-      return (is_subtype_helper<Ts, Base>() && ...);
-    }(std::type_identity<Derived>{});
+    return are_all_subtype_of<Derived, Base>::value;
   } else if constexpr (is_union_v<Base>) {
     // If Base is a union, Derived must be a subtype of AT LEAST ONE member.
-    return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
-      if constexpr (v8::base::has_type_v<Derived, Ts...>) {
-        return true;
-      }
-      return (is_subtype_helper<Derived, Ts>() || ...);
-    }(std::type_identity<Base>{});
+    return is_subtype_of_any<Derived, Base>::value;
   } else if constexpr (is_same_v<Derived, Smi> || is_same_v<Base, Smi> ||
                        is_same_v<Derived, TaggedIndex> ||
                        is_same_v<Base, TaggedIndex>) {
