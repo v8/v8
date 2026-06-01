@@ -3995,34 +3995,31 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   return AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckInstanceType(ValueNode* object,
+                                                        NodeType target_type,
+                                                        InstanceType first,
+                                                        InstanceType last) {
   NodeType known_type;
   // Check for the empty type first so that we catch the case where
-  // GetType(object) is already empty.
-  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kJSFunction))) {
+  // GetType(object) is already empty or disjoint.
+  if (IsEmptyNodeType(IntersectType(GetType(object), target_type))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
   }
-  if (EnsureType(object, NodeType::kJSFunction, &known_type)) {
+  if (EnsureType(object, target_type, &known_type)) {
     return ReduceResult::Done();
   }
   return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
-                                       FIRST_JS_FUNCTION_TYPE,
-                                       LAST_JS_FUNCTION_TYPE);
+                                       first, last);
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
+  return BuildCheckInstanceType(object, NodeType::kJSFunction,
+                                FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
-  NodeType known_type;
-  // Check for the empty type first so that we catch the case where
-  // GetType(object) is already empty.
-  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kJSReceiver))) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
-  }
-  if (EnsureType(object, NodeType::kJSReceiver, &known_type)) {
-    return ReduceResult::Done();
-  }
-  return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
-                                       FIRST_JS_RECEIVER_TYPE,
-                                       LAST_JS_RECEIVER_TYPE);
+  return BuildCheckInstanceType(object, NodeType::kJSReceiver,
+                                FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
@@ -5489,9 +5486,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
       LoadHandler::DescriptorIndexBits::decode(handler.value());
 
   if (descriptor_index == LoadHandler::kArrayLengthFieldDescriptorIndex) {
-    RETURN_IF_ABORT(AddNewNode<CheckInstanceType>(
-        {lookup_start_object}, CheckType::kCheckHeapObject, JS_ARRAY_TYPE,
-        JS_ARRAY_TYPE));
+    RETURN_IF_ABORT(BuildCheckInstanceType(
+        lookup_start_object, NodeType::kJSArray, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
     return BuildLoadJSArrayLength(lookup_start_object, LoadType::kNumber);
   }
 
@@ -5509,9 +5505,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
   GET_VALUE_OR_ABORT(
       result, BuildLoadTaggedField(holder, kTaggedSize * offset_in_words));
   if (is_double) {
-    RETURN_IF_ABORT(
-        AddNewNode<CheckInstanceType>({result}, CheckType::kCheckHeapObject,
-                                      HEAP_NUMBER_TYPE, HEAP_NUMBER_TYPE));
+    RETURN_IF_ABORT(BuildCheckInstanceType(result, NodeType::kHeapNumber,
+                                           HEAP_NUMBER_TYPE, HEAP_NUMBER_TYPE));
     result = AddNewNodeNoInputConversion<LoadFloat64>(
         {result}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
@@ -9977,11 +9972,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
     return {};
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  if (!EnsureType(receiver, NodeType::kJSDataView)) {
-    RETURN_IF_ABORT(
-        AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                      JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  }
+  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
+                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {
@@ -10014,11 +10006,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     return {};
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  if (!EnsureType(receiver, NodeType::kJSDataView)) {
-    RETURN_IF_ABORT(
-        AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                      JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  }
+  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
+                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {
