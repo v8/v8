@@ -1484,8 +1484,10 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             DirectHandle<Smi> get_smi_handler = LoadHandler::LoadField(
                 isolate(), it.GetFieldIndex(), it.GetFieldDescriptorIndex());
             if (DirectHandle<JSFunction> trap; TryCast(trap_method, &trap)) {
-              return MaybeObjectHandle(LoadHandler::LoadProxyFast(
-                  isolate(), target_map, handler_map, get_smi_handler, trap));
+              if (!trap->shared()->is_class_constructor()) {
+                return MaybeObjectHandle(LoadHandler::LoadProxyFast(
+                    isolate(), target_map, handler_map, get_smi_handler, trap));
+              }
             }
           }
         }
