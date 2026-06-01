@@ -896,6 +896,12 @@
 
 
 ##############################################################################
+# http://crbug.com/518833307
+['system == windows and arch == x64 and variant == conservative_stack_scanning', {
+  'test-api/StreamingWithIsolateScriptCacheClearingRootSFI': [SKIP],
+}],
+
+##############################################################################
 ['sandbox_hardware_support', {
   # The liftoff-for-fuzzing configuration is currently incompatible with
   # sandbox hardware support. See https://crbug.com/431949927.
