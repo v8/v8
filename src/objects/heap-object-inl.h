@@ -55,6 +55,9 @@ SafeHeapObjectSize HeapObject::SafeSize() const {
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
+DEF_CAST_TRAITS(FixedArray)
+DEF_CAST_TRAITS(HeapNumber)
+
 }  // namespace internal
 }  // namespace v8
 

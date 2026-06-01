@@ -15,6 +15,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/heap/factory-inl.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {

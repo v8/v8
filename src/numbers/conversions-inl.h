@@ -11,17 +11,13 @@
 #include <float.h>   // Required for DBL_MAX and on Win32 for finite()
 #include <limits.h>  // Required for INT_MAX etc.
 #include <stdarg.h>
+
 #include <cmath>
-#include "src/common/globals.h"  // Required for V8_INFINITY
 
-// ----------------------------------------------------------------------------
-// Extra POSIX/ANSI functions for Win32/MSVC.
-
-#include "src/base/bits.h"
 #include "src/base/numbers/double.h"
-#include "src/base/platform/platform.h"
+#include "src/common/globals.h"  // Required for V8_INFINITY
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/smi-inl.h"
 
 namespace v8 {

@@ -141,6 +141,11 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
   return return_value;
 }
 
+Address* JSHeapBroker::AllocatePersistentHandle(Tagged<Object> object) {
+  DCHECK(PersistentHandlesScope::IsActive(isolate()));
+  return IndirectHandle<Object>(object, isolate()).location();
+}
+
 bool JSHeapBroker::StackHasOverflowed() const {
   DCHECK_IMPLIES(local_isolate_ == nullptr,
                  ThreadId::Current() == isolate_->thread_id());

@@ -305,8 +305,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       *find_result.entry =
           local_isolate()->heap()->NewPersistentHandle(object).location();
     } else {
-      DCHECK(PersistentHandlesScope::IsActive(isolate()));
-      *find_result.entry = IndirectHandle<T>(object, isolate()).location();
+      *find_result.entry = AllocatePersistentHandle(object);
     }
     return Handle<T>(*find_result.entry);
   }
@@ -437,6 +436,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     DCHECK_NOT_NULL(ph_);
     return std::move(ph_);
   }
+
+  Address* AllocatePersistentHandle(Tagged<Object> object);
 
   void set_canonical_handles(CanonicalHandlesMap* canonical_handles) {
     canonical_handles_ = canonical_handles;
