@@ -34,11 +34,6 @@
   /* V8 side owner: manoskouk */                                               \
   V(shared, "shared-everything threads", false)                                \
                                                                                \
-  /* Acq-Rel memory ordering from Shared-Everything Threads proposal. */       \
-  /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
-  /* V8 side owner: rezvan */                                                  \
-  V(acquire_release, "acquire_release memory ordering", false)                 \
-                                                                               \
   /* FP16 proposal. */                                                         \
   /* https://github.com/WebAssembly/half-precision */                          \
   /* V8 side owner: irezvov */                                                 \
@@ -88,6 +83,11 @@
   /* https://github.com/WebAssembly/wide-arithmetic */                         \
   /* V8 side owner: ryandiaz */                                                \
   V(wide_arithmetic, "wide arithmetic", false)                                 \
+                                                                               \
+  /* Acq-Rel memory ordering from Shared-Everything Threads proposal. */       \
+  /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
+  /* V8 side owner: rezvan */                                                  \
+  V(acquire_release, "acquire_release memory ordering", false)                 \
   // add pre-staged features right before this line
 
 // #############################################################################
