@@ -245,7 +245,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     DecodeLocals(pc_);
     if (failed()) {
       // TODO(jkummerow): Better error handling.
-      out << "Failed to decode locals";
+      out << "Failed to decode locals: " << error().message() << '\n';
       return;
     }
     auto [entries, length] = read_u32v<ValidationTag>(pc_);

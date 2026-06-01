@@ -236,7 +236,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   uint32_t locals_length = DecodeLocals(pc_);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
-    out << "Failed to decode locals\n";
+    out << "Failed to decode locals: " << error().message() << '\n';
     return;
   }
   for (uint32_t i = static_cast<uint32_t>(sig_->parameter_count());
