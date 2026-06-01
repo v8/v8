@@ -6925,6 +6925,21 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
+void MacroAssembler::SmiUntagUnsigned(Register dst, const MemOperand& src) {
+  ASM_CODE_COMMENT(this);
+  if (SmiValuesAre32Bits()) {
+    Lwu(dst, MemOperand(src.rm(), SmiWordOffset(src.offset())));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Lw(dst, src);
+    } else {
+      LoadWord(dst, src);
+    }
+    SmiUntagUnsigned(dst);
+  }
+}
+
 void MacroAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
 
 void MacroAssembler::SmiToInt32(Register dst, Register src) {
