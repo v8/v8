@@ -1689,6 +1689,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                                 Tagged<HeapObject> object,
                                 SafeHeapObjectSize size,
                                 Tagged<HeapObject>* target_object) {
+    // GCMole suppression: TryEvacuateObject runs inside GC compaction and
+    // cannot trigger re-entrant GC.
+    DisableGCMole no_gcmole;
 #if DEBUG
     DCHECK_LE(
         abort_evacuation_at_address_,
@@ -1806,6 +1809,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline AllocationSpace AllocateTargetObject(
       Tagged<HeapObject> old_object, int size,
       Tagged<HeapObject>* target_object) {
+    // GCMole suppression: AllocateTargetObject runs inside GC compaction and
+    // cannot trigger re-entrant GC.
+    DisableGCMole no_gcmole;
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(space_allocated_in, old_object->map());

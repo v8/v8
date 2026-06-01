@@ -1954,6 +1954,9 @@ bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
                                  SafeHeapObjectSize object_size,
                                  AllocationSpace space,
                                  OnSuccessCallback on_success) {
+  // GCMole suppression: TryMigrateObject runs inside Scavenger GC and
+  // cannot trigger re-entrant GC.
+  DisableGCMole no_gcmole;
   // We should never reach this path for large objects.
   DCHECK_LE(static_cast<size_t>(object_size.value()),
             MemoryChunkLayout::AllocatableMemoryInDataPage());

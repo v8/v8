@@ -56,6 +56,7 @@ bool g_tracing_enabled = false;
 bool g_dead_vars_analysis = false;
 bool g_verbose = false;
 bool g_print_gc_call_chain = false;
+static std::string g_output_dir = ".";
 
 #define TRACE(str)                   \
   do {                               \
@@ -155,6 +156,11 @@ static std::string GetFunctionQualifiedName(const clang::FunctionDecl* decl) {
   return decl->getQualifiedNameAsString();
 }
 
+static bool IsDerivedFrom(const clang::CXXRecordDecl* record,
+                          const clang::CXXRecordDecl* base) {
+  return record->getCanonicalDecl() == base->getCanonicalDecl() ||
+         record->isDerivedFrom(base);
+}
 
 static std::string EscapeJSONString(const std::string& s) {
   std::string out;
@@ -169,37 +175,44 @@ static std::string EscapeJSONString(const std::string& s) {
   return out;
 }
 
-static bool IsVirtualCall(clang::MangleContext* ctx,
-                          const clang::CallExpr* expr,
-                          const clang::CXXRecordDecl** receiver_record,
-                          const clang::CXXMethodDecl** method_decl,
-                          bool* is_this_call) {
+static bool IsVirtualOrVisitorCall(clang::MangleContext* ctx,
+                                   const clang::CallExpr* expr,
+                                   const clang::CXXRecordDecl** receiver_record,
+                                   const clang::CXXMethodDecl** method_decl,
+                                   bool* is_this_call) {
   if (const clang::CXXMemberCallExpr* memcall =
           llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(expr)) {
     const clang::CXXMethodDecl* method = memcall->getMethodDecl();
-    if (method && method->isVirtual()) {
-      if (const auto* member_expr =
-              llvm::dyn_cast<clang::MemberExpr>(memcall->getCallee())) {
-        if (member_expr->hasQualifier()) return false;
-      }
-      const clang::Expr* receiver =
-          memcall->getImplicitObjectArgument()->IgnoreParenImpCasts();
-      *is_this_call = llvm::isa<clang::CXXThisExpr>(receiver);
+    if (!method) return false;
 
-      clang::QualType receiver_type = receiver->getType();
-      if (receiver_type->isPointerType()) {
-        receiver_type = receiver_type->getPointeeType();
-      }
-      if (const clang::CXXRecordDecl* record =
-              receiver_type->getAsCXXRecordDecl()) {
-        if (InV8Namespace(record)) {
-          const clang::CXXRecordDecl* parent = method->getParent();
-          if (record->getCanonicalDecl() == parent->getCanonicalDecl() ||
-              record->isDerivedFrom(parent)) {
-            *receiver_record = record;
-            *method_decl = method;
-            return true;
+    const clang::Expr* receiver =
+        memcall->getImplicitObjectArgument()->IgnoreParenImpCasts();
+    *is_this_call = llvm::isa<clang::CXXThisExpr>(receiver);
+
+    clang::QualType receiver_type = receiver->getType();
+    if (receiver_type->isPointerType()) {
+      receiver_type = receiver_type->getPointeeType();
+    }
+    if (const clang::CXXRecordDecl* record =
+            receiver_type->getAsCXXRecordDecl()) {
+      if (InV8Namespace(record) && IsDerivedFrom(record, method->getParent())) {
+        // Case 1: It is a virtual method.
+        if (method->isVirtual()) {
+          if (const auto* member_expr =
+                  llvm::dyn_cast<clang::MemberExpr>(memcall->getCallee())) {
+            if (member_expr->hasQualifier()) return false;
           }
+          *receiver_record = record;
+          *method_decl = method;
+          return true;
+        }
+        // Case 2: It is the non-virtual ObjectVisitor::VisitRelocInfo.
+        if (method->getNameAsString() == "VisitRelocInfo" &&
+            method->getParent()->getQualifiedNameAsString() ==
+                "v8::internal::ObjectVisitor") {
+          *receiver_record = record;
+          *method_decl = method;
+          return true;
         }
       }
     }
@@ -334,8 +347,8 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
     const clang::CXXRecordDecl* receiver_record = nullptr;
     const clang::CXXMethodDecl* method_decl = nullptr;
     bool is_this_call = false;
-    if (IsVirtualCall(ctx_, expr, &receiver_record, &method_decl,
-                      &is_this_call)) {
+    if (IsVirtualOrVisitorCall(ctx_, expr, &receiver_record, &method_decl,
+                               &is_this_call)) {
       MangledName base_method_mangled;
       if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
         MangledName dummy_mangled;
@@ -669,10 +682,17 @@ static CalleesSet suspects_allowlist;
 
 static bool gc_causes_loaded = false;
 static std::map<MangledName, std::vector<MangledName>> gc_causes;
+static std::map<MangledName, std::string> demangled_names;
 
 static void LoadGCCauses() {
   if (gc_causes_loaded) return;
-  std::ifstream fin("gccauses");
+  std::ifstream fin;
+  if (g_output_dir != ".") {
+    fin.open(g_output_dir + "/gccauses");
+  }
+  if (!fin.is_open()) {
+    fin.open("gccauses");
+  }
   std::string mangled, function;
 
   if (!fin.is_open()) {
@@ -680,24 +700,28 @@ static void LoadGCCauses() {
     std::abort();
   }
 
-  while (!fin.eof()) {
-    std::getline(fin, mangled, ',');
-    std::getline(fin, function);
+  while (std::getline(fin, mangled, ',') && std::getline(fin, function)) {
     if (mangled.empty()) break;
     std::string parent = mangled;
+    demangled_names[parent] = function;
     // start,nested
-    std::getline(fin, mangled, ',');
+    if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+      std::cerr << "Error: Truncated gccauses database." << std::endl;
+      std::abort();
+    }
     assert(mangled.compare("start") == 0);
-    std::getline(fin, function);
     assert(function.compare("nested") == 0);
     while (true) {
-      std::getline(fin, mangled, ',');
-      std::getline(fin, function);
+      if (!std::getline(fin, mangled, ',') || !std::getline(fin, function)) {
+        std::cerr << "Error: Truncated nested gccauses database." << std::endl;
+        std::abort();
+      }
       if (mangled.compare("end") == 0) {
         assert(function.compare("nested") == 0);
         break;
       }
       gc_causes[parent].push_back(mangled);
+      demangled_names[mangled] = function;
     }
   }
   gc_causes_loaded = true;
@@ -1193,8 +1217,23 @@ class FunctionAnalyzer {
 
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
     Environment after_cond = env.ApplyEffect(VisitExpr(expr->getCond(), env));
-    return ExprEffect::Merge(VisitExpr(expr->getTrueExpr(), after_cond),
-                             VisitExpr(expr->getFalseExpr(), after_cond));
+
+    std::vector<GCScope> saved_scopes = scopes_;
+
+    ExprEffect true_effect = VisitExpr(expr->getTrueExpr(), after_cond);
+    std::vector<GCScope> true_scopes = scopes_;
+
+    scopes_ = saved_scopes;
+
+    ExprEffect false_effect = VisitExpr(expr->getFalseExpr(), after_cond);
+    std::vector<GCScope> false_scopes = scopes_;
+
+    assert(true_scopes.size() == false_scopes.size());
+    for (size_t i = 0; i < true_scopes.size(); ++i) {
+      scopes_[i] = MergeScopes(true_scopes[i], false_scopes[i]);
+    }
+
+    return ExprEffect::Merge(true_effect, false_effect);
   }
 
   DECL_VISIT_EXPR(ArraySubscriptExpr) {
@@ -1411,8 +1450,8 @@ class FunctionAnalyzer {
     const clang::CXXRecordDecl* receiver_record = nullptr;
     const clang::CXXMethodDecl* method_decl = nullptr;
     bool is_this_call = false;
-    if (IsVirtualCall(ctx_, call, &receiver_record, &method_decl,
-                      &is_this_call)) {
+    if (IsVirtualOrVisitorCall(ctx_, call, &receiver_record, &method_decl,
+                               &is_this_call)) {
       MangledName base_method_mangled;
       if (GetMangledName(ctx_, method_decl, &base_method_mangled)) {
         MangledName dummy_mangled;
@@ -1425,7 +1464,14 @@ class FunctionAnalyzer {
         }
 
         LoadGCSuspects();
-        if (gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
+        LoadSuspectsAllowList();
+        bool is_allowlisted = false;
+        if (suspects_allowlist.find(method_decl->getNameAsString()) !=
+            suspects_allowlist.end()) {
+          is_allowlisted = true;
+        }
+        if (!is_allowlisted &&
+            gc_suspects.find(dummy_mangled) != gc_suspects.end()) {
           out.setGC();
           scopes_.back().SetGCCauseLocation(
               clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
@@ -1611,7 +1657,7 @@ class FunctionAnalyzer {
          ++s) {
       out = VisitStmt(*s, out);
     }
-    scopes_.pop_back();
+    PopScope();
     return out;
   }
 
@@ -1621,7 +1667,7 @@ class FunctionAnalyzer {
     do {
       block.Loop(stmt->getCond(), stmt->getBody());
     } while (block.changed());
-    scopes_.pop_back();
+    PopScope();
     return block.out();
   }
 
@@ -1650,7 +1696,7 @@ class FunctionAnalyzer {
     do {
       block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
     } while (block.changed());
-    scopes_.pop_back();
+    PopScope();
     return block.out();
   }
 
@@ -1658,9 +1704,23 @@ class FunctionAnalyzer {
     scopes_.push_back(GCScope());
     Environment init_out = VisitStmt(stmt->getInit(), env);
     Environment cond_out = VisitStmt(stmt->getCond(), init_out);
+
+    std::vector<GCScope> saved_scopes = scopes_;
+
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
+    std::vector<GCScope> then_scopes = scopes_;
+
+    scopes_ = saved_scopes;
+
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
-    scopes_.pop_back();
+    std::vector<GCScope> else_scopes = scopes_;
+
+    assert(then_scopes.size() == else_scopes.size());
+    for (size_t i = 0; i < then_scopes.size(); ++i) {
+      scopes_[i] = MergeScopes(then_scopes[i], else_scopes[i]);
+    }
+
+    PopScope();
     return Environment::Merge(then_out, else_out);
   }
 
@@ -1668,7 +1728,7 @@ class FunctionAnalyzer {
     scopes_.push_back(GCScope());
     Block block(env, this);
     block.Sequential(stmt->getCond(), stmt->getBody());
-    scopes_.pop_back();
+    PopScope();
     return block.out();
   }
 
@@ -1889,7 +1949,7 @@ class FunctionAnalyzer {
       scopes_.push_back(GCScope());
       DefineAndVisitParameters(body, env);
       VisitStmt(body->getBody(), env);
-      scopes_.pop_back();
+      PopScope();
       Environment::ClearSymbolTable();
     }
   }
@@ -1928,6 +1988,76 @@ class FunctionAnalyzer {
     return record->getCanonicalDecl() == decl->getCanonicalDecl();
   }
 
+  void PrintGCCauseTree(const std::string& mangled,
+                        std::set<std::string>& visited, int depth = 0,
+                        bool is_caller_virtual = false) {
+    if (depth > 12) return;
+    std::string indent = "";
+    for (int i = 0; i < depth; ++i) indent += "    ";
+
+    auto name_it = demangled_names.find(mangled);
+    std::string disp_name =
+        (name_it != demangled_names.end()) ? name_it->second : mangled;
+
+    size_t pos = disp_name.find("v8::internal::");
+    if (pos != std::string::npos) {
+      disp_name.replace(pos, 14, "");
+    }
+
+    // Strip ugly anonymous namespace TU suffixes (like $_usr_local_...)
+    size_t tu_pos = disp_name.rfind("$_");
+    if (tu_pos != std::string::npos) {
+      size_t end_pos = disp_name.find("::", tu_pos);
+      if (end_pos != std::string::npos) {
+        if (end_pos - tu_pos > 10) {
+          disp_name.erase(tu_pos, end_pos - tu_pos);
+        }
+      } else {
+        if (disp_name.length() - tu_pos > 10) {
+          disp_name.erase(tu_pos);
+        }
+      }
+    }
+
+    // Construct semantic prefixes
+    std::string prefix = "";
+    bool is_virtual = (mangled.compare(0, 8, "VIRTUAL-") == 0) ||
+                      (mangled.compare(0, 12, "VIRTUALTHIS-") == 0);
+    if (is_virtual) {
+      prefix = "(virtual) ";
+    } else if ((mangled.compare(0, 10, "SYNTHOVER-") == 0) ||
+               is_caller_virtual) {
+      prefix = "(override) ";
+    }
+
+    disp_name = prefix + disp_name;
+
+    if (visited.find(mangled) != visited.end()) {
+      std::cout << "note: " << indent << "└── " << disp_name
+                << " [Recursion Cycle]\n";
+      return;
+    }
+
+    std::cout << "note: " << indent << "└── " << disp_name << "\n";
+
+    auto it = gc_causes.find(mangled);
+    if (it == gc_causes.end() || it->second.empty()) {
+      if (mangled == "<GC>") {
+        std::cout << "note: " << indent
+                  << "    └── <GC> [Heap Allocation / Collect Garbage]\n";
+      } else if (mangled == "<Safepoint>") {
+        std::cout << "note: " << indent << "    └── <Safepoint>\n";
+      }
+      return;
+    }
+
+    visited.insert(mangled);
+    for (const auto& callee : it->second) {
+      PrintGCCauseTree(callee, visited, depth + 1, is_virtual);
+    }
+    visited.erase(mangled);  // backtrack
+  }
+
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     clang::SourceLocation error_loc =
         clang::FullSourceLoc(expr->getExprLoc(), sm_);
@@ -1936,9 +2066,9 @@ class FunctionAnalyzer {
         << msg;
     // Find the relevant GC scope (see HasActiveGuard).
     const GCScope* pscope = nullptr;
-    for (const auto& s : scopes_) {
-      if (!s.IsBeforeGCCause() && s.gccause_location.isValid()) {
-        pscope = &s;
+    for (auto ri = scopes_.rbegin(); ri != scopes_.rend(); ++ri) {
+      if (!ri->IsBeforeGCCause() && ri->gccause_location.isValid()) {
+        pscope = &(*ri);
         break;
       }
     }
@@ -1958,24 +2088,12 @@ class FunctionAnalyzer {
         d_.getCustomDiagID(clang::DiagnosticsEngine::Note, "GC call here."));
 
     if (!g_print_gc_call_chain) return;
-    // TODO(cbruni, v8::10009): print call-chain to gc with proper source
-    // positions.
     LoadGCCauses();
     MangledName name;
     if (!GetMangledName(ctx_, gccause_decl, &name)) return;
     std::cout << "Potential GC call chain:\n";
-    std::set<MangledName> stack;
-    while (true) {
-      if (!stack.insert(name).second) break;
-      std::cout << "\t" << name << "\n";
-      auto next = gc_causes.find(name);
-      if (next == gc_causes.end()) break;
-      std::vector<MangledName> calls = next->second;
-      for (MangledName call : calls) {
-        name = call;
-        if (stack.find(call) != stack.end()) break;
-      }
-    }
+    std::set<std::string> visited;
+    PrintGCCauseTree(name, visited);
   }
 
   clang::MangleContext* ctx_;
@@ -2018,15 +2136,42 @@ class FunctionAnalyzer {
           decl_location);
     }
 
-    // After we set the first GC cause in the scope, we don't need the later
-    // ones.
     void SetGCCauseLocation(clang::FullSourceLoc gccause_location_,
                             clang::FunctionDecl* decl) {
-      if (gccause_location.isValid()) return;
       gccause_location = gccause_location_;
       gccause_decl = decl;
     }
   };
+
+  GCScope MergeScopes(const GCScope& a, const GCScope& b) {
+    GCScope merged = a;
+    if (a.gccause_location.isValid() && b.gccause_location.isValid()) {
+      if (a.gccause_location.isBeforeInTranslationUnitThan(b.gccause_location)) {
+        merged.gccause_location = b.gccause_location;
+        merged.gccause_decl = b.gccause_decl;
+      } else {
+        merged.gccause_location = a.gccause_location;
+        merged.gccause_decl = a.gccause_decl;
+      }
+    } else if (b.gccause_location.isValid()) {
+      merged.gccause_location = b.gccause_location;
+      merged.gccause_decl = b.gccause_decl;
+    }
+    return merged;
+  }
+
+  void PopScope() {
+    if (scopes_.size() > 1) {
+      GCScope& inner = scopes_.back();
+      GCScope& outer = scopes_[scopes_.size() - 2];
+      if (inner.gccause_location.isValid()) {
+        outer.gccause_location = inner.gccause_location;
+        outer.gccause_decl = inner.gccause_decl;
+      }
+    }
+    scopes_.pop_back();
+  }
+
   std::vector<GCScope> scopes_;
 };
 
@@ -2037,11 +2182,15 @@ class ProblemsFinder : public clang::ASTConsumer,
                  const std::vector<std::string>& args)
       : d_(d), sm_(sm), function_analyzer_(nullptr) {
     for (unsigned i = 0; i < args.size(); ++i) {
+      if (args[i].compare(0, 11, "output-dir:") == 0) {
+        g_output_dir = args[i].substr(11);
+      }
       if (args[i] == "--dead-vars") {
         g_dead_vars_analysis = true;
       }
       if (args[i] == "--verbose-trace") g_tracing_enabled = true;
       if (args[i] == "--verbose") g_verbose = true;
+      if (args[i] == "--print-gc-call-chain") g_print_gc_call_chain = true;
     }
   }
 

@@ -601,13 +601,14 @@ class MockPlatform final : public TestPlatform {
   }
 
   int posted_count() { return mock_task_runner_->posted_count(); }
+  void ClearTasks() { mock_task_runner_->ClearTasks(); }
 
  private:
   class MockTaskRunner : public v8::TaskRunner {
    public:
     void PostTaskImpl(std::unique_ptr<v8::Task> task,
                       const SourceLocation&) override {
-      task->Run();
+      tasks_.push_back(std::move(task));
       posted_count_++;
     }
 
@@ -630,11 +631,16 @@ class MockPlatform final : public TestPlatform {
     bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     int posted_count() { return posted_count_; }
+    void ClearTasks() {
+      tasks_.clear();
+      task_.reset();
+    }
 
    private:
     int posted_count_ = 0;
     double delay_ = -1;
     std::unique_ptr<Task> task_;
+    std::vector<std::unique_ptr<v8::Task>> tasks_;
   };
 
   std::shared_ptr<MockTaskRunner> mock_task_runner_;
@@ -696,6 +702,7 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
 
   // Teardown
   profiles.StopProfiling(id);
+  platform.ClearTasks();
 }
 
 TEST(NoSamples) {
