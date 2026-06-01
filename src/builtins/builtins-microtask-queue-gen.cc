@@ -323,8 +323,20 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtin::kPromiseResolveThenableJob, microtask_context,
-                  promise_to_resolve, thenable, then);
+      Label if_slow(this, Label::kDeferred), call_after_hooks(this);
+
+      PromiseResolveThenableJobFast(microtask_context, CAST(promise_to_resolve),
+                                    CAST(thenable), CAST(then), &if_slow);
+      Goto(&call_after_hooks);
+
+      BIND(&if_slow);
+      {
+        CallBuiltin(Builtin::kPromiseResolveThenableJob, microtask_context,
+                    promise_to_resolve, thenable, then);
+        Goto(&call_after_hooks);
+      }
+
+      BIND(&call_after_hooks);
     }
 
     RunAllPromiseHooks(PromiseHookType::kAfter, microtask_context,
@@ -372,8 +384,20 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtin::kPromiseFulfillReactionJob, microtask_context,
-                  argument, job_handler, promise_or_capability);
+      Label if_slow(this, Label::kDeferred), call_after_hooks(this);
+      PromiseFulfillReactionJobInline(microtask_context, CAST(argument),
+                                      CAST(job_handler), promise_or_capability,
+                                      &if_slow);
+      Goto(&call_after_hooks);
+
+      BIND(&if_slow);
+      {
+        CallBuiltin(Builtin::kPromiseFulfillReactionJob, microtask_context,
+                    argument, job_handler, promise_or_capability);
+        Goto(&call_after_hooks);
+      }
+
+      BIND(&call_after_hooks);
     }
 
     // Run the promise after/debug hook if enabled.
@@ -422,8 +446,20 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtin::kPromiseRejectReactionJob, microtask_context,
-                  argument, job_handler, promise_or_capability);
+      Label if_slow(this, Label::kDeferred), call_after_hooks(this);
+      PromiseRejectReactionJobInline(microtask_context, CAST(argument),
+                                     CAST(job_handler), promise_or_capability,
+                                     &if_slow);
+      Goto(&call_after_hooks);
+
+      BIND(&if_slow);
+      {
+        CallBuiltin(Builtin::kPromiseRejectReactionJob, microtask_context,
+                    argument, job_handler, promise_or_capability);
+        Goto(&call_after_hooks);
+      }
+
+      BIND(&call_after_hooks);
     }
 
     // Run the promise after/debug hook if enabled.
