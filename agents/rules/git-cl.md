@@ -48,8 +48,7 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
     create or modify.
   - **Always Test Before Upload**: Always run tests (at least in release mode)
-    before uploading, unless conditional testing (e.g., via `gm.py` or
-    `check_and_test.sh`) indicates that it is unnecessary.
+    before uploading.
   - **ALWAYS keep CLs separate**: If you are working on more than one task at
     the same time always use `agents/scripts/create_worktree.sh <task_id>` to
     create an isolated workspace for each independent task or CL. Worktrees are
