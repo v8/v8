@@ -3735,7 +3735,7 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 DEFINE_DEVELOPER_FLAG(trace_minor_ms_parallel_marking,
                       "trace parallel marking for the young generation")
-DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
+DEFINE_EXPERIMENTAL_FEATURE(minor_ms, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
 DEFINE_BOOL(concurrent_minor_ms_marking, true,
