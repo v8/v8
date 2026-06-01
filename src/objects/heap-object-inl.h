@@ -39,10 +39,17 @@ SafeHeapObjectSize HeapObject::SafeSize() const {
   return SafeSizeFromMap(map());
 }
 
-#define TYPE_CHECKER(type, ...)                                          \
-  bool Is##type(Tagged<HeapObject> obj) {                                \
-    Tagged<Map> map_object = obj->map();                                 \
-    return InstanceTypeChecker::Is##type(map_object);                    \
+#define TYPE_CHECKER(type, ...)                           \
+  inline bool Is##type(Tagged<HeapObject> obj) {          \
+    Tagged<Map> map_object = obj->map();                  \
+    return InstanceTypeChecker::Is##type(map_object);     \
+  }                                                       \
+  inline bool Is##type(const HeapObject* obj) {           \
+    return Is##type(Tagged<HeapObject>(obj));             \
+  }                                                       \
+  inline bool Is##type(Tagged<Object> obj) {              \
+    Tagged<HeapObject> ho;                                \
+    return TryCast<HeapObject>(obj, &ho) && Is##type(ho); \
   }
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)

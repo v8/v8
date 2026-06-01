@@ -74,6 +74,11 @@ inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
 }
 }  // namespace detail
 
+bool IsAnyHole(Tagged<Object> obj) {
+  Tagged<HeapObject> ho;
+  return TryCast<HeapObject>(obj, &ho) && IsAnyHole(ho);
+}
+
 bool IsAnyHole(Tagged<HeapObject> obj) {
   if (detail::IsAnyHoleNoSpaceCheck(obj)) {
 #if V8_STATIC_ROOTS_BOOL

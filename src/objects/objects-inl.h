@@ -95,29 +95,286 @@ int PropertyDetails::field_width_in_words() const {
   return 1;
 }
 
+// TODO(jkummerow): Most DEF_CAST_TRAITS(Foo) macro invocations should move to
+// wherever `IsFoo(Tagged<HeapObject>)` is defined.
 // TODO(leszeks): Expand Is<T> to all types.
-#define IS_HELPER_DEF(Type, ...)                             \
-  template <>                                                \
-  struct CastTraits<Type> {                                  \
-    static inline bool AllowFrom(Tagged<Object> value) {     \
-      return Is##Type(value);                                \
-    }                                                        \
-    static inline bool AllowFrom(Tagged<HeapObject> value) { \
-      return Is##Type(value);                                \
-    }                                                        \
-  };
-HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
-HEAP_OBJECT_TRUSTED_TYPE_LIST(IS_HELPER_DEF)
-VIRTUAL_OBJECT_TYPE_LIST(IS_HELPER_DEF)
-HOLE_LIST(IS_HELPER_DEF)
-ODDBALL_LIST(IS_HELPER_DEF)
 
-#define IS_HELPER_DEF_STRUCT(NAME, Name, name) IS_HELPER_DEF(Name)
+DEF_CAST_TRAITS(AbstractCode)
+DEF_CAST_TRAITS(AccessorInfo)
+DEF_CAST_TRAITS(AllocationSite)
+DEF_CAST_TRAITS(BigInt)
+DEF_CAST_TRAITS(BigIntBase)
+DEF_CAST_TRAITS(Boolean)
+DEF_CAST_TRAITS(Cell)
+DEF_CAST_TRAITS(CompilationCacheTable)
+DEF_CAST_TRAITS(ConsString)
+DEF_CAST_TRAITS(Context)
+DEF_CAST_TRAITS(ContextCell)
+DEF_CAST_TRAITS(CoverageInfo)
+DEF_CAST_TRAITS(CppHeapExternalObject)
+DEF_CAST_TRAITS(DataHandler)
+DEF_CAST_TRAITS(DeoptimizationData)
+DEF_CAST_TRAITS(DependentCode)
+DEF_CAST_TRAITS(DescriptorArray)
+DEF_CAST_TRAITS(DictionaryTemplateInfo)
+DEF_CAST_TRAITS(DoubleStringCache)
+DEF_CAST_TRAITS(EmbedderDataArray)
+DEF_CAST_TRAITS(EphemeronHashTable)
+DEF_CAST_TRAITS(ExternalOneByteString)
+DEF_CAST_TRAITS(ExternalString)
+DEF_CAST_TRAITS(ExternalTwoByteString)
+DEF_CAST_TRAITS(FeedbackCell)
+DEF_CAST_TRAITS(FeedbackMetadata)
+DEF_CAST_TRAITS(FeedbackVector)
+DEF_CAST_TRAITS(FunctionTemplateInfo)
+DEF_CAST_TRAITS(FixedArrayBase)
+DEF_CAST_TRAITS(FixedArrayExact)
+DEF_CAST_TRAITS(Foreign)
+DEF_CAST_TRAITS(FreeSpace)
+DEF_CAST_TRAITS(GcSafeCode)
+DEF_CAST_TRAITS(GlobalDictionary)
+DEF_CAST_TRAITS(HeapNumber)
+DEF_CAST_TRAITS(InterceptorInfo)
+DEF_CAST_TRAITS(InternalizedString)
+DEF_CAST_TRAITS(JSArgumentsObject)
+DEF_CAST_TRAITS(JSArray)
+DEF_CAST_TRAITS(JSArrayBuffer)
+DEF_CAST_TRAITS(JSArrayBufferView)
+DEF_CAST_TRAITS(JSArrayIterator)
+DEF_CAST_TRAITS(JSAsyncFromSyncIterator)
+DEF_CAST_TRAITS(JSAsyncFunctionObject)
+DEF_CAST_TRAITS(JSAsyncGeneratorObject)
+DEF_CAST_TRAITS(JSAtomicsCondition)
+DEF_CAST_TRAITS(JSAtomicsMutex)
+DEF_CAST_TRAITS(JSBoundFunction)
+DEF_CAST_TRAITS(JSCollection)
+DEF_CAST_TRAITS(JSCollectionIterator)
+DEF_CAST_TRAITS(JSCustomElementsObject)
+DEF_CAST_TRAITS(JSDataView)
+DEF_CAST_TRAITS(JSDataViewOrRabGsabDataView)
+DEF_CAST_TRAITS(JSDate)
+DEF_CAST_TRAITS(JSDisposableStackBase)
+DEF_CAST_TRAITS(JSSyncDisposableStack)
+DEF_CAST_TRAITS(JSAsyncDisposableStack)
+DEF_CAST_TRAITS(JSExternalObject)
+DEF_CAST_TRAITS(JSFinalizationRegistry)
+DEF_CAST_TRAITS(JSFunction)
+DEF_CAST_TRAITS(JSFunctionWithoutPrototype)
+DEF_CAST_TRAITS(JSFunctionWithPrototype)
+DEF_CAST_TRAITS(JSFunctionOrBoundFunctionOrWrappedFunction)
+DEF_CAST_TRAITS(JSGeneratorObject)
+DEF_CAST_TRAITS(JSGlobalObject)
+DEF_CAST_TRAITS(JSGlobalProxy)
+DEF_CAST_TRAITS(JSIteratorHelper)
+DEF_CAST_TRAITS(JSIteratorHelperSimple)
+DEF_CAST_TRAITS(JSIteratorFilterHelper)
+DEF_CAST_TRAITS(JSIteratorMapHelper)
+DEF_CAST_TRAITS(JSIteratorTakeHelper)
+DEF_CAST_TRAITS(JSIteratorDropHelper)
+DEF_CAST_TRAITS(JSIteratorFlatMapHelper)
+DEF_CAST_TRAITS(JSIteratorConcatHelper)
+DEF_CAST_TRAITS(JSIteratorZipHelper)
+DEF_CAST_TRAITS(JSIteratorZipKeyedHelper)
+DEF_CAST_TRAITS(JSMap)
+DEF_CAST_TRAITS(JSMapIterator)
+DEF_CAST_TRAITS(JSMessageObject)
+DEF_CAST_TRAITS(JSModuleNamespace)
+DEF_CAST_TRAITS(JSDeferredModuleNamespace)
+DEF_CAST_TRAITS(JSObject)
+DEF_CAST_TRAITS(JSAPIObjectWithEmbedderSlots)
+DEF_CAST_TRAITS(JSObjectWithEmbedderSlots)
+DEF_CAST_TRAITS(JSPrimitiveWrapper)
+DEF_CAST_TRAITS(JSPromise)
+DEF_CAST_TRAITS(JSProxy)
+DEF_CAST_TRAITS(JSRabGsabDataView)
+DEF_CAST_TRAITS(JSRawJson)
+DEF_CAST_TRAITS(JSReceiver)
+DEF_CAST_TRAITS(JSRegExp)
+DEF_CAST_TRAITS(JSRegExpStringIterator)
+DEF_CAST_TRAITS(JSSet)
+DEF_CAST_TRAITS(JSSetIterator)
+DEF_CAST_TRAITS(JSShadowRealm)
+DEF_CAST_TRAITS(JSSharedArray)
+DEF_CAST_TRAITS(JSSharedStruct)
+DEF_CAST_TRAITS(JSSpecialObject)
+DEF_CAST_TRAITS(JSStringIterator)
+DEF_CAST_TRAITS(JSSynchronizationPrimitive)
+DEF_CAST_TRAITS(JSDetachedTypedArray)
+DEF_CAST_TRAITS(JSTypedArray)
+DEF_CAST_TRAITS(JSValidIteratorWrapper)
+DEF_CAST_TRAITS(JSWeakCollection)
+DEF_CAST_TRAITS(JSWeakRef)
+DEF_CAST_TRAITS(JSWeakMap)
+DEF_CAST_TRAITS(JSWeakSet)
+DEF_CAST_TRAITS(JSWrappedFunction)
+DEF_CAST_TRAITS(LoadHandler)
+DEF_CAST_TRAITS(Map)
+DEF_CAST_TRAITS(MegaDomHandler)
+DEF_CAST_TRAITS(Module)
+DEF_CAST_TRAITS(Microtask)
+DEF_CAST_TRAITS(Name)
+DEF_CAST_TRAITS(NameDictionary)
+DEF_CAST_TRAITS(NameToIndexHashTable)
+DEF_CAST_TRAITS(NativeContext)
+DEF_CAST_TRAITS(NormalizedMapCache)
+DEF_CAST_TRAITS(NumberDictionary)
+DEF_CAST_TRAITS(ObjectHashSet)
+DEF_CAST_TRAITS(ObjectHashTable)
+DEF_CAST_TRAITS(ObjectTemplateInfo)
+DEF_CAST_TRAITS(ObjectTwoHashTable)
+DEF_CAST_TRAITS(OnHeapBasicBlockProfilerData)
+DEF_CAST_TRAITS(Hole)
+DEF_CAST_TRAITS(OrderedHashMap)
+DEF_CAST_TRAITS(OrderedHashSet)
+DEF_CAST_TRAITS(OrderedNameDictionary)
+DEF_CAST_TRAITS(PreparseData)
+DEF_CAST_TRAITS(PrimitiveHeapObject)
+DEF_CAST_TRAITS(PromiseReactionJobTask)
+DEF_CAST_TRAITS(PropertyArray)
+DEF_CAST_TRAITS(PropertyCell)
+DEF_CAST_TRAITS(ScopeInfo)
+DEF_CAST_TRAITS(SeqOneByteString)
+DEF_CAST_TRAITS(SeqString)
+DEF_CAST_TRAITS(SeqTwoByteString)
+DEF_CAST_TRAITS(SharedFunctionInfo)
+DEF_CAST_TRAITS(SimpleNameDictionary)
+DEF_CAST_TRAITS(SimpleNumberDictionary)
+DEF_CAST_TRAITS(SlicedString)
+DEF_CAST_TRAITS(SmallOrderedHashMap)
+DEF_CAST_TRAITS(SmallOrderedHashSet)
+DEF_CAST_TRAITS(SmallOrderedNameDictionary)
+DEF_CAST_TRAITS(SortState)
+DEF_CAST_TRAITS(SourceTextModule)
+DEF_CAST_TRAITS(SourceTextModuleInfo)
+DEF_CAST_TRAITS(StoreHandler)
+DEF_CAST_TRAITS(StrongDescriptorArray)
+DEF_CAST_TRAITS(StringSet)
+DEF_CAST_TRAITS(RegisteredSymbolTable)
+DEF_CAST_TRAITS(Struct)
+DEF_CAST_TRAITS(SwissNameDictionary)
+DEF_CAST_TRAITS(SyntheticModule)
+DEF_CAST_TRAITS(TemplateInfo)
+DEF_CAST_TRAITS(TemplateInfoWithProperties)
+DEF_CAST_TRAITS(TemplateLiteralObject)
+DEF_CAST_TRAITS(ThinString)
+DEF_CAST_TRAITS(TransitionArray)
+DEF_CAST_TRAITS(TurbofanBitsetType)
+DEF_CAST_TRAITS(TurbofanHeapConstantType)
+DEF_CAST_TRAITS(TurbofanOtherNumberConstantType)
+DEF_CAST_TRAITS(TurbofanRangeType)
+DEF_CAST_TRAITS(TurbofanType)
+DEF_CAST_TRAITS(TurbofanUnionType)
+DEF_CAST_TRAITS(TurboshaftFloat64RangeType)
+DEF_CAST_TRAITS(TurboshaftFloat64SetType)
+DEF_CAST_TRAITS(TurboshaftFloat64Type)
+DEF_CAST_TRAITS(TurboshaftType)
+DEF_CAST_TRAITS(TurboshaftWord32RangeType)
+DEF_CAST_TRAITS(TurboshaftWord32SetType)
+DEF_CAST_TRAITS(TurboshaftWord32Type)
+DEF_CAST_TRAITS(TurboshaftWord64RangeType)
+DEF_CAST_TRAITS(TurboshaftWord64SetType)
+DEF_CAST_TRAITS(TurboshaftWord64Type)
+#if V8_ENABLE_WEBASSEMBLY
+DEF_CAST_TRAITS(WasmArray)
+DEF_CAST_TRAITS(WasmExceptionPackage)
+DEF_CAST_TRAITS(WasmFastApiCallData)
+DEF_CAST_TRAITS(WasmFuncRef)
+DEF_CAST_TRAITS(WasmGlobalObject)
+DEF_CAST_TRAITS(WasmInstanceObject)
+DEF_CAST_TRAITS(WasmMemoryObject)
+DEF_CAST_TRAITS(WasmMemoryMapDescriptor)
+DEF_CAST_TRAITS(WasmModuleObject)
+DEF_CAST_TRAITS(WasmNull)
+DEF_CAST_TRAITS(WasmObject)
+DEF_CAST_TRAITS(WasmResumeData)
+DEF_CAST_TRAITS(WasmStringViewIter)
+DEF_CAST_TRAITS(WasmStruct)
+DEF_CAST_TRAITS(WasmSuspendingObject)
+DEF_CAST_TRAITS(WasmContinuationObject)
+DEF_CAST_TRAITS(WasmStackObject)
+DEF_CAST_TRAITS(WasmTableObject)
+DEF_CAST_TRAITS(WasmTagObject)
+DEF_CAST_TRAITS(WasmTypeInfo)
+DEF_CAST_TRAITS(WasmValueObject)
+#endif  // V8_ENABLE_WEBASSEMBLY
+DEF_CAST_TRAITS(WeakCell)
+DEF_CAST_TRAITS(ArrayList)
+DEF_CAST_TRAITS(ByteArray)
+DEF_CAST_TRAITS(ClosureFeedbackCellArray)
+DEF_CAST_TRAITS(FixedArray)
+DEF_CAST_TRAITS(FixedDoubleArray)
+DEF_CAST_TRAITS(ObjectBoilerplateDescription)
+DEF_CAST_TRAITS(RegExpMatchInfo)
+DEF_CAST_TRAITS(ScriptContextTable)
+DEF_CAST_TRAITS(SloppyArgumentsElements)
+DEF_CAST_TRAITS(WeakArrayList)
+DEF_CAST_TRAITS(WeakFixedArray)
+DEF_CAST_TRAITS(WeakHomomorphicFixedArray)
+
+#ifdef V8_INTL_SUPPORT
+DEF_CAST_TRAITS(JSV8BreakIterator)
+DEF_CAST_TRAITS(JSCollator)
+DEF_CAST_TRAITS(JSDateTimeFormat)
+DEF_CAST_TRAITS(JSDisplayNames)
+DEF_CAST_TRAITS(JSDurationFormat)
+DEF_CAST_TRAITS(JSListFormat)
+DEF_CAST_TRAITS(JSLocale)
+DEF_CAST_TRAITS(JSNumberFormat)
+DEF_CAST_TRAITS(JSPluralRules)
+DEF_CAST_TRAITS(JSRelativeTimeFormat)
+DEF_CAST_TRAITS(JSSegmentDataObject)
+DEF_CAST_TRAITS(JSSegmentDataObjectWithIsWordLike)
+DEF_CAST_TRAITS(JSSegmentIterator)
+DEF_CAST_TRAITS(JSSegmenter)
+DEF_CAST_TRAITS(JSSegments)
+#endif  // V8_INTL_SUPPORT
+
+#ifdef V8_TEMPORAL_SUPPORT
+DEF_CAST_TRAITS(JSTemporalDuration)
+DEF_CAST_TRAITS(JSTemporalPlainDate)
+DEF_CAST_TRAITS(JSTemporalPlainTime)
+DEF_CAST_TRAITS(JSTemporalPlainDateTime)
+DEF_CAST_TRAITS(JSTemporalPlainMonthDay)
+DEF_CAST_TRAITS(JSTemporalPlainYearMonth)
+DEF_CAST_TRAITS(JSTemporalZonedDateTime)
+DEF_CAST_TRAITS(JSTemporalInstant)
+#endif  // V8_TEMPORAL_SUPPORT
+
+HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_CAST_TRAITS)
+HOLE_LIST(DEF_CAST_TRAITS)
+ODDBALL_LIST(DEF_CAST_TRAITS)
+
+#define IS_HELPER_DEF_STRUCT(NAME, Name, name) DEF_CAST_TRAITS(Name)
 STRUCT_LIST(IS_HELPER_DEF_STRUCT)
 #undef IS_HELPER_DEF_STRUCT
 
-IS_HELPER_DEF(Number)
-#undef IS_HELPER_DEF
+DEF_CAST_TRAITS(AccessCheckNeeded)
+DEF_CAST_TRAITS(AlwaysSharedSpaceJSObject)
+DEF_CAST_TRAITS(BigIntWrapper)
+DEF_CAST_TRAITS(BooleanWrapper)
+DEF_CAST_TRAITS(Callable)
+DEF_CAST_TRAITS(Constructor)
+DEF_CAST_TRAITS(Filler)
+DEF_CAST_TRAITS(HandlerTable)
+DEF_CAST_TRAITS(JSContextExtensionObject)
+DEF_CAST_TRAITS(JSError)
+DEF_CAST_TRAITS(MapCache)
+DEF_CAST_TRAITS(Number)
+DEF_CAST_TRAITS(NumberWrapper)
+DEF_CAST_TRAITS(OSROptimizedCodeCache)
+DEF_CAST_TRAITS(ScriptWrapper)
+DEF_CAST_TRAITS(SmiStringCache)
+DEF_CAST_TRAITS(StringWrapper)
+DEF_CAST_TRAITS(SymbolWrapper)
+DEF_CAST_TRAITS(UniqueName)
+DEF_CAST_TRAITS(Undetectable)
+
+bool IsCallable(const HeapObject* obj) {
+  return IsCallable(Tagged<HeapObject>(obj));
+}
+bool IsConstructor(const HeapObject* obj) {
+  return IsConstructor(Tagged<HeapObject>(obj));
+}
 
 template <>
 struct CastTraits<JSPrimitive> {
@@ -289,91 +546,41 @@ bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #endif
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
-  return IsInternalizedString(obj) || IsSymbol(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsCallable) { return obj->map()->is_callable(); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallable) {
-  return obj->map()->is_callable();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableJSProxy) {
+DEF_HEAP_OBJECT_PREDICATE(IsCallableJSProxy) {
   return IsCallable(obj) && IsJSProxy(obj);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableApiObject) {
+DEF_HEAP_OBJECT_PREDICATE(IsCallableApiObject) {
   InstanceType type = obj->map()->instance_type();
   return IsCallable(obj) &&
          (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNonNullForeign) {
+DEF_HEAP_OBJECT_PREDICATE(IsNonNullForeign) {
   return IsForeign(obj) &&
          Cast<Foreign>(obj)->foreign_address_unchecked() != kNullAddress;
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {
+DEF_HEAP_OBJECT_PREDICATE(IsConstructor) {
   return obj->map()->is_constructor();
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSourceTextModuleInfo) {
+DEF_HEAP_OBJECT_PREDICATE(IsSourceTextModuleInfo) {
   return obj->map() == GetReadOnlyRoots().module_info_map();
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsCons();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsThinString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsThin();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSlicedString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSliced();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequential();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqOneByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequentialOneByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqTwoByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequentialTwoByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsExternalOneByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
-  return IsJSArray(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsTemplateLiteralObject) { return IsJSArray(obj); }
 
 #if V8_INTL_SUPPORT
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObject) {
-  return IsJSObject(obj);
-}
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
+DEF_HEAP_OBJECT_PREDICATE(IsJSSegmentDataObject) { return IsJSObject(obj); }
+DEF_HEAP_OBJECT_PREDICATE(IsJSSegmentDataObjectWithIsWordLike) {
   return IsJSObject(obj);
 }
 #endif  // V8_INTL_SUPPORT
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
+DEF_HEAP_OBJECT_PREDICATE(IsDeoptimizationData) {
   if (!Is<ProtectedFixedArray>(obj)) return false;
   Tagged<ProtectedFixedArray> array = TrustedCast<ProtectedFixedArray>(obj);
 
@@ -389,71 +596,57 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   return length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHandlerTable) {
-  return IsFixedArrayExact(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsHandlerTable) { return IsFixedArrayExact(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDependentCode) {
-  return IsWeakArrayList(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsDependentCode) { return IsWeakArrayList(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsOSROptimizedCodeCache) {
+DEF_HEAP_OBJECT_PREDICATE(IsOSROptimizedCodeCache) {
   return IsWeakFixedArray(obj);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsStringWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsString(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBooleanWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsBooleanWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsBoolean(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsScriptWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsScriptWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsScript(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNumberWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsNumberWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsNumber(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBigIntWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsBigIntWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsBigInt(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSymbolWrapper) {
+DEF_HEAP_OBJECT_PREDICATE(IsSymbolWrapper) {
   return IsJSPrimitiveWrapper(obj) &&
          IsSymbol(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringSet) { return IsHashTable(obj); }
+DEF_HEAP_OBJECT_PREDICATE(IsStringSet) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashSet) {
-  return IsHashTable(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsObjectHashSet) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCompilationCacheTable) {
-  return IsHashTable(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsCompilationCacheTable) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) { return IsHashTable(obj); }
+DEF_HEAP_OBJECT_PREDICATE(IsMapCache) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
-  return IsHashTable(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsObjectHashTable) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectTwoHashTable) {
-  return IsHashTable(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsObjectTwoHashTable) { return IsHashTable(obj); }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
-  return IsHashTable(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsHashTableBase) { return IsHashTable(obj); }
 
 // static
 Maybe<bool> Object::IsArray(DirectHandle<Object> object) {
@@ -464,11 +657,11 @@ Maybe<bool> Object::IsArray(DirectHandle<Object> object) {
   return JSProxy::IsArray(Cast<JSProxy>(object));
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
+DEF_HEAP_OBJECT_PREDICATE(IsUndetectable) {
   return obj->map()->is_undetectable();
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
+DEF_HEAP_OBJECT_PREDICATE(IsAccessCheckNeeded) {
   if (IsJSGlobalProxy(obj)) {
     const Tagged<JSGlobalProxy> proxy = Cast<JSGlobalProxy>(obj);
     Isolate* isolate = Isolate::Current();
@@ -480,9 +673,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
   return obj->map()->is_access_check_needed();
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSmiStringCache) {
-  return IsFixedArray(obj);
-}
+DEF_HEAP_OBJECT_PREDICATE(IsSmiStringCache) { return IsFixedArray(obj); }
 
 // static
 double Object::NumberValue(Tagged<Number> obj) {

@@ -235,7 +235,41 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
+bool IsMetaMap(Tagged<Map> map) {
+  return InstanceTypeChecker::IsMap(map->instance_type());
+}
 
+DEF_HEAP_OBJECT_PREDICATE(IsMetaMap) {
+  if (!IsMap(obj)) return false;
+  return IsMetaMap(UncheckedCast<Map>(obj));
+}
+inline bool IsMetaMap(const HeapObject* obj) {
+  return IsMetaMap(Tagged<HeapObject>(obj));
+}
+
+bool IsExtendedMap(Tagged<Map> map) {
+  DCHECK_IMPLIES(map->is_extended_map(), !IsMetaMap(map));
+  return map->is_extended_map();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsExtendedMap) {
+  if (!IsMap(obj)) return false;
+  return IsExtendedMap(UncheckedCast<Map>(obj));
+}
+
+bool IsJSInterceptorMap(Tagged<Map> map) {
+  return IsExtendedMap(map) && (UncheckedCast<ExtendedMap>(map)->map_kind() ==
+                                ExtendedMapKind::kJSInterceptorMap);
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsJSInterceptorMap) {
+  if (!IsMap(obj)) return false;
+  return IsJSInterceptorMap(UncheckedCast<Map>(obj));
+}
+
+DEF_CAST_TRAITS(ExtendedMap)
+DEF_CAST_TRAITS(JSInterceptorMap)
+DEF_CAST_TRAITS(MetaMap)
 
 // static
 bool Map::IsMostGeneralFieldType(Representation representation,
@@ -910,6 +944,11 @@ bool IsPrimitiveMap(Tagged<Map> map) {
   return map->instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
+bool IsPrimitive(Tagged<Object> obj) {
+  if (obj.IsSmi()) return true;
+  return IsPrimitiveMap(Cast<HeapObject>(obj)->map());
+}
+
 void Map::UpdateDescriptors(Tagged<DescriptorArray> descriptors,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(descriptors, number_of_own_descriptors);
@@ -1332,7 +1371,7 @@ int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
   return map->Hash(isolate, prototype) % NormalizedMapCache::kEntries;
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
+DEF_HEAP_OBJECT_PREDICATE(IsNormalizedMapCache) {
   if (!IsWeakFixedArray(obj)) return false;
   if (Cast<WeakFixedArray>(obj)->ulength().value() !=
       NormalizedMapCache::kEntries) {

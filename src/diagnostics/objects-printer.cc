@@ -4742,7 +4742,7 @@ void Map::PrintMapDetails(std::ostream& os) {
 
 void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = IsMetaMap(this);
-  bool is_extended_map = IsExtendedMap(this);
+  bool is_extended_map = Is<ExtendedMap>(this);
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_map = IsWasmObjectMap(this);
 #else

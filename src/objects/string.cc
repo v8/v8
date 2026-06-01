@@ -534,8 +534,7 @@ bool String::MakeExternal(Isolate* isolate,
 
 bool String::SupportsExternalization(v8::String::Encoding encoding) {
   if (IsThinString(this)) {
-    return i::Cast<i::ThinString>(this)->actual()->SupportsExternalization(
-        encoding);
+    return Cast<ThinString>(this)->actual()->SupportsExternalization(encoding);
   }
 
   // RO_SPACE strings cannot be externalized.
@@ -1916,6 +1915,23 @@ uint32_t String::ComputeAndSetRawHash(bool* out_one_byte_content) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return ComputeAndSetRawHash(SharedStringAccessGuardIfNeeded::NotNeeded(),
                               out_one_byte_content);
+}
+
+// This looks like the kind of function we'd put into header files, but it's
+// only used right below, so putting it here keeps headers leaner and still
+// allows the compiler to inline it.
+void Name::set_raw_hash_field_if_empty(uint32_t hash) {
+  uint32_t field_value = kEmptyHashField;
+  bool result = raw_hash_field_.compare_exchange_strong(field_value, hash);
+  USE(result);
+  // CAS can only fail if the string is shared or we use the forwarding table
+  // for all strings and the hash was already set (by another thread) or it is
+  // a forwarding index (that overwrites the previous hash).
+  // In all cases we don't want overwrite the old value, so we don't handle the
+  // failure case.
+  DCHECK_IMPLIES(!result, (Cast<String>(this)->IsShared() ||
+                           v8_flags.always_use_string_forwarding_table) &&
+                              (field_value == hash || IsForwardingIndex(hash)));
 }
 
 uint32_t String::ComputeAndSetRawHash(

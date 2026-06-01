@@ -109,7 +109,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   }
 
   // Sets the hash field only if it is empty. Otherwise does nothing.
-  inline void set_raw_hash_field_if_empty(uint32_t hash);
+  void set_raw_hash_field_if_empty(uint32_t hash);
 
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.

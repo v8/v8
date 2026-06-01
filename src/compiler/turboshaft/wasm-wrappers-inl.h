@@ -13,8 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/execution/simulator-base.h"
-#include "src/objects/js-function.h"
-#include "src/objects/object-predicates-inl.h"
+#include "src/objects/js-function-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 

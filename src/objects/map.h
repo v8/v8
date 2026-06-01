@@ -9,10 +9,7 @@
 #include <optional>
 
 #include "include/v8-memory-span.h"
-#include "src/base/bit-field.h"
-#include "src/base/small-vector.h"
 #include "src/common/globals.h"
-#include "src/objects/code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"

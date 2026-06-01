@@ -456,6 +456,71 @@ bool StringShape::IsExternalTwoByte() const {
          InstanceTypeChecker::IsTwoByteString(map_or_type());
 }
 
+DEF_HEAP_OBJECT_PREDICATE(IsConsString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsCons();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsThinString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsThin();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsSlicedString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsSliced();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsSeqString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsSequential();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsSeqOneByteString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsSequentialOneByte();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsSeqTwoByteString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsSequentialTwoByte();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsExternalOneByteString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsExternalOneByte();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsExternalTwoByteString) {
+  if (!IsString(obj)) return false;
+  return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
+}
+
+bool IsConsString(const HeapObject* obj) {
+  return IsConsString(Tagged<HeapObject>(obj));
+}
+bool IsThinString(const HeapObject* obj) {
+  return IsThinString(Tagged<HeapObject>(obj));
+}
+bool IsSlicedString(const HeapObject* obj) {
+  return IsSlicedString(Tagged<HeapObject>(obj));
+}
+bool IsSeqString(const HeapObject* obj) {
+  return IsSeqString(Tagged<HeapObject>(obj));
+}
+bool IsSeqOneByteString(const HeapObject* obj) {
+  return IsSeqOneByteString(Tagged<HeapObject>(obj));
+}
+bool IsSeqTwoByteString(const HeapObject* obj) {
+  return IsSeqTwoByteString(Tagged<HeapObject>(obj));
+}
+bool IsExternalOneByteString(const HeapObject* obj) {
+  return IsExternalOneByteString(Tagged<HeapObject>(obj));
+}
+bool IsExternalTwoByteString(const HeapObject* obj) {
+  return IsExternalTwoByteString(Tagged<HeapObject>(obj));
+}
+
 static_assert((kStringRepresentationAndEncodingMask) ==
               Internals::kStringRepresentationAndEncodingMask);
 
@@ -1827,6 +1892,22 @@ bool String::AsIntegerIndex(size_t* index) {
     return false;
   }
   return SlowAsIntegerIndex(index);
+}
+
+// The following methods are defined on the Name class for convenience,
+// but implemented here because they depend on String methods defined
+// in this file.
+bool Name::IsArrayIndex() {
+  uint32_t index;
+  return AsArrayIndex(&index);
+}
+
+bool Name::AsArrayIndex(uint32_t* index) {
+  return IsString(this) && Cast<String>(this)->AsArrayIndex(index);
+}
+
+bool Name::AsIntegerIndex(size_t* index) {
+  return IsString(this) && Cast<String>(this)->AsIntegerIndex(index);
 }
 
 SubStringRange::SubStringRange(Tagged<String> string,

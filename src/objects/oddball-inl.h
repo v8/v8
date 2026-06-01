@@ -8,9 +8,10 @@
 #include "src/objects/oddball.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/handles/handles.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+DEF_CAST_TRAITS(Oddball)
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {
@@ -56,13 +59,13 @@ Handle<Number> Oddball::ToNumber(Isolate* isolate,
   return handle(input->to_number(), isolate);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBoolean) {
+DEF_HEAP_OBJECT_PREDICATE(IsBoolean) {
   return IsOddball(obj) &&
          ((Cast<Oddball>(obj)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 bool Boolean::ToBool(Isolate* isolate) const {
-  DCHECK(IsBoolean(this));
+  DCHECK(IsBoolean(Tagged<HeapObject>(this)));
   return IsTrue(this);
 }
 

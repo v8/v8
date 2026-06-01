@@ -9,18 +9,24 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/logging.h"
+#include "src/handles/handles-inl.h"  // Only needed by Name::Equals().
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/string-forwarding-table.h"
-#include "src/objects/string-inl.h"
+#include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+DEF_CAST_TRAITS(String)
+DEF_CAST_TRAITS(Symbol)
 
 Tagged<PrimitiveHeapObject> Symbol::description() const {
   return description_.load();
@@ -66,7 +72,20 @@ bool Symbol::is_any_private_name() const {
          PrivateSymbolKind::kFieldName;
 }
 
-DEF_HEAP_OBJECT_PREDICATE(Name, IsUniqueName) {
+bool IsPublicSymbol(Tagged<Object> obj) {
+  Tagged<Symbol> symbol;
+  return TryCast<Symbol>(obj, &symbol) && !symbol->is_any_private();
+}
+bool IsPrivateSymbol(Tagged<Object> obj) {
+  Tagged<Symbol> symbol;
+  return TryCast<Symbol>(obj, &symbol) && symbol->is_any_private();
+}
+
+DEF_HEAP_OBJECT_PREDICATE(IsUniqueName) {
+  return IsInternalizedString(obj) || IsSymbol(obj);
+}
+
+bool IsUniqueName(Tagged<Name> obj) {
   uint32_t type = obj->map()->instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
@@ -215,20 +234,6 @@ uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
   return HashBits::decode(EnsureRawHash(access_guard));
 }
 
-void Name::set_raw_hash_field_if_empty(uint32_t hash) {
-  uint32_t field_value = kEmptyHashField;
-  bool result = raw_hash_field_.compare_exchange_strong(field_value, hash);
-  USE(result);
-  // CAS can only fail if the string is shared or we use the forwarding table
-  // for all strings and the hash was already set (by another thread) or it is
-  // a forwarding index (that overwrites the previous hash).
-  // In all cases we don't want overwrite the old value, so we don't handle the
-  // failure case.
-  DCHECK_IMPLIES(!result, (Cast<String>(this)->IsShared() ||
-                           v8_flags.always_use_string_forwarding_table) &&
-                              (field_value == hash || IsForwardingIndex(hash)));
-}
-
 uint32_t Name::hash() const {
   uint32_t field = raw_hash_field(kAcquireLoad);
   if (V8_UNLIKELY(!IsHashFieldComputed(field))) {
@@ -254,10 +259,14 @@ bool Name::TryGetHash(uint32_t* hash) const {
 bool Name::IsInteresting(Isolate* isolate) {
   // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
   // these strings and interesting symbols.
-  return (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) ||
-         this == *isolate->factory()->toJSON_string() ||
-         this == *isolate->factory()->get_string() ||
-         this == *isolate->factory()->then_string();
+  if (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) {
+    return true;
+  }
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  Tagged<Name> this_tagged(this);
+  return this_tagged == roots.toJSON_string() ||
+         this_tagged == roots.get_string() ||
+         this_tagged == roots.then_string();
 }
 
 bool Name::IsAnyPrivate() {
@@ -277,19 +286,6 @@ bool Name::IsPrivateBrand() {
       IsSymbol(this) && Cast<Symbol>(this)->is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsAnyPrivateName());
   return is_private_brand;
-}
-
-bool Name::IsArrayIndex() {
-  uint32_t index;
-  return AsArrayIndex(&index);
-}
-
-bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString(this) && Cast<String>(this)->AsArrayIndex(index);
-}
-
-bool Name::AsIntegerIndex(size_t* index) {
-  return IsString(this) && Cast<String>(this)->AsIntegerIndex(index);
 }
 
 // static

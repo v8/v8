@@ -52,6 +52,10 @@ template <typename T, typename U>
 inline bool Is(Tagged<U> value) {
   return CastTraits<T>::AllowFrom(value);
 }
+template <typename T>
+inline bool Is(const HeapObject* obj) {
+  return Is<T>(Tagged<HeapObject>(obj));
+}
 template <typename T, typename U>
 inline bool Is(IndirectHandle<U> value);
 template <typename T, typename U>
