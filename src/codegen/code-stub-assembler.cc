@@ -14449,14 +14449,21 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
   // Check if buffer has been detached. (For RAB / GSAB this is part of loading
   // the length, so no additional check is needed.)
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
-  Label* failed = StoreModeIgnoresTypeArrayOOB(store_mode)
-                      ? &done
-                      : &update_value_and_bailout;
+  const bool ignores_oob = StoreModeIgnoresTypeArrayOOB(store_mode);
+  Label* failed = &update_value_and_bailout;
+  TypedArrayAccessMode access_mode = TypedArrayAccessMode::kWrite;
+  if (ignores_oob) {
+    // Immutability check must always jump to the slow-path bailout so we can
+    // throw TypeError.
+    GotoIf(IsImmutableArrayBuffer(buffer), &update_value_and_bailout);
+    failed = &done;
+    access_mode = TypedArrayAccessMode::kRead;
+  }
   TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
-      typed_array, buffer, TypedArrayAccessMode::kWrite, is_rab_gsab, failed,
+      typed_array, buffer, access_mode, is_rab_gsab, failed,
       Int32Constant(elements_kind));
 
-  if (StoreModeIgnoresTypeArrayOOB(store_mode)) {
+  if (ignores_oob) {
     // Skip the store if we write beyond the length or
     // to a property with a negative integer index.
     GotoIfNot(UintPtrLessThan(key, length), &done);
@@ -14469,21 +14476,19 @@ void CodeStubAssembler::EmitElementStoreTypedArray(
   StoreElement(data_ptr, elements_kind, key, converted_value);
   Goto(&done);
 
-  if (!StoreModeIgnoresTypeArrayOOB(store_mode)) {
-    BIND(&update_value_and_bailout);
-    // We already prepared the incoming value for storing into a typed array.
-    // This might involve calling ToNumber in some cases. We shouldn't call
-    // ToNumber again in the runtime so pass the converted value to the runtime.
-    // The prepared value is an untagged value. Convert it to a tagged value
-    // to pass it to runtime. It is not possible to do the detached buffer check
-    // before we prepare the value, since ToNumber can detach the ArrayBuffer.
-    // The spec specifies the order of these operations.
-    if (maybe_converted_value != nullptr) {
-      EmitElementStoreTypedArrayUpdateValue(
-          value, elements_kind, converted_value, maybe_converted_value);
-    }
-    Goto(bailout);
+  BIND(&update_value_and_bailout);
+  // We already prepared the incoming value for storing into a typed array.
+  // This might involve calling ToNumber in some cases. We shouldn't call
+  // ToNumber again in the runtime so pass the converted value to the runtime.
+  // The prepared value is an untagged value. Convert it to a tagged value
+  // to pass it to runtime. It is not possible to do the detached buffer check
+  // before we prepare the value, since ToNumber can detach the ArrayBuffer.
+  // The spec specifies the order of these operations.
+  if (maybe_converted_value != nullptr) {
+    EmitElementStoreTypedArrayUpdateValue(value, elements_kind, converted_value,
+                                          maybe_converted_value);
   }
+  Goto(bailout);
 
   BIND(&done);
 }
