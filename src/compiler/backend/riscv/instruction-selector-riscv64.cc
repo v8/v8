@@ -2754,11 +2754,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kWord32Popcnt |
              MachineOperatorBuilder::kWord64Popcnt;
   }
-  if (CpuFeatures::IsSupported(ZFH)) {
-    flags |= MachineOperatorBuilder::kFloat16Arithmetic |
-             MachineOperatorBuilder::kFloat16MemAccess |
-             MachineOperatorBuilder::kFloat16RawBitsConversion;
-  }
   return flags;
 }
 
