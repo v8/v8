@@ -58,8 +58,9 @@ Gerrit Change List (CL).
 
 - **Local Build/Test**: Instruct the subagent to verify that the fix compiles
   locally and the reproduced failure is now resolved.
-- **Upload**: Once verified locally, upload a new patchset to Gerrit to run the
-  remote checks or ask for re-review.
+- **Upload**: Once verified locally, upload a new patchset using
+  `agents/scripts/upload_cl.sh cur check "<what you changed>"` to Gerrit to run
+  the remote checks or ask for re-review.
 
 ## Example: Fixing Errors
 

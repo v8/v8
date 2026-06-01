@@ -153,5 +153,5 @@ Once the fix is approved by the user:
 
   - Run `git cl format` to ensure style compliance.
   - Create the commit locally.
-  - Run `git cl upload` to upload the change list (CL) to Gerrit.
+  - Follow git-cl rules to upload the change list (CL) to Gerrit.
   - Report the CL URL back to the user/caller if the tool output provides it.

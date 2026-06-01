@@ -45,7 +45,7 @@ def main() -> None:
 
   # 1. Upload CL
   # Assumes changes are already committed on the current branch.
-  upload_cmd = ["git", "cl", "upload", "-m", args.message]
+  upload_cmd = ["./agents/scripts/upload_cl.sh", "cur", "nocheck", args.message]
   stdout = run_command(upload_cmd, cwd=args.v8_dir)
   print(stdout)
 

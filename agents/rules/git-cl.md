@@ -19,19 +19,15 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
   - **Ensure Non-Interactive Behavior**: When committing, amending, or uploading
     (e.g., `git cl upload`), prefix the command with `EDITOR=cat` (e.g.,
     `EDITOR=cat git cl upload`) if there is a risk of an editor opening.
-  - Provide a descriptive patch message:
-    `git cl upload -t "Brief description of what changed"`.
-  - **Initial Upload**: On the first upload of a new CL, use
-    `git cl upload --commit-description=+` to set the description from the
-    commit message.
-  - **Subsequent Uploads**: On subsequent uploads (new patchsets), always use
-    `-t` to provide a patchset message that very briefly summarizes the
-    differences since the last patchset (e.g.,
-    `git cl upload -t "Address review comments"`). **NEVER** use
-    `--commit-description=+` or `git cl desc -n` by default, as it will blindly
-    overwrite the user's manual Gerrit Web UI description edits and severely
-    annoy them. Omit description-modifying flags entirely on subsequent uploads
-    unless intentionally updating a stale description.
+  - **Upload Script**: All uploads MUST be performed using
+    `agents/scripts/upload_cl.sh <new|cur> <check|nocheck> [patchset_message]`.
+    This script helps to manage the upload.
+  - **Initial Upload**: For a new CL without an existing issue association,
+    execute `agents/scripts/upload_cl.sh new check`.
+  - **Subsequent Uploads**: For updating an existing patchset, run
+    `agents/scripts/upload_cl.sh cur check "Brief patchset description"`.
+  - **Checks**: The "check" flag runs all mjsunit tests. When no code was
+    updated, or tests were already successfully ran, "nocheck" can be passed.
   - **Updating Description**: If the changes in a new patchset make the existing
     CL description **out-of-date** or inaccurate, you **MUST** explicitly update
     it by passing `--commit-description="New cohesive description content"`.
