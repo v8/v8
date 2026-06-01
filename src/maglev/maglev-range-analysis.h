@@ -56,6 +56,7 @@ class NodeRanges {
             graph->max_block_id())) {}
 
   Range Get(BasicBlock* block, ValueNode* node) {
+    if (!IsBlockTracked(block)) return node->GetStaticRange();
     DCHECK(ranges_initialized_.Contains(block->id()));
     RangeMap& map = ranges_[block->id()];
     const Range* range = map.find(node);
@@ -166,6 +167,7 @@ class NodeRanges {
 
   bool IsLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
                              ValueNode* rhs) {
+    if (!IsBlockTracked(block)) return false;
     for (LessEqualConstraint* constraint : less_equals_[block->id()]) {
       if (constraint->is(lhs, rhs)) return true;
     }
@@ -173,6 +175,17 @@ class NodeRanges {
   }
 
  private:
+  // The graph optimizer that consumes these ranges can splice in new basic
+  // blocks (e.g. when expanding a node into a subgraph). Since range analysis
+  // does not run again over those blocks, they fall outside the analyzed id
+  // range and have no recorded ranges. Such untracked blocks are handled
+  // conservatively by returning the widest possible (static) range for their
+  // nodes.
+  bool IsBlockTracked(BasicBlock* block) const {
+    return block->id() <
+           static_cast<BasicBlock::Id>(ranges_initialized_.length());
+  }
+
   Graph* graph_;
   // A bitmask indicating whether a RangeMap has already been initialized
   // for a given block ID.
