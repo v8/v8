@@ -851,7 +851,9 @@ class ModuleEmbedderData {
         module_to_specifier_map(10, ModuleGlobalHash(isolate)),
         json_module_to_parsed_json_map(10,
                                        module_to_specifier_map.hash_function()),
-        text_module_to_text_map(10, module_to_specifier_map.hash_function()) {}
+        text_module_to_text_map(10, module_to_specifier_map.hash_function()),
+        bytes_module_to_bytes_map(10, module_to_specifier_map.hash_function()) {
+  }
 
   std::string GetModuleSpecifier(Local<Module> module) {
     Global<Module> global_module(isolate_, module);
@@ -888,6 +890,13 @@ class ModuleEmbedderData {
     return text_value_it->second.Get(isolate_);
   }
 
+  Local<Value> GetBytesModuleValue(Local<Module> module) {
+    auto bytes_value_it =
+        bytes_module_to_bytes_map.find(Global<Module>(isolate_, module));
+    CHECK(bytes_value_it != bytes_module_to_bytes_map.end());
+    return bytes_value_it->second.Get(isolate_);
+  }
+
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
       const std::string& specifier, Local<FixedArray> import_attributes,
       bool hasPositions) {
@@ -907,9 +916,11 @@ class ModuleEmbedderData {
           return ModuleType::kJSON;
         } else if (assertion_value == "text" && i::v8_flags.js_import_text) {
           return ModuleType::kText;
+        } else if (assertion_value == "bytes" && i::v8_flags.js_import_bytes) {
+          return ModuleType::kBytes;
         } else {
-          // JSON, text, and WebAssembly are currently the only supported non-JS
-          // types
+          // JSON, text, bytes, and WebAssembly are currently the only
+          // supported non-JS types
           return ModuleType::kInvalid;
         }
       }
@@ -939,6 +950,10 @@ class ModuleEmbedderData {
   // TextModuleEvaluationSteps
   std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
       text_module_to_text_map;
+  // Map from bytes Module to its Uint8Array content, for use in module
+  // BytesModuleEvaluationSteps
+  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
+      bytes_module_to_bytes_map;
 
   // Origin location used for resolving modules when referrer is null.
   std::string origin;
@@ -1417,6 +1432,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
+  std::unique_ptr<base::OS::MemoryMappedFile> raw_file;
 
   bool found_in_bundle = false;
   if (options.bundle) {
@@ -1432,13 +1448,17 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       source_text = String::NewFromUtf8(
           isolate, module_specifier.c_str() + strlen(kDataURLPrefix));
     } else if (IsAbsolutePath(module_specifier)) {
-      source_text = ReadFile(isolate, module_specifier.c_str(), false);
-      if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
-        std::string fallback_file_name = module_specifier + ".js";
-        source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
-        if (source_text.IsEmpty()) {
-          fallback_file_name = module_specifier + ".mjs";
-          source_text = ReadFile(isolate, fallback_file_name.c_str());
+      if (module_type == ModuleType::kBytes) {
+        raw_file = ReadFileData(isolate, module_specifier.c_str(), false);
+      } else {
+        source_text = ReadFile(isolate, module_specifier.c_str(), false);
+        if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
+          std::string fallback_file_name = module_specifier + ".js";
+          source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
+          if (source_text.IsEmpty()) {
+            fallback_file_name = module_specifier + ".mjs";
+            source_text = ReadFile(isolate, fallback_file_name.c_str());
+          }
         }
       }
     } else {
@@ -1456,7 +1476,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
   }
 
-  if (source_text.IsEmpty()) {
+  if ((module_type == ModuleType::kBytes && !raw_file) ||
+      (module_type != ModuleType::kBytes && source_text.IsEmpty())) {
     std::ostringstream msg;
     msg << "d8: Error reading module from " << module_specifier;
     if (!referrer.IsEmpty()) {
@@ -1514,6 +1535,32 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
               .insert(std::make_pair(
                   Global<Module>(isolate, module),
                   Global<Value>(isolate, source_text.ToLocalChecked())))
+              .second);
+  } else if (module_type == ModuleType::kBytes) {
+    CHECK(raw_file);
+    Local<v8::ArrayBuffer> buffer =
+        v8::ArrayBuffer::New(isolate, raw_file->size());
+    if (raw_file->size() > 0) {
+      memcpy(buffer->GetBackingStore()->Data(), raw_file->memory(),
+             raw_file->size());
+    }
+    i::DirectHandle<i::JSArrayBuffer> i_buffer =
+        Utils::OpenDirectHandle(*buffer);
+    i_buffer->MakeImmutable(reinterpret_cast<i::Isolate*>(isolate));
+    Local<v8::Uint8Array> uint8_array =
+        v8::Uint8Array::New(buffer, 0, raw_file->size());
+
+    auto export_names = v8::to_array<Local<String>>(
+        {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
+
+    module = v8::Module::CreateSyntheticModule(
+        isolate,
+        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
+        export_names, Shell::BytesModuleEvaluationSteps);
+
+    CHECK(module_data->bytes_module_to_bytes_map
+              .insert(std::make_pair(Global<Module>(isolate, module),
+                                     Global<Value>(isolate, uint8_array)))
               .second);
   } else {
     UNREACHABLE();
@@ -1627,6 +1674,31 @@ MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
       String::NewFromUtf8Literal(isolate, "default",
                                  NewStringType::kInternalized),
       text_value);
+
+  // Setting the default export should never fail.
+  CHECK(!try_catch.HasCaught());
+  CHECK(!result.IsNothing() && result.FromJust());
+
+  Local<Promise::Resolver> resolver =
+      Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, Undefined(isolate)).ToChecked();
+  return resolver->GetPromise();
+}
+
+MaybeLocal<Value> Shell::BytesModuleEvaluationSteps(Local<Context> context,
+                                                    Local<Module> module) {
+  Isolate* isolate = Isolate::GetCurrent();
+
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
+      GetModuleDataFromContext(context);
+  Local<Value> bytes_value = module_data->GetBytesModuleValue(module);
+
+  TryCatch try_catch(isolate);
+  Maybe<bool> result = module->SetSyntheticModuleExport(
+      isolate,
+      String::NewFromUtf8Literal(isolate, "default",
+                                 NewStringType::kInternalized),
+      bytes_value);
 
   // Setting the default export should never fail.
   CHECK(!try_catch.HasCaught());

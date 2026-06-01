@@ -77,6 +77,7 @@ FEATURE_FLAGS = {
     'Iterator.prototype.join': '--js-iterator-join',
     'joint-iteration': '--js-joint-iteration',
     'import-text': '--js-import-text',
+    'import-bytes': '--js-import-bytes',
     'iterator-includes': '--js-iterator-includes',
 }
 

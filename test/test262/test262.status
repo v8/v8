@@ -1085,11 +1085,6 @@
   'built-ins/Promise/allSettledKeyed/not-a-constructor': [SKIP],
   'built-ins/Promise/allSettledKeyed/prop-desc': [SKIP],
   'built-ins/Promise/allSettledKeyed/proto': [SKIP],
-  'language/import/import-bytes/bytes-from-empty': [SKIP],
-  'language/import/import-bytes/bytes-from-js': [SKIP],
-  'language/import/import-bytes/bytes-from-json': [SKIP],
-  'language/import/import-bytes/bytes-from-png': [SKIP],
-  'language/import/import-bytes/bytes-from-txt': [SKIP],
 }],
 # End roll-watcher patch
 ####

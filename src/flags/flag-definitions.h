@@ -337,6 +337,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_joint_iteration, "joint iteration")             \
   V(js_import_text, "import text")                     \
+  V(js_import_bytes, "import bytes")                   \
   V(js_defer_import_eval, "defer import eval")         \
   V(js_iterator_includes, "Iterator.prototype.includes")
 
@@ -414,6 +415,8 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 JAVASCRIPT_SHIPPING_FEATURES(FLAG_SHIPPING_FEATURES)
 DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
 #undef FLAG_SHIPPING_FEATURES
+
+DEFINE_IMPLICATION(js_import_bytes, js_immutable_arraybuffer)
 
 DEFINE_BOOL(builtin_subclassing, true,
             "subclassing support in built-in methods")
