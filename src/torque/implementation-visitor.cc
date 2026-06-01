@@ -31,12 +31,6 @@ namespace v8::internal::torque {
 
 uint64_t next_unique_binding_index = 0;
 
-// Sadly, 'using std::string_literals::operator""s;' is bugged in MSVC (see
-// https://developercommunity.visualstudio.com/t/Incorrect-warning-when-using-standard-st/673948).
-// TODO(nicohartmann@): Change to 'using std::string_literals::operator""s;'
-// once this is fixed.
-using namespace std::string_literals;  // NOLINT(build/namespaces)
-
 namespace {
 const char* BuiltinIncludesMarker = "// __BUILTIN_INCLUDES_MARKER__\n";
 }  // namespace
@@ -415,10 +409,11 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   // Torque macro.
   std::optional<cpp::IncludeGuardScope> include_guard;
   if (output_type_ == OutputType::kCC) {
-    include_guard.emplace(&csa_cc, "V8_INTERNAL_DEFINED_"s + macro->CCName());
+    include_guard.emplace(
+        &csa_cc, std::string("V8_INTERNAL_DEFINED_") + macro->CCName());
   } else if (output_type_ == OutputType::kCCDebug) {
-    include_guard.emplace(&csa_cc,
-                          "V8_INTERNAL_DEFINED_"s + macro->CCDebugName());
+    include_guard.emplace(
+        &csa_cc, std::string("V8_INTERNAL_DEFINED_") + macro->CCDebugName());
   }
 
   f.PrintBeginDefinition(csa_ccfile());
