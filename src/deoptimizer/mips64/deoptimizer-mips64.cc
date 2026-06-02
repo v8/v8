@@ -30,7 +30,7 @@ void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
   Assembler masm(
       &allocator, AssemblerOptions{},
       ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   // Branch target is computed based on delay slot address on MIPS.
   masm.b(static_cast<int>(offset - 1));
   masm.nop();  // Delay slot
