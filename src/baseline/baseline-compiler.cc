@@ -10,6 +10,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
+#include "src/base/numerics/clamped_math.h"
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/builtins/builtins-constructor.h"
@@ -2336,7 +2337,8 @@ void BaselineCompiler::VisitJumpLoop() {
 
     __ Bind(&osr);
     Label do_osr;
-    weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    weight =
+        base::ClampMul(bytecode_->length(), v8_flags.osr_to_tierup.value());
     __ Push(maybe_target_code);
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);
