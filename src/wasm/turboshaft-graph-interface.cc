@@ -2692,8 +2692,7 @@ class TurboshaftGraphBuildingInterface
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
-                        decoder->module_->functions[imm.index].code.length(),
-                        1)) {
+                        decoder->module_->functions[imm.index].code.length())) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF("[function %d%s: inlining direct call #%d to function %d]\n",
                  func_index_, mode_ == kRegular ? "" : " (inlined)",
@@ -2722,8 +2721,7 @@ class TurboshaftGraphBuildingInterface
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
-                        decoder->module_->functions[imm.index].code.length(),
-                        1)) {
+                        decoder->module_->functions[imm.index].code.length())) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
               "[function %d%s: inlining direct tail call #%d to function %d]\n",
@@ -2752,11 +2750,8 @@ class TurboshaftGraphBuildingInterface
       // which might be non-existent (OpIndex::Invalid()) in unreachable code.
       if (__ generating_unreachable_operations()) return;
 
-      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
-
       if (should_inline(decoder, feedback_slot_,
-                        std::numeric_limits<int>::max(),
-                        feedback_cases.size())) {
+                        std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.get<Word>());
 
@@ -2777,6 +2772,7 @@ class TurboshaftGraphBuildingInterface
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
+        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
         // The slow path is the non-inlined generic `call_indirect`,
         // or a deopt node if that is enabled.
@@ -2950,11 +2946,8 @@ class TurboshaftGraphBuildingInterface
       CHECK(v8_flags.wasm_inlining);
       feedback_slot_++;
 
-      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
-
       if (should_inline(decoder, feedback_slot_,
-                        std::numeric_limits<int>::max(),
-                        feedback_cases.size())) {
+                        std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.get<Word>());
 
@@ -2974,6 +2967,7 @@ class TurboshaftGraphBuildingInterface
         auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
+        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         constexpr int kSlowpathCase = 1;
         base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
             case_blocks;
@@ -3078,16 +3072,15 @@ class TurboshaftGraphBuildingInterface
     // which might be non-existent (OpIndex::Invalid()) in unreachable code.
     if (__ generating_unreachable_operations()) return;
 
-    base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
-
-    if (should_inline(decoder, feedback_slot_, std::numeric_limits<int>::max(),
-                      feedback_cases.size())) {
+    if (should_inline(decoder, feedback_slot_,
+                      std::numeric_limits<int>::max())) {
       DCHECK_EQ(shared_, SharedFlag::kNo);
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(SharedFlag::kNo), FuncRefs,
           MemoryRepresentation::TaggedPointer());
 
       size_t return_count = sig->return_count();
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
       // The slow path is the non-inlined generic `call_ref`,
       // or a deopt node if that is enabled.
@@ -3237,14 +3230,15 @@ class TurboshaftGraphBuildingInterface
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
-    base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
-    if (should_inline(decoder, feedback_slot_, std::numeric_limits<int>::max(),
-                      feedback_cases.size())) {
+
+    if (should_inline(decoder, feedback_slot_,
+                      std::numeric_limits<int>::max())) {
       DCHECK_EQ(shared_, SharedFlag::kNo);
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(SharedFlag::kNo), FuncRefs,
           MemoryRepresentation::TaggedPointer());
 
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       constexpr int kSlowpathCase = 1;
       base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
           case_blocks;
@@ -9376,17 +9370,11 @@ class TurboshaftGraphBuildingInterface
   }
 
   base::Vector<InliningTree*> GetFeedbackCases(FullDecoder* decoder) {
-    if (!inlining_decisions_ ||
-        inlining_decisions_->mode() == InliningTree::Mode::kUninitialized) {
-      return {};
-    }
     if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
       return inlining_decisions_->function_calls()[feedback_slot_];
     }
-    if (!inlining_decisions_->function_calls_map().contains(
-            decoder->pc_relative_offset())) {
-      return {};
-    }
+    DCHECK(inlining_decisions_->function_calls_map().contains(
+        decoder->pc_relative_offset()));
     return inlining_decisions_
         ->function_calls_map()[decoder->pc_relative_offset()];
   }
@@ -9432,6 +9420,26 @@ class TurboshaftGraphBuildingInterface
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
     // In a corrupted sandbox, we can't trust the collected feedback.
     SBXCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
+
+    DCHECK_IMPLIES(v8_flags.liftoff, inlining_positions_->size() <
+                                         InliningTree::kMaxInlinedCount);
+
+    if (!v8_flags.liftoff &&
+        inlining_positions_->size() == InliningTree::kMaxInlinedCount) {
+      // We've exceeded `kMaxInlinedCount` inlinees. This can happen when
+      // `--no-liftoff` because in this case we can inline functions that were
+      // not part of the inlining tree. Just emit a regular call.
+      V<WordPtr> callee =
+          __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
+      V<WasmTrustedInstanceData> instance_data = trusted_instance_data(
+          decoder->module_->function_is_shared(func_index));
+      if (is_tail_call) {
+        BuildWasmMaybeReturnCall(decoder, sig, callee, instance_data, args);
+      } else {
+        BuildWasmCall(decoder, sig, callee, instance_data, args, returns);
+      }
+      return;
+    }
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
         inlinee.sig->parameter_count() + 1, decoder->zone_);
@@ -9654,8 +9662,7 @@ class TurboshaftGraphBuildingInterface
   }
 
  private:
-  bool should_inline(FullDecoder* decoder, int feedback_slot, int size,
-                     size_t cases_count) {
+  bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
     if (!v8_flags.wasm_inlining) return false;
     // TODO(42204563,41480394,335082212): Do not inline if the current function
     // is shared (which also implies the target cannot be shared either).
@@ -9664,14 +9671,6 @@ class TurboshaftGraphBuildingInterface
     // by one and compile them immediately), we might not have the bodies
     // of callees yet.
     if (size == 0) return false;
-
-    // What can happen here is that due to --no-liftoff, we inline additional
-    // functions that are not included in the inlining tree, resulting in
-    // `inlining_positions_` growing in size more than expected.
-    if (!v8_flags.liftoff && inlining_positions_->size() + cases_count >
-                                 InliningTree::kMaxInlinedCount) {
-      return false;
-    }
 
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
       if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
@@ -9715,9 +9714,9 @@ class TurboshaftGraphBuildingInterface
              // In a production configuration, `InliningTree` decides what to
              // (not) inline, e.g., asm.js functions or to not exceed
              // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
-             // comply with these constraints; we already checked for
-             // `kMaxInlinedCount`, so we exclude asmjs modules here.
-             !is_asmjs_module(decoder->module_);
+             // comply with these constraints here.
+             !is_asmjs_module(decoder->module_) &&
+             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
     }
     return false;
   }
