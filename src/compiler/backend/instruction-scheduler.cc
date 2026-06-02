@@ -5,6 +5,7 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 
 #include <optional>
+#include <sstream>
 
 #include "src/base/iterator.h"
 #include "src/base/utils/random-number-generator.h"
@@ -13,6 +14,20 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+#define TRACE(...)                                                        \
+  do {                                                                    \
+    if (v8_flags.trace_turbo_instruction_scheduling) PrintF(__VA_ARGS__); \
+  } while (false)
+
+#define TRACE_INST(instr)                              \
+  do {                                                 \
+    if (v8_flags.trace_turbo_instruction_scheduling) { \
+      std::stringstream ss;                            \
+      ss << ArchOpcodeField::decode(instr->opcode());  \
+      PrintF("- %s\n", ss.str().c_str());              \
+    }                                                  \
+  } while (false)
 
 InstructionScheduler::SchedulingQueue::SchedulingQueue(Zone* zone)
     : ready_(zone),
@@ -29,6 +44,7 @@ void InstructionScheduler::SchedulingQueue::AddReady(ScheduleGraphNode* node) {
 }
 
 void InstructionScheduler::SchedulingQueue::Advance(int cycle) {
+  TRACE("Advancing Cycle\n");
   auto IsReady = [cycle](ScheduleGraphNode* n) {
     return cycle >= n->start_cycle();
   };
@@ -56,12 +72,28 @@ InstructionScheduler::SchedulingQueue::PopBestCandidate(int cycle) {
 
   // Prioritize the instruction with the highest latency on the path to reach
   // the end of the graph.
-  auto best_candidate = std::max_element(
-      ready_.begin(), ready_.end(),
-      [](auto l, auto r) { return l->total_latency() < r->total_latency(); });
+  auto best_candidate =
+      std::max_element(ready_.begin(), ready_.end(), [this](auto l, auto r) {
+        if (v8_flags.experimental_turbo_instruction_scheduling) {
+          if (GetTotalLatency(l) == GetTotalLatency(r)) {
+            // Tie-breaking strategies.
+            return GetTieBreakLatency(l) < GetTieBreakLatency(r);
+          }
+        }
+        return GetTotalLatency(l) < GetTotalLatency(r);
+      });
 
   ScheduleGraphNode* result = *best_candidate;
   ready_.erase(best_candidate);
+  if (v8_flags.trace_turbo_instruction_scheduling) {
+    TRACE("Ready instructions:\n");
+    for (auto& candidate : ready_) {
+      TRACE_INST(candidate->instruction());
+    }
+    TRACE("Selected:\n");
+    TRACE_INST(result->instruction());
+  }
+
   return result;
 }
 
@@ -69,6 +101,7 @@ InstructionScheduler::ScheduleGraphNode::ScheduleGraphNode(Zone* zone,
                                                            Instruction* instr)
     : instr_(instr),
       successors_(zone),
+      data_successors_(zone),
       unscheduled_predecessors_count_(0),
       latency_(GetInstructionLatency(instr)),
       total_latency_(-1),
@@ -80,6 +113,12 @@ void InstructionScheduler::ScheduleGraphNode::AddSuccessor(
   node->unscheduled_predecessors_count_++;
 }
 
+void InstructionScheduler::ScheduleGraphNode::AddDataSuccessor(
+    ScheduleGraphNode* node) {
+  data_successors_.push_back(node);
+  AddSuccessor(node);
+}
+
 InstructionScheduler::InstructionScheduler(Zone* zone,
                                            InstructionSequence* sequence)
     : zone_(zone),
@@ -88,7 +127,6 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       ready_list_(zone),
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
-      last_live_in_reg_marker_(nullptr),
       last_deopt_or_trap_(nullptr),
       operands_map_(zone) {}
 
@@ -96,7 +134,6 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(graph_.empty());
   DCHECK_NULL(last_side_effect_instr_);
   DCHECK(pending_loads_.empty());
-  DCHECK_NULL(last_live_in_reg_marker_);
   DCHECK_NULL(last_deopt_or_trap_);
   DCHECK(operands_map_.empty());
   sequence()->StartBlock(rpo);
@@ -109,7 +146,10 @@ void InstructionScheduler::EndBlock(RpoNumber rpo, Instruction* terminator) {
 
 void InstructionScheduler::AddInstruction(Instruction* instr) {
   int flags = GetInstructionFlags(instr);
-  if (IsBarrier(flags)) {
+  // Avoid adding barriers into the graph and just schedule instead. Do the
+  // same for FixedRegisterParameter which are regalloc placeholders that can't
+  // be moved.
+  if (IsBarrier(flags) || IsFixedRegisterParameter(instr)) {
     Schedule();
     sequence()->AddInstruction(instr);
     return;
@@ -120,73 +160,64 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
   // We should not have branches in the middle of a block.
   DCHECK_NE(instr->flags_mode(), kFlags_branch);
 
-  if (last_live_in_reg_marker_ != nullptr) {
-    last_live_in_reg_marker_->AddSuccessor(new_node);
+  // Make sure that instructions are not scheduled before the last
+  // deoptimization or trap point when they depend on it.
+  if ((last_deopt_or_trap_ != nullptr) && DependsOnDeoptOrTrap(instr, flags)) {
+    last_deopt_or_trap_->AddSuccessor(new_node);
   }
 
-  if (IsFixedRegisterParameter(instr)) {
-    last_live_in_reg_marker_ = new_node;
-  } else {
-    // Make sure that instructions are not scheduled before the last
-    // deoptimization or trap point when they depend on it.
-    if ((last_deopt_or_trap_ != nullptr) &&
-        DependsOnDeoptOrTrap(instr, flags)) {
-      last_deopt_or_trap_->AddSuccessor(new_node);
+  // Instructions with side effects and memory operations can't be
+  // reordered with respect to each other.
+  if (HasSideEffect(flags)) {
+    if (last_side_effect_instr_ != nullptr) {
+      last_side_effect_instr_->AddSuccessor(new_node);
     }
-
-    // Instructions with side effects and memory operations can't be
-    // reordered with respect to each other.
-    if (HasSideEffect(flags)) {
-      if (last_side_effect_instr_ != nullptr) {
-        last_side_effect_instr_->AddSuccessor(new_node);
-      }
-      for (ScheduleGraphNode* load : pending_loads_) {
-        load->AddSuccessor(new_node);
-      }
-      pending_loads_.clear();
-      last_side_effect_instr_ = new_node;
-    } else if (IsLoadOperation(flags)) {
-      // Load operations can't be reordered with side effects instructions but
-      // independent loads can be reordered with respect to each other.
-      if (last_side_effect_instr_ != nullptr) {
-        last_side_effect_instr_->AddSuccessor(new_node);
-      }
-      pending_loads_.push_back(new_node);
-    } else if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
-      // Ensure that deopts or traps are not reordered with respect to
-      // side-effect instructions.
-      if (last_side_effect_instr_ != nullptr) {
-        last_side_effect_instr_->AddSuccessor(new_node);
-      }
+    for (ScheduleGraphNode* load : pending_loads_) {
+      load->AddSuccessor(new_node);
     }
-
-    // Update last deoptimization or trap point.
-    if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
-      last_deopt_or_trap_ = new_node;
+    pending_loads_.clear();
+    last_side_effect_instr_ = new_node;
+  } else if (IsLoadOperation(flags)) {
+    // Load operations can't be reordered with side effects instructions but
+    // independent loads can be reordered with respect to each other.
+    if (last_side_effect_instr_ != nullptr) {
+      last_side_effect_instr_->AddSuccessor(new_node);
     }
+    pending_loads_.push_back(new_node);
+  } else if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
+    // Ensure that deopts or traps are not reordered with respect to
+    // side-effect instructions.
+    if (last_side_effect_instr_ != nullptr) {
+      last_side_effect_instr_->AddSuccessor(new_node);
+    }
+  }
 
-    // Look for operand dependencies.
-    for (size_t i = 0; i < instr->InputCount(); ++i) {
-      const InstructionOperand* input = instr->InputAt(i);
-      if (input->IsUnallocated()) {
-        int32_t vreg = UnallocatedOperand::cast(input)->virtual_register();
-        auto it = operands_map_.find(vreg);
-        if (it != operands_map_.end()) {
-          it->second->AddSuccessor(new_node);
-        }
+  // Update last deoptimization or trap point.
+  if (instr->IsDeoptimizeCall() || CanTrap(instr)) {
+    last_deopt_or_trap_ = new_node;
+  }
+
+  // Look for operand dependencies.
+  for (size_t i = 0; i < instr->InputCount(); ++i) {
+    const InstructionOperand* input = instr->InputAt(i);
+    if (input->IsUnallocated()) {
+      int32_t vreg = UnallocatedOperand::cast(input)->virtual_register();
+      auto it = operands_map_.find(vreg);
+      if (it != operands_map_.end()) {
+        it->second->AddDataSuccessor(new_node);
       }
     }
+  }
 
-    // Record the virtual registers defined by this instruction.
-    for (size_t i = 0; i < instr->OutputCount(); ++i) {
-      const InstructionOperand* output = instr->OutputAt(i);
-      if (output->IsUnallocated()) {
-        operands_map_[UnallocatedOperand::cast(output)->virtual_register()] =
-            new_node;
-      } else if (output->IsConstant()) {
-        operands_map_[ConstantOperand::cast(output)->virtual_register()] =
-            new_node;
-      }
+  // Record the virtual registers defined by this instruction.
+  for (size_t i = 0; i < instr->OutputCount(); ++i) {
+    const InstructionOperand* output = instr->OutputAt(i);
+    if (output->IsUnallocated()) {
+      operands_map_[UnallocatedOperand::cast(output)->virtual_register()] =
+          new_node;
+    } else if (output->IsConstant()) {
+      operands_map_[ConstantOperand::cast(output)->virtual_register()] =
+          new_node;
     }
   }
 
@@ -194,7 +225,6 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
 }
 
 void InstructionScheduler::Schedule() {
-
   // Compute total latencies so that we can schedule the critical path first.
   ComputeTotalLatencies();
 
@@ -230,7 +260,6 @@ void InstructionScheduler::Schedule() {
   operands_map_.clear();
   pending_loads_.clear();
   last_deopt_or_trap_ = nullptr;
-  last_live_in_reg_marker_ = nullptr;
   last_side_effect_instr_ = nullptr;
 }
 
@@ -410,7 +439,15 @@ void InstructionScheduler::ComputeTotalLatencies() {
   for (ScheduleGraphNode* node : base::Reversed(graph_)) {
     int max_latency = 0;
 
-    for (ScheduleGraphNode* successor : node->successors()) {
+    // With experimental-turbo-instruction-scheduling we compute latencies
+    // using only data-dependent successors, this prevents side-effect chains
+    // from causing overly pessimistic latencies, such as stores waiting for a
+    // load even though the loaded data is not required.
+    ScheduleGraphNode::SuccessorList& successors =
+        v8_flags.experimental_turbo_instruction_scheduling
+            ? node->data_successors()
+            : node->successors();
+    for (ScheduleGraphNode* successor : successors) {
       DCHECK_NE(-1, successor->total_latency());
       if (successor->total_latency() > max_latency) {
         max_latency = successor->total_latency();

@@ -1687,8 +1687,14 @@ DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
 DEFINE_BOOL(turbo_allocation_folding, true, "TurboFan allocation folding")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
+DEFINE_BOOL(experimental_turbo_instruction_scheduling, false,
+            "enable experimental instruction scheduling in TurboFan")
+DEFINE_IMPLICATION(experimental_turbo_instruction_scheduling,
+                   turbo_instruction_scheduling)
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
+DEFINE_BOOL(trace_turbo_instruction_scheduling, false,
+            "trace TurboShaft's instruction scheduler")
 DEFINE_IMPLICATION(turbo_stress_instruction_scheduling,
                    turbo_instruction_scheduling)
 DEFINE_BOOL(turbo_store_elimination, true,

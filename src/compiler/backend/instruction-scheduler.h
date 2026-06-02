@@ -58,6 +58,11 @@ class InstructionScheduler final : public ZoneObject {
     // of 'node' (i.e. it must be scheduled before 'node').
     void AddSuccessor(ScheduleGraphNode* node);
 
+    // Mark the instruction represented by 'node' as a data-dependency of this
+    // one. The current instruction will be registered as an unscheduled
+    // predecessor of 'node' (i.e. it must be scheduled before 'node').
+    void AddDataSuccessor(ScheduleGraphNode* node);
+
     // Check if all the predecessors of this instruction have been scheduled.
     bool HasUnscheduledPredecessor() {
       return unscheduled_predecessors_count_ != 0;
@@ -71,6 +76,11 @@ class InstructionScheduler final : public ZoneObject {
 
     Instruction* instruction() { return instr_; }
     SuccessorList& successors() { return successors_; }
+    SuccessorList& data_successors() { return data_successors_; }
+    const SuccessorList& data_successors() const { return data_successors_; }
+    int unscheduled_predecessors_count() const {
+      return unscheduled_predecessors_count_;
+    }
     int latency() const { return latency_; }
 
     int total_latency() const { return total_latency_; }
@@ -82,6 +92,7 @@ class InstructionScheduler final : public ZoneObject {
    private:
     Instruction* instr_;
     SuccessorList successors_;
+    SuccessorList data_successors_;
 
     // Number of unscheduled predecessors for this node.
     int unscheduled_predecessors_count_;
@@ -115,8 +126,25 @@ class InstructionScheduler final : public ZoneObject {
 
     bool IsEmpty() const { return ready_.empty() && waiting_.empty(); }
     ScheduleGraphNode* PopBestCandidate(int cycle);
+    // Use this heuristic when total latencies are the same.
+    inline size_t GetTieBreakLatency(const ScheduleGraphNode* node) const {
+      // The main heuristic looks at total latency, so start with only the
+      // latency of the node for the tie-breaker.
+      int latency = node->latency();
+      // Accumulate the total latency of all the successors that are just
+      // waiting for node to be scheduled.
+      for (ScheduleGraphNode* successor : node->data_successors()) {
+        if (successor->unscheduled_predecessors_count() == 1) {
+          latency += successor->total_latency();
+        }
+      }
+      return latency;
+    }
 
    private:
+    inline int GetTotalLatency(const ScheduleGraphNode* node) const {
+      return node->total_latency();
+    }
     SmallZoneVector<ScheduleGraphNode*, 8> ready_;
     SmallZoneVector<ScheduleGraphNode*, 16> waiting_;
     std::optional<base::RandomNumberGenerator> random_number_generator_;
@@ -197,13 +225,6 @@ class InstructionScheduler final : public ZoneObject {
   // which will be added as predecessors of the next instruction with side
   // effects.
   ZoneVector<ScheduleGraphNode*> pending_loads_;
-
-  // Live-in register markers are nop instructions which are emitted at the
-  // beginning of a basic block so that the register allocator will find a
-  // defining instruction for live-in values. They must not be moved.
-  // All these nops are chained together and added as a predecessor of every
-  // other instructions in the basic block.
-  ScheduleGraphNode* last_live_in_reg_marker_;
 
   // Last deoptimization or trap instruction encountered while building the
   // graph.
