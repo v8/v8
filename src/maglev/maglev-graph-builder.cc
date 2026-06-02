@@ -8522,10 +8522,13 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   latest_checkpointed_frame_ = nullptr;
   ClearCurrentAllocationBlock();
 
+  if (inner_graph_builder.should_abort_compilation()) {
+    should_abort_compilation_ = true;
+  }
+
   if (result.IsDoneWithAbort()) {
     DCHECK_NULL(inner_graph_builder.current_block());
     set_current_block(nullptr);
-    should_abort_compilation_ = inner_graph_builder.should_abort_compilation();
     return ReduceResult::DoneWithAbort();
   }
 

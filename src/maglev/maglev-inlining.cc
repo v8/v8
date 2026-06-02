@@ -310,11 +310,11 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
                    << graph_->total_inlined_bytecode_size());
   }
 
-  if (result.IsDoneWithAbort()) {
-    if (inner_graph_builder.should_abort_compilation()) {
-      return InliningResult::kAbort;
-    }
+  if (inner_graph_builder.should_abort_compilation()) {
+    return InliningResult::kAbort;
+  }
 
+  if (result.IsDoneWithAbort()) {
     // Since the rest of the block is dead, these nodes don't belong
     // to any basic block anymore.
     for (auto node : rem_nodes_in_call_block) {
