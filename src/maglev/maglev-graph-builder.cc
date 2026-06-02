@@ -206,6 +206,7 @@ void MaglevGraphBuilder::EscapeContext() {
 
 MaybeAssignedFlag MaglevGraphBuilder::GetContextMaybeAssigned(
     compiler::ScopeInfoRef scope_info, int index, VariableMode* mode) {
+  CHECK_LT(index, scope_info.ContextLength());
   if (index < Context::MIN_CONTEXT_SLOTS) {
     *mode = VariableMode::kConst;
     return kNotAssigned;
@@ -17608,44 +17609,157 @@ void MaglevGraphBuilder::PrewalkBytecode() {
 }
 
 void MaglevGraphBuilder::OsrPrewalk() {
-  ZoneMap<int, compiler::ScopeInfoRef> saved_states(zone());
+  // Single forward pass reconstructing the context scope at each
+  // reachable offset before the entrypoint.
+  const int bytecode_length = bytecode().length();
+  const int first_register =
+      interpreter::Register::FromParameterIndex(0).index();
+  const int last_register =
+      interpreter::Register(compilation_unit_->register_count() - 1).index();
+  const int registers_size = last_register - first_register + 1;
+  const int context_index =
+      interpreter::Register::current_context().index() - first_register;
+  DCHECK_LE(0, context_index);
+  DCHECK_LT(context_index, registers_size);
+
+  struct OsrScopeState {
+    base::Vector<compiler::OptionalScopeInfoRef> registers;
+    compiler::OptionalScopeInfoRef accumulator;
+  };
+  auto snapshot = [&]() -> OsrScopeState {
+    base::Vector<compiler::OptionalScopeInfoRef> registers =
+        zone()->AllocateVector<compiler::OptionalScopeInfoRef>(registers_size);
+    for (int i = first_register; i <= last_register; ++i) {
+      registers[i - first_register] =
+          register_scope_infos_[interpreter::Register(i)];
+    }
+    return OsrScopeState{registers, accumulator_scope_info_};
+  };
+  auto restore = [&](const OsrScopeState& state) {
+    for (int i = first_register; i <= last_register; ++i) {
+      register_scope_infos_[interpreter::Register(i)] =
+          state.registers[i - first_register];
+    }
+    accumulator_scope_info_ = state.accumulator;
+  };
+  auto context_scope_of = [&](const OsrScopeState& state) {
+    return state.registers[context_index];
+  };
+
+  ZoneMap<int, OsrScopeState> saved_states(zone());
+  ZoneVector<bool> is_reachable(bytecode_length + 1, false, zone());
+
+  const bool has_handlers = bytecode().handler_table_size() > 0;
+  std::optional<HandlerTable> table;
+  if (has_handlers) table.emplace(*bytecode().object());
+
+  auto propagate = [&](int target, const OsrScopeState& state) {
+    DCHECK_LE(0, target);
+    DCHECK_LE(target, bytecode_length);
+    is_reachable[target] = true;
+    auto it = saved_states.find(target);
+    if (it == saved_states.end()) {
+      saved_states.emplace(target, state);
+    } else {
+      DCHECK(context_scope_of(it->second).equals(context_scope_of(state)));
+    }
+  };
+
+  is_reachable[0] = true;
+  bool previous_fallsthrough = true;
+  uint32_t next_handler_record = 0;
+
   for (iterator_.SetOffset(0); iterator_.current_offset() < entrypoint_;
        iterator_.Advance()) {
     int offset = iterator_.current_offset();
+    interpreter::Bytecode bytecode = iterator_.current_bytecode();
+
+    HandleTryBlock(offset, /*set_context_scope_info=*/false);
+
+    if (!is_reachable[offset]) {
+      previous_fallsthrough = false;
+      continue;
+    }
+
     auto it = saved_states.find(offset);
     if (it != saved_states.end()) {
-      SetCurrentScopeInfo(it->second);
-    } else if (merge_states_[offset] != nullptr &&
-               merge_states_[offset]->has_context_scope_info()) {
-      SetCurrentScopeInfo(merge_states_[offset]->context_scope_info());
-    }
-
-    if (interpreter::Bytecodes::IsJump(iterator_.current_bytecode())) {
-      int target = iterator_.GetJumpTargetOffset();
-      auto jump_it = saved_states.find(target);
-      if (jump_it == saved_states.end()) {
-        saved_states.insert({target, GetCurrentScopeInfo()});
-      }
-    } else if (iterator_.current_bytecode() ==
-               interpreter::Bytecode::kSwitchOnSmiNoFeedback) {
-      for (auto table_offset : iterator_.GetJumpTableTargetOffsets()) {
-        int target = table_offset.target_offset;
-        auto jump_it = saved_states.find(target);
-        if (jump_it == saved_states.end()) {
-          saved_states.insert({target, GetCurrentScopeInfo()});
-        }
+      if (previous_fallsthrough) {
+        DCHECK(context_scope_of(it->second)
+                   .equals(register_scope_infos_
+                               [interpreter::Register::current_context()]));
+      } else {
+        restore(it->second);
       }
     }
 
-    HandleTryBlock(offset);
+    if (has_handlers) {
+      while (next_handler_record < table->NumberOfRangeEntries() &&
+             static_cast<int>(table->GetRangeStart(next_handler_record)) <
+                 offset) {
+        next_handler_record++;
+      }
+      for (uint32_t i = next_handler_record;
+           i < table->NumberOfRangeEntries() &&
+           static_cast<int>(table->GetRangeStart(i)) == offset;
+           ++i) {
+        if (table->GetRangeStart(i) == table->GetRangeEnd(i)) continue;
+        int handler = table->GetRangeHandler(i);
+        interpreter::Register context_reg(table->GetRangeData(i));
+        OsrScopeState handler_state = snapshot();
+        handler_state.registers[context_index] =
+            register_scope_infos_[context_reg];
+        propagate(handler, handler_state);
+      }
+    }
 
     PrewalkBytecode();
+
+    bool fallsthrough = true;
+    if (interpreter::Bytecodes::IsJump(bytecode)) {
+      propagate(iterator_.GetJumpTargetOffset(), snapshot());
+      if (!interpreter::Bytecodes::IsConditionalJump(bytecode)) {
+        fallsthrough = false;
+      }
+    } else if (bytecode == interpreter::Bytecode::kSwitchOnGeneratorState) {
+      propagate(iterator_.next_offset(), snapshot());
+      fallsthrough = false;
+    } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
+      for (auto table_offset : iterator_.GetJumpTableTargetOffsets()) {
+        propagate(table_offset.target_offset, snapshot());
+      }
+    } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
+      propagate(iterator_.next_offset(), snapshot());
+      fallsthrough = false;
+    } else if (interpreter::Bytecodes::Returns(bytecode) ||
+               interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
+      fallsthrough = false;
+    }
+    if (fallsthrough) is_reachable[iterator_.next_offset()] = true;
+    previous_fallsthrough = fallsthrough;
   }
-  auto it = saved_states.find(entrypoint_);
-  if (it != saved_states.end()) {
-    SetCurrentScopeInfo(it->second);
+
+  DCHECK(is_reachable[entrypoint_]);
+  if (!previous_fallsthrough) {
+    auto it = saved_states.find(entrypoint_);
+    if (it != saved_states.end()) {
+      restore(it->second);
+    }
   }
+
   merge_states_[entrypoint_]->set_context_scope_info(GetCurrentScopeInfo());
+
+  for (auto& [offset, state] : saved_states) {
+    if (offset <= entrypoint_) continue;
+    if (offset >= bytecode_length) continue;
+    compiler::OptionalScopeInfoRef scope = context_scope_of(state);
+    if (!scope.has_value()) continue;
+    if (merge_states_[offset] != nullptr) {
+      merge_states_[offset]->set_context_scope_info(scope);
+    } else if (is_resumable_function_ &&
+               dead_scope_infos_.find(offset) == dead_scope_infos_.end()) {
+      dead_scope_infos_.insert({offset, scope});
+    }
+  }
 }
 
 void MaglevGraphBuilder::BuildBody() {
@@ -17960,7 +18074,8 @@ void MaglevGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
   }
 }
 
-void MaglevGraphBuilder::HandleTryBlock(int offset) {
+void MaglevGraphBuilder::HandleTryBlock(int offset,
+                                        bool set_context_scope_info) {
   // Handle exceptions if we have a table.
   if (bytecode().handler_table_size() == 0) return;
   // Pop all entries where offset >= end.
@@ -17983,7 +18098,9 @@ void MaglevGraphBuilder::HandleTryBlock(int offset) {
     int handler = table.GetRangeHandler(next_handler_table_index_);
     catch_block_stack_.push({end, handler});
     DCHECK_NOT_NULL(merge_states_[handler]);
-    merge_states_[handler]->set_context_scope_info(GetCurrentScopeInfo());
+    if (set_context_scope_info) {
+      merge_states_[handler]->set_context_scope_info(GetCurrentScopeInfo());
+    }
     next_handler_table_index_++;
   }
 }
