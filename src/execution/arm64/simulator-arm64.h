@@ -234,31 +234,28 @@ class CachePage {
 // Representation of memory, with typed getters and setters for access.
 class SimMemory {
  public:
-  template <typename T>
-  static T AddressUntag(T address) {
-    // Cast the address using a C-style cast. A reinterpret_cast would be
-    // appropriate, but it can't cast one integral type to another.
-    uint64_t bits = (uint64_t)address;
-    return (T)(bits & ~kAddressTagMask);
+  template <typename A>
+  static A AddressUntag(A address) {
+    if (!v8_flags.sim_arm64_tbi) return address;
+    uint64_t bits = base::bit_cast<uint64_t>(address);
+    return base::bit_cast<A>(bits & ~kAddressTagMask);
   }
 
   template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8 || sizeof(T) == 16)
   static T Read(A address) {
     T value;
     address = AddressUntag(address);
-    DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) ||
-           (sizeof(value) == 4) || (sizeof(value) == 8) ||
-           (sizeof(value) == 16));
     memcpy(&value, reinterpret_cast<const char*>(address), sizeof(value));
     return value;
   }
 
   template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8 || sizeof(T) == 16)
   static void Write(A address, T value) {
     address = AddressUntag(address);
-    DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) ||
-           (sizeof(value) == 4) || (sizeof(value) == 8) ||
-           (sizeof(value) == 16));
     memcpy(reinterpret_cast<char*>(address), &value, sizeof(value));
   }
 };
@@ -1606,22 +1603,18 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // Memory read helpers.
   template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8 || sizeof(T) == 16)
   T MemoryRead(A address) {
-    T value;
-    static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
-                  (sizeof(value) == 4) || (sizeof(value) == 8) ||
-                  (sizeof(value) == 16));
-    memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
-    return value;
+    return SimMemory::Read<T>(address);
   }
 
   // Memory write helpers.
   template <typename T, typename A>
+    requires(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+             sizeof(T) == 8 || sizeof(T) == 16)
   void MemoryWrite(A address, T value) {
-    static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
-                  (sizeof(value) == 4) || (sizeof(value) == 8) ||
-                  (sizeof(value) == 16));
-    memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));
+    SimMemory::Write<T>(address, value);
   }
 
   template <typename T>

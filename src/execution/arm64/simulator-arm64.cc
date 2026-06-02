@@ -77,6 +77,8 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 
 bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  // arm64 TBI: bits[63:56] are ignored on data access (TCR_EL1.TBI0=1).
+  address = SimMemory::AddressUntag(address);
   uintptr_t last_accessed_byte = address + access_size - 1;
   uintptr_t current_pc = reinterpret_cast<uintptr_t>(pc_);
   uintptr_t landing_pad =
@@ -3148,6 +3150,8 @@ void Simulator::VisitAtomicMemory(Instruction* instr) {
 }
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
+  address = SimMemory::AddressUntag(address);
+  stack = SimMemory::AddressUntag(stack);
   if ((address >= stack_limit_) && (address < stack)) {
     fprintf(stream_, "ACCESS BELOW STACK POINTER:\n");
     fprintf(stream_, "  sp is here:          0x%016" PRIx64 "\n",
