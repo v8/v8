@@ -3249,10 +3249,9 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
           << "]: " << PrintNode(cached_value));
     return cached_value;
   }
-  if (assigned == kMaybeAssigned &&
-      !known_node_aspects().IsContextCacheEmpty(assigned)) {
-    known_node_aspects().UpdateMayHaveAliasingContexts(broker(), local_isolate(),
-                                                      context);
+  if (assigned == kMaybeAssigned) {
+    known_node_aspects().UpdateMayHaveAliasingContexts(
+        broker(), local_isolate(), context);
   }
   if (HasContextCell(context_mode, assigned)) {
     // We collect feedback only for mutable context slots.
