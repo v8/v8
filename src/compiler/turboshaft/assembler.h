@@ -3020,6 +3020,20 @@ class AssemblerOpInterface : public Next {
         ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
+  V<Object> LoadTrustedFixedArrayElement(V<TrustedFixedArray> array,
+                                         V<WordPtr> index) {
+    return Load(array, index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                TrustedFixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+  }
+
+  V<Object> LoadTrustedFixedArrayElement(V<TrustedFixedArray> array,
+                                         int index) {
+    return Load(array, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                TrustedFixedArray::OffsetOfElementAt(index));
+  }
+
   V<Word32> DecodeWord32(V<Word32> word32, uint32_t shift, uint32_t mask) {
     DCHECK_EQ((mask >> shift) << shift, mask);
     if ((std::numeric_limits<uint32_t>::max() >> shift) ==

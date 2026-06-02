@@ -410,9 +410,9 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   uint32_t index = static_cast<uint32_t>(module_->tags.size());
   module_->tags.emplace_back(sig, AddSignature(sig));
   DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  DirectHandle<FixedArray> table(trusted_instance_data_->tags_table(),
-                                 isolate_);
-  table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
+  DirectHandle<TrustedFixedArray> table(trusted_instance_data_->tags_table(),
+                                        isolate_);
+  table = isolate_->factory()->CopyTrustedFixedArrayAndGrow(table, 1);
   trusted_instance_data_->set_tags_table(*table);
   table->set(index, *tag);
   return index;
@@ -503,7 +503,8 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   CHECK(trusted_data->has_instance_object());
   DirectHandle<WasmInstanceObject> instance_object(
       trusted_data->instance_object(), isolate_);
-  trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
+  trusted_data->set_tags_table(
+      *isolate_->factory()->empty_trusted_fixed_array());
   trusted_data->set_untagged_globals_buffer(*globals_buffer);
   DirectHandle<FixedArray> feedback_vector =
       isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);

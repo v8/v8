@@ -1770,10 +1770,10 @@ class LiftoffCompiler {
 
     CODE_COMMENT("load expected exception tag");
     Register imm_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
+    LOAD_PROTECTED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
     __ LoadTaggedPointer(
         imm_tag, imm_tag, no_reg,
-        FixedArray::OffsetOfElementAt(imm.index) - kHeapObjectTag);
+        TrustedFixedArray::OffsetOfElementAt(imm.index) - kHeapObjectTag);
 
     CODE_COMMENT("compare tags");
 
@@ -1959,11 +1959,11 @@ class LiftoffCompiler {
 
     CODE_COMMENT("load expected exception tag");
     Register imm_tag = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
-    __ LoadTaggedPointer(
-        imm_tag, imm_tag, no_reg,
-        FixedArray::OffsetOfElementAt(catch_case.maybe_tag.tag_imm.index) -
-            kHeapObjectTag);
+    LOAD_PROTECTED_PTR_INSTANCE_FIELD(imm_tag, TagsTable, pinned);
+    __ LoadTaggedPointer(imm_tag, imm_tag, no_reg,
+                         TrustedFixedArray::OffsetOfElementAt(
+                             catch_case.maybe_tag.tag_imm.index) -
+                             kHeapObjectTag);
 
     VarState exn = __ cache_state() -> stack_state.back();
 
@@ -6171,10 +6171,10 @@ class LiftoffCompiler {
     CODE_COMMENT("load exception tag");
     LiftoffRegister exception_tag =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(exception_tag.gp(), TagsTable, pinned);
+    LOAD_PROTECTED_PTR_INSTANCE_FIELD(exception_tag.gp(), TagsTable, pinned);
     __ LoadTaggedPointer(
         exception_tag.gp(), exception_tag.gp(), no_reg,
-        FixedArray::OffsetOfElementAt(imm.index) - kHeapObjectTag);
+        TrustedFixedArray::OffsetOfElementAt(imm.index) - kHeapObjectTag);
 
     // Finally, call WasmThrow.
     Register instance_data = __ cache_state() -> cached_instance_data;

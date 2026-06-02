@@ -527,8 +527,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
   DirectHandle<Object> tag =
       WasmExceptionPackage::GetExceptionTag(isolate, exception);
   CHECK(IsWasmExceptionTag(*tag));
-  DirectHandle<FixedArray> tags_table(trusted_data->tags_table(), isolate);
-  uint32_t tags_table_len = tags_table->ulength().value();
+  DirectHandle<TrustedFixedArray> tags_table(trusted_data->tags_table(),
+                                             isolate);
+  uint32_t tags_table_len = tags_table->length().value();
   for (uint32_t index = 0; index < tags_table_len; ++index) {
     if (tags_table->get(index) == *tag) return Smi::FromUInt(index);
   }

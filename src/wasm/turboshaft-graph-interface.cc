@@ -3776,11 +3776,12 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> values_array = EncodeExceptionArray(decoder, imm, arg_values);
 
     // TODO(14616): Support shared tags.
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
     auto tag = V<WasmExceptionTag>::Cast(
-        __ LoadFixedArrayElement(instance_tags, imm.index));
+        __ LoadTrustedFixedArrayElement(instance_tags, imm.index));
 
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrow>(
         decoder, {tag, values_array, trusted_instance_data(SharedFlag::kNo)},
@@ -3815,11 +3816,12 @@ class TurboshaftGraphBuildingInterface
             {block->exception,
              __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
     // TODO(14616): Support shared tags.
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
     auto expected_tag = V<WasmExceptionTag>::Cast(
-        __ LoadFixedArrayElement(instance_tags, imm.index));
+        __ LoadTrustedFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
@@ -3950,11 +3952,13 @@ class TurboshaftGraphBuildingInterface
             {block->exception,
              __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
     // TODO(14616): Support shared tags.
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
-    auto expected_tag = V<WasmExceptionTag>::Cast(__ LoadFixedArrayElement(
-        instance_tags, catch_case.maybe_tag.tag_imm.index));
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
+    auto expected_tag =
+        V<WasmExceptionTag>::Cast(__ LoadTrustedFixedArrayElement(
+            instance_tags, catch_case.maybe_tag.tag_imm.index));
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
@@ -4244,11 +4248,12 @@ class TurboshaftGraphBuildingInterface
     auto [stack, asm_handlers] =
         PrepareResume(decoder, handlers, cont_ref, cont_imm);
     V<FixedArray> array = EncodeExceptionArray(decoder, exc_imm, args);
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
     V<WasmExceptionTag> tag = V<WasmExceptionTag>::Cast(
-        __ LoadFixedArrayElement(instance_tags, exc_imm.index));
+        __ LoadTrustedFixedArrayElement(instance_tags, exc_imm.index));
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrow,
@@ -4320,11 +4325,12 @@ class TurboshaftGraphBuildingInterface
       }
     });
 
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
     auto wanted_tag = V<WasmExceptionTag>::Cast(
-        __ LoadFixedArrayElement(instance_tags, tag_imm.index));
+        __ LoadTrustedFixedArrayElement(instance_tags, tag_imm.index));
 
     const ContType* return_cont_type =
         decoder->module_->cont_type(sig->parameters().last().ref_index());
@@ -4398,11 +4404,12 @@ class TurboshaftGraphBuildingInterface
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        trusted_instance_data(SharedFlag::kNo), TagsTable,
-        MemoryRepresentation::TaggedPointer());
+    V<TrustedFixedArray> instance_tags =
+        LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+            trusted_instance_data(SharedFlag::kNo), TagsTable,
+            TrustedFixedArray);
     auto wanted_tag = V<WasmExceptionTag>::Cast(
-        __ LoadFixedArrayElement(instance_tags, imm.index));
+        __ LoadTrustedFixedArrayElement(instance_tags, imm.index));
     V<WasmContinuationObject> cont = AllocateContinuation(decoder);
 
     auto [arg_size, arg_alignment] =

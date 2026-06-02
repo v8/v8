@@ -401,8 +401,9 @@ WTI_PROTECTED_POINTER_ACCESSORS(dispatch_tables, ProtectedFixedArray,
 WTI_PROTECTED_POINTER_ACCESSORS(dispatch_table_for_imports,
                                 WasmDispatchTableForImports,
                                 kProtectedDispatchTableForImportsOffset)
+WTI_PROTECTED_POINTER_ACCESSORS(tags_table, TrustedFixedArray,
+                                kProtectedTagsTableOffset)
 #undef WTI_PROTECTED_POINTER_ACCESSORS
-WTI_OPTIONAL_TAGGED_ACCESSORS(tags_table, Tagged<FixedArray>, kTagsTableOffset)
 WTI_TAGGED_ACCESSORS(func_refs, Tagged<FixedArray>, kFuncRefsOffset)
 WTI_TAGGED_ACCESSORS(managed_object_maps, Tagged<FixedArray>,
                      kManagedObjectMapsOffset)

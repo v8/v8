@@ -1240,14 +1240,15 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   int tags_count = static_cast<int>(module_->tags.size());
   if (tags_count > 0) {
-    DirectHandle<FixedArray> tag_table =
-        isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
+    DirectHandle<TrustedFixedArray> tag_table =
+        isolate_->factory()->NewTrustedFixedArray(tags_count,
+                                                  AllocationType::kTrusted);
     trusted_data_->set_tags_table(*tag_table);
     tags_wrappers_.resize(tags_count);
     if (shared) {
-      DirectHandle<FixedArray> shared_tag_table =
-          isolate_->factory()->NewFixedArray(tags_count,
-                                             AllocationType::kSharedOld);
+      DirectHandle<TrustedFixedArray> shared_tag_table =
+          isolate_->factory()->NewTrustedFixedArray(
+              tags_count, AllocationType::kSharedTrusted);
       shared_trusted_data_->set_tags_table(*shared_tag_table);
       shared_tags_wrappers_.resize(tags_count);
     }
@@ -2342,7 +2343,7 @@ bool InstanceBuilder::ProcessImports() {
           return false;
         }
         Tagged<Object> tag = imported_tag->tag();
-        DCHECK(IsUndefined(trusted_data_->tags_table()->get(import.index)));
+        DCHECK_EQ(trusted_data_->tags_table()->get(import.index), Smi::zero());
         trusted_data_->tags_table()->set(import.index, tag);
         tags_wrappers_[import.index] = imported_tag;
         break;
@@ -3023,10 +3024,11 @@ void InstanceBuilder::LoadTableSegments() {
 }
 
 void InstanceBuilder::InitializeTags() {
-  DirectHandle<FixedArray> tags_table(trusted_data_->tags_table(), isolate_);
-  uint32_t tags_table_len = tags_table->ulength().value();
+  DirectHandle<TrustedFixedArray> tags_table(trusted_data_->tags_table(),
+                                             isolate_);
+  uint32_t tags_table_len = tags_table->length().value();
   for (uint32_t index = 0; index < tags_table_len; ++index) {
-    if (!IsUndefined(tags_table->get(index))) continue;
+    if (tags_table->get(index) != Smi::zero()) continue;
     DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
     tags_table->set(index, *tag);
   }

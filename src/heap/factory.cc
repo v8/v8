@@ -2044,6 +2044,9 @@ DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
   for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
     result->RawField(offset).store(read_only_roots().undefined_value());
   }
+  for (int offset : WasmTrustedInstanceData::kProtectedFieldOffsets) {
+    result->ClearProtectedPointerField(offset);
+  }
   return direct_handle(result, isolate());
 }
 
@@ -3105,7 +3108,7 @@ Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
   DisallowGarbageCollection no_gc;
   new_object->set_map_after_allocation(isolate(), src->map(),
                                        SKIP_WRITE_BARRIER);
-  Tagged<T> result = Cast<T>(new_object);
+  Tagged<T> result = TrustedCast<T>(new_object);
   initialize_length(result, new_len);
   // Copy the content.
   WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
@@ -3149,6 +3152,12 @@ DirectHandle<WeakArrayList> Factory::NewWeakArrayList(
 
 Handle<FixedArray> Factory::CopyFixedArrayAndGrow(
     DirectHandle<FixedArray> array, uint32_t grow_by,
+    AllocationType allocation) {
+  return CopyArrayAndGrow(array, grow_by, allocation);
+}
+
+Handle<TrustedFixedArray> Factory::CopyTrustedFixedArrayAndGrow(
+    DirectHandle<TrustedFixedArray> array, uint32_t grow_by,
     AllocationType allocation) {
   return CopyArrayAndGrow(array, grow_by, allocation);
 }
