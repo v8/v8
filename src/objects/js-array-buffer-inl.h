@@ -252,7 +252,7 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 
 bool JSArrayBuffer::is_resizable_by_js() const {
-  return JSArrayBuffer::IsResizableByJsBit::decode(bit_field_);
+  return JSArrayBuffer::IsResizableByJsBit::decode(bit_field());
 }
 
 void JSArrayBuffer::set_is_resizable_by_js(bool value) {

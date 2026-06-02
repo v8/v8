@@ -8,6 +8,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
@@ -333,6 +334,9 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
 std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
   ArrayBufferExtension* extension = this->extension();
   DCHECK_NOT_NULL(extension);
+  // Prevent concurrent detachment vs background copying if an attacker
+  // swapped the extension pointer to a shared buffer's extension.
+  SBXCHECK(!extension->is_shared());
   auto result = extension->RemoveBackingStore();
   // Remove pointer to extension such that the next GC will free it
   // automatically.
