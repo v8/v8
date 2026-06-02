@@ -494,6 +494,7 @@ class WasmShuffleReducer : public Next {
         } else {
           index = __ IntPtrConstant(load.offset);
         }
+        DCHECK_EQ(load.element_size_log2, 0);
 
         Simd128LaneMemoryOp::LaneKind lane_kind =
             Simd128LaneMemoryOp::LaneKindFromBytes(
