@@ -47,7 +47,7 @@ void HeapObjectRange::iterator::AdvanceToNextObject() {
   while (cur_addr_ != cur_end_) {
     DCHECK_LT(cur_addr_, cur_end_);
     Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-    cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size());
+    cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->SafeSize().value());
     DCHECK_LE(cur_addr_ + cur_size_, cur_end_);
     if (IsFreeSpaceOrFiller(obj)) {
       cur_addr_ += cur_size_;

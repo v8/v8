@@ -276,7 +276,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
     if (current_addr_ == end) return {};
 
     Tagged<HeapObject> object = HeapObject::FromAddress(current_addr_);
-    const int object_size = object->Size();
+    const uint32_t object_size = object->SafeSize().value();
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&

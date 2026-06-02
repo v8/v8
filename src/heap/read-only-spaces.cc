@@ -250,7 +250,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         continue;
       }
       Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-      const int obj_size = obj->Size();
+      const uint32_t obj_size = obj->SafeSize().value();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!IsFreeSpaceOrFiller(obj)) {

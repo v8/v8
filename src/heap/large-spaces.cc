@@ -106,10 +106,11 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 }
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
-                                                  int object_size,
+                                                  int object_size_in_bytes,
                                                   Executability executable,
                                                   AllocationHint hint) {
-  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  const uint32_t object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(
+      static_cast<uint32_t>(object_size_in_bytes));
   DCHECK_IMPLIES(identity() == SHARED_LO_SPACE,
                  !allocation_counter_.HasAllocationObservers());
   DCHECK_IMPLIES(identity() == SHARED_LO_SPACE,
@@ -127,7 +128,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
       local_heap, heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
 
-  LargePage* page = AllocateLargePage(object_size, executable, hint);
+  LargePage* page = AllocateLargePage(object_size_in_bytes, executable, hint);
   if (page == nullptr) return AllocationResult::Failure();
   Tagged<HeapObject> object = page->GetObject();
   if (local_heap->is_main_thread() && identity() != SHARED_LO_SPACE) {
@@ -143,8 +144,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
   heap()->NotifyOldGenerationExpansion(local_heap, identity(), page);
 
   if (local_heap->is_main_thread() && identity() != SHARED_LO_SPACE) {
-    AdvanceAndInvokeAllocationObservers(object.address(),
-                                        static_cast<size_t>(object_size));
+    AdvanceAndInvokeAllocationObservers(object.address(), object_size);
   }
   return AllocationResult::FromObject(object);
 }

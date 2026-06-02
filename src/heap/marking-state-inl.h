@@ -43,7 +43,7 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
   if (TryMark(obj)) {
     MutablePage::FromHeapObject(isolate_, obj)
         ->IncrementLiveBytesAtomically(
-            ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size()));
+            ALIGN_TO_ALLOCATION_ALIGNMENT(obj->SafeSize().value()));
     return true;
   }
   return false;
@@ -51,7 +51,7 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
-    Tagged<HeapObject> obj, int object_size) {
+    Tagged<HeapObject> obj, uint32_t object_size) {
   if (TryMark(obj)) {
     MutablePage::FromHeapObject(isolate_, obj)
         ->IncrementLiveBytesAtomically(object_size);

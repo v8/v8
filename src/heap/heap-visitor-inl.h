@@ -274,7 +274,7 @@ size_t HeapVisitor<ConcreteVisitor>::VisitFiller(
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFiller>(object);
   return ConcreteVisitor::UsePrecomputedObjectSize()
              ? maybe_object_size.AssumeSize()
-             : map->instance_size();
+             : static_cast<uint32_t>(map->instance_size());
 }
 
 template <typename ConcreteVisitor>
@@ -286,7 +286,7 @@ size_t HeapVisitor<ConcreteVisitor>::VisitFreeSpace(
   }
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFreeSpace>(object);
-  return object->size(kRelaxedLoad);
+  return static_cast<uint32_t>(object->size(kRelaxedLoad));
 }
 
 template <typename ConcreteVisitor>
@@ -329,11 +329,12 @@ size_t HeapVisitor<ConcreteVisitor>::VisitStruct(
     Tagged<Map> map, Tagged<HeapObject> object,
     MaybeObjectSize maybe_object_size) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = ConcreteVisitor::UsePrecomputedObjectSize()
-                 ? static_cast<int>(maybe_object_size.AssumeSize())
-                 : map->instance_size();
+  const size_t size = ConcreteVisitor::UsePrecomputedObjectSize()
+                          ? maybe_object_size.AssumeSize()
+                          : static_cast<uint32_t>(map->instance_size());
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitStruct>(object);
-  StructBodyDescriptor::IterateBody(map, object, size, visitor);
+  StructBodyDescriptor::IterateBody(map, object, static_cast<int>(size),
+                                    visitor);
   return size;
 }
 
@@ -350,9 +351,10 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
 
-  const size_t size = ConcreteVisitor::UsePrecomputedObjectSize()
-                          ? maybe_object_size.AssumeSize()
-                          : TBodyDescriptor::SizeOf(map, object);
+  const size_t size =
+      ConcreteVisitor::UsePrecomputedObjectSize()
+          ? maybe_object_size.AssumeSize()
+          : static_cast<uint32_t>(TBodyDescriptor::SizeOf(map, object));
 
   int visitation_size = static_cast<int>(size);
 
@@ -394,10 +396,11 @@ size_t HeapVisitor<ConcreteVisitor>::VisitWithBodyDescriptor(
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<visitor_id>(object);
-  const int size = ConcreteVisitor::UsePrecomputedObjectSize()
-                       ? static_cast<int>(maybe_object_size.AssumeSize())
-                       : TBodyDescriptor::SizeOf(map, object);
-  TBodyDescriptor::IterateBody(map, object, size, visitor);
+  const size_t size =
+      ConcreteVisitor::UsePrecomputedObjectSize()
+          ? maybe_object_size.AssumeSize()
+          : static_cast<uint32_t>(TBodyDescriptor::SizeOf(map, object));
+  TBodyDescriptor::IterateBody(map, object, static_cast<int>(size), visitor);
   return size;
 }
 
@@ -473,16 +476,18 @@ size_t ConcurrentHeapVisitor<ConcreteVisitor>::VisitStringLocked(
   // guaranteed but we must re-read the map and check whether the string has
   // transitioned.
   Tagged<Map> map = object->map();
-  int size;
+  uint32_t size;
   switch (map->visitor_id()) {
 #define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorIdType, TypeName)         \
   case kVisit##VisitorIdType:                                                 \
     visitor                                                                   \
         ->template VisitMapPointerIfNeeded<VisitorId::kVisit##VisitorIdType>( \
             object);                                                          \
-    size = ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object);       \
+    size = static_cast<uint32_t>(                                             \
+        ObjectTraits<TypeName>::BodyDescriptor::SizeOf(map, object));         \
     ObjectTraits<TypeName>::BodyDescriptor::IterateBody(                      \
-        map, UncheckedCast<TypeName>(object), size, visitor);                 \
+        map, UncheckedCast<TypeName>(object), static_cast<int>(size),         \
+        visitor);                                                             \
     break;
 
     UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)

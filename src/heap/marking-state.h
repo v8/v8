@@ -26,7 +26,7 @@ class MarkingStateBase {
   V8_INLINE bool TryMarkAndAccountLiveBytes(Tagged<HeapObject> obj);
   // Same, but does not require the object to be initialized.
   V8_INLINE bool TryMarkAndAccountLiveBytes(Tagged<HeapObject> obj,
-                                            int object_size);
+                                            uint32_t object_size);
   V8_INLINE bool IsMarked(const Tagged<HeapObject> obj) const;
   V8_INLINE bool IsUnmarked(const Tagged<HeapObject> obj) const;
 

@@ -91,7 +91,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
       current_map_ = current_object_->map(kAcquireLoad);
       DCHECK(MapWord::IsMapOrForwarded(current_map_));
       current_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(
-          current_object_->SizeFromMap(current_map_));
+          current_object_->SafeSizeFromMap(current_map_).value());
       CHECK(page_->ContainsLimit(object_address + current_size_));
       return true;
     }
