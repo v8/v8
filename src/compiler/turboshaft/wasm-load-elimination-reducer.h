@@ -723,6 +723,16 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         DCHECK(op.IsBlockTerminator() && SuccessorBlocks(op).empty());
         break;
 
+      case Opcode::kArrayGet:
+        if (op.Effects().can_write()) {
+          DCHECK(op.Cast<ArrayGetOp>().memory_order.has_value());
+          // For now invalidate "everything", similar to the effect of a call.
+          // TODO(manoskouk): What's the desired behavior here?
+          InvalidateAllNonAliasingInputs(op);
+          memory_.InvalidateMaybeAliasing();
+        }
+        break;
+
       default:
         // Operations that `can_write` should invalidate the state. All such
         // operations should be already handled above, which means that we don't

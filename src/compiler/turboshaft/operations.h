@@ -8232,11 +8232,18 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   std::optional<AtomicMemoryOrder> memory_order;
 
   // ArrayGetOp may never trap as it is always protected by a length check.
-  static constexpr OpEffects effects =
-      OpEffects()
-          // This should not float above a protective null/length check.
-          .CanDependOnChecks()
-          .CanReadMemory();
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null/length check.
+            .CanDependOnChecks()
+            .CanReadMemory();
+    if (memory_order.has_value()) {
+      // Pretending that the op can write prevents reordering / GVN.
+      result = result.CanWriteMemory();
+    }
+    return result;
+  }
 
   ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
              const wasm::ArrayType* array_type, bool is_signed,
@@ -10443,6 +10450,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructGetOp>().Effects();
     case Opcode::kStructSet:
       return Cast<StructSetOp>().Effects();
+    case Opcode::kArrayGet:
+      return Cast<ArrayGetOp>().Effects();
     case Opcode::kStructAtomicRMW:
       return Cast<StructAtomicRMWOp>().Effects();
     case Opcode::kArrayAtomicRMW:
