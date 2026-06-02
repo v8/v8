@@ -8,11 +8,23 @@
 
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8::internal::maglev {
+
+void Graph::UnwrapDeoptFrames() {
+  for (DeoptFrame* top_frame : eager_deopt_top_frames_) {
+    EagerDeoptInfo(zone(), top_frame, {}).Unwrap();
+  }
+  for (auto [top_frame, result_location] : lazy_deopt_top_frames_) {
+    LazyDeoptInfo(zone(), top_frame, result_location.first,
+                  result_location.second, {})
+        .Unwrap();
+  }
+}
 
 HeapConstant* Graph::GetHeapNumberConstant(double constant) {
   uint64_t bits = Float64(constant).get_bits();

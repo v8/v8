@@ -168,6 +168,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     if (graph->may_have_unreachable_blocks()) {
       graph->RemoveUnreachableBlocks();
     }
+    graph->UnwrapDeoptFrames();
     GraphMultiProcessor<ReturnedValueRepresentationSelector,
                         AnyUseMarkingProcessor,
                         RegallocNodeInfoAllocationProcessor>

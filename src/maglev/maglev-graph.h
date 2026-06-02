@@ -205,6 +205,8 @@ class Graph final : public ZoneObject {
     }
   }
 
+  void UnwrapDeoptFrames();
+
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
   using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
 

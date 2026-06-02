@@ -157,14 +157,7 @@ bool MaglevInliner::Run() {
   }
 
   // Clear conversion, identities and ReturnedValues uses from deopt frames.
-  for (DeoptFrame* top_frame : graph_->eager_deopt_top_frames()) {
-    EagerDeoptInfo(zone(), top_frame, {}).Unwrap();
-  }
-  for (auto [top_frame, result_location] : graph_->lazy_deopt_top_frames()) {
-    LazyDeoptInfo(zone(), top_frame, result_location.first,
-                  result_location.second, {})
-        .Unwrap();
-  }
+  graph_->UnwrapDeoptFrames();
   return true;
 }
 
