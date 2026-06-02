@@ -5031,12 +5031,15 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
 
+  // Check if the arguments is negative.
+  dsll(scratch2, num_args, kPointerSizeLog2);
+  Branch(stack_overflow, lt, scratch2, Operand(zero_reg));
+
   LoadStackLimit(scratch1, StackLimitKind::kRealStackLimit);
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
   dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  dsll(scratch2, num_args, kPointerSizeLog2);
   // Signed comparison.
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
