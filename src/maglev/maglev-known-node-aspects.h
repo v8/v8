@@ -435,6 +435,18 @@ class KnownNodeAspects {
     return NodeTypeMayBeNullOrUndefined(node_info->type());
   }
 
+  bool IsEmptyNodeType(NodeType type) const {
+    return v8::internal::maglev::IsEmptyNodeType(type);
+  }
+
+  bool IsEmptyNodeType(compiler::JSHeapBroker* broker, ValueNode* node) const {
+    // We use GetTypeUnchecked to avoid introducing Traps on None under
+    // maglev-assert-types (as the caller of this function is already currently
+    // handling the empty node type case).
+    return v8::internal::maglev::IsEmptyNodeType(
+        GetTypeUnchecked(broker, node));
+  }
+
   bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
                   NodeType type, NodeType* old_type = nullptr) {
     NodeType static_type = node->GetStaticType(broker);

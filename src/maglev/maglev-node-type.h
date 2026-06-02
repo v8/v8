@@ -163,6 +163,8 @@ inline constexpr bool NodeTypeIsForPrinting(NodeType type, NodeType to_check) {
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
+// TODO(dmercadier): similarly to NodeTypeIs, try to disallow kNone here because
+// it can lead to confusing results.
 inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check,
                                     bool allow_standalone = false) {
   DCHECK_IMPLIES(!allow_standalone, !NodeTypeIsNeverStandalone(type));

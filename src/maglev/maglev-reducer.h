@@ -1095,6 +1095,12 @@ class MaglevReducer {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
+  bool IsEmptyNodeType(NodeType type) {
+    return v8::internal::maglev::IsEmptyNodeType(type);
+  }
+  bool IsEmptyNodeType(ValueNode* node) {
+    return known_node_aspects().IsEmptyNodeType(broker(), node);
+  }
   NodeType GetType(ValueNode* node) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)

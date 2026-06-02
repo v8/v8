@@ -7,7 +7,6 @@
 
 #include "src/maglev/maglev-reducer.h"
 // Include the non-inl header before the rest of the headers.
-
 #include <cmath>
 
 #include "src/base/bits.h"
@@ -19,6 +18,7 @@
 #include "src/compiler/processed-feedback.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-map-inference.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
@@ -835,11 +835,15 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
   switch (representation) {
     case ValueRepresentation::kTagged: {
       NodeType old_type;
+      // TODO(dmercadier): make EnsureType return a 3-value enum, something like
+      // kAlreadyTargetType, kNeedsCheck, and kImpossible, and handle
+      // kImpossible by emitting an unconditional deopt, instead of having to
+      // check after EnsureType whether its input now has type kNone or not.
       EnsureType(value, allowed_input_type, &old_type);
 
       // Check for the empty type first, so that we don't emit unsafe conversion
       // nodes below.
-      if (IsEmptyNodeType(old_type)) {
+      if (IsEmptyNodeType(old_type) || IsEmptyNodeType(value)) {
         return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
       }
 
@@ -1934,7 +1938,7 @@ ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
-  if (IsEmptyNodeType(GetType(node))) {
+  if (IsEmptyNodeType(node) || !NodeTypeCanBe(GetType(node), NodeType::kSmi)) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
   if (EnsureType(node, NodeType::kSmi)) {
