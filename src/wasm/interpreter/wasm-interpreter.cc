@@ -745,13 +745,23 @@ WasmInterpreter::WasmInterpreter(
   module->SetWasmInterpreter(wasm_runtime_);
 
 #if !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
-  // TODO(paolosev@microsoft.com) - For modules that have 64-bit Wasm memory we
-  // need to use explicit bound checks; memory guard pages only work with 32-bit
-  // memories. This could be implemented by allocating a different dispatch
-  // table for each instance (probably in the WasmInterpreterRuntime object) and
-  // patching the entries of Load/Store instructions with builtin handlers only
-  // for instances related to modules that have 32-bit memories. 64-bit memories
-  // are not supported yet by DrumBrake.
+  // The no-bounds-check load/store builtins below rely on (a) the 8 GB guard
+  // region around memory32 backing stores and (b) the OS trap handler that
+  // redirects faults to TrapMemOutOfBounds. BOTH are gated on
+  // trap_handler::IsTrapHandlerEnabled() at runtime (see
+  // BackingStore::AllocateWasmMemory and v8::V8::EnableWebAssemblyTrapHandler).
+  // Without it, a Wasm module gets unchecked OOB R/W over ~8 GB. Refuse to run
+  // in that configuration rather than silently mis-execute.
+  CHECK(trap_handler::IsTrapHandlerEnabled());
+
+  // Only modules with 32-bit Wasm memory use the no-bounds-check Load/Store
+  // builtins installed here, which delegate out-of-bounds detection to the
+  // memory guard regions plus the trap handler. Modules with 64-bit memory
+  // instead emit the *_Mem64 / *_MultiMem64 handler variants, which perform
+  // explicit bounds checks, because the memory guard pages only cover 32-bit
+  // memories. See EMIT_MULTI_MEM64_INSTR_HANDLER and
+  // FOREACH_LOAD_STORE_REGULAR_INSTR_HANDLER (which only lists the 32-bit base
+  // handlers that are overwritten with builtins below).
   base::CallOnce(&init_instruction_table_once, &InitInstructionTableOnce,
                  isolate);
   base::CallOnce(&init_trap_handlers_once, &InitTrapHandlersOnce, isolate);
