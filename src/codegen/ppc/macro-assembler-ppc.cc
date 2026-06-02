@@ -1229,8 +1229,10 @@ void MacroAssembler::Prologue() {
 }
 
 void MacroAssembler::DropArguments(Register count) {
-  ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
-  add(sp, sp, ip);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
+  add(sp, sp, scratch);
 }
 
 void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
@@ -4777,10 +4779,12 @@ void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r0;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   LoadU32(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, ip);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
   Call(code);
 }
 
@@ -4788,7 +4792,8 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                                          uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle_reg = r0;
-  Register scratch = ip;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   mov(dispatch_handle_reg,
       Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
   // WARNING: This entrypoint load is only safe because we are storing a
@@ -4808,10 +4813,12 @@ void MacroAssembler::JumpJSFunction(Register function_object, Register scratch,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
   Register dispatch_handle = r0;
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
   LoadU32(
       dispatch_handle,
       FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, ip);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch2);
   Jump(code);
 }
 
