@@ -1090,11 +1090,12 @@ void VisitStoreCommon(InstructionSelector* selector,
     } else {
       // Release and non-atomic stores emit MOV.
       // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+      DCHECK(!atomic_order || atomic_order == AtomicMemoryOrder::kAcqRel);
       InstructionOperand val;
       if (g.CanBeImmediate(value)) {
         val = g.UseImmediate(value);
-      } else if (!atomic_order && (rep == MachineRepresentation::kWord8 ||
-                                   rep == MachineRepresentation::kBit)) {
+      } else if (rep == MachineRepresentation::kWord8 ||
+                 rep == MachineRepresentation::kBit) {
         val = g.UseByteRegister(value);
       } else {
         val = g.UseUniqueRegister(value);
