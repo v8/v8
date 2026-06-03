@@ -852,9 +852,33 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
-  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
-              StoreType::kI32Store, trapping_store_pc, memory_order, pinned,
-              false);
+  static_assert(kTaggedSize == kInt64Size);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  sync();
+  Sd(src, dst_op);
+  // Since StoreTaggedField might start with an instruction loading an immediate
+  // argument to a register, we have to compute the {trapping_load_pc} after
+  // calling it.
+  if (trapping_store_pc) {
+    *trapping_store_pc = pc_offset() - kInstrSize;
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Label exit;
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(dst_addr, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
+  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
+                kZero, &exit);
+  Daddu(scratch, dst_op.rm(), dst_op.offset());
+  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr) \
