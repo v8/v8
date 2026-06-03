@@ -33,7 +33,7 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
     it by passing `--commit-description="New cohesive description content"`.
     **⚠️ CRITICAL SAFETY CONSTRAINT**: Before passing `--commit-description` or
     updating it on a subsequent upload, you must first inspect the live remote
-    description on Gerrit (using either `git cl desc` or the
+    description on Gerrit (using either `git cl desc -d` or the
     `gerrit_get_change_details` MCP tool) to verify whether the user has
     manually edited it. If manual user edits or refinements are detected, you
     must carefully evaluate them: preserve any human-authored background
@@ -112,4 +112,5 @@ When working on a chain of dependent changes (stacked CLs):
 - Use `git cl patch <CL_NUMBER>` to fetch and checkout the latest patchset of a
   CL.
 - Use `git cl land` to land the CL after approval.
-- Use `git cl desc` to view or edit the CL description.
+- Use `git cl desc -d` to view the CL description.
+- Use `git cl desc -n` to write a new CL description.
