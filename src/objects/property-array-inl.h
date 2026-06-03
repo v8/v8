@@ -46,7 +46,7 @@ Tagged<Object> PropertyArray::get(int index, SeqCstAccessTag) const {
 }
 
 void PropertyArray::set(int index, Tagged<Object> value) {
-  DCHECK(IsPropertyArray(this));
+  DCHECK(Is<PropertyArray>(this));
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   objects()[index].Relaxed_Store(this, value);
 }
@@ -58,7 +58,7 @@ void PropertyArray::set(int index, Tagged<Object> value,
 }
 
 void PropertyArray::set(int index, Tagged<Object> value, SeqCstAccessTag) {
-  DCHECK(IsPropertyArray(this));
+  DCHECK(Is<PropertyArray>(this));
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   DCHECK(IsShared(value));
   objects()[index].SeqCst_Store(this, value);
@@ -66,7 +66,7 @@ void PropertyArray::set(int index, Tagged<Object> value, SeqCstAccessTag) {
 
 Tagged<Object> PropertyArray::Swap(int index, Tagged<Object> value,
                                    SeqCstAccessTag) {
-  DCHECK(IsPropertyArray(this));
+  DCHECK(Is<PropertyArray>(this));
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   DCHECK(IsShared(value));
   return objects()[index].SeqCst_Swap(this, value);
@@ -75,7 +75,7 @@ Tagged<Object> PropertyArray::Swap(int index, Tagged<Object> value,
 Tagged<Object> PropertyArray::CompareAndSwap(int index, Tagged<Object> expected,
                                              Tagged<Object> value,
                                              SeqCstAccessTag) {
-  DCHECK(IsPropertyArray(this));
+  DCHECK(Is<PropertyArray>(this));
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   DCHECK(IsShared(value));
   return objects()[index].SeqCst_CompareAndSwap(this, expected, value);

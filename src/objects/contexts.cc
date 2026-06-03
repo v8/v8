@@ -133,7 +133,7 @@ bool ScriptContextTable::Lookup(DirectHandle<String> name,
 }
 
 bool Context::is_declaration_context() const {
-  if (IsFunctionContext() || IsNativeContext(this) || IsScriptContext() ||
+  if (IsFunctionContext() || Is<NativeContext>(this) || IsScriptContext() ||
       IsModuleContext()) {
     return true;
   }
@@ -163,17 +163,17 @@ Tagged<Context> Context::closure_context() const {
 }
 
 Tagged<JSObject> Context::extension_object() const {
-  DCHECK(IsNativeContext(this) || IsFunctionContext() || IsBlockContext() ||
+  DCHECK(Is<NativeContext>(this) || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   Tagged<HeapObject> object = extension();
   if (IsUndefined(object)) return {};
   DCHECK(IsJSContextExtensionObject(object) ||
-         (IsNativeContext(this) && IsJSGlobalObject(object)));
+         (Is<NativeContext>(this) && IsJSGlobalObject(object)));
   return Cast<JSObject>(object);
 }
 
 Tagged<JSReceiver> Context::extension_receiver() const {
-  DCHECK(IsNativeContext(this) || IsWithContext() || IsEvalContext() ||
+  DCHECK(Is<NativeContext>(this) || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? Cast<JSReceiver>(extension()) : extension_object();
 }
@@ -701,7 +701,7 @@ void Context::VerifyExtensionSlot(Tagged<HeapObject> extension) {
   } else if (IsDebugEvaluateContext() || IsWithContext()) {
     CHECK(IsJSReceiver(extension) ||
           (IsWithContext() && IsContexExtensionTestObject(extension)));
-  } else if (IsNativeContext(this)) {
+  } else if (Is<NativeContext>(this)) {
     CHECK(IsJSGlobalObject(extension) ||
           IsContexExtensionTestObject(extension));
   } else if (IsScriptContext()) {

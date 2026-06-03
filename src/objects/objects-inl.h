@@ -134,7 +134,6 @@ DEF_CAST_TRAITS(FreeSpace)
 DEF_CAST_TRAITS(GcSafeCode)
 DEF_CAST_TRAITS(GlobalDictionary)
 DEF_CAST_TRAITS(InterceptorInfo)
-DEF_CAST_TRAITS(InternalizedString)
 DEF_CAST_TRAITS(JSArgumentsObject)
 DEF_CAST_TRAITS(JSArray)
 DEF_CAST_TRAITS(JSArrayBuffer)
@@ -340,7 +339,6 @@ DEF_CAST_TRAITS(JSTemporalInstant)
 
 HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_CAST_TRAITS)
 HOLE_LIST(DEF_CAST_TRAITS)
-ODDBALL_LIST(DEF_CAST_TRAITS)
 
 #define IS_HELPER_DEF_STRUCT(NAME, Name, name) DEF_CAST_TRAITS(Name)
 STRUCT_LIST(IS_HELPER_DEF_STRUCT)
@@ -366,13 +364,6 @@ DEF_CAST_TRAITS(StringWrapper)
 DEF_CAST_TRAITS(SymbolWrapper)
 DEF_CAST_TRAITS(UniqueName)
 DEF_CAST_TRAITS(Undetectable)
-
-bool IsCallable(const HeapObject* obj) {
-  return IsCallable(Tagged<HeapObject>(obj));
-}
-bool IsConstructor(const HeapObject* obj) {
-  return IsConstructor(Tagged<HeapObject>(obj));
-}
 
 template <>
 struct CastTraits<JSPrimitive> {

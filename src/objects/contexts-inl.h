@@ -220,19 +220,19 @@ inline bool Context::HasContextCells() const {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
   void Context::set_##name(Tagged<UNPAREN(type)> value) {          \
-    DCHECK(IsNativeContext(this));                                 \
+    DCHECK(Is<NativeContext>(this));                               \
     set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore);        \
   }                                                                \
   bool Context::is_##name(Tagged<UNPAREN(type)> value) const {     \
-    DCHECK(IsNativeContext(this));                                 \
+    DCHECK(Is<NativeContext>(this));                               \
     return Cast<UNPAREN(type)>(get(index, kRelaxedLoad)) == value; \
   }                                                                \
   Tagged<UNPAREN(type)> Context::name() const {                    \
-    DCHECK(IsNativeContext(this));                                 \
+    DCHECK(Is<NativeContext>(this));                               \
     return Cast<UNPAREN(type)>(get(index, kRelaxedLoad));          \
   }                                                                \
   Tagged<UNPAREN(type)> Context::name(AcquireLoadTag tag) const {  \
-    DCHECK(IsNativeContext(this));                                 \
+    DCHECK(Is<NativeContext>(this));                               \
     return Cast<UNPAREN(type)>(get(index, tag));                   \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
@@ -294,7 +294,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS4
 
 Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
-  DCHECK(IsNativeContext(this));
+  DCHECK(Is<NativeContext>(this));
   if (!IsFastElementsKind(kind)) return {};
   DisallowGarbageCollection no_gc;
   Tagged<Object> const initial_js_array_map =

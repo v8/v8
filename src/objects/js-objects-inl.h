@@ -1074,7 +1074,7 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
 }
 
 DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
-  DCHECK(!IsJSGlobalObject(this));
+  DCHECK(!Is<JSGlobalObject>(this));
   DCHECK(!HasFastProperties());
   DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
@@ -1086,7 +1086,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
 }
 
 DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
-  DCHECK(!IsJSGlobalObject(this));
+  DCHECK(!Is<JSGlobalObject>(this));
   DCHECK(!HasFastProperties());
   DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 

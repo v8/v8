@@ -496,31 +496,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsExternalTwoByteString) {
   return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
 }
 
-bool IsConsString(const HeapObject* obj) {
-  return IsConsString(Tagged<HeapObject>(obj));
-}
-bool IsThinString(const HeapObject* obj) {
-  return IsThinString(Tagged<HeapObject>(obj));
-}
-bool IsSlicedString(const HeapObject* obj) {
-  return IsSlicedString(Tagged<HeapObject>(obj));
-}
-bool IsSeqString(const HeapObject* obj) {
-  return IsSeqString(Tagged<HeapObject>(obj));
-}
-bool IsSeqOneByteString(const HeapObject* obj) {
-  return IsSeqOneByteString(Tagged<HeapObject>(obj));
-}
-bool IsSeqTwoByteString(const HeapObject* obj) {
-  return IsSeqTwoByteString(Tagged<HeapObject>(obj));
-}
-bool IsExternalOneByteString(const HeapObject* obj) {
-  return IsExternalOneByteString(Tagged<HeapObject>(obj));
-}
-bool IsExternalTwoByteString(const HeapObject* obj) {
-  return IsExternalTwoByteString(Tagged<HeapObject>(obj));
-}
-
 static_assert((kStringRepresentationAndEncodingMask) ==
               Internals::kStringRepresentationAndEncodingMask);
 
@@ -744,7 +719,7 @@ using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
 bool String::Equals(Tagged<String> other) const {
   if (other == this) return true;
-  if (IsInternalizedString(this) && IsInternalizedString(other)) {
+  if (Is<InternalizedString>(this) && Is<InternalizedString>(other)) {
     return false;
   }
   return SlowEquals(other);
@@ -1551,7 +1526,7 @@ Address ExternalString::resource_as_address() const {
 
 void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
   resource_.store(isolate, value);
-  if (IsExternalOneByteString(this)) {
+  if (Is<ExternalOneByteString>(this)) {
     Cast<ExternalOneByteString>(this)->update_data_cache(
         isolate, reinterpret_cast<ExternalOneByteString::Resource*>(value));
   } else {
@@ -1903,11 +1878,11 @@ bool Name::IsArrayIndex() {
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString(this) && Cast<String>(this)->AsArrayIndex(index);
+  return Is<String>(this) && Cast<String>(this)->AsArrayIndex(index);
 }
 
 bool Name::AsIntegerIndex(size_t* index) {
-  return IsString(this) && Cast<String>(this)->AsIntegerIndex(index);
+  return Is<String>(this) && Cast<String>(this)->AsIntegerIndex(index);
 }
 
 SubStringRange::SubStringRange(Tagged<String> string,

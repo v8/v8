@@ -89,7 +89,7 @@ void ExposedTrustedObject::InitAndPublish(Isolate* isolate) {
                                isolate->trusted_pointer_publishing_scope());
 #endif
 #ifdef VERIFY_HEAP
-  if (!isolate->has_active_deserializer() && !IsCode(this)) {
+  if (!isolate->has_active_deserializer() && !Is<Code>(this)) {
     this->HeapObjectVerify(isolate);
   }
 #endif
@@ -121,7 +121,7 @@ void ExposedTrustedObject::InitDontPublish(LocalIsolate* isolate) {
 
 void ExposedTrustedObject::Publish(Isolate* isolate) {
 #ifdef VERIFY_HEAP
-  if (!isolate->has_active_deserializer() && !IsCode(this)) {
+  if (!isolate->has_active_deserializer() && !Is<Code>(this)) {
     this->HeapObjectVerify(isolate);
   }
 #endif

@@ -25,6 +25,7 @@
 namespace v8 {
 namespace internal {
 
+DEF_CAST_TRAITS(InternalizedString)
 DEF_CAST_TRAITS(String)
 DEF_CAST_TRAITS(Symbol)
 
@@ -96,8 +97,8 @@ bool IsUniqueName(Tagged<Name> obj) {
 
 bool Name::Equals(Tagged<Name> other) {
   if (other == this) return true;
-  if ((IsInternalizedString(this) && IsInternalizedString(other)) ||
-      IsSymbol(this) || IsSymbol(other)) {
+  if ((Is<InternalizedString>(this) && Is<InternalizedString>(other)) ||
+      Is<Symbol>(this) || Is<Symbol>(other)) {
     return false;
   }
   return Cast<String>(this)->SlowEquals(Cast<String>(other));
@@ -259,7 +260,7 @@ bool Name::TryGetHash(uint32_t* hash) const {
 bool Name::IsInteresting(Isolate* isolate) {
   // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
   // these strings and interesting symbols.
-  if (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) {
+  if (Is<Symbol>(this) && Cast<Symbol>(this)->is_interesting_symbol()) {
     return true;
   }
   ReadOnlyRoots roots = GetReadOnlyRoots();
@@ -270,20 +271,20 @@ bool Name::IsInteresting(Isolate* isolate) {
 }
 
 bool Name::IsAnyPrivate() {
-  return IsSymbol(this) && Cast<Symbol>(this)->is_any_private();
+  return Is<Symbol>(this) && Cast<Symbol>(this)->is_any_private();
 }
 
 bool Name::IsPrivateInternal() {
-  return IsSymbol(this) && Cast<Symbol>(this)->is_private_internal();
+  return Is<Symbol>(this) && Cast<Symbol>(this)->is_private_internal();
 }
 
 bool Name::IsAnyPrivateName() {
-  return IsSymbol(this) && Cast<Symbol>(this)->is_any_private_name();
+  return Is<Symbol>(this) && Cast<Symbol>(this)->is_any_private_name();
 }
 
 bool Name::IsPrivateBrand() {
   bool is_private_brand =
-      IsSymbol(this) && Cast<Symbol>(this)->is_private_brand();
+      Is<Symbol>(this) && Cast<Symbol>(this)->is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsAnyPrivateName());
   return is_private_brand;
 }

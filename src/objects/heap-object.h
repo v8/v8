@@ -419,9 +419,8 @@ inline HeapObject* Tagged<HeapObject>::ToRawPtr() const {
 }
 
 // Overload Is* predicates for HeapObject.
-#define IS_TYPE_FUNCTION_DECL(Type)                \
-  V8_INLINE bool Is##Type(Tagged<HeapObject> obj); \
-  V8_INLINE bool Is##Type(const HeapObject* obj);
+#define IS_TYPE_FUNCTION_DECL(Type) \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj);
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SloppyArgumentsElements)
@@ -431,21 +430,16 @@ IS_TYPE_FUNCTION_DECL(AnyHole)
 IS_TYPE_FUNCTION_DECL(StrongDescriptorArray)
 #undef IS_TYPE_FUNCTION_DECL
 
-// Most calls to Is<Oddball> should go via the Tagged<Object> overloads, with
-// an Isolate/LocalIsolate/ReadOnlyRoots parameter.
-#define IS_TYPE_FUNCTION_DECL(Type, ...)                            \
-  V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                  \
-  V8_INLINE bool Is##Type(const HeapObject* obj, Isolate* isolate); \
-  V8_INLINE bool Is##Type(const HeapObject* obj);
+#define IS_TYPE_FUNCTION_DECL(Type, ...) \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
 IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
-#define DECL_STRUCT_PREDICATE(NAME, Name, name)    \
-  V8_INLINE bool Is##Name(Tagged<HeapObject> obj); \
-  V8_INLINE bool Is##Name(const HeapObject* obj);
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name(Tagged<HeapObject> obj);
 STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

@@ -552,7 +552,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
     }
     return map()->NumberOfOwnDescriptors() > 0;
-  } else if (IsJSGlobalObject(this)) {
+  } else if (Is<JSGlobalObject>(this)) {
     PrintDictionaryContents(
         os, Cast<JSGlobalObject>(this)->global_dictionary(kAcquireLoad));
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -2297,7 +2297,7 @@ void String::StringPrint(std::ostream& os) {
 }
 
 void Name::NamePrint(std::ostream& os) {
-  if (IsString(this)) {
+  if (Is<String>(this)) {
     Cast<String>(this)->StringPrint(os);
   } else {
     os << Brief(this);
@@ -2677,7 +2677,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   Isolate* isolate = Isolate::Current();
   JSObjectPrintHeader(os, this, "Function");
   os << "\n - function prototype: ";
-  if (IsJSFunctionWithPrototype(this)) {
+  if (Is<JSFunctionWithPrototype>(this)) {
     if (has_prototype()) {
       os << Brief(prototype());
       if (!IsJSReceiver(prototype())) {
@@ -3016,9 +3016,9 @@ static void PrintModuleFields(Tagged<Module> module, std::ostream& os) {
 }
 
 void Module::ModulePrint(std::ostream& os) {
-  if (IsSourceTextModule(this)) {
+  if (Is<SourceTextModule>(this)) {
     Cast<SourceTextModule>(this)->SourceTextModulePrint(os);
-  } else if (IsSyntheticModule(this)) {
+  } else if (Is<SyntheticModule>(this)) {
     Cast<SyntheticModule>(this)->SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
@@ -4284,14 +4284,14 @@ void HeapObject::Print(Tagged<Object> obj, std::ostream& os) {
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (IsString(this)) {
+  if (Is<String>(this)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     Cast<String>(this)->StringShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
-  if (IsJSObject(this)) {
+  if (Is<JSObject>(this)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     Cast<JSObject>(this)->JSObjectShortPrint(&accumulator);
@@ -4586,13 +4586,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case ODDBALL_TYPE: {
-      if (IsUndefined(this)) {
+      if (Is<Undefined>(this)) {
         os << "<undefined>";
-      } else if (IsNull(this)) {
+      } else if (Is<Null>(this)) {
         os << "<null>";
-      } else if (IsTrue(this)) {
+      } else if (Is<True>(this)) {
         os << "<true>";
-      } else if (IsFalse(this)) {
+      } else if (Is<False>(this)) {
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
@@ -4693,10 +4693,10 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
-  if (IsString(this)) {
+  if (Is<String>(this)) {
     PrintF("%s", Cast<String>(this)->ToCString().get());
   } else {
-    DCHECK(IsSymbol(this));
+    DCHECK(Is<Symbol>(this));
     Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
       PrintF("#<%s>", s->PrivateSymbolToName());
@@ -4708,10 +4708,10 @@ void Name::NameShortPrint() {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(base::Vector<char> str) {
-  if (IsString(this)) {
+  if (Is<String>(this)) {
     return SNPrintF(str, "%s", Cast<String>(this)->ToCString().get());
   } else {
-    DCHECK(IsSymbol(this));
+    DCHECK(Is<Symbol>(this));
     Tagged<Symbol> s = Cast<Symbol>(this);
     if (IsUndefined(s->description())) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());

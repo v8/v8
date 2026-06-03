@@ -24,7 +24,7 @@ namespace internal {
 
 void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
-  DCHECK(IsEphemeronHashTable(this));
+  DCHECK(Is<EphemeronHashTable>(this));
   DCHECK_GE(index, 0);
   DCHECK_LT(static_cast<uint32_t>(index), this->ulength().value());
   objects()[index].Relaxed_Store_no_write_barrier(value);
@@ -38,7 +38,7 @@ void EphemeronHashTable::set_key(int index, Tagged<Object> value) {
 void EphemeronHashTable::set_key(int index, Tagged<Object> value,
                                  WriteBarrierMode mode) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
-  DCHECK(IsEphemeronHashTable(this));
+  DCHECK(Is<EphemeronHashTable>(this));
   DCHECK_GE(index, 0);
   DCHECK_LT(static_cast<uint32_t>(index), this->ulength().value());
   objects()[index].Relaxed_Store_no_write_barrier(value);
@@ -224,14 +224,14 @@ void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry,
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Tagged<Object> value) {
-  DCHECK(!IsEphemeronHashTable(this));
+  DCHECK(!Is<EphemeronHashTable>(this));
   FixedArray::set(index, value);
 }
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Tagged<Object> value,
                                         WriteBarrierMode mode) {
-  DCHECK(!IsEphemeronHashTable(this));
+  DCHECK(!Is<EphemeronHashTable>(this));
   FixedArray::set(index, value, mode);
 }
 

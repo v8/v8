@@ -44,9 +44,6 @@ SafeHeapObjectSize HeapObject::SafeSize() const {
     Tagged<Map> map_object = obj->map();                  \
     return InstanceTypeChecker::Is##type(map_object);     \
   }                                                       \
-  inline bool Is##type(const HeapObject* obj) {           \
-    return Is##type(Tagged<HeapObject>(obj));             \
-  }                                                       \
   inline bool Is##type(Tagged<Object> obj) {              \
     Tagged<HeapObject> ho;                                \
     return TryCast<HeapObject>(obj, &ho) && Is##type(ho); \
@@ -57,6 +54,18 @@ INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 
 DEF_CAST_TRAITS(FixedArray)
 DEF_CAST_TRAITS(HeapNumber)
+
+// Support writing "IsFoo(this)" for types where "Is<Foo>(this)" doesn't work.
+#define HEAPOBJECT_PTR_OVERLOAD(type, ...)      \
+  inline bool Is##type(const HeapObject* obj) { \
+    return Is##type(Tagged<HeapObject>(obj));   \
+  }
+
+HEAPOBJECT_PTR_OVERLOAD(FreeSpaceOrFiller)
+HEAPOBJECT_PTR_OVERLOAD(JSError)
+HEAPOBJECT_PTR_OVERLOAD(SmallOrderedHashTable)
+
+#undef HEAPOBJECT_PTR_OVERLOAD
 
 }  // namespace internal
 }  // namespace v8

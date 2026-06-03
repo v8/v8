@@ -21,6 +21,7 @@ namespace v8 {
 namespace internal {
 
 DEF_CAST_TRAITS(Oddball)
+ODDBALL_LIST(DEF_CAST_TRAITS)
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {
@@ -66,7 +67,7 @@ DEF_HEAP_OBJECT_PREDICATE(IsBoolean) {
 
 bool Boolean::ToBool(Isolate* isolate) const {
   DCHECK(IsBoolean(Tagged<HeapObject>(this)));
-  return IsTrue(this);
+  return Is<True>(this);
 }
 
 }  // namespace internal

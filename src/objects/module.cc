@@ -110,7 +110,7 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
                  IsTheHole(exception()));
   DCHECK(!IsTheHole(error));
-  if (IsSourceTextModule(this)) {
+  if (Is<SourceTextModule>(this)) {
     // Revert to minimal SFI in case we have already been instantiating or
     // evaluating.
     auto self = Cast<SourceTextModule>(this);
@@ -593,7 +593,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.
-  if (!IsSourceTextModule(this)) return false;
+  if (!Is<SourceTextModule>(this)) return false;
   Tagged<SourceTextModule> root = Cast<SourceTextModule>(this);
   DCHECK_GE(root->status(), kLinked);
 
