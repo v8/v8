@@ -2401,7 +2401,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
     // See x64 code for reasoning about how to address the isolate data fields.
-    larl(r0, &get_pc);
+    GetLabelAddress(r0, &get_pc);
     CHECK(root_array_available());
     StoreU64(r0,
              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
@@ -4897,7 +4897,8 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   Register ra = r14;
 #endif
   Label return_label;
-  larl(ra, &return_label);  // Generate the return addr of call later.
+  GetLabelAddress(ra,
+                  &return_label);  // Generate the return addr of call later.
 #if V8_OS_ZOS
   // Mimic the XPLINK expected no-op (2-byte) instruction at the return point.
   // When the C call returns, the 2 bytes are skipped and then the proper
@@ -6277,7 +6278,7 @@ void MacroAssembler::Switch(Register scratch, Register value,
 
   int entry_size_log2 = 3;
   ShiftLeftU32(value, value, Operand(entry_size_log2));
-  larl(r1, &jump_table);
+  GetLabelAddress(r1, &jump_table);
   lay(r1, MemOperand(value, r1));
   b(r1);
 

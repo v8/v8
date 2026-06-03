@@ -625,7 +625,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   // Ensure to emit the constant pool first if necessary.
   int entry_size_log2 = 3;
   __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
-  __ larl(r1, &jump_table);
+  __ GetLabelAddress(r1, &jump_table);
   __ lay(reg, MemOperand(reg, r1));
   __ b(reg);
   __ b(&fallthrough);

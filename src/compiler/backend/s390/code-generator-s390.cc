@@ -1417,7 +1417,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
         // Put the return address in a stack slot.
-        __ larl(r0, &return_location);
+        __ GetLabelAddress(r0, &return_location);
         __ StoreU64(r0,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
@@ -3480,7 +3480,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Label* const table = AddJumpTable(cases);
   __ CmpU64(input, Operand(case_count));
   __ bge(GetLabel(i.InputRpo(1)));
-  __ larl(kScratchReg, table);
+  __ GetLabelAddress(kScratchReg, table);
   __ ShiftLeftU64(r1, input, Operand(kSystemPointerSizeLog2));
   __ LoadU64(kScratchReg, MemOperand(kScratchReg, r1));
   __ Jump(kScratchReg);
