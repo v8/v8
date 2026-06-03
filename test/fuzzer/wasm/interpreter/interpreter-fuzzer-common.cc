@@ -120,7 +120,7 @@ WasmInterpretationResult FastInterpretWasmModule(
   for (const WasmValue& arg : args) {
     if (arg.type().is_ref()) {
       // We should pass WasmNull as null argument, not a JS null value.
-      CHECK(!IsNull(*arg.to_ref(), isolate));
+      CHECK(!IsNull(*arg.to_ref()));
     }
   }
   bool success = handle->ptr()->Execute(
@@ -217,8 +217,6 @@ Handle<JSObject> CreateImportObjectInternal(
   Handle<JSObject> ffi_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  base::Vector<const uint8_t> wire_bytes =
-      module_object->native_module()->wire_bytes();
   for (size_t index = 0;
        index < module_object->native_module()->module()->import_table.size();
        ++index) {
@@ -226,10 +224,12 @@ Handle<JSObject> CreateImportObjectInternal(
         module_object->native_module()->module()->import_table[index];
 
     Handle<String> module_name = ExtractUtf8StringFromModuleBytes(
-        isolate, wire_bytes, import.module_name);
+        isolate, module_object->native_module()->wire_bytes(),
+        import.module_name);
 
     Handle<String> field_name = ExtractUtf8StringFromModuleBytes(
-        isolate, wire_bytes, import.field_name);
+        isolate, module_object->native_module()->wire_bytes(),
+        import.field_name);
 
     Handle<JSObject> module_namespace =
         GetOrCreateModuleNamespaceObject(isolate, ffi_object, module_name);
@@ -488,9 +488,6 @@ int FastInterpretAndExecuteModules(
     return -1;
   }
 
-  base::Vector<const uint8_t> other_wire_bytes =
-      other_module_object->native_module()->wire_bytes();
-
   Handle<JSObject> imports_obj =
       CreateImportObjectInternal(isolate, module_object);
 
@@ -502,8 +499,8 @@ int FastInterpretAndExecuteModules(
 
     if (exp.kind != kExternalFunction) continue;
 
-    Handle<String> field_name =
-        ExtractUtf8StringFromModuleBytes(isolate, other_wire_bytes, exp.name);
+    Handle<String> field_name = ExtractUtf8StringFromModuleBytes(
+        isolate, other_module_object->native_module()->wire_bytes(), exp.name);
     std::unique_ptr<char[]> name = field_name->ToCString();
 
     MaybeDirectHandle<WasmExportedFunction> maybe_export =

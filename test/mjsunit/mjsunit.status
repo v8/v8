@@ -726,6 +726,9 @@
   'wasm/jspi*': [SKIP],
   'wasm/growable-stacks': [SKIP],
 
+  # --experimental-wasm-growable-stacks
+  'regress/wasm/regress-513250424': [SKIP],
+
   # --experimental-wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
   'regress/wasm/regress-473272199': [SKIP],
@@ -758,6 +761,8 @@
   'regress/wasm/regress-390467420': [SKIP],
   'regress/wasm/regress-399497254': [SKIP],
   'regress/wasm/regress-497330272': [SKIP],
+  'regress/wasm/regress-511160771': [SKIP],
+  'regress/wasm/regress-516109051': [SKIP],
   'regress/wasm/regress-crbug-1463232': [SKIP],
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
@@ -839,6 +844,9 @@
   'regress/wasm/regress-505117973': [SKIP],
   'regress/wasm/regress-508336493': [SKIP],
   'regress/wasm/regress-508691168': [SKIP],
+  'regress/wasm/regress-513364114': [SKIP],
+  'regress/wasm/regress-518229528': [SKIP],
+  'regress/wasm/regress-518872404': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -861,8 +869,10 @@
   'regress/wasm/regress-crbug-408253898': [SKIP],
 
   # --experimental-wasm-fp16
-  'wasm/simd-fp16': [SKIP],
+  'regress/wasm/regress-499027764': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
+  'wasm/fp16-load-mul': [SKIP],
+  'wasm/simd-fp16': [SKIP],
 
   # --experimental-wasm-rab-integration
   'regress/wasm/regress-451144692': [SKIP],
@@ -897,6 +907,7 @@
   'regress/wasm/regress-448404198': [SKIP],
   'regress/wasm/regress-452541294': [SKIP],
   'regress/wasm/regress-457106696': [SKIP],
+  'regress/wasm/regress-513063392': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
@@ -904,6 +915,8 @@
   'wasm/compact-imports': [SKIP],
 
   # --experimental-wasm-wide-arithmetic
+  'regress/wasm/regress-515525741': [SKIP],
+  'regress/wasm/regress-516102112-1': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-deopt
@@ -947,6 +960,7 @@
   'wasm/ffi': [SKIP],
 
   # Tests using %WasmTierUpFunction()
+  'regress/regress-372269618': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-13230': [SKIP],
   'regress/wasm/regress-13290': [SKIP],
@@ -971,6 +985,7 @@
   'regress/wasm/regress-484405356': [SKIP],
   'regress/wasm/regress-490183533': [SKIP],
   'regress/wasm/regress-493099941': [SKIP],
+  'regress/wasm/regress-509268941': [SKIP],
   'regress/wasm/regress-509674461': [SKIP],
   'regress/wasm/regress-511772679': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
@@ -1016,6 +1031,10 @@
   'regress/wasm/regress-498818401': [SKIP],
   'regress/wasm/regress-500113958': [SKIP],
 
+  # --experimental-wasm-acquire-release
+  'regress/wasm/regress-516102113': [SKIP],
+  'regress/wasm/regress-518131466': [SKIP],
+
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
   'regress/wasm/regress-366635354': [SKIP],
@@ -1026,6 +1045,9 @@
 
   # Interpreter needs more stack space
   'wasm/turboshaft/reduction-shuffle': [SKIP],
+
+  # Wasm-to-JS type incompatibility in jitless mode with shadow realms.
+  'harmony/regress/regress-511329274': [SKIP],
 
  }],  # has_wasm_interpreter and variant == jitless
 
