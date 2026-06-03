@@ -894,11 +894,6 @@
   'test-strings/Traverse': [SLOW],
 }],  # variant == conservative_stack_scanning
 
-##############################################################################
-# http://crbug.com/518833307
-['system == windows and arch == x64 and variant == conservative_stack_scanning', {
-  'test-api/StreamingWithIsolateScriptCacheClearingRootSFI': [SKIP],
-}],
 
 ##############################################################################
 ['sandbox_hardware_support', {

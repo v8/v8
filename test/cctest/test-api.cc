@@ -24759,6 +24759,7 @@ TEST(StreamingWithHarmonyScopes) {
 namespace {
 void StreamingWithIsolateScriptCache(bool run_gc) {
   i::v8_flags.expose_gc = true;
+  i::ManualGCScope manual_gc;
   const char* chunks[] = {"'use strict'; (function test() { return 13; })",
                           nullptr};
   const char* full_source = chunks[0];
@@ -24766,14 +24767,12 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
   v8::HandleScope scope(isolate);
   v8::ScriptOrigin origin(v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false, false);
-  v8::Local<Value> first_function_untyped;
-  i::DirectHandle<i::JSFunction> first_function;
-  i::DirectHandle<i::JSFunction> second_function;
+  v8::Global<v8::Value> first_function_global;
 
   // Run the script using streaming.
   {
     LocalContext env;
-    v8::EscapableHandleScope inner_scope(isolate);
+    v8::HandleScope inner_scope(isolate);
 
     v8::ScriptCompiler::StreamedSource source(
         std::make_unique<i::TestSourceStream>(chunks),
@@ -24790,7 +24789,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     CHECK_EQ(source.compilation_details().in_memory_cache_result,
              v8::ScriptCompiler::InMemoryCacheResult::kMiss);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
-    first_function_untyped = inner_scope.Escape(result);
+    first_function_global.Reset(isolate, result);
 
     if (run_gc) {
       // Age the top-level bytecode for the script to encourage the Isolate
@@ -24803,9 +24802,6 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     }
   }
 
-  first_function = i::Cast<i::JSFunction>(
-      v8::Utils::OpenDirectHandle(*first_function_untyped));
-
   // Run the same script in another Context without streaming.
   {
     LocalContext env;
@@ -24815,6 +24811,11 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
       // SharedFunctionInfo from the Isolate script cache. However, the
       // corresponding Script is still reachable and therefore still present in
       // the Isolate script cache.
+      //
+      // We need to invoke GC without stack, otherwise some objects may not be
+      // reclaimed because of conservative stack scanning.
+      i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          CcTest::heap());
       CompileRun("gc();");
     }
 
@@ -24826,13 +24827,17 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
              run_gc ? v8::ScriptCompiler::InMemoryCacheResult::kPartial
                     : v8::ScriptCompiler::InMemoryCacheResult::kHit);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
-    second_function =
+    i::DirectHandle<i::JSFunction> second_function =
         i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*result));
-  }
 
-  // The functions created by both copies of the script should refer to the same
-  // SharedFunctionInfo instance due to the isolate script cache.
-  CHECK_EQ(first_function->shared(), second_function->shared());
+    i::DirectHandle<i::JSFunction> first_function =
+        i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(
+            *v8::Local<v8::Value>::New(isolate, first_function_global)));
+
+    // The functions created by both copies of the script should refer to the
+    // same SharedFunctionInfo instance due to the isolate script cache.
+    CHECK_EQ(first_function->shared(), second_function->shared());
+  }
 }
 }  // namespace
 
