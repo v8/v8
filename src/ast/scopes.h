@@ -707,6 +707,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
  protected:
   Scope(Zone* zone, ScopeType scope_type);
 
+  void set_scope_type(ScopeType type) {
+    // The only case when a scope type is allowed to change is
+    // SCRIPT_SCOPE->REPL_MODE_SCOPE update.
+    DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
+    DCHECK_EQ(type, REPL_MODE_SCOPE);
+    scope_type_ = type;
+  }
+
   void set_language_mode(LanguageMode language_mode) {
     flags_ = IsStrictField::update(flags_, is_strict(language_mode));
   }
@@ -913,7 +921,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_heap_slots_;
 
   // The scope type.
-  const ScopeType scope_type_;
+  ScopeType scope_type_;
 
   // Scope-specific information computed during parsing.
   //
@@ -973,6 +981,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Creates a script scope.
   DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory,
                    REPLMode repl_mode = REPLMode::kNo);
+
+  void SwitchScriptScopeToREPLMode();
 
   FunctionKind function_kind() const { return function_kind_; }
 

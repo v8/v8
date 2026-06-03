@@ -163,6 +163,14 @@ DeclarationScope::DeclarationScope(Zone* zone,
                                    THIS_VARIABLE, this);
 }
 
+void DeclarationScope::SwitchScriptScopeToREPLMode() {
+  DCHECK(is_script_scope());
+  if (scope_type_ == REPL_MODE_SCOPE) return;
+  DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
+  set_scope_type(REPL_MODE_SCOPE);
+  function_kind_ = FunctionKind::kAsyncFunction;
+}
+
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
                                    ScopeType scope_type,
                                    FunctionKind function_kind)
@@ -515,6 +523,9 @@ Scope* Scope::DeserializeScopeChain(
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
+      if (scope_info->scope_type() == REPL_MODE_SCOPE) {
+        script_scope->SwitchScriptScopeToREPLMode();
+      }
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
