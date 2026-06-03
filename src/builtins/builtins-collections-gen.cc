@@ -574,10 +574,13 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
 
 template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
-    const TNode<CollectionType> table, const TNode<Uint32T> hash,
+    const TNode<CollectionType> table, TNode<Uint32T> hash,
     const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
     TVariable<IntPtrT>* entry_start_position, Label* entry_found,
     Label* not_found) {
+#ifdef V8_LOWER_LIMITS_MODE
+  hash = Word32And(hash, Uint32Constant(0xf));
+#endif
   // Get the index of the bucket.
   const TNode<Uint32T> number_of_buckets =
       PositiveSmiToUint32(CAST(UnsafeLoadFixedArrayElement(

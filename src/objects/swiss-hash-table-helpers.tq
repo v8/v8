@@ -13,6 +13,8 @@ const kGroupWidth: constexpr int32 generates 'swiss_table::Group::kWidth';
 
 const kUseSIMD: constexpr bool generates 'swiss_table::Group::kWidth == 16';
 
+const kLowerLimitsMode: constexpr bool generates 'V8_LOWER_LIMITS_MODE_BOOL';
+
 namespace ctrl {
 const kEmpty: constexpr uint8
     generates 'static_cast<uint8_t>(swiss_table::Ctrl::kEmpty)';

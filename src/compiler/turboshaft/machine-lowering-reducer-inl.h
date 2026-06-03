@@ -4739,7 +4739,11 @@ class MachineLoweringReducer : public Next {
     value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 4));
     value = __ Word32Mul(value, 2057);
     value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 16));
+#ifdef V8_LOWER_LIMITS_MODE
+    value = __ Word32BitwiseAnd(value, 0xF);
+#else
     value = __ Word32BitwiseAnd(value, 0x3FFFFFFF);
+#endif
     return value;
   }
 

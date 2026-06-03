@@ -253,7 +253,12 @@ class OrderedHashTable : public FixedArray {
     return EntryToIndexRaw(entry.as_int());
   }
 
-  int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
+  int HashToBucket(int hash) {
+    if constexpr (V8_LOWER_LIMITS_MODE_BOOL) {
+      hash &= 0xf;
+    }
+    return hash & (NumberOfBuckets() - 1);
+  }
 
   void SetNumberOfBuckets(int num) {
     set(NumberOfBucketsIndex(), Smi::FromInt(num));

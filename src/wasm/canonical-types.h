@@ -334,7 +334,11 @@ class TypeCanonicalizer {
 #if V8_HASHES_COLLIDE
       if (v8_flags.hashes_collide) return base::kCollidingHash;
 #endif  // V8_HASHES_COLLIDE
-      return hasher.hash();
+      size_t h = hasher.hash();
+      if constexpr (V8_LOWER_LIMITS_MODE_BOOL) {
+        h &= 0xf;
+      }
+      return h;
     }
   };
 

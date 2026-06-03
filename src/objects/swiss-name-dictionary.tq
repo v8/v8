@@ -146,7 +146,8 @@ macro Probe(hash: uint32, mask: uint32): ProbeSequence {
   // Mask must be a power of 2 minus 1.
   dcheck(((mask + 1) & mask) == 0);
 
-  return ProbeSequence{mask: mask, offset: H1(hash) & mask, index: 0};
+  const maskedHash = kLowerLimitsMode ? hash & 0xf : hash;
+  return ProbeSequence{mask: mask, offset: H1(maskedHash) & mask, index: 0};
 }
 
 macro FindEntry<GroupLoader: type>(table: SwissNameDictionary, key: Name):
