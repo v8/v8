@@ -9,6 +9,8 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+// The include of `biging.h` is needed because BigInt is part of JSAny.
+#include "src/objects/bigint.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
 

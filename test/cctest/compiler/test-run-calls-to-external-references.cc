@@ -2,6 +2,7 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
+#include "src/api/api.h"
 #include "src/base/memory.h"
 #include "src/codegen/external-reference.h"
 #include "test/cctest/cctest.h"

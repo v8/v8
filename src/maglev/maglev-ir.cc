@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 
+#include "src/api/api.h"
 #include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"

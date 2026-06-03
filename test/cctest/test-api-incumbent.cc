@@ -6,6 +6,7 @@
 
 #include "include/v8-function-callback.h"
 #include "include/v8-function.h"
+#include "src/api/api.h"
 #include "src/base/strings.h"
 #include "test/cctest/cctest.h"
 

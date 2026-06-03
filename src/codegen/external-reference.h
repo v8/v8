@@ -28,8 +28,6 @@ enum class IsolateFieldId : uint8_t;
 // TODO(ishell): Remove entries accessible via IsolateFieldId.
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(V)                                \
   V(isolate_address, "isolate")                                                \
-  V(handle_scope_implementer_address,                                          \
-    "Isolate::handle_scope_implementer_address")                               \
   V(address_of_interpreter_entry_trampoline_instruction_start,                 \
     "Address of the InterpreterEntryTrampoline instruction start")             \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \

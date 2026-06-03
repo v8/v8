@@ -9,11 +9,11 @@
 
 #include <optional>
 
-#include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"

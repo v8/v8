@@ -4,7 +4,6 @@
 
 #include "src/builtins/builtins.h"
 
-#include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
@@ -15,6 +14,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/code-events.h"  // For CodeCreateEvent.

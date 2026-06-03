@@ -1216,7 +1216,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                       OFFSET_OF(Isolate, heap_));
   }
 
+  static Isolate* FromHandleScopeImplementer(
+      const HandleScopeImplementer* handle_scope_implementer) {
+    Address hsi_addr = reinterpret_cast<Address>(handle_scope_implementer);
+    Address isolate_addr = hsi_addr -
+                           IsolateData::kHandleScopeImplementerOffset -
+                           OFFSET_OF(Isolate, isolate_data_);
+    return reinterpret_cast<Isolate*>(isolate_addr);
+  }
+
   const IsolateData* isolate_data() const { return &isolate_data_; }
+
   IsolateData* isolate_data() { return &isolate_data_; }
 
   // When pointer compression is on, this is the base address of the pointer
@@ -1399,9 +1409,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &isolate_data_.handle_scope_data_;
   }
 
-  HandleScopeImplementer* handle_scope_implementer() const {
-    DCHECK(handle_scope_implementer_);
-    return handle_scope_implementer_;
+  HandleScopeImplementer* handle_scope_implementer() {
+    return isolate_data_.handle_scope_implementer();
   }
 
   UnicodeCache* unicode_cache() const { return unicode_cache_; }
@@ -1899,10 +1908,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void IncrementJavascriptExecutionCounter() {
     javascript_execution_counter_++;
-  }
-
-  Address handle_scope_implementer_address() {
-    return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
   void SetReleaseCppHeapCallback(v8::Isolate::ReleaseCppHeapCallback callback);
@@ -2652,7 +2657,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_ =
       StackTrace::kOverview;
   DescriptorLookupCache* descriptor_lookup_cache_ = nullptr;
-  HandleScopeImplementer* handle_scope_implementer_ = nullptr;
   UnicodeCache* unicode_cache_ = nullptr;
   AccountingAllocator* allocator_ = nullptr;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_ = nullptr;
@@ -3016,6 +3020,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool is_frozen_ = false;
 
+  friend class HandleScopeImplementer;
   friend class GlobalSafepoint;
   friend class heap::HeapTester;
   friend class IsolateForPointerCompression;

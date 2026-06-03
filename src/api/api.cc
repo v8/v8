@@ -68,6 +68,7 @@
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/handles/shared-object-conveyor-handles.h"
 #include "src/handles/traced-handles-inl.h"
@@ -12165,138 +12166,6 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* v8_isolate,
 
 namespace internal {
 
-const size_t HandleScopeImplementer::kEnteredContextsOffset =
-    offsetof(HandleScopeImplementer, entered_contexts_);
-
-void HandleScopeImplementer::FreeThreadResources() { Free(); }
-
-char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  HandleScopeData* current = isolate_->handle_scope_data();
-  handle_scope_data_ = *current;
-  MemCopy(storage, this, sizeof(*this));
-
-  ResetAfterArchive();
-  current->Initialize();
-
-  return storage + ArchiveSpacePerThread();
-}
-
-int HandleScopeImplementer::ArchiveSpacePerThread() {
-  return sizeof(HandleScopeImplementer);
-}
-
-char* HandleScopeImplementer::RestoreThread(char* storage) {
-  MemCopy(this, storage, sizeof(*this));
-  *isolate_->handle_scope_data() = handle_scope_data_;
-  isolate_->set_last_entered_context(entered_contexts_.empty()
-                                         ? Tagged<NativeContext>()
-                                         : entered_contexts_.back());
-  return storage + ArchiveSpacePerThread();
-}
-
-void HandleScopeImplementer::IterateThis(RootVisitor* v) {
-#ifdef DEBUG
-  bool found_block_before_persistent = false;
-#endif
-  // Iterate over all handles in the blocks except for the last.
-  for (int i = static_cast<int>(blocks()->size()) - 2; i >= 0; --i) {
-    Address* block = blocks()->at(i);
-    // Cast possibly-unrelated pointers to plain Address before comparing them
-    // to avoid undefined behavior.
-    if (HasPersistentScope() &&
-        (reinterpret_cast<Address>(
-             last_handle_before_persistent_block_.value()) <=
-         reinterpret_cast<Address>(&block[kHandleBlockSize])) &&
-        (reinterpret_cast<Address>(
-             last_handle_before_persistent_block_.value()) >=
-         reinterpret_cast<Address>(block))) {
-      v->VisitRootPointers(
-          Root::kHandleScope, nullptr, FullObjectSlot(block),
-          FullObjectSlot(last_handle_before_persistent_block_.value()));
-      DCHECK(!found_block_before_persistent);
-#ifdef DEBUG
-      found_block_before_persistent = true;
-#endif
-    } else {
-      v->VisitRootPointers(Root::kHandleScope, nullptr, FullObjectSlot(block),
-                           FullObjectSlot(&block[kHandleBlockSize]));
-    }
-  }
-
-  DCHECK_EQ(HasPersistentScope() &&
-                last_handle_before_persistent_block_.value() != nullptr,
-            found_block_before_persistent);
-
-  // Iterate over live handles in the last block (if any).
-  if (!blocks()->empty()) {
-    v->VisitRootPointers(Root::kHandleScope, nullptr,
-                         FullObjectSlot(blocks()->back()),
-                         FullObjectSlot(handle_scope_data_.next));
-  }
-
-  v->VisitRootPointer(Root::kHandleScope, nullptr,
-                      FullObjectSlot(isolate_->last_entered_context_address()));
-
-  saved_contexts_.shrink_to_fit();
-  if (!saved_contexts_.empty()) {
-    FullObjectSlot start(&saved_contexts_.front());
-    v->VisitRootPointers(Root::kHandleScope, nullptr, start,
-                         start + static_cast<int>(saved_contexts_.size()));
-  }
-  entered_contexts_.shrink_to_fit();
-  if (!entered_contexts_.empty()) {
-    FullObjectSlot start(&entered_contexts_.front());
-    v->VisitRootPointers(Root::kHandleScope, nullptr, start,
-                         start + static_cast<int>(entered_contexts_.size()));
-  }
-}
-
-void HandleScopeImplementer::Iterate(RootVisitor* v) {
-  HandleScopeData* current = isolate_->handle_scope_data();
-  handle_scope_data_ = *current;
-  IterateThis(v);
-}
-
-char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
-  HandleScopeImplementer* scope_implementer =
-      reinterpret_cast<HandleScopeImplementer*>(storage);
-  scope_implementer->IterateThis(v);
-  return storage + ArchiveSpacePerThread();
-}
-
-std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
-    Address* first_block) {
-  std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
-  DCHECK(HasPersistentScope());
-  DCHECK_NOT_NULL(first_block);
-
-  Address* block_start;
-  do {
-    block_start = blocks_.back();
-    ph->blocks_.push_back(blocks_.back());
-#if DEBUG
-    ph->ordered_blocks_.insert(blocks_.back());
-#endif
-    blocks_.pop_back();
-  } while (block_start != first_block);
-
-  // ph->blocks_ now contains the blocks installed on the HandleScope stack
-  // since BeginPersistentScope was called, but in reverse order.
-
-  // Switch first and last blocks, such that the last block is the one
-  // that is potentially half full.
-  DCHECK(!ph->blocks_.empty());
-  std::swap(ph->blocks_.front(), ph->blocks_.back());
-
-  ph->block_next_ = isolate()->handle_scope_data()->next;
-  block_start = ph->blocks_.back();
-  ph->block_limit_ = block_start + kHandleBlockSize;
-
-  DCHECK_EQ(blocks_.empty(),
-            last_handle_before_persistent_block_.value() == nullptr);
-  last_handle_before_persistent_block_.reset();
-  return ph;
-}
 
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,

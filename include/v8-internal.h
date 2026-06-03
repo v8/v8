@@ -1045,6 +1045,8 @@ class Internals {
   static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+  static const int kHandleScopeImplementerSize =
+      11 * kApiSystemPointerSize + kHandleScopeDataSize;
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalEntityTableBasePointerOffset = 0;
@@ -1089,8 +1091,10 @@ class Internals {
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
   static const int kIsolateHandleScopeDataOffset =
       kIsolateThreadLocalTopOffset + kThreadLocalTopSize;
-  static const int kIsolateEmbedderDataOffset =
+  static const int kIsolateHandleScopeImplementerOffset =
       kIsolateHandleScopeDataOffset + kHandleScopeDataSize;
+  static const int kIsolateEmbedderDataOffset =
+      kIsolateHandleScopeImplementerOffset + kHandleScopeImplementerSize;
 #ifdef V8_COMPRESS_POINTERS
   static const int kIsolateExternalPointerTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;

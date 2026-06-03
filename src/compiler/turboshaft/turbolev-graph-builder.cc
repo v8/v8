@@ -9,6 +9,7 @@
 #include <optional>
 #include <type_traits>
 
+#include "src/api/api.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"

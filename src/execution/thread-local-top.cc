@@ -21,6 +21,7 @@ void ThreadLocalTop::Clear() {
   c_entry_fp_ = kNullAddress;
   c_function_ = kNullAddress;
   context_ = {};
+  last_entered_context_ = {};
   topmost_script_having_context_ = {};
   thread_id_ = ThreadId();
   pending_handler_entrypoint_ = kNullAddress;

@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 
+#include "src/api/api.h"
 #include "src/base/container-utils.h"
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins-promise.h"

@@ -15,11 +15,22 @@
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/objects/bigint.h"
+#include "src/objects/contexts.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-array-buffer.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-generator.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/js-proxy.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
+#include "src/objects/templates.h"
 
 #define TURBOSHAFT_ALLOW_IMPLICIT_OPINDEX_INITIALIZATION_FOR_V 1
 

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"

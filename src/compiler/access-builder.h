@@ -9,6 +9,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/objects/bigint.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/property-details.h"

@@ -501,20 +501,6 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
                                                           uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<type_info_id, T>(src, dst, max_length);
 }
-
-namespace internal {
-
-void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
-  entered_contexts_.push_back(context);
-  isolate_->set_last_entered_context(context);
-}
-
-DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.empty()) return {};
-  return direct_handle(entered_contexts_.back(), isolate_);
-}
-
-}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_API_API_INL_H_

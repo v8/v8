@@ -38,6 +38,7 @@
 #include "src/objects/map-word-inl.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/templates.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
 #include "src/utils/allocation.h"

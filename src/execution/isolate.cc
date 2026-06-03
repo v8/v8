@@ -682,6 +682,8 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
                       FullObjectSlot(&thread->pending_message_));
   v->VisitRootPointer(Root::kStackRoots, nullptr,
                       FullObjectSlot(&thread->context_));
+  v->VisitRootPointer(Root::kStackRoots, nullptr,
+                      FullObjectSlot(&thread->last_entered_context_));
 
   for (v8::TryCatch* block = thread->try_catch_handler_; block != nullptr;
        block = block->next_) {
@@ -4857,6 +4859,9 @@ void Isolate::CheckIsolateLayout() {
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.handle_scope_data_)) ==
       Internals::kIsolateHandleScopeDataOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.handle_scope_implementer_)) ==
+                Internals::kIsolateHandleScopeImplementerOffset);
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)) ==
       Internals::kIsolateEmbedderDataOffset);
@@ -5316,9 +5321,6 @@ Isolate::~Isolate() {
 
   delete v8_file_logger_;
   v8_file_logger_ = nullptr;
-
-  delete handle_scope_implementer_;
-  handle_scope_implementer_ = nullptr;
 
   delete code_tracer();
   set_code_tracer(nullptr);
@@ -6118,7 +6120,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
-  handle_scope_implementer_ = new HandleScopeImplementer(this);
   load_stub_cache_ = new StubCache(this);
   store_stub_cache_ = new StubCache(this);
   define_own_stub_cache_ = new StubCache(this);

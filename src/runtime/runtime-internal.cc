@@ -4,8 +4,6 @@
 
 #include <memory>
 
-#include "src/api/api-inl.h"
-#include "src/api/api.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/superspread.h"
@@ -15,6 +13,7 @@
 #include "src/execution/messages.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"

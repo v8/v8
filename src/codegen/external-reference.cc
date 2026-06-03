@@ -8,7 +8,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/v8-fast-api-calls.h"
-#include "src/api/api-inl.h"
+#include "src/api/api.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
@@ -23,6 +23,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
@@ -279,11 +280,6 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 
 ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
-}
-
-ExternalReference ExternalReference::handle_scope_implementer_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
 #ifdef V8_ENABLE_SANDBOX

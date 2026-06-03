@@ -63,6 +63,8 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(LongTaskStatsCounter, kSizetSize, long_task_stats_counter)                 \
   V(ThreadLocalTop, ThreadLocalTop::kSizeInBytes, thread_local_top)            \
   V(HandleScopeData, HandleScopeData::kSizeInBytes, handle_scope_data)         \
+  V(HandleScopeImplementer, HandleScopeImplementer::kSizeInBytes,              \
+    handle_scope_implementer)                                                  \
   V(EmbedderData, Internals::kNumIsolateDataSlots* kSystemPointerSize,         \
     embedder_data)                                                             \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
@@ -171,6 +173,18 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     offsetof(HandleScopeData, next))                                           \
   V(HandleScopeLimit, handle_scope_limit, handle_scope_data,                   \
     offsetof(HandleScopeData, limit))                                          \
+                                                                               \
+  /* HandleScopeImplementer fields. */                                         \
+  V(EnteredContextCount, entered_context_count, handle_scope_implementer,      \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kSizeOffset))                       \
+  V(EnteredContextCapacity, entered_context_capacity,                          \
+    handle_scope_implementer,                                                  \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kCapacityOffset))                   \
+  V(EnteredContextData, entered_context_data, handle_scope_implementer,        \
+    static_cast<int>(HandleScopeImplementer::kEnteredContextsOffset +          \
+                     DetachableVectorBase::kDataOffset))                       \
                                                                                \
   /* NewAllocationInfo fields. */                                              \
   V(NewAllocationInfoStart, new_allocation_info_start, new_allocation_info,    \

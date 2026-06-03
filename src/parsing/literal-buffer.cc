@@ -8,6 +8,8 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {

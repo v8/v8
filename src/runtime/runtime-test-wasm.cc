@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "include/v8-wasm.h"
+#include "src/api/api.h"
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins-inl.h"

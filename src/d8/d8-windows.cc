@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "src/api/api.h"
 #include "src/base/platform/platform-win32.h"
 #include "src/base/platform/platform.h"
 #include "src/d8/d8.h"

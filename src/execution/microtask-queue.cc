@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/visitors.h"

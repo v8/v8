@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/api/api.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"

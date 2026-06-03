@@ -29,6 +29,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"

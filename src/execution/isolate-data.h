@@ -11,6 +11,7 @@
 #include "src/execution/isolate-data-fields.h"
 #include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
+#include "src/handles/handle-scope-implementer.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/init/isolate-group.h"
 #include "src/roots/roots.h"
@@ -93,7 +94,8 @@ class IsolateData final {
 #ifdef V8_COMPRESS_POINTERS
         cage_base_(group->GetPtrComprCageBase()),
 #endif
-        stack_guard_(isolate)
+        stack_guard_(isolate),
+        handle_scope_implementer_()
 #ifdef V8_ENABLE_SANDBOX
         ,
         trusted_cage_base_(group->GetTrustedPtrComprCageBase())
@@ -200,6 +202,12 @@ class IsolateData final {
   }
   ThreadLocalTop& thread_local_top() { return thread_local_top_; }
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
+  HandleScopeImplementer* handle_scope_implementer() {
+    return &handle_scope_implementer_;
+  }
+  const HandleScopeImplementer* handle_scope_implementer() const {
+    return &handle_scope_implementer_;
+  }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
 #if V8_ENABLE_WEBASSEMBLY
@@ -379,6 +387,7 @@ class IsolateData final {
 
   ThreadLocalTop thread_local_top_;
   HandleScopeData handle_scope_data_;
+  HandleScopeImplementer handle_scope_implementer_;
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8-internal.h) constants. The
@@ -471,6 +480,7 @@ class IsolateData final {
 
   V8_INLINE static void AssertPredictableLayout();
 
+  friend class HandleScopeImplementer;
   friend class Isolate;
   friend class Heap;
   FRIEND_TEST(HeapTest, ExternalLimitDefault);

@@ -23,6 +23,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-template.h"
+#include "src/api/api.h"
 
 namespace v8 {
 

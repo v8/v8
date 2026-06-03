@@ -15,6 +15,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/property-details.h"
+#include "src/objects/shared-function-info.h"
 #include "src/utils/boxed-float.h"
 #include "src/zone/zone-compact-set.h"
 
