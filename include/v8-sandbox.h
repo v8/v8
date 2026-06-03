@@ -55,12 +55,21 @@ enum class CppHeapPointerTag : uint16_t {
 
   kDefaultTag = 0x7000,
 
+  kFirstV8InternalTag = 0x7f00,
+  // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
+  kInspectorV8ConsoleTag,
+  kInspectorTaskInfoTag,
+  kLastV8InternalTag,
+
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
   kFreeEntryTag = 0x7fff,
   // The tags are limited to 15 bits, so the last tag is 0x7fff.
   kLastTag = 0x7fff,
 };
+
+static_assert(static_cast<uint16_t>(CppHeapPointerTag::kLastV8InternalTag) <
+              static_cast<uint16_t>(CppHeapPointerTag::kZappedEntryTag));
 
 using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 

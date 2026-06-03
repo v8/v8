@@ -77,6 +77,9 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
 V8InspectorImpl::~V8InspectorImpl() {
   v8::debug::SetInspector(m_isolate, nullptr);
   v8::debug::SetConsoleDelegate(m_isolate, nullptr);
+  if (m_console) {
+    m_console->clearInspector();
+  }
 }
 
 int V8InspectorImpl::contextGroupId(v8::Local<v8::Context> context) const {
@@ -470,8 +473,11 @@ V8InspectorSessionImpl* V8InspectorImpl::sessionById(int contextGroupId,
 }
 
 V8Console* V8InspectorImpl::console() {
-  if (!m_console) m_console.reset(new V8Console(this));
-  return m_console.get();
+  if (!m_console) {
+    m_console = cppgc::MakeGarbageCollected<V8Console>(
+        m_isolate->GetCppHeap()->GetAllocationHandle(), this);
+  }
+  return m_console.Get();
 }
 
 void V8InspectorImpl::forEachContext(

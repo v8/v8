@@ -37,15 +37,16 @@
 #include <unordered_map>
 
 #include "include/cppgc/macros.h"
+#include "include/cppgc/persistent.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/inspector/v8-console.h"
 
 namespace v8_inspector {
 
 class InspectedContext;
-class V8Console;
 class V8ConsoleMessageStorage;
 class V8Debugger;
 class V8DebuggerAgentImpl;
@@ -208,7 +209,7 @@ class V8InspectorImpl : public V8Inspector {
   std::unordered_map<int, int> m_contextIdToGroupIdMap;
   std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
-  std::unique_ptr<V8Console> m_console;
+  cppgc::Persistent<V8Console> m_console;
   PromiseHandlerTracker m_promiseHandlerTracker;
 };
 

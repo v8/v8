@@ -4,12 +4,17 @@
 
 #include "src/inspector/v8-console.h"
 
+#include <atomic>
+
+#include "include/cppgc/allocation.h"
 #include "include/v8-container.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
 #include "include/v8-profiler.h"
+#include "include/v8-sandbox.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
@@ -508,10 +513,10 @@ void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                    ->NewInstance(isolate->GetCurrentContext())
                                    .ToLocalChecked();
 
-  auto taskInfo = std::make_unique<TaskInfo>(isolate, this, task);
+  auto* taskInfo = cppgc::MakeGarbageCollected<TaskInfo>(
+      isolate->GetCppHeap()->GetAllocationHandle(), isolate, this);
   void* taskId = taskInfo->Id();
-  auto [iter, inserted] = m_tasks.emplace(taskId, std::move(taskInfo));
-  CHECK(inserted);
+  v8::Object::Wrap<TaskInfo::kPointerTag>(isolate, task, taskInfo);
 
   String16 nameArgument = toProtocolString(isolate, info[0].As<v8::String>());
   StringView taskName =
@@ -521,13 +526,60 @@ void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(task);
 }
 
-namespace {
-// This tag value has been picked arbitrarily between 0 and
-// V8_EXTERNAL_POINTER_TAG_COUNT.
-constexpr v8::ExternalPointerTypeTag kTaskInfoTag = 9;
-}  // namespace
+v8::Local<v8::Object> V8Console::wrapConsole(v8::Local<v8::Context> context) {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (!m_consoleWrapper.IsEmpty() && context == m_consoleContext) {
+    return m_consoleWrapper.Get(isolate);
+  }
+  if (m_consoleTemplate.IsEmpty()) {
+    v8::Local<v8::FunctionTemplate> consTemplate =
+        v8::FunctionTemplate::New(isolate);
+    m_consoleTemplate.Reset(isolate, consTemplate->InstanceTemplate());
+  }
+  v8::Local<v8::Object> consoleWrapper =
+      m_consoleTemplate.Get(isolate)->NewInstance(context).ToLocalChecked();
+  v8::Object::Wrap<kPointerTag>(isolate, consoleWrapper, this);
+  m_consoleWrapper.Reset(isolate, consoleWrapper);
+  m_consoleWrapper.SetWeak();
+  m_consoleContext.Reset(isolate, context);
+  m_consoleContext.SetWeak();
+  return consoleWrapper;
+}
 
-void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (!m_taskTemplate.IsEmpty()) {
+    return m_taskTemplate.Get(isolate);
+  }
+
+  v8::Local<v8::FunctionTemplate> consTemplate =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> taskTemplate = consTemplate->InstanceTemplate();
+  v8::Local<v8::FunctionTemplate> funcTemplate =
+      v8::FunctionTemplate::New(isolate, &TaskInfo::runTask);
+  taskTemplate->Set(isolate, "run", funcTemplate);
+
+  m_taskTemplate.Reset(isolate, taskTemplate);
+  return taskTemplate;
+}
+
+TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console)
+    : m_isolate(isolate), m_console(console), m_id(new char(0)) {}
+
+TaskInfo::~TaskInfo() {
+  auto* inspector =
+      static_cast<V8InspectorImpl*>(v8::debug::GetInspector(m_isolate));
+  if (inspector) {
+    inspector->asyncTaskCanceled(Id());
+  }
+}
+
+void TaskInfo::Trace(cppgc::Visitor* visitor) const {
+  visitor->Trace(m_console);
+  v8::Object::Wrappable::Trace(visitor);
+}
+
+void TaskInfo::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() < 1 || !info[0]->IsFunction()) {
     isolate->ThrowError("First argument must be a function.");
@@ -536,23 +588,24 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Function> function = info[0].As<v8::Function>();
 
   v8::Local<v8::Object> task = info.This();
-  v8::Local<v8::Value> maybeTaskExternal;
-  if (!task->GetPrivate(isolate->GetCurrentContext(), taskInfoKey())
-           .ToLocal(&maybeTaskExternal)) {
-    // An exception is already thrown.
+  if (!task->IsApiWrapper()) {
+    isolate->ThrowError("'run' called with illegal receiver.");
     return;
   }
-
-  if (!maybeTaskExternal->IsExternal()) {
+  TaskInfo* taskInfo =
+      v8::Object::Unwrap<TaskInfo::kPointerTag, TaskInfo>(isolate, task);
+  if (!taskInfo) {
     isolate->ThrowError("'run' called with illegal receiver.");
     return;
   }
 
-  v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
-  TaskInfo* taskInfo =
-      reinterpret_cast<TaskInfo*>(taskExternal->Value(kTaskInfoTag));
-
-  m_inspector->asyncTaskStarted(taskInfo->Id());
+  V8Console* console = taskInfo->m_console.Get();
+  CHECK_NOT_NULL(console);
+  if (!console->m_inspector) {
+    // Inspector has been cleared, so we're in shutdown.
+    return;
+  }
+  console->m_inspector->asyncTaskStarted(taskInfo->Id());
   {
 #ifdef V8_USE_PERFETTO
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::runTask",
@@ -572,56 +625,13 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
       info.GetReturnValue().Set(result);
     }
   }
-  m_inspector->asyncTaskFinished(taskInfo->Id());
+  console->m_inspector->asyncTaskFinished(taskInfo->Id());
 }
 
-v8::Local<v8::Private> V8Console::taskInfoKey() {
-  v8::Isolate* isolate = m_inspector->isolate();
-  if (m_taskInfoKey.IsEmpty()) {
-    m_taskInfoKey.Reset(isolate, v8::Private::New(isolate));
-  }
-  return m_taskInfoKey.Get(isolate);
-}
-
-v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
-  v8::Isolate* isolate = m_inspector->isolate();
-  if (!m_taskTemplate.IsEmpty()) {
-    return m_taskTemplate.Get(isolate);
-  }
-
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, this, kV8ConsoleTag);
-  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
-      isolate, &V8Console::call<&V8Console::runTask>, data);
-  taskTemplate->Set(isolate, "run", funcTemplate);
-
-  m_taskTemplate.Reset(isolate, taskTemplate);
-  return taskTemplate;
-}
-
-void V8Console::cancelConsoleTask(TaskInfo* taskInfo) {
-  m_inspector->asyncTaskCanceled(taskInfo->Id());
-  m_tasks.erase(taskInfo->Id());
-}
-
-namespace {
-
-void cleanupTaskInfo(const v8::WeakCallbackInfo<TaskInfo>& info) {
-  TaskInfo* task = info.GetParameter();
-  CHECK(task);
-  task->Cancel();
-}
-
-}  // namespace
-
-TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console,
-                   v8::Local<v8::Object> task)
-    : m_task(isolate, task), m_console(console) {
-  task->SetPrivate(isolate->GetCurrentContext(), console->taskInfoKey(),
-                   v8::External::New(isolate, this, kTaskInfoTag))
-      .Check();
-  m_task.SetWeak(this, cleanupTaskInfo, v8::WeakCallbackType::kParameter);
+void V8Console::Trace(cppgc::Visitor* visitor) const {
+  visitor->Trace(m_taskTemplate);
+  visitor->Trace(m_consoleTemplate);
+  v8::Object::Wrappable::Trace(visitor);
 }
 
 void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -850,8 +860,7 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
 void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> console) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, this, kV8ConsoleTag);
+  v8::Local<v8::Object> data = wrapConsole(context);
   console->SetAccessorProperty(
       toV8StringInternalized(isolate, "memory"),
       v8::Function::New(
@@ -860,16 +869,14 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
           .ToLocalChecked(),
       v8::Function::New(context,
                         &V8Console::call<&V8Console::memorySetterCallback>,
-                        data, 0, v8::ConstructorBehavior::kThrow)
+                        data, 1, v8::ConstructorBehavior::kThrow)
           .ToLocalChecked(),
       static_cast<v8::PropertyAttribute>(v8::None));
 }
 
 void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                                             v8::Local<v8::Object> console) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, this, kV8ConsoleTag);
+  v8::Local<v8::Object> data = wrapConsole(context);
 
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -891,8 +898,7 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   USE(success);
 
   v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
-  data->Set(context, 0, v8::External::New(isolate, this, kV8ConsoleTag))
-      .Check();
+  data->Set(context, 0, wrapConsole(context)).Check();
   data->Set(context, 1, v8::Integer::New(isolate, sessionId)).Check();
 
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",

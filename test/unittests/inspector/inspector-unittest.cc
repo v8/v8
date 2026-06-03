@@ -284,45 +284,6 @@ TEST_F(InspectorTest, CanHandleMalformedCborMessage) {
       StringView(kCommand, sizeof(kCommand)));
 }
 
-TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
-  v8::Isolate* isolate = v8_isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  v8_inspector::V8InspectorClient default_client;
-  std::unique_ptr<v8_inspector::V8InspectorImpl> inspector =
-      std::make_unique<v8_inspector::V8InspectorImpl>(isolate, &default_client);
-  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
-  inspector->contextCreated(context_info);
-
-  // Trigger V8Console creation.
-  v8_inspector::V8Console* console = inspector->console();
-  CHECK(console);
-
-  {
-    v8::HandleScope inner_handle_scope(isolate);
-    v8::MaybeLocal<v8::Value> result = TryRunJS(isolate, NewString(R"(
-      globalThis['task'] = console.createTask('Task');
-    )"));
-    CHECK(!result.IsEmpty());
-
-    // Run GC and check that the task is still here.
-    InvokeMajorGC();
-    CHECK_EQ(console->AllConsoleTasksForTest().size(), 1);
-  }
-
-  // Get rid of the task on the context, run GC and check we no longer have
-  // the TaskInfo in the inspector.
-  v8_context()->Global()->Delete(v8_context(), NewString("task")).Check();
-  {
-    // We need to invoke GC without stack, otherwise some objects may not be
-    // reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        i_isolate()->heap());
-    InvokeMajorGC();
-  }
-  CHECK_EQ(console->AllConsoleTasksForTest().size(), 0);
-}
-
 TEST_F(InspectorTest, Evaluate) {
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
