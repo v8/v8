@@ -41,6 +41,12 @@ These rules ensure correct usage of the Chromium-specific `git cl` tool in V8.
     outdated technical statements resulting from the new patchset.
   - Verify `git diff` is not empty before uploading.
 - **Safeguards & Code Quality**:
+  - **Mandatory Reproducer Rule**: Before running `git cl upload`, you MUST
+    verify that the diff contains a valid, working regression test (typically
+    under `test/mjsunit/` or its component-specific subfolders like `compiler/`,
+    `turboshaft/`, `maglev/`, etc.). Uploading code-modifying CLs without an
+    accompanying regression test is strictly forbidden (unless explicitly waived
+    by the user or if it's a process-only/documentation change).
   - **No Trailing Whitespace**: NEVER add trailing whitespace in any file you
     create or modify.
   - **Always Test Before Upload**: Always run tests (at least in release mode)

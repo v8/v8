@@ -48,11 +48,15 @@ crashes, hangs, or unexpected behavior where no specific issue ID is provided.
 
 ### 4. Verify
 
+- **Create a Regression Test**: Design and implement a clean, semantic
+  regression test. Verify it fails on the unfixed code and passes cleanly on the
+  fixed code.
 - Verify the fix against the repro or by running relevant unit tests.
 - Ensure no new failures are introduced in related areas.
 
 ### 5. Finalization
 
 - Format the code using `git cl format`.
-- Present the fix to the user/main agent.
+- **Present the Fix & Test**: Present both the fix diff and the accompanying
+  working regression test to the user/main agent.
 - Do not create commits or upload CLs unless explicitly requested.

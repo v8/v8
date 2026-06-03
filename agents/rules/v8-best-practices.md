@@ -30,6 +30,9 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Cross-Feature Awareness**: Understand how optimizations interact with core
   V8 features like Lazy Compilation, Ignition bytecode generation, and
   TurboFan/Maglev optimizations.
+- **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
+  user, **every single bug fix in V8 MUST be uploaded with a working reproducer
+  (regression test)**. Uploading just the fix alone is NEVER acceptable.
 
 ## Technical Guardrails & Guidelines
 

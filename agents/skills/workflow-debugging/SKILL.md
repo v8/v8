@@ -86,6 +86,9 @@ general debugging approach for tracked issues.
 ### 5. Fix & Verify
 
 - Propose a fix following V8 Best Practices.
+- **Create a Regression Test**: Design and implement a clean, semantic
+  regression test. This test must be developed and verified to crash/fail on the
+  unfixed codebase and pass cleanly on the fixed codebase.
 - **Architectural Skepticism (MANDATORY)**: Before presenting the fix, the agent
   MUST explicitly argue *against* its own proposal.
   - *Skepticism Prompt*: "Is this fix too hasty? Does it accidentally disable a
@@ -104,8 +107,10 @@ Before committing or uploading, you MUST present the proposed solution to the
 user for review.
 
 - **Present the Diff**: Show the exact code changes proposed.
-- **Present the Test**: Show the regression test file and where it will be
-  placed.
+- **Present the Test**: Show the working regression test file and where it will
+  be placed. A bug fix must **always** be accompanied by a working regression
+  test. Proposing a fix without a reproducer is strictly forbidden unless the
+  user has explicitly waived it.
 - **Explain the Root Cause**: Provide a clear explanation of *why* the bug
   happened.
 - **Share Skepticism Results**: Briefly mention the counter-arguments considered
