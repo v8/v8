@@ -2380,12 +2380,12 @@ PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
   realm_ = Local<Context>::New(data->isolate_, data->realms_[index_]);
   realm_->Enter();
   previous_index_ = data->realm_current_;
+  data->realm_stack_.push_back(previous_index_);
   data->realm_current_ = data->realm_switch_ = index_;
-  data->realm_stack_.push_back(index_);
 }
 
 PerIsolateData::ExplicitRealmScope::~ExplicitRealmScope() {
-  DCHECK_EQ(data_->realm_stack_.back(), index_);
+  DCHECK_EQ(data_->realm_stack_.back(), previous_index_);
   data_->realm_stack_.pop_back();
   realm_->Exit();
   data_->realm_current_ = data_->realm_switch_ = previous_index_;
