@@ -675,6 +675,10 @@ class BodyGen {
 
   template <ValueKind T>
   void try_block(DataRange* data) {
+    if (!v8_flags.experimental_wasm_legacy_eh) {
+      Generate(ValueType::Primitive(T), data);
+      return;
+    }
     try_block_helper(ValueType::Primitive(T), data);
   }
 
@@ -1486,6 +1490,9 @@ class BodyGen {
   void set_global(DataRange* data) { global_op<kVoid>(data); }
 
   void throw_or_rethrow(DataRange* data) {
+    if (!v8_flags.experimental_wasm_legacy_eh) {
+      return;
+    }
     bool rethrow = data->get<bool>();
     if (rethrow && !catch_blocks_.empty()) {
       int control_depth = static_cast<int>(blocks_.size() - 1);
