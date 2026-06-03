@@ -663,17 +663,31 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
       DirectHandle<Object> ctor = JSReceiver::GetDataProperty(
           isolate, receiver, isolate->factory()->constructor_string());
       if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*ctor)) {
+        auto ClearExceptionIfNeeded = [isolate]() {
+          if (isolate->has_exception() &&
+              isolate->is_catchable_by_javascript(isolate->exception())) {
+            isolate->clear_exception();
+          }
+        };
+
         DirectHandle<String> ctor_name;
-        if (IsJSBoundFunction(*ctor)) {
-          ctor_name =
-              JSBoundFunction::GetName(isolate, Cast<JSBoundFunction>(ctor))
-                  .ToHandleChecked();
-        } else if (IsJSFunction(*ctor)) {
-          ctor_name = JSFunction::GetName(isolate, Cast<JSFunction>(ctor));
-        } else if (IsJSWrappedFunction(*ctor)) {
-          ctor_name =
-              JSWrappedFunction::GetName(isolate, Cast<JSWrappedFunction>(ctor))
-                  .ToHandleChecked();
+        if (DirectHandle<JSBoundFunction> bound_fun;
+            TryCast<JSBoundFunction>(ctor, &bound_fun)) {
+          if (!JSBoundFunction::GetName(isolate, bound_fun)
+                   .ToHandle(&ctor_name)) {
+            ClearExceptionIfNeeded();
+            return {};
+          }
+        } else if (DirectHandle<JSFunction> js_fun;
+                   TryCast<JSFunction>(ctor, &js_fun)) {
+          ctor_name = JSFunction::GetName(isolate, js_fun);
+        } else if (DirectHandle<JSWrappedFunction> wrapped_fun;
+                   TryCast<JSWrappedFunction>(ctor, &wrapped_fun)) {
+          if (!JSWrappedFunction::GetName(isolate, wrapped_fun)
+                   .ToHandle(&ctor_name)) {
+            ClearExceptionIfNeeded();
+            return {};
+          }
         } else {
           UNREACHABLE();
         }
@@ -684,7 +698,10 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
           builder.AppendString(ctor_name);
           builder.AppendCharacter('>');
 
-          return builder.Finish().ToHandleChecked();
+          DirectHandle<String> result;
+          if (builder.Finish().ToHandle(&result)) return result;
+          ClearExceptionIfNeeded();
+          return {};
         }
       }
     }
