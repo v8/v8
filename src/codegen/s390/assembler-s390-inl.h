@@ -200,6 +200,17 @@ void WritableRelocInfo::set_target_external_reference(
                                    &jit_allocation_, icache_flush_mode);
 }
 
+Address RelocInfo::wasm_code_pointer() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+void WritableRelocInfo::set_wasm_code_pointer(Address target) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   &jit_allocation_, SKIP_ICACHE_FLUSH);
+}
+
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
   DCHECK(rmode_ == WASM_CODE_POINTER_TABLE_ENTRY);
   return WasmCodePointer{Assembler::uint32_constant_at(pc_, constant_pool_)};
