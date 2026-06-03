@@ -2052,8 +2052,39 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
     SetInternalReference(entry, "wasm_weak_instance_list",
                          script->wasm_weak_instance_list(),
                          offsetof(Script, infos_));
+  } else {
+#endif
+    SetInternalReference(
+        entry, "eval_from_shared_or_wrapped_arguments",
+        script->eval_from_shared_or_wrapped_arguments(),
+        offsetof(Script, eval_from_shared_or_wrapped_arguments_));
+    SetInternalReference(entry, "infos", script->infos(),
+                         offsetof(Script, infos_));
+#if V8_ENABLE_WEBASSEMBLY
   }
 #endif
+  SetInternalReference(entry, "eval_from_scope_info",
+                       script->eval_from_scope_info(),
+                       offsetof(Script, eval_from_scope_info_));
+  SetInternalReference(entry, "compiled_lazy_function_positions",
+                       script->compiled_lazy_function_positions(),
+                       offsetof(Script, compiled_lazy_function_positions_));
+  SetInternalReference(entry, "source_url", script->source_url(),
+                       offsetof(Script, source_url_));
+  SetInternalReference(entry, "source_mapping_url",
+                       script->source_mapping_url(),
+                       offsetof(Script, source_mapping_url_));
+  SetInternalReference(entry, "debug_id", script->debug_id(),
+                       offsetof(Script, debug_id_));
+  SetInternalReference(entry, "host_defined_options",
+                       script->host_defined_options(),
+                       offsetof(Script, host_defined_options_));
+#if V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  SetInternalReference(entry, "script_or_modules", script->script_or_modules(),
+                       offsetof(Script, script_or_modules_));
+#endif
+  SetInternalReference(entry, "source_hash", script->source_hash(),
+                       offsetof(Script, source_hash_));
 }
 
 void V8HeapExplorer::ExtractAccessorInfoReferences(
