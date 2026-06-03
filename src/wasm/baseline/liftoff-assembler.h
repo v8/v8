@@ -695,6 +695,12 @@ class LiftoffAssembler : public MacroAssembler {
   inline void CheckStackShrink();
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceDataFromFrame(Register dst);
+  inline void LoadMemoryStart(Register dst, Register instance_data,
+                              int mem_index);
+  inline void RestoreCachedRegisters(Register instance_data,
+                                     bool reload_instance_data,
+                                     Register mem_start, bool reload_mem_start,
+                                     int mem_index);
   inline void LoadTrustedPointer(Register dst, Register src_addr, int offset,
                                  IndirectPointerTag tag);
   inline void LoadFromInstance(Register dst, Register instance, int offset,

@@ -611,33 +611,9 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   // Now execute stack transfers and register moves/loads.
   parallel_move.Execute();
 
-  if (reload_instance_data) {
-    LoadInstanceDataFromFrame(target.cached_instance_data);
-  }
-  if (reload_mem_start) {
-    // {target.cached_instance_data} already got restored above, so we can use
-    // it if it exists.
-    Register instance_data = target.cached_instance_data;
-    if (instance_data == no_reg) {
-      // We don't have the instance data available yet. Store it into the target
-      // mem_start, so that we can load the mem0_start from there.
-      instance_data = target.cached_mem_start;
-      LoadInstanceDataFromFrame(instance_data);
-    }
-    if (target.cached_mem_index == 0) {
-      LoadFromInstance(target.cached_mem_start, instance_data,
-                       WasmTrustedInstanceData::kMemory0StartOffset,
-                       sizeof(size_t));
-    } else {
-      LoadProtectedPointer(
-          target.cached_mem_start, instance_data,
-          WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
-      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
-                          kSystemPointerSize * target.cached_mem_index * 2;
-      LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
-                      buffer_offset);
-    }
-  }
+  RestoreCachedRegisters(target.cached_instance_data, reload_instance_data,
+                         target.cached_mem_start, reload_mem_start,
+                         target.cached_mem_index);
 }
 
 void LiftoffAssembler::Spill(VarState* slot) {

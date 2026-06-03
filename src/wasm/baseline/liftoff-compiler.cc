@@ -712,6 +712,8 @@ class LiftoffCompiler {
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
     Register cached_instance_data{no_reg};
+    Register cached_mem_start{no_reg};
+    int cached_mem_index{-1};
     OutOfLineSafepointInfo* safepoint_info;
     // These two pointers will only be used for debug code:
     SpilledRegistersForInspection* spilled_registers;
@@ -736,6 +738,7 @@ class LiftoffCompiler {
     static OutOfLineCode* StackCheck(
         Zone* zone, ZoneVector<OutOfLineCode*>* list, WasmCodePosition pos,
         LiftoffRegList regs_to_save, Register cached_instance_data,
+        Register cached_mem_start, int cached_mem_index,
         SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
@@ -748,6 +751,8 @@ class LiftoffCompiler {
       ool->position = pos;
       ool->regs_to_save = regs_to_save;
       ool->cached_instance_data = cached_instance_data;
+      ool->cached_mem_start = cached_mem_start;
+      ool->cached_mem_index = cached_mem_index;
       ool->safepoint_info = safepoint_info;
       ool->spilled_registers = spilled_regs;
       ool->debug_sidetable_entry_builder = debug_sidetable_entry_builder;
@@ -757,6 +762,7 @@ class LiftoffCompiler {
     static OutOfLineCode* TierupCheck(
         Zone* zone, ZoneVector<OutOfLineCode*>* list, WasmCodePosition pos,
         LiftoffRegList regs_to_save, Register cached_instance_data,
+        Register cached_mem_start, int cached_mem_index,
         SpilledRegistersForInspection* spilled_regs,
         OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
@@ -765,6 +771,8 @@ class LiftoffCompiler {
       ool->position = pos;
       ool->regs_to_save = regs_to_save;
       ool->cached_instance_data = cached_instance_data;
+      ool->cached_mem_start = cached_mem_start;
+      ool->cached_mem_index = cached_mem_index;
       ool->safepoint_info = safepoint_info;
       ool->spilled_registers = spilled_regs;
       ool->debug_sidetable_entry_builder = debug_sidetable_entry_builder;
@@ -1042,10 +1050,14 @@ class LiftoffCompiler {
     if (!v8_flags.wasm_stack_checks) return;
 
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
-    // The cached instance data will be reloaded separately.
+    // The cached instance data and memory start will be reloaded separately.
     if (__ cache_state()->cached_instance_data != no_reg) {
       DCHECK(regs_to_save.has(__ cache_state()->cached_instance_data));
       regs_to_save.clear(__ cache_state()->cached_instance_data);
+    }
+    if (__ cache_state()->cached_mem_start != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_mem_start));
+      regs_to_save.clear(__ cache_state()->cached_mem_start);
     }
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
@@ -1060,18 +1072,14 @@ class LiftoffCompiler {
       // When debugging, we do not just push all registers to the stack, but we
       // spill them to their proper stack locations such that we can inspect
       // them.
-      // The only exception is the cached memory start, which we just push
-      // before the stack check and pop afterwards.
       regs_to_save = {};
-      if (__ cache_state()->cached_mem_start != no_reg) {
-        regs_to_save.set(__ cache_state()->cached_mem_start);
-      }
       spilled_regs = GetSpilledRegistersForInspection();
     }
     OutOfLineCode* ool = OutOfLineCode::StackCheck(
         zone_, &out_of_line_code_, position, regs_to_save,
-        __ cache_state()->cached_instance_data, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry(decoder));
+        __ cache_state()->cached_instance_data,
+        __ cache_state()->cached_mem_start, __ cache_state()->cached_mem_index,
+        spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder));
     __ StackCheck(&ool->label);
     __ bind(&ool->continuation);
   }
@@ -1098,16 +1106,21 @@ class LiftoffCompiler {
         LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
 
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
-    // The cached instance will be reloaded separately.
+    // The cached instance data and memory start will be reloaded separately.
     if (__ cache_state()->cached_instance_data != no_reg) {
       DCHECK(regs_to_save.has(__ cache_state()->cached_instance_data));
       regs_to_save.clear(__ cache_state()->cached_instance_data);
     }
+    if (__ cache_state()->cached_mem_start != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_mem_start));
+      regs_to_save.clear(__ cache_state()->cached_mem_start);
+    }
 
     OutOfLineCode* ool = OutOfLineCode::TierupCheck(
         zone_, &out_of_line_code_, position, regs_to_save,
-        __ cache_state()->cached_instance_data, spilled_regs, safepoint_info,
-        RegisterOOLDebugSideTableEntry(decoder));
+        __ cache_state()->cached_instance_data,
+        __ cache_state()->cached_mem_start, __ cache_state()->cached_mem_index,
+        spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder));
 
     FREEZE_STATE(tierup_check);
     __ CheckTierUp(declared_function_index(env_->module, func_index_),
@@ -1379,9 +1392,10 @@ class LiftoffCompiler {
           __ Fill(entry.reg, entry.offset, entry.kind);
         }
       }
-      if (ool->cached_instance_data != no_reg) {
-        __ LoadInstanceDataFromFrame(ool->cached_instance_data);
-      }
+      __ RestoreCachedRegisters(
+          ool->cached_instance_data, ool->cached_instance_data != no_reg,
+          ool->cached_mem_start, ool->cached_mem_start != no_reg,
+          ool->cached_mem_index);
       __ emit_jump(&ool->continuation);
     } else {
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
@@ -1657,6 +1671,13 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder,
                                 DebugSideTableBuilder::kAllowRegisters);
     MaybeOSR();
+
+    // Reload cached registers.
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    Register mem_start = __ cache_state() -> cached_mem_start;
+    __ RestoreCachedRegisters(instance_data, instance_data != no_reg, mem_start,
+                              mem_start != no_reg,
+                              __ cache_state()->cached_mem_index);
   }
 
   void PushControl(Control* block) {
@@ -4253,17 +4274,8 @@ class LiftoffCompiler {
     __ cache_state()->ClearCachedMemStartRegister();
     SCOPED_CODE_COMMENT("load memory start");
     Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
-    if (memory_index == 0) {
-      LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize,
-                          pinned);
-    } else {
-      LOAD_PROTECTED_PTR_INSTANCE_FIELD(memory_start, MemoryBasesAndSizes,
-                                        pinned);
-      int buffer_offset =
-          TrustedFixedAddressArray::OffsetOfElementAt(memory_index * 2) -
-          kHeapObjectTag;
-      __ LoadFullPointer(memory_start, memory_start, buffer_offset);
-    }
+    Register instance_data = LoadInstanceIntoRegister(pinned, memory_start);
+    __ LoadMemoryStart(memory_start, instance_data, memory_index);
     __ cache_state()->SetMemStartCacheRegister(memory_start, memory_index);
     return memory_start;
   }

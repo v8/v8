@@ -310,6 +310,44 @@ void LiftoffAssembler::clear_i32_upper_half(Register dst) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_32_BIT
 
+void LiftoffAssembler::LoadMemoryStart(Register dst, Register instance_data,
+                                       int mem_index) {
+  if (mem_index == 0) {
+    LoadFromInstance(dst, instance_data,
+                     WasmTrustedInstanceData::kMemory0StartOffset,
+                     sizeof(size_t));
+  } else {
+    LoadProtectedPointer(
+        dst, instance_data,
+        WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
+    int buffer_offset = OFFSET_OF_DATA_START(TrustedFixedAddressArray) -
+                        kHeapObjectTag + kSystemPointerSize * mem_index * 2;
+    LoadFullPointer(dst, dst, buffer_offset);
+  }
+}
+
+void LiftoffAssembler::RestoreCachedRegisters(Register instance_data,
+                                              bool reload_instance_data,
+                                              Register mem_start,
+                                              bool reload_mem_start,
+                                              int mem_index) {
+  if (reload_mem_start && instance_data == no_reg) {
+    // If there is no instance data available, load it first into the mem_start
+    // register.
+    DCHECK(!reload_instance_data);
+    instance_data = mem_start;
+    reload_instance_data = true;
+  }
+  if (reload_instance_data) {
+    DCHECK_NE(no_reg, instance_data);
+    LoadInstanceDataFromFrame(instance_data);
+  }
+  if (reload_mem_start) {
+    DCHECK_NE(no_reg, mem_start);
+    LoadMemoryStart(mem_start, instance_data, mem_index);
+  }
+}
+
 // End of the partially platform-independent implementations of the
 // platform-dependent part.
 // =======================================================================
