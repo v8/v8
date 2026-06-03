@@ -3245,8 +3245,7 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
           << "]: " << PrintNode(cached_value));
     return cached_value;
   }
-  if (assigned == kMaybeAssigned &&
-      !known_node_aspects().IsContextCacheEmpty(assigned)) {
+  if (assigned == kMaybeAssigned) {
     known_node_aspects().UpdateMayHaveAliasingContexts(
         broker(), local_isolate(), context);
   }

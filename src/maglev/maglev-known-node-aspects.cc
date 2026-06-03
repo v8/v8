@@ -585,10 +585,8 @@ SmallZoneVector<KnownNodeAspects::LoadedContextSlotsKey, 8>
 KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
                                               int offset, ValueNode* value) {
   SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots_(graph->zone());
-  if (!loaded_context_slots_.empty()) {
-    UpdateMayHaveAliasingContexts(graph->broker(),
-                                  graph->broker()->local_isolate(), context);
-  }
+  UpdateMayHaveAliasingContexts(graph->broker(),
+                                graph->broker()->local_isolate(), context);
   if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
     for (auto& cache : loaded_context_slots_) {
       int cached_offset = std::get<int>(cache.first);
