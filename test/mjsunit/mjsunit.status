@@ -104,6 +104,9 @@
   # TODO(arm): This seems to flush out a bug on arm with simulator.
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator_run', SKIP]],
 
+  # https://crbug.com/505063230
+  'sandbox/regress-488362583': [SKIP],
+
   ##############################################################################
   # Long-running tests.
   # We really should find better solutions for these.
