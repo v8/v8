@@ -592,6 +592,7 @@ void LiftoffAssembler::StoreTaggedPointer(
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
   CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
                 kZero, &exit);
+  // The second argument must be the full address instead of an offset.
   Daddu(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -875,6 +876,7 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
   CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
                 kZero, &exit);
+  // The second argument must be the full address instead of an offset.
   Daddu(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -1043,41 +1045,32 @@ void LiftoffAssembler::AtomicExchangeTaggedPointer(
     LiftoffRegister value, LiftoffRegister result, uint32_t* trapping_load_pc,
     LiftoffRegList pinned) {
   // Perform the atomic exchange.
-  {
-    LiftoffRegList pinned{dst_addr, value, result};
-    if (offset_reg != no_reg) pinned.set(offset_reg);
-    Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-    Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-    MemOperand dst_op =
-        liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, false);
-    Daddu(temp0, dst_op.rm(), dst_op.offset());
-    if constexpr (COMPRESS_POINTERS_BOOL) {
-      UNREACHABLE();
-    } else {
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
-    }
+  pinned.set(dst_addr);
+  pinned.set(value);
+  pinned.set(result);
+  if (offset_reg != no_reg) pinned.set(offset_reg);
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, false);
+  Daddu(temp0, dst_op.rm(), dst_op.offset());
+  if constexpr (COMPRESS_POINTERS_BOOL) {
+    UNREACHABLE();
+  } else {
+    ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
   }
 
   if (v8_flags.disable_write_barriers) return;
   // Emit the write barrier.
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   Label exit;
   JumpIfSmi(value.gp(), &exit);
-  CheckPageFlag(dst_addr, scratch,
+  CheckPageFlag(dst_addr, temp1,
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
-  CheckPageFlag(value.gp(), scratch,
+  CheckPageFlag(value.gp(), temp1,
                 MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
 
-  if (offset_reg.is_valid()) {
-    Dext(scratch, offset_reg, 0, 32);
-    if (offset_imm) {
-      Daddu(scratch, scratch, Operand(offset_imm));
-    }
-  } else {
-    li(scratch, offset_imm);
-  }
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+  // The second argument must be the full address instead of an offset.
+  CallRecordWriteStubSaveRegisters(dst_addr, temp0, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
@@ -1203,20 +1196,13 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   if (!v8_flags.disable_write_barriers) {
     // Emit the write barrier.
     JumpIfSmi(new_value.gp(), &exit);
-    CheckPageFlag(dst_addr, temp0,
+    CheckPageFlag(dst_addr, temp1,
                   MemoryChunk::kPointersFromHereAreInterestingMask, kZero,
                   &exit);
-    CheckPageFlag(new_value.gp(), temp0,
+    CheckPageFlag(new_value.gp(), temp1,
                   MemoryChunk::kPointersToHereAreInterestingMask, kZero, &exit);
 
-    if (offset_reg.is_valid()) {
-      Dext(temp0, offset_reg, 0, 32);
-      if (offset_imm) {
-        Daddu(temp0, temp0, Operand(offset_imm));
-      }
-    } else {
-      li(temp0, offset_imm);
-    }
+    // The second argument must be the full address instead of an offset.
     CallRecordWriteStubSaveRegisters(dst_addr, temp0, SaveFPRegsMode::kSave,
                                      StubCallMode::kCallWasmRuntimeStub);
   }
