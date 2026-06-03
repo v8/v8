@@ -225,6 +225,38 @@ const shuffle_8x4_tests = [
     shuffle: [3, 7, 11, 15],
   },
   {
+    name: "8x4DeinterleaveEvenEvenEven",
+    shuffle: [0, 8, 16, 24],
+  },
+  {
+    name: "8x4DeinterleaveOddEvenEven",
+    shuffle: [1, 9, 17, 25],
+  },
+  {
+    name: "8x4DeinterleaveEvenOddEven",
+    shuffle: [2, 10, 18, 26],
+  },
+  {
+    name: "8x4DeinterleaveOddOddEven",
+    shuffle: [3, 11, 19, 27],
+  },
+  {
+    name: "8x4DeinterleaveEvenEvenOdd",
+    shuffle: [4, 12, 20, 28],
+  },
+  {
+    name: "8x4DeinterleaveOddEvenOdd",
+    shuffle: [5, 13, 21, 29],
+  },
+  {
+    name: "8x4DeinterleaveEvenOddOdd",
+    shuffle: [6, 14, 22, 30],
+  },
+  {
+    name: "8x4DeinterleaveOddOddOdd",
+    shuffle: [7, 15, 23, 31],
+  },
+  {
     name: "16x2DeinterleaveEvenEven",
     shuffle: [0, 1, 8, 9],
   },

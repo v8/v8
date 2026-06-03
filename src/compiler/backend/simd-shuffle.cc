@@ -47,6 +47,11 @@ constexpr SimdShuffle::ShuffleArray<kSimd128Size> expandHalf(
     const std::array<uint8_t, N>& in) {
   return expand<N, kSimd128HalfSize>(in);
 }
+template <size_t N>
+constexpr SimdShuffle::ShuffleArray<kSimd128Size> expandQuarter(
+    const std::array<uint8_t, N>& in) {
+  return expand<N, kSimd128QuarterSize>(in);
+}
 
 // A single matcher for both full- and half-size shuffles, where the half-size
 // only shuffles are padded with the sentinel value. Half-size shuffles
@@ -128,6 +133,23 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
        CanonicalShuffle::kS16x4DeinterleaveEvenOdd},
       {expandHalf<4>({3, 7, 11, 15}),
        CanonicalShuffle::kS16x4DeinterleaveOddOdd},
+      {expandQuarter<4>({0, 8, 16, 24}),
+       CanonicalShuffle::kS8x4DeinterleaveEvenEvenEven},
+      {expandQuarter<4>({1, 9, 17, 25}),
+       CanonicalShuffle::kS8x4DeinterleaveOddEvenEven},
+      {expandQuarter<4>({2, 10, 18, 26}),
+       CanonicalShuffle::kS8x4DeinterleaveEvenOddEven},
+      {expandQuarter<4>({3, 11, 19, 27}),
+       CanonicalShuffle::kS8x4DeinterleaveOddOddEven},
+      {expandQuarter<4>({4, 12, 20, 28}),
+       CanonicalShuffle::kS8x4DeinterleaveEvenEvenOdd},
+      {expandQuarter<4>({5, 13, 21, 29}),
+       CanonicalShuffle::kS8x4DeinterleaveOddEvenOdd},
+      {expandQuarter<4>({6, 14, 22, 30}),
+       CanonicalShuffle::kS8x4DeinterleaveEvenOddOdd},
+      {expandQuarter<4>({7, 15, 23, 31}),
+       CanonicalShuffle::kS8x4DeinterleaveOddOddOdd},
+
   });
   for (const auto& [lanes, canonical] : canonical_shuffle_list) {
     if (std::equal(lanes.begin(), lanes.begin() + N, shuffle.begin())) {

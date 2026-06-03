@@ -3926,6 +3926,118 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
 
 namespace {
 
+struct I8x4TripleShuffleInst {
+  const char* constructor_name;
+  ArchOpcode first_arch_opcode;
+  ArchOpcode second_arch_opcode;
+  ArchOpcode third_arch_opcode;
+  int lane_size;
+  const std::array<uint8_t, 4> shuffle;
+};
+
+std::ostream& operator<<(std::ostream& os, const I8x4TripleShuffleInst& inst) {
+  return os << inst.constructor_name;
+}
+
+const I8x4TripleShuffleInst kQuarterDeinterleaveShuffles[] = {
+    {"Even, Even, Even",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     8,
+     {{0, 8, 16, 24}}},
+    {"Odd, Even, Even",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     8,
+     {{1, 9, 17, 25}}},
+    {"Even, Odd, Even",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     8,
+     {{2, 10, 18, 26}}},
+    {"Odd, Odd, Even",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     8,
+     {{3, 11, 19, 27}}},
+    {"Even, Even, Odd",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     8,
+     {{4, 12, 20, 28}}},
+    {"Odd, Even, Odd",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     8,
+     {{5, 13, 21, 29}}},
+    {"Even, Odd, Odd",
+     kArm64S128UnzipLeft,
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     8,
+     {{6, 14, 22, 30}}},
+    {"Odd, Odd, Odd",
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     kArm64S128UnzipRight,
+     8,
+     {{7, 15, 23, 31}}},
+};
+
+}  // namespace
+
+using TurboshaftInstructionSelectorI8x4TripleShuffleTest =
+    TurboshaftInstructionSelectorTestWithParam<I8x4TripleShuffleInst>;
+
+TEST_P(TurboshaftInstructionSelectorI8x4TripleShuffleTest,
+       S128Deinterleave4ThreeStage) {
+  const I8x4TripleShuffleInst inst = GetParam();
+  const MachineType type = MachineType::Simd128();
+  StreamBuilder m(this, type, type, type, type);
+  m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                            Simd128ShuffleOp::Kind::kI8x4,
+                            inst.shuffle.data()));
+  Stream s = m.Build();
+
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(inst.first_arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(inst.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  EXPECT_EQ(inst.second_arch_opcode, s[1]->arch_opcode());
+  EXPECT_EQ(inst.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  EXPECT_EQ(inst.third_arch_opcode, s[2]->arch_opcode());
+  EXPECT_EQ(inst.lane_size,
+            LaneSizeBits(LaneSizeField::decode(s[2]->opcode())));
+
+  // First shuffle consumes both inputs.
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(1U, s[0]->OutputCount());
+
+  // Second shuffle operates on the temp produced by the first.
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(1U, s[1]->OutputCount());
+
+  // Third shuffle consumes the second's output and produces the result.
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(1)));
+  EXPECT_EQ(1U, s[2]->OutputCount());
+}
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorI8x4TripleShuffleTest,
+                         ::testing::ValuesIn(kQuarterDeinterleaveShuffles));
+
+namespace {
+
 struct DupAndShuffleInst {
   const char* constructor_name;
   ArchOpcode arch_opcode;
@@ -4627,13 +4739,13 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle8x4Test) {
         24,
     };
     StreamBuilder m(this, type, type, type, type);
-    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(0),
                               Simd128ShuffleOp::Kind::kI8x4, shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64I8x16Shuffle, s[0]->arch_opcode());
     EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
-    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }

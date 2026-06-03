@@ -6571,6 +6571,58 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
   return {};
 }
 
+using ShuffleTriplet =
+    std::tuple<InstructionCode, InstructionCode, InstructionCode>;
+std::optional<ShuffleTriplet> TryMapCanonicalShuffleToShuffleTriplet(
+    CanonicalShuffle shuffle) {
+  using CanonicalToInstr = std::tuple<CanonicalShuffle, ShuffleTriplet>;
+
+#define CANONICAL_TO_INSTRS(canonical, opcode1, size1, opcode2, size2, \
+                            opcode3, size3)                            \
+  {                                                                    \
+    CanonicalShuffle::canonical, {                                     \
+      opcode1 | LaneSizeField::encode(size1),                          \
+          opcode2 | LaneSizeField::encode(size2),                      \
+          opcode3 | LaneSizeField::encode(size3)                       \
+    }                                                                  \
+  }
+
+  static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveEvenEvenEven, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8,
+                          kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveOddEvenEven, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8,
+                          kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveEvenOddEven, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8,
+                          kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveOddOddEven, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8,
+                          kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveEvenEvenOdd, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8,
+                          kArm64S128UnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveOddEvenOdd, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8,
+                          kArm64S128UnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveEvenOddOdd, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8,
+                          kArm64S128UnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x4DeinterleaveOddOddOdd, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8,
+                          kArm64S128UnzipRight, LaneSize::kL8),
+  });
+#undef CANONICAL_TO_INSTRS
+
+  for (const auto& [canonical, instr_opcodes] : arch_shuffles) {
+    if (canonical == shuffle) {
+      return instr_opcodes;
+    }
+  }
+  return {};
+}
+
 template <size_t ShuffleSize>
 bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
                          OpIndex input0, OpIndex input1,
@@ -6625,6 +6677,25 @@ bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
                      g.UseRegister(input1));
       selector->Emit(opcode2, g.DefineAsRegister(node), temp, temp);
       return true;
+    }
+  }
+
+  if constexpr (ShuffleSize == kSimd128QuarterSize) {
+    // Performing three operations can still be better than a TBL when we have
+    // two inputs due to their fixed nature and the chances of copies being
+    // introduced.
+    if (input0 != input1) {
+      if (std::optional<ShuffleTriplet> instr_opcodes =
+              TryMapCanonicalShuffleToShuffleTriplet(canonical)) {
+        const auto [opcode1, opcode2, opcode3] = *instr_opcodes;
+        InstructionOperand temp1 = g.TempSimd128Register();
+        InstructionOperand temp2 = g.TempSimd128Register();
+        selector->Emit(opcode1, temp1, g.UseRegister(input0),
+                       g.UseRegister(input1));
+        selector->Emit(opcode2, temp2, temp1, temp1);
+        selector->Emit(opcode3, g.DefineAsRegister(node), temp2, temp2);
+        return true;
+      }
     }
   }
 
