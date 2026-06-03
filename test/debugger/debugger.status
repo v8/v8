@@ -131,8 +131,7 @@
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
 ['not has_webassembly or variant == jitless', {
   'debug/wasm/*': [SKIP],
-  'regress/regress-crbug-840288': [SKIP],
-  'regress/regress-crbug-1032042': [SKIP],
+  'regress/wasm/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################

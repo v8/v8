@@ -725,37 +725,24 @@ class DebugInfoImpl {
   // code. The frame layout itself should be independent of breakpoints.
   void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code,
                              StackFrameId stepping_frame) {
-    auto matches = [new_code](WasmFrame* frame) {
-      return frame->native_module() == new_code->native_module() &&
-             FrameSummary::GetTop(frame).AsWasm().function_index() ==
-                 static_cast<uint32_t>(new_code->index()) &&
-             frame->wasm_code()->is_liftoff();
-    };
-
-    // 1. Find and handle the first Wasm frame (potential breakpoint resume).
-    DebuggableStackFrameIterator it(isolate);
-    while (!it.done() && !it.is_wasm()) it.Advance();
-
-    if (!it.done()) {
-      WasmFrame* frame = WasmFrame::cast(it.frame());
-      // We still need the flooded function for stepping.
-      if (frame->id() != stepping_frame &&
-#if V8_ENABLE_DRUMBRAKE
-          // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
-          !it.is_wasm_interpreter_entry() &&
-#endif
-          matches(frame)) {
-        UpdateReturnAddress(frame, new_code, kAfterBreakpoint);
-      }
-      it.Advance();
-    }
-
-    // 2. Handle all remaining frames (always at call sites).
+    StackFrameIterator it(isolate);
     for (; !it.done(); it.Advance()) {
-      if (!it.is_wasm()) continue;
+      bool at_breakpoint = it.frame()->is_wasm_debug_break();
+      if (at_breakpoint) {
+        it.Advance();
+        CHECK(!it.done());
+      }
+      if (!it.frame()->is_wasm()) continue;
+#if V8_ENABLE_DRUMBRAKE
+      if (it.frame()->is_wasm_interpreter_entry()) continue;
+#endif
       WasmFrame* frame = WasmFrame::cast(it.frame());
-      if (!matches(frame)) continue;
-      UpdateReturnAddress(frame, new_code, kAfterWasmCall);
+      if (frame->native_module() != new_code->native_module()) continue;
+      WasmCode* code = frame->wasm_code();
+      if (!code->is_liftoff() || code->index() != new_code->index()) continue;
+      if (frame->id() == stepping_frame) continue;
+      UpdateReturnAddress(frame, new_code,
+                          at_breakpoint ? kAfterBreakpoint : kAfterWasmCall);
     }
   }
 
