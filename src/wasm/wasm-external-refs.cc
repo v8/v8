@@ -1269,6 +1269,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   }
 #endif
   from->set_signature_id(cont_sig_index);
+  to->set_wasm_code(nullptr);
 
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
@@ -1332,6 +1333,7 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to) {
 }
 
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
+  to->set_wasm_code(nullptr);
   return_stack(isolate, to);
 }
 
