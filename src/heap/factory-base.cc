@@ -66,13 +66,14 @@ Handle<Struct> FactoryBase<Impl>::NewStruct(InstanceType type,
   ReadOnlyRoots roots = read_only_roots();
   Tagged<Map> map = Map::GetMapFor(roots, type);
   int size = map->instance_size();
-  return handle(NewStructInternal(roots, map, size, allocation), isolate());
+  return handle(NewStructInternal(roots, map, size, allocation, true),
+                isolate());
 }
 
 template <typename Impl>
 Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
-  auto accessors =
-      NewStructInternal<AccessorPair>(ACCESSOR_PAIR_TYPE, AllocationType::kOld);
+  auto accessors = NewStructInternal<AccessorPair>(ACCESSOR_PAIR_TYPE,
+                                                   AllocationType::kOld, false);
   DisallowGarbageCollection no_gc;
   accessors->set_getter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);
   accessors->set_setter(read_only_roots().null_value(), SKIP_WRITE_BARRIER);

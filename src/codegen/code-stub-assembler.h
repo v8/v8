@@ -1712,17 +1712,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Uint32T> LoadFunctionKind(TNode<JSFunction> function);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
-  void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
+  void GotoIfPrototypeRequiresRuntimeLookup(TNode<HeapObject> function,
                                             TNode<Map> map, Label* runtime);
 
-  TNode<Union<JSReceiver, Map, TheHole>> LoadJSFunctionPrototypeOrInitialMap(
-      TNode<JSFunction> function);
+  TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
+  LoadJSFunctionPrototypeOrInitialMap(TNode<JSFunction> function);
   void StoreJSFunctionPrototypeOrInitialMap(
-      TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value);
+      TNode<JSFunction> function,
+      TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>> value);
 
-  // Load the "prototype" property of a JSFunction.
-  TNode<JSPrototype> LoadJSFunctionPrototype(TNode<JSFunction> function,
-                                             Label* if_bailout);
+  // Load the initial map of a JSFunctionWithPrototype.
+  TNode<Map> LoadJSFunctionInitialMap(TNode<JSFunction> function,
+                                      Label* if_bailout);
+
+  // Load the "prototype" property of a JSFunctionWithPrototype.
+  // If |if_non_instance_prototype| label is provided then the non-instance
+  // prototype value will be read to |var_non_instance_prototype|.
+  TNode<JSAny> LoadJSFunctionPrototype(
+      TNode<JSFunction> function, Label* if_bailout,
+      Label* if_non_instance_prototype = nullptr,
+      TVariable<JSAny>* var_non_instance_prototype = nullptr);
 
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
       TNode<SharedFunctionInfo> sfi);
@@ -2949,6 +2958,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
   TNode<BoolT> IsJSSharedStruct(TNode<Object> object);
   TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
+  TNode<BoolT> IsMapMap(TNode<Map> map);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsMapInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsName(TNode<HeapObject> object);

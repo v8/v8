@@ -411,19 +411,24 @@ DirectHandle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
   return direct_handle(result, isolate());
 }
 
-DirectHandle<Tuple2> Factory::NewTuple2Uninitialized(
-    AllocationType allocation) {
-  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation);
+DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
+                                        DirectHandle<Object> value2,
+                                        AllocationType allocation) {
+  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation, false);
+  DisallowGarbageCollection no_gc;
+  result->set_value1(*value1);
+  result->set_value2(*value2);
   return direct_handle(result, isolate());
 }
 
 DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
                                         DirectHandle<Object> value2,
+                                        RelaxedStoreTag tag,
                                         AllocationType allocation) {
-  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation);
+  auto result = NewStructInternal<Tuple2>(TUPLE2_TYPE, allocation, false);
   DisallowGarbageCollection no_gc;
-  result->set_value1(*value1);
-  result->set_value2(*value2);
+  result->set_value1(*value1, tag);
+  result->set_value2(*value2, tag);
   return direct_handle(result, isolate());
 }
 

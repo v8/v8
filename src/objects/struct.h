@@ -51,6 +51,7 @@ V8_OBJECT class Tuple2 : public Struct {
   DECL_PRINTER(Tuple2)
 
  private:
+  friend class CodeStubAssembler;
   friend class TorqueGeneratedTuple2Asserts;
   TaggedMember<Object> value1_;
   TaggedMember<Object> value2_;

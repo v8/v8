@@ -47,10 +47,11 @@ extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
 // Only the latter has prototype_or_initial_map field but we keep on using
 // JSFunction as general function type.
 extern operator '.prototype_or_initial_map' macro
-    LoadJSFunctionPrototypeOrInitialMap(JSFunction): JSReceiver|Map|TheHole;
+    LoadJSFunctionPrototypeOrInitialMap(JSFunction): JSReceiver|Map|Tuple2|
+    TheHole;
 extern operator '.prototype_or_initial_map=' macro
-    StoreJSFunctionPrototypeOrInitialMap(JSFunction, JSReceiver|Map|TheHole):
-        void;
+    StoreJSFunctionPrototypeOrInitialMap(
+        JSFunction, JSReceiver|Map|Tuple2|TheHole): void;
 
 // Defines layout and instance type for JSFunctions without prototype.
 @cppObjectLayoutDefinition
@@ -60,7 +61,17 @@ extern class JSFunctionWithoutPrototype extends JSFunction {}
 @highestInstanceTypeWithinParentClassRange
 @cppObjectLayoutDefinition
 extern class JSFunctionWithPrototype extends JSFunction {
-  prototype_or_initial_map: JSReceiver|Map|TheHole;
+  // The field can be in the following states:
+  //  - TheHole - function's prototype was never accessed and thus it's not
+  //      initialized yet,
+  //  - JSReceiver - function has an instance prototype but initial map was
+  //      not created yet (in this case the value is the prototype),
+  //  - Map - this is the function's initial map and the function has an
+  //      instance prototype,
+  //  - Tuple2<Map|JSReceiver, JSAny && !JSReceiver> - function has a
+  //      non-instance prototype, value1 contains initial map or instance
+  //      prototype value, value2 contains the non-instance prototype value.
+  prototype_or_initial_map: JSReceiver|Map|Tuple2|TheHole;
 }
 
 // Class constructors are special, because they are callable, but [[Call]] will

@@ -106,8 +106,10 @@ bool JSFunction::ChecksTieringState(IsolateForSandbox isolate) {
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive(Isolate* isolate) {
   if (!has_prototype_slot()) return;
-  if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
-    MapUpdater::CompleteInobjectSlackTracking(isolate, initial_map());
+  Tagged<Map> initial_map;
+  if (TryGetInitialMap(&initial_map) &&
+      initial_map->IsInobjectSlackTrackingInProgress()) {
+    MapUpdater::CompleteInobjectSlackTracking(isolate, initial_map);
   }
 }
 
@@ -404,25 +406,25 @@ Tagged<NativeContext> JSFunction::native_context() {
   return context()->native_context();
 }
 
-Tagged<UnionOf<JSPrototype, Map, TheHole>>
+Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
 JSFunctionWithPrototype::prototype_or_initial_map(AcquireLoadTag) const {
-  return Cast<UnionOf<JSPrototype, Map, TheHole>>(
+  return Cast<UnionOf<JSReceiver, Map, Tuple2, TheHole>>(
       prototype_or_initial_map_.Acquire_Load());
 }
 void JSFunctionWithPrototype::set_prototype_or_initial_map(
-    Tagged<UnionOf<JSPrototype, Map, TheHole>> value, ReleaseStoreTag,
+    Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>> value, ReleaseStoreTag,
     WriteBarrierMode mode) {
   prototype_or_initial_map_.Release_Store(this, value, mode);
 }
 
-Tagged<UnionOf<JSPrototype, Map, TheHole>> JSFunction::prototype_or_initial_map(
-    AcquireLoadTag tag) const {
+Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
+JSFunction::prototype_or_initial_map(AcquireLoadTag tag) const {
   DCHECK(has_prototype_slot());
   return Cast<JSFunctionWithPrototype>(this)->prototype_or_initial_map(tag);
 }
 void JSFunction::set_prototype_or_initial_map(
-    Tagged<UnionOf<JSPrototype, Map, TheHole>> value, ReleaseStoreTag tag,
-    WriteBarrierMode mode) {
+    Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>> value,
+    ReleaseStoreTag tag, WriteBarrierMode mode) {
   DCHECK(has_prototype_slot());
   Cast<JSFunctionWithPrototype>(this)->set_prototype_or_initial_map(value, tag,
                                                                     mode);
@@ -434,23 +436,91 @@ bool JSFunction::has_prototype_slot() const {
   return !IsJSFunctionWithoutPrototypeMap(map());
 }
 
+// This struct is defined outside of JSFunction class because the V8_OBJECT
+// macro enables "-Wpadded" warning (requirement for explicit padding) which
+// we don't need for this struct.
+struct JSFunction::PrototypeOrInitialMapData {
+  Tagged<JSPrototype> instance_prototype;
+  Tagged<Tuple2> non_instance_prototype_tuple;
+  Tagged<JSAny> non_instance_prototype;
+  Tagged<Map> initial_map;
+  bool has_instance_prototype = false;
+  bool has_non_instance_prototype = false;
+  bool has_initial_map = false;
+};
+
+bool JSFunction::TryGetPrototypeOrInitialMap(
+    PrototypeOrInitialMapData* out) const {
+  DCHECK(has_prototype_slot());
+  Tagged<HeapObject> proto_or_map = prototype_or_initial_map(kAcquireLoad);
+  if (IsTheHole(proto_or_map)) return false;
+
+  out->has_non_instance_prototype = false;
+  out->has_initial_map = false;
+
+  // At this point instance prototype is guaranteed to be available.
+  out->has_instance_prototype = true;
+
+  if (Tagged<Tuple2> tuple; TryCast<Tuple2>(proto_or_map, &tuple)) {
+    out->non_instance_prototype_tuple = tuple;
+    out->has_non_instance_prototype = true;
+    out->non_instance_prototype = Cast<JSAny>(tuple->value2());
+    proto_or_map = Cast<HeapObject>(tuple->value1());
+  }
+  if (Tagged<Map> initial_map; TryCast<Map>(proto_or_map, &initial_map)) {
+    out->instance_prototype = initial_map->prototype();
+    out->has_initial_map = true;
+    out->initial_map = initial_map;
+    return true;
+  }
+  DCHECK(IsJSReceiver(proto_or_map));
+  out->instance_prototype = Cast<JSReceiver>(proto_or_map);
+  return true;
+}
+
+bool JSFunction::TryGetInitialMap(Tagged<Map>* out_initial_map) const {
+  PrototypeOrInitialMapData pomd;
+  if (!TryGetPrototypeOrInitialMap(&pomd)) return false;
+  if (pomd.has_initial_map) {
+    *out_initial_map = pomd.initial_map;
+    return true;
+  }
+  return false;
+}
+
 Tagged<Map> JSFunction::initial_map() const {
-  return Cast<Map>(prototype_or_initial_map(kAcquireLoad));
+  DCHECK(has_prototype_slot());
+  Tagged<Map> initial_map;
+  bool succeeded = TryGetInitialMap(&initial_map);
+  DCHECK(succeeded);
+  USE(succeeded);
+  return initial_map;
 }
 
 bool JSFunction::has_initial_map() const {
   DCHECK(has_prototype_slot());
-  return IsMap(prototype_or_initial_map(kAcquireLoad));
+  Tagged<Map> initial_map;
+  return TryGetInitialMap(&initial_map);
 }
 
 bool JSFunction::has_instance_prototype() const {
   DCHECK(has_prototype_slot());
-  return !IsTheHole(prototype_or_initial_map(kAcquireLoad));
+  PrototypeOrInitialMapData pomd;
+  if (!TryGetPrototypeOrInitialMap(&pomd)) return false;
+  return pomd.has_instance_prototype;
+}
+
+bool JSFunction::has_non_instance_prototype() const {
+  DCHECK(has_prototype_slot());
+  PrototypeOrInitialMapData pomd;
+  if (!TryGetPrototypeOrInitialMap(&pomd)) return false;
+  return pomd.has_non_instance_prototype;
 }
 
 bool JSFunction::has_prototype() const {
   DCHECK(has_prototype_slot());
-  return map()->has_non_instance_prototype() || has_instance_prototype();
+  PrototypeOrInitialMapData pomd;
+  return TryGetPrototypeOrInitialMap(&pomd);
 }
 
 bool JSFunction::has_prototype_property() const {
@@ -459,28 +529,45 @@ bool JSFunction::has_prototype_property() const {
 }
 
 bool JSFunction::PrototypeRequiresRuntimeLookup() const {
-  return !has_prototype_property() || map()->has_non_instance_prototype();
+  if (!has_prototype_property()) return true;
+  Tagged<Object> proto_or_map = prototype_or_initial_map(kAcquireLoad);
+  return IsTuple2(proto_or_map);
 }
 
-Tagged<JSPrototype> JSFunction::instance_prototype() const {
+Tagged<JSReceiver> JSFunction::GetIntrinsicDefaultProto() const {
+  FunctionKind kind = shared()->kind();
+  Tagged<NativeContext> native_context =
+      context(kAcquireLoad)->native_context();
+  return IsGeneratorFunction(kind)
+             ? IsAsyncFunction(kind)
+                   ? native_context->initial_async_generator_prototype()
+                   : native_context->initial_generator_prototype()
+             : native_context->initial_object_prototype();
+}
+
+Tagged<JSReceiver> JSFunction::instance_prototype() const {
   DCHECK(has_instance_prototype());
-  if (has_initial_map()) {
-    return initial_map()->prototype();
-  }
-  // When there is no initial map and the prototype is a JSReceiver, the
-  // initial map field is used for the prototype field.
-  return Cast<JSPrototype>(prototype_or_initial_map(kAcquireLoad));
+  PrototypeOrInitialMapData pomd;
+  bool succeeded = TryGetPrototypeOrInitialMap(&pomd);
+  DCHECK(succeeded);
+  USE(succeeded);
+  // By the time of this query, the instance prototype must already be fully
+  // set (initial map's prototype might be temporarily set to Null during
+  // bootstrapping and creation of builtins prototypes).
+  DCHECK(IsJSReceiver(pomd.instance_prototype));
+  return Cast<JSReceiver>(pomd.instance_prototype);
 }
 
-Tagged<Object> JSFunction::prototype() const {
+Tagged<JSAny> JSFunction::prototype() const {
   DCHECK(has_prototype());
-  // If the function's prototype property has been set to a non-JSReceiver
-  // value, that value is stored in the constructor field of the map.
-  Tagged<Map> map = this->map();
-  if (map->has_non_instance_prototype()) {
-    return map->GetNonInstancePrototype();
+  PrototypeOrInitialMapData pomd;
+  bool succeeded = TryGetPrototypeOrInitialMap(&pomd);
+  DCHECK(succeeded);
+  USE(succeeded);
+  if (pomd.has_non_instance_prototype) {
+    return pomd.non_instance_prototype;
   }
-  return instance_prototype();
+  return pomd.instance_prototype;
 }
 
 bool JSFunction::is_compiled(IsolateForSandbox isolate) const {

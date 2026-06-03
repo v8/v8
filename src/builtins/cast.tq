@@ -80,6 +80,11 @@ macro IsJSModuleNamespace(o: Object): bool {
 }
 
 @export
+macro IsJSPrototype(o: HeapObject): bool {
+  return Is<JSPrototype>(o);
+}
+
+@export
 macro IsNativeContext(o: HeapObject): bool {
   return Is<NativeContext>(o);
 }
@@ -122,6 +127,11 @@ macro IsSharedFunctionInfo(o: HeapObject): bool {
 @export
 macro IsSymbol(o: HeapObject): bool {
   return Is<Symbol>(o);
+}
+
+@export
+macro IsTuple2(o: HeapObject): bool {
+  return Is<Tuple2>(o);
 }
 
 extern macro TaggedToHeapObject(Object): HeapObject

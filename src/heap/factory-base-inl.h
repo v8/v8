@@ -130,23 +130,34 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapInt32(int32_t value) {
 template <typename Impl>
 template <typename StructType>
 Tagged<StructType> FactoryBase<Impl>::NewStructInternal(
-    InstanceType type, AllocationType allocation) {
+    InstanceType type, AllocationType allocation, bool initialize_fields) {
   static_assert(std::is_base_of_v<Struct, StructType>);
   ReadOnlyRoots roots = read_only_roots();
   Tagged<Map> map = Map::GetMapFor(roots, type);
   int size = sizeof(StructType);
-  return Cast<StructType>(NewStructInternal(roots, map, size, allocation));
+  return Cast<StructType>(
+      NewStructInternal(roots, map, size, allocation, initialize_fields));
 }
 
 template <typename Impl>
 Tagged<Struct> FactoryBase<Impl>::NewStructInternal(ReadOnlyRoots roots,
                                                     Tagged<Map> map, int size,
-                                                    AllocationType allocation) {
+                                                    AllocationType allocation,
+                                                    bool initialize_fields) {
   DCHECK_EQ(size, map->instance_size());
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
-  Tagged<Undefined> undefined = roots.undefined_value();
-  int length = (size >> kTaggedSizeLog2) - 1;
-  MemsetTagged(result->RawField(sizeof(Struct)), undefined, length);
+
+  const int length = (size >> kTaggedSizeLog2) - 1;
+  if (initialize_fields) {
+    MemsetTagged(result->RawField(sizeof(Struct)), roots.undefined_value(),
+                 length);
+
+  } else if (DEBUG_BOOL) {
+    // Zap the whole object in order to ensure that the caller initializes
+    // all fields.
+    MemsetTagged(result->RawField(sizeof(Struct)),
+                 Tagged<Object>(kDebugZapValue), length);
+  }
   return Cast<Struct>(result);
 }
 

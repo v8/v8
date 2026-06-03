@@ -35,6 +35,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -3725,57 +3726,125 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
 }
 
 void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
-    TNode<JSFunction> function, TNode<Map> map, Label* runtime) {
-  // !has_prototype_property() || has_non_instance_prototype()
-  // For JSFunctions without prototype we need to perform a property lookup.
+    TNode<HeapObject> function, TNode<Map> map, Label* runtime) {
+  // For JSFunctions without prototype we need to perform a "prototype"
+  // property lookup.
   GotoIfNot(IsJSFunctionWithPrototypeMap(map), runtime);
   // JSFunctions with prototype are guaranteed to have non-configurable
-  // "prototype" property, so the runtime lookup is necessary only for the
-  // non-instance case (i.e. when the prototype value is stored in the
-  // JSFunction's root map instead of the prototype_or_initial_map field,
-  // see JSFunction::GetNonInstancePrototype()).
-  TNode<Int32T> map_bit_field = LoadMapBitField(map);
-  GotoIf(IsSetWord32<Map::Bits1::HasNonInstancePrototypeBit>(map_bit_field),
-         runtime);
+  // "prototype" property, so loading and unwrapping of
+  // JSFunctionWithPrototype::prototype_or_initial_map_ field can be
+  // inlined.
 }
 
-TNode<Union<JSReceiver, Map, TheHole>>
+TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>>
 CodeStubAssembler::LoadJSFunctionPrototypeOrInitialMap(
     TNode<JSFunction> function) {
   CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
-  TNode<UnionOf<JSReceiver, Map, TheHole>> proto_or_map_or_hole =
-      CAST(LoadObjectField(function, offsetof(JSFunctionWithPrototype,
-                                              prototype_or_initial_map_)));
-  return proto_or_map_or_hole;
+  return CAST(LoadObjectField(
+      function, offsetof(JSFunctionWithPrototype, prototype_or_initial_map_)));
 }
 
 void CodeStubAssembler::StoreJSFunctionPrototypeOrInitialMap(
-    TNode<JSFunction> function, TNode<Union<JSReceiver, Map, TheHole>> value) {
+    TNode<JSFunction> function,
+    TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>> value) {
   CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
   StoreObjectField(function,
                    offsetof(JSFunctionWithPrototype, prototype_or_initial_map_),
                    value);
 }
 
-TNode<JSPrototype> CodeStubAssembler::LoadJSFunctionPrototype(
+TNode<Map> CodeStubAssembler::LoadJSFunctionInitialMap(
     TNode<JSFunction> function, Label* if_bailout) {
   CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
-  CSA_DCHECK(this, IsClearWord32<Map::Bits1::HasNonInstancePrototypeBit>(
-                       LoadMapBitField(LoadMap(function))));
-  TNode<UnionOf<JSPrototype, Map, TheHole>> proto_or_map_or_hole =
+  TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>> proto_or_map =
       LoadJSFunctionPrototypeOrInitialMap(function);
-  GotoIf(IsTheHole(proto_or_map_or_hole), if_bailout);
-  TNode<UnionOf<JSPrototype, Map>> proto_or_map = CAST(proto_or_map_or_hole);
 
-  TVARIABLE((UnionOf<JSPrototype, Map>), var_result, proto_or_map);
+  TVARIABLE(Map, var_result);
   Label done(this, &var_result);
-  GotoIfNot(IsMap(proto_or_map), &done);
 
-  var_result = LoadMapPrototype(CAST(proto_or_map));
-  Goto(&done);
+  Label is_map(this), is_tuple2(this);
+  {
+    TNode<Map> map_of_proto_or_map = LoadMap(proto_or_map);
+    // "Map" is the most common case, check it first.
+    GotoIf(IsMapMap(map_of_proto_or_map), &is_map);
+    GotoIf(IsTuple2Map(map_of_proto_or_map), &is_tuple2);
+
+    // Initial map is not created yet.
+    CSA_DCHECK(this, Word32Any(IsTheHole(proto_or_map),
+                               IsJSReceiverMap(map_of_proto_or_map)));
+    Goto(if_bailout);
+  }
+
+  BIND(&is_map);
+  {
+    var_result = CAST(proto_or_map);
+    Goto(&done);
+  }
+
+  BIND(&is_tuple2);
+  {
+    // The function is in non-instance prototoype mode, Tuple2::value1_
+    // contains the initial map or instance prototype.
+    TNode<HeapObject> map_or_hole =
+        CAST(LoadObjectField(proto_or_map, offsetof(Tuple2, value1_)));
+    GotoIfNot(IsMap(map_or_hole), if_bailout);
+    var_result = CAST(map_or_hole);
+    Goto(&done);
+  }
 
   BIND(&done);
-  return CAST(var_result.value());
+  return var_result.value();
+}
+
+TNode<JSAny> CodeStubAssembler::LoadJSFunctionPrototype(
+    TNode<JSFunction> function, Label* if_bailout,
+    Label* if_non_instance_prototype,
+    TVariable<JSAny>* var_non_instance_prototype) {
+  CSA_DCHECK(this, IsJSFunctionWithPrototypeMap(LoadMap(function)));
+  TNode<UnionOf<JSReceiver, Map, Tuple2, TheHole>> proto_or_map =
+      LoadJSFunctionPrototypeOrInitialMap(function);
+  GotoIf(IsTheHole(proto_or_map), if_bailout);
+
+  TVARIABLE(JSAny, var_result);
+  Label done(this, &var_result);
+
+  Label is_map(this), is_tuple2(this);
+  {
+    TNode<Map> map_of_proto_or_map = LoadMap(proto_or_map);
+    // "Map" is the most common case, check it first.
+    GotoIf(IsMapMap(map_of_proto_or_map), &is_map);
+    GotoIf(IsTuple2Map(map_of_proto_or_map), &is_tuple2);
+
+    CSA_DCHECK(this, IsJSReceiver(proto_or_map));
+    var_result = CAST(proto_or_map);
+    Goto(&done);
+  }
+
+  BIND(&is_map);
+  {
+    var_result = LoadMapPrototype(CAST(proto_or_map));
+    Goto(&done);
+  }
+
+  BIND(&is_tuple2);
+  {
+    // This is a non-instance prototype case, Tuple2::value2_ contains the
+    // non-instance prototype value.
+    TNode<JSAny> non_instance_prototype =
+        CAST(LoadObjectField(proto_or_map, offsetof(Tuple2, value2_)));
+    if (if_non_instance_prototype) {
+      if (var_non_instance_prototype) {
+        *var_non_instance_prototype = non_instance_prototype;
+      }
+      Goto(if_non_instance_prototype);
+    } else {
+      var_result = non_instance_prototype;
+      Goto(&done);
+    }
+  }
+
+  BIND(&done);
+  return var_result.value();
 }
 
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
@@ -8559,8 +8628,12 @@ TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
   return HasInstanceType(object, JS_REG_EXP_STRING_ITERATOR_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsMapMap(TNode<Map> map) {
+  return IsMapInstanceType(LoadMapInstanceType(map));
+}
+
 TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> object) {
-  return IsMapInstanceType(LoadInstanceType(object));
+  return IsMapMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsMapInstanceType(TNode<Int32T> instance_type) {
@@ -13297,7 +13370,10 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     TNode<Context> context, TNode<Object> callable_maybe_smi,
     TNode<Object> object_maybe_smi) {
   TVARIABLE(Boolean, var_result);
+  TVARIABLE(JSAny, var_non_instance_prototype);
   Label return_runtime(this, Label::kDeferred), return_result(this);
+  Label if_non_instance_prototype(this, {&var_non_instance_prototype},
+                                  Label::kDeferred);
 
   GotoIfForceSlowPath(&return_runtime);
 
@@ -13313,34 +13389,25 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     TNode<HeapObject> callable = CAST(callable_maybe_smi);
     TNode<Map> callable_map = LoadMap(callable);
 
-    // Goto runtime if {callable} is not a JSFunction.
-    TNode<Uint16T> callable_instance_type = LoadMapInstanceType(callable_map);
-    GotoIfNot(IsJSFunctionInstanceType(callable_instance_type),
-              &return_runtime);
+    // Goto runtime if {callable} is not a JSFunction with prototype. This
+    // check already implies GotoIfPrototypeRequiresRuntimeLookup and makes
+    // the latter redundant.
+    GotoIfNot(IsJSFunctionWithPrototypeMap(callable_map), &return_runtime);
 
-    GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), callable_map,
-                                         &return_runtime);
-
-    // Get the "prototype" (or initial map) of the {callable}.
-    TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_callable_prototype =
-        LoadJSFunctionPrototypeOrInitialMap(CAST(callable));
-    // {maybe_callable_prototype} is TheHole if the "prototype" property
-    // hasn't been requested so far.
-    GotoIf(IsTheHole(maybe_callable_prototype), &return_runtime);
-
-    TNode<UnionOf<JSPrototype, Map>> callable_prototype_or_map =
-        CAST(maybe_callable_prototype);
-    TNode<JSPrototype> callable_prototype = Select<JSPrototype>(
-        IsMap(callable_prototype_or_map),
-        [&] {
-          return LoadObjectField<JSPrototype>(callable_prototype_or_map,
-                                              offsetof(Map, prototype_));
-        },
-        [&] { return CAST(callable_prototype_or_map); });
+    // Throw TypeError in case of non-instance prototype.
+    TNode<JSReceiver> callable_prototype = CAST(LoadJSFunctionPrototype(
+        CAST(callable), &return_runtime, &if_non_instance_prototype,
+        &var_non_instance_prototype));
 
     // Loop through the prototype chain looking for the {callable} prototype.
     var_result = HasInPrototypeChain(context, object, callable_prototype);
     Goto(&return_result);
+  }
+
+  BIND(&if_non_instance_prototype);
+  {
+    ThrowTypeError(context, MessageTemplate::kInstanceofNonobjectProto,
+                   var_non_instance_prototype.value());
   }
 
   BIND(&return_runtime);
@@ -13348,8 +13415,8 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     // Fallback to the runtime implementation.
     var_result = CAST(CallRuntime(Runtime::kOrdinaryHasInstance, context,
                                   callable_maybe_smi, object_maybe_smi));
+    Goto(&return_result);
   }
-  Goto(&return_result);
 
   BIND(&return_result);
   return var_result.value();

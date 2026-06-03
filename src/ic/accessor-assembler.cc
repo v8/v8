@@ -3723,13 +3723,10 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
   TNode<Map> lookup_start_object_map = LoadMap(CAST(lookup_start_object));
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
-  TNode<Uint16T> instance_type = LoadMapInstanceType(lookup_start_object_map);
-
   {
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
     Label not_function_prototype(this, Label::kDeferred);
-    GotoIfNot(IsJSFunctionInstanceType(instance_type), &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name()), &not_function_prototype);
 
     GotoIfPrototypeRequiresRuntimeLookup(CAST(lookup_start_object),
@@ -3739,6 +3736,7 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
     BIND(&not_function_prototype);
   }
 
+  TNode<Uint16T> instance_type = LoadMapInstanceType(lookup_start_object_map);
   GenericPropertyLoad(CAST(lookup_start_object), lookup_start_object_map,
                       instance_type, p, &miss, kDontUseStubCache);
 

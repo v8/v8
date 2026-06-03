@@ -30,6 +30,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -1607,16 +1608,30 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   } else if (IsJSFunction(obj)) {
     Tagged<JSFunction> js_fun = Cast<JSFunction>(js_obj);
     if (js_fun->has_prototype_slot()) {
-      Tagged<UnionOf<JSPrototype, Map, TheHole>> proto_or_map =
+      Tagged<HeapObject> proto_or_map =
           js_fun->prototype_or_initial_map(kAcquireLoad);
-      if (!IsTheHole(proto_or_map)) {
-        if (!IsMap(proto_or_map)) {
-          SetPropertyReference(
-              entry, roots.prototype_string(), proto_or_map, nullptr,
+
+      if (IsJSReceiver(proto_or_map)) {
+        // The field contains the "prototype" property value.
+        SetPropertyReference(
+            entry, roots.prototype_string(), js_fun->prototype(), nullptr,
+            offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));
+
+      } else if (!IsTheHole(proto_or_map)) {
+        // The function's "prototype" property value is stored indirectly
+        // (either in initial map or in Tuple2).
+        SetPropertyReference(entry, roots.prototype_string(),
+                             js_fun->prototype());
+
+        if (IsTuple2(proto_or_map)) {
+          Tagged<Tuple2> tuple = Cast<Tuple2>(proto_or_map);
+          TagObject(tuple, "(non-instance prototype tuple)");
+          SetInternalReference(
+              entry, "non_instance_prototype_tuple", tuple,
               offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));
+
         } else {
-          SetPropertyReference(entry, roots.prototype_string(),
-                               js_fun->prototype());
+          DCHECK(IsMap(proto_or_map));
           SetInternalReference(
               entry, "initial_map", proto_or_map,
               offsetof(JSFunctionWithPrototype, prototype_or_initial_map_));

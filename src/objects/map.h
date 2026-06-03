@@ -200,14 +200,13 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 //      | Short    | [instance_type]                                 |
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field]                                     |
-//      |          |   - has_non_instance_prototype (bit 0)          |
-//      |          |   - is_callable (bit 1)                         |
-//      |          |   - has_named_interceptor (bit 2)               |
-//      |          |   - has_indexed_interceptor (bit 3)             |
-//      |          |   - is_undetectable (bit 4)                     |
-//      |          |   - is_access_check_needed (bit 5)              |
-//      |          |   - is_constructor (bit 6)                      |
-//      |          |   - is_extended_map (bit 7)                     |
+//      |          |   - is_callable (bit 0)                         |
+//      |          |   - has_named_interceptor (bit 1)               |
+//      |          |   - has_indexed_interceptor (bit 2)             |
+//      |          |   - is_undetectable (bit 3)                     |
+//      |          |   - is_access_check_needed (bit 4)              |
+//      |          |   - is_constructor (bit 5)                      |
+//      |          |   - is_extended_map (bit 6)                     |
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field2]                                    |
 //      |          |   - new_target_is_base (bit 0)                  |
@@ -434,13 +433,6 @@ V8_OBJECT class Map : public HeapObject {
   // Tells whether the Map represents a meta Map or extended Map (which
   // has more fields than a normal Map) as opposed to regular Map.
   DECL_BOOLEAN_ACCESSORS(is_extended_map)
-
-  // Tells whether the object in the prototype property will be used
-  // for instances created from this function.  If the prototype
-  // property is set to a value that is not a JSObject, the prototype
-  // property will not be used to create instances of the function.
-  // See ECMA-262, 13.2.2.
-  DECL_BOOLEAN_ACCESSORS(has_non_instance_prototype)
 
   // Tells whether the instance has a [[Construct]] internal method.
   // This property is implemented according to ES6, section 7.2.4.
@@ -715,8 +707,7 @@ V8_OBJECT class Map : public HeapObject {
   // for JSFunctions with non-instance prototypes.
   inline Tagged<Object> GetConstructorRaw() const;
 
-  // Gets constructor value from the root map. Unwraps Tuple2 in case of
-  // JSFunction map with non-instance prototype.
+  // Gets constructor value from the root map.
   // The result returned might be null, JSFunction or FunctionTemplateInfo.
   inline Tagged<Object> GetConstructor() const;
   inline Tagged<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
@@ -726,10 +717,6 @@ V8_OBJECT class Map : public HeapObject {
   // in the transition tree. Returns either the constructor or the map at
   // which the walk has stopped.
   inline Tagged<Object> TryGetConstructor(int max_steps);
-
-  // Gets non-instance prototype value which is stored in Tuple2 in a
-  // root map's |constructor_or_back_pointer| field.
-  inline Tagged<Object> GetNonInstancePrototype() const;
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
@@ -1228,7 +1215,7 @@ V8_OBJECT class Map : public HeapObject {
 #if TAGGED_SIZE_8_BYTES
   uint32_t optional_padding_;
 #endif
-  TaggedMember<UnionOf<JSReceiver, Null>> prototype_;
+  TaggedMember<JSPrototype> prototype_;
   TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
 #if V8_ENABLE_WEBASSEMBLY
   TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;

@@ -428,9 +428,11 @@ class FactoryBase {
 
   template <typename StructType>
   inline Tagged<StructType> NewStructInternal(InstanceType type,
-                                              AllocationType allocation);
-  Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
-                                   int size, AllocationType allocation);
+                                              AllocationType allocation,
+                                              bool initialize_fields = true);
+  inline Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
+                                          int size, AllocationType allocation,
+                                          bool initialize_fields);
 
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,

@@ -5111,23 +5111,12 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
     // from the same context if undetectable from JS. This is to avoid keeping
     // memory alive unnecessarily.
     Tagged<Object> maybe_constructor = new_map->GetConstructorRaw();
-    Tagged<Tuple2> tuple;
-    if (IsTuple2(maybe_constructor)) {
-      // Handle the {constructor, non-instance_prototype} tuple case if the map
-      // has non-instance prototype.
-      tuple = Cast<Tuple2>(maybe_constructor);
-      maybe_constructor = tuple->value1();
-    }
     if (IsJSFunction(maybe_constructor)) {
       Tagged<JSFunction> constructor = Cast<JSFunction>(maybe_constructor);
       if (!constructor->shared()->IsApiFunction()) {
         Tagged<NativeContext> context = constructor->native_context();
         Tagged<JSFunction> object_function = context->object_function();
-        if (!tuple.is_null()) {
-          tuple->set_value1(object_function);
-        } else {
-          new_map->SetConstructor(object_function);
-        }
+        new_map->SetConstructor(object_function);
       }
     }
     JSObject::MigrateToMap(isolate, object, new_map);

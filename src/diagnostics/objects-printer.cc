@@ -2680,7 +2680,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   if (IsJSFunctionWithPrototype(this)) {
     if (has_prototype()) {
       os << Brief(prototype());
-      if (map()->has_non_instance_prototype()) {
+      if (!IsJSReceiver(prototype())) {
         os << " (non-instance prototype)";
       }
     }
@@ -4796,7 +4796,6 @@ void Map::MapPrint(std::ostream& os) {
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
-  if (has_non_instance_prototype()) os << "\n - has_non_instance_prototype";
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (IsContextMap(this)) {
@@ -4845,9 +4844,7 @@ void Map::MapPrint(std::ostream& os) {
     }
   }
   os << "\n - prototype: " << Brief(prototype());
-  if (has_non_instance_prototype()) {
-    os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
-  }
+
   if (!IsContextMap(this)) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }

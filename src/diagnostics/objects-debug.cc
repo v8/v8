@@ -858,15 +858,6 @@ void Map::MapVerify(Isolate* isolate) {
     // Check constructor value in JSFunction's maps.
     if (IsJSFunctionMap(this) && !IsMap(constructor_or_back_pointer())) {
       Tagged<Object> maybe_constructor = constructor_or_back_pointer();
-      // Constructor field might still contain a tuple if this map used to
-      // have non-instance prototype earlier.
-      CHECK_IMPLIES(has_non_instance_prototype(), IsTuple2(maybe_constructor));
-      if (IsTuple2(maybe_constructor)) {
-        Tagged<Tuple2> tuple = Cast<Tuple2>(maybe_constructor);
-        // Unwrap the {constructor, non-instance_prototype} pair.
-        maybe_constructor = tuple->value1();
-        CHECK(!IsJSReceiver(tuple->value2()));
-      }
       CHECK(IsJSFunction(maybe_constructor) ||
             IsFunctionTemplateInfo(maybe_constructor) ||
             // The above check might fail until empty function setup is done.
@@ -1674,9 +1665,18 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (IsJSFunctionWithPrototype(this)) {
-    Object::VerifyPointer(
-        isolate, Cast<JSFunctionWithPrototype>(this)->prototype_or_initial_map(
-                     kAcquireLoad));
+    Tagged<Object> proto_or_map =
+        Cast<JSFunctionWithPrototype>(this)->prototype_or_initial_map(
+            kAcquireLoad);
+    Object::VerifyPointer(isolate, proto_or_map);
+    CHECK(IsJSReceiver(proto_or_map) || IsMap(proto_or_map) ||
+          IsTuple2(proto_or_map) || IsTheHole(proto_or_map));
+    if (IsTuple2(proto_or_map)) {
+      Tagged<Tuple2> tuple = Cast<Tuple2>(proto_or_map);
+      CHECK(IsMap(tuple->value1()) || IsJSReceiver(tuple->value1()));
+      CHECK(Is<JSAny>(tuple->value2()));
+      CHECK(!IsJSReceiver(tuple->value2()));
+    }
   }
 
   if (has_prototype_property()) {

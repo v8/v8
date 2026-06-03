@@ -7068,7 +7068,6 @@ DirectHandle<Map> Genesis::CreateInitialMapForArraySubclass(
   initial_map->SetConstructor(*array_constructor);
 
   // Set prototype on map.
-  initial_map->set_has_non_instance_prototype(false);
   Map::SetPrototype(isolate(), initial_map, array_prototype);
 
   // Update map with length accessor from Array.

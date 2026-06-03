@@ -18,6 +18,7 @@ namespace v8::internal {
 
 class AbstractCode;
 class ClosureFeedbackCellArray;
+class Tuple2;
 
 #include "torque-generated/src/objects/js-function-tq.inc"
 
@@ -129,9 +130,9 @@ enum class BudgetModification { kReduce, kRaise, kReset };
 // but all the JSFunction related logic lives in this class.
 V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
-  // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
-                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      prototype_or_initial_map,
+      Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>)
 
   void TraceOptimizationStatus(const char* reason, ...);
 
@@ -377,12 +378,13 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   // The initial map for an object created by this constructor.
   DECL_GETTER(initial_map, Tagged<Map>)
+  inline bool TryGetInitialMap(Tagged<Map>* out_initial_map) const;
 
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            DirectHandle<Map> map,
+                            DirectHandle<Map> initial_map,
                             DirectHandle<JSPrototype> prototype);
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            DirectHandle<Map> map,
+                            DirectHandle<Map> initial_map,
                             DirectHandle<JSPrototype> prototype,
                             DirectHandle<JSFunction> constructor);
 
@@ -412,13 +414,39 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field
-  // until an initial map is needed.
+  // until an initial map is needed. In case the prototype value is
+  // not a JSReceiver, it's wrapped in a Tuple2, containing
+  // <Map|JSReceiver, JSAny && !JSReceiver>, where the first value is the
+  // initial map or instance prototype value, and the second one is the
+  // non-instance prototype value.
+
+  // Returns true if the function has a prototype value set.
   DECL_GETTER(has_prototype, bool)
+  DECL_GETTER(prototype, Tagged<JSAny>)
+
+  // Returns true if the function has an initialized instance prototype value
+  // (the prototype that will be set as __proto__ for instances created by this
+  // function).
   DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Tagged<Object>)
-  DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
+  DECL_GETTER(instance_prototype, Tagged<JSReceiver>)
+
+  // Returns true if the function has a prototype but it's not a JSReceiver.
+  DECL_GETTER(has_non_instance_prototype, bool)
+
+  // Returns true if this function's kind guarantees that it has a
+  // non-configurable "prototype" property.
   DECL_GETTER(has_prototype_property, bool)
+  // Returns true if accessing function's "prototype" property requires a
+  // property lookup (i.e. the function kind does not guarantee that it has
+  // a non-configurable "prototype" property).
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
+
+  // Returns instance prototype object based on function's kind which should
+  // be used when function is in non-instance prototype mode.
+  // See https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor and
+  // https://tc39.es/ecma262/#sec-getprototypefromconstructor.
+  DECL_GETTER(GetIntrinsicDefaultProto, Tagged<JSReceiver>)
+
   static void SetPrototype(Isolate* isolate, DirectHandle<JSFunction> function,
                            DirectHandle<Object> value);
 
@@ -481,6 +509,10 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 #endif
 
  private:
+  // The bottleneck for decoding the prototype_or_initial_map field.
+  struct PrototypeOrInitialMapData;
+  inline bool TryGetPrototypeOrInitialMap(PrototypeOrInitialMapData* out) const;
+
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
 
@@ -538,9 +570,19 @@ V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
   static const int kHeaderSize;
   static const int kMinSize;
 
-  // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
-                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
+  // The field can be in the following states:
+  //  - TheHole - function's prototype was never accessed and thus it's not
+  //      initialized yet,
+  //  - JSReceiver - function has an instance prototype but initial map was
+  //      not created yet (in this case the value is the prototype),
+  //  - Map - this is the function's initial map and the function has an
+  //      instance prototype,
+  //  - Tuple2<Map|JSReceiver, JSAny && !JSReceiver> - function has a
+  //      non-instance prototype, value1 contains initial map or instance
+  //      prototype value, value2 contains the non-instance prototype value.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(
+      prototype_or_initial_map,
+      Tagged<UnionOf<JSReceiver, Map, Tuple2, TheHole>>)
 
   DECL_PRINTER(JSFunctionWithPrototype)
   DECL_VERIFIER(JSFunctionWithPrototype)

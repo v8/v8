@@ -108,6 +108,10 @@ type JSAnyNotNumberOrUndefined = String|Symbol|Boolean|Null|JSReceiver|BigInt;
 // This is the intersection of JSAny and HeapObject.
 type JSAnyNotSmi = JSAnyNotNumber|HeapNumber;
 
+// Object prototypes are either JSReceivers or null -- they are not allowed to
+// be any other primitive value.
+type JSPrototype = JSReceiver|Null;
+
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
 type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int31 extends int32

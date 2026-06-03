@@ -239,9 +239,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
-  DirectHandle<Tuple2> NewTuple2Uninitialized(AllocationType allocation);
   DirectHandle<Tuple2> NewTuple2(DirectHandle<Object> value1,
                                  DirectHandle<Object> value2,
+                                 AllocationType allocation);
+  DirectHandle<Tuple2> NewTuple2(DirectHandle<Object> value1,
+                                 DirectHandle<Object> value2,
+                                 RelaxedStoreTag tag,
                                  AllocationType allocation);
 
   // Create a new PropertyDescriptorObject struct.

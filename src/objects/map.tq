@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 bitfield struct MapBitFields1 extends uint8 {
-  has_non_instance_prototype: bool: 1 bit;
   is_callable: bool: 1 bit;
   has_named_interceptor: bool: 1 bit;
   has_indexed_interceptor: bool: 1 bit;
