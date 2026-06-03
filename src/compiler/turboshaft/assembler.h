@@ -2526,6 +2526,11 @@ class AssemblerOpInterface : public Next {
         ConstantOp::Kind::kRelocatableWasmIndirectCallTarget, function_index);
   }
 
+  V<WordPtr> RelocatableWasmCodePointer() {
+    return ReduceIfReachableConstant(
+        ConstantOp::Kind::kRelocatableWasmCodePointer, uint64_t{0});
+  }
+
   V<Context> NoContextConstant() {
     return V<Context>::Cast(SmiConstant(Smi::FromInt(Context::kNoContext)));
   }

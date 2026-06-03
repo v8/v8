@@ -4138,6 +4138,24 @@ class TurboshaftGraphBuildingInterface
   PrepareResume(FullDecoder* decoder, base::Vector<HandlerCase> handlers,
                 const Value& cont_ref, const ContIndexImmediate& imm) {
     V<WordPtr> stack = CheckContAndGetStack(cont_ref, imm);
+
+    V<WordPtr> root = __ LoadRootRegister();
+    V<WordPtr> active_stack = __ Load(root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::active_stack_offset());
+    V<WordPtr> wasm_code = __ RelocatableWasmCodePointer();
+#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    // We don't have write access to the stack metadata from generated code, so
+    // perform the write from an external C call.
+    auto csig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
+                                                        MachineType::Pointer());
+    CallC(&csig, ExternalReference::wasmfx_set_wasm_code(),
+          {active_stack, wasm_code});
+#else
+    __ StoreOffHeap(active_stack, wasm_code, MemoryRepresentation::UintPtr(),
+                    wasm::StackMemory::wasm_code_offset());
+#endif
+
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
         __ output_graph().graph_zone()
             -> AllocateVector<compiler::turboshaft::EffectHandler>(

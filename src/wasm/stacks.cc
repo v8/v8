@@ -226,6 +226,7 @@ void StackMemory::Reset() {
   num_bound_args_ = 0;
   param_types_ = {};
   signature_id_ = CanonicalTypeIndex{kInvalidCanonicalIndex};
+  wasm_code_ = nullptr;
 }
 
 bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {

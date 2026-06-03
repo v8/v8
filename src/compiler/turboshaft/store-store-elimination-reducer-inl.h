@@ -523,6 +523,7 @@ class RedundantStoreAnalysis {
       case ConstantOp::Kind::kRelocatableWasmStubCall:
       case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
       case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
+      case ConstantOp::Kind::kRelocatableWasmCodePointer:
         return {};
     }
     UNREACHABLE();

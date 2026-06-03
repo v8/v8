@@ -576,6 +576,7 @@ void NativeModuleSerializer::WriteCode(
       RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
       RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
       RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY) |
+      RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER) |
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -619,6 +620,10 @@ void NativeModuleSerializer::WriteCode(
         iter.rinfo()->set_wasm_code_pointer_table_entry(
             WasmCodePointer{function_index}, SKIP_ICACHE_FLUSH);
       } break;
+      case RelocInfo::WASM_CODE_POINTER: {
+        iter.rinfo()->set_wasm_code_pointer(0);
+        break;
+      }
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
         uint32_t ext_ref_tag =
@@ -1072,6 +1077,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
               RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
               RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
               RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY) |
+              RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER) |
               RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -1115,6 +1121,11 @@ void NativeModuleDeserializer::CopyAndRelocate(
         iter.rinfo()->set_wasm_code_pointer_table_entry(target,
                                                         SKIP_ICACHE_FLUSH);
       } break;
+      case RelocInfo::WASM_CODE_POINTER: {
+        iter.rinfo()->set_wasm_code_pointer(
+            reinterpret_cast<Address>(unit.code.get()));
+        break;
+      }
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address address = ExternalReferenceList::Get().address_from_tag(tag);

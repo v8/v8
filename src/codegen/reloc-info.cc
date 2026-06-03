@@ -387,6 +387,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm canonical signature id";
     case WASM_CODE_POINTER_TABLE_ENTRY:
       return "wasm code pointer table entry";
+    case WASM_CODE_POINTER:
+      return "wasm code pointer";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -532,6 +534,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case NO_INFO:
     case WASM_CANONICAL_SIG_ID:
     case WASM_CODE_POINTER_TABLE_ENTRY:
+    case WASM_CODE_POINTER:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:

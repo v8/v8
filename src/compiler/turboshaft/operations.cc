@@ -632,6 +632,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm indirect call target: "
          << static_cast<uint32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmCodePointer:
+      os << "relocatable self wasm code pointer";
+      break;
   }
   os << ']';
 }

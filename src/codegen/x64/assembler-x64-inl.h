@@ -447,6 +447,16 @@ void WritableRelocInfo::set_target_external_reference(
   }
 }
 
+Address RelocInfo::wasm_code_pointer() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  return ReadUnalignedValue<Address>(pc_);
+}
+
+void WritableRelocInfo::set_wasm_code_pointer(Address target) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER);
+  jit_allocation_.WriteUnalignedValue(pc_, target);
+}
+
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
   DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
   return WasmCodePointer{ReadUnalignedValue<uint32_t>(pc_)};

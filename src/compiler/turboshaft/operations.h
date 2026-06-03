@@ -2795,7 +2795,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kRelocatableWasmCall,
     kRelocatableWasmStubCall,
     kRelocatableWasmIndirectCallTarget,
-    kRelocatableWasmCanonicalSignatureId
+    kRelocatableWasmCanonicalSignatureId,
+    kRelocatableWasmCodePointer
   };
 
   Kind kind;
@@ -2847,6 +2848,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTrustedHeapObject:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmCodePointer:
         return RegisterRepresentation::WordPtr();
       case Kind::kRelocatableWasmIndirectCallTarget:
         return RegisterRepresentation::Word32();
@@ -2952,7 +2954,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
            kind == Kind::kRelocatableWasmCall ||
            kind == Kind::kRelocatableWasmStubCall ||
            kind == Kind::kRelocatableWasmCanonicalSignatureId ||
-           kind == Kind::kRelocatableWasmIndirectCallTarget;
+           kind == Kind::kRelocatableWasmIndirectCallTarget ||
+           kind == Kind::kRelocatableWasmCodePointer;
   }
 
   auto options() const { return std::tuple{kind, storage}; }
@@ -2969,6 +2972,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmStubCall:
       case Kind::kRelocatableWasmIndirectCallTarget:
       case Kind::kRelocatableWasmCanonicalSignatureId:
+      case Kind::kRelocatableWasmCodePointer:
         return HashWithOptions(storage.integral);
       case Kind::kFloat32:
         return HashWithOptions(storage.float32.get_bits());
@@ -3000,6 +3004,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmStubCall:
       case Kind::kRelocatableWasmCanonicalSignatureId:
       case Kind::kRelocatableWasmIndirectCallTarget:
+      case Kind::kRelocatableWasmCodePointer:
         return storage.integral == other.storage.integral;
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing
@@ -3028,6 +3033,14 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         return storage.handle.address() == other.storage.handle.address();
     }
     UNREACHABLE();
+  }
+
+  bool IsRelocatable() const {
+    return kind == Kind::kRelocatableWasmCall ||
+           kind == Kind::kRelocatableWasmStubCall ||
+           kind == Kind::kRelocatableWasmCanonicalSignatureId ||
+           kind == Kind::kRelocatableWasmIndirectCallTarget ||
+           kind == Kind::kRelocatableWasmCodePointer;
   }
 };
 

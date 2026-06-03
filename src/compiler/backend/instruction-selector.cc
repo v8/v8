@@ -3049,6 +3049,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         case ConstantOp::Kind::kRelocatableWasmStubCall:
         case ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId:
         case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
+        case ConstantOp::Kind::kRelocatableWasmCodePointer:
           break;
       }
       VisitConstant(node);

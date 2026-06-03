@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <new>
 #include <numeric>
 #include <optional>
 
@@ -414,6 +415,7 @@ void WasmCode::Validate() const {
       case RelocInfo::EXTERNAL_REFERENCE:
       case RelocInfo::CONST_POOL:
       case RelocInfo::VENEER_POOL:
+      case RelocInfo::WASM_CODE_POINTER:
         // These are OK to appear.
         break;
       default:
@@ -1339,6 +1341,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int jump_table_info_offset = desc.jump_table_info_offset;
   const int instr_size = desc.instr_size;
 
+  // Reserve memory for WasmCode. We need the pointer for the reloc info.
+  WasmCode* reserved_code =
+      reinterpret_cast<WasmCode*>(operator new(sizeof(WasmCode)));
+
   {
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         reinterpret_cast<Address>(dst_code_bytes.begin()),
@@ -1351,7 +1357,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int mode_mask =
         RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
         RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
-        RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+        RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY) |
+        RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER);
     Address code_start = reinterpret_cast<Address>(dst_code_bytes.begin());
     Address constant_pool_start = code_start + constant_pool_offset;
 
@@ -1376,6 +1383,9 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         WasmCodePointer target = GetCodePointerHandle(function_index);
         it.rinfo()->set_wasm_code_pointer_table_entry(target,
                                                       SKIP_ICACHE_FLUSH);
+      } else if (RelocInfo::IsWasmCodePointer(mode)) {
+        it.rinfo()->set_wasm_code_pointer(
+            reinterpret_cast<Address>(reserved_code));
       } else {
         it.rinfo()->apply(delta);
       }
@@ -1392,34 +1402,37 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   uint64_t signature_hash =
       module_->signature_hash(GetTypeCanonicalizer(), index);
 
-  std::unique_ptr<WasmCode> code{new WasmCode{this,
-                                              index,
-                                              dst_code_bytes,
-                                              stack_slots,
-                                              ool_spill_count,
-                                              tagged_parameter_slots,
-                                              safepoint_table_offset,
-                                              handler_table_offset,
-                                              constant_pool_offset,
-                                              code_comments_offset,
-                                              jump_table_info_offset,
-                                              instr_size,
-                                              trapping_instructions_data,
-                                              reloc_info,
-                                              source_position_table,
-                                              inlining_positions,
-                                              deopt_data,
-                                              kind,
-                                              tier,
-                                              for_debugging,
-                                              signature_hash,
-                                              effect_handlers,
-                                              frame_has_feedback_slot}};
+  // Construct WasmCode in place.
+  WasmCode* code = new (reserved_code) WasmCode{this,
+                                                index,
+                                                dst_code_bytes,
+                                                stack_slots,
+                                                ool_spill_count,
+                                                tagged_parameter_slots,
+                                                safepoint_table_offset,
+                                                handler_table_offset,
+                                                constant_pool_offset,
+                                                code_comments_offset,
+                                                jump_table_info_offset,
+                                                instr_size,
+                                                trapping_instructions_data,
+                                                reloc_info,
+                                                source_position_table,
+                                                inlining_positions,
+                                                deopt_data,
+                                                kind,
+                                                tier,
+                                                for_debugging,
+                                                signature_hash,
+                                                effect_handlers,
+                                                frame_has_feedback_slot};
 
-  code->MaybePrint();
-  code->Validate();
+  std::unique_ptr<WasmCode> unique_code{code};
 
-  return code;
+  unique_code->MaybePrint();
+  unique_code->Validate();
+
+  return unique_code;
 }
 
 WasmCode* NativeModule::PublishCode(UnpublishedWasmCode unpublished_code) {

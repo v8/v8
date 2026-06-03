@@ -1192,8 +1192,8 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
     CHECK(type == StackFrame::WASM || type == StackFrame::WASM_SEGMENT_START);
 
     // Get the handler table and search for a matching tag.
-    WasmCode* wasm_code =
-        wasm::GetWasmCodeManager()->LookupCode(isolate, target_pc);
+    WasmCode* wasm_code = to->wasm_code();
+    DCHECK_NOT_NULL(wasm_code);
 
     base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
@@ -1337,6 +1337,10 @@ void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to) {
 
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack) {
   isolate->RetireWasmStack(stack);
+}
+
+void wasmfx_set_wasm_code(wasm::StackMemory* stack, WasmCode* code) {
+  stack->set_wasm_code(code);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {

@@ -280,6 +280,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_return_jspi_stack, "wasm_return_jspi_stack")                 \
   IF_WASM(V, wasm_return_wasmfx_stack, "wasm_return_wasmfx_stack")             \
   IF_WASM(V, wasm_retire_stack, "wasm_retire_stack")                           \
+  IF_WASM(V, wasmfx_set_wasm_code, "wasmfx_set_wasm_code")                     \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
