@@ -5,6 +5,102 @@
 #ifndef V8_OBJECTS_CASTING_H_
 #define V8_OBJECTS_CASTING_H_
 
+/**
+ * V8 Casting Guide
+ * ================
+ *
+ * This file defines the casting infrastructure for V8's tagged objects.
+ *
+ * Untrusted objects (e.g. JSObject) live in the sandbox and their Map can be
+ * tampered with. Trusted objects (e.g. BytecodeArray) live outside the
+ * sandbox in trusted space.
+ *
+ *
+ * 1. Release-Time Security Checks (Always-on CHECK or SBXCHECK)
+ * -------------------------------------------------------------
+ * These are required when type safety must be guaranteed at runtime under
+ * the V8 Sandbox attacker model.
+ *
+ *         To      |  Untrusted        Trusted
+ * From            |
+ * --------------------------------------------------
+ * Object          |  CheckedCast      <Impossible>*
+ * TrustedObject   |  -                SbxCast
+ *
+ * * Note: A checked cast from a generic untrusted Object to a TrustedObject is
+ *   impossible at runtime because untrusted pointers can point to arbitrary,
+ *   unaligned memory, making a sound runtime type check impossible.
+ *
+ *
+ * 2. Debug-Only Validation Checks (DCHECK-only or no-op)
+ * ------------------------------------------------------
+ * These are used when type safety is statically guaranteed, validated via
+ * non-typesystem invariants, or when performance is critical.
+ *
+ *         To      |  Untrusted        Trusted
+ * From            |
+ * --------------------------------------------------
+ * Object          |  Cast             TrustedCast
+ * TrustedObject   |  -                TrustedCast
+ * Uninitialized   |  UncheckedCast    -
+ *
+ * * Note: "Uninitialized" refers to partially-initialized objects (e.g., during
+ *   deserialization or construction) where CastTraits checks would fail.
+ *
+ *
+ * Guide to Cast Functions
+ * =======================
+ *
+ * Cast<T>
+ * -------
+ * The default cast for untrusted objects. Only performs a debug-only DCHECK.
+ * Since untrusted objects can be tampered with anyway, release-time checks
+ * provide no additional security.
+ *
+ * TrustedCast<T>
+ * --------------
+ * Use this for trusted objects when the type is known through external means
+ * but cannot be proven locally to the type system (e.g., trusted stack slots).
+ * Like Cast<T>, it only performs a debug-only DCHECK.
+ *
+ * WARNING: Never use TrustedCast<T> on pointers loaded from untrusted/sandbox-
+ * accessible fields, as an attacker can tamper with them and cause release-time
+ * type confusion. Use SbxCast<T> or TryCast<T> instead.
+ *
+ * SbxCast<T>
+ * ----------
+ * Use this when a trusted pointer is obtained from an untrusted source AND the
+ * TPT (Trusted Pointer Table) tag is shared among multiple types (1:N mapping).
+ * It performs an always-on SBXCHECK to prevent type-confusion attacks.
+ *
+ * CheckedCast<T>
+ * --------------
+ * Performs an always-on CHECK at release time. Use this when casting untrusted
+ * objects where correctness is absolutely critical.
+ *
+ * TryCast<T>
+ * ----------
+ * Performs a dynamic type check and returns a boolean. For trusted objects,
+ * this is specifically used for 1:N mappings where multiple instance types
+ * share the same TPT tag and you need to safely distinguish them at runtime.
+ *
+ * Note on 1:1 Mappings: For trusted objects with a 1:1 mapping between their
+ * InstanceType and their TPT tag (like BytecodeArray), no explicit cast is
+ * usually needed when reading from a field, as ReadTrustedPointerField<T>
+ * already ensures the correct type.
+ *
+ * UncheckedCast<T>
+ * ----------------
+ * Performs a raw cast with zero compile-time or runtime checks. Used when the
+ * object is partially initialized (so Is<T> checks would fail), or when the
+ * type is already proven.
+ *
+ * GCSafeCast<T>
+ * -------------
+ * Performs a debug-only GC-aware type check. Used only within garbage
+ * collection code paths.
+ */
+
 #include <type_traits>
 
 #include "include/v8-source-location.h"
@@ -230,6 +326,10 @@ concept HasCppPointerCastImplementation =
 // doing a debug check that `value` is a tagged object of type `T`. Down-casts
 // to trusted objects are allowed for callers which already ensured their
 // correctness. Null-valued holders are allowed.
+//
+// WARNING: This must NEVER be used on pointers loaded from untrusted/sandbox-
+// accessible fields, as an attacker can tamper with them and cause release-time
+// type confusion. Use SbxCast<T> or TryCast<T> instead for those cases.
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> TrustedCast(
@@ -246,7 +346,9 @@ inline Holder<To> TrustedCast(
 
 // `SbxCast<T>(value)` casts `value` to a tagged object of trusted type `T`,
 // with a sandbox-only dynamic type check ensuring that `value` is a tagged
-// object of type `T`. Null-valued holders are allowed.
+// object of type `T`. This is required for security when the object was
+// obtained from an untrusted source AND the TPT tag is shared among multiple
+// types (1:N mapping). Null-valued holders are allowed.
 template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> SbxCast(
