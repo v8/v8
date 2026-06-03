@@ -197,6 +197,38 @@ class SuspectCollectorTest(unittest.TestCase):
     call_graph = gcmole.CallGraph.from_files(file1, file2, file3)
     self.assertDictEqual(call_graph.funcs, dict(G=set('F'), **expected))
 
+  def testClassHierarchyPackaging(self):
+    temp_dir = Path(tempfile.mkdtemp('gcmole_test'))
+
+    cg1 = gcmole.CallGraph()
+    cg1.funcs['A'] = set()
+    cg1.class_hierarchies = {"ClassA": {"bases": [], "overrides": {}}}
+
+    cg2 = gcmole.CallGraph()
+    cg2.funcs['B'] = set()
+    cg2.class_hierarchies = {"ClassB": {"bases": ["ClassA"], "overrides": {}}}
+
+    file1 = temp_dir / 'file1.bin'
+    file2 = temp_dir / 'file2.bin'
+    cg1.to_file(file1)
+    cg2.to_file(file2)
+
+    merged = gcmole.CallGraph.from_files(file1, file2)
+    self.assertEqual(len(merged.class_hierarchies), 2)
+    self.assertDictEqual(
+        merged.class_hierarchies, {
+            "ClassA": {
+                "bases": [],
+                "overrides": {},
+                "virtual_methods": []
+            },
+            "ClassB": {
+                "bases": ["ClassA"],
+                "overrides": {},
+                "virtual_methods": []
+            }
+        })
+
   def create_collector(self, outputs):
     Options = collections.namedtuple('OptionsForCollector', ['allowlist'])
     options = Options(True)

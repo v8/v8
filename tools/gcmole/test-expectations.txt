@@ -10,17 +10,17 @@ tools/gcmole/gcmole-test.cc:31:20: note: Call might cause unexpected GC.
 tools/gcmole/gcmole-test.cc:51:3: warning: Possible problem with evaluation order with interleaved GCs.
    51 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
       |   ^
-tools/gcmole/gcmole-test.cc:51:25: note: Call might cause unexpected GC.
+tools/gcmole/gcmole-test.cc:51:50: note: Call might cause unexpected GC.
    51 |   TwoArgumentsFunction(*CauseGC(obj1, isolate), *CauseGC(obj2, isolate));
-      |                         ^
+      |                                                  ^
 tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
    24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
       | ^
 tools/gcmole/gcmole-test.cc:63:3: warning: Possible problem with evaluation order with interleaved GCs.
    63 |   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
       |   ^
-tools/gcmole/gcmole-test.cc:63:37: note: Call might cause unexpected GC.
-   63 |   TwoSizeTArgumentsFunction(sizeof(*CauseGC(obj1, isolate)),
+tools/gcmole/gcmole-test.cc:64:37: note: Call might cause unexpected GC.
+   64 |                             sizeof(*CauseGC(obj2, isolate)));
       |                                     ^
 tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
    24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
@@ -37,11 +37,11 @@ tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
 tools/gcmole/gcmole-test.cc:81:7: warning: Possible problem with evaluation order with interleaved GCs.
    81 |   so->Method(CauseGCRaw(*obj1, isolate));
       |       ^
-tools/gcmole/gcmole-test.cc:79:15: note: Call might cause unexpected GC.
-   79 |   so->Method(*CauseGC(obj1, isolate));
-      |               ^
-tools/gcmole/gcmole-test.cc:24:1: note: GC call here.
-   24 | Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
+tools/gcmole/gcmole-test.cc:81:14: note: Call might cause unexpected GC.
+   81 |   so->Method(CauseGCRaw(*obj1, isolate));
+      |              ^
+tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
+   30 | Tagged<Object> CauseGCRaw(Tagged<Object> obj, Isolate* isolate) {
       | ^
 tools/gcmole/gcmole-test.cc:125:14: warning: Possible problem with evaluation order with interleaved GCs.
   125 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
@@ -55,11 +55,11 @@ tools/gcmole/gcmole-test.cc:109:3: note: GC call here.
 tools/gcmole/gcmole-test.cc:127:14: warning: Possible problem with evaluation order with interleaved GCs.
   127 |   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
       |              ^
-tools/gcmole/gcmole-test.cc:125:30: note: Call might cause unexpected GC.
-  125 |   so_handle->Method(*derived.VirtualCauseGC(obj1, isolate));
-      |                              ^
-tools/gcmole/gcmole-test.cc:109:3: note: GC call here.
-  109 |   Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) override {
+tools/gcmole/gcmole-test.cc:127:28: note: Call might cause unexpected GC.
+  127 |   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
+      |                            ^
+tools/gcmole/gcmole-test.cc:102:3: note: GC call here.
+  102 |   virtual Handle<Object> VirtualCauseGC(Handle<Object> obj, Isolate* isolate) {
       |   ^
 tools/gcmole/gcmole-test.cc:148:14: warning: Possible problem with evaluation order with interleaved GCs.
   148 |   so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
@@ -217,8 +217,8 @@ tools/gcmole/gcmole-test.cc:30:1: note: GC call here.
 tools/gcmole/gcmole-test.cc:354:9: warning: Possibly stale variable due to GCs.
   354 |   Print(raw_obj);
       |         ^
-tools/gcmole/gcmole-test.cc:350:3: note: Call might cause unexpected GC.
-  350 |   Safepoint();
+tools/gcmole/gcmole-test.cc:353:3: note: Call might cause unexpected GC.
+  353 |   Safepoint();
       |   ^
 tools/gcmole/gcmole-test.cc:22:1: note: GC call here.
    22 | void Safepoint() { LocalHeap::Current()->Safepoint(); }

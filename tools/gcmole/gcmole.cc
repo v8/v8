@@ -791,8 +791,7 @@ static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
       suspects_allowlist.end()) {
     return false;
   }
-  if (gc_functions.find(GetFunctionQualifiedName(decl)) !=
-      gc_functions.end()) {
+  if (gc_functions.find(GetFunctionQualifiedName(decl)) != gc_functions.end()) {
     TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
   }
@@ -2146,7 +2145,8 @@ class FunctionAnalyzer {
   GCScope MergeScopes(const GCScope& a, const GCScope& b) {
     GCScope merged = a;
     if (a.gccause_location.isValid() && b.gccause_location.isValid()) {
-      if (a.gccause_location.isBeforeInTranslationUnitThan(b.gccause_location)) {
+      if (a.gccause_location.isBeforeInTranslationUnitThan(
+              b.gccause_location)) {
         merged.gccause_location = b.gccause_location;
         merged.gccause_decl = b.gccause_decl;
       } else {

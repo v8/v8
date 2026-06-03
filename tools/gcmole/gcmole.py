@@ -295,11 +295,40 @@ IS_SPECIAL_WITH_ALLOW_LIST = merge_regexp({
 })
 
 
+def merge_hierarchy_dicts(dict1, dict2):
+  """Merges dict2 into dict1 in-place.
+  Deduplicates bases, overrides, and virtual methods.
+  """
+  for class_name, info2 in dict2.items():
+    if class_name not in dict1:
+      dict1[class_name] = {
+          'bases': list(info2.get('bases', [])),
+          'overrides': dict(info2.get('overrides', {})),
+          'virtual_methods': list(info2.get('virtual_methods', []))
+      }
+    else:
+      info1 = dict1[class_name]
+      # Merge bases
+      bases1 = info1.setdefault('bases', [])
+      for base in info2.get('bases', []):
+        if base not in bases1:
+          bases1.append(base)
+      # Merge overrides
+      info1.setdefault('overrides', {}).update(info2.get('overrides', {}))
+      # Merge virtual_methods
+      vm1 = info1.setdefault('virtual_methods', [])
+      for vm in info2.get('virtual_methods', []):
+        if vm not in vm1:
+          vm1.append(vm)
+  return dict1
+
+
 class CallGraph:
 
   def __init__(self):
     self.funcs = collections.defaultdict(set)
     self.current_caller = None
+    self.class_hierarchies = {}
 
   def parse(self, lines):
     for funcname in lines:
@@ -331,10 +360,15 @@ class CallGraph:
   def from_files(*file_names):
     """Merge multiple call graphs from a list of files."""
     callgraph = CallGraph()
+    merged_hierarchy = {}
     for file_name in file_names:
       cg = CallGraph.from_file(file_name)
       for callee, callers in cg.funcs.items():
         callgraph.funcs[callee].update(callers)
+      if hasattr(cg, 'class_hierarchies'):
+        merged_hierarchy = merge_hierarchy_dicts(merged_hierarchy,
+                                                 cg.class_hierarchies)
+    callgraph.class_hierarchies = merged_hierarchy
     return callgraph
 
 
@@ -399,6 +433,17 @@ def generate_callgraph(files, options):
   for _, stdout, _ in invoke_clang_plugin_for_each_file(files, "dump-callees",
                                                         plugin_args, options):
     callgraph.parse(stdout.splitlines())
+
+  # Read generated class hierarchy JSONs and package them
+  merged_hierarchy = {}
+  for p in Path(options.out_dir).glob("class_hierarchy_*.json"):
+    try:
+      with open(p) as f:
+        data = json.load(f)
+        merged_hierarchy = merge_hierarchy_dicts(merged_hierarchy, data)
+    except Exception as e:
+      log(f"Warning: failed to read class hierarchy file {p}: {e}")
+  callgraph.class_hierarchies = merged_hierarchy
 
   return callgraph
 
@@ -495,23 +540,26 @@ class ClassHierarchy:
       self.classes[class_name] = ClassNode(class_name)
     return self.classes[class_name]
 
+  def load_from_data(self, data):
+    for class_name, info in data.items():
+      node = self.get_or_create(class_name)
+      for base in info['bases']:
+        node.add_base(base)
+        # Register subclass link
+        if class_name not in self.subclasses[base]:
+          self.subclasses[base].append(class_name)
+      node.update_overrides(info['overrides'])
+      for parent_m, child_m in info['overrides'].items():
+        self.parent_method[child_m] = parent_m
+      if 'virtual_methods' in info:
+        node.virtual_methods.update(info['virtual_methods'])
+
   def load_from_json(self, filepath):
     """Merges partial class hierarchy JSON into the global tree."""
     try:
       with open(filepath) as f:
         data = json.load(f)
-        for class_name, info in data.items():
-          node = self.get_or_create(class_name)
-          for base in info['bases']:
-            node.add_base(base)
-            # Register subclass link
-            if class_name not in self.subclasses[base]:
-              self.subclasses[base].append(class_name)
-          node.update_overrides(info['overrides'])
-          for parent_m, child_m in info['overrides'].items():
-            self.parent_method[child_m] = parent_m
-          if 'virtual_methods' in info:
-            node.virtual_methods.update(info['virtual_methods'])
+        self.load_from_data(data)
     except Exception as e:
       log(f"Warning: failed to load {filepath}: {e}")
 
@@ -532,7 +580,6 @@ class ClassHierarchy:
         root_m = self.find_root_virtual_method(parent_m)
         normalized[root_m] = child_m
       node.overrides = normalized
-
 
   def is_subclass(self, derived, base):
     if derived == base:
@@ -705,8 +752,13 @@ def add_synthesized_edge(callgraph, hierarchy, synth_key,
 def synthesize_virtual_links(callgraph, options):
   # 1. Load and merge class hierarchies
   hierarchy = ClassHierarchy()
-  for filepath in Path(options.out_dir).glob("class_hierarchy_*.json"):
-    hierarchy.load_from_json(filepath)
+  if hasattr(callgraph, 'class_hierarchies') and callgraph.class_hierarchies:
+    log("Loading class hierarchy from packaged data in callgraph")
+    hierarchy.load_from_data(callgraph.class_hierarchies)
+  else:
+    log(f"Loading class hierarchy from {options.out_dir}")
+    for filepath in Path(options.out_dir).glob("class_hierarchy_*.json"):
+      hierarchy.load_from_json(filepath)
 
   hierarchy.normalize_overrides()
 
