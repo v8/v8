@@ -416,7 +416,7 @@ class WasmLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_memory_snapshots_(phase_zone),
-        phi_replacements_backups_(phase_zone, &graph_) {}
+        phi_replacements_backups_(phase_zone) {}
 
   void Run() {
     LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
@@ -533,8 +533,9 @@ class WasmLoadEliminationAnalyzer {
   ZoneVector<MemorySnapshot> predecessor_memory_snapshots_;
 
   // When figuring out whether a Phi change should cause a loop revisit, we
-  // need to temporarily store all loop Phis' previous replacements.
-  SparseOpIndexSideTable<OpIndex> phi_replacements_backups_;
+  // need to temporarily store all loop Phis' previous replacements. This
+  // ZoneVector thus stores pairs of {phi index, previous phi replacement}.
+  ZoneVector<std::pair<OpIndex, OpIndex>> phi_replacements_backups_;
 };
 
 template <class Next>
@@ -1130,17 +1131,41 @@ bool WasmLoadEliminationAnalyzer::BeginBlock(const Block* block) {
     // conceptually processed in parallel.
     for (OpIndex op_idx : graph_.OperationIndices(*block)) {
       if (graph_.Get(op_idx).Is<PhiOp>() && replacements_[op_idx].valid()) {
-        phi_replacements_backups_[op_idx] = replacements_[op_idx];
+        phi_replacements_backups_.push_back({op_idx, replacements_[op_idx]});
         replacements_[op_idx] = OpIndex::Invalid();
       }
     }
     // Check if any loop Phi replacement would change.
-    // Importantly, we do not store the computed {new_replacement}; we'll let
-    // the actual loop revisitation do that. The reason is that looking at Phis
-    // multiple times can find more replacements, so if we stored replacements
-    // here then the loop revisit might find more, and then next time we get
-    // here we'd erroneously conclude that those need to be reset and the loop
-    // needs to be revisited again, endlessly.
+    //
+    // Note that we need to update {replacements_} while doing so in order to
+    // emulate what the actual loop revisitation will do, so that dependent Phis
+    // are properly updated. For instance, if we have
+    //
+    //     phi1: phi(0, 0)
+    //     phi2: phi(0, phi1)
+    //
+    // The the main loop (re)visitation will update replacements_[phi1], which
+    // will allow phi2 to be replaced in turn. If, here, we don't update
+    // replacements_, then we will think that phi2 cannot be replaced, but given
+    // that its old replacements_ was valid, we'll think that it got
+    // invalidated, which will trigger revisiting the loop infinitely.
+    //
+    // However, it's important to also wipe the {replacements_} once we've
+    // determined that we need to revisit the loop. The reason is that looking
+    // at Phis multiple times can find more replacements. For instance:
+    //
+    //     phi1: phi(0, phi2)
+    //     phi2: phi(0, 0)
+    //
+    // Starting with empty {replacements_}, we'll compute Invalid for {phi1}
+    // because we don't have a replacement for {phi2}, and then we'll compute
+    // `0` for {phi2}. If we then compute replacements again starting with those
+    // non-empty replacements_, we will compute `0` for {phi1} as well. So if
+    // here (to decide whether we need to revisit the loop or not), we start
+    // from empty {replacements_} and we do actually decide to revisit the loop
+    // and don't wipe {replacements_}, then ProcessPhi could compute additional
+    // replacements, which we won't be able to recompute here at the next
+    // revisit check, leading to an infinite loop.
     //
     // We could be more ambitious: whenever a loop Phi is replaced, we could
     // revisit any other loop Phis for which it is an input, until we find no
@@ -1154,15 +1179,21 @@ bool WasmLoadEliminationAnalyzer::BeginBlock(const Block* block) {
     for (auto [phi_idx, backup] : phi_replacements_backups_) {
       const PhiOp& phi = graph_.Get(phi_idx).Cast<PhiOp>();
       OpIndex new_replacement = MaybeReplacePhi(phi);
+      replacements_[phi_idx] = new_replacement;
       if (new_replacement != backup) {
         loop_needs_revisit = true;
         break;
       }
     }
-    // If we're not going to revisit, restore the replacements we had.
     if (!loop_needs_revisit) {
+      // If we're not going to revisit, restore the replacements we had.
       for (auto [phi_idx, backup] : phi_replacements_backups_) {
         replacements_[phi_idx] = backup;
+      }
+    } else {
+      // Otherwise, clear the {replacements_} (cf explanation above).
+      for (auto [phi_idx, backup] : phi_replacements_backups_) {
+        replacements_[phi_idx] = OpIndex::Invalid();
       }
     }
   }
