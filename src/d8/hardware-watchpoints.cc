@@ -124,10 +124,43 @@ void SetNewWatchpoints() {
 
 using reg_value_type = unsigned long long;  // NOLINT(runtime/int)
 
+void MutateRegister(reg_value_type* reg_ptr) {
+  // TODO(clemensb): Add API for specifying how to manipulate the value.
+  // TODO(clemensb): Make sure to only produce values that the specific
+  // instruction would have produced.
+  // TODO(clemensb): Look into strategies used by AFL:
+  // https://lcamtuf.blogspot.com/2014/08/binary-fuzzing-strategies-what-works.html.
+  // TODO(clemensb): Unify with strategies used by Samuel's trap-based fuzzer
+  // (https://crbug.com/361277236).
+  uint64_t read_value = static_cast<uint64_t>(*reg_ptr);
+  uint64_t new_value = read_value;
+  switch (g_support.rng.NextInt(4)) {
+    case 0:
+      new_value += 10;
+      break;
+    case 1:
+      new_value -= 10;
+      break;
+    case 2:
+      // Random bit flip.
+      new_value ^= uint64_t{1} << g_support.rng.NextInt(64);
+      break;
+    case 3:
+      new_value = g_support.rng.NextInt64();
+      break;
+  }
+  // TODO(clemensb): Skip this truncation on 64-bit reads.
+  new_value = new_value & 0xffffffffu;
+  TRACE("[debugger] Changing value in result register from %" PRIu64 "/%" PRIx64
+        " to %" PRIu64 "/%" PRIx64 ".\n",
+        read_value, read_value, new_value, new_value);
+  *reg_ptr = static_cast<reg_value_type>(new_value);
+}
+
 // The result of `DisassemblePreviousInstruction`, describing the kind of memory
 // access observed.
 struct MemoryAccessInformation {
-  enum Kind { kRead, kWrite, kCmp };
+  enum Kind { kRead, kWrite, kCmp, kCmpxchg };
 
   Kind kind;
 
@@ -178,15 +211,24 @@ void DisassemblePreviousInstruction(struct user_regs_struct& regs,
     return;
   }
 
-  FATAL("Failed to disassemble instruction before 0x%llx", regs.rip);
+  FATAL("Failed to disassemble instruction before 0x%" PRIx64,
+        static_cast<uint64_t>(regs.rip));
 }
 
 char* SkipToInstruction(char* disas) {
   while (isxdigit(*disas)) ++disas;
   // Skip over spaces.
   while (*disas == ' ') ++disas;
-  // Skip over REX prefix.
-  if (memcmp(disas, "REX.W ", 6) == 0) disas += 6;
+  // Skip over prefixes.
+  while (true) {
+    if (memcmp(disas, "REX.W ", 6) == 0) {
+      disas += 6;
+    } else if (memcmp(disas, "lock ", 5) == 0) {
+      disas += 5;
+    } else {
+      break;
+    }
+  }
   return disas;
 }
 
@@ -202,12 +244,15 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
   char* insn_pos = SkipToInstruction(buffer);
 
   if (memcmp(insn_pos, "cmp", 3) == 0) {
+    if (memcmp(insn_pos, "cmpxchg", 7) == 0) {
+      return {.kind = MemoryAccessInformation::kCmpxchg};
+    }
     return {.kind = MemoryAccessInformation::kCmp};
   }
   // TODO(clemensb): Implement more instructions if necessary.
   if (memcmp(insn_pos, "mov", 3) != 0 && memcmp(insn_pos, "sub", 3) != 0 &&
       memcmp(insn_pos, "add", 3) != 0) {
-    FATAL("Not a mov/sub/add: %s\n", buffer);
+    FATAL("Not a mov/sub/add/cmp/cmpxchg: %s\n", buffer);
   }
 
   // Find the position of the comma to figure out if the memory operand is
@@ -295,36 +340,7 @@ void MutateReadValue(struct user_regs_struct& regs,
   }
 
   CHECK_NOT_NULL(access_info.result_reg);
-  uint64_t read_value = *access_info.result_reg;
-
-  // TODO(clemensb): Add API for specifying how to manipulate the value.
-  // TODO(clemensb): Make sure to only produce values that the specific
-  // instruction would have produced.
-  // TODO(clemensb): Look into strategies used by AFL:
-  // https://lcamtuf.blogspot.com/2014/08/binary-fuzzing-strategies-what-works.html.
-  // TODO(clemensb): Unify with strategies used by Samuel's trap-based fuzzer
-  // (https://crbug.com/361277236).
-  uint64_t new_value = read_value;
-  switch (g_support.rng.NextInt(4)) {
-    case 0:
-      new_value += 10;
-      break;
-    case 1:
-      new_value -= 10;
-      break;
-    case 2:
-      // Random bit flip.
-      new_value ^= uint64_t{1} << g_support.rng.NextInt(64);
-      break;
-    case 3:
-      new_value = g_support.rng.NextInt64();
-      break;
-  }
-  new_value = new_value & 0xffffffffu;
-  TRACE("[debugger] Changing value in result register from %" PRIu64 "/%" PRIx64
-        " to %" PRIu64 "/%" PRIx64 ".\n",
-        read_value, read_value, new_value, new_value);
-  *access_info.result_reg = new_value;
+  MutateRegister(access_info.result_reg);
 
   CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, /* unused addr = */ 0,
                      &regs));
@@ -389,6 +405,66 @@ void MutateFlagsAfterCmp(struct user_regs_struct& regs) {
                      &regs));
 }
 
+void MutateCmpxchgOutcome(struct user_regs_struct& regs) {
+  // `cmpxchg` is an atomic compare-and-swap instruction.
+  // - If [mem] == rax: ZF = 1, [mem] = src.
+  // - If [mem] != rax: ZF = 0, rax = [mem].
+
+  // We can fuzz the outcome of this instruction by simulating that it had the
+  // opposite result of what actually happened, or by mutating the returned
+  // register on failure while keeping the failure outcome.
+
+  constexpr uint32_t kZF = 1 << 6;
+  bool success = (regs.eflags & kZF) != 0;
+
+  // We randomly choose one of the following:
+  // - Do nothing (treat as a write or an unmodified atomic operation).
+  // - Simulate the opposite outcome.
+  // - On failure (ZF=0), keep ZF=0 but mutate rax.
+  int strategy = g_support.rng.NextInt(3);
+  if (strategy == 0) {
+    TRACE("[debugger] cmpxchg: No mutation (hardware reported %s).\n",
+          success ? "success" : "failure");
+    return;
+  }
+
+  if (success) {
+    // Hardware reported success (ZF=1), so the memory was updated.
+    // We simulate a failure by flipping ZF to 0 and mutating `rax`.
+    // In a real failure, `rax` would have been loaded with the current memory
+    // value. By mutating it, we simulate that a different value was read.
+    TRACE("[debugger] cmpxchg: Simulating failure (was success).\n");
+    regs.eflags &= ~kZF;
+    MutateRegister(&regs.rax);
+  } else {
+    if (strategy == 1) {
+      // Hardware reported failure (ZF=0), so `rax` was loaded with the current
+      // memory value.
+      // We simulate a success by flipping ZF to 1.
+      // This simulates that the comparison succeeded even though the memory
+      // contained a different value.
+      // Note that the memory was not actually updated by the hardware, and the
+      // original `rax` value (the one we compared against) is lost because the
+      // hardware already overrode it with the value from memory.
+      // This can lead to unexpected crashes or failures in the calling code.
+      // If this ever happens we have to revisit this mutation strategy.
+      TRACE("[debugger] cmpxchg: Simulating success (was failure).\n");
+      regs.eflags |= kZF;
+    } else {
+      // Hardware reported failure (ZF=0), so `rax` was loaded with the current
+      // memory value.
+      // We keep ZF=0 (failure) but mutate `rax`.
+      // This simulates that the comparison failed and loaded a
+      // mutated/corrupted value into `rax` from memory.
+      TRACE("[debugger] cmpxchg: Mutating rax on failure (keeping ZF=0).\n");
+      MutateRegister(&regs.rax);
+    }
+  }
+
+  CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, /* unused addr = */ 0,
+                     &regs));
+}
+
 // Executed in the "debugger" process: Check if a watchpoint was hit and handle
 // it.
 // Return true if a watchpoint was hit, false otherwise.
@@ -426,6 +502,10 @@ bool HandleWatchpoint(struct user_regs_struct& regs) {
 
     case MemoryAccessInformation::kCmp:
       MutateFlagsAfterCmp(regs);
+      break;
+
+    case MemoryAccessInformation::kCmpxchg:
+      MutateCmpxchgOutcome(regs);
       break;
   }
 
@@ -469,8 +549,8 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   struct user_regs_struct regs;
   CHECK_EQ(0, ptrace(PTRACE_GETREGS, g_support.d8_pid, /* unused addr = */ 0,
                      &regs));
-  TRACE("[debugger] d8 stopped at 0x%llx (sig %d, %s).\n", regs.rip, signal,
-        strsignal(signal));
+  TRACE("[debugger] d8 stopped at 0x%" PRIx64 " (sig %d, %s).\n",
+        static_cast<uint64_t>(regs.rip), signal, strsignal(signal));
 
   switch (signal) {
     case SIGSTOP:
