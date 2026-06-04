@@ -265,12 +265,22 @@ class WasmInterpreterRuntime {
                                           uint32_t current_slot_offset);
   void PurgeIndirectCallCache(uint32_t table_index);
 
-  ExternalCallResult CallExternalJSFunction(const uint8_t*& current_code,
-                                            const WasmModule* module,
-                                            DirectHandle<Object> object_ref,
-                                            const FunctionSig* sig,
-                                            uint32_t* sp,
-                                            uint32_t return_slot_offset);
+  // {callsite_sig} drives stack/ref-slot layout and argument marshalling;
+  // {callee_canonical_sig}, when non-null, is the callee's declared (canonical)
+  // signature used to typecheck JS return values (see the definition for
+  // details).
+  ExternalCallResult CallExternalJSFunction(
+      const uint8_t*& current_code, const WasmModule* module,
+      DirectHandle<Object> object_ref, const FunctionSig* callsite_sig,
+      uint32_t* sp, uint32_t return_slot_offset,
+      const CanonicalSig* callee_canonical_sig = nullptr);
+
+  // Overload that typechecks against a callee's canonical return type. Used
+  // by CallExternalJSFunction for indirect/cross-instance calls to JS imports,
+  // where the callee's declared signature is only available as a canonical
+  // type (not as a module-relative {ValueType}).
+  WasmRef JSToWasmObject(WasmRef extern_ref,
+                         CanonicalValueType value_type) const;
 
   ExternalCallResult CallExternalWasmFunction(uint32_t function_index,
                                               DirectHandle<Object> object_ref,
@@ -359,34 +369,41 @@ class WasmInterpreterRuntime {
 #endif  // __clang__
 
   struct IndirectCallValue {
-    enum class Mode { kInvalid, kInternalCall, kExternalCall };
+    // Describes where an indirect-call dispatch table entry leads, decided
+    // when the entry is first populated (see ExecuteIndirectCall):
+    enum class Mode {
+      kInvalid,
+      // Target is a Wasm function in the current instance; dispatched directly
+      // by this interpreter via ExecuteFunction(). {func_index} is valid.
+      kInternalCall,
+      // Target is reached across an instance/JS boundary: either a Wasm
+      // function in a different instance, or an imported JS function.
+      // {func_index} is unused (kInvalidFunctionIndex); the callee is
+      // re-resolved from the table entry at call time.
+      kExternalCall,
+    };
 
-    static const uint32_t kInlineSignatureSentinel = UINT_MAX;
     static const uint32_t kInvalidFunctionIndex = UINT_MAX;
 
     IndirectCallValue()
         : mode(Mode::kInvalid),
           func_index(kInvalidFunctionIndex),
-          sig_index({kInlineSignatureSentinel}),
-          signature(nullptr) {}
-    IndirectCallValue(uint32_t func_index_, wasm::CanonicalTypeIndex sig_index)
-        : mode(Mode::kInternalCall),
-          func_index(func_index_),
-          sig_index(sig_index),
-          signature(nullptr) {}
-    IndirectCallValue(const FunctionSig* signature_,
-                      wasm::CanonicalTypeIndex sig_index)
-        : mode(Mode::kExternalCall),
-          func_index(kInvalidFunctionIndex),
-          sig_index(sig_index),
-          signature(signature_) {}
+          sig_index({CanonicalTypeIndex::Invalid()}) {}
+    IndirectCallValue(Mode mode, uint32_t func_index_,
+                      CanonicalTypeIndex sig_index)
+        : mode(mode), func_index(func_index_), sig_index(sig_index) {
+      DCHECK_NE(mode, Mode::kInvalid);
+      // Exactly the external calls carry no function index; internal calls
+      // always carry a valid one.
+      DCHECK_EQ(mode == Mode::kExternalCall,
+                func_index_ == kInvalidFunctionIndex);
+    }
 
     operator bool() const { return mode != Mode::kInvalid; }
 
     Mode mode;
     uint32_t func_index;
     wasm::CanonicalTypeIndex sig_index;
-    const FunctionSig* signature;
   };
   typedef std::vector<IndirectCallValue> IndirectCallTable;
   std::vector<IndirectCallTable> indirect_call_tables_;

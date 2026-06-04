@@ -6167,6 +6167,7 @@ class Handlers : public HandlersBase {
     if (V8_UNLIKELY(wasm_runtime->IsRefNull(struct_obj))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
+    DCHECK(IsWasmStruct(*struct_obj));
     int offset = Read<int32_t>(code);
     Address field_addr = (*struct_obj).ptr() + offset;
     push<T>(sp, code, wasm_runtime, base::ReadUnalignedValue<U>(field_addr));
@@ -6190,6 +6191,7 @@ class Handlers : public HandlersBase {
     if (V8_UNLIKELY(wasm_runtime->IsRefNull(struct_obj))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
+    DCHECK(IsWasmStruct(*struct_obj));
     int offset = Read<int32_t>(code);
     Address field_addr = (*struct_obj).ptr() + offset;
     // DrumBrake expects pointer compression.
@@ -6213,6 +6215,7 @@ class Handlers : public HandlersBase {
     if (V8_UNLIKELY(wasm_runtime->IsRefNull(struct_obj))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
+    DCHECK(IsWasmStruct(*struct_obj));
     Address field_addr = (*struct_obj).ptr() + offset;
     base::WriteUnalignedValue<U>(field_addr, value);
 
@@ -6235,6 +6238,7 @@ class Handlers : public HandlersBase {
     if (V8_UNLIKELY(wasm_runtime->IsRefNull(struct_obj))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
     }
+    DCHECK(IsWasmStruct(*struct_obj));
     Address field_addr = (*struct_obj).ptr() + field_offset;
     StoreRefIntoMemory(
         TrustedCast<HeapObject>(*struct_obj), field_addr,

@@ -1891,7 +1891,6 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
 
     IndirectFunctionTableEntry entry(instance_object_, table_index,
                                      entry_index);
-    const FunctionSig* signature = module_->signature({sig_index});
 
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
     if (Is<WasmTrustedInstanceData>(*object_implicit_arg)) {
@@ -1902,17 +1901,22 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
               trusted_instance_object->instance_object()),
           isolate_);
       if (instance_object_.is_identical_to(instance_object)) {
-        // Call to an import.
+        // Same-instance Wasm call.
         uint32_t func_index = entry.function_index();
         DCHECK(func_index != IndirectCallValue::kInvalidFunctionIndex);
-        table[entry_index] = IndirectCallValue(func_index, entry.sig_id());
+        table[entry_index] = IndirectCallValue(
+            IndirectCallValue::Mode::kInternalCall, func_index, entry.sig_id());
       } else {
         // Cross-instance call.
-        table[entry_index] = IndirectCallValue(signature, entry.sig_id());
+        table[entry_index] = IndirectCallValue(
+            IndirectCallValue::Mode::kExternalCall,
+            IndirectCallValue::kInvalidFunctionIndex, entry.sig_id());
       }
     } else {
       // Call JS function.
-      table[entry_index] = IndirectCallValue(signature, entry.sig_id());
+      table[entry_index] = IndirectCallValue(
+          IndirectCallValue::Mode::kExternalCall,
+          IndirectCallValue::kInvalidFunctionIndex, entry.sig_id());
     }
   }
 
@@ -1946,8 +1950,6 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     // ExternalCall
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-    DCHECK_NOT_NULL(indirect_call.signature);
-
     // Store a pointer to the current FrameState before leaving the current
     // Activation.
     WasmInterpreterThread* thread = this->thread();
@@ -1962,12 +1964,18 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     IndirectFunctionTableEntry entry(instance_object_, table_index,
                                      entry_index);
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
+
+    // The reference stack was populated according to the callsite signature,
+    // so StoreRefArgsIntoStackSlots / StoreRefResultsIntoRefStack must always
+    // walk the callsite signature to find ref positions.
+    const FunctionSig* callsite_signature = module_->signature({sig_index});
+
     if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
 
     if (IsWasmTrustedInstanceData(*object_implicit_arg)) {
       // Call Wasm function in a different instance.
       ExternalCallResult result = CallExternalWasmFunction(
-          entry.function_index(), object_implicit_arg, indirect_call.signature,
+          entry.function_index(), object_implicit_arg, callsite_signature,
           sp + slot_offset / kSlotSize, return_slot_offset,
           ref_stack_fp_offset);
       if (result == ExternalCallResult::EXTERNAL_EXCEPTION) {
@@ -1982,14 +1990,27 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
       // Note that tail calls to host functions do not have to guarantee tail
       // behaviour, so it is ok to recursively allocate C++ stack frames here.
       uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
-      StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset,
-                                 indirect_call.signature);
+      StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset, callsite_signature);
+
+      // Validate JS return values against the callee's declared signature, to
+      // match compiled code (which coerces JS results through a Wasm-to-JS
+      // wrapper built from the callee's signature). The callsite signature may
+      // be a strict supertype, which would accept return values the callee's
+      // type rejects (e.g. a null for a non-nullable declared return).
+      // indirect_call.sig_index holds the dispatch table entry's canonical sig
+      // (populated from entry.sig_id() during cache fill above), not the
+      // callsite immediate (which is the separate sig_index parameter to this
+      // function).
+      const CanonicalSig* callee_canonical_sig =
+          GetTypeCanonicalizer()->LookupFunctionSignature(
+              indirect_call.sig_index);
+
       ExternalCallResult result = CallExternalJSFunction(
-          current_code, module_, object_implicit_arg, indirect_call.signature,
-          sp + slot_offset / kSlotSize, slot_offset);
+          current_code, module_, object_implicit_arg, callsite_signature,
+          sp + slot_offset / kSlotSize, slot_offset, callee_canonical_sig);
       if (result == ExternalCallResult::EXTERNAL_RETURNED) {
         StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset,
-                                    indirect_call.signature);
+                                    callsite_signature);
       } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
         if (is_tail_call) {
           current_frame_.DisposeCaughtExceptionsArray(isolate_);
@@ -2096,9 +2117,17 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
     if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
     StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset, signature);
+
+    // Use the callee's declared canonical signature for JS return-value
+    // validation, matching compiled code's per-import wrapper behavior.
+    // {actual_sig_index} (computed above) is the actual callee's canonical
+    // signature index.
+    const CanonicalSig* callee_canonical_sig =
+        GetTypeCanonicalizer()->LookupFunctionSignature(actual_sig_index);
+
     ExternalCallResult result = CallExternalJSFunction(
         current_code, module_, func_ref, signature,
-        sp + slot_offset / kSlotSize, return_slot_offset);
+        sp + slot_offset / kSlotSize, return_slot_offset, callee_canonical_sig);
     if (result == ExternalCallResult::EXTERNAL_RETURNED) {
       StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset, signature);
     } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
@@ -2280,13 +2309,26 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
   *isolate->c_entry_fp_address() = saved_c_entry_fp;
 }
 
+// Calls an imported/cross-instance JS function from the interpreter.
+//
+// Two signatures are involved because the callsite and the callee may differ
+// when the callee is reached through a subtype-compatible signature (e.g. an
+// indirect call whose declared type is a supertype of the callee's type):
+//   - {callsite_sig}: the signature declared at the callsite. Drives the wasm
+//     stack/ref-slot layout and argument marshalling, since the interpreter
+//     populated those slots according to the callsite.
+//   - {callee_canonical_sig}: the callee's declared (canonical) signature, used
+//     only to typecheck JS return values, matching the Wasm-to-JS wrapper that
+//     compiled code builds from the callee's signature. When null (direct
+//     imports, where callsite == callee), {callsite_sig} is used instead.
 ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     const uint8_t*& current_code, const WasmModule* module,
-    DirectHandle<Object> object_ref, const FunctionSig* sig, uint32_t* sp,
-    uint32_t return_slot_offset) {
+    DirectHandle<Object> object_ref, const FunctionSig* callsite_sig,
+    uint32_t* sp, uint32_t return_slot_offset,
+    const CanonicalSig* callee_canonical_sig) {
   // TODO(paolosev@microsoft.com) Cache IsJSCompatibleSignature result?
   if (!IsJSCompatibleSignature(
-          reinterpret_cast<const wasm::CanonicalSig*>(sig))) {
+          reinterpret_cast<const wasm::CanonicalSig*>(callsite_sig))) {
     AllowHeapAllocation allow_gc;
 
     isolate_->Throw(*isolate_->factory()->NewTypeError(
@@ -2315,13 +2357,13 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   // DisallowHeapAllocation so GC cannot run between reads; then we call
   // WasmToJSObject on each GC-rooted ref (GC now allowed).
   DirectHandleVector<Object> ref_args(isolate_);
-  ref_args.reserve(sig->parameter_count());
+  ref_args.reserve(callsite_sig->parameter_count());
   {
     // Collect all refs from stack_mem_ (outer DisallowHeapAllocation in
     // effect).
-    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      switch (sig->GetParam(i).kind()) {
+    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(callsite_sig);
+    for (size_t i = 0; i < callsite_sig->parameter_count(); ++i) {
+      switch (callsite_sig->GetParam(i).kind()) {
         case kI32:
           p += sizeof(int32_t) / kSlotSize;
           break;
@@ -2358,16 +2400,16 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   // PASS 2: Pack all parameters (primitives and converted refs) into the buffer
   // and call the JS function.
   CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
-      reinterpret_cast<const wasm::CanonicalSig*>(sig)));
+      reinterpret_cast<const wasm::CanonicalSig*>(callsite_sig)));
   {
     // Packing the raw refs must not allocate; the only allocation in this
     // block is the JS call below, which re-enables GC via its own nested
     // {AllowHeapAllocation} scope.
     DisallowGarbageCollection no_gc;
     size_t ref_idx = 0;
-    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      switch (sig->GetParam(i).kind()) {
+    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(callsite_sig);
+    for (size_t i = 0; i < callsite_sig->parameter_count(); ++i) {
+      switch (callsite_sig->GetParam(i).kind()) {
         case kI32:
           packer.Push(
               base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(p)));
@@ -2403,7 +2445,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     current_thread_->StopExecutionTimer();
     {
       AllowHeapAllocation allow_gc;
-      CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), sig);
+      CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), callsite_sig);
     }
     current_thread_->StartExecutionTimer();
   }
@@ -2420,7 +2462,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   }
 
   // Process return values.
-  if (sig->return_count() > 0) {
+  if (callsite_sig->return_count() > 0) {
     packer.Reset();
 
     // PASS 1: Convert ref return values in a GC-rooted container.
@@ -2431,11 +2473,11 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     // packer into GC-rooted handles (no GC) before calling JSToWasmObject (GC
     // allowed).
     DirectHandleVector<Object> ref_returns(isolate_);
-    ref_returns.reserve(sig->return_count());
+    ref_returns.reserve(callsite_sig->return_count());
     {
       // Drain packer into ref_returns (outer DisallowHeapAllocation in effect).
-      for (size_t i = 0; i < sig->return_count(); i++) {
-        switch (sig->GetReturn(i).kind()) {
+      for (size_t i = 0; i < callsite_sig->return_count(); i++) {
+        switch (callsite_sig->GetReturn(i).kind()) {
           case kI32:
             packer.Pop<uint32_t>();
             break;
@@ -2468,18 +2510,37 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     {
       // Call JSToWasmObject on each GC-rooted ref (GC allowed).
       AllowHeapAllocation allow_gc;
+      CHECK(callee_canonical_sig == nullptr ||
+            callee_canonical_sig->return_count() ==
+                callsite_sig->return_count());
       size_t ref_idx = 0;
-      for (size_t i = 0; i < sig->return_count(); i++) {
-        if (sig->GetReturn(i).kind() != kRef &&
-            sig->GetReturn(i).kind() != kRefNull) {
+      for (size_t i = 0; i < callsite_sig->return_count(); i++) {
+        if (callsite_sig->GetReturn(i).kind() != kRef &&
+            callsite_sig->GetReturn(i).kind() != kRefNull) {
           continue;
         }
         DirectHandle<Object>& ref = ref_returns[ref_idx++];
-        if (sig->GetReturn(i).value_type_code() == wasm::kFuncRefCode &&
-            i::IsNull(*ref)) {
+
+        // Normalize JS null -> wasm_null for funcref returns (funcref uses
+        // wasm_null, not JS null).
+        bool is_funcref =
+            callee_canonical_sig
+                ? callee_canonical_sig->GetReturn(i).value_type_code() ==
+                      wasm::kFuncRefCode
+                : callsite_sig->GetReturn(i).value_type_code() ==
+                      wasm::kFuncRefCode;
+        if (is_funcref && i::IsNull(*ref)) {
           ref = isolate_->factory()->wasm_null();
         }
-        ref = JSToWasmObject(ref, sig->GetReturn(i));
+
+        // Coerce against the callee's declared type when available,
+        // otherwise fall back to the callsite type.
+        if (callee_canonical_sig) {
+          ref = JSToWasmObject(ref, callee_canonical_sig->GetReturn(i));
+        } else {
+          ref = JSToWasmObject(ref, callsite_sig->GetReturn(i));
+        }
+
         if (isolate_->has_exception()) {
           return ExternalCallResult::EXTERNAL_EXCEPTION;
         }
@@ -2495,8 +2556,8 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
       DisallowGarbageCollection no_gc;
       packer.Reset();
       size_t ref_idx = 0;
-      for (size_t i = 0; i < sig->return_count(); i++) {
-        switch (sig->GetReturn(i).kind()) {
+      for (size_t i = 0; i < callsite_sig->return_count(); i++) {
+        switch (callsite_sig->GetReturn(i).kind()) {
           case kI32:
             base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(sp),
                                                packer.Pop<uint32_t>());
@@ -2535,13 +2596,13 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   if (v8_flags.trace_drumbrake_execution && shadow_stack_ != nullptr) {
-    for (size_t i = 0; i < sig->parameter_count(); i++) {
+    for (size_t i = 0; i < callsite_sig->parameter_count(); i++) {
       TracePop();
     }
 
-    for (size_t i = 0; i < sig->return_count(); i++) {
+    for (size_t i = 0; i < callsite_sig->return_count(); i++) {
       return_slot_offset +=
-          TracePush(sig->GetReturn(i).kind(), return_slot_offset);
+          TracePush(callsite_sig->GetReturn(i).kind(), return_slot_offset);
     }
   }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
@@ -2795,6 +2856,25 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
   DirectHandle<Object> result;
   const char* error_message;
   if (wasm::JSToWasmObject(isolate_, module_, extern_ref, type, &error_message)
+          .ToHandle(&result)) {
+    return result;
+  }
+
+  {
+    // Only in case of exception it can allocate.
+    AllowHeapAllocation allow_gc;
+
+    Tagged<Object> error = isolate_->Throw(*isolate_->factory()->NewTypeError(
+        MessageTemplate::kWasmTrapJSTypeError));
+    return direct_handle(error, isolate_);
+  }
+}
+
+WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
+                                               CanonicalValueType type) const {
+  DirectHandle<Object> result;
+  const char* error_message;
+  if (wasm::JSToWasmObject(isolate_, extern_ref, type, &error_message)
           .ToHandle(&result)) {
     return result;
   }
