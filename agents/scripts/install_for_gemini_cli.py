@@ -85,7 +85,7 @@ for item in src_dir.iterdir():
 gemini_md_path = repo_root / "GEMINI.md"
 if not gemini_md_path.exists():
   with gemini_md_path.open("w") as f:
-    f.write("@agents/prompts/templates/modular.md\n")
+    f.write("@[Modular Rules](agents/prompts/templates/modular.md)\n")
   print(f"Created {gemini_md_path}")
 else:
   print(f"Skipping {gemini_md_path} creation since it already exists.")
