@@ -1123,46 +1123,77 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
         // into the {function_result_} vector and they will be retrieved via
         // {GetReturnValue}.
         function_result_.resize(return_count);
+
+        // PASS 1: Convert all ref results to JS objects in a GC-rooted
+        // container. WasmToJSObject() may allocate and trigger GC (e.g. when
+        // creating external JSFunction wrappers for fresh funcrefs). If
+        // V8_ENABLE_DIRECT_HANDLE is enabled, a DirectHandle stored in
+        // {function_result_} would be a raw Address; because {function_result_}
+        // lives on the malloc heap (not on the native stack and not registered
+        // with a StrongRootAllocator) it is not visited by conservative stack
+        // scanning, so GC would not update those addresses and a later
+        // WasmToJSObject() call could leave earlier entries stale. We therefore
+        // gather and convert all refs here, keeping them alive in a GC-rooted
+        // DirectHandleVector, and only copy them into {function_result_} in
+        // PASS 2 where no further allocation happens. Reading the refs via
+        // ExtractWasmRef() is safe to interleave with conversion because they
+        // are read from the GC-managed reference stack, which GC keeps updated.
+        DirectHandleVector<Object> ref_results(isolate_);
         for (size_t index = 0; index < return_count; index++) {
-          CanonicalValueType ret_value_type =
-              canonicalized_sig->GetReturn(index);
-          switch (ret_value_type.kind()) {
-            case kI32:
-              function_result_[index] =
-                  WasmValue(base::ReadUnalignedValue<int32_t>(
-                      reinterpret_cast<Address>(dst)));
-              dst += sizeof(uint32_t) / kSlotSize;
-              break;
-            case kI64:
-              function_result_[index] =
-                  WasmValue(base::ReadUnalignedValue<int64_t>(
-                      reinterpret_cast<Address>(dst)));
-              dst += sizeof(uint64_t) / kSlotSize;
-              break;
-            case kF32:
-              function_result_[index] =
-                  WasmValue(base::ReadUnalignedValue<float>(
-                      reinterpret_cast<Address>(dst)));
-              dst += sizeof(float) / kSlotSize;
-              break;
-            case kF64:
-              function_result_[index] =
-                  WasmValue(base::ReadUnalignedValue<double>(
-                      reinterpret_cast<Address>(dst)));
-              dst += sizeof(double) / kSlotSize;
-              break;
-            case kRef:
-            case kRefNull: {
-              DirectHandle<Object> ref =
-                  ExtractWasmRef(ref_result_slot_index++);
-              ref = WasmToJSObject(ref);
-              function_result_[index] = WasmValue(ref, ret_value_type);
-              dst += sizeof(WasmRef) / kSlotSize;
-              break;
+          ValueKind kind = canonicalized_sig->GetReturn(index).kind();
+          if (kind == kRef || kind == kRefNull) {
+            DirectHandle<Object> ref = ExtractWasmRef(ref_result_slot_index++);
+            ref_results.push_back(WasmToJSObject(ref));
+          }
+        }
+
+        // PASS 2: Store all results into {function_result_}. No allocation
+        // happens here, so the raw DirectHandle values copied from
+        // {ref_results} remain valid until they are consumed by
+        // {GetReturnValue}. The scope below enforces that invariant: it
+        // DCHECK-fails if anyone later introduces an allocating call here.
+        {
+          DisallowGarbageCollection no_gc;
+          size_t ref_index = 0;
+          for (size_t index = 0; index < return_count; index++) {
+            CanonicalValueType ret_value_type =
+                canonicalized_sig->GetReturn(index);
+            switch (ret_value_type.kind()) {
+              case kI32:
+                function_result_[index] =
+                    WasmValue(base::ReadUnalignedValue<int32_t>(
+                        reinterpret_cast<Address>(dst)));
+                dst += sizeof(uint32_t) / kSlotSize;
+                break;
+              case kI64:
+                function_result_[index] =
+                    WasmValue(base::ReadUnalignedValue<int64_t>(
+                        reinterpret_cast<Address>(dst)));
+                dst += sizeof(uint64_t) / kSlotSize;
+                break;
+              case kF32:
+                function_result_[index] =
+                    WasmValue(base::ReadUnalignedValue<float>(
+                        reinterpret_cast<Address>(dst)));
+                dst += sizeof(float) / kSlotSize;
+                break;
+              case kF64:
+                function_result_[index] =
+                    WasmValue(base::ReadUnalignedValue<double>(
+                        reinterpret_cast<Address>(dst)));
+                dst += sizeof(double) / kSlotSize;
+                break;
+              case kRef:
+              case kRefNull: {
+                function_result_[index] =
+                    WasmValue(ref_results[ref_index++], ret_value_type);
+                dst += sizeof(WasmRef) / kSlotSize;
+                break;
+              }
+              case kS128:
+              default:
+                UNREACHABLE();
             }
-            case kS128:
-            default:
-              UNREACHABLE();
           }
         }
       } else {
@@ -2329,6 +2360,10 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
       reinterpret_cast<const wasm::CanonicalSig*>(sig)));
   {
+    // Packing the raw refs must not allocate; the only allocation in this
+    // block is the JS call below, which re-enables GC via its own nested
+    // {AllowHeapAllocation} scope.
+    DisallowGarbageCollection no_gc;
     size_t ref_idx = 0;
     uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
@@ -2455,6 +2490,9 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     // Refs come from the rooted ref_returns container, primitives are read
     // from re-scanning the packer buffer in the same order as PASS 1.
     {
+      // No allocation may happen while we copy the raw refs out of the rooted
+      // {ref_returns} container onto the wasm stack.
+      DisallowGarbageCollection no_gc;
       packer.Reset();
       size_t ref_idx = 0;
       for (size_t i = 0; i < sig->return_count(); i++) {
