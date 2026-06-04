@@ -94,6 +94,9 @@ class RiscvOperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
+      if (constant->IsRelocatable()) {
+        return UseRegister(node);
+      }
       if ((constant->IsIntegral() && constant->integral() == 0) ||
           (constant->kind == ConstantOp::Kind::kFloat32 &&
            constant->float32().get_bits() == 0) ||
