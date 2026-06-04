@@ -13366,26 +13366,24 @@ TNode<Boolean> CodeStubAssembler::HasInPrototypeChain(TNode<Context> context,
   return var_result.value();
 }
 
+// https://tc39.es/ecma262/#sec-ordinaryhasinstance
 TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     TNode<Context> context, TNode<Object> callable_maybe_smi,
     TNode<Object> object_maybe_smi) {
   TVARIABLE(Boolean, var_result);
   TVARIABLE(JSAny, var_non_instance_prototype);
-  Label return_runtime(this, Label::kDeferred), return_result(this);
+  Label return_runtime(this, Label::kDeferred), return_false(this),
+      return_result(this);
   Label if_non_instance_prototype(this, {&var_non_instance_prototype},
                                   Label::kDeferred);
 
   GotoIfForceSlowPath(&return_runtime);
 
-  // Goto runtime if {object} is a Smi.
-  GotoIf(TaggedIsSmi(object_maybe_smi), &return_runtime);
-
   // Goto runtime if {callable} is a Smi.
-  GotoIf(TaggedIsSmi(callable_maybe_smi), &return_runtime);
+  GotoIf(TaggedIsSmi(callable_maybe_smi), &return_false);
 
   {
     // Load map of {callable}.
-    TNode<HeapObject> object = CAST(object_maybe_smi);
     TNode<HeapObject> callable = CAST(callable_maybe_smi);
     TNode<Map> callable_map = LoadMap(callable);
 
@@ -13393,6 +13391,12 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     // check already implies GotoIfPrototypeRequiresRuntimeLookup and makes
     // the latter redundant.
     GotoIfNot(IsJSFunctionWithPrototypeMap(callable_map), &return_runtime);
+
+    // If {object} is not a JSReceiver return false.
+    GotoIf(TaggedIsSmi(object_maybe_smi), &return_false);
+    TNode<HeapObject> object = CAST(object_maybe_smi);
+    GotoIf(JSAnyIsPrimitive(object), &return_false);
+    CSA_DCHECK(this, IsJSReceiver(object));
 
     // Throw TypeError in case of non-instance prototype.
     TNode<JSReceiver> callable_prototype = CAST(LoadJSFunctionPrototype(
@@ -13415,6 +13419,12 @@ TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     // Fallback to the runtime implementation.
     var_result = CAST(CallRuntime(Runtime::kOrdinaryHasInstance, context,
                                   callable_maybe_smi, object_maybe_smi));
+    Goto(&return_result);
+  }
+
+  BIND(&return_false);
+  {
+    var_result = FalseConstant();
     Goto(&return_result);
   }
 
