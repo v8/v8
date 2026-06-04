@@ -2077,6 +2077,34 @@ void MacroAssembler::MultiPopLSX(DoubleRegList regs) {
   addi_d(sp, sp, stack_offset);
 }
 
+// This function stores the 64-bit scalar data into the lower half of the
+// stack slot and steps the stack pointer by a "wide stride" of 16 bytes
+// per register, leaving the remaining 64 bits of each slot uninitialized.
+void MacroAssembler::MultiPushFPUWideStride(DoubleRegList regs) {
+  int16_t num_to_push = regs.Count();
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  Sub_d(sp, sp, Operand(stack_offset));
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      stack_offset -= kSimd128Size;
+      Fst_d(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+void MacroAssembler::MultiPopFPUWideStride(DoubleRegList regs) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      Fld_d(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kSimd128Size;
+    }
+  }
+  Add_d(sp, sp, Operand(stack_offset));
+}
+
 void MacroAssembler::Bstrpick_w(Register rk, Register rj, uint16_t msbw,
                                 uint16_t lsbw) {
   DCHECK_LT(lsbw, msbw);

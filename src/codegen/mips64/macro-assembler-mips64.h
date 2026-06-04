@@ -420,6 +420,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPush(RegList regs);
   void MultiPushFPU(DoubleRegList regs);
   void MultiPushMSA(DoubleRegList regs);
+  void MultiPushFPUWideStride(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -477,6 +478,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPop(RegList regs);
   void MultiPopFPU(DoubleRegList regs);
   void MultiPopMSA(DoubleRegList regs);
+  void MultiPopFPUWideStride(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \

@@ -2126,6 +2126,34 @@ void MacroAssembler::MultiPopMSA(DoubleRegList regs) {
   daddiu(sp, sp, stack_offset);
 }
 
+// This function stores the 64-bit scalar data into the lower half of the
+// stack slot and steps the stack pointer by a "wide stride" of 16 bytes
+// per register, leaving the remaining 64 bits of each slot uninitialized.
+void MacroAssembler::MultiPushFPUWideStride(DoubleRegList regs) {
+  int16_t num_to_push = regs.Count();
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  Dsubu(sp, sp, Operand(stack_offset));
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      stack_offset -= kSimd128Size;
+      Sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+    }
+  }
+}
+
+void MacroAssembler::MultiPopFPUWideStride(DoubleRegList regs) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < kNumRegisters; i++) {
+    if ((regs.bits() & (1 << i)) != 0) {
+      Ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      stack_offset += kSimd128Size;
+    }
+  }
+  daddiu(sp, sp, stack_offset);
+}
+
 void MacroAssembler::Ext(Register rt, Register rs, uint16_t pos,
                          uint16_t size) {
   DCHECK_LT(pos, 32);
