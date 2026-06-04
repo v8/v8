@@ -195,6 +195,14 @@ struct MemoryAddress {
   uint8_t element_size_log2;
   MemoryRepresentation representation;
 
+  MemoryAddress(OpIndex base, OptionalOpIndex index, int32_t offset,
+                uint8_t element_size_log2, MemoryRepresentation representation)
+      : base(base),
+        index(index),
+        offset(offset),
+        element_size_log2(element_size_log2),
+        representation(Canonicalize(representation)) {}
+
   bool operator==(const MemoryAddress& other) const {
     return base == other.base && index == other.index &&
            offset == other.offset &&
@@ -206,6 +214,23 @@ struct MemoryAddress {
   friend H AbslHashValue(H h, const MemoryAddress& mem) {
     return H::combine(std::move(h), mem.base, mem.index, mem.offset,
                       mem.element_size_log2, mem.representation.value());
+  }
+
+ private:
+  // We want to be able to eliminate loads with different tagged/compressed
+  // representations. Therefore we canonicalize the representation before
+  // creating a MemoryAddress.
+  static MemoryRepresentation Canonicalize(MemoryRepresentation repr) {
+    switch (repr) {
+      case MemoryRepresentation::TaggedSigned():
+      case MemoryRepresentation::TaggedPointer():
+        return MemoryRepresentation::AnyTagged();
+      case MemoryRepresentation::UncompressedTaggedSigned():
+      case MemoryRepresentation::UncompressedTaggedPointer():
+        return MemoryRepresentation::AnyUncompressedTagged();
+      default:
+        return repr;
+    }
   }
 };
 std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
@@ -462,7 +487,7 @@ class MemoryContentTable
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
 
-    MemoryAddress mem{base, index, offset, element_size_log2, load.loaded_rep};
+    MemoryAddress mem(base, index, offset, element_size_log2, load.loaded_rep);
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
@@ -503,8 +528,8 @@ class MemoryContentTable
     int32_t offset = load.offset;
     constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
 
-    MemoryAddress mem{base, OpIndex::Invalid(), offset, kElementSizeLog2,
-                      MemoryRepresentation::TrustedPointer()};
+    MemoryAddress mem(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+                      MemoryRepresentation::TrustedPointer());
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
@@ -575,7 +600,7 @@ class MemoryContentTable
               OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
-    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    MemoryAddress mem(base, index, offset, element_size_log2, representation);
     TRACE("> MemoryContentTable: will insert " << mem
                                                << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
@@ -605,7 +630,7 @@ class MemoryContentTable
                        MemoryRepresentation representation, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
-    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    MemoryAddress mem(base, index, offset, element_size_log2, representation);
     TRACE("> MemoryContentTable: will insert immutable "
           << mem << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
