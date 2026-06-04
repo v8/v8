@@ -33,31 +33,35 @@ class Loong64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  bool IsImmediateZero(OpIndex node) {
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if (constant->IsRelocatable()) return false;
+      if (constant->IsIntegral()) {
+        return constant->integral() == 0;
+      }
+      if (constant->kind == ConstantOp::Kind::kFloat32) {
+        return constant->float32().get_bits() == 0;
+      }
+      if (constant->kind == ConstantOp::Kind::kFloat64) {
+        return constant->float64().get_bits() == 0;
+      }
+    }
+    return false;
+  }
+
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
-    if (const ConstantOp* constant =
-            selector()->Get(node).TryCast<ConstantOp>()) {
-      if ((constant->IsIntegral() && constant->integral() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat32 &&
-           constant->float32().get_bits() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat64 &&
-           constant->float64().get_bits() == 0))
-        return UseImmediate(node);
+    if (IsImmediateZero(node)) {
+      return UseImmediate(node);
     }
     return UseRegister(node);
   }
 
   InstructionOperand UseRegisterAtEndOrImmediateZero(OpIndex node) {
-    if (const ConstantOp* constant =
-            selector()->Get(node).TryCast<ConstantOp>()) {
-      if ((constant->IsIntegral() && constant->integral() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat32 &&
-           constant->float32().get_bits() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat64 &&
-           constant->float64().get_bits() == 0)) {
-        return UseImmediate(node);
-      }
+    if (IsImmediateZero(node)) {
+      return UseImmediate(node);
     }
     return UseRegisterAtEnd(node);
   }

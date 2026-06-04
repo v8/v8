@@ -37,12 +37,14 @@ class Mips64OperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
     if (const ConstantOp* constant =
             selector()->Get(node).TryCast<ConstantOp>()) {
-      if ((constant->IsIntegral() && constant->integral() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat32 &&
-           constant->float32().get_bits() == 0) ||
-          (constant->kind == ConstantOp::Kind::kFloat64 &&
-           constant->float64().get_bits() == 0)) {
-        return UseImmediate(node);
+      if (!constant->IsRelocatable()) {
+        if ((constant->IsIntegral() && constant->integral() == 0) ||
+            (constant->kind == ConstantOp::Kind::kFloat32 &&
+             constant->float32().get_bits() == 0) ||
+            (constant->kind == ConstantOp::Kind::kFloat64 &&
+             constant->float64().get_bits() == 0)) {
+          return UseImmediate(node);
+        }
       }
     }
     return UseRegister(node);
