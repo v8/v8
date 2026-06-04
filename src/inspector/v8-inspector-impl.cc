@@ -293,11 +293,15 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
 
   DCHECK(contextById->find(contextId) == contextById->cend());
   (*contextById)[contextId].reset(context);
-  forEachSession(
-      info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
-        session->runtimeAgent()->addBindings(context);
-        session->runtimeAgent()->reportExecutionContextCreated(context);
-      });
+  int contextGroupId = info.contextGroupId;
+  std::shared_ptr<InspectedContext> contextRef = (*contextById)[contextId];
+  forEachSession(contextGroupId, [this, contextGroupId, contextId,
+                                  contextRef](V8InspectorSessionImpl* session) {
+    if (!getContext(contextGroupId, contextId)) return;
+    session->runtimeAgent()->addBindings(contextRef.get());
+    if (!getContext(contextGroupId, contextId)) return;
+    session->runtimeAgent()->reportExecutionContextCreated(contextRef.get());
+  });
 }
 
 void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
