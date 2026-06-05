@@ -564,6 +564,7 @@ base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
 std::atomic<int> Shell::unhandled_promise_rejections_{0};
+bool Shell::fuzzilli_reprl_failed_ = false;
 
 #if V8_ENABLE_WEBASSEMBLY
 base::LazyMutex Shell::wasm_serialized_bytes_mutex_;
@@ -6079,10 +6080,12 @@ bool SourceGroup::Execute(Isolate* isolate) {
       Shell::set_script_executed();
       if (!Shell::ExecuteSource(isolate, Shell::Source::FromString(source),
                                 file_name, Shell::kReportExceptions)) {
-        return false;
+        Shell::fuzzilli_reprl_failed_ = true;
+        return true;
       }
     } else if (!success) {
-      return false;  // Bundle execution failed
+      Shell::fuzzilli_reprl_failed_ = true;
+      return true;  // Bundle execution failed
     }
   }
 #endif  // V8_FUZZILLI
@@ -8093,6 +8096,10 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // V8_DUMPLING
 
 #ifdef V8_FUZZILLI
+      if (Shell::fuzzilli_reprl_failed_) {
+        result = 1;
+        Shell::fuzzilli_reprl_failed_ = false;
+      }
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
