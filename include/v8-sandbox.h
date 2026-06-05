@@ -29,6 +29,8 @@ enum class CppHeapPointerTag : uint16_t {
   kFirstTag = 0,
   kNullTag = 0,
 
+  kFirstObjectWrappableTag = 1,
+
   /**
    * The lower type ids are reserved for the embedder to assign. For that, the
    * main requirement is that all (transitive) child classes of a given parent
@@ -53,13 +55,14 @@ enum class CppHeapPointerTag : uint16_t {
    * SUB with a single AND).
    */
 
-  kDefaultTag = 0x7000,
-
-  kFirstV8InternalTag = 0x7f00,
+  kFirstV8InternalTag = 0x6000,
   // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
   kInspectorV8ConsoleTag,
   kInspectorTaskInfoTag,
   kLastV8InternalTag,
+  kLastObjectWrappableTag = kLastV8InternalTag,
+
+  kDefaultTag = 0x7000,
 
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
@@ -75,6 +78,19 @@ using CppHeapPointerTagRange = internal::TagRange<CppHeapPointerTag>;
 
 constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
     CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kZappedEntryTag);
+
+// All tags that are used with v8::Object::Wrappable have to be within this
+// tag range.
+constexpr CppHeapPointerTagRange kObjectWrappableTagRange(
+    CppHeapPointerTag::kFirstObjectWrappableTag,
+    CppHeapPointerTag::kLastObjectWrappableTag);
+
+constexpr CppHeapPointerTagRange kV8InternalTagRange(
+    CppHeapPointerTag::kFirstV8InternalTag,
+    CppHeapPointerTag::kLastV8InternalTag);
+
+static_assert(kObjectWrappableTagRange.Contains(kV8InternalTagRange),
+              "V8Internal tag range must be within kObjectWrappableTagRange");
 
 /**
  * Hardware support for the V8 Sandbox.
