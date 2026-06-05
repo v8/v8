@@ -1053,10 +1053,11 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 
   if (old_untagging->Is<CheckedSmiUntag>() && SmiValuesAre31Bits()) {
-    // Similar to CheckSmi, the CheckedSmiUntag **must** fail if the Phi has a
-    // non-Smi type, so the Phi's type must include Smi (cf comment in
-    // UpdateNodePhiInput(CheckSmi)).
-    CHECK(NodeTypeCanBe(phi->type(), NodeType::kSmi));
+    if (!NodeTypeCanBe(phi->type(), NodeType::kSmi)) {
+      // Similar to CheckSmi, the CheckedSmiUntag **must** fail if the Phi has a
+      // non-Smi type (cf comment in UpdateNodePhiInput(CheckSmi)).
+      return EmitUnconditionalDeopt(old_untagging, DeoptimizeReason::kNotASmi);
+    }
 
     // CheckedSmiUntag serves a dual-purpose: it untags a Smi but it also
     // ensures that this value is a Smi (and is therefore in Smi range). We need
@@ -1180,17 +1181,18 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     return ProcessResult::kContinue;
   }
 
-  // The retagging rule is that Phis whose type cannot be Smi are always
-  // retagged to HeapNumber, and every other Phi is retagged to Number with
-  // CanonicalizeSmi=true. So, if we somehow end up with a Phi with non-smi type
-  // flowing into a CheckSmi, the CheckSmi **must** fail, even if the value of
-  // the Phi is representable on a Smi. I don't think that this should happen,
-  // because the graph builder should have replaced such CheckSmi by
-  // unconditional deopts. Still, with non-eager inlining, it's hard to tell.
-  // The CHECK below is to make sure that things remain safe if we end up with
-  // such a CheckSmi. If this CHECK were to fail for a legit reason, then we
-  // should overwrite the CheckSmi into an unconditional deopt.
-  CHECK(NodeTypeCanBe(phi->type(), NodeType::kSmi));
+  if (!NodeTypeCanBe(phi->type(), NodeType::kSmi)) {
+    // The retagging rule is that Phis whose type cannot be Smi are always
+    // retagged to HeapNumber, and every other Phi is retagged to Number with
+    // CanonicalizeSmi=true. So, if we somehow end up with a Phi with non-smi
+    // type flowing into a CheckSmi, the CheckSmi **must** fail, even if the
+    // value of the Phi is representable on a Smi. This should only happen if
+    // non-eager optimizations earlier lead to a type-any value initially
+    // flowing into the CheckSmi but then subsequent optimizations revealed that
+    // the input had non-Smi type but didn't replace the CheckSmi by an
+    // unconditional deopt.
+    return EmitUnconditionalDeopt(node, DeoptimizeReason::kNotASmi);
+  }
 
   switch (phi->value_representation()) {
     case ValueRepresentation::kInt32:
@@ -1658,6 +1660,18 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
   };
 
   phi_taggings_.StartNewSnapshot(base::VectorOf(predecessors_), merge_taggings);
+}
+
+ProcessResult MaglevPhiRepresentationSelector::EmitUnconditionalDeopt(
+    NodeBase* node, DeoptimizeReason reason) {
+  eager_deopt_frame_ = &node->eager_deopt_info()->top_frame();
+  BasicBlock* block = reducer_.current_block();
+  ControlNode* control = block->reset_control_node();
+  block->set_deferred(true);
+  block->RemovePredecessorFollowing(control);
+  ReduceResult result = reducer_.AddNewControlNode<Deopt>({}, reason);
+  CHECK(!result.IsDoneWithAbort());
+  return ProcessResult::kTruncateBlock;
 }
 
 bool MaglevPhiRepresentationSelector::ShouldSkipUntagging(Phi* phi) {

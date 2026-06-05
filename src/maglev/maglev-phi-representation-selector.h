@@ -219,8 +219,8 @@ class MaglevPhiRepresentationSelector {
         // we need to retag it (with some additional checks/changes for some
         // nodes, cf the overload of UpdateNodePhiInput).
         ProcessResult result = UpdateNodePhiInput(node, phi, i, state);
-        if (V8_UNLIKELY(result == ProcessResult::kRemove)) {
-          return ProcessResult::kRemove;
+        if (V8_UNLIKELY(result != ProcessResult::kContinue)) {
+          return result;
         }
       }
     }
@@ -256,6 +256,8 @@ class MaglevPhiRepresentationSelector {
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
   ProcessResult UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
+
+  ProcessResult EmitUnconditionalDeopt(NodeBase* node, DeoptimizeReason reason);
 
   // Returns a tagged node that represents a tagged version of {phi}.
   // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,
