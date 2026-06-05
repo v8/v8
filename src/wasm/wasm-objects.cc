@@ -1893,6 +1893,8 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     int function_index, wasm::PrecreateExternal precreate_external) {
+  SBXCHECK_BOUNDS(function_index,
+                  trusted_instance_data->module()->functions.size());
   SharedFlag shared =
       SharedFlag(HeapLayout::InAnySharedSpace(*trusted_instance_data));
   Tagged<WasmFuncRef> existing_func_ref;
