@@ -24,6 +24,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-tracer.h"
+#include "src/objects/js-objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -743,6 +744,7 @@ class MaglevReducer {
       compiler::FeedbackSource feedback_source);
 
   ReduceResult BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildCheckSmi(ValueNode* object);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -970,6 +972,14 @@ class MaglevReducer {
   V(DataViewPrototypeSetInt16)    \
   V(DataViewPrototypeSetInt32)    \
   V(DataViewPrototypeSetInt8)     \
+  V(DatePrototypeGetDate)         \
+  V(DatePrototypeGetDay)          \
+  V(DatePrototypeGetFullYear)     \
+  V(DatePrototypeGetHours)        \
+  V(DatePrototypeGetMinutes)      \
+  V(DatePrototypeGetMonth)        \
+  V(DatePrototypeGetSeconds)      \
+  V(DatePrototypeGetTime)         \
   V(MathAbs)                      \
   V(MathCeil)                     \
   V(MathClz32)                    \
@@ -989,6 +999,13 @@ class MaglevReducer {
                                     CallArguments& args);
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
+
+  // Returns kDoneWithoutPayload if checks passed successfully.
+  MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
+      compiler::JSFunctionRef target, CallArguments& args);
+  MaybeReduceResult TryReduceDatePrototypeGetField(
+      compiler::JSFunctionRef target, CallArguments& args,
+      JSDate::FieldIndex field);
 
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);

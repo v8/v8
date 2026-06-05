@@ -857,13 +857,6 @@ class MaglevGraphBuilder {
   GetArgumentsAsArrayOfValueNodes(compiler::SharedFunctionInfoRef shared,
                                   const CallArguments& args);
 
-  // Returns kDoneWithoutPayload if checks passed successfully.
-  MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
-      compiler::JSFunctionRef target, CallArguments& args);
-  MaybeReduceResult TryReduceDatePrototypeGetField(
-      compiler::JSFunctionRef target, CallArguments& args,
-      JSDate::FieldIndex field);
-
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 #define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
   V(GetContinuationPreservedEmbedderData)            \
@@ -891,14 +884,6 @@ class MaglevGraphBuilder {
   V(ArrayPrototypeSort)                          \
   V(BooleanConstructor)                          \
   V(DataViewPrototypeGetByteLength)              \
-  V(DatePrototypeGetFullYear)                    \
-  V(DatePrototypeGetMonth)                       \
-  V(DatePrototypeGetDate)                        \
-  V(DatePrototypeGetDay)                         \
-  V(DatePrototypeGetHours)                       \
-  V(DatePrototypeGetMinutes)                     \
-  V(DatePrototypeGetSeconds)                     \
-  V(DatePrototypeGetTime)                        \
   V(FunctionPrototypeApply)                      \
   V(FunctionPrototypeCall)                       \
   V(FunctionPrototypeHasInstance)                \

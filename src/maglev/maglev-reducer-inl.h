@@ -2035,6 +2035,54 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOfWithFeedback(
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckSmi(ValueNode* object) {
+  if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kSmi))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
+  }
+  if (EnsureType(object, NodeType::kSmi)) return object;
+  // For non-tagged constants, we may be able to skip the runtime check: every
+  // non-tagged arm of the switch below emits a value-range check, which is
+  // exactly what `Smi::IsValid` proves. For tagged inputs the runtime check
+  // (CheckSmi) is a tag-bit check, and value-equivalence (e.g. via the
+  // checked_value alternative, which may hold a HeapNumber constant) does not
+  // imply Smi tagging.
+  if (object->value_representation() != ValueRepresentation::kTagged) {
+    if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
+      if (Smi::IsValid(constant_value.value())) return object;
+    }
+  }
+  switch (object->value_representation()) {
+    case ValueRepresentation::kInt32:
+      if (!SmiValuesAre32Bits()) {
+        AddNewNodeNoInputConversion<CheckInt32IsSmi>({object});
+      }
+      break;
+    case ValueRepresentation::kUint32:
+      AddNewNodeNoInputConversion<CheckUint32IsSmi>({object});
+      break;
+    case ValueRepresentation::kFloat64:
+      AddNewNodeNoInputConversion<CheckFloat64IsSmi>({object});
+      break;
+    case ValueRepresentation::kHoleyFloat64:
+      AddNewNodeNoInputConversion<CheckHoleyFloat64IsSmi>({object});
+      break;
+    case ValueRepresentation::kTagged:
+      AddNewNodeNoInputConversion<CheckSmi>({object});
+      break;
+    case ValueRepresentation::kIntPtr:
+      AddNewNodeNoInputConversion<CheckIntPtrIsSmi>({object});
+      break;
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  return object;
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
@@ -3803,6 +3851,122 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
   }
 IEEE_754_BINARY_LIST(MATH_BINARY_IEEE_BUILTIN_REDUCER)
 #undef MATH_BINARY_IEEE_BUILTIN_REDUCER
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetFieldPrologue(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!v8_flags.maglev_inline_date_accessors) return {};
+  if (!CanSpeculateCall()) return {};
+
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    return {};
+  }
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  MapInference<MaglevReducer<BaseT>> inference(this, receiver);
+  auto possible_receiver_maps = inference.TryGetPossibleMaps();
+  if (!possible_receiver_maps) {
+    return {};
+  }
+
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_receiver_maps->is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return ReduceResult::DoneWithAbort();
+  }
+
+  // Don't optimize if any of the known maps is something else than a Date map.
+  for (compiler::MapRef map : *possible_receiver_maps) {
+    if (map.instance_type() != JS_DATE_TYPE) {
+      return {};
+    }
+  }
+
+  if (!broker()
+           ->dependencies()
+           ->DependOnNoDateTimeConfigurationChangeProtector()) {
+    return {};
+  }
+
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+
+  return ReduceResult::Done();
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetField(
+    compiler::JSFunctionRef target, CallArguments& args,
+    JSDate::FieldIndex field_index) {
+  DCHECK_LT(field_index, JSDate::kFirstUncachedField);
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutPayload()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
+  int field_offset = offsetof(JSDate, year_) + field_index * kTaggedSize;
+  ValueNode* field_value;
+  GET_VALUE_OR_ABORT(field_value, BuildLoadTaggedField(receiver, field_offset));
+  // All cached JSDate fields are Smi|NaN.
+  RETURN_IF_ABORT(BuildCheckSmi(field_value));
+  // TODO(jgruber): Presumably NaN time values are rare, so we simply deopt when
+  // encountering such an object. Alternatively, to avoid the deopt we could
+  // fall back to Number: EnsureType(field_value, NodeType::kNumber);
+  return field_value;
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetTime(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  auto prologue_result = TryReduceDatePrototypeGetFieldPrologue(target, args);
+  if (!prologue_result.IsDoneWithoutPayload()) return prologue_result;
+
+  ValueNode* receiver = args.receiver();
+  DCHECK_NOT_NULL(receiver);
+  return AddNewNode<LoadFloat64>({receiver},
+                                 static_cast<int>(offsetof(JSDate, value_)));
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetFullYear(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kYear);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetMonth(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kMonth);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetDate(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kDay);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetDay(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kWeekday);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetHours(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kHour);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetMinutes(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kMinute);
+}
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetSeconds(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return TryReduceDatePrototypeGetField(target, args, JSDate::kSecond);
+}
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
