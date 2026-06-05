@@ -161,8 +161,8 @@ void Module::Reset(Isolate* isolate, DirectHandle<Module> module) {
   // The namespace object cannot exist, because it would have been created
   // by RunInitializationCode, which is called only after this module's SCC
   // succeeds instantiation.
-  DCHECK(!IsJSModuleNamespace(module->module_namespace()) &&
-         !IsJSModuleNamespace(module->deferred_module_namespace()));
+  DCHECK(IsUndefined(module->module_namespace()) &&
+         IsUndefined(module->deferred_module_namespace()));
   const uint32_t export_count =
       IsSourceTextModule(*module)
           ? Cast<SourceTextModule>(*module)

@@ -1216,7 +1216,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             exports->FindEntry(roots, lookup->name(),
                                Smi::ToInt(Object::GetHash(*lookup->name())));
         // We found the accessor, so the entry must exist.
-        DCHECK(entry.is_found());
+        CHECK(entry.is_found());
         int value_index = ObjectHashTable::EntryToValueIndex(entry);
         Handle<Smi> smi_handler =
             LoadHandler::LoadModuleExport(isolate(), value_index);
