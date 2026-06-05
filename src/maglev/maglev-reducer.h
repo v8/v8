@@ -927,9 +927,6 @@ class MaglevReducer {
                      current_speculation_mode_) != supported_modes.end();
   }
 
-  // TODO(victorgomes): These builtins have been ported to MaglevReducer; port
-  // the rest and merge this list with MAGLEV_REDUCED_BUILTIN in
-  // maglev-graph-builder.h.
 #define MAGLEV_REDUCER_BUILTIN(V) \
   V(DataViewPrototypeGetFloat64)  \
   V(DataViewPrototypeGetInt16)    \

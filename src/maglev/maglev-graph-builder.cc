@@ -9838,39 +9838,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
   return BuildLoadJSDataViewByteLength(receiver);
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt8(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeGetInt8(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt8(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeSetInt8(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt16(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeGetInt16(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt16(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeSetInt16(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt32(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeGetInt32(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt32(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeSetInt32(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeGetFloat64(target, args);
-}
-MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceDataViewPrototypeSetFloat64(target, args);
-}
-
 namespace {
 bool AllOfInstanceTypesUnsafe(const PossibleMaps& maps,
                               std::function<bool(InstanceType)> f) {
@@ -11315,11 +11282,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceReflectApply(
                                  current_speculation_feedback());
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathRound(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathRound(target, args);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
@@ -11365,36 +11327,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
   UNREACHABLE();
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathAbs(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathFloor(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathFloor(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathCeil(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathCeil(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathMin(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathMax(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathImul(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathImul(target, args);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceConstructArrayConstructor(target, GetConstant(target), args);
@@ -11409,11 +11341,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBooleanConstructor(
   return reducer_.BuildToBoolean(args[0]);
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathClz32(target, args);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() == 0) {
@@ -11421,31 +11348,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
   }
 
   return BuildToString(args[0], ToString::kConvertSymbol);
-}
-
-#define MATH_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName) \
-  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(   \
-      compiler::JSFunctionRef target, CallArguments& args) {   \
-    return reducer_.TryReduce##MathName(target, args);         \
-  }
-IEEE_754_UNARY_LIST(MATH_IEEE_BUILTIN_REDUCER)
-IEEE_754_BINARY_LIST(MATH_IEEE_BUILTIN_REDUCER)
-#undef MATH_IEEE_BUILTIN_REDUCER
-
-// TODO(victorgomes): Eventually we should remove this function altogether.
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathSqrt(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathFround(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathFround(target, args);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceMathTrunc(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  return reducer_.TryReduceMathTrunc(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
@@ -11459,11 +11361,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
   SaveCallSpeculationScope speculate(this, feedback_source);
   if (!shared.HasBuiltinId()) return {};
   TRACE("  ! Trying to reduce builtin " << Builtins::name(shared.builtin_id()));
+  // First try the builtins that have been migrated to MaglevReducer.
+  RETURN_IF_DONE(reducer_.TryReduceBuiltin(shared.builtin_id(), target, args,
+                                           feedback_source));
+  // Then fall back to the builtins that are only reduced in the graph builder.
   switch (shared.builtin_id()) {
 #define CASE(Name, ...)  \
   case Builtin::k##Name: \
     return TryReduce##Name(target, args);
-    MAGLEV_REDUCED_BUILTIN(CASE)
+    MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(CASE)
 #undef CASE
     default:
       // TODO(v8:7700): Inline more builtins.

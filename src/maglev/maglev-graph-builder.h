@@ -872,89 +872,72 @@ class MaglevGraphBuilder {
 #define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-#define MAGLEV_REDUCED_BUILTIN(V)              \
-  V(ArrayConstructor)                          \
-  V(ArrayForEach)                              \
-  V(ArrayIsArray)                              \
-  V(ArrayIteratorPrototypeNext)                \
-  V(ArrayMap)                                  \
-  V(ArrayPrototypeAt)                          \
-  V(ArrayPrototypeEntries)                     \
-  V(ArrayPrototypeSlice)                       \
-  V(ArrayPrototypeKeys)                        \
-  V(ArrayPrototypeValues)                      \
-  V(ArrayPrototypePush)                        \
-  V(ArrayPrototypePop)                         \
-  V(ArrayPrototypeSort)                        \
-  V(BooleanConstructor)                        \
-  V(DataViewPrototypeGetByteLength)            \
-  V(DataViewPrototypeGetInt8)                  \
-  V(DataViewPrototypeSetInt8)                  \
-  V(DataViewPrototypeGetInt16)                 \
-  V(DataViewPrototypeSetInt16)                 \
-  V(DataViewPrototypeGetInt32)                 \
-  V(DataViewPrototypeSetInt32)                 \
-  V(DataViewPrototypeGetFloat64)               \
-  V(DataViewPrototypeSetFloat64)               \
-  V(DatePrototypeGetFullYear)                  \
-  V(DatePrototypeGetMonth)                     \
-  V(DatePrototypeGetDate)                      \
-  V(DatePrototypeGetDay)                       \
-  V(DatePrototypeGetHours)                     \
-  V(DatePrototypeGetMinutes)                   \
-  V(DatePrototypeGetSeconds)                   \
-  V(DatePrototypeGetTime)                      \
-  V(FunctionPrototypeApply)                    \
-  V(FunctionPrototypeCall)                     \
-  V(FunctionPrototypeHasInstance)              \
-  V(MapPrototypeGet)                           \
-  V(WeakMapPrototypeGet)                       \
-  V(ObjectPrototypeGetProto)                   \
-  V(ObjectGetPrototypeOf)                      \
-  V(ReflectGet)                                \
-  V(ReflectGetPrototypeOf)                     \
-  V(ReflectHas)                                \
-  V(ReflectApply)                              \
-  V(ObjectPrototypeHasOwnProperty)             \
-  V(NumberParseInt)                            \
-  V(MathCeil)                                  \
-  V(MathFloor)                                 \
-  V(MathAbs)                                   \
-  V(MathRound)                                 \
-  V(MathSqrt)                                  \
-  V(MathClz32)                                 \
-  V(MathMin)                                   \
-  V(MathMax)                                   \
-  V(MathImul)                                  \
-  V(MathFround)                                \
-  V(MathTrunc)                                 \
-  V(SetPrototypeHas)                           \
-  V(StringConstructor)                         \
-  V(StringFromCharCode)                        \
-  V(StringPrototypeCharAt)                     \
-  V(StringPrototypeCharCodeAt)                 \
-  V(StringPrototypeCodePointAt)                \
-  V(StringPrototypeSlice)                      \
-  V(StringPrototypeSubstring)                  \
-  V(StringPrototypeStartsWith)                 \
-  V(StringPrototypeIndexOf)                    \
-  V(StringPrototypeIncludes)                   \
-  V(StringPrototypeIterator)                   \
-  IF_INTL(V, StringPrototypeLocaleCompareIntl) \
-  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
-  IEEE_754_UNARY_LIST(V)                       \
-  IEEE_754_BINARY_LIST(V)
+// Builtins that are only reduced in the MaglevGraphBuilder (i.e. eagerly, at
+// graph-building time). Builtins reduced in the MaglevReducer (and thus also
+// reduced post-inlining by the optimizer) live in MAGLEV_REDUCER_BUILTIN.
+#define MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(V) \
+  V(ArrayConstructor)                            \
+  V(ArrayForEach)                                \
+  V(ArrayIsArray)                                \
+  V(ArrayIteratorPrototypeNext)                  \
+  V(ArrayMap)                                    \
+  V(ArrayPrototypeAt)                            \
+  V(ArrayPrototypeEntries)                       \
+  V(ArrayPrototypeSlice)                         \
+  V(ArrayPrototypeKeys)                          \
+  V(ArrayPrototypeValues)                        \
+  V(ArrayPrototypePush)                          \
+  V(ArrayPrototypePop)                           \
+  V(ArrayPrototypeSort)                          \
+  V(BooleanConstructor)                          \
+  V(DataViewPrototypeGetByteLength)              \
+  V(DatePrototypeGetFullYear)                    \
+  V(DatePrototypeGetMonth)                       \
+  V(DatePrototypeGetDate)                        \
+  V(DatePrototypeGetDay)                         \
+  V(DatePrototypeGetHours)                       \
+  V(DatePrototypeGetMinutes)                     \
+  V(DatePrototypeGetSeconds)                     \
+  V(DatePrototypeGetTime)                        \
+  V(FunctionPrototypeApply)                      \
+  V(FunctionPrototypeCall)                       \
+  V(FunctionPrototypeHasInstance)                \
+  V(MapPrototypeGet)                             \
+  V(WeakMapPrototypeGet)                         \
+  V(ObjectPrototypeGetProto)                     \
+  V(ObjectGetPrototypeOf)                        \
+  V(ReflectGet)                                  \
+  V(ReflectGetPrototypeOf)                       \
+  V(ReflectHas)                                  \
+  V(ReflectApply)                                \
+  V(ObjectPrototypeHasOwnProperty)               \
+  V(NumberParseInt)                              \
+  V(SetPrototypeHas)                             \
+  V(StringConstructor)                           \
+  V(StringFromCharCode)                          \
+  V(StringPrototypeCharAt)                       \
+  V(StringPrototypeCharCodeAt)                   \
+  V(StringPrototypeCodePointAt)                  \
+  V(StringPrototypeSlice)                        \
+  V(StringPrototypeSubstring)                    \
+  V(StringPrototypeStartsWith)                   \
+  V(StringPrototypeIndexOf)                      \
+  V(StringPrototypeIncludes)                     \
+  V(StringPrototypeIterator)                     \
+  IF_INTL(V, StringPrototypeLocaleCompareIntl)   \
+  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
                                     CallArguments& args);
-  MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
+  MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
   static constexpr bool IsReducibleBuiltin(Builtin builtin) {
     switch (builtin) {
 #define CASE(Name, ...) case Builtin::k##Name:
-      MAGLEV_REDUCED_BUILTIN(CASE)
+      MAGLEV_REDUCER_BUILTIN(CASE)
+      MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(CASE)
 #undef CASE
       return true;
       default:
