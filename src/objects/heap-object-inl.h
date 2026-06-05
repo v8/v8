@@ -52,8 +52,19 @@ SafeHeapObjectSize HeapObject::SafeSize() const {
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
 
+DEF_CAST_TRAITS(ConsString)
+DEF_CAST_TRAITS(ExternalOneByteString)
+DEF_CAST_TRAITS(ExternalString)
+DEF_CAST_TRAITS(ExternalTwoByteString)
 DEF_CAST_TRAITS(FixedArray)
 DEF_CAST_TRAITS(HeapNumber)
+DEF_CAST_TRAITS(InternalizedString)
+DEF_CAST_TRAITS(SeqOneByteString)
+DEF_CAST_TRAITS(SeqString)
+DEF_CAST_TRAITS(SeqTwoByteString)
+DEF_CAST_TRAITS(SlicedString)
+DEF_CAST_TRAITS(String)
+DEF_CAST_TRAITS(ThinString)
 
 // Support writing "IsFoo(this)" for types where "Is<Foo>(this)" doesn't work.
 #define HEAPOBJECT_PTR_OVERLOAD(type, ...)      \

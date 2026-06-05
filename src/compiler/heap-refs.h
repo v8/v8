@@ -982,8 +982,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_abandoned_prototype_map() const;
   bool IsOneByteStringMap() const;
   bool IsTwoByteStringMap() const;
-  bool IsSeqStringMap() const;
-  bool IsThinStringMap() const;
   bool IsStringWrapperMap() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;

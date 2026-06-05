@@ -25,8 +25,6 @@
 namespace v8 {
 namespace internal {
 
-DEF_CAST_TRAITS(InternalizedString)
-DEF_CAST_TRAITS(String)
 DEF_CAST_TRAITS(Symbol)
 
 Tagged<PrimitiveHeapObject> Symbol::description() const {

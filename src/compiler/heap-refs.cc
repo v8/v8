@@ -1275,13 +1275,7 @@ bool MapRef::IsUndefinedMap(JSHeapBroker* broker) const {
   return *this == broker->undefined_map();
 }
 
-bool MapRef::IsSeqStringMap() const {
-  return InstanceTypeChecker::IsSeqString(*object());
-}
 
-bool MapRef::IsThinStringMap() const {
-  return InstanceTypeChecker::IsThinString(*object());
-}
 
 bool MapRef::IsStringWrapperMap() const {
   return IsJSPrimitiveWrapperMap() &&

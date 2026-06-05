@@ -339,6 +339,34 @@ V8_INLINE bool IsSeqString(Tagged<Map> map_object) {
 #endif
 }
 
+V8_INLINE constexpr bool IsSeqOneByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kSeqOneByteStringTag);
+}
+
+V8_INLINE bool IsSeqOneByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsSeqString(map_object) && IsOneByteString(map_object);
+#else
+  return IsSeqOneByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsSeqTwoByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kSeqTwoByteStringTag);
+}
+
+V8_INLINE bool IsSeqTwoByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsSeqString(map_object) && IsTwoByteString(map_object);
+#else
+  return IsSeqTwoByteString(map_object->instance_type());
+#endif
+}
+
 V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
   return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
          kExternalStringTag;
@@ -350,6 +378,34 @@ V8_INLINE bool IsExternalString(Tagged<Map> map_object) {
                                map_object);
 #else
   return IsExternalString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsExternalOneByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kExternalOneByteStringTag);
+}
+
+V8_INLINE bool IsExternalOneByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsExternalString(map_object) && IsOneByteString(map_object);
+#else
+  return IsExternalOneByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsExternalTwoByteString(InstanceType instance_type) {
+  return (instance_type &
+          (kIsNotStringMask | kStringRepresentationAndEncodingMask)) ==
+         (kStringTag | kExternalTwoByteStringTag);
+}
+
+V8_INLINE bool IsExternalTwoByteString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsExternalString(map_object) && IsTwoByteString(map_object);
+#else
+  return IsExternalTwoByteString(map_object->instance_type());
 #endif
 }
 

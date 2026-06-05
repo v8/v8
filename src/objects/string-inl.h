@@ -456,46 +456,6 @@ bool StringShape::IsExternalTwoByte() const {
          InstanceTypeChecker::IsTwoByteString(map_or_type());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(IsConsString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsCons();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsThinString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsThin();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsSlicedString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSliced();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsSeqString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequential();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsSeqOneByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequentialOneByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsSeqTwoByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsSequentialTwoByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsExternalOneByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsExternalOneByte();
-}
-
-DEF_HEAP_OBJECT_PREDICATE(IsExternalTwoByteString) {
-  if (!IsString(obj)) return false;
-  return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
-}
-
 static_assert((kStringRepresentationAndEncodingMask) ==
               Internals::kStringRepresentationAndEncodingMask);
 
