@@ -3956,17 +3956,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckInstanceType(ValueNode* object,
                                                         NodeType target_type,
                                                         InstanceType first,
                                                         InstanceType last) {
-  NodeType known_type;
-  // Check for the empty type first so that we catch the case where
-  // GetType(object) is already empty or disjoint.
-  if (IsEmptyNodeType(IntersectType(GetType(object), target_type))) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
-  }
-  if (EnsureType(object, target_type, &known_type)) {
-    return ReduceResult::Done();
-  }
-  return AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
-                                       first, last);
+  return reducer_.BuildCheckInstanceType(object, target_type, first, last);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSFunction(ValueNode* object) {
@@ -4902,43 +4892,19 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
       length,
       BuildLoadTaggedField(js_array, offsetof(JSArray, length_), length_type,
                            false, broker()->length_string()));
-  RecordKnownProperty(js_array, broker()->length_string(), length, false,
-                      compiler::AccessMode::kLoad);
+  reducer_.RecordKnownProperty(js_array, broker()->length_string(), length,
+                               false, compiler::AccessMode::kLoad);
   return length;
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewByteLength(
     ValueNode* js_data_view) {
-  // Note: We can't use broker()->byte_length_string() here, because it could
-  // conflict with redefinitions of the ArrayBufferView byteLength property.
-  if (ValueNode* byte_length =
-          known_node_aspects().TryFindLoadedConstantProperty(
-              js_data_view, PropertyKey::ArrayBufferViewByteLength())) {
-    return byte_length;
-  }
-
-  ValueNode* result;
-  GET_VALUE_OR_ABORT(result,
-                     AddNewNode<LoadDataViewByteLength>({js_data_view}));
-  RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewByteLength(),
-                      result, true, compiler::AccessMode::kLoad);
-  return result;
+  return reducer_.BuildLoadJSDataViewByteLength(js_data_view);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewDataPointer(
     ValueNode* js_data_view) {
-  if (ValueNode* backing_store =
-          known_node_aspects().TryFindLoadedConstantProperty(
-              js_data_view, PropertyKey::ArrayBufferViewDataPointer())) {
-    return backing_store;
-  }
-
-  ValueNode* result;
-  GET_VALUE_OR_ABORT(result,
-                     AddNewNode<LoadDataViewDataPointer>({js_data_view}));
-  RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewDataPointer(),
-                      result, true, compiler::AccessMode::kLoad);
-  return result;
+  return reducer_.BuildLoadJSDataViewDataPointer(js_data_view);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
@@ -5145,9 +5111,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       ValueNode* result;
       GET_VALUE_OR_ABORT(
           result, BuildLoadField(access_info, lookup_start_object, name));
-      RecordKnownProperty(lookup_start_object, name, result,
-                          AccessInfoGuaranteedConst(access_info),
-                          compiler::AccessMode::kLoad);
+      reducer_.RecordKnownProperty(lookup_start_object, name, result,
+                                   AccessInfoGuaranteedConst(access_info),
+                                   compiler::AccessMode::kLoad);
       return result;
     }
     case compiler::PropertyAccessInfo::kDictionaryDataField: {
@@ -5183,9 +5149,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       DCHECK_EQ(receiver, lookup_start_object);
       ValueNode* result;
       GET_VALUE_OR_ABORT(result, BuildLoadStringLength(receiver));
-      RecordKnownProperty(lookup_start_object, name, result,
-                          AccessInfoGuaranteedConst(access_info),
-                          compiler::AccessMode::kLoad);
+      reducer_.RecordKnownProperty(lookup_start_object, name, result,
+                                   AccessInfoGuaranteedConst(access_info),
+                                   compiler::AccessMode::kLoad);
       return result;
     }
     case compiler::PropertyAccessInfo::kStringWrapperLength: {
@@ -5237,7 +5203,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
       MaybeReduceResult res =
           TryBuildStoreField(access_info, receiver, access_mode, name);
       if (res.IsDone()) {
-        RecordKnownProperty(
+        reducer_.RecordKnownProperty(
             receiver, name, current_interpreter_frame_.accumulator(),
             AccessInfoGuaranteedConst(access_info), access_mode);
         return res;
@@ -5471,48 +5437,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
 }
 
 ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
-  object->MaybeRecordUseReprHint(UseRepresentation::kInt32);
-
-  switch (object->properties().value_representation()) {
-    case ValueRepresentation::kIntPtr:
-      return AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({object});
-    case ValueRepresentation::kTagged:
-      NodeType old_type;
-      if (SmiConstant* constant = object->TryCast<SmiConstant>()) {
-        return GetInt32Constant(constant->value().value());
-      } else if (CheckType(object, NodeType::kSmi, &old_type)) {
-        auto& alternative = GetOrCreateInfoFor(object)->alternative();
-        bool bailout = false;
-        ValueNode* value = alternative.get_or_set_int32([&]() -> ValueNode* {
-          ReduceResult result = BuildSmiUntag(object);
-          if (result.IsDoneWithAbort()) {
-            bailout = true;
-            return nullptr;
-          }
-          return result.value();
-        });
-        if (bailout) {
-          return ReduceResult::DoneWithAbort();
-        }
-        return value;
-      } else {
-        // TODO(leszeks): Cache this knowledge/converted value somehow on
-        // the node info.
-        return AddNewNodeNoInputConversion<CheckedObjectToIndex>(
-            {object}, GetCheckType(old_type));
-      }
-    case ValueRepresentation::kInt32:
-      // Already good.
-      return object;
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
-      return GetInt32(object);
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
+  return reducer_.GetInt32ElementIndex(object);
 }
 
 // TODO(victorgomes): Consider caching the values and adding an
@@ -5694,8 +5619,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(
   ValueNode* elements;
   GET_VALUE_OR_ABORT(
       elements, BuildLoadTaggedField(object, offsetof(JSObject, elements_)));
-  RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
-                      compiler::AccessMode::kLoad);
+  reducer_.RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
+                               compiler::AccessMode::kLoad);
   if (is_turbolev() && kind.has_value()) {
     // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
     // we just loaded a FixedArray array, which means that it can't alias with
@@ -5743,8 +5668,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   GET_VALUE_OR_ABORT(result,
                      AddNewNode<LoadTypedArrayLength>({object}, elements_kind));
   if (!is_variable_length) {
-    RecordKnownProperty(object, PropertyKey::TypedArrayLength(), result, true,
-                        compiler::AccessMode::kLoad);
+    reducer_.RecordKnownProperty(object, PropertyKey::TypedArrayLength(),
+                                 result, true, compiler::AccessMode::kLoad);
   }
   return result;
 }
@@ -6199,8 +6124,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
         ValueNode* new_length;
         GET_VALUE_OR_ABORT(new_length, AddNewNode<UpdateJSArrayLength>(
                                            {length, object, index}));
-        RecordKnownProperty(object, broker()->length_string(), new_length,
-                            false, compiler::AccessMode::kStore);
+        reducer_.RecordKnownProperty(object, broker()->length_string(),
+                                     new_length, false,
+                                     compiler::AccessMode::kStore);
       }
     } else {
       RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -7034,47 +6960,6 @@ void MaglevGraphBuilder::AdvanceThroughContinuationForPolymorphicPropertyLoad(
   }
 }
 
-void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
-                                             PropertyKey key, ValueNode* value,
-                                             bool is_const,
-                                             compiler::AccessMode access_mode) {
-  DCHECK(!value->is_conversion());
-  auto& props_for_key =
-      known_node_aspects().GetLoadedPropertiesForKey(zone(), is_const, key);
-  if (!is_const && IsAnyStore(access_mode)) {
-    if (is_loop_effect_tracking()) {
-      loop_effects_->keys_cleared.insert(key);
-    }
-    // We don't do any aliasing analysis, so stores clobber all other cached
-    // loads of a property with that key. We only need to do this for
-    // non-constant properties, since constant properties are known not to
-    // change and therefore can't be clobbered.
-    // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
-    // whether there's an intersection of known maps.
-    TRACE("  * Removing all non-constant cached properties with " << key);
-    props_for_key.clear();
-  }
-
-  TRACE("  * Recording " << (is_const ? "constant" : "non-constant")
-                         << " known property "
-                         << PrintNodeLabel(lookup_start_object) << ": "
-                         << PrintNode(lookup_start_object) << " [" << key
-                         << "] = " << PrintNodeLabel(value) << ": "
-                         << PrintNode(value));
-
-  if (IsAnyStore(access_mode) && !is_const && is_loop_effect_tracking()) {
-    auto updated = props_for_key.emplace(lookup_start_object, value);
-    if (updated.second) {
-      loop_effects_->objects_written.insert(lookup_start_object);
-    } else if (updated.first->second != value) {
-      updated.first->second = value;
-      loop_effects_->objects_written.insert(lookup_start_object);
-    }
-  } else {
-    props_for_key[lookup_start_object] = value;
-  }
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
     ValueNode* lookup_start_object, compiler::NameRef name) {
   if (ValueNode* property = known_node_aspects().TryFindLoadedProperty(
@@ -7116,8 +7001,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   }
   ValueNode* result;
   GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
-  RecordKnownProperty(string, PropertyKey::StringLength(), result, true,
-                      compiler::AccessMode::kLoad);
+  reducer_.RecordKnownProperty(string, PropertyKey::StringLength(), result,
+                               true, compiler::AccessMode::kLoad);
   return result;
 }
 
@@ -8844,9 +8729,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     }
   }
   // Reset the cached loaded array length to the length var.
-  RecordKnownProperty(receiver, broker()->length_string(),
-                      sub_builder.get(var_length), false,
-                      compiler::AccessMode::kLoad);
+  reducer_.RecordKnownProperty(receiver, broker()->length_string(),
+                               sub_builder.get(var_length), false,
+                               compiler::AccessMode::kLoad);
 
   // ```
   // if (index_int32 < length_int32)
@@ -9922,76 +9807,6 @@ MaglevGraphBuilder::TryReduceSetContinuationPreservedEmbedderData(
 }
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-template <typename LoadNode>
-MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
-    const CallArguments& args, ExternalArrayType type) {
-  if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
-    // TODO(victorgomes): Add checks whether the array has been detached or is
-    // immutable.
-    return {};
-  }
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
-                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-  ValueNode* offset;
-  if (args[0]) {
-    GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
-  } else {
-    offset = GetInt32Constant(0);
-  }
-
-  ValueNode* byte_length;
-  GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
-
-  RETURN_IF_ABORT(
-      AddNewNode<CheckJSDataViewBounds>({offset, byte_length}, type));
-
-  ValueNode* data_pointer;
-  GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
-
-  ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
-  return AddNewNode<LoadNode>(
-      {receiver, data_pointer, offset, is_little_endian}, type);
-}
-
-template <typename StoreNode, typename Function>
-MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
-    const CallArguments& args, ExternalArrayType type, Function&& getValue) {
-  if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector() ||
-      !broker()->dependencies()->DependOnArrayBufferMutableProtector()) {
-    // TODO(victorgomes): Add checks whether the array has been detached.
-    return {};
-  }
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckInstanceType(receiver, NodeType::kJSDataView,
-                                         JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
-  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-  ValueNode* offset;
-  if (args[0]) {
-    GET_VALUE_OR_ABORT(offset, GetInt32ElementIndex(args[0]));
-  } else {
-    offset = GetInt32Constant(0);
-  }
-  ValueNode* byte_length;
-  GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
-
-  RETURN_IF_ABORT(
-      AddNewNode<CheckJSDataViewBounds>({offset, byte_length}, type));
-
-  ValueNode* data_pointer;
-  GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
-
-  ValueNode* value;
-  GET_VALUE_OR_ABORT(value, getValue(args[1]));
-  ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
-  RETURN_IF_ABORT(AddNewNode<StoreNode>(
-      {receiver, data_pointer, offset, value, is_little_endian}, type));
-  return GetRootConstant(RootIndex::kUndefinedValue);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
     compiler::JSFunctionRef target, CallArguments& args) {
   // We cannot check CanSpeculateCall here, since this is a getter.
@@ -10025,56 +9840,35 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt8(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt8Array);
+  return reducer_.TryReduceDataViewPrototypeGetInt8(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt8(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt8Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return reducer_.TryReduceDataViewPrototypeSetInt8(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt16(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt16Array);
+  return reducer_.TryReduceDataViewPrototypeGetInt16(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt16(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt16Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return reducer_.TryReduceDataViewPrototypeSetInt16(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt32(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt32Array);
+  return reducer_.TryReduceDataViewPrototypeGetInt32(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetInt32(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreSignedIntDataViewElement>(
-      args, ExternalArrayType::kExternalInt32Array,
-      [&](ValueNode* value) { return value ? value : GetInt32Constant(0); });
+  return reducer_.TryReduceDataViewPrototypeSetInt32(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetFloat64(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildLoadDataView<LoadDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat64Array);
+  return reducer_.TryReduceDataViewPrototypeGetFloat64(target, args);
 }
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeSetFloat64(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryBuildStoreDataView<StoreDoubleDataViewElement>(
-      args, ExternalArrayType::kExternalFloat64Array, [&](ValueNode* value) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        // Produce the same bit pattern we would get through computation.
-        auto ud = Float64::FromBits(kUndefinedNanInt64);
-        const double silenced_nan = ud.to_quiet_nan().get_scalar();
-#else
-        const double silenced_nan = std::numeric_limits<double>::quiet_NaN();
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-        return value ? GetFloat64ForToNumber(value, NodeType::kNumberOrOddball)
-                     : GetFloat64Constant(silenced_nan);
-      });
+  return reducer_.TryReduceDataViewPrototypeSetFloat64(target, args);
 }
 
 namespace {
@@ -11108,8 +10902,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
   }
-  RecordKnownProperty(receiver, broker()->length_string(), new_array_length,
-                      false, compiler::AccessMode::kStore);
+  reducer_.RecordKnownProperty(receiver, broker()->length_string(),
+                               new_array_length, false,
+                               compiler::AccessMode::kStore);
   return new_array_length;
 }
 
@@ -11267,9 +11062,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   sub_graph.Goto(&*do_return);
 
   sub_graph.Bind(&*do_return);
-  RecordKnownProperty(receiver, broker()->length_string(),
-                      sub_graph.get(var_new_array_length), false,
-                      compiler::AccessMode::kStore);
+  reducer_.RecordKnownProperty(receiver, broker()->length_string(),
+                               sub_graph.get(var_new_array_length), false,
+                               compiler::AccessMode::kStore);
   return sub_graph.get(var_value);
 }
 

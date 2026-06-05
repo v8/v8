@@ -250,6 +250,8 @@ class MaglevGraphBuilder {
     return *current_interpreter_frame_.known_node_aspects();
   }
 
+  LoopEffects* loop_effects() { return loop_effects_; }
+
   DeoptFrame* AddInlinedArgumentsToDeoptFrame(DeoptFrame* deopt_frame,
                                               const MaglevCompilationUnit* unit,
                                               ValueNode* closure,
@@ -854,14 +856,6 @@ class MaglevGraphBuilder {
   std::pair<ReduceResult, base::Vector<ValueNode*>>
   GetArgumentsAsArrayOfValueNodes(compiler::SharedFunctionInfoRef shared,
                                   const CallArguments& args);
-
-  template <typename LoadNode>
-  MaybeReduceResult TryBuildLoadDataView(const CallArguments& args,
-                                         ExternalArrayType type);
-  template <typename StoreNode, typename Function>
-  MaybeReduceResult TryBuildStoreDataView(const CallArguments& args,
-                                          ExternalArrayType type,
-                                          Function&& getValue);
 
   // Returns kDoneWithoutPayload if checks passed successfully.
   MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
@@ -1515,9 +1509,6 @@ class MaglevGraphBuilder {
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be reused on
   // subsequent loads.
-  void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
-                           ValueNode* value, bool is_const,
-                           compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
   ReduceResult BuildLoadStringLength(ValueNode* string);

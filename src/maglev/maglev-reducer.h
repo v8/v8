@@ -287,6 +287,10 @@ concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
 };
 
 template <typename BaseT>
+concept ReducerBaseWithLoopEffectTracking =
+    requires(BaseT* b) { b->loop_effects(); };
+
+template <typename BaseT>
 concept ReducerBaseCanBuildCall = requires(BaseT* b) {
   b->TryReduceCallForConstant(std::declval<compiler::JSFunctionRef>(),
                               std::declval<typename BaseT::CallArguments&>());
@@ -927,17 +931,25 @@ class MaglevReducer {
   // the rest and merge this list with MAGLEV_REDUCED_BUILTIN in
   // maglev-graph-builder.h.
 #define MAGLEV_REDUCER_BUILTIN(V) \
-  V(MathSqrt)                     \
-  V(MathMax)                      \
-  V(MathMin)                      \
+  V(DataViewPrototypeGetFloat64)  \
+  V(DataViewPrototypeGetInt16)    \
+  V(DataViewPrototypeGetInt32)    \
+  V(DataViewPrototypeGetInt8)     \
+  V(DataViewPrototypeSetFloat64)  \
+  V(DataViewPrototypeSetInt16)    \
+  V(DataViewPrototypeSetInt32)    \
+  V(DataViewPrototypeSetInt8)     \
   V(MathAbs)                      \
   V(MathCeil)                     \
-  V(MathFloor)                    \
-  V(MathRound)                    \
-  V(MathTrunc)                    \
   V(MathClz32)                    \
-  V(MathImul)                     \
+  V(MathFloor)                    \
   V(MathFround)                   \
+  V(MathImul)                     \
+  V(MathMax)                      \
+  V(MathMin)                      \
+  V(MathRound)                    \
+  V(MathSqrt)                     \
+  V(MathTrunc)                    \
   IEEE_754_UNARY_LIST(V)          \
   IEEE_754_BINARY_LIST(V)
 
@@ -956,6 +968,29 @@ class MaglevReducer {
   MaybeReduceResult TryReduceBuiltin(
       Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
+
+  template <typename LoadNode>
+  MaybeReduceResult TryBuildLoadDataView(const CallArguments& args,
+                                         ExternalArrayType type);
+  template <typename StoreNode, typename Function>
+  MaybeReduceResult TryBuildStoreDataView(const CallArguments& args,
+                                          ExternalArrayType type,
+                                          Function&& getValue);
+  ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
+  ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+
+  ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
+                                      InstanceType first, InstanceType last);
+  ReduceResult GetInt32ElementIndex(ValueNode* index_object);
+  void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
+                           ValueNode* value, bool is_const,
+                           compiler::AccessMode access_mode);
+  ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
+    if (maybe_value == nullptr) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
+    }
+    return maybe_value;
+  }
 
   ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
   ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
