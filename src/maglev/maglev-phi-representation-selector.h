@@ -149,6 +149,14 @@ class MaglevPhiRepresentationSelector {
   };
   using UntaggingKindList = base::SmallVector<UntaggingKind, 8>;
 
+  enum class RetaggingKind {
+    kSmi,  // Input guaranteed to be in Smi range, so we'll use an Unsafe
+           // conversion.
+    kHeapNumber,
+    kAnyNumber
+  };
+  RetaggingKind GetRetaggingKindForPhi(Phi* phi);
+
  private:
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.

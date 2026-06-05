@@ -1053,7 +1053,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 
   if (old_untagging->Is<CheckedSmiUntag>() && SmiValuesAre31Bits()) {
-    if (!NodeTypeCanBe(phi->type(), NodeType::kSmi)) {
+    if (GetRetaggingKindForPhi(phi) == RetaggingKind::kHeapNumber) {
       // Similar to CheckSmi, the CheckedSmiUntag **must** fail if the Phi has a
       // non-Smi type (cf comment in UpdateNodePhiInput(CheckSmi)).
       return EmitUnconditionalDeopt(old_untagging, DeoptimizeReason::kNotASmi);
@@ -1181,7 +1181,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     return ProcessResult::kContinue;
   }
 
-  if (!NodeTypeCanBe(phi->type(), NodeType::kSmi)) {
+  if (GetRetaggingKindForPhi(phi) == RetaggingKind::kHeapNumber) {
     // The retagging rule is that Phis whose type cannot be Smi are always
     // retagged to HeapNumber, and every other Phi is retagged to Number with
     // CanonicalizeSmi=true. So, if we somehow end up with a Phi with non-smi
@@ -1379,6 +1379,36 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   return ProcessResult::kContinue;
 }
 
+namespace {
+NumberConversionMode ModeForRetaggingKind(
+    MaglevPhiRepresentationSelector::RetaggingKind kind) {
+  switch (kind) {
+    case MaglevPhiRepresentationSelector::RetaggingKind::kSmi:
+      // If the RetaggingKind is kSmi, we should use a conversion that always
+      // forces Smis rather than relying on one that could potentially
+      // introduce a HeapNumber (like all of the conversions that have a
+      // NumberConversionMode do).
+      UNREACHABLE();
+    case MaglevPhiRepresentationSelector::RetaggingKind::kHeapNumber:
+      return NumberConversionMode::kForceHeapNumber;
+    case MaglevPhiRepresentationSelector::RetaggingKind::kAnyNumber:
+      return NumberConversionMode::kCanonicalizeSmi;
+  }
+}
+}  // namespace
+
+MaglevPhiRepresentationSelector::RetaggingKind
+MaglevPhiRepresentationSelector::GetRetaggingKindForPhi(Phi* phi) {
+  NodeType static_type = phi->type();
+  if (NodeTypeIsSmi(static_type)) {
+    return RetaggingKind::kSmi;
+  } else if (!NodeTypeCanBe(static_type, NodeType::kSmi)) {
+    return RetaggingKind::kHeapNumber;
+  } else {
+    return RetaggingKind::kAnyNumber;
+  }
+}
+
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, BasicBlockPosition pos,
     const ProcessingState* state, std::optional<int> predecessor_index) {
@@ -1452,54 +1482,39 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
   // 3. Or, the graph builder didn't care about Sminess/HeapObjectness of this
   //    Phi, and so we can retag the phi however we want here. If possible,
   //    we'll use kCanonicalizeSmi in that case.
-  NodeType static_type = phi->type();
-  const bool force_heap_number = !NodeTypeCanBe(static_type, NodeType::kSmi);
-  const bool is_smi = NodeTypeIsSmi(static_type);
 
-  CHECK_IMPLIES(force_heap_number,
-                phi->value_representation() != ValueRepresentation::kInt32);
-  CHECK_IMPLIES(
-      !NodeTypeCanBe(static_type, NodeType::kSmi),
-      phi->value_representation() == ValueRepresentation::kFloat64 ||
-          phi->value_representation() == ValueRepresentation::kHoleyFloat64);
+  RetaggingKind kind = GetRetaggingKindForPhi(phi);
 
   // We didn't already Tag {phi} on the current path; creating this tagging now.
   ValueNode* tagged = nullptr;
   switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64: {
-      if (is_smi) {
+      if (kind == RetaggingKind::kSmi) {
         tagged =
             AddNewNodeNoInputConversion<UnsafeSmiTagFloat64>(block, pos, {phi});
       } else {
         tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
-            block, pos, {phi},
-            force_heap_number ? NumberConversionMode::kForceHeapNumber
-                              : NumberConversionMode::kCanonicalizeSmi);
+            block, pos, {phi}, ModeForRetaggingKind(kind));
       }
       break;
     }
     case ValueRepresentation::kHoleyFloat64: {
-      if (is_smi) {
+      if (kind == RetaggingKind::kSmi) {
         tagged = AddNewNodeNoInputConversion<UnsafeSmiTagHoleyFloat64>(
             block, pos, {phi});
       } else {
         tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-            block, pos, {phi},
-            force_heap_number ? NumberConversionMode::kForceHeapNumber
-                              : NumberConversionMode::kCanonicalizeSmi);
+            block, pos, {phi}, ModeForRetaggingKind(kind));
       }
       break;
     }
     case ValueRepresentation::kInt32:
-      if (is_smi) {
-        CHECK(!force_heap_number);
+      if (kind == RetaggingKind::kSmi) {
         tagged =
             AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(block, pos, {phi});
       } else {
         tagged = AddNewNodeNoInputConversion<Int32ToNumber>(
-            block, pos, {phi},
-            force_heap_number ? NumberConversionMode::kForceHeapNumber
-                              : NumberConversionMode::kCanonicalizeSmi);
+            block, pos, {phi}, ModeForRetaggingKind(kind));
       }
       break;
     case ValueRepresentation::kTagged:
