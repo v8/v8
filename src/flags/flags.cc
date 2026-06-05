@@ -603,6 +603,7 @@ uint32_t ComputeFlagListHash() {
 static void SplitArgument(const char* arg, char* buffer, int buffer_size,
                           const char** name, const char** value,
                           bool* negated) {
+  const char* orig_arg = arg;
   *name = nullptr;
   *value = nullptr;
   *negated = false;
@@ -632,7 +633,7 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
     // Make a copy so we can NUL-terminate the flag name.
     size_t n = arg - *name;
     if (n >= static_cast<size_t>(buffer_size)) {
-      FlagError{} << "Flag name is too long: " << FlagName(*name);
+      FlagError{} << "Flag name is too long: " << orig_arg;
     }
     MemCopy(buffer, *name, n);
     buffer[n] = '\0';
