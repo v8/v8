@@ -302,6 +302,17 @@ concept ReducerBaseCanBuildCall = requires(BaseT* b) {
 template <typename BaseT>
 concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
+template <typename BaseT>
+concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
+  b->TryBuildStoreTaggedFieldToAllocation(std::declval<ValueNode*>(),
+                                          std::declval<ValueNode*>(),
+                                          std::declval<int>());
+  b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
+                                           std::declval<int>());
+  b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
+                                       std::declval<ValueNode*>());
+};
+
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
 enum class BranchResult {
@@ -801,6 +812,29 @@ class MaglevReducer {
   ReduceResult GetTaggedValue(ValueNode* value,
                               UseReprHintRecording record_use_repr_hint =
                                   UseReprHintRecording::kRecord);
+
+  ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                    LoadType type = LoadType::kUnknown,
+                                    bool is_const = false,
+                                    PropertyKey key = PropertyKey::None());
+
+  ReduceResult BuildStoreTaggedField(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None(),
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
+
+  ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
+                                             ValueNode* value, int offset,
+                                             IndirectPointerTag tag,
+                                             StoreTaggedMode store_mode);
+
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.

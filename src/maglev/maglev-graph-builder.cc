@@ -4110,51 +4110,6 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
   return ReduceResult::Done();
 }
 
-namespace {
-AllocationBlock* GetAllocation(ValueNode* object) {
-  if (object->Is<InlinedAllocation>()) {
-    object = object->Cast<InlinedAllocation>()->input(0).node();
-  }
-  if (object->Is<AllocationBlock>()) {
-    return object->Cast<AllocationBlock>();
-  }
-  return nullptr;
-}
-}  // namespace
-
-bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
-                                              ValueNode* value) {
-  if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
-  if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
-    return true;
-  }
-
-  // No need for a write barrier if both object and value are part of the same
-  // folded young allocation.
-  // Turbolev will do this optimization later after allocation folding. Doing it
-  // here could interfere with turboshaft pretenuring.
-  AllocationBlock* allocation = GetAllocation(object);
-  if (!is_turbolev() && allocation != nullptr &&
-      current_allocation_block_ == allocation &&
-      allocation->allocation_type() == AllocationType::kYoung &&
-      allocation == GetAllocation(value)) {
-    allocation->set_elided_write_barriers_depend_on_type();
-    return true;
-  }
-
-  // If tagged and not Smi, we cannot elide write barrier.
-  if (value->is_tagged()) return false;
-
-  // If its alternative conversion node is Smi, {value} will be converted to
-  // a Smi when tagged.
-  NodeInfo* node_info = GetOrCreateInfoFor(value);
-  if (ValueNode* tagged_alt = node_info->alternative().tagged()) {
-    DCHECK(tagged_alt->is_conversion());
-    return CheckType(tagged_alt, NodeType::kSmi);
-  }
-  return false;
-}
-
 ReduceResult MaglevGraphBuilder::ConvertForField(
     ValueNode* value, const vobj::Field& desc, AllocationType allocation_type) {
   switch (desc.type) {
@@ -4276,7 +4231,7 @@ void MaglevGraphBuilder::BuildInitializeStore_TrustedPointer(
 
   // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
   // conversions and won't abort.
-  ReduceResult result = BuildStoreTrustedPointerField(
+  ReduceResult result = reducer_.BuildStoreTrustedPointerField(
       object, value, desc.offset, value->Cast<TrustedConstant>()->tag(),
       StoreTaggedMode::kInitializing);
   CHECK(!result.IsDoneWithAbort());
@@ -4415,64 +4370,46 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   }
 }
 
-ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
-    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
-    PropertyKey property_key, MaybeAssignedFlag maybe_assigned) {
-  // The value may be used to initialize a VO, which can leak to IFS.
-  // It should NOT be a conversion node, UNLESS it's an initializing value.
-  // Initializing values are tagged before allocation, since conversion nodes
-  // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
-  if (!IsInitializing(store_mode)) {
-    TryBuildStoreTaggedFieldToAllocation(object, value, offset);
+std::optional<ValueNode*>
+MaglevGraphBuilder::TryBuildLoadTaggedFieldFromAllocation(ValueNode* object,
+                                                          int offset) {
+  if (offset == offsetof(HeapObject, map_)) return std::nullopt;
+  if (!(IsFieldConstant(object, offset) ||
+        CanTrackObjectChanges(object, TrackObjectMode::kLoad))) {
+    return std::nullopt;
   }
-  if (CanElideWriteBarrier(object, value)) {
-    return AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-        {object, value}, offset, store_mode, property_key, maybe_assigned);
-  } else {
-    // Detect stores that would create old-to-new references and pretenure the
-    // value.
-    if (v8_flags.maglev_pretenure_store_values) {
-      if (auto alloc = object->TryCast<InlinedAllocation>()) {
-        if (alloc->allocation_block()->allocation_type() ==
-            AllocationType::kOld) {
-          alloc->allocation_block()->TryPretenure(value);
-        }
-      }
+  VirtualObject* vobject =
+      GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+  CHECK_EQ(vobject->FieldForOffset(offset).type, vobj::FieldType::kTagged);
+  ValueNode* value = vobject->get(offset);
+  if (v8_flags.trace_maglev_object_tracking) {
+    std::cout << "  * Reusing value in virtual object "
+              << PrintNodeLabel(vobject) << "[" << offset
+              << "]: " << PrintNode(value) << std::endl;
+  }
+  return value;
+}
+
+bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
+                                                           ValueNode* value) {
+  auto get_allocation = [](ValueNode* node) -> AllocationBlock* {
+    if (node->Is<InlinedAllocation>()) {
+      node = node->Cast<InlinedAllocation>()->input(0).node();
     }
-    bool value_can_be_smi =
-        GetCheckType(GetType(value)) == CheckType::kCheckHeapObject;
-    return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-        {object, value}, offset, store_mode, value_can_be_smi, property_key,
-        maybe_assigned);
+    if (node->Is<AllocationBlock>()) {
+      return node->Cast<AllocationBlock>();
+    }
+    return nullptr;
+  };
+  AllocationBlock* allocation = get_allocation(object);
+  if (!is_turbolev() && allocation != nullptr &&
+      current_allocation_block_ == allocation &&
+      allocation->allocation_type() == AllocationType::kYoung &&
+      allocation == get_allocation(value)) {
+    allocation->set_elided_write_barriers_depend_on_type();
+    return true;
   }
-}
-
-ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
-    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
-    PropertyKey property_key) {
-  // The value may be used to initialize a VO, which can leak to IFS.
-  // It should NOT be a conversion node, UNLESS it's an initializing value.
-  // Initializing values are tagged before allocation, since conversion nodes
-  // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
-  DCHECK(CanElideWriteBarrier(object, value));
-  if (!IsInitializing(store_mode)) {
-    TryBuildStoreTaggedFieldToAllocation(object, value, offset);
-  }
-  return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                                    store_mode, property_key);
-}
-
-ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
-    ValueNode* object, ValueNode* value, int offset, IndirectPointerTag tag,
-    StoreTaggedMode store_mode) {
-#ifdef V8_ENABLE_SANDBOX
-  return AddNewNode<StoreTrustedPointerFieldWithWriteBarrier>(
-      {object, value}, offset, tag, store_mode);
-#else
-  return BuildStoreTaggedField(object, value, offset, store_mode);
-#endif  // V8_ENABLE_SANDBOX
+  return false;
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
@@ -18253,34 +18190,6 @@ ReduceResult MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
   return BuildLoadTaggedField(object, offsetof(HeapObject, map_));
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
-                                                      uint32_t offset,
-                                                      LoadType type,
-                                                      bool is_const,
-                                                      PropertyKey key) {
-  // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
-  // could let the path below handle map loads as well. But, maglev currently
-  // doesn't like this at all - doing so creates problems like OOB vobject field
-  // loads, and missed JSArray elements kind transitions. We should understand
-  // whether this is an issue with --maglev-object-tracking.
-  if (offset == offsetof(HeapObject, map_) ||
-      !(IsFieldConstant(object, offset) ||
-        CanTrackObjectChanges(object, TrackObjectMode::kLoad))) {
-    return AddNewNode<LoadTaggedField>({object}, offset, type, is_const, key);
-  }
-
-  VirtualObject* vobject =
-      GetObjectFromAllocation(object->Cast<InlinedAllocation>());
-  ValueNode* value;
-  CHECK_EQ(vobject->FieldForOffset(offset).type, vobj::FieldType::kTagged);
-  value = vobject->get(offset);
-  if (v8_flags.trace_maglev_object_tracking) {
-    std::cout << "  * Reusing value in virtual object "
-              << PrintNodeLabel(vobject) << "[" << offset
-              << "]: " << PrintNode(value) << std::endl;
-  }
-  return value;
-}
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
   if (node == nullptr) return;

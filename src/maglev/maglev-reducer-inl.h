@@ -492,6 +492,107 @@ std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildLoadTaggedField(ValueNode* object,
+                                                        uint32_t offset,
+                                                        LoadType type,
+                                                        bool is_const,
+                                                        PropertyKey key) {
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    if (std::optional<ValueNode*> val =
+            base_->TryBuildLoadTaggedFieldFromAllocation(object, offset)) {
+      return *val;
+    }
+  }
+  return AddNewNode<LoadTaggedField>({object}, offset, type, is_const, key);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedField(
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    PropertyKey property_key, MaybeAssignedFlag maybe_assigned) {
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    if (!IsInitializing(store_mode)) {
+      base_->TryBuildStoreTaggedFieldToAllocation(object, value, offset);
+    }
+  }
+  if (CanElideWriteBarrier(object, value)) {
+    return AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+        {object, value}, offset, store_mode, property_key, maybe_assigned);
+  } else {
+    // Detect stores that would create old-to-new references and pretenure the
+    // value.
+    if (v8_flags.maglev_pretenure_store_values) {
+      if (auto alloc = object->template TryCast<InlinedAllocation>()) {
+        if (alloc->allocation_block()->allocation_type() ==
+            AllocationType::kOld) {
+          alloc->allocation_block()->TryPretenure(value);
+        }
+      }
+    }
+    bool value_can_be_smi =
+        GetCheckType(GetType(value)) == CheckType::kCheckHeapObject;
+    return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+        {object, value}, offset, store_mode, value_can_be_smi, property_key,
+        maybe_assigned);
+  }
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedFieldNoWriteBarrier(
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    PropertyKey property_key) {
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+  DCHECK(CanElideWriteBarrier(object, value));
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    if (!IsInitializing(store_mode)) {
+      base_->TryBuildStoreTaggedFieldToAllocation(object, value, offset);
+    }
+  }
+  return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                                    store_mode, property_key);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildStoreTrustedPointerField(
+    ValueNode* object, ValueNode* value, int offset, IndirectPointerTag tag,
+    StoreTaggedMode store_mode) {
+#ifdef V8_ENABLE_SANDBOX
+  return AddNewNode<StoreTrustedPointerFieldWithWriteBarrier>(
+      {object, value}, offset, tag, store_mode);
+#else
+  return BuildStoreTaggedField(object, value, offset, store_mode);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::CanElideWriteBarrier(ValueNode* object,
+                                                ValueNode* value) {
+  if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
+  if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
+    return true;
+  }
+
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    if (base_->TryElideWriteBarrierForAllocation(object, value)) {
+      return true;
+    }
+  }
+
+  // If tagged and not Smi, we cannot elide write barrier.
+  if (value->is_tagged()) return false;
+
+  // If its alternative conversion node is Smi, {value} will be converted to
+  // a Smi when tagged.
+  NodeInfo* node_info = GetOrCreateInfoFor(value);
+  if (ValueNode* tagged_alt = node_info->alternative().tagged()) {
+    DCHECK(tagged_alt->is_conversion());
+    return CheckType(tagged_alt, NodeType::kSmi);
+  }
+  return false;
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {

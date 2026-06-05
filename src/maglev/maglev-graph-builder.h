@@ -1246,7 +1246,9 @@ class MaglevGraphBuilder {
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool IsFieldConstant(ValueNode* object, int offset);
 
-  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
+  bool CanElideWriteBarrier(ValueNode* object, ValueNode* value) {
+    return reducer_.CanElideWriteBarrier(object, value);
+  }
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
@@ -1268,24 +1270,32 @@ class MaglevGraphBuilder {
 
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
+  std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
+      ValueNode* object, int offset);
+  bool TryElideWriteBarrierForAllocation(ValueNode* object, ValueNode* value);
+
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                     LoadType type = LoadType::kUnknown,
                                     bool is_const = false,
-                                    PropertyKey key = PropertyKey::None());
+                                    PropertyKey key = PropertyKey::None()) {
+    return reducer_.BuildLoadTaggedField(object, offset, type, is_const, key);
+  }
 
   ReduceResult BuildStoreTaggedField(
       ValueNode* object, ValueNode* value, int offset,
       StoreTaggedMode store_mode,
       PropertyKey property_key = PropertyKey::None(),
-      MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+      MaybeAssignedFlag maybe_assigned = kMaybeAssigned) {
+    return reducer_.BuildStoreTaggedField(object, value, offset, store_mode,
+                                          property_key, maybe_assigned);
+  }
   ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
       ValueNode* object, ValueNode* value, int offset,
       StoreTaggedMode store_mode,
-      PropertyKey property_key = PropertyKey::None());
-  ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
-                                             ValueNode* value, int offset,
-                                             IndirectPointerTag tag,
-                                             StoreTaggedMode store_mode);
+      PropertyKey property_key = PropertyKey::None()) {
+    return reducer_.BuildStoreTaggedFieldNoWriteBarrier(
+        object, value, offset, store_mode, property_key);
+  }
 
   ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index,
                                           LoadType type = LoadType::kUnknown);
