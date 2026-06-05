@@ -9,9 +9,11 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/heap-layout-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/tagged.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
@@ -158,11 +160,13 @@ void StatisticsExtension::GetCounters(
          obj = iterator.Next()) {
       Tagged<Object> maybe_source_positions;
       if (Is<Code>(obj)) {
+        SBXCHECK(TrustedHeapLayout::InTrustedSpace(obj));
         Tagged<Code> code = TrustedCast<Code>(obj);
         reloc_info_total += code->relocation_size();
         if (!code->has_source_position_table()) continue;
         maybe_source_positions = code->source_position_table();
       } else if (Is<BytecodeArray>(obj)) {
+        SBXCHECK(TrustedHeapLayout::InTrustedSpace(obj));
         Tagged<BytecodeArray> bytecode_array = TrustedCast<BytecodeArray>(obj);
         maybe_source_positions =
             bytecode_array->raw_source_position_table(kAcquireLoad);
