@@ -5896,7 +5896,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   UNREACHABLE();
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
+ReduceResult MaglevGraphBuilder::BuildElementLoadOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object,
     base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
     KeyedAccessLoadMode load_mode) {
@@ -6170,7 +6170,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
   }
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
-      return TryBuildElementLoadOnJSArrayOrJSObject(
+      return BuildElementLoadOnJSArrayOrJSObject(
           object, index_object,
           base::VectorOf(access_info.lookup_start_object_maps()),
           access_info.elements_kind(), keyed_mode.load_mode());
@@ -9018,7 +9018,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
           ValueNode* value;
           GET_VALUE_OR_ABORT(
               value,
-              TryBuildElementLoadOnJSArrayOrJSObject(
+              BuildElementLoadOnJSArrayOrJSObject(
                   iterated_object, int32_index, base::VectorOf(maps),
                   elements_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
           if (iteration_kind == IterationKind::kEntries) {
@@ -16798,14 +16798,42 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
   }
   const compiler::NamedAccessFeedback& named_feedback =
       iterated_feedback.AsNamedAccess();
-  // TODO(marja): Support polymorphic feedback.
-  if (named_feedback.maps().size() != 1) {
+  if (named_feedback.maps().empty()) {
     return {};
   }
-  compiler::MapRef map = named_feedback.maps()[0];
-  // TODO(marja): Support other kinds of iterated objects, like TypedArrays.
-  if (!map.IsJSArrayMap() || !IsFastElementsKind(map.elements_kind())) {
-    return {};
+
+  ZoneVector<compiler::MapRef> double_maps(zone());
+  ZoneVector<compiler::MapRef> tagged_maps(zone());
+  for (compiler::MapRef map : named_feedback.maps()) {
+    // TODO(marja): Support other kinds of iterated objects, like TypedArrays.
+    if (!map.IsJSArrayMap() || !IsFastElementsKind(map.elements_kind())) {
+      return {};
+    }
+    if (IsDoubleElementsKind(map.elements_kind())) {
+      double_maps.push_back(map);
+    } else {
+      tagged_maps.push_back(map);
+    }
+  }
+
+  std::optional<ElementsKind> double_kind;
+  if (!double_maps.empty()) {
+    double_kind = double_maps[0].elements_kind();
+    for (compiler::MapRef map : double_maps) {
+      bool union_ok =
+          UnionElementsKindUptoSize(&*double_kind, map.elements_kind());
+      CHECK(union_ok);
+    }
+  }
+
+  std::optional<ElementsKind> tagged_kind;
+  if (!tagged_maps.empty()) {
+    tagged_kind = tagged_maps[0].elements_kind();
+    for (compiler::MapRef map : tagged_maps) {
+      bool union_ok =
+          UnionElementsKindUptoSize(&*tagged_kind, map.elements_kind());
+      CHECK(union_ok);
+    }
   }
 
   compiler::NativeContextRef nc = broker()->target_native_context();
@@ -16835,14 +16863,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
                 BuildLoadTaggedField(
                     iterator, offsetof(JSArrayIterator, iterated_object_)));
 
-            // TODO(marja): Investigate whether this already gets hoisted - if
-            // not, look into moving it out of the for-of loop.
-            RETURN_IF_ABORT(
-                BuildCheckMaps(iterated_object, base::VectorOf({map})));
-
-            // Since the array has fast elements, its length is a Smi, and the
-            // Smi loads below are safe.
-            DCHECK(IsFastElementsKind(map.elements_kind()));
+            RETURN_IF_ABORT(BuildCheckMaps(
+                iterated_object, base::VectorOf(named_feedback.maps())));
 
             ValueNode* index;
             GET_VALUE_OR_ABORT(
@@ -16850,6 +16872,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
                            iterator, offsetof(JSArrayIterator, next_index_),
                            LoadType::kSmi));
 
+            // Since the array has fast elements, its length is a Smi, and the
+            // Smi loads below are safe.
             ValueNode* length;
             GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(iterated_object,
                                                               LoadType::kSmi));
@@ -16859,47 +16883,117 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
             ValueNode* int32_length;
             GET_VALUE_OR_ABORT(int32_length, GetInt32ElementIndex(length));
 
-            MaglevSubGraphBuilder subgraph(this, 1);
+            MaglevSubGraphBuilder subgraph(this, 2);
             MaglevSubGraphBuilder::Variable ret_value(0);
+            MaglevSubGraphBuilder::Variable loaded_element(1);
 
-            RETURN_IF_ABORT(subgraph.Branch(
-                {&ret_value},
-                [&](BranchBuilder& builder) {
-                  return BuildBranchIfInt32Compare(
-                      builder, Operation::kLessThan, int32_index, int32_length);
-                },
-                [&] {
-                  ValueNode* value_node;
-                  GET_VALUE_OR_ABORT(
-                      value_node,
-                      TryBuildElementLoadOnJSArrayOrJSObject(
-                          iterated_object, int32_index, base::VectorOf({map}),
-                          map.elements_kind(),
-                          KeyedAccessLoadMode::kHandleHoles));
+            MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_value});
+            MaglevSubGraphBuilder::Label out_of_bounds(&subgraph, 1);
 
-                  subgraph.set(ret_value, value_node);
+            // Branch: index < length. The index is coming from the array
+            // iterator object, so we can be sure it's not negative.
+            MaybeReduceResult branch_res =
+                subgraph.GotoIfFalse<BranchIfInt32Compare>(
+                    &out_of_bounds, {int32_index, int32_length},
+                    Operation::kLessThan);
+            DCHECK(branch_res.IsDone());
+            USE(branch_res);
 
-                  // Add 1 to index. This cannot overflow, since index < length.
-                  ValueNode* next_index;
-                  GET_VALUE_OR_ABORT(
-                      next_index,
-                      AddNewNode<Int32Add>({int32_index, GetInt32Constant(1)}));
-                  EnsureType(next_index, NodeType::kSmi);
-                  // Update [[NextIndex]]
-                  RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
-                      iterator, next_index,
-                      offsetof(JSArrayIterator, next_index_),
-                      StoreTaggedMode::kDefault));
+            // In-bounds branch:
+            ReduceResult load_result = ReduceResult::DoneWithAbort();
 
-                  return ReduceResult::Done();
-                },
-                [&] {
-                  // Index is greater or equal than length.
-                  subgraph.set(ret_value,
-                               GetRootConstant(RootIndex::kTheHoleValue));
-                  return ReduceResult::Done();
-                }));
+            if (double_maps.empty()) {
+              // Only tagged maps (already checked via global BuildCheckMaps)
+              load_result = BuildElementLoadOnJSArrayOrJSObject(
+                  iterated_object, int32_index, base::VectorOf(tagged_maps),
+                  *tagged_kind, KeyedAccessLoadMode::kHandleHoles);
+            } else if (tagged_maps.empty()) {
+              // Only double maps (already checked via global BuildCheckMaps)
+              load_result = BuildElementLoadOnJSArrayOrJSObject(
+                  iterated_object, int32_index, base::VectorOf(double_maps),
+                  *double_kind, KeyedAccessLoadMode::kHandleHoles);
+            } else {
+              // Both tagged and double maps (already checked via global
+              // BuildCheckMaps)
+              MaglevSubGraphBuilder::Label double_branch(
+                  &subgraph, static_cast<int>(double_maps.size()));
+              MaglevSubGraphBuilder::Label done_loading(&subgraph, 2,
+                                                        {&loaded_element});
 
+              ValueNode* iterated_object_map;
+              GET_VALUE_OR_ABORT(iterated_object_map,
+                                 BuildLoadMap(iterated_object));
+
+              for (compiler::MapRef map : double_maps) {
+                RETURN_IF_ABORT(subgraph.GotoIfTrue<BranchIfReferenceEqual>(
+                    &double_branch, {iterated_object_map, GetConstant(map)}));
+              }
+
+              // Tagged path (fallthrough)
+              // Since it didn't match double_maps, and it must be one of
+              // named_feedback.maps(), it is guaranteed to be one of
+              // tagged_maps.
+
+              // TODO(marja): BuildElementLoadOnJSArrayOrJSObject does another
+              // bounds check -> refactor that out.
+              ReduceResult tagged_load_result =
+                  BuildElementLoadOnJSArrayOrJSObject(
+                      iterated_object, int32_index, base::VectorOf(tagged_maps),
+                      *tagged_kind, KeyedAccessLoadMode::kHandleHoles);
+              if (!tagged_load_result.IsDoneWithAbort()) {
+                subgraph.set(loaded_element, tagged_load_result.value());
+                subgraph.Goto(&done_loading);
+              }
+
+              // Double path
+              subgraph.Bind(&double_branch);
+              // TODO(marja): BuildElementLoadOnJSArrayOrJSObject does another
+              // bounds check -> refactor that out.
+              ReduceResult double_load_result =
+                  BuildElementLoadOnJSArrayOrJSObject(
+                      iterated_object, int32_index, base::VectorOf(double_maps),
+                      *double_kind, KeyedAccessLoadMode::kHandleHoles);
+              if (!double_load_result.IsDoneWithAbort()) {
+                subgraph.set(loaded_element, double_load_result.value());
+                subgraph.Goto(&done_loading);
+              }
+
+              // Get the loaded element
+              ReduceResult bind_res =
+                  subgraph.TrimPredecessorsAndBind(&done_loading);
+              if (!bind_res.IsDoneWithAbort()) {
+                load_result = ReduceResult::Done(subgraph.get(loaded_element));
+              }
+            }
+
+            if (load_result.HasValue()) {
+              subgraph.set(ret_value, load_result.value());
+
+              // Add 1 to index (cannot overflow since the max JSArray length is
+              // below the Smi limit).
+              ValueNode* next_index;
+              ReduceResult add_result =
+                  AddNewNode<Int32Add>({int32_index, GetInt32Constant(1)});
+              CHECK(add_result.IsDone());
+              next_index = add_result.value();
+              EnsureType(next_index, NodeType::kSmi);
+
+              // Update [[NextIndex]] (store cannot abort).
+              ReduceResult store_result = BuildStoreTaggedFieldNoWriteBarrier(
+                  iterator, next_index, offsetof(JSArrayIterator, next_index_),
+                  StoreTaggedMode::kDefault);
+              CHECK(store_result.IsDone());
+
+              subgraph.Goto(&done);
+            }
+
+            // Out-of-bounds branch:
+            subgraph.Bind(&out_of_bounds);
+            subgraph.set(ret_value, GetRootConstant(RootIndex::kTheHoleValue));
+
+            subgraph.Goto(&done);
+
+            RETURN_IF_ABORT(subgraph.TrimPredecessorsAndBind(&done));
             return subgraph.get(ret_value);
           },
           [&]() -> ReduceResult {
