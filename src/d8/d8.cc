@@ -1769,8 +1769,8 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
         new DynamicImportData(isolate, context, resource_name, specifier, phase,
                               import_attributes, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
-    isolate->EnqueueMicrotask(
-        Shell::DoHostImportModuleDynamically,
+    context->GetMicrotaskQueue()->EnqueueMicrotask(
+        isolate, Shell::DoHostImportModuleDynamically,
         External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   }
   return resolver->GetPromise();

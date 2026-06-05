@@ -712,8 +712,6 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
   SetGlobalProperty("stale_handler", Utils::ToLocal(stale_handler));
   RunJS("%EnqueueMicrotask(stale_handler)");
 
-  v8_isolate()->EnqueueMicrotask(Utils::ToLocal(stale_handler));
-
   JSPromise::Fulfill(
       stale_promise,
       direct_handle(ReadOnlyRoots(isolate()).undefined_value(), isolate()));

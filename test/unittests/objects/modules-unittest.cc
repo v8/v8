@@ -900,8 +900,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, true);
-  isolate->EnqueueMicrotask(
-      DoHostImportModuleDynamically,
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
       v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }
@@ -915,8 +915,8 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, false);
-  isolate->EnqueueMicrotask(
-      DoHostImportModuleDynamically,
+  context->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate, DoHostImportModuleDynamically,
       v8::External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   return resolver->GetPromise();
 }

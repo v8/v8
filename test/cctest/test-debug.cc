@@ -5972,8 +5972,9 @@ TEST(TerminateOnResumeRunMicrotaskAtBreakpoint) {
   {
     v8::TryCatch try_catch(env.isolate());
     // Enqueue a microtask that gets run while we are paused at the breakpoint.
-    env.isolate()->EnqueueMicrotask(
-        v8::Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    context->GetMicrotaskQueue()->EnqueueMicrotask(
+        env.isolate(),
+        v8::Function::New(context, MicrotaskOne).ToLocalChecked());
 
     // If the delegate doesn't request termination on resume from breakpoint,
     // foo diverges.
@@ -6263,8 +6264,10 @@ TEST(TerminateOnResumeFromMicrotask) {
     // Enqueue a microtask that gets run while we are paused at the breakpoint.
     v8::Local<v8::Function> foo = CompileFunction(
         &env, "function foo(){ Promise.reject(); while (true) {} }", "foo");
-    env.isolate()->EnqueueMicrotask(foo);
-    env.isolate()->EnqueueMicrotask(
+    auto* microtask_queue = env.local()->GetMicrotaskQueue();
+    microtask_queue->EnqueueMicrotask(env.isolate(), foo);
+    microtask_queue->EnqueueMicrotask(
+        env.isolate(),
         v8::Function::New(env.local(), UnreachableMicrotask).ToLocalChecked());
 
     CHECK_EQ(2,

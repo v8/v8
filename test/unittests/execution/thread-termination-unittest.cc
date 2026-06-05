@@ -431,7 +431,8 @@ void MicrotaskLoopForever(const FunctionCallbackInfo<Value>& info) {
   HandleScope scope(isolate);
   // Enqueue another should-not-run task to ensure we clean out the queue
   // when we terminate.
-  isolate->EnqueueMicrotask(
+  isolate->GetCurrentContext()->GetMicrotaskQueue()->EnqueueMicrotask(
+      isolate,
       Function::New(isolate->GetCurrentContext(), MicrotaskShouldNotRun)
           .ToLocalChecked());
   CompileRun(isolate->GetCurrentContext(), "terminate(); while (true) { }");
@@ -449,14 +450,14 @@ TEST_F(ThreadTerminationTest, TerminateFromOtherThreadWhileMicrotaskRunning) {
       CreateGlobalTemplate(isolate(), Signal, DoLoop);
   Local<Context> context = Context::New(isolate(), nullptr, global);
   Context::Scope context_scope(context);
-  isolate()->EnqueueMicrotask(
-      Function::New(isolate()->GetCurrentContext(), MicrotaskLoopForever)
-          .ToLocalChecked());
+  auto* microtask_queue = context->GetMicrotaskQueue();
+  microtask_queue->EnqueueMicrotask(
+      isolate(), Function::New(context, MicrotaskLoopForever).ToLocalChecked());
   // The second task should never be run because we bail out if we're
   // terminating.
-  isolate()->EnqueueMicrotask(
-      Function::New(isolate()->GetCurrentContext(), MicrotaskShouldNotRun)
-          .ToLocalChecked());
+  microtask_queue->EnqueueMicrotask(
+      isolate(),
+      Function::New(context, MicrotaskShouldNotRun).ToLocalChecked());
   isolate()->PerformMicrotaskCheckpoint();
 
   isolate()->CancelTerminateExecution();
@@ -823,12 +824,13 @@ TEST_F(ThreadTerminationTest, TerminateInApiMicrotask) {
     {
       Context::Scope context_scope(context);
       CHECK(!isolate()->IsExecutionTerminating());
-      isolate()->EnqueueMicrotask(
-          TerminationMicrotask,
+      auto* microtask_queue = context->GetMicrotaskQueue();
+      microtask_queue->EnqueueMicrotask(
+          isolate(), TerminationMicrotask,
           v8::External::New(isolate(), &context,
                             v8::kExternalPointerTypeTagDefault));
-      isolate()->EnqueueMicrotask(UnreachableMicrotask,
-                                  v8::Undefined(isolate()));
+      microtask_queue->EnqueueMicrotask(isolate(), UnreachableMicrotask,
+                                        v8::Undefined(isolate()));
     }
     // Trigger microtask checkpoint without active context.
     isolate()->PerformMicrotaskCheckpoint();
