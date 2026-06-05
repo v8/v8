@@ -1013,9 +1013,6 @@ class MaglevGraphBuilder {
       BuildKindSpecificFunc&& build_kind_specific,
       bool make_smi_fallthrough_to_object = false);
 
-  MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
-                                         Float64Round::Kind kind);
-
   template <typename CallNode, typename... Args>
   ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 

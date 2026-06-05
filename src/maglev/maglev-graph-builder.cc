@@ -104,49 +104,6 @@ namespace v8::internal::maglev {
 
 namespace {
 
-enum class CpuOperation {
-  kFloat64Round,
-  kMathClz32,
-};
-
-// TODO(leszeks): Add a generic mechanism for marking nodes as optionally
-// supported.
-bool IsSupported(CpuOperation op) {
-  switch (op) {
-    case CpuOperation::kFloat64Round:
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
-      return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
-#elif defined(V8_TARGET_ARCH_ARM)
-      return CpuFeatures::IsSupported(ARMv8);
-#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
-    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) ||   \
-    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
-    defined(V8_TARGET_ARCH_MIPS64)
-      return true;
-#else
-#error "V8 does not support this architecture."
-#endif
-
-    case CpuOperation::kMathClz32:
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
-    defined(V8_TARGET_ARCH_PPC64)
-      return true;
-#elif defined(V8_TARGET_ARCH_ARM)
-      return CpuFeatures::IsSupported(ARMv8);
-#elif defined(V8_TARGET_ARCH_X64)
-      return CpuFeatures::IsSupported(LZCNT);
-#elif defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
-      return CpuFeatures::IsSupported(ZBB);
-#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
-      return false;
-#else
-#error "V8 does not support this architecture."
-#endif
-  }
-  UNREACHABLE();
-}
-
 class FunctionContextSpecialization final : public AllStatic {
  public:
   static compiler::OptionalContextRef TryToRef(
@@ -11565,7 +11522,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceReflectApply(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathRound(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kNearest);
+  return reducer_.TryReduceMathRound(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
@@ -11615,100 +11572,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() == 0) {
-    return GetRootConstant(RootIndex::kNanValue);
-  }
-  ValueNode* arg = args[0];
-
-  switch (arg->value_representation()) {
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kIntPtr:
-      // TODO(388844115): Rename IntPtr to make it clear it's non-negative.
-      return arg;
-    case ValueRepresentation::kInt32:
-      if (!CanSpeculateCall()) return {};
-      return AddNewNode<Int32AbsWithOverflow>({arg});
-    case ValueRepresentation::kTagged:
-      switch (CheckTypes(arg, {NodeType::kSmi, NodeType::kNumberOrOddball})) {
-        case NodeType::kSmi:
-          if (!CanSpeculateCall()) return {};
-          return AddNewNode<Int32AbsWithOverflow>({arg});
-        case NodeType::kNumberOrOddball: {
-          ValueNode* float64_value;
-          GET_VALUE_OR_ABORT(
-              float64_value,
-              GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
-          return AddNewNode<Float64Abs>({float64_value});
-        }
-        // TODO(verwaest): Add support for ToNumberOrNumeric and deopt.
-        default:
-          break;
-      }
-      break;
-    case ValueRepresentation::kHoleyFloat64:
-      arg = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({arg});
-      [[fallthrough]];
-    case ValueRepresentation::kFloat64:
-      return AddNewNode<Float64Abs>({arg});
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-  return {};
+  return reducer_.TryReduceMathAbs(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathFloor(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kFloor);
+  return reducer_.TryReduceMathFloor(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathCeil(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return DoTryReduceMathRound(args, Float64Round::Kind::kCeil);
-}
-
-MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
-    CallArguments& args, Float64Round::Kind kind) {
-  if (args.count() == 0) {
-    return GetRootConstant(RootIndex::kNanValue);
-  }
-  ValueNode* arg = args[0];
-  auto arg_repr = arg->value_representation();
-  if (arg_repr == ValueRepresentation::kInt32 ||
-      arg_repr == ValueRepresentation::kUint32 ||
-      arg_repr == ValueRepresentation::kIntPtr) {
-    return arg;
-  }
-  if (CheckType(arg, NodeType::kSmi)) return arg;
-  if (!IsSupported(CpuOperation::kFloat64Round)) {
-    return {};
-  }
-  if (arg_repr == ValueRepresentation::kFloat64 ||
-      arg_repr == ValueRepresentation::kHoleyFloat64) {
-    if (arg_repr == ValueRepresentation::kHoleyFloat64) {
-      arg = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({arg});
-    }
-    return AddNewNode<Float64Round>({arg}, kind);
-  }
-  DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
-  if (CheckType(arg, NodeType::kNumberOrOddball)) {
-    ValueNode* float64_value;
-    GET_VALUE_OR_ABORT(float64_value,
-                       GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
-    return AddNewNode<Float64Round>({float64_value}, kind);
-  }
-  if (!CanSpeculateCall()) return {};
-  LazyDeoptFrameScope continuation_scope(this,
-                                         Float64Round::continuation(kind));
-  ToNumberOrNumeric* conversion;
-  GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
-                                     {arg}, Object::Conversion::kToNumber));
-  // TODO(victorgomes): rely on automatic input conversion here rather than
-  // calling UncheckedNumberToFloat64 manually.
-  ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(float64_value,
-                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
-  return AddNewNode<Float64Round>({float64_value}, kind);
+  return reducer_.TryReduceMathCeil(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
@@ -11723,22 +11597,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathImul(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() == 0) {
-    return GetInt32Constant(0);
-  }
-  if (args.count() == 1) {
-    // Fall back to builtin for 1 argument to ensure ToNumber side-effects.
-    return {};
-  }
-  if (!CanSpeculateCall() && (args[0]->is_tagged() || args[1]->is_tagged())) {
-    return {};
-  }
-  ValueNode *left, *right;
-  GET_VALUE_OR_ABORT(
-      left, GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball));
-  GET_VALUE_OR_ABORT(
-      right, GetTruncatedInt32ForToNumber(args[1], NodeType::kNumberOrOddball));
-  return AddNewNode<Int32Multiply>({left, right});
+  return reducer_.TryReduceMathImul(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
@@ -11757,55 +11616,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBooleanConstructor(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() < 1) {
-    return GetInt32Constant(32);
-  }
-
-  if (!IsSupported(CpuOperation::kMathClz32)) {
-    return {};
-  }
-
-  ValueNode* arg = args[0];
-  auto arg_repr = arg->value_representation();
-  if (arg_repr == ValueRepresentation::kInt32 ||
-      arg_repr == ValueRepresentation::kUint32 ||
-      arg_repr == ValueRepresentation::kIntPtr) {
-    RETURN_IF_DONE(reducer_.TryFoldInt32CountLeadingZeros(arg));
-    return AddNewNode<Int32CountLeadingZeros>({arg});
-  }
-  if (arg_repr == ValueRepresentation::kFloat64 ||
-      arg_repr == ValueRepresentation::kHoleyFloat64) {
-    RETURN_IF_DONE(reducer_.TryFoldFloat64CountLeadingZeros(arg));
-    if (IsSupported(CpuOperation::kFloat64Round)) {
-      if (arg_repr == ValueRepresentation::kHoleyFloat64) {
-        GET_VALUE_OR_ABORT(
-            arg, GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
-      }
-      return AddNewNode<Float64CountLeadingZeros>({arg});
-    }
-    return {};
-  }
-
-  DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
-  if (CheckType(arg, NodeType::kNumber)) {
-    return AddNewNode<TaggedCountLeadingZeros>({arg});
-  }
-
-  if (!CanSpeculateCall()) {
-    return {};
-  }
-
-  LazyDeoptFrameScope continuation_scope(
-      this, Float64CountLeadingZeros::continuation());
-  ToNumberOrNumeric* conversion;
-  GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
-                                     {arg}, Object::Conversion::kToNumber));
-  // TODO(victorgomes): rely on automatic input conversion here rather than
-  // calling UnsafeNumberToFloat64 manually.
-  ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(float64_value,
-                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
-  return AddNewNode<Float64CountLeadingZeros>({float64_value});
+  return reducer_.TryReduceMathClz32(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
@@ -11874,38 +11685,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathFround(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() < 1) {
-    return GetRootConstant(RootIndex::kNanValue);
-  }
-
-  if (!CanSpeculateCall() && args[0]->is_tagged()) {
-    return {};
-  }
-
-  ValueNode* value;
-  GET_VALUE_OR_ABORT(
-      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
-  return AddNewNode<Float64RoundToFloat32>({value});
+  return reducer_.TryReduceMathFround(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathTrunc(
     compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() < 1) {
-    return GetRootConstant(RootIndex::kNanValue);
-  }
-
-  if (!CanSpeculateCall() && args[0]->is_tagged()) {
-    return {};
-  }
-
-  if (!IsSupported(CpuOperation::kFloat64Round)) {
-    return {};
-  }
-
-  ValueNode* value;
-  GET_VALUE_OR_ABORT(
-      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
-  return AddNewNode<Float64Round>({value}, Float64Round::Kind::kTrunc);
+  return reducer_.TryReduceMathTrunc(target, args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(

@@ -13,6 +13,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -37,6 +38,50 @@ class Subgraph;
 template <typename DerivedT, typename BaseT>
 class SubgraphBase;
 class ReduceResult;
+
+enum class CpuOperation {
+  kFloat64Round,
+  kMathClz32,
+};
+
+// TODO(leszeks): Add a generic mechanism for marking nodes as optionally
+// supported.
+inline bool IsSupported(CpuOperation op) {
+  switch (op) {
+    case CpuOperation::kFloat64Round:
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+      return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
+#elif defined(V8_TARGET_ARCH_ARM)
+      return CpuFeatures::IsSupported(ARMv8);
+#elif defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) ||   \
+    defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
+      return true;
+#else
+#error "V8 does not support this architecture."
+#endif
+
+    case CpuOperation::kMathClz32:
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_S390X) || \
+    defined(V8_TARGET_ARCH_PPC64)
+      return true;
+#elif defined(V8_TARGET_ARCH_ARM)
+      return CpuFeatures::IsSupported(ARMv8);
+#elif defined(V8_TARGET_ARCH_X64)
+      return CpuFeatures::IsSupported(LZCNT);
+#elif defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+      return CpuFeatures::IsSupported(ZBB);
+#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+      return false;
+#else
+#error "V8 does not support this architecture."
+#endif
+  }
+  UNREACHABLE();
+}
+
 class V8_NODISCARD MaybeReduceResult {
  public:
   enum Kind {
@@ -231,6 +276,10 @@ concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
   // TODO(victorgomes): Bring exception handler logic to the reducer?
   b->AttachExceptionHandlerInfo(std::declval<Node*>());
 };
+
+template <typename BaseT>
+concept ReducerBaseWithLazyDeoptScope =
+    requires { typename BaseT::LazyDeoptFrameScope; };
 
 template <typename NodeT, typename BaseT>
 concept ReducerBaseWithEffectTracking = requires(BaseT* b) {
@@ -874,12 +923,30 @@ class MaglevReducer {
                      current_speculation_mode_) != supported_modes.end();
   }
 
-  MaybeReduceResult TryReduceMathSqrt(compiler::JSFunctionRef target,
-                                      CallArguments& args);
-  MaybeReduceResult TryReduceMathMax(compiler::JSFunctionRef target,
-                                     CallArguments& args);
-  MaybeReduceResult TryReduceMathMin(compiler::JSFunctionRef target,
-                                     CallArguments& args);
+  // TODO(victorgomes): These builtins have been ported to MaglevReducer; port
+  // the rest and merge this list with MAGLEV_REDUCED_BUILTIN in
+  // maglev-graph-builder.h.
+#define MAGLEV_REDUCER_BUILTIN(V) \
+  V(MathSqrt)                     \
+  V(MathMax)                      \
+  V(MathMin)                      \
+  V(MathAbs)                      \
+  V(MathCeil)                     \
+  V(MathFloor)                    \
+  V(MathRound)                    \
+  V(MathTrunc)                    \
+  V(MathClz32)                    \
+  V(MathImul)                     \
+  V(MathFround)
+
+#define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
+  MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
+                                    CallArguments& args);
+  MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
+#undef DECLARE_BUILTIN_REDUCER
+
+  MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
+                                         Float64Round::Kind kind);
   template <typename Int32Binop, typename Float64Binop>
   MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
                                         Int32Binop&& int32_case,
