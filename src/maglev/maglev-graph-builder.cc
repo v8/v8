@@ -11628,54 +11628,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
   return BuildToString(args[0], ToString::kConvertSymbol);
 }
 
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)       \
-  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(               \
-      compiler::JSFunctionRef target, CallArguments& args) {               \
-    if (args.count() < 1) {                                                \
-      return GetRootConstant(RootIndex::kNanValue);                        \
-    }                                                                      \
-    RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Unary(                    \
-        Float64Ieee754Unary::Ieee754Function::k##EnumName, args[0]));      \
-    if (!CanSpeculateCall() && !CheckType(args[0], NodeType::kNumber)) {   \
-      return {};                                                           \
-    }                                                                      \
-    ValueNode* value;                                                      \
-    GET_VALUE_OR_ABORT(value,                                              \
-                       GetFloat64ForToNumber(args[0], NodeType::kNumber)); \
-    return AddNewNode<Float64Ieee754Unary>(                                \
-        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);       \
+#define MATH_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName) \
+  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(   \
+      compiler::JSFunctionRef target, CallArguments& args) {   \
+    return reducer_.TryReduce##MathName(target, args);         \
   }
-
-IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
-#undef MATH_UNARY_IEEE_BUILTIN_REDUCER
-
-#define MATH_BINARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)      \
-  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(               \
-      compiler::JSFunctionRef target, CallArguments& args) {               \
-    if (args.count() < 2) {                                                \
-      if (args.count() == 1 && !CheckType(args[0], NodeType::kNumber)) {   \
-        return {};                                                         \
-      }                                                                    \
-      return GetRootConstant(RootIndex::kNanValue);                        \
-    }                                                                      \
-    RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Binary(                   \
-        Float64Ieee754Binary::Ieee754Function::k##EnumName, args[0],       \
-        args[1]));                                                         \
-    if (!CanSpeculateCall() && (!CheckType(args[0], NodeType::kNumber) ||  \
-                                !CheckType(args[1], NodeType::kNumber))) { \
-      return {};                                                           \
-    }                                                                      \
-    ValueNode* lhs;                                                        \
-    GET_VALUE_OR_ABORT(lhs,                                                \
-                       GetFloat64ForToNumber(args[0], NodeType::kNumber)); \
-    ValueNode* rhs;                                                        \
-    GET_VALUE_OR_ABORT(rhs,                                                \
-                       GetFloat64ForToNumber(args[1], NodeType::kNumber)); \
-    return AddNewNode<Float64Ieee754Binary>(                               \
-        {lhs, rhs}, Float64Ieee754Binary::Ieee754Function::k##EnumName);   \
-  }
-IEEE_754_BINARY_LIST(MATH_BINARY_IEEE_BUILTIN_REDUCER)
-#undef MATH_BINARY_IEEE_BUILTIN_REDUCER
+IEEE_754_UNARY_LIST(MATH_IEEE_BUILTIN_REDUCER)
+IEEE_754_BINARY_LIST(MATH_IEEE_BUILTIN_REDUCER)
+#undef MATH_IEEE_BUILTIN_REDUCER
 
 // TODO(victorgomes): Eventually we should remove this function altogether.
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(

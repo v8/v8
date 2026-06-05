@@ -937,7 +937,9 @@ class MaglevReducer {
   V(MathTrunc)                    \
   V(MathClz32)                    \
   V(MathImul)                     \
-  V(MathFround)
+  V(MathFround)                   \
+  IEEE_754_UNARY_LIST(V)          \
+  IEEE_754_BINARY_LIST(V)
 
 #define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
