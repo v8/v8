@@ -2927,9 +2927,19 @@ class LiftoffCompiler {
         return EmitI64Shift(&LiftoffAssembler::emit_i64_shr,
                             &LiftoffAssembler::emit_i64_shri);
       case kExprI64Rol:
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+        return EmitI64Shift(&LiftoffAssembler::emit_i64_rol,
+                            &LiftoffAssembler::emit_i64_roli);
+#else
         return EmitBitRotationCCall<kI64, ExternalReference::wasm_word64_rol>();
+#endif
       case kExprI64Ror:
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+        return EmitI64Shift(&LiftoffAssembler::emit_i64_ror,
+                            &LiftoffAssembler::emit_i64_rori);
+#else
         return EmitBitRotationCCall<kI64, ExternalReference::wasm_word64_ror>();
+#endif
       case kExprF32Add:
         return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_add);
       case kExprF32Sub:

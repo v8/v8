@@ -1830,6 +1830,30 @@ void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
   shlq(dst.gp(), Immediate(amount & 63));
 }
 
+void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  liftoff::EmitShiftOperation<kI64>(this, dst.gp(), src.gp(), amount,
+                                    &Assembler::rolq_cl);
+}
+
+void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
+  rolq(dst.gp(), Immediate(amount & 63));
+}
+
+void LiftoffAssembler::emit_i64_ror(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  liftoff::EmitShiftOperation<kI64>(this, dst.gp(), src.gp(), amount,
+                                    &Assembler::rorq_cl);
+}
+
+void LiftoffAssembler::emit_i64_rori(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
+  rorq(dst.gp(), Immediate(amount & 63));
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::EmitShiftOperation<kI64>(this, dst.gp(), src.gp(), amount,

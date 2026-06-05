@@ -1821,6 +1821,27 @@ void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
   Lsl(dst.gp().X(), src.gp().X(), amount & 63);
 }
 
+void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Neg(scratch, amount.X());
+  Ror(dst.gp().X(), src.gp().X(), scratch);
+}
+void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  Ror(dst.gp().X(), src.gp().X(), (64 - amount) & 63);
+}
+
+void LiftoffAssembler::emit_i64_ror(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  Ror(dst.gp().X(), src.gp().X(), amount.X());
+}
+void LiftoffAssembler::emit_i64_rori(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  Ror(dst.gp().X(), src.gp().X(), amount & 63);
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   Asr(dst.gp().X(), src.gp().X(), amount.X());
