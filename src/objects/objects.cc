@@ -594,7 +594,7 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
       Tagged<HeapObject> target = Cast<JSProxy>(currInput)->target();
       currInput = direct_handle(target, isolate);
     } while (IsJSProxy(*currInput));
-    return NoSideEffectsToString(isolate, currInput);
+    return NoSideEffectsToMaybeString(isolate, currInput);
   } else if (IsBigInt(*input)) {
     return BigInt::NoSideEffectsToString(isolate, Cast<BigInt>(input));
   } else if (IsJSFunctionOrBoundFunctionOrWrappedFunction(*input)) {

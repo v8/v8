@@ -303,6 +303,21 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
               "#<Object>");
 }
 
+TEST_F(ObjectTest, NoSideEffectsToMaybeStringWithProxy) {
+  Factory* factory = i_isolate()->factory();
+
+  HandleScope scope(i_isolate());
+
+  DirectHandle<JSObject> target =
+      factory->NewJSObject(i_isolate()->object_function());
+  JSObject::AddProperty(i_isolate(), target, factory->constructor_string(),
+                        factory->null_value(), NONE);
+  DirectHandle<JSProxy> proxy = factory->NewJSProxy(
+      target, factory->NewJSObject(i_isolate()->object_function()), false);
+
+  EXPECT_TRUE(Object::NoSideEffectsToMaybeString(i_isolate(), proxy).is_null());
+}
+
 TEST_F(ObjectTest, EnumCache) {
   i::Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
