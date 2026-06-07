@@ -1191,4 +1191,37 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Promise/allKeyed/capability-executor-not-callable': [SKIP],
+  'built-ins/Promise/allKeyed/ctx-ctor-constructed': [SKIP],
+  'built-ins/Promise/allKeyed/ctx-ctor-throws': [SKIP],
+  'built-ins/Promise/allKeyed/getownproperty-not-enumerable': [SKIP],
+  'built-ins/Promise/allKeyed/getownproperty-returns-undefined': [SKIP],
+  'built-ins/Promise/allKeyed/getownproperty-throws': [SKIP],
+  'built-ins/Promise/allKeyed/invoke-resolve-error-reject': [SKIP],
+  'built-ins/Promise/allKeyed/invoke-resolve-get-error-reject': [SKIP],
+  'built-ins/Promise/allKeyed/invoke-then-error-reject': [SKIP],
+  'built-ins/Promise/allKeyed/invoke-then-get-error-reject': [SKIP],
+  'built-ins/Promise/allKeyed/ownkeys-throws': [SKIP],
+  'built-ins/Promise/allKeyed/reject-last': [SKIP],
+  'built-ins/Promise/allKeyed/reject-second': [SKIP],
+  'built-ins/Promise/allKeyed/resolve-before-loop-exit': [SKIP],
+  'built-ins/Promise/allSettledKeyed/capability-executor-not-callable': [SKIP],
+  'built-ins/Promise/allSettledKeyed/ctx-ctor-constructed': [SKIP],
+  'built-ins/Promise/allSettledKeyed/ctx-ctor-throws': [SKIP],
+  'built-ins/Promise/allSettledKeyed/getownproperty-not-enumerable': [SKIP],
+  'built-ins/Promise/allSettledKeyed/getownproperty-returns-undefined': [SKIP],
+  'built-ins/Promise/allSettledKeyed/getownproperty-throws': [SKIP],
+  'built-ins/Promise/allSettledKeyed/invoke-resolve-error-reject': [SKIP],
+  'built-ins/Promise/allSettledKeyed/invoke-resolve-get-error-reject': [SKIP],
+  'built-ins/Promise/allSettledKeyed/invoke-then-error-reject': [SKIP],
+  'built-ins/Promise/allSettledKeyed/invoke-then-get-error-reject': [SKIP],
+  'built-ins/Promise/allSettledKeyed/ownkeys-throws': [SKIP],
+  'built-ins/Promise/allSettledKeyed/resolve-before-loop-exit': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
