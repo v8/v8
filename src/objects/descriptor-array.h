@@ -14,7 +14,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils/utils.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -114,7 +113,8 @@ V8_OBJECT class DescriptorArray : public HeapObject {
     kUnknown = 0b11
   };
 
-  DEFINE_TORQUE_GENERATED_DESCRIPTOR_ARRAY_FLAGS()
+  using FastIterableBits =
+      base::BitField<DescriptorArray::FastIterableState, 0, 2, uint32_t>;
 
   inline FastIterableState fast_iterable() const;
   inline void set_fast_iterable(FastIterableState value);

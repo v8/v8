@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('Map::Bits1')
 bitfield struct MapBitFields1 extends uint8 {
   is_callable: bool: 1 bit;
   has_named_interceptor: bool: 1 bit;
@@ -12,12 +13,14 @@ bitfield struct MapBitFields1 extends uint8 {
   is_extended_map: bool: 1 bit;
 }
 
+@cppScope('Map::Bits2')
 bitfield struct MapBitFields2 extends uint8 {
   new_target_is_base: bool: 1 bit;
   is_immutable_prototype: bool: 1 bit;
   elements_kind: ElementsKind: 6 bit;
 }
 
+@cppScope('Map::Bits3')
 bitfield struct MapBitFields3 extends uint32 {
   enum_length: int32: 10 bit;
   number_of_own_descriptors: int32: 10 bit;
@@ -98,6 +101,7 @@ extern class Map extends HeapObject {
 
 extern enum ExtendedMapKind extends uint8 { kJSInterceptorMap, ...}
 
+@cppScope('ExtendedMap::BitsEx')
 bitfield struct ExtendedMapBitFields extends uint8 {
   map_kind: ExtendedMapKind: 3 bit;
   // The extended map size should be computable via map_kind,

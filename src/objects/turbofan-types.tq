@@ -16,6 +16,7 @@ extern class TurbofanType extends HeapObject {}
 // TurbofanBitsetType is 64 bit.
 // We use two separate 32 bit bitsets in Torque, due to limited support
 // of 64 bit bitsets.
+@cppScope('TurbofanTypeLowBits')
 bitfield struct TurbofanTypeLowBits extends uint32 {
   _unused_padding_field_1: bool: 1 bit;
   other_unsigned31: bool: 1 bit;
@@ -51,6 +52,7 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   sandboxed_pointer: bool: 1 bit;
 }
 
+@cppScope('TurbofanTypeHighBits')
 bitfield struct TurbofanTypeHighBits extends uint32 {
   machine: bool: 1 bit;
   hole: bool: 1 bit;

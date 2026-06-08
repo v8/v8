@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_PROTOTYPE_INFO_H_
 #define V8_OBJECTS_PROTOTYPE_INFO_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -94,7 +94,7 @@ V8_OBJECT class PrototypeInfo : public Struct {
   DECL_VERIFIER(PrototypeInfo)
 
   // Bit field usage.
-  DEFINE_TORQUE_GENERATED_PROTOTYPE_INFO_FLAGS()
+  using ShouldBeFastBit = base::BitField<bool, 0, 1, uint32_t>;
 
   class BodyDescriptor;
 

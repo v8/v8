@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSArrayBuffer')
 bitfield struct JSArrayBufferFlags extends uint32 {
   is_external: bool: 1 bit;
   is_detachable: bool: 1 bit;
@@ -64,6 +65,7 @@ macro IsImmutableArrayBuffer(buffer: JSArrayBuffer): bool {
 // 2) Non-length tracking backed by RAB (can go oob once constructed)
 // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
 // 4) Length-tracking backed by GSAB (BackingStore stores the length)
+@cppScope('JSArrayBufferView')
 bitfield struct JSArrayBufferViewFlags extends uint32 {
   is_length_tracking: bool: 1 bit;
   is_backed_by_rab: bool: 1 bit;

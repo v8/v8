@@ -16,7 +16,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -72,7 +71,11 @@ BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
 // definition changes, these will catch the divergence at compile time.
 namespace torque_asserts {
 struct DisposableStackStatusTqFlags {
-  DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
+  using StateBit = base::BitField<DisposableStackState, 0, 1, uint32_t>;
+  using NeedsAwaitBit = StateBit::Next<bool, 1>;
+  using HasAwaitedBit = NeedsAwaitBit::Next<bool, 1>;
+  using SuppressedErrorCreatedBit = HasAwaitedBit::Next<bool, 1>;
+  using LengthBits = SuppressedErrorCreatedBit::Next<int32_t, 27>;
 };
 #define CHECK_BITFIELD(f)                                      \
   static_assert(JSDisposableStackBase::f::kShift ==            \

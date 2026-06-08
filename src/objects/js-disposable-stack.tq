@@ -13,6 +13,7 @@ extern enum DisposableStackResourcesType extends uint31 {
   kAtLeastOneAsync
 }
 
+@cppScope('JSDisposableStackBase')
 bitfield struct DisposableStackStatus extends uint31 {
   state: DisposableStackState: 1 bit;
   needs_await: bool: 1 bit;

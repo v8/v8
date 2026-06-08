@@ -27,6 +27,7 @@ class LocalizedNumberFormatter;
 namespace v8 {
 namespace internal {
 
+#include "src/base/bit-field.h"
 #include "torque-generated/src/objects/js-duration-format-tq.inc"
 
 V8_OBJECT class JSDurationFormat : public JSObject {
@@ -143,9 +144,42 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   inline void set_fractional_digits(int32_t digits);
   inline int32_t fractional_digits() const;
 
-  // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_DURATION_FORMAT_DISPLAY_FLAGS()
-  DEFINE_TORQUE_GENERATED_JS_DURATION_FORMAT_STYLE_FLAGS()
+  // Bit positions in |display_flags|.
+  using YearsDisplayBit =
+      base::BitField<JSDurationFormat::Display, 0, 1, uint32_t>;
+  using MonthsDisplayBit = YearsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using WeeksDisplayBit = MonthsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using DaysDisplayBit = WeeksDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using HoursDisplayBit = DaysDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MinutesDisplayBit = HoursDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using SecondsDisplayBit =
+      MinutesDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MillisecondsDisplayBit =
+      SecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using MicrosecondsDisplayBit =
+      MillisecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using NanosecondsDisplayBit =
+      MicrosecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+  using FractionalDigitsBits = NanosecondsDisplayBit::Next<int32_t, 4>;
+  // Bit positions in |style_flags|.
+  using StyleBits = base::BitField<JSDurationFormat::Style, 0, 2, uint32_t>;
+  using YearsStyleBits = StyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using MonthsStyleBits = YearsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using WeeksStyleBits = MonthsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using DaysStyleBits = WeeksStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+  using HoursStyleBits = DaysStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MinutesStyleBits =
+      HoursStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using SecondsStyleBits =
+      MinutesStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MillisecondsStyleBits =
+      SecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using MicrosecondsStyleBits =
+      MillisecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using NanosecondsStyleBits =
+      MicrosecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+  using SeparatorBits =
+      NanosecondsStyleBits::Next<JSDurationFormat::Separator, 2>;
 
   static_assert(YearsDisplayBit::is_valid(Display::kMax));
   static_assert(MonthsDisplayBit::is_valid(Display::kMax));

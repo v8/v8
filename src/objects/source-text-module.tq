@@ -4,6 +4,7 @@
 
 type SourceTextModuleInfo extends FixedArray;
 
+@cppScope('SourceTextModule')
 bitfield struct SourceTextModuleFlags extends uint31 {
   has_toplevel_await: bool: 1 bit;
   async_evaluation_ordinal: uint32: 30 bit;
@@ -49,6 +50,7 @@ extern class SourceTextModule extends Module {
 }
 
 type ModuleImportPhase extends uint32 constexpr 'ModuleImportPhase';
+@cppScope('ModuleRequest')
 bitfield struct ModuleRequestFlags extends uint31 {
   // Phase of the module request.
   phase: ModuleImportPhase: 2 bit;

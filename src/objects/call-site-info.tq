@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('CallSiteInfo')
 bitfield struct CallSiteInfoFlags extends uint31 {
   is_wasm: bool: 1 bit;
   is_asm_js_wasm: bool: 1 bit;  // Implies that is_wasm bit is set.

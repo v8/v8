@@ -140,7 +140,13 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   inline int32_t explicit_components_in_options() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FLAGS()
+  using HourCycleBits =
+      base::BitField<JSDateTimeFormat::HourCycle, 0, 3, uint32_t>;
+  using DateStyleBits = HourCycleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
+  using TimeStyleBits = DateStyleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
+  using HasToLocaleStringTimeZoneBit = TimeStyleBits::Next<bool, 1>;
+  using ExplicitComponentsInOptionsBits =
+      HasToLocaleStringTimeZoneBit::Next<int32_t, 11>;
 
   static_assert(HourCycleBits::is_valid(HourCycle::kUndefined));
   static_assert(HourCycleBits::is_valid(HourCycle::kH11));

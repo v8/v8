@@ -3954,49 +3954,47 @@ class FieldOffsetsGenerator {
 
 void ImplementationVisitor::GenerateBitFields(
     const std::string& output_directory) {
-  std::stringstream header;
-  std::string file_name = "bit-fields.h";
+  // Cross-check the hand-written C++ `base::BitField<...>` typedefs named by
+  // each `bitfield struct`'s `@cppScope('Class[::Inner]')` annotation against
+  // the offsets and widths Torque computes from the .tq decl. All checks live
+  // in a single TorqueGeneratedBitFieldAsserts class in bit-field-asserts.cc;
+  // classes whose typedefs are private grant it access with a friend
+  // declaration. Bitfield structs without @cppScope have no C++ counterpart.
+  const char* file_name = "bit-field-asserts.cc";
+  std::stringstream cc_contents;
   {
-    IncludeGuardScope include_guard(header, file_name);
-    header << "#include \"src/base/bit-field.h\"\n\n";
-    NamespaceScope namespaces(header, {"v8", "internal"});
-
+    std::set<std::string> headers;
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
-      bool all_single_bits = true;  // Track whether every field is one bit.
-      header << "// " << type->GetPosition() << "\n";
-      header << "#define DEFINE_TORQUE_GENERATED_"
-             << CapifyStringWithUnderscores(type->name()) << "() \\\n";
-      std::string type_name = type->GetConstexprGeneratedTypeName();
+      if (!type->cpp_scope().has_value()) continue;
+      headers.insert(SourceFileMap::PathFromV8RootWithoutExtension(
+                         type->GetPosition().source) +
+                     ".h");
+    }
+    for (const std::string& header : headers) {
+      cc_contents << "#include \"" << header << "\"\n";
+    }
+    cc_contents << "\n";
+
+    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
+    cc_contents << "class TorqueGeneratedBitFieldAsserts {\n";
+    for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
+      if (!type->cpp_scope().has_value()) continue;
+      const std::string& scope = *type->cpp_scope();
+      cc_contents << "  // " << type->name() << " (" << type->GetPosition()
+                  << ")\n";
       for (const auto& field : type->fields()) {
         const char* suffix = field.num_bits == 1 ? "Bit" : "Bits";
-        all_single_bits = all_single_bits && field.num_bits == 1;
-        std::string field_type_name =
-            field.name_and_type.type->GetConstexprGeneratedTypeName();
-        header << "  using " << CamelifyString(field.name_and_type.name)
-               << suffix << " = base::BitField<" << field_type_name << ", "
-               << field.offset << ", " << field.num_bits << ", " << type_name
-               << ">; \\\n";
+        std::string symbol =
+            scope + "::" + CamelifyString(field.name_and_type.name) + suffix;
+        cc_contents << "  static_assert(" << symbol
+                    << "::kShift == " << field.offset << ");\n"
+                    << "  static_assert(" << symbol
+                    << "::kSize == " << field.num_bits << ");\n";
       }
-
-      // If every field is one bit, we can also generate a convenient enum.
-      if (all_single_bits) {
-        header << "  enum Flag: " << type_name << " { \\\n";
-        header << "    kNone = 0, \\\n";
-        for (const auto& field : type->fields()) {
-          header << "    k" << CamelifyString(field.name_and_type.name) << " = "
-                 << type_name << "{1} << " << field.offset << ", \\\n";
-        }
-        header << "  }; \\\n";
-        header << "  using Flags = base::Flags<Flag>; \\\n";
-        header << "  static constexpr int kFlagCount = "
-               << type->fields().size() << "; \\\n";
-      }
-
-      header << "\n";
     }
+    cc_contents << "};\n";
   }
-  const std::string output_header_path = output_directory + "/" + file_name;
-  WriteFile(output_header_path, header.str());
+  WriteFile(output_directory + "/" + file_name, cc_contents.str());
 }
 
 namespace {

@@ -11,7 +11,6 @@
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -102,7 +101,11 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   DECL_VERIFIER(JSPromise)
 
   // Flags layout.
-  DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
+  using StatusBits = base::BitField<Promise::PromiseState, 0, 2, uint32_t>;
+  using IsNativeResolverInvokedBit = StatusBits::Next<bool, 1>;
+  using HasHandlerBit = IsNativeResolverInvokedBit::Next<bool, 1>;
+  using IsSilentBit = HasHandlerBit::Next<bool, 1>;
+  using AsyncTaskIdBits = IsSilentBit::Next<uint32_t, 26>;
 
   static_assert(v8::Promise::kPending == 0);
   static_assert(v8::Promise::kFulfilled == 1);

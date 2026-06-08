@@ -12,7 +12,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -34,7 +33,24 @@ class StructBodyDescriptor;
 // debugged.
 V8_OBJECT class DebugInfo : public Struct {
  public:
-  DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
+  // Bit positions in |flags|.
+  using HasBreakInfoBit = base::BitField<bool, 0, 1, uint32_t>;
+  using PreparedForDebugExecutionBit = HasBreakInfoBit::Next<bool, 1>;
+  using HasCoverageInfoBit = PreparedForDebugExecutionBit::Next<bool, 1>;
+  using BreakAtEntryBit = HasCoverageInfoBit::Next<bool, 1>;
+  using CanBreakAtEntryBit = BreakAtEntryBit::Next<bool, 1>;
+  using DebugExecutionModeBit = CanBreakAtEntryBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kHasBreakInfo = HasBreakInfoBit::kMask,
+    kPreparedForDebugExecution = PreparedForDebugExecutionBit::kMask,
+    kHasCoverageInfo = HasCoverageInfoBit::kMask,
+    kBreakAtEntry = BreakAtEntryBit::kMask,
+    kCanBreakAtEntry = CanBreakAtEntryBit::kMask,
+    kDebugExecutionMode = DebugExecutionModeBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 6;
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
@@ -132,7 +148,10 @@ V8_OBJECT class DebugInfo : public Struct {
   inline void set_debugging_id(int value);
 
   // Bit positions in |debugger_hints|.
-  DEFINE_TORQUE_GENERATED_DEBUGGER_HINTS()
+  using SideEffectStateBits = base::BitField<int32_t, 0, 2, uint32_t>;
+  using DebugIsBlackboxedBit = SideEffectStateBits::Next<bool, 1>;
+  using ComputedDebugIsBlackboxedBit = DebugIsBlackboxedBit::Next<bool, 1>;
+  using DebuggingIdBits = ComputedDebugIsBlackboxedBit::Next<int32_t, 20>;
 
   static const int kNoDebuggingId = 0;
 
@@ -331,7 +350,9 @@ V8_OBJECT class StackFrameInfo : public Struct {
   inline void set_flags(int value);
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+  using IsConstructorBit = base::BitField<bool, 0, 1, uint32_t>;
+  using BytecodeOffsetOrSourcePositionBits =
+      IsConstructorBit::Next<int32_t, 30>;
 
   using BodyDescriptor = StructBodyDescriptor;
 

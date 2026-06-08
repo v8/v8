@@ -2452,7 +2452,7 @@ template("run_torque") {
     destination_folder = "$target_gen_dir/torque-generated$suffix"
 
     outputs = [
-      "$destination_folder/bit-fields.h",
+      "$destination_folder/bit-field-asserts.cc",
       "$destination_folder/builtin-definitions.h",
       "$destination_folder/class-debug-readers.cc",
       "$destination_folder/class-debug-readers.h",
@@ -2610,6 +2610,7 @@ v8_cluster_source_set("torque_generated_initializers") {
   ]
 
   sources = torque_csa_cc_files + [
+              "$target_gen_dir/torque-generated/bit-field-asserts.cc",
               "$target_gen_dir/torque-generated/csa-types.h",
               "$target_gen_dir/torque-generated/enum-verifiers.cc",
               "$target_gen_dir/torque-generated/exported-macros-assembler.cc",

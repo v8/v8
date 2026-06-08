@@ -8,6 +8,7 @@ extern enum AbortReason { kTurboshaftTypeAssertionFailed, ...}
 
 extern macro Abort(constexpr AbortReason): never;
 
+@cppScope('TurboshaftFloatSpecialValues')
 bitfield struct TurboshaftFloatSpecialValues extends uint32 {
   nan: bool: 1 bit;
   minus_zero: bool: 1 bit;

@@ -2400,7 +2400,12 @@ namespace {
 // Check that the constants defined in src/objects/instance-type.h coincides
 // with the Torque-definition of string instance types in src/objects/string.tq.
 
-DEFINE_TORQUE_GENERATED_STRING_INSTANCE_TYPE()
+using RepresentationBits =
+    base::BitField<StringRepresentationTag, 0, 3, uint16_t>;
+using IsOneByteBit = base::BitField<bool, 3, 1, uint16_t>;
+using IsUncachedBit = base::BitField<bool, 4, 1, uint16_t>;
+using IsNotInternalizedBit = base::BitField<bool, 5, 1, uint16_t>;
+using IsSharedBit = base::BitField<bool, 6, 1, uint16_t>;
 
 static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 

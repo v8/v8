@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_JS_WEAK_REFS_H_
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/tagged-field.h"
 #include "src/objects/union.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -105,7 +105,13 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
       Isolate* isolate, Tagged<WeakCell> weak_cell);
 
   // Bitfields in flags.
-  DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
+  using ScheduledForCleanupBit = base::BitField<bool, 0, 1, uint32_t>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kScheduledForCleanup = ScheduledForCleanupBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 1;
 
   static const int kHeaderSize;
 

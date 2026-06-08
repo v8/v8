@@ -5,6 +5,7 @@
 type CompilationType extends int32 constexpr 'Script::CompilationType';
 type CompilationState extends int32 constexpr 'Script::CompilationState';
 
+@cppScope('Script')
 bitfield struct ScriptFlags extends uint31 {
   compilation_type: CompilationType: 1 bit;
   compilation_state: CompilationState: 1 bit;

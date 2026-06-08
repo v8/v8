@@ -7,12 +7,12 @@
 
 #include "include/v8-array-buffer.h"
 #include "include/v8-typed-array.h"
+#include "src/base/bit-field.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/sandbox/external-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -67,7 +67,25 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   V8_INLINE void clear_padding();
 
   // Bit positions for [bit_field].
-  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_FLAGS()
+  using IsExternalBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IsDetachableBit = IsExternalBit::Next<bool, 1>;
+  using WasDetachedBit = IsDetachableBit::Next<bool, 1>;
+  using IsAsmJsMemoryBit = WasDetachedBit::Next<bool, 1>;
+  using IsSharedBit = IsAsmJsMemoryBit::Next<bool, 1>;
+  using IsResizableByJsBit = IsSharedBit::Next<bool, 1>;
+  using IsImmutableBit = IsResizableByJsBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsExternal = IsExternalBit::kMask,
+    kIsDetachable = IsDetachableBit::kMask,
+    kWasDetached = WasDetachedBit::kMask,
+    kIsAsmJsMemory = IsAsmJsMemoryBit::kMask,
+    kIsShared = IsSharedBit::kMask,
+    kIsResizableByJs = IsResizableByJsBit::kMask,
+    kIsImmutable = IsImmutableBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 7;
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
   // backing_store, while is_external == false means that v8 will free the
@@ -428,7 +446,15 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
   DECL_VERIFIER(JSArrayBufferView)
 
   // Bit positions for [bit_field].
-  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_VIEW_FLAGS()
+  using IsLengthTrackingBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IsBackedByRabBit = IsLengthTrackingBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsLengthTracking = IsLengthTrackingBit::kMask,
+    kIsBackedByRab = IsBackedByRabBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 2;
 
   inline bool WasDetached() const;
   inline bool IsDetachedOrOutOfBounds() const;

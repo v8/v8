@@ -13,7 +13,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
 #include "src/utils/utils.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

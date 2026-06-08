@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSPromise')
 bitfield struct JSPromiseFlags extends uint31 {
   status: PromiseState: 2 bit;
   is_native_resolver_invoked: bool: 1 bit;

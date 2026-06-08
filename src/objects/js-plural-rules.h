@@ -64,7 +64,7 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
   DECL_PRINTER(JSPluralRules)
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_PLURAL_RULES_FLAGS()
+  using TypeBit = base::BitField<JSPluralRules::Type, 0, 1, uint32_t>;
 
   static_assert(TypeBit::is_valid(Type::CARDINAL));
   static_assert(TypeBit::is_valid(Type::ORDINAL));

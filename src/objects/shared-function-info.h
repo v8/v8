@@ -27,7 +27,6 @@
 #include "src/objects/trusted-object.h"
 #include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -261,8 +260,43 @@ using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 // shared by multiple instances of the function.
 V8_OBJECT class SharedFunctionInfo : public HeapObject {
  public:
-  DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
-  DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS2()
+  // Bit positions in |flags|.
+  using FunctionKindBits = base::BitField<FunctionKind, 0, 5, uint32_t>;
+  using IsNativeBit = FunctionKindBits::Next<bool, 1>;
+  using IsStrictBit = IsNativeBit::Next<bool, 1>;
+  using FunctionSyntaxKindBits = IsStrictBit::Next<FunctionSyntaxKind, 3>;
+  using IsClassConstructorBit = FunctionSyntaxKindBits::Next<bool, 1>;
+  using HasDuplicateParametersBit = IsClassConstructorBit::Next<bool, 1>;
+  using AllowLazyCompilationBit = HasDuplicateParametersBit::Next<bool, 1>;
+  using IsAsmWasmBrokenBit = AllowLazyCompilationBit::Next<bool, 1>;
+  using FunctionMapIndexBits = IsAsmWasmBrokenBit::Next<uint32_t, 5>;
+  using DisabledOptimizationReasonBits =
+      FunctionMapIndexBits::Next<BailoutReason, 4>;
+  using RequiresInstanceMembersInitializerBit =
+      DisabledOptimizationReasonBits::Next<bool, 1>;
+  using ConstructAsBuiltinBit =
+      RequiresInstanceMembersInitializerBit::Next<bool, 1>;
+  using NameShouldPrintAsAnonymousBit = ConstructAsBuiltinBit::Next<bool, 1>;
+  using HasReportedBinaryCoverageBit =
+      NameShouldPrintAsAnonymousBit::Next<bool, 1>;
+  using IsTopLevelBit = HasReportedBinaryCoverageBit::Next<bool, 1>;
+  using PropertiesAreFinalBit = IsTopLevelBit::Next<bool, 1>;
+  using PrivateNameLookupSkipsOuterClassBit =
+      PropertiesAreFinalBit::Next<bool, 1>;
+  using IsHoistedInContextBit =
+      PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+  using LiveEditedBit = IsHoistedInContextBit::Next<bool, 1>;
+  // Bit positions in |flags2|.
+  using ClassScopeHasPrivateBrandBit = base::BitField<bool, 0, 1, uint8_t>;
+  using HasStaticPrivateMethodsOrAccessorsBit =
+      ClassScopeHasPrivateBrandBit::Next<bool, 1>;
+  using IsSparkplugCompilingBit =
+      HasStaticPrivateMethodsOrAccessorsBit::Next<bool, 1>;
+  using MaglevCompilationFailedBit = IsSparkplugCompilingBit::Next<bool, 1>;
+  using CachedTieringDecisionBits =
+      MaglevCompilationFailedBit::Next<CachedTieringDecision, 3>;
+  using FunctionContextIndependentCompiledBit =
+      CachedTieringDecisionBits::Next<bool, 1>;
 
   // Primitive header accessors (equivalents of the previously Torque-
   // generated inline getters/setters). Kept in the same order as the

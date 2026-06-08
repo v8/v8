@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppScope('JSRegExp')
 bitfield struct JSRegExpFlags extends uint31 {
   global: bool: 1 bit;
   ignore_case: bool: 1 bit;
@@ -30,6 +31,7 @@ extern class AtomRegExpData extends RegExpData {
   pattern: String;
 }
 
+@cppScope('IrRegExpData::Bits')
 bitfield struct IrRegExpDataBitField extends uint31 {
   can_be_zero_length: bool: 1 bit;
   is_linear_executable: bool: 1 bit;

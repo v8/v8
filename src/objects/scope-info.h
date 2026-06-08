@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_SCOPE_INFO_H_
 #define V8_OBJECTS_SCOPE_INFO_H_
 
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
@@ -13,7 +14,6 @@
 #include "src/objects/tagged-field.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -58,7 +58,34 @@ struct VariableLookupResult {
 // routines.
 V8_OBJECT class ScopeInfo : public HeapObject {
  public:
-  DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
+  // Bit positions in |flags|.
+  using ScopeTypeBits = base::BitField<ScopeType, 0, 4, uint32_t>;
+  using SloppyEvalCanExtendVarsBit = ScopeTypeBits::Next<bool, 1>;
+  using LanguageModeBit = SloppyEvalCanExtendVarsBit::Next<LanguageMode, 1>;
+  using DeclarationScopeBit = LanguageModeBit::Next<bool, 1>;
+  using ReceiverVariableBits =
+      DeclarationScopeBit::Next<VariableAllocationInfo, 2>;
+  using ClassScopeHasPrivateBrandBit = ReceiverVariableBits::Next<bool, 1>;
+  using HasSavedClassVariableBit = ClassScopeHasPrivateBrandBit::Next<bool, 1>;
+  using AllocatesArgumentsBit = HasSavedClassVariableBit::Next<bool, 1>;
+  using FunctionVariableBits =
+      AllocatesArgumentsBit::Next<VariableAllocationInfo, 2>;
+  using HasInferredFunctionNameBit = FunctionVariableBits::Next<bool, 1>;
+  using IsAsmModuleBit = HasInferredFunctionNameBit::Next<bool, 1>;
+  using HasSimpleParametersBit = IsAsmModuleBit::Next<bool, 1>;
+  using FunctionKindBits = HasSimpleParametersBit::Next<FunctionKind, 5>;
+  using HasOuterScopeInfoBit = FunctionKindBits::Next<bool, 1>;
+  using IsDebugEvaluateScopeBit = HasOuterScopeInfoBit::Next<bool, 1>;
+  using ForceContextAllocationBit = IsDebugEvaluateScopeBit::Next<bool, 1>;
+  using PrivateNameLookupSkipsOuterClassBit =
+      ForceContextAllocationBit::Next<bool, 1>;
+  using HasContextExtensionSlotBit =
+      PrivateNameLookupSkipsOuterClassBit::Next<bool, 1>;
+  using SomeContextHasExtensionBit = HasContextExtensionSlotBit::Next<bool, 1>;
+  using IsHiddenBit = SomeContextHasExtensionBit::Next<bool, 1>;
+  using IsWrappedFunctionBit = IsHiddenBit::Next<bool, 1>;
+  using HasContextCellsBit = IsWrappedFunctionBit::Next<bool, 1>;
+  using IsHoistedInContextBit = HasContextCellsBit::Next<bool, 1>;
 
   DECL_PRINTER(ScopeInfo)
   DECL_VERIFIER(ScopeInfo)
@@ -505,10 +532,16 @@ V8_OBJECT class ScopeInfo : public HeapObject {
       TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
 
   // Properties of variables.
-  DEFINE_TORQUE_GENERATED_VARIABLE_PROPERTIES()
+  using VariableModeBits = base::BitField<VariableMode, 0, 4, uint32_t>;
+  using InitFlagBit = VariableModeBits::Next<InitializationFlag, 1>;
+  using MaybeAssignedFlagBit = InitFlagBit::Next<MaybeAssignedFlag, 1>;
+  using IsParameterBit = MaybeAssignedFlagBit::Next<bool, 1>;
+  using ParameterNumberOrPositionBits = IsParameterBit::Next<uint32_t, 16>;
+  using IsStaticFlagBit = ParameterNumberOrPositionBits::Next<IsStaticFlag, 1>;
 
   friend class ScopeIterator;
   friend class CodeStubAssembler;
+  friend class TorqueGeneratedBitFieldAsserts;
   friend std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
  public:

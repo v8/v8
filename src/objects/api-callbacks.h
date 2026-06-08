@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_API_CALLBACKS_H_
 #define V8_OBJECTS_API_CALLBACKS_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
 #include "src/sandbox/external-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -95,9 +95,16 @@ V8_OBJECT class AccessorInfo : public HeapObject {
 
  private:
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
+  using IsSloppyBit = base::BitField<bool, 0, 1, uint32_t>;
+  using ReplaceOnAccessBit = IsSloppyBit::Next<bool, 1>;
+  using GetterSideEffectTypeBits = ReplaceOnAccessBit::Next<SideEffectType, 2>;
+  using SetterSideEffectTypeBits =
+      GetterSideEffectTypeBits::Next<SideEffectType, 2>;
+  using InitialAttributesBits =
+      SetterSideEffectTypeBits::Next<PropertyAttributes, 3>;
 
   friend class TorqueGeneratedAccessorInfoAsserts;
+  friend class TorqueGeneratedBitFieldAsserts;
 
  public:
   TaggedMember<Object> data_;
@@ -240,7 +247,21 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
   // Api deprecation process.
   DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
 
-  DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
+  using CanInterceptSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
+  using NonMaskingBit = CanInterceptSymbolsBit::Next<bool, 1>;
+  using NamedBit = NonMaskingBit::Next<bool, 1>;
+  using HasNoSideEffectBit = NamedBit::Next<bool, 1>;
+  using HasNewCallbacksSignatureBit = HasNoSideEffectBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kCanInterceptSymbols = CanInterceptSymbolsBit::kMask,
+    kNonMasking = NonMaskingBit::kMask,
+    kNamed = NamedBit::kMask,
+    kHasNoSideEffect = HasNoSideEffectBit::kMask,
+    kHasNewCallbacksSignature = HasNewCallbacksSignatureBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 5;
 
   DECL_PRINTER(InterceptorInfo)
   DECL_VERIFIER(InterceptorInfo)

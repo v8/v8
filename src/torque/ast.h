@@ -1231,12 +1231,18 @@ struct BitFieldStructDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(BitFieldStructDeclaration)
   BitFieldStructDeclaration(SourcePosition pos, Identifier* name,
                             TypeExpression* parent,
-                            std::vector<BitFieldDeclaration> fields)
+                            std::vector<BitFieldDeclaration> fields,
+                            std::optional<std::string> cpp_scope = {})
       : TypeDeclaration(kKind, pos, name),
         parent(parent),
-        fields(std::move(fields)) {}
+        fields(std::move(fields)),
+        cpp_scope(std::move(cpp_scope)) {}
   TypeExpression* parent;
   std::vector<BitFieldDeclaration> fields;
+  // C++ scope (class or nested struct) where the hand-written
+  // `base::BitField<...>` typedefs live, harvested from `@cppScope('...')`.
+  // Empty means no C++ counterpart; Torque emits no drift asserts.
+  std::optional<std::string> cpp_scope;
 };
 
 struct ClassBody : AstNode {

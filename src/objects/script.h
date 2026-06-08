@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-script.h"
+#include "src/base/bit-field.h"
 #include "src/base/export-template.h"
 #include "src/heap/factory-base.h"
 #include "src/heap/factory.h"
@@ -17,7 +18,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/objects/struct.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -396,9 +396,18 @@ V8_OBJECT class Script : public Struct {
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
+  friend class TorqueGeneratedBitFieldAsserts;
 
   // Bit positions in the flags field.
-  DEFINE_TORQUE_GENERATED_SCRIPT_FLAGS()
+  using CompilationTypeBit =
+      base::BitField<Script::CompilationType, 0, 1, uint32_t>;
+  using CompilationStateBit =
+      CompilationTypeBit::Next<Script::CompilationState, 1>;
+  using IsReplModeBit = CompilationStateBit::Next<bool, 1>;
+  using OriginOptionsBits = IsReplModeBit::Next<int32_t, 4>;
+  using BreakOnEntryBit = OriginOptionsBits::Next<bool, 1>;
+  using ProduceCompileHintsBit = BreakOnEntryBit::Next<bool, 1>;
+  using DeserializedBit = ProduceCompileHintsBit::Next<bool, 1>;
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

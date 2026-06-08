@@ -57,6 +57,7 @@ extern enum IsStaticFlag extends uint32 { kNotStatic, kStatic }
 extern enum MaybeAssignedFlag extends uint32 { kNotAssigned, kMaybeAssigned }
 
 // Properties of scopes.
+@cppScope('ScopeInfo')
 bitfield struct ScopeFlags extends uint32 {
   scope_type: ScopeType: 4 bit;
   sloppy_eval_can_extend_vars: bool: 1 bit;
@@ -101,6 +102,7 @@ struct FunctionVariableInfo {
   context_or_stack_slot_index: Smi;
 }
 
+@cppScope('ScopeInfo')
 bitfield struct VariableProperties extends uint31 {
   variable_mode: VariableMode: 4 bit;
   init_flag: InitializationFlag: 1 bit;

@@ -5,12 +5,12 @@
 #ifndef V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
 #include "src/objects/string.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -169,7 +169,9 @@ V8_OBJECT class SourceTextModule : public Module {
   inline void DecrementPendingAsyncDependencies();
 
   // Bits for flags.
-  DEFINE_TORQUE_GENERATED_SOURCE_TEXT_MODULE_FLAGS()
+  using HasToplevelAwaitBit = base::BitField<bool, 0, 1, uint32_t>;
+  using AsyncEvaluationOrdinalBits = HasToplevelAwaitBit::Next<uint32_t, 30>;
+  friend class TorqueGeneratedBitFieldAsserts;
 
   // async_evaluation_ordinal, top_level_capability, pending_async_dependencies,
   // and async_parent_modules are used exclusively during evaluation of async
@@ -364,7 +366,8 @@ V8_OBJECT class ModuleRequest : public Struct {
   static const size_t kAttributeEntrySize = 3;
 
   // Bits for flags.
-  DEFINE_TORQUE_GENERATED_MODULE_REQUEST_FLAGS()
+  using PhaseBits = base::BitField<ModuleImportPhase, 0, 2, uint32_t>;
+  using PositionBits = PhaseBits::Next<uint32_t, 29>;
   static_assert(PositionBits::kMax >= String::kMaxLength,
                 "String::kMaxLength should fit in PositionBits::kMax");
   DECL_PRIMITIVE_ACCESSORS(position, unsigned)

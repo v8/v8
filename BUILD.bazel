@@ -4420,7 +4420,7 @@ v8_torque_files(
         "exported-macros-assembler.h",
     ],
     definition_extras = [
-        "bit-fields.h",
+        "bit-field-asserts.cc",
         "builtin-definitions.h",
         # "class-debug-readers.cc",
         # "class-debug-readers.h",

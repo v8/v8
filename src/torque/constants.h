@@ -113,6 +113,11 @@ static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
 static const char* const ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION =
     "@cppObjectLayoutDefinition";
+// The C++ scope where the hand-written counterpart of a `bitfield struct`'s
+// `base::BitField<...>` typedefs lives, e.g. "JSPromise" or "Map::Bits1".
+// When present, Torque emits drift-detection static_asserts into the per-file
+// <name>-tq.cc.
+static const char* const ANNOTATION_CPP_SCOPE = "@cppScope";
 static const char* const ANNOTATION_SAME_ENUM_VALUE_AS = "@sameEnumValueAs";
 // Generate C++ accessors with relaxed store semantics.
 // Weak<T> and Tagged<MaybeObject> fields always use relaxed store.

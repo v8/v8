@@ -7,10 +7,10 @@
 
 #include <optional>
 
+#include "src/base/bit-field.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-pointer.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,7 +25,29 @@ class StructBodyDescriptor;
 
 V8_OBJECT class CallSiteInfo : public Struct {
  public:
-  DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
+  using IsWasmBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IsAsmJsWasmBit = IsWasmBit::Next<bool, 1>;
+  using IsStrictBit = IsAsmJsWasmBit::Next<bool, 1>;
+  using IsConstructorBit = IsStrictBit::Next<bool, 1>;
+  using IsAsmJsAtNumberConversionBit = IsConstructorBit::Next<bool, 1>;
+  using IsAsyncBit = IsAsmJsAtNumberConversionBit::Next<bool, 1>;
+  using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
+  using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
+  using IsDeferredBaselineFrameBit = IsSourcePositionComputedBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsWasm = IsWasmBit::kMask,
+    kIsAsmJsWasm = IsAsmJsWasmBit::kMask,
+    kIsStrict = IsStrictBit::kMask,
+    kIsConstructor = IsConstructorBit::kMask,
+    kIsAsmJsAtNumberConversion = IsAsmJsAtNumberConversionBit::kMask,
+    kIsAsync = IsAsyncBit::kMask,
+    kIsBuiltin = IsBuiltinBit::kMask,
+    kIsSourcePositionComputed = IsSourcePositionComputedBit::kMask,
+    kIsDeferredBaselineFrame = IsDeferredBaselineFrameBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 9;
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool IsWasm() const;

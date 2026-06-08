@@ -22,6 +22,7 @@ type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';
 type CachedTieringDecision extends uint8 constexpr 'CachedTieringDecision';
 
+@cppScope('SharedFunctionInfo')
 bitfield struct SharedFunctionInfoFlags extends uint32 {
   // Have FunctionKind first to make it cheaper to access.
   function_kind: FunctionKind: 5 bit;
@@ -47,6 +48,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   live_edited: bool: 1 bit;
 }
 
+@cppScope('SharedFunctionInfo')
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;

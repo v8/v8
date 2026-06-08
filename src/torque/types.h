@@ -526,6 +526,9 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
 
   const std::string& name() const { return decl_->name->value; }
   const std::vector<BitField>& fields() const { return fields_; }
+  const std::optional<std::string>& cpp_scope() const {
+    return decl_->cpp_scope;
+  }
 
   const BitField& LookupField(const std::string& name) const;
 

@@ -16,6 +16,7 @@ extern class BreakPointInfo extends Struct {
   break_points: FixedArray|BreakPoint|Undefined;
 }
 
+@cppScope('DebugInfo')
 bitfield struct DebugInfoFlags extends uint31 {
   has_break_info: bool: 1 bit;
   prepared_for_debug_execution: bool: 1 bit;
@@ -25,6 +26,7 @@ bitfield struct DebugInfoFlags extends uint31 {
   debug_execution_mode: bool: 1 bit;
 }
 
+@cppScope('DebugInfo')
 bitfield struct DebuggerHints extends uint31 {
   side_effect_state: int32: 2 bit;
   debug_is_blackboxed: bool: 1 bit;
@@ -68,6 +70,7 @@ extern class CoverageInfo extends HeapObject {
   slots[slot_count]: CoverageInfoSlot;
 }
 
+@cppScope('StackFrameInfo')
 bitfield struct StackFrameInfoFlags extends uint31 {
   is_constructor: bool: 1 bit;
   bytecode_offset_or_source_position: int32: 30 bit;

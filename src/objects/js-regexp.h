@@ -8,11 +8,11 @@
 #include <optional>
 
 #include "include/v8-regexp.h"
+#include "src/base/bit-field.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
 #include "src/objects/trusted-object.h"
 #include "src/regexp/regexp-flags.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,7 +28,29 @@ class RegExpData;
 // Regular expressions
 V8_OBJECT class JSRegExp : public JSObject {
  public:
-  DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
+  using GlobalBit = base::BitField<bool, 0, 1, uint32_t>;
+  using IgnoreCaseBit = GlobalBit::Next<bool, 1>;
+  using MultilineBit = IgnoreCaseBit::Next<bool, 1>;
+  using StickyBit = MultilineBit::Next<bool, 1>;
+  using UnicodeBit = StickyBit::Next<bool, 1>;
+  using DotAllBit = UnicodeBit::Next<bool, 1>;
+  using LinearBit = DotAllBit::Next<bool, 1>;
+  using HasIndicesBit = LinearBit::Next<bool, 1>;
+  using UnicodeSetsBit = HasIndicesBit::Next<bool, 1>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kGlobal = GlobalBit::kMask,
+    kIgnoreCase = IgnoreCaseBit::kMask,
+    kMultiline = MultilineBit::kMask,
+    kSticky = StickyBit::kMask,
+    kUnicode = UnicodeBit::kMask,
+    kDotAll = DotAllBit::kMask,
+    kLinear = LinearBit::kMask,
+    kHasIndices = HasIndicesBit::kMask,
+    kUnicodeSets = UnicodeSetsBit::kMask,
+  };
+  using Flags = base::Flags<Flag>;
+  static constexpr int kFlagCount = 9;
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<JSRegExp> New(
       Isolate* isolate, DirectHandle<String> original_source, Flags flags,
@@ -276,7 +298,8 @@ V8_OBJECT class IrRegExpData : public RegExpData {
   DECL_BOOLEAN_ACCESSORS(is_linear_executable)
 
   struct Bits {
-    DEFINE_TORQUE_GENERATED_IR_REG_EXP_DATA_BIT_FIELD()
+    using CanBeZeroLengthBit = base::BitField<bool, 0, 1, uint32_t>;
+    using IsLinearExecutableBit = CanBeZeroLengthBit::Next<bool, 1>;
   };
 
   bool CanTierUp();
