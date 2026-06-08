@@ -164,6 +164,16 @@ inline int32_t mulhsu(int32_t a, uint32_t b) {
 }
 #endif
 
+#define F16_SIGN ((uint16_t)1 << 15)
+inline Float16 fsgnj16(Float16 rs1, Float16 rs2, bool n, bool x) {
+  uint16_t a = rs1.get_bits(), b = rs2.get_bits();
+  return Float16::FromBits((a & ~F16_SIGN) | ((((x)   ? a
+                                                : (n) ? F16_SIGN
+                                                      : 0) ^
+                                               b) &
+                                              F16_SIGN));
+}
+
 // Floating point helpers
 #define F32_SIGN ((uint32_t)1 << 31)
 union u32_f32 {
@@ -746,6 +756,8 @@ class Simulator : public SimulatorBase {
   // RISCV utlity API to access register value
   inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
   inline sreg_t rs1() const { return get_register(rs1_reg()); }
+  inline uint16_t hrs1() const { return get_fpu_register_Float16(rs1_reg()); }
+  inline Float16 hrs1_boxed() const { return Float16::FromBits(hrs1()); }
   inline float frs1() const { return get_fpu_register_float(rs1_reg()); }
   inline double drs1() const { return get_fpu_register_double(rs1_reg()); }
   inline Float32 frs1_boxed() const {
@@ -756,6 +768,8 @@ class Simulator : public SimulatorBase {
   }
   inline int32_t rs2_reg() const { return instr_.Rs2Value(); }
   inline sreg_t rs2() const { return get_register(rs2_reg()); }
+  inline uint16_t hrs2() const { return get_fpu_register_Float16(rs2_reg()); }
+  inline Float16 hrs2_boxed() const { return Float16::FromBits(hrs2()); }
   inline float frs2() const { return get_fpu_register_float(rs2_reg()); }
   inline double drs2() const { return get_fpu_register_double(rs2_reg()); }
   inline Float32 frs2_boxed() const {
@@ -766,6 +780,8 @@ class Simulator : public SimulatorBase {
   }
   inline int32_t rs3_reg() const { return instr_.Rs3Value(); }
   inline sreg_t rs3() const { return get_register(rs3_reg()); }
+  inline uint16_t hrs3() const { return get_fpu_register_Float16(rs3_reg()); }
+  inline Float16 hrs3_boxed() const { return Float16::FromBits(hrs3()); }
   inline float frs3() const { return get_fpu_register_float(rs3_reg()); }
   inline double drs3() const { return get_fpu_register_double(rs3_reg()); }
   inline Float32 frs3_boxed() const {
@@ -821,9 +837,12 @@ class Simulator : public SimulatorBase {
 #endif
   }
 
-  inline void set_frd(Float16 value, bool trace = true) {
+  inline void set_hrd(Float16 value, bool trace = true) {
     set_fpu_register(rd_reg(), value.get_bits());
     if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
+  }
+  inline void set_hrd(float value, bool trace = true) {
+    set_hrd(Float16::FromFloat32(value), trace);
   }
   inline void set_frd(float value, bool trace = true) {
     set_fpu_register(rd_reg(), value);
@@ -1038,50 +1057,101 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp3(Func fn) {
-    static_assert(std::is_floating_point_v<T>);
-    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
-    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
-    T src3 = std::is_same_v<float, T> ? frs3() : drs3();
-    auto alu_out = fn(src1, src2, src3);
-    // if any input or result is NaN, the result is quiet_NaN
-    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
-        std::isnan(src3)) {
-      // signaling_nan sets kInvalidOperation bit
-      if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) || isSnan(src3))
-        set_fflags(kInvalidOperation);
-      alu_out = std::numeric_limits<T>::quiet_NaN();
+    if constexpr (std::is_same_v<T, Float16>) {
+      Float16 src1 = Float16::FromBits(hrs1());
+      Float16 src2 = Float16::FromBits(hrs2());
+      Float16 src3 = Float16::FromBits(hrs3());
+      auto alu_out = fn(src1.ToFloat32(), src2.ToFloat32(), src3.ToFloat32());
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1.ToFloat32()) ||
+          std::isnan(src2.ToFloat32()) || std::isnan(src3.ToFloat32())) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1.ToFloat32()) ||
+            isSnan(src2.ToFloat32()) || isSnan(src3.ToFloat32())) {
+          set_fflags(kInvalidOperation);
+        }
+        alu_out = std::numeric_limits<float>::quiet_NaN();
+      }
+      return Float16::FromFloat32(alu_out);
+    } else {
+      static_assert(std::is_floating_point_v<T>);
+      T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+      T src2 = std::is_same_v<float, T> ? frs2() : drs2();
+      T src3 = std::is_same_v<float, T> ? frs3() : drs3();
+      auto alu_out = fn(src1, src2, src3);
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
+          std::isnan(src3)) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) || isSnan(src3)) {
+          set_fflags(kInvalidOperation);
+        }
+        alu_out = std::numeric_limits<T>::quiet_NaN();
+      }
+      return alu_out;
     }
-    return alu_out;
   }
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp2(Func fn) {
-    static_assert(std::is_floating_point_v<T>);
-    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
-    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
-    auto alu_out = fn(src1, src2);
-    // if any input or result is NaN, the result is quiet_NaN
-    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2)) {
-      // signaling_nan sets kInvalidOperation bit
-      if (isSnan(alu_out) || isSnan(src1) || isSnan(src2))
-        set_fflags(kInvalidOperation);
-      alu_out = std::numeric_limits<T>::quiet_NaN();
+    if constexpr (std::is_same_v<T, Float16>) {
+      Float16 src1 = Float16::FromBits(hrs1());
+      Float16 src2 = Float16::FromBits(hrs2());
+      auto alu_out = fn(src1.ToFloat32(), src2.ToFloat32());
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1.ToFloat32()) ||
+          std::isnan(src2.ToFloat32())) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1.ToFloat32()) ||
+            isSnan(src2.ToFloat32())) {
+          set_fflags(kInvalidOperation);
+        }
+        alu_out = std::numeric_limits<float>::quiet_NaN();
+      }
+      return Float16::FromFloat32(alu_out);
+    } else {
+      static_assert(std::is_floating_point_v<T>);
+      T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+      T src2 = std::is_same_v<float, T> ? frs2() : drs2();
+      auto alu_out = fn(src1, src2);
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2)) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1) || isSnan(src2)) {
+          set_fflags(kInvalidOperation);
+        }
+        alu_out = std::numeric_limits<T>::quiet_NaN();
+      }
+      return alu_out;
     }
-    return alu_out;
   }
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp1(Func fn) {
-    static_assert(std::is_floating_point_v<T>);
-    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
-    auto alu_out = fn(src1);
-    // if any input or result is NaN, the result is quiet_NaN
-    if (std::isnan(alu_out) || std::isnan(src1)) {
-      // signaling_nan sets kInvalidOperation bit
-      if (isSnan(alu_out) || isSnan(src1)) set_fflags(kInvalidOperation);
-      alu_out = std::numeric_limits<T>::quiet_NaN();
+    if constexpr (std::is_same_v<T, Float16>) {
+      Float16 src1 = Float16::FromBits(hrs1());
+      auto alu_out = fn(src1.ToFloat32());
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1.ToFloat32())) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1.ToFloat32())) {
+          set_fflags(kInvalidOperation);
+        }
+        alu_out = std::numeric_limits<float>::quiet_NaN();
+      }
+      return Float16::FromFloat32(alu_out);
+    } else {
+      static_assert(std::is_floating_point_v<T>);
+      T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+      auto alu_out = fn(src1);
+      // if any input or result is NaN, the result is quiet_NaN
+      if (std::isnan(alu_out) || std::isnan(src1)) {
+        // signaling_nan sets kInvalidOperation bit
+        if (isSnan(alu_out) || isSnan(src1)) set_fflags(kInvalidOperation);
+        alu_out = std::numeric_limits<T>::quiet_NaN();
+      }
+      return alu_out;
     }
-    return alu_out;
   }
 
   template <typename Func>

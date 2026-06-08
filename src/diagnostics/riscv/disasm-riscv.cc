@@ -1634,14 +1634,6 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       break;
     }
-    case RO_FCVT_S_H: {
-      if (instr->Rs2Value() == 0b00010) {
-        Format(instr, "fcvt.s.h ['frm] 'fd, 'fs1");
-      } else {
-        UNSUPPORTED_RISCV();
-      }
-      break;
-    }
     case RO_FCVT_H_S: {
       if (instr->Rs2Value() == 0b00000) {
         Format(instr, "fcvt.h.s ['frm] 'fd, 'fs1");

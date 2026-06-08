@@ -4832,12 +4832,13 @@ void Simulator::DecodeRVRFPType() {
         UNSUPPORTED();
       }
       switch (instr_.Funct3Value()) {
-        case 0b000:  // RO_FMV_X_H
-          // RO_FMV_X_H
+        case 0b000: {  // RO_FMV_X_H
           set_rd(sext16(get_fpu_register_Float16(rs1_reg())));
           break;
+        }
         case 0b001: {  // RO_FCLASS_H
-          UNSUPPORTED();
+          set_rd(FclassHelper(hrs1_boxed().ToFloat32()));
+          break;
         }
         default: {
           UNSUPPORTED();
@@ -4934,13 +4935,195 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
+    case RO_FCVT_H_W: {  // RO_FCVT_H_WU , 64F RO_FCVT_H_L RO_FCVT_H_LU
+      switch (instr_.Rs2Value()) {
+        case 0b00000:  // RO_FCVT_H_W
+          set_hrd(static_cast<float>((int32_t)rs1()));
+          break;
+        case 0b00001:  // RO_FCVT_H_WU
+          set_hrd(static_cast<float>((uint32_t)rs1()));
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_H_L
+          set_hrd(static_cast<float>((int64_t)rs1()));
+          break;
+        case 0b00011:  // RO_FCVT_H_LU
+          set_hrd(static_cast<float>((uint64_t)rs1()));
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED_RISCV();
+        }
+      }
+      break;
+    }
     case RO_FMV_H_X: {
       if (instr_.Funct3Value() == 0b000) {
         // since FMV preserves source bit-pattern, no need to canonize
         Float16 result = Float16::FromBits((uint16_t)rs1());
-        set_frd(result);
+        set_hrd(result);
       } else {
         UNSUPPORTED();
+      }
+      break;
+    }
+    // TODO(riscv): Add macro for RISCV ZFH extension
+    case RO_FADD_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fadd(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 + frs2;
+        }
+      };
+      Float16 result = CanonicalizeFPUOp2<Float16>(fn);
+      set_hrd(result);
+      break;
+    }
+    case RO_FSUB_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fsub(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 - frs2;
+        }
+      };
+      set_hrd(CanonicalizeFPUOp2<Float16>(fn));
+      break;
+    }
+    case RO_FMUL_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fmul(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 * frs2;
+        }
+      };
+      set_hrd(CanonicalizeFPUOp2<Float16>(fn));
+      break;
+    }
+    case RO_FDIV_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fdiv(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else if (frs2 == 0.0f) {
+          this->set_fflags(kDivideByZero);
+          return (std::signbit(frs1) == std::signbit(frs2)
+                      ? std::numeric_limits<float>::infinity()
+                      : -std::numeric_limits<float>::infinity());
+        } else {
+          return frs1 / frs2;
+        }
+      };
+      set_hrd(CanonicalizeFPUOp2<Float16>(fn));
+      break;
+    }
+    case RO_FSQRT_H: {
+      if (instr_.Rs2Value() == 0b00000) {
+        // TODO(riscv): use rm value (round mode)
+        auto fn = [this](float frs) {
+          if (is_invalid_fsqrt(frs)) {
+            this->set_fflags(kInvalidOperation);
+            return std::numeric_limits<float>::quiet_NaN();
+          } else {
+            return std::sqrt(frs);
+          }
+        };
+        set_hrd(CanonicalizeFPUOp1<Float16>(fn));
+      } else {
+        UNSUPPORTED();
+      }
+      break;
+    }
+    case RO_FSGNJ_H: {  // RO_FSGNJN_H  RO_FSGNJX_H
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FSGNJ_H
+          set_hrd(fsgnj16(hrs1_boxed(), hrs2_boxed(), false, false));
+          break;
+        }
+        case 0b001: {  // RO_FSGNJN_H
+          set_hrd(fsgnj16(hrs1_boxed(), hrs2_boxed(), true, false));
+          break;
+        }
+        case 0b010: {  // RO_FSGNJX_H
+          set_hrd(fsgnj16(hrs1_boxed(), hrs2_boxed(), false, true));
+          break;
+        }
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FMIN_H: {  // RO_FMAX_H
+      switch (instr_.Funct3Value()) {
+        case 0b000: {  // RO_FMIN_H
+          set_hrd(Float16::FromFloat32(FMaxMinHelper(hrs1_boxed().ToFloat32(),
+                                                     hrs2_boxed().ToFloat32(),
+                                                     MaxMinKind::kMin)));
+          break;
+        }
+        case 0b001: {  // RO_FMAX_H
+          set_hrd(Float16::FromFloat32(FMaxMinHelper(hrs1_boxed().ToFloat32(),
+                                                     hrs2_boxed().ToFloat32(),
+                                                     MaxMinKind::kMax)));
+          break;
+        }
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_W_H: {  // RO_FCVT_WU_H , 64F RO_FCVT_L_H RO_FCVT_LU_H
+      float original_val = hrs1_boxed().ToFloat32();
+      switch (instr_.Rs2Value()) {
+        case 0b00000: {  // RO_FCVT_W_H
+          set_rd(RoundF2IHelper<int32_t>(original_val, instr_.RoundMode()));
+          break;
+        }
+        case 0b00001: {  // RO_FCVT_WU_H
+          set_rd(sext32(
+              RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
+          break;
+        }
+#ifdef V8_TARGET_ARCH_RISCV64
+        case 0b00010: {  // RO_FCVT_L_H
+          set_rd(RoundF2IHelper<int64_t>(original_val, instr_.RoundMode()));
+          break;
+        }
+        case 0b00011: {  // RO_FCVT_LU_H
+          set_rd(RoundF2IHelper<uint64_t>(original_val, instr_.RoundMode()));
+          break;
+        }
+#endif /* V8_TARGET_ARCH_RISCV64 */
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FLE_H: {  // RO_FEQ_H RO_FLT_H RO_FLE_H
+      switch (instr_.Funct3Value()) {
+        case 0b010:  // RO_FEQ_H
+          set_rd(CompareFHelper(Float16::FromBits(hrs1()).ToFloat32(),
+                                Float16::FromBits(hrs2()).ToFloat32(), EQ));
+          break;
+        case 0b001:  // RO_FLT_H
+          set_rd(CompareFHelper(Float16::FromBits(hrs1()).ToFloat32(),
+                                Float16::FromBits(hrs2()).ToFloat32(), LT));
+          break;
+        case 0b000:  // RO_FLE_H
+          set_rd(CompareFHelper(Float16::FromBits(hrs1()).ToFloat32(),
+                                Float16::FromBits(hrs2()).ToFloat32(), LE));
+          break;
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
     }
@@ -5085,6 +5268,9 @@ void Simulator::DecodeRVRFPType() {
       if (instr_.Rs2Value() == 0b00001) {
         auto fn = [](double drs) { return static_cast<float>(drs); };
         set_frd(CanonicalizeDoubleToFloatOperation(fn));
+      } else if (instr_.Rs2Value() == 0b00010) {
+        Float16 src = Float16::FromBits(get_fpu_register_Float16(rs1_reg()));
+        set_frd(src.ToFloat32());
       } else if (instr_.Rs2Value() == 0b00100) {
         // fround.s: Round single-precision to integer (Zfa extension)
         set_frd(RoundF2FHelper(frs1(), instr_.RoundMode()));
@@ -5333,20 +5519,11 @@ void Simulator::DecodeRVRFPType() {
       break;
     }
 #endif /* V8_TARGET_ARCH_RISCV64 */
-    case RO_FCVT_S_H: {
-      if (instr_.Rs2Value() == 0b00010) {
-        Float16 src = Float16::FromBits(get_fpu_register_Float16(rs1_reg()));
-        set_frd(src.ToFloat32());
-      } else {
-        UNSUPPORTED_RISCV();
-      }
-      break;
-    }
     case RO_FCVT_H_S: {
       if (instr_.Rs2Value() == 0b00000) {  // fcvt.h.s
-        set_frd(Float16::FromFloat32(frs1()));
+        set_hrd(Float16::FromFloat32(frs1()));
       } else if (instr_.Rs2Value() == 0b00001) {  // fcvt.h.d
-        set_frd(Float16::FromBits(DoubleToFloat16(drs1())));
+        set_hrd(Float16::FromBits(DoubleToFloat16(drs1())));
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -5360,6 +5537,57 @@ void Simulator::DecodeRVRFPType() {
 
 void Simulator::DecodeRVR4Type() {
   switch (instr_.InstructionBits() & kR4TypeMask) {
+    case RO_FMADD_H: {
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fadd(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return std::fma(frs1, frs2, frs3);
+        }
+      };
+      set_hrd(CanonicalizeFPUOp3<Float16>(fn));
+      break;
+    }
+    case RO_FMSUB_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fsub(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return std::fma(frs1, frs2, -frs3);
+        }
+      };
+      set_hrd(CanonicalizeFPUOp3<Float16>(fn));
+      break;
+    }
+    case RO_FNMSUB_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fsub(frs3, frs1 * frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return -std::fma(frs1, frs2, -frs3);
+        }
+      };
+      set_hrd(CanonicalizeFPUOp3<Float16>(fn));
+      break;
+    }
+    case RO_FNMADD_H: {
+      // TODO(riscv): use rm value (round mode)
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fadd(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return -std::fma(frs1, frs2, frs3);
+        }
+      };
+      set_hrd(CanonicalizeFPUOp3<Float16>(fn));
+      break;
+    }
     // TODO(riscv): use F Extension macro block
     case RO_FMADD_S: {
       // TODO(riscv): use rm value (round mode)
@@ -6072,7 +6300,7 @@ void Simulator::DecodeRVIType() {
       sreg_t addr = rs1() + imm12();
       if (!ProbeMemory(addr, sizeof(uint16_t))) return;
       Float16 val = Float16::Read(addr);
-      set_frd(val, false);
+      set_hrd(val, false);
       TraceMemRdFloat(addr, Float32(val.ToFloat32()),
                       get_fpu_register(frd_reg()));
       break;
