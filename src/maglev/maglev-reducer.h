@@ -889,6 +889,20 @@ class MaglevReducer {
                                              IndirectPointerTag tag,
                                              StoreTaggedMode store_mode);
 
+  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                             StoreMap::Kind kind);
+
+  ReduceResult BuildInlinedAllocation(VirtualObject* object,
+                                      AllocationType allocation);
+  void ClearCurrentAllocationBlock();
+  void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
+  AllocationBlock* current_allocation_block() const {
+    return current_allocation_block_;
+  }
+
+  MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
+                                            int index, VariableMode* mode);
+
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
@@ -1420,6 +1434,23 @@ class MaglevReducer {
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
+  InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
+      AllocationType allocation_type, VirtualObject* value);
+  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
+                               AllocationType allocation_type);
+  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
+                            AllocationType allocation_type, ValueNode* value,
+                            StoreTaggedMode store_mode,
+                            MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
+  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
+                                   AllocationType allocation_type,
+                                   ValueNode* value, StoreTaggedMode store_mode,
+                                   MaybeAssignedFlag maybe_assigned);
+  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
+                                           InlinedAllocation* alloc,
+                                           AllocationType allocation_type,
+                                           ValueNode* value);
+
   template <typename T>
   friend class MapInference;
 
@@ -1434,6 +1465,8 @@ class MaglevReducer {
   BasicBlock* current_block_ = nullptr;
   BasicBlockPosition current_block_position_ = BasicBlockPosition::End();
   AddNewNodeMode add_new_node_mode_ = AddNewNodeMode::kBuffered;
+
+  AllocationBlock* current_allocation_block_ = nullptr;
 
 #ifdef DEBUG
   // This is used for dcheck purposes, it is the set of all nodes created in

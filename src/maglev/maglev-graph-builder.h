@@ -464,8 +464,6 @@ class MaglevGraphBuilder {
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth,
                                  compiler::ScopeInfoRef* scope_info);
   void EscapeContext();
-  MaybeAssignedFlag GetContextMaybeAssigned(compiler::ScopeInfoRef scope_info,
-                                            int index, VariableMode* mode);
   ReduceResult BuildLoadContextSlot(ValueNode* context, size_t depth,
                                     int slot_index, ContextMode context_mode,
                                     compiler::ScopeInfoRef scope_info);
@@ -473,9 +471,6 @@ class MaglevGraphBuilder {
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode,
                                      compiler::ScopeInfoRef scope_info);
-  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
-                             StoreMap::Kind kind);
-
   ReduceResult BuildExtendPropertiesBackingStore(compiler::MapRef map,
                                                  ValueNode* receiver,
                                                  ValueNode* property_array);
@@ -1227,22 +1222,6 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
-  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
-                               AllocationType allocation_type);
-
-  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
-                            AllocationType allocation_type, ValueNode* value,
-                            StoreTaggedMode store_mode,
-                            MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
-  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
-                                   AllocationType allocation_type,
-                                   ValueNode* value, StoreTaggedMode store_mode,
-                                   MaybeAssignedFlag maybe_assigned);
-  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
-                                           InlinedAllocation* alloc,
-                                           AllocationType allocation_type,
-                                           ValueNode* value);
-
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
@@ -1492,15 +1471,9 @@ class MaglevGraphBuilder {
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
 
-  InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
-      AllocationType allocation_type, VirtualObject* value);
-
-  void ClearCurrentAllocationBlock();
-
   void AddDeoptUse(ValueNode* node);
   void AddMaterializedDeoptUse(ValueNode* node);
   void AddDeoptUse(VirtualObject* alloc);
-  void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
   void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data);
 
@@ -1517,8 +1490,6 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  ReduceResult BuildInlinedAllocation(VirtualObject* object,
-                                      AllocationType allocation);
   ValueNode* BuildInlinedArgumentsElements(int start_index, int length);
   ValueNode* BuildInlinedUnmappedArgumentsElements(int mapped_count);
 
@@ -1966,8 +1937,6 @@ class MaglevGraphBuilder {
   // TODO(leszeks): Allow having a stack of these.
   ForInState current_for_in_state = ForInState();
 
-  AllocationBlock* current_allocation_block_ = nullptr;
-
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
@@ -2058,7 +2027,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
                 (NodeT::kProperties.can_deopt() ||
                  NodeT::kProperties.can_throw() ||
                  NodeT::kProperties.can_allocate())) {
-    ClearCurrentAllocationBlock();
+    reducer_.ClearCurrentAllocationBlock();
   }
 
   // Don't do anything for nodes without side effects.

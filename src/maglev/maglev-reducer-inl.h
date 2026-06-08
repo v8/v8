@@ -596,6 +596,302 @@ bool MaglevReducer<BaseT>::CanElideWriteBarrier(ValueNode* object,
 }
 
 template <typename BaseT>
+MaybeAssignedFlag MaglevReducer<BaseT>::GetContextMaybeAssigned(
+    compiler::ScopeInfoRef scope_info, int index, VariableMode* mode) {
+  CHECK_LT(index, scope_info.ContextLength());
+  if (index < Context::MIN_CONTEXT_SLOTS) {
+    *mode = VariableMode::kConst;
+    return kNotAssigned;
+  }
+  if (scope_info.scope_type() == REPL_MODE_SCOPE) {
+    *mode = VariableMode::kVar;
+    return kMaybeAssigned;
+  }
+  int header_length = scope_info.ContextHeaderLength();
+  if (index < header_length) {
+    *mode = VariableMode::kConst;
+    return kNotAssigned;
+  }
+  if (index == scope_info.FunctionContextSlotIndex()) {
+    *mode = VariableMode::kConst;
+    return kNotAssigned;
+  }
+  // Context allocated receivers in derived constructors could be initialized
+  // through super() calls in arrow functions or eval. This implies that it's
+  // not always possible to know where the `this` binding is finally
+  // initialized. Track such bindings as kMaybeAssigned.
+  if (index == scope_info.ReceiverContextSlotIndex() &&
+      IsDerivedConstructor(scope_info.function_kind())) {
+    *mode = VariableMode::kConst;
+    return kMaybeAssigned;
+  }
+  int var_index = index - header_length;
+  *mode = scope_info.ContextLocalMode(var_index);
+  return scope_info.ContextLocalMaybeAssignedFlag(var_index);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildStoreMap(ValueNode* object,
+                                                 compiler::MapRef map,
+                                                 StoreMap::Kind kind) {
+  RETURN_IF_ABORT(AddNewNode<StoreMap>({object}, map, kind));
+  NodeType object_type = StaticTypeForMap(map, broker());
+  NodeInfo* node_info = GetOrCreateInfoFor(object);
+  if (map.is_stable()) {
+    node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type, broker(),
+                               known_node_aspects());
+    broker()->dependencies()->DependOnStableMap(map);
+  } else {
+    node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker(),
+                               known_node_aspects());
+    known_node_aspects().MarkSideEffectsRequireInvalidation();
+  }
+  return ReduceResult::Done();
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::ConvertForField(
+    ValueNode* value, const vobj::Field& desc, AllocationType allocation_type) {
+  switch (desc.type) {
+    case vobj::FieldType::kTagged: {
+      // Subtle: we don't use `NodeTypeIs(...)` since the predicate must NOT
+      // be true for NodeType::kNone.
+      // TODO(jgruber): NodeType::kNone should never reach here.
+      if (GetType(value) == NodeType::kSmi) {
+        // TODO(jgruber): This is needed because HoleyFloat64ToTagged does not
+        // canonicalize smis by default in GetTaggedValue. We rely on
+        // canonicalization though in TryReduceConstructArrayConstructor.
+        // We should make this more robust.
+        // TODO(454485895): Consider removing this workaround since
+        // HoleyFloat64ToTagged now canonicalizes by default.
+        MaybeReduceResult res = GetSmiValue(value);
+        CHECK(res.IsDoneWithValue());
+        return res.value();
+      }
+      if (value->Is<Float64Constant>()) {
+        // Note that NodeType::kSmi MUST go through GetSmiValue for proper
+        // canonicalization. If we see a Float64Constant with type kSmi, it has
+        // passed BuildCheckSmi, i.e. the runtime value is guaranteed to be
+        // convertible to smi (we would have deoptimized otherwise).
+        //
+        // TODO(jgruber): We have to allocate a new object since the
+        // object field could contain a mutable HeapNumber and thus cannot
+        // share instances. However, we could specify such mutable fields
+        // through vobj::Field; and then only allocate a new object here
+        // if needed.
+        return BuildInlinedAllocation(CreateHeapNumber(value), allocation_type);
+      }
+      return GetTaggedValue(value);
+    }
+    case vobj::FieldType::kTrustedPointer:
+      DCHECK(value->Is<TrustedConstant>());
+      return value;
+    case vobj::FieldType::kInt32:
+      // TODO(jgruber): Add conversions here once needed.
+      DCHECK_EQ(value->properties().value_representation(),
+                ValueRepresentation::kInt32);
+      return value;
+    case vobj::FieldType::kFloat64:
+      return GetFloat64(value);
+    case vobj::FieldType::kNone:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::BuildInitializeStore_Tagged(
+    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
+    ValueNode* value, StoreTaggedMode store_mode,
+    MaybeAssignedFlag maybe_assigned) {
+  DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
+
+  // Intercept stores of constant map objects here.
+  if (desc.offset == offsetof(HeapObject, map_)) {
+    if (auto map = TryGetConstant<Map>(value)) {
+      ReduceResult result = BuildStoreMap(object, map.value(),
+                                          StoreMap::Kind::kInlinedAllocation);
+      CHECK(!result.IsDoneWithAbort());
+      return;
+    }
+  }
+
+  DCHECK(value->is_tagged());
+  if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
+    // Add to the escape set.
+    auto escape_deps = graph()->allocations_escape_map().find(object);
+    CHECK(escape_deps != graph()->allocations_escape_map().end());
+    escape_deps->second.push_back(inlined_value);
+    // Add to the elided set.
+    auto& elided_map = graph()->allocations_elide_map();
+    auto elided_deps = elided_map.try_emplace(inlined_value, zone()).first;
+    elided_deps->second.push_back(object);
+    inlined_value->AddNonEscapingUses();
+  }
+
+  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do
+  // input conversions and won't abort.
+  ReduceResult result =
+      BuildStoreTaggedField(object, value, desc.offset, store_mode,
+                            PropertyKey::None(), maybe_assigned);
+  CHECK(!result.IsDoneWithAbort());
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::BuildInitializeStore_TrustedPointer(
+    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
+    ValueNode* value) {
+  DCHECK_EQ(desc.type, vobj::FieldType::kTrustedPointer);
+  DCHECK(value->Is<TrustedConstant>());
+  DCHECK(value->is_tagged());
+
+  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
+  // conversions and won't abort.
+  ReduceResult result = BuildStoreTrustedPointerField(
+      object, value, desc.offset, value->Cast<TrustedConstant>()->tag(),
+      StoreTaggedMode::kInitializing);
+  CHECK(!result.IsDoneWithAbort());
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::BuildInitializeStore(
+    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
+    ValueNode* value, StoreTaggedMode store_mode,
+    MaybeAssignedFlag maybe_assigned) {
+  DCHECK_EQ(value->Is<TrustedConstant>(),
+            desc.type == vobj::FieldType::kTrustedPointer);
+
+  switch (desc.type) {
+    case vobj::FieldType::kTagged:
+      BuildInitializeStore_Tagged(desc, object, allocation_type, value,
+                                  store_mode, maybe_assigned);
+      break;
+    case vobj::FieldType::kTrustedPointer:
+      BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
+      break;
+    case vobj::FieldType::kInt32:
+      AddNewNodeNoInputConversion<StoreInt32>({object, value}, desc.offset);
+      break;
+    case vobj::FieldType::kFloat64:
+      AddNewNodeNoInputConversion<StoreFloat64>({object, value}, desc.offset);
+      break;
+    case vobj::FieldType::kNone:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+InlinedAllocation*
+MaglevReducer<BaseT>::ExtendOrReallocateCurrentAllocationBlock(
+    AllocationType allocation_type, VirtualObject* vobject) {
+  DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
+  if (!current_allocation_block_ || v8_flags.maglev_allocation_folding == 0 ||
+      current_allocation_block_->allocation_type() != allocation_type ||
+      !v8_flags.inline_new || is_turbolev()) {
+    current_allocation_block_ =
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
+  }
+
+  int current_size = current_allocation_block_->size();
+  if (current_size + vobject->size() > kMaxRegularHeapObjectSize) {
+    current_allocation_block_ =
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
+  }
+
+  DCHECK_GE(current_size, 0);
+  InlinedAllocation* allocation =
+      AddNewNodeNoInputConversion<InlinedAllocation>(
+          {current_allocation_block_}, vobject);
+  graph()->allocations_escape_map().emplace(allocation, zone());
+  current_allocation_block_->Add(allocation);
+  vobject->set_allocation(allocation);
+  return allocation;
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::ClearCurrentAllocationBlock() {
+  current_allocation_block_ = nullptr;
+}
+
+template <typename BaseT>
+void MaglevReducer<BaseT>::AddNonEscapingUses(InlinedAllocation* allocation,
+                                              int use_count) {
+  if (!v8_flags.maglev_escape_analysis) return;
+  allocation->AddNonEscapingUses(use_count);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
+    VirtualObject* vobject, AllocationType allocation_type) {
+  known_node_aspects().virtual_objects().Add(vobject);
+  InlinedAllocation* allocation;
+
+  using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
+  SmallZoneVector<ValueAndDesc, 8> values(zone());
+  bool result =
+      vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
+        CHECK_NE(node, VirtualObject::kUninitializedSlotValue);
+        if (node->Is<VirtualObject>()) {
+          VirtualObject* nested = node->Cast<VirtualObject>();
+          ReduceResult result = BuildInlinedAllocation(nested, allocation_type);
+          if (result.IsDoneWithAbort()) {
+            return false;
+          }
+          GET_VALUE(node, result);
+          // Update the vobject's slot value.
+          vobject->set(desc.offset, node);
+        }
+        ReduceResult result = ConvertForField(node, desc, allocation_type);
+        if (result.IsDoneWithAbort()) {
+          return false;
+        }
+        GET_VALUE(node, result);
+        values.push_back({node, desc});
+        return true;
+      });
+  if (!result) {
+    return ReduceResult::DoneWithAbort();
+  }
+  allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+  AddNonEscapingUses(allocation, static_cast<int>(values.size()));
+  StoreTaggedMode store_mode = StoreTaggedMode::kInitializing;
+  compiler::OptionalScopeInfoRef scope_info;
+  if (vobject->has_static_map() && vobject->map()->IsContextMap()) {
+    store_mode = StoreTaggedMode::kInitializingToContext;
+    if (auto maybe_constant =
+            vobject->get(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX))
+                ->TryGetConstant(broker())) {
+      scope_info = maybe_constant->AsScopeInfo();
+    }
+  }
+
+  for (uint32_t i = 0; i < values.size(); i++) {
+    const auto [value, desc] = values[i];
+    MaybeAssignedFlag maybe_assigned = kMaybeAssigned;
+    if (store_mode == StoreTaggedMode::kInitializingToContext && scope_info &&
+        desc.offset >= Context::OffsetOfElementAt(0)) {
+      int index = (desc.offset - Context::OffsetOfElementAt(0)) / kTaggedSize;
+      VariableMode mode;
+      maybe_assigned =
+          GetContextMaybeAssigned(scope_info.value(), index, &mode);
+    }
+    BuildInitializeStore(desc, allocation, allocation_type, value, store_mode,
+                         maybe_assigned);
+  }
+  if constexpr (ReducerBaseWithLoopEffectTracking<BaseT>) {
+    if (base_->loop_effects()) {
+      base_->loop_effects()->allocations.insert(allocation);
+    }
+  }
+
+  if (v8_flags.maglev_allocation_folding < 2) {
+    ClearCurrentAllocationBlock();
+  }
+  return allocation;
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
