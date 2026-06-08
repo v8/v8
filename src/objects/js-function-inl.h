@@ -455,11 +455,9 @@ bool JSFunction::TryGetPrototypeOrInitialMap(
   Tagged<HeapObject> proto_or_map = prototype_or_initial_map(kAcquireLoad);
   if (IsTheHole(proto_or_map)) return false;
 
+  out->has_instance_prototype = false;
   out->has_non_instance_prototype = false;
   out->has_initial_map = false;
-
-  // At this point instance prototype is guaranteed to be available.
-  out->has_instance_prototype = true;
 
   if (Tagged<Tuple2> tuple; TryCast<Tuple2>(proto_or_map, &tuple)) {
     out->non_instance_prototype_tuple = tuple;
@@ -471,9 +469,19 @@ bool JSFunction::TryGetPrototypeOrInitialMap(
     out->instance_prototype = initial_map->prototype();
     out->has_initial_map = true;
     out->initial_map = initial_map;
+    // Constructors from https://tc39.es/proposal-structs/ do not have
+    // instance prototypes yet. Per-Realm prototypes is currently an open
+    // design question and not included in this draft. Thus, once bootstrapper
+    // is done, this is the only "legitimate" case of a function without an
+    // instance prototype.
+    out->has_instance_prototype = !IsNull(out->instance_prototype);
+    DCHECK_IMPLIES(!out->has_instance_prototype,
+                   Isolate::Current()->bootstrapper()->IsActive() ||
+                       v8_flags.harmony_struct);
     return true;
   }
   DCHECK(IsJSReceiver(proto_or_map));
+  out->has_instance_prototype = true;
   out->instance_prototype = Cast<JSReceiver>(proto_or_map);
   return true;
 }
