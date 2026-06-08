@@ -400,13 +400,12 @@ class UAFTriggerChannel : public V8Inspector::Channel {
       m_triggerCount++;
       m_inspector->resetContextGroup(m_contextGroupId);
 
-      // Allocate a larger batch of dummy blocks of varying sizes to saturate
-      // the Low Fragmentation Heap (LFH) buckets and prevent the allocator
-      // from recycling the exact same memory address on Windows.
-      for (int i = 0; i < 50; ++i) {
-        for (size_t size : {32, 48, 64, 80, 96, 128, 256}) {
-          m_dummies.push_back(std::make_unique<std::vector<uint8_t>>(size, 0));
-        }
+      // Allocate a few small dummy blocks of varying sizes
+      // and prevent the allocator from recycling the same memory address,
+      // otherwise our test NoUAFWhenResettingContextGroupDuringArgumentWrapping
+      // will actually report the message to the front-end.
+      for (size_t size : {32, 48, 64, 80, 96, 128, 256}) {
+        m_dummies.push_back(std::make_unique<std::vector<uint8_t>>(size, 0));
       }
 
       // Recreate storage using public exceptionThrown API.
