@@ -5675,10 +5675,14 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return header_size() + body_fields * body_field_size();
   }
 
+  ValueNode* get_by_index(uint32_t i) const {
+    SBXCHECK_LT(i, slot_count());
+    return slots_[i] ? slots_[i]->UnwrapIdentities() : nullptr;
+  }
+
   ValueNode* get(uint32_t offset) const {
     uint32_t slot_index = object_layout_->SlotAtOffset(offset);
-    SBXCHECK_LT(slot_index, slot_count());
-    return slots_[slot_index];
+    return get_by_index(slot_index);
   }
 
   void set(uint32_t offset, ValueNode* value) {
@@ -5791,7 +5795,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     VirtualObject* result = Clone(new_object_id, zone, /* empty_clone */ true);
     DCHECK(compatible_for_merge(other));
     for (int i = 0; i < slot_count(); i++) {
-      if (auto success = MergeValue(slots_[i], other->slots_[i])) {
+      if (auto success = MergeValue(get_by_index(i), other->get_by_index(i))) {
         result->set_by_index(i, *success);
       } else {
         return {};
@@ -5811,7 +5815,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
     // Copy content
     for (int i = 0; i < slot_count(); i++) {
-      result->set_by_index(i, slots_[i]);
+      result->set_by_index(i, get_by_index(i));
     }
 
     result->set_allocation(allocation());
