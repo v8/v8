@@ -898,8 +898,9 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   USE(success);
 
   v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
-  data->Set(context, 0, wrapConsole(context)).Check();
-  data->Set(context, 1, v8::Integer::New(isolate, sessionId)).Check();
+  data->CreateDataProperty(context, 0, wrapConsole(context)).Check();
+  data->CreateDataProperty(context, 1, v8::Integer::New(isolate, sessionId))
+      .Check();
 
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
                               &V8Console::call<&V8Console::Dir>);
