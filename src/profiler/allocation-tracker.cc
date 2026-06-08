@@ -222,7 +222,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
 
 static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
-  return ComputeUnseededHash(static_cast<uint32_t>(id));
+  return base::hash32(static_cast<uint32_t>(id));
 }
 
 AllocationTracker::ScriptData::ScriptData(Tagged<Script> script,

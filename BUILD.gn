@@ -7228,6 +7228,8 @@ v8_component("v8_libbase") {
     "src/base/vlq-base64.cc",
     "src/base/vlq-base64.h",
     "src/base/vlq.h",
+    "third_party/rapidhash-v8/rapidhash.h",
+    "third_party/rapidhash-v8/secret.h",
   ]
 
   if (target_cpu == "x86" || target_cpu == "x64") {

@@ -4731,20 +4731,34 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Word32> ComputeUnseededHash(V<Word32> value) {
-    // See v8::internal::ComputeUnseededHash()
-    value = __ Word32Add(__ Word32BitwiseXor(value, 0xFFFFFFFF),
-                         __ Word32ShiftLeft(value, 15));
-    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 12));
-    value = __ Word32Add(value, __ Word32ShiftLeft(value, 2));
-    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 4));
-    value = __ Word32Mul(value, 2057);
-    value = __ Word32BitwiseXor(value, __ Word32ShiftRightLogical(value, 16));
-#ifdef V8_LOWER_LIMITS_MODE
-    value = __ Word32BitwiseAnd(value, 0xF);
+    // Must match v8::base::hash32 followed by the kSmiHashMask mask (i.e. the
+    // body of SmiHash32 in utils.h). We use rapidhash "mum" on 64-bit
+    // targets; on 32-bit targets the Turboshaft ia32 backend has no 64-bit
+    // integer instruction selection, so we keep Wang's 32-bit mixer.
+#if V8_TARGET_ARCH_64_BIT
+    V<Word64> key = __ ChangeUint32ToUint64(value);
+    V<Word64> a =
+        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret1));
+    V<Word64> b =
+        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret2));
+    V<Word64> lo = __ Word64Mul(a, b);
+    V<Word64> hi = __ Uint64MulOverflownBits(a, b);
+    V<Word32> hash = __ TruncateWord64ToWord32(__ Word64BitwiseXor(lo, hi));
 #else
-    value = __ Word32BitwiseAnd(value, 0x3FFFFFFF);
+    V<Word32> hash = value;
+    hash = __ Word32Add(__ Word32BitwiseXor(hash, 0xFFFFFFFF),
+                        __ Word32ShiftLeft(hash, 15));
+    hash = __ Word32BitwiseXor(hash, __ Word32ShiftRightLogical(hash, 12));
+    hash = __ Word32Add(hash, __ Word32ShiftLeft(hash, 2));
+    hash = __ Word32BitwiseXor(hash, __ Word32ShiftRightLogical(hash, 4));
+    hash = __ Word32Mul(hash, 2057);
+    hash = __ Word32BitwiseXor(hash, __ Word32ShiftRightLogical(hash, 16));
 #endif
-    return value;
+#ifdef V8_LOWER_LIMITS_MODE
+    return __ Word32BitwiseAnd(hash, 0xF);
+#else
+    return __ Word32BitwiseAnd(hash, kSmiHashMask);
+#endif
   }
 
   void TransitionElementsTo(V<JSArray> array, ElementsKind from,

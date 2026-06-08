@@ -1558,23 +1558,23 @@ MaybeDirectHandle<Object> Object::SetPropertyOrElement(
 Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
   DisallowGarbageCollection no_gc;
   if (IsSmi(object)) {
-    uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
-    return Smi::FromInt(hash & Smi::kMaxValue);
+    return Smi::FromInt(SmiHash32(static_cast<uint32_t>(Smi::ToInt(object))));
   }
   auto instance_type = Cast<HeapObject>(object)->map()->instance_type();
   if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     double num = Cast<HeapNumber>(object)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
-    // Use ComputeUnseededHash for all values in Signed32 range, including -0,
-    // which is considered equal to 0 because collections use SameValueZero.
+    // For values in Signed32 range, including -0 (which is considered equal
+    // to 0 because collections use SameValueZero), hash the integer form to
+    // match the Smi branch above.
     uint32_t hash;
     // Check range before conversion to avoid undefined behavior.
     if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
-      hash = ComputeUnseededHash(FastD2I(num));
+      hash = SmiHash32(static_cast<uint32_t>(FastD2I(num)));
     } else {
-      hash = ComputeLongHash(base::double_to_uint64(num));
+      hash = SmiHash64(base::double_to_uint64(num));
     }
-    return Smi::FromInt(hash & Smi::kMaxValue);
+    return Smi::FromInt(hash);
   } else if (InstanceTypeChecker::IsName(instance_type)) {
     uint32_t hash = Cast<Name>(object)->EnsureHash();
     return Smi::FromInt(hash);
@@ -1592,10 +1592,10 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     return Smi::FromInt(hash & Smi::kMaxValue);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     int id = Cast<Script>(object)->id();
-    return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
+    return Smi::FromInt(SmiHash32(static_cast<uint32_t>(id)));
   } else if (InstanceTypeChecker::IsTemplateInfo(instance_type)) {
     uint32_t hash = Cast<TemplateInfo>(object)->GetHash();
-    DCHECK_EQ(hash, hash & Smi::kMaxValue);
+    DCHECK_EQ(hash, hash & kSmiHashMask);
     return Smi::FromInt(hash);
   }
 

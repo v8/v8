@@ -4272,8 +4272,7 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 InnerPointerToCodeCache::Entry* InnerPointerToCodeCache::GetCacheEntry(
     Address inner_pointer) {
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
-  uint32_t hash =
-      ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
+  uint32_t hash = base::hash32(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   Entry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

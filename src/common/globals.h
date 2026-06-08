@@ -1041,6 +1041,13 @@ static_assert(SmiValuesAre31Bits() == kIsSmiValueInLower32Bits,
 constexpr intptr_t kSmiSignMask = static_cast<intptr_t>(
     uintptr_t{1} << (kSmiValueSize + kSmiShiftSize + kSmiTagSize - 1));
 
+// Mask applied to an integer hash so the result fits in a non-negative Smi
+// payload (safe to pass to Smi::FromInt). One bit narrower than the Smi value
+// field so the sign bit stays clear. Route Smi-stored integer hashes through
+// SmiHash32 / SmiHash64 (utils.h) so they all share this mask.
+constexpr uint32_t kSmiHashMask =
+    static_cast<uint32_t>((uint64_t{1} << (kSmiValueSize - 1)) - 1);
+
 // Desired alignment for tagged pointers.
 constexpr int kObjectAlignmentBits = kTaggedSizeLog2;
 constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;

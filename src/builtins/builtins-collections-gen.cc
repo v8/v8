@@ -1181,7 +1181,19 @@ TF_BUILTIN(SetOrSetIteratorToList, CollectionsBuiltinsAssembler) {
 
 TNode<Word32T> CollectionsBuiltinsAssembler::ComputeUnseededHash(
     TNode<IntPtrT> key) {
-  // See v8::internal::ComputeUnseededHash()
+  // Must match v8::base::hash32 followed by the kSmiHashMask mask (i.e. the
+  // body of SmiHash32 in utils.h). We use rapidhash "mum" on 64-bit targets;
+  // on 32-bit targets the Turboshaft ia32 backend has no 64-bit integer
+  // instruction selection, so we keep Wang's 32-bit mixer.
+#if V8_TARGET_ARCH_64_BIT
+  TNode<Uint64T> k = ChangeUint32ToUint64(TruncateIntPtrToInt32(key));
+  TNode<Uint64T> a = Word64Xor(k, Uint64Constant(base::kRapidhashSecret1));
+  TNode<Uint64T> b = Word64Xor(k, Uint64Constant(base::kRapidhashSecret2));
+  TNode<Uint64T> lo = Uint64Mul(a, b);
+  TNode<Uint64T> hi = Uint64MulHigh(a, b);
+  TNode<Word32T> hash = TruncateWord64ToWord32(Word64Xor(lo, hi));
+  return Word32And(hash, Int32Constant(static_cast<int32_t>(kSmiHashMask)));
+#else
   TNode<Word32T> hash = TruncateIntPtrToInt32(key);
   hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
@@ -1190,7 +1202,8 @@ TNode<Word32T> CollectionsBuiltinsAssembler::ComputeUnseededHash(
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
   hash = Int32Mul(hash, Int32Constant(2057));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
-  return Word32And(hash, Int32Constant(0x3FFFFFFF));
+  return Word32And(hash, Int32Constant(static_cast<int32_t>(kSmiHashMask)));
+#endif
 }
 
 template <typename CollectionType>

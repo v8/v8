@@ -268,11 +268,7 @@ uint32_t HalfSipHash(uint32_t key, uint64_t seed) {
   return halfsiphash(key, seed);
 }
 
-uint32_t JenkinsHash(uint32_t key, uint64_t seed) {
-  return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
-}
-
-uint32_t DefaultHash(uint32_t key, uint64_t seed) {
+uint32_t SeededHash(uint32_t key, uint64_t seed) {
   return ComputeSeededHash(key, seed);
 }
 }  // anonymous namespace
@@ -297,13 +293,7 @@ TEST_F(HashcodeTest, HalfSipHashQuality) {
   TestIntegerHashQuality(HalfSipHash);
 }
 
-TEST_F(HashcodeTest, JenkinsHashQuality) {
-  TestIntegerHashQuality(JenkinsHash);
-}
-
-TEST_F(HashcodeTest, DefaultHashQuality) {
-  TestIntegerHashQuality(DefaultHash);
-}
+TEST_F(HashcodeTest, SeededHashQuality) { TestIntegerHashQuality(SeededHash); }
 
 }  // namespace internal
 }  // namespace v8

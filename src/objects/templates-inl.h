@@ -405,12 +405,7 @@ uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
   return serial_number;
 }
 
-uint32_t TemplateInfo::GetHash() const {
-  uint32_t hash = ComputeUnseededHash(serial_number());
-  // Make sure that the hash can be encoded in a Smi in order to make it
-  // compatible with Object::GetSimpleHash() and avoid surprises.
-  return hash & Smi::kMaxValue;
-}
+uint32_t TemplateInfo::GetHash() const { return SmiHash32(serial_number()); }
 
 // static
 MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(

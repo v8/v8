@@ -1201,10 +1201,11 @@ uint32_t Literal::Hash() {
   if (AsArrayIndex(&index)) {
     // Treat array indices as numbers, so that array indices are de-duped
     // correctly even if one of them is a string and the other is a number.
-    return ComputeLongHash(index);
+    return static_cast<uint32_t>(base::hash64(index));
   }
   return IsRawString() ? AsRawString()->Hash()
-                       : ComputeLongHash(base::double_to_uint64(AsNumber()));
+                       : static_cast<uint32_t>(
+                             base::hash64(base::double_to_uint64(AsNumber())));
 }
 
 // static

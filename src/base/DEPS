@@ -16,4 +16,8 @@ specific_include_rules = {
   "float16.h": [
     "+third_party/fp16/src/include/fp16.h"
   ],
+  "hashing.h": [
+    "+third_party/rapidhash-v8/rapidhash.h",
+    "+third_party/rapidhash-v8/secret.h",
+  ],
 }
