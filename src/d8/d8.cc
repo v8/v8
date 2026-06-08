@@ -1870,6 +1870,10 @@ void RejectPromiseIfExecutionIsNotTerminating(Isolate* isolate,
   CHECK(try_catch.HasCaught());
   if (isolate->IsExecutionTerminating()) {
     Shell::ReportException(isolate, try_catch);
+    // Re-request terminate execution as it's been cleared, so
+    // Shell::FinishExecuting doesn't waste time draining all enqueued tasks
+    // and microtasks.
+    isolate->TerminateExecution();
   } else {
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
   }
