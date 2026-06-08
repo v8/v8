@@ -4766,6 +4766,8 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
       "import = 1",
       "import.wat",
       "new import(x)",
+      "new import(x).prop",
+      "new import(x).prop(r => r())",
       nullptr
     };
 
@@ -10746,6 +10748,7 @@ TEST_F(ParsingTest, ImportCallSourceFailure) {
     "import.source()",
     "new import.source.MagicClass",
     "new import.source",
+    "new import.source('x').prop",
     "t = [...import.source]",
     "f = {...import.source}",
     "delete import.source",
@@ -10951,6 +10954,7 @@ TEST_F(ParsingTest, ImportCallDeferFailure) {
     "import.defer()",
     "new import.defer.MagicClass",
     "new import.defer",
+    "new import.defer('x').prop",
     "t = [...import.defer]",
     "f = {...import.defer}",
     "delete import.defer",

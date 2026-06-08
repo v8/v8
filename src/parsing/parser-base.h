@@ -4131,13 +4131,16 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   CheckStackOverflow();
 
   if (peek() == Token::kImport) {
-    result = ParseMemberExpression();
+    result = ParseImportExpressions();
     if (result->IsImportCallExpression()) {
       // new import() and new import.source() are never allowed.
+      // new import().prop and new import.source().prop are not allowed as well.
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportCallNotNewExpression);
       return impl()->FailureExpression();
     }
+    // import.meta is a valid MemberExpression.
+    result = ParseMemberExpressionContinuation(result);
   } else if (peek() == Token::kPeriod) {
     result = ParseNewTargetExpression();
     return ParseMemberExpressionContinuation(result);
