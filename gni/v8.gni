@@ -214,7 +214,8 @@ declare_args() {
 
   # Enable object names in cppgc for profiling purposes.
   cppgc_enable_object_names =
-      is_chrome_for_testing || (!is_android && !is_fuchsia)
+      !(is_component_build && is_win) &&
+      (is_chrome_for_testing || (!is_android && !is_fuchsia))
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
