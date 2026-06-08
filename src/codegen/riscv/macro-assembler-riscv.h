@@ -682,10 +682,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void SmiUntagUnsigned(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
-      srli_d(dst, src, kSmiShift);
+      srli(dst, src, kSmiShift);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      srli_w(dst, src, kSmiShift);
+      srliw(dst, src, kSmiShift);
     }
   }
   void SmiUntagUnsigned(Register reg) { SmiUntagUnsigned(reg, reg); }
