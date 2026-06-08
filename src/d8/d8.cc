@@ -7696,9 +7696,12 @@ int Shell::Main(int argc, char* argv[]) {
   ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
 
-#if (defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
-     !defined(V8_TARGET_OS_CHROMEOS)) ||                \
-    (defined(V8_OS_DARWIN) && !defined(V8_OS_IOS))
+  // clang-format off
+  // V8_OS_LINUX does include CrOS as well.
+#if (defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)) \
+    || defined(V8_OS_WIN)                             \
+    ||(defined(V8_OS_DARWIN) && !defined(V8_OS_IOS))
+  // clang-format on
 #if !defined(V8_USE_ADDRESS_SANITIZER) &&   \
     !defined(V8_USE_HWADDRESS_SANITIZER) && \
     !defined(V8_USE_MEMORY_SANITIZER) &&    \
