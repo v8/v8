@@ -1326,6 +1326,9 @@ compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetHeapObjectConstant(
   if (auto c = TryGetConstantAlternative(node)) {
     return TryGetHeapObjectConstant(*c, constant_node);
   }
+  if (node->opcode() == Opcode::kCheckedInternalizedString) {
+    return TryGetHeapObjectConstant(node->input(0).node(), constant_node);
+  }
   return {};
 }
 

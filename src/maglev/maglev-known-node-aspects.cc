@@ -14,6 +14,8 @@
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-tracer.h"
+#include "src/objects/objects-inl.h"
+#include "src/roots/roots-inl.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -682,6 +684,15 @@ void KnownNodeAspects::TraceLoadedProperties(TraceLogger* logger) const {
     *logger << TraceNewline{};
   }
 }
+
+#ifdef DEBUG
+bool IsStringRootIndex(RootIndex index) {
+  if (index > RootIndex::kLastReadOnlyRoot) return false;
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  Tagged<Object> obj = roots.object_at(index);
+  return IsInternalizedString(obj);
+}
+#endif
 
 }  // namespace maglev
 }  // namespace internal

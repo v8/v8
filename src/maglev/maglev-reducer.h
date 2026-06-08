@@ -704,8 +704,6 @@ class MaglevReducer {
     if (!ref.has_value() || !ref->Is<T>()) return {};
     return ref->As<T>();
   }
-  compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
-      ValueNode* node, ValueNode** constant_node);
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
@@ -1467,6 +1465,9 @@ class MaglevReducer {
   friend class MapInference;
 
  private:
+  // Use TryGetConstant instead.
+  compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
+      ValueNode* node, ValueNode** constant_node);
   BaseT* base_;
 
   Graph* graph_;

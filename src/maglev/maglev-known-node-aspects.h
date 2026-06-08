@@ -24,6 +24,30 @@ class TraceLogger;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
 
+#ifdef DEBUG
+bool IsStringRootIndex(RootIndex index);
+
+inline bool IsInternalizedStringConstant(ValueNode* node) {
+  if (auto constant = node->TryCast<HeapConstant>()) {
+    return constant->ref().IsInternalizedString();
+  }
+  if (auto root_constant = node->TryCast<RootConstant>()) {
+    return IsStringRootIndex(root_constant->index());
+  }
+  return false;
+}
+
+inline bool IsNonInternalizedStringConstant(ValueNode* node) {
+  if (auto constant = node->TryCast<HeapConstant>()) {
+    return constant->ref().IsString() &&
+           !constant->ref().IsInternalizedString();
+  }
+  // We don't need to check RootConstants because they are always internalized
+  // strings.
+  return false;
+}
+#endif  // DEBUG
+
 class NodeInfo {
  public:
   NodeInfo() = default;
@@ -72,32 +96,53 @@ class NodeInfo {
           kNumberOfAlternatives
     };
 
-#define API(name, Name, repr)                                               \
-  ValueNode* name() const {                                                 \
-    if (!store_[Kind::k##Name]) return nullptr;                             \
-    return store_[Kind::k##Name]->UnwrapIdentities();                       \
-  }                                                                         \
-  ValueNode* set_##name(ValueNode* val) {                                   \
-    DCHECK_EQ(val->value_representation(), ValueRepresentation::k##repr);   \
-    /* In most cases, we shouldn't overwrite existing alternatives. When we \
-     * do, it should be with a "stronger" one. So far, the only case where  \
-     * this happens is when overwriting a CheckedInternalizedString by an   \
-     * actual string Constant, so we check that if we are overwriting, then \
-     * the old one shouldn't be a constant and the new one should be.       \
-     */                                                                     \
-    DCHECK(name() == nullptr || (!IsConstantNode(name()->opcode()) &&       \
-                                 IsConstantNode(val->opcode())));           \
-    return store_[Kind::k##Name] = val;                                     \
-  }                                                                         \
-  template <typename Function>                                              \
-  ValueNode* get_or_set_##name(Function create) {                           \
-    ValueNode* existing_alt = name();                                       \
-    if (existing_alt != nullptr) return existing_alt;                       \
-    ValueNode* new_alt = create();                                          \
-    if (new_alt) {                                                          \
-      return set_##name(new_alt);                                           \
-    }                                                                       \
-    return nullptr;                                                         \
+    static void DCheckAlternativeOverwrite(Kind kind, ValueNode* old_alt,
+                                           ValueNode* new_alt) {
+#ifdef DEBUG
+      if (old_alt == nullptr) return;
+
+      if (kind == Kind::kCheckedValue) {
+        // For checked_value, we only allow:
+        // 1. Overwriting a non-internalized constant by
+        // CheckedInternalizedString.
+        // 2. Overwriting CheckedInternalizedString by an internalized string
+        // constant.
+        if (IsNonInternalizedStringConstant(old_alt)) {
+          DCHECK_EQ(new_alt->opcode(), Opcode::kCheckedInternalizedString);
+        } else if (old_alt->opcode() == Opcode::kCheckedInternalizedString) {
+          DCHECK(IsInternalizedStringConstant(new_alt));
+        } else {
+          // Any other overwrite of checked_value is forbidden.
+          DCHECK(false);
+        }
+      } else {
+        // For other alternatives, the old one shouldn't be a constant and the
+        // new one should be.
+        DCHECK(!IsConstantNode(old_alt->opcode()));
+        DCHECK(IsConstantNode(new_alt->opcode()));
+      }
+#endif
+    }
+
+#define API(name, Name, repr)                                             \
+  ValueNode* name() const {                                               \
+    if (!store_[Kind::k##Name]) return nullptr;                           \
+    return store_[Kind::k##Name]->UnwrapIdentities();                     \
+  }                                                                       \
+  ValueNode* set_##name(ValueNode* val) {                                 \
+    DCHECK_EQ(val->value_representation(), ValueRepresentation::k##repr); \
+    DCheckAlternativeOverwrite(Kind::k##Name, name(), val);               \
+    return store_[Kind::k##Name] = val;                                   \
+  }                                                                       \
+  template <typename Function>                                            \
+  ValueNode* get_or_set_##name(Function create) {                         \
+    ValueNode* existing_alt = name();                                     \
+    if (existing_alt != nullptr) return existing_alt;                     \
+    ValueNode* new_alt = create();                                        \
+    if (new_alt) {                                                        \
+      return set_##name(new_alt);                                         \
+    }                                                                     \
+    return nullptr;                                                       \
   }
     ALTERNATIVES(API)
 #undef API
