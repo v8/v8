@@ -13,6 +13,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/sandbox.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -638,6 +639,10 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(!is_shared());
 
+  // Validate the new length against the out-of-sandbox capacity to prevent
+  // an in-sandbox corruption from bypassing bounds checks.
+  SBXCHECK_LE(new_byte_length, max_byte_length_);
+
   if (new_byte_length < byte_length_) {
     // Zero the memory so that in case the buffer is grown later, we have
     // zeroed the contents already. This is especially needed for the portion of
@@ -702,6 +707,11 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
   size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(is_shared());
+
+  // Validate the new length against the out-of-sandbox capacity to prevent
+  // an in-sandbox corruption from bypassing bounds checks.
+  SBXCHECK_LE(new_byte_length, max_byte_length_);
+
   // See comment in GrowWasmMemoryInPlace.
   // GrowableSharedArrayBuffer.prototype.grow can be called from several
   // threads. If two threads try to grow() in a racy way, the spec allows the
