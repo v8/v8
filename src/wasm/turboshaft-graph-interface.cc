@@ -2275,7 +2275,7 @@ class TurboshaftGraphBuildingInterface
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
             decoder, V<Context>::Cast(native_context),
-            {head_string, tail_string});
+            {head_string, tail_string}, CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         break;
       }
@@ -2284,7 +2284,8 @@ class TurboshaftGraphBuildingInterface
         V<String> tail_string = ExternRefToString(args[1]);
         V<String> result_value = CallBuiltinThroughJumptable<
             BuiltinCallDescriptor::WasmStringAdd_CheckNone_Shared>(
-            decoder, {head_string, tail_string});
+            decoder, {head_string, tail_string},
+            CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
         break;
       }
@@ -6281,6 +6282,8 @@ class TurboshaftGraphBuildingInterface
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
+    // Note: we're not checking for an exception here, because stringref
+    // instructions trap, so any RangeError should bubble up to JS.
     V<NativeContext> native_context = instance_cache_.native_context();
     V<String> result_value = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
