@@ -1780,11 +1780,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_random_rescheduling,
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
 
-DEFINE_BOOL(turboshaft_trusted_load_elimination, false,
+DEFINE_BOOL(turboshaft_trusted_load_elimination, true,
             "enable Turboshaft's low level load elimination for trusted loads "
             "(JS and Wasm)")
-// For now this is staged behind future.
-DEFINE_IMPLICATION(future, turboshaft_trusted_load_elimination)
 DEFINE_IMPLICATION(turboshaft_trusted_load_elimination,
                    turboshaft_load_elimination)
 
