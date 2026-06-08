@@ -22,6 +22,9 @@
 #include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
 #include "src/objects/objects-inl.h"
 
 #define TRACE(...)                        \
@@ -3967,6 +3970,80 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceDatePrototypeGetSeconds(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceDatePrototypeGetField(target, args, JSDate::kSecond);
 }
+
+#ifdef V8_INTL_SUPPORT
+template <typename BaseT>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryReduceStringPrototypeLocaleCompareIntl(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() < 1 || args.count() > 3) return {};
+
+  LocalFactory* factory = local_isolate()->factory();
+  compiler::ObjectRef undefined_ref = broker()->undefined_value();
+
+  DirectHandle<Object> locales_handle;
+  ValueNode* locales_node = nullptr;
+  if (args.count() > 1) {
+    compiler::OptionalHeapObjectRef maybe_locales =
+        TryGetConstant<HeapObject>(args[1]);
+    if (!maybe_locales) return {};
+    compiler::HeapObjectRef locales = maybe_locales.value();
+    if (locales.equals(undefined_ref)) {
+      locales_handle = factory->undefined_value();
+      locales_node = GetRootConstant(RootIndex::kUndefinedValue);
+    } else {
+      if (!locales.IsString()) return {};
+      compiler::StringRef sref = locales.AsString();
+      std::optional<Handle<String>> maybe_locales_handle =
+          sref.ObjectIfContentAccessible(broker());
+      if (!maybe_locales_handle) return {};
+      locales_handle = *maybe_locales_handle;
+      locales_node = args[1];
+    }
+  } else {
+    locales_handle = factory->undefined_value();
+    locales_node = GetRootConstant(RootIndex::kUndefinedValue);
+  }
+
+  if (args.count() > 2) {
+    compiler::OptionalHeapObjectRef maybe_options =
+        TryGetConstant<HeapObject>(args[2]);
+    if (!maybe_options) return {};
+    if (!maybe_options.value().equals(undefined_ref)) return {};
+  }
+
+  DCHECK(!locales_handle.is_null());
+  DCHECK_NOT_NULL(locales_node);
+
+  if (Intl::CompareStringsOptionsFor(local_isolate(), locales_handle,
+                                     factory->undefined_value()) !=
+      Intl::CompareStringsOptions::kTryFastPath) {
+    return {};
+  }
+  return AddNewNode<StringLocaleCompareIntl>(
+      {GetConstant(target), GetValueOrUndefined(args.receiver()), args[0],
+       locales_node});
+}
+#endif  // V8_INTL_SUPPORT
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+template <typename BaseT>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryReduceGetContinuationPreservedEmbedderData(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  return AddNewNode<GetContinuationPreservedEmbedderData>({});
+}
+
+template <typename BaseT>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryReduceSetContinuationPreservedEmbedderData(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) return {};
+
+  RETURN_IF_ABORT(AddNewNode<SetContinuationPreservedEmbedderData>({args[0]}));
+  return GetRootConstant(RootIndex::kUndefinedValue);
+}
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(

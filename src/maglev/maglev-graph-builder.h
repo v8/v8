@@ -857,14 +857,6 @@ class MaglevGraphBuilder {
   GetArgumentsAsArrayOfValueNodes(compiler::SharedFunctionInfoRef shared,
                                   const CallArguments& args);
 
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
-  V(GetContinuationPreservedEmbedderData)            \
-  V(SetContinuationPreservedEmbedderData)
-#else
-#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
-#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-
 // Builtins that are only reduced in the MaglevGraphBuilder (i.e. eagerly, at
 // graph-building time). Builtins reduced in the MaglevReducer (and thus also
 // reduced post-inlining by the optimizer) live in MAGLEV_REDUCER_BUILTIN.
@@ -908,9 +900,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeStartsWith)                   \
   V(StringPrototypeIndexOf)                      \
   V(StringPrototypeIncludes)                     \
-  V(StringPrototypeIterator)                     \
-  IF_INTL(V, StringPrototypeLocaleCompareIntl)   \
-  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
+  V(StringPrototypeIterator)
 
 #define DEFINE_BUILTIN_REDUCER(Name, ...)                           \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \

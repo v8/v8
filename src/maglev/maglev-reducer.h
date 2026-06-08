@@ -963,36 +963,46 @@ class MaglevReducer {
                      current_speculation_mode_) != supported_modes.end();
   }
 
-#define MAGLEV_REDUCER_BUILTIN(V) \
-  V(DataViewPrototypeGetFloat64)  \
-  V(DataViewPrototypeGetInt16)    \
-  V(DataViewPrototypeGetInt32)    \
-  V(DataViewPrototypeGetInt8)     \
-  V(DataViewPrototypeSetFloat64)  \
-  V(DataViewPrototypeSetInt16)    \
-  V(DataViewPrototypeSetInt32)    \
-  V(DataViewPrototypeSetInt8)     \
-  V(DatePrototypeGetDate)         \
-  V(DatePrototypeGetDay)          \
-  V(DatePrototypeGetFullYear)     \
-  V(DatePrototypeGetHours)        \
-  V(DatePrototypeGetMinutes)      \
-  V(DatePrototypeGetMonth)        \
-  V(DatePrototypeGetSeconds)      \
-  V(DatePrototypeGetTime)         \
-  V(MathAbs)                      \
-  V(MathCeil)                     \
-  V(MathClz32)                    \
-  V(MathFloor)                    \
-  V(MathFround)                   \
-  V(MathImul)                     \
-  V(MathMax)                      \
-  V(MathMin)                      \
-  V(MathRound)                    \
-  V(MathSqrt)                     \
-  V(MathTrunc)                    \
-  IEEE_754_UNARY_LIST(V)          \
-  IEEE_754_BINARY_LIST(V)
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
+  V(GetContinuationPreservedEmbedderData)            \
+  V(SetContinuationPreservedEmbedderData)
+#else
+#define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+#define MAGLEV_REDUCER_BUILTIN(V)              \
+  V(DataViewPrototypeGetFloat64)               \
+  V(DataViewPrototypeGetInt16)                 \
+  V(DataViewPrototypeGetInt32)                 \
+  V(DataViewPrototypeGetInt8)                  \
+  V(DataViewPrototypeSetFloat64)               \
+  V(DataViewPrototypeSetInt16)                 \
+  V(DataViewPrototypeSetInt32)                 \
+  V(DataViewPrototypeSetInt8)                  \
+  V(DatePrototypeGetDate)                      \
+  V(DatePrototypeGetDay)                       \
+  V(DatePrototypeGetFullYear)                  \
+  V(DatePrototypeGetHours)                     \
+  V(DatePrototypeGetMinutes)                   \
+  V(DatePrototypeGetMonth)                     \
+  V(DatePrototypeGetSeconds)                   \
+  V(DatePrototypeGetTime)                      \
+  V(MathAbs)                                   \
+  V(MathCeil)                                  \
+  V(MathClz32)                                 \
+  V(MathFloor)                                 \
+  V(MathFround)                                \
+  V(MathImul)                                  \
+  V(MathMax)                                   \
+  V(MathMin)                                   \
+  V(MathRound)                                 \
+  V(MathSqrt)                                  \
+  V(MathTrunc)                                 \
+  IEEE_754_UNARY_LIST(V)                       \
+  IEEE_754_BINARY_LIST(V)                      \
+  IF_INTL(V, StringPrototypeLocaleCompareIntl) \
+  CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 
 #define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
   MaybeReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
