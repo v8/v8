@@ -2344,6 +2344,9 @@ UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
+  if (SmiConstant* constant = node->input_node(0)->TryCast<SmiConstant>()) {
+    return ReplaceWith(reducer_.GetInt32Constant(constant->value().value()));
+  }
   // TODO(b/496266449): The current optimization is unsound, since the input of
   // this node could flow to a StoreTaggedFieldNoWriteBarrier, which expects a
   // Smi, not a Smi-sized number, which could be a HeapNumber.
