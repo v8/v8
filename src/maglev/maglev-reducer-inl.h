@@ -892,6 +892,48 @@ ReduceResult MaglevReducer<BaseT>::BuildInlinedAllocation(
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildAndAllocateJSArrayIterator(
+    ValueNode* array, IterationKind iteration_kind) {
+  compiler::MapRef map =
+      broker()->target_native_context().initial_array_iterator_map(broker());
+  VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
+  return BuildInlinedAllocation(iterator, AllocationType::kYoung);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeEntries(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  if (!CheckType(receiver, NodeType::kJSReceiver)) {
+    return {};
+  }
+  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kEntries);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeKeys(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  if (!CheckType(receiver, NodeType::kJSReceiver)) {
+    return {};
+  }
+  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kKeys);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeValues(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  if (!CheckType(receiver, NodeType::kJSReceiver)) {
+    return {};
+  }
+  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kValues);
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {

@@ -862,10 +862,7 @@ class MaglevGraphBuilder {
   V(ArrayIteratorPrototypeNext)                  \
   V(ArrayMap)                                    \
   V(ArrayPrototypeAt)                            \
-  V(ArrayPrototypeEntries)                       \
   V(ArrayPrototypeSlice)                         \
-  V(ArrayPrototypeKeys)                          \
-  V(ArrayPrototypeValues)                        \
   V(ArrayPrototypePush)                          \
   V(ArrayPrototypePop)                           \
   V(ArrayPrototypeSort)                          \
@@ -1094,8 +1091,6 @@ class MaglevGraphBuilder {
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
       AllocationType allocation_type);
-  ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
-                                               IterationKind iteration_kind);
 
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);

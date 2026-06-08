@@ -8802,16 +8802,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
       });
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeEntries(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return {};
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kEntries);
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -8868,26 +8858,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
   // allocation in here. That way we'd even get escape analysis and scalar
   // replacement to help in some cases.
   return BuildCallBuiltin<Builtin::kCloneFastJSArray>({receiver});
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeKeys(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return {};
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kKeys);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeValues(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  if (!CheckType(receiver, NodeType::kJSReceiver)) {
-    return {};
-  }
-  return BuildAndAllocateJSArrayIterator(receiver, IterationKind::kValues);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
@@ -12459,15 +12429,6 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
                GetRootConstant(RootIndex::kUndefinedValue));
   }
   return reducer_.BuildInlinedAllocation(array, allocation_type);
-}
-
-ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
-    ValueNode* array, IterationKind iteration_kind) {
-  compiler::MapRef map =
-      broker()->target_native_context().initial_array_iterator_map(broker());
-  VirtualObject* iterator =
-      reducer_.CreateJSArrayIterator(map, array, iteration_kind);
-  return reducer_.BuildInlinedAllocation(iterator, AllocationType::kYoung);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(

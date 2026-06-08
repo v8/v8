@@ -894,6 +894,8 @@ class MaglevReducer {
 
   ReduceResult BuildInlinedAllocation(VirtualObject* object,
                                       AllocationType allocation);
+  ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
+                                               IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
   AllocationBlock* current_allocation_block() const {
@@ -1039,6 +1041,9 @@ class MaglevReducer {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #define MAGLEV_REDUCER_BUILTIN(V)              \
+  V(ArrayPrototypeEntries)                     \
+  V(ArrayPrototypeKeys)                        \
+  V(ArrayPrototypeValues)                      \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeGetInt16)                 \
   V(DataViewPrototypeGetInt32)                 \
