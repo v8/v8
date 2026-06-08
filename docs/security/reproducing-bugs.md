@@ -32,3 +32,20 @@ The difference is the bugs are expected to reproduce with `--run-as-sandbox-secu
 A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected").
 Crashes reported as "harmless" by the filter do not qualify as sandbox escapes.
 If the crash still occurs with this flag enabled, and the test filter does not consider it harmless, it is likely a valid security vulnerability (**Type=Vulnerability**).
+
+## Useful helper functions and building blocks
+
+Internal helper functions are exposed via JavaScript and are not generally available in production environments.
+They can be very useful in constructing POCs.
+These flags and helpers always need to be combined with the aforementioned sanitization flags to rule out misconfigurations.
+
+Running with `--allow-natives-syntax --expose-gc` exposes:
+- **Optimization**: `%PrepareFunctionForOptimization(func)`, `%OptimizeFunctionOnNextCall(func)`, `%OptimizeMaglevOnNextCall(func)`, `%OptimizeOsr(optional_frame_depth)`, `%NeverOptimizeFunction(func)`, `%DeoptimizeFunction(func)`, `%DeoptimizeNow()`
+- **Tiering**: `%ActiveTierIsIgnition(func)`, `%ActiveTierIsSparkplug(func)`, `%ActiveTierIsMaglev(func)`, `%ActiveTierIsTurbofan(func)`, `%GetOptimizationStatus(func)`
+- **WebAssembly**: `%WasmTierUpFunction(func)`
+- **Debugging**: `%DebugPrint(value)`, `%DisassembleFunction(func)` (requires `is_debug`), `%HeapObjectVerify(obj)` (requires `is_debug` or `v8_enable_verify_heap`), `%SystemBreak()`
+- **Garbage Collection**: `gc()`, `%SimulateNewspaceFull()`
+
+For WebAssembly, the `WasmModuleBuilder` (`test/mjsunit/wasm/wasm-module-builder.js`) should be used to construct POCs whenever possible.
+The easiest way is to just invoke the script from JavaScript in `d8` using `d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js')`.
+Alternatively, it can be passed to `d8` before the POC script (e.g. `d8 test/mjsunit/wasm/wasm-module-builder.js poc.js`).
