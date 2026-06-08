@@ -673,6 +673,9 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     inspector->Set(isolate, "runNestedMessageLoop",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::RunNestedMessageLoop));
+    inspector->Set(isolate, "disconnectSession",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::DisconnectSession));
     global->Set(isolate, "inspector", inspector);
   }
 
@@ -960,6 +963,17 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
 
     data->task_runner()->RunMessageLoop(true);
+  }
+
+  static void DisconnectSession(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
+      FATAL("Internal error: disconnectSession(session_id).");
+    }
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
+    data->DisconnectSession(info[0].As<v8::Int32>()->Value(),
+                            data->task_runner());
   }
 };
 

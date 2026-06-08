@@ -519,7 +519,11 @@ void V8InspectorImpl::forEachSession(
     it = m_sessions.find(contextGroupId);
     if (it == m_sessions.end()) continue;
     auto sessionIt = it->second.find(sessionId);
-    if (sessionIt != it->second.end()) callback(sessionIt->second);
+    if (sessionIt != it->second.end()) {
+      V8InspectorSessionImpl::KeepSessionAliveScope keepAlive(
+          *sessionIt->second);
+      callback(sessionIt->second);
+    }
   }
 }
 
