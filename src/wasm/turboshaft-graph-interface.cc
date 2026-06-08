@@ -4070,9 +4070,10 @@ class TurboshaftGraphBuildingInterface
               TrapId::kTrapResume);
     // 2. Validity check: only the continuation that was created when this stack
     // was suspended for the last time can be used to resume it.
-    V<WasmContinuationObject> stack_cont = __ Load(
-        stack, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-        StackMemory::current_continuation_offset());
+    V<WasmContinuationObject> stack_cont =
+        __ Load(stack, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UncompressedTaggedPointer(),
+                StackMemory::current_continuation_offset());
     __ TrapIfNot(__ TaggedEqual(cont_ref.get<MaybeObject>(), stack_cont),
                  TrapId::kTrapResume);
     // 3. Type check: the continuation signature must match the expected
@@ -4106,8 +4107,39 @@ class TurboshaftGraphBuildingInterface
     V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
                                     MemoryRepresentation::UintPtr(),
                                     StackMemory::arg_buffer_offset());
-    size_t delta =
-        input_sig->parameters().size() - output_sig->parameters().size();
+    uint32_t delta = static_cast<uint32_t>(input_sig->parameters().size() -
+                                           output_sig->parameters().size());
+
+    // Allocate and initialize the new continuation.
+    compiler::turboshaft::Uninitialized<WasmContinuationObject>
+        uninitialized_cont = __ template Allocate<WasmContinuationObject>(
+            __ WordPtrConstant(WasmContinuationObject::kSize),
+            AllocationType::kYoung, AllocationAlignment::kTaggedAligned);
+    V<WasmStackObject> stack_obj =
+        __ Load(input_cont.op, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::TaggedPointer(),
+                offsetof(WasmContinuationObject, stack_obj_));
+    V<Map> map = __ LoadRoot<RootIndex::kWasmContinuationObjectMap>();
+    __ InitializeField(uninitialized_cont,
+                       AccessBuilder::ForMap(compiler::kNoWriteBarrier), map);
+    compiler::FieldAccess access = {
+        compiler::kTaggedBase,    offsetof(WasmContinuationObject, stack_obj_),
+        Handle<Name>(),           compiler::OptionalMapRef(),
+        compiler::Type::Object(), MachineType::TaggedPointer(),
+        kNoWriteBarrier,          "StackObj"};
+    __ InitializeField(uninitialized_cont, access, stack_obj);
+    V<WasmContinuationObject> cont =
+        __ FinishInitialization(std::move(uninitialized_cont));
+
+    // Update the StackMemory state and store the bound arguments.
+    auto sig = FixedSizeSignature<MachineType>::Params(
+        MachineType::TaggedPointer(), MachineType::UintPtr(),
+        MachineType::Int32(), MachineType::Uint32());
+    CanonicalTypeIndex new_csig_index = decoder->module_->canonical_type_id(
+        new_imm.cont_type->contfun_typeindex());
+    CallC(&sig, ExternalReference::wasm_cont_bind(),
+          {cont, stack, __ Word32Constant(delta),
+           __ RelocatableWasmCanonicalSignatureId(new_csig_index.index)});
     IterateWasmFXArgBuffer(
         input_sig->parameters(), [&](size_t index, int offset) {
           if (index < delta) {
@@ -4118,19 +4150,6 @@ class TurboshaftGraphBuildingInterface
                             offset);
           }
         });
-    V<Context> native_context = instance_cache_.native_context();
-    CanonicalTypeIndex new_csig_index = decoder->module_->canonical_type_id(
-        new_imm.cont_type->contfun_typeindex());
-    // Allocate a new continuation for this stack, and invalidate the old one by
-    // pointing {StackMemory::current_cont_} to the new one.
-    V<WasmContinuationObject> cont = __ WasmCallRuntime(
-        decoder->zone(), Runtime::kWasmAllocateBoundContinuation,
-        {input_cont.op, __ SmiConstant(Smi::FromInt(static_cast<int>(delta))),
-         __ TagSmi(
-             __ RelocatableWasmCanonicalSignatureId(new_csig_index.index))},
-        native_context);
-    // The continuation is used above, so we don't need to Retain it explicitly
-    // to keep the external stack pointer alive.
     result->op = cont;
   }
 

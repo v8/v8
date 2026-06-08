@@ -1242,7 +1242,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              const uint32_t tag_sig_index) {
   Address target_sp, target_fp, target_pc;
   Tagged<Object> cont_obj(cont_raw);
-  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  auto cont = Cast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   cont->set_stack_obj(from->stack_obj());
   CanonicalTypeIndex cont_sig_index;
@@ -1284,7 +1284,7 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                             Address arg_buffer, const uint32_t sig_index) {
   Address target_sp, target_fp, target_pc;
   Tagged<Object> cont_obj(cont_raw);
-  auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
+  auto cont = Cast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
 
   cont->set_stack_obj(from->stack_obj());
@@ -1343,6 +1343,14 @@ void retire_stack(Isolate* isolate, wasm::StackMemory* stack) {
 
 void wasmfx_set_wasm_code(wasm::StackMemory* stack, WasmCode* code) {
   stack->set_wasm_code(code);
+}
+
+void cont_bind(Address cont_raw, wasm::StackMemory* stack, int num_args,
+               uint32_t new_sig) {
+  auto cont = Cast<WasmContinuationObject>(Tagged<Object>(cont_raw));
+  stack->bind_arguments(num_args);
+  stack->set_signature_id(CanonicalTypeIndex{new_sig});
+  stack->set_current_continuation(cont);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {

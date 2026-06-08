@@ -2943,28 +2943,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   return *cont;
 }
 
-// For cont.bind: invalidate the given continuation and create a new one for the
-// same stack.
-RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
-  DCHECK_EQ(3, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<WasmContinuationObject> old_cont(
-      Cast<WasmContinuationObject>(args[0]), isolate);
-  int num_bound_args = args.smi_value_at(1);
-  uint32_t sig_id = args.smi_value_at(2);
-  wasm::StackMemory* stack = old_cont->stack_obj()->stack();
-  DirectHandle<WasmStackObject> old_stack_obj(old_cont->stack_obj(), isolate);
-  // Order matters: bound arguments must be adjusted first so that they are
-  // visible to the GC potentially triggered by the allocation below.
-  stack->bind_arguments(num_bound_args);
-  stack->set_signature_id(wasm::CanonicalTypeIndex{sig_id});
-
-  DirectHandle<WasmContinuationObject> cont =
-      isolate->factory()->NewWasmContinuationObject(old_stack_obj);
-  stack->set_current_continuation(*cont);
-  return *cont;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
   DCHECK_EQ(0, args.length());
   // The "FuzzerSecurityIssueHigh" is needed to label crashes of this as

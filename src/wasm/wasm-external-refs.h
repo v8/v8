@@ -224,6 +224,8 @@ void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to);
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to);
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 void wasmfx_set_wasm_code(wasm::StackMemory* stack, WasmCode* code);
+void cont_bind(Address cont_raw, wasm::StackMemory* stack, int num_args,
+               uint32_t new_sig);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);
