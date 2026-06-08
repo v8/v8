@@ -2084,7 +2084,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex(
     CheckedObjectToIndex* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(
+      node->input_node(0), UseRepresentation::kInt32, {}));
   return ProcessResult::kContinue;
 }
 
