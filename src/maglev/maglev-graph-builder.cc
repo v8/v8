@@ -11034,19 +11034,20 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     const compiler::FeedbackSource& feedback_source) {
   if (args.mode() == CallArguments::kDefault &&
       shared.object()->CanOnlyAccessFixedFormalParameters()) {
-    auto parameter_count =
-        local_isolate_->js_dispatch_table().GetParameterCount(dispatch_handle);
-    // Truncate args when they are unreachable.
+    // Truncate args when they are unreachable. Note that `parameter_count`
+    // includes the receiver slot, while `args.count()` does not.
+    size_t parameter_count = static_cast<size_t>(
+        local_isolate_->js_dispatch_table().GetParameterCount(dispatch_handle)
+        - kJSArgcReceiverSlots);
     size_t arg_count = args.count();
-    if (arg_count > parameter_count - kJSArgcReceiverSlots) {
-      args.ResizeDefaultArguments(parameter_count - kJSArgcReceiverSlots);
+    if (arg_count > parameter_count) {
+      args.ResizeDefaultArguments(parameter_count);
       arg_count = parameter_count;
     }
     // Now replace remaining unused parameters.
     uint32_t unused_parameters = shared.object()->unused_parameter_bits();
-    size_t to_check = std::min(arg_count, sizeof(unused_parameters));
-    for (size_t i = 0; unused_parameters != 0 && i < to_check; ++i) {
-      if (unused_parameters & size_t{0x1}) {
+    for (size_t i = 0; unused_parameters != 0 && i < arg_count; ++i) {
+      if (unused_parameters & uint32_t{0x1}) {
         args.begin()[i] = GetRootConstant(RootIndex::kOptimizedOut);
       }
       unused_parameters >>= 1;
