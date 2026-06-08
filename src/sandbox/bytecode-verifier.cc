@@ -249,6 +249,8 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         "Bytecode does not end with a control-flow terminating instruction");
   }
 
+  Check(bytecode->frame_size() >= 0, "Invalid bytecode array frame size");
+
   // Finally perform lightweight verification for CFI. If we ever enable full
   // verification in production then we'd most likely want to avoid iterating
   // over the bytecode twice, so we'd have to embed the CFI checks also here.
