@@ -5223,7 +5223,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   TNode<BoolT> IsOneByte();
 
   TNode<String> string() { return var_string_.value(); }
-  TNode<IntPtrT> offset() { return var_offset_.value(); }
+  TNode<IntPtrT> offset() {
+    return Signed(ChangeUint32ToWord(Unsigned(var_offset_.value())));
+  }
   TNode<Word32T> is_external() { return var_is_external_.value(); }
 
  private:
@@ -5235,8 +5237,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 #else
   TVariable<Int32T> var_instance_type_;
 #endif
-  // TODO(v8:9880): Use UintPtrT here.
-  TVariable<IntPtrT> var_offset_;
+  TVariable<Int32T> var_offset_;
   TVariable<Word32T> var_is_external_;
 
   const Flags flags_;

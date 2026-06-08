@@ -1409,6 +1409,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     }
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
+    fields[SLICED_ONE_BYTE_STRING_TYPE]["offset"] =
+        offsetof(SlicedString, offset_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =

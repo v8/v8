@@ -9420,7 +9420,7 @@ ToDirectStringAssembler::ToDirectStringAssembler(
 #else
       var_instance_type_(LoadInstanceType(string), this),
 #endif
-      var_offset_(IntPtrConstant(0), this),
+      var_offset_(Int32Constant(0), this),
       var_is_external_(Int32Constant(0), this),
       flags_(flags) {
 }
@@ -9532,9 +9532,9 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
       Goto(if_bailout);
     } else {
       const TNode<String> string = var_string_.value();
-      const TNode<IntPtrT> sliced_offset = LoadAndUntagPositiveSmiObjectField(
+      const TNode<Int32T> sliced_offset = LoadAndUntagToWord32ObjectField(
           string, offsetof(SlicedString, offset_));
-      var_offset_ = IntPtrAdd(var_offset_.value(), sliced_offset);
+      var_offset_ = Int32Add(var_offset_.value(), sliced_offset);
 
       const TNode<String> parent =
           LoadObjectField<String>(string, offsetof(SlicedString, parent_));
