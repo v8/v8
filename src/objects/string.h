@@ -33,6 +33,8 @@ namespace maglev {
 class CheckedInternalizedString;
 class BuiltinStringFromCharCode;
 class MaglevGraphBuilder;
+template <typename BaseT>
+class MaglevReducer;
 class VirtualObject;
 struct VirtualStringShape;
 }  // namespace maglev
@@ -1087,6 +1089,8 @@ V8_OBJECT class ConsString : public String {
   friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  template <typename BaseT>
+  friend class maglev::MaglevReducer;
   friend class maglev::VirtualObject;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedConsStringAsserts;

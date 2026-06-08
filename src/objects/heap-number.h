@@ -16,6 +16,8 @@ namespace internal {
 
 namespace maglev {
 class MaglevGraphBuilder;
+template <typename BaseT>
+class MaglevReducer;
 }  // namespace maglev
 
 namespace compiler {
@@ -61,6 +63,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend class AccessorAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  template <typename BaseT>
+  friend class maglev::MaglevReducer;
   friend class compiler::AccessBuilder;
   friend class compiler::GraphAssembler;
   friend class compiler::JSContextSpecialization;

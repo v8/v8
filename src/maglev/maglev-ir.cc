@@ -9080,12 +9080,11 @@ std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
   return {};
 }
 
-VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
-                             MaglevGraphBuilder* builder,
+VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id, Zone* zone,
                              const vobj::ObjectLayout* object_layout,
                              compiler::OptionalMapRef map, uint32_t slot_count)
     : VirtualObject(bitfield, map, id, object_layout, slot_count,
-                    builder->zone()->AllocateArray<ValueNode*>(slot_count)) {
+                    zone->AllocateArray<ValueNode*>(slot_count)) {
   DCHECK_NOT_NULL(object_layout);
   int header_slot_count = object_layout->header_fields.length();
   int body_slot_count = slot_count - header_slot_count;

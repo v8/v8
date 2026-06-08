@@ -87,7 +87,6 @@ class ProcessingState;
 class MaglevAssembler;
 class MaglevCodeGenState;
 class MaglevCompilationUnit;
-class MaglevGraphBuilder;
 class MaglevVregAllocationState;
 class CompactInterpreterFrameState;
 class MergePointInterpreterFrameState;
@@ -5643,8 +5642,7 @@ struct VirtualHeapObjectShape {
 // to the Maglev graph.
 class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
  public:
-  explicit VirtualObject(uint64_t bitfield, uint32_t id,
-                         MaglevGraphBuilder* builder,
+  explicit VirtualObject(uint64_t bitfield, uint32_t id, Zone* zone,
                          const vobj::ObjectLayout* object_layout,
                          compiler::OptionalMapRef map, uint32_t slot_count);
 

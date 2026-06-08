@@ -815,6 +815,56 @@ class MaglevReducer {
                               UseReprHintRecording record_use_repr_hint =
                                   UseReprHintRecording::kRecord);
 
+  ReduceResult GetSmiValue(ValueNode* value,
+                           UseReprHintRecording record_use_repr_hint =
+                               UseReprHintRecording::kRecord);
+
+  uint32_t NewObjectId() { return graph()->NewObjectId(); }
+
+  VirtualObject* CreateHeapNumber(ValueNode* value);
+  VirtualObject* CreateJSObject(compiler::MapRef map);
+  VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
+                                  ValueNode* first, ValueNode* second);
+  ReduceResult CreateJSArray(compiler::MapRef map, int instance_size,
+                             ValueNode* length);
+  VirtualObject* CreateJSArrayIterator(compiler::MapRef map,
+                                       ValueNode* iterated_object,
+                                       IterationKind kind);
+  VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
+  VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateContext(compiler::MapRef map, int length,
+                               compiler::ScopeInfoRef scope_info,
+                               ValueNode* previous_context,
+                               std::optional<ValueNode*> extension = {});
+  VirtualObject* CreateArgumentsObject(compiler::MapRef map, ValueNode* length,
+                                       ValueNode* elements,
+                                       std::optional<ValueNode*> callee = {});
+  VirtualObject* CreateMappedArgumentsElements(compiler::MapRef map,
+                                               int mapped_count,
+                                               ValueNode* context,
+                                               ValueNode* unmapped_elements);
+  VirtualObject* CreateRegExpLiteralObject(
+      compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal);
+  VirtualObject* CreateJSGeneratorObject(compiler::MapRef map,
+                                         int instance_size, ValueNode* context,
+                                         ValueNode* closure,
+                                         ValueNode* receiver,
+                                         ValueNode* register_file);
+  VirtualObject* CreateJSAsyncFunctionObject(ValueNode* context,
+                                             ValueNode* closure,
+                                             ValueNode* receiver,
+                                             ValueNode* register_file,
+                                             ValueNode* promise);
+  VirtualObject* CreateJSIteratorResult(compiler::MapRef map, ValueNode* value,
+                                        ValueNode* done);
+  VirtualObject* CreateJSStringIterator(compiler::MapRef map,
+                                        ValueNode* string);
+  VirtualObject* CreateJSStringWrapper(ValueNode* value);
+  VirtualObject* CreateJSPromiseObject();
+  VirtualObject* CreateAsyncResumeTask(ValueNode* generator, ValueNode* value,
+                                       ValueNode* kind);
+
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                     LoadType type = LoadType::kUnknown,
                                     bool is_const = false,

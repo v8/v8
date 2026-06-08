@@ -1445,65 +1445,7 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
 
 ReduceResult MaglevGraphBuilder::GetSmiValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
-  if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
-    value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
-  }
-
-  NodeInfo* node_info = GetOrCreateInfoFor(value);
-
-  ValueRepresentation representation =
-      value->properties().value_representation();
-  if (representation == ValueRepresentation::kTagged) {
-    return BuildCheckSmi(value);
-  }
-
-  auto& alternative = node_info->alternative();
-
-  if (ValueNode* alt = alternative.tagged()) {
-#ifdef DEBUG
-    if (HoleyFloat64ToTagged* conversion_node =
-            alt->TryCast<HoleyFloat64ToTagged>()) {
-      DCHECK_EQ(conversion_node->conversion_mode(),
-                NumberConversionMode::kCanonicalizeSmi);
-    }
-#endif  // DEBUG
-    return BuildCheckSmi(alt);
-  }
-
-  switch (representation) {
-    case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
-      }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagInt32>({value}));
-    }
-    case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagUint32>({value}));
-      }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagUint32>({value}));
-    }
-    case ValueRepresentation::kFloat64: {
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
-    }
-    case ValueRepresentation::kHoleyFloat64: {
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagHoleyFloat64>({value}));
-    }
-    case ValueRepresentation::kIntPtr:
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
-    case ValueRepresentation::kTagged:
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
+  return reducer_.GetSmiValue(value, record_use_repr_hint);
 }
 
 ReduceResult MaglevGraphBuilder::GetSmiValue(
@@ -2115,7 +2057,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     ValueNode* new_map;
     GET_VALUE_OR_ABORT(new_map, BuildNewConsStringMap(left, right));
     VirtualObject* cons_string =
-        CreateConsString(new_map, new_length, left, right);
+        reducer_.CreateConsString(new_map, new_length, left, right);
     return BuildInlinedAllocation(cons_string, allocation_type);
   };
 
@@ -4092,7 +4034,8 @@ ReduceResult MaglevGraphBuilder::ConvertForField(
         // share instances. However, we could specify such mutable fields
         // through vobj::Field; and then only allocate a new object here
         // if needed.
-        return BuildInlinedAllocation(CreateHeapNumber(value), allocation_type);
+        return BuildInlinedAllocation(reducer_.CreateHeapNumber(value),
+                                      allocation_type);
       }
       return GetTaggedValue(value);
     }
@@ -4941,9 +4884,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
       ValueNode* heapnumber_value;
-      GET_VALUE_OR_ABORT(heapnumber_value,
-                         BuildInlinedAllocation(CreateHeapNumber(value),
-                                                AllocationType::kYoung));
+      GET_VALUE_OR_ABORT(heapnumber_value, BuildInlinedAllocation(
+                                               reducer_.CreateHeapNumber(value),
+                                               AllocationType::kYoung));
       RETURN_IF_ABORT(BuildStoreTaggedField(
           store_target, heapnumber_value, field_index.offset(),
           StoreTaggedMode::kTransitioning, name));
@@ -7854,9 +7797,9 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
         if (new_target_function &&
             HasValidInitialMap(new_target_function.value(), current_function)) {
           GET_VALUE(object,
-                    BuildInlinedAllocation(
-                        CreateJSConstructor(new_target_function.value()),
-                        AllocationType::kYoung));
+                    BuildInlinedAllocation(reducer_.CreateJSConstructor(
+                                               new_target_function.value()),
+                                           AllocationType::kYoung));
         } else {
           // We've already stored "true" into result.first, so a deopt here just
           // has to store result.second.
@@ -8450,8 +8393,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
                                      {length_smi}, AllocationType::kYoung));
     VirtualObject* array;
     GET_VALUE_OR_ABORT(
-        array, CreateJSArray(holey_smi_map, holey_smi_map.instance_size(),
-                             length_smi));
+        array, reducer_.CreateJSArray(
+                   holey_smi_map, holey_smi_map.instance_size(), length_smi));
     array->set(offsetof(JSObject, elements_), elements);
     GET_VALUE_OR_ABORT(result_array,
                        BuildInlinedAllocation(array, AllocationType::kYoung));
@@ -8956,7 +8899,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   // Allocate result object and return.
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
-  VirtualObject* iter_result = CreateJSIteratorResult(
+  VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
       map, subgraph.get(ret_value), subgraph.get(is_done));
   return BuildInlinedAllocation(iter_result, AllocationType::kYoung);
 }
@@ -9621,7 +9564,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   RETURN_IF_ABORT(BuildCheckString(receiver));
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
-  VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
+  VirtualObject* string_iterator =
+      reducer_.CreateJSStringIterator(map, receiver);
   return BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
 }
 
@@ -10122,7 +10066,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSort(
       for (int k = 0; k < kMaxInlineSortSize; k++) {
         smis.push_back(GetSmiConstant(0));
       }
-      VirtualObject* temp_vobj = CreateFixedArray(base::VectorOf(smis));
+      VirtualObject* temp_vobj =
+          reducer_.CreateFixedArray(base::VectorOf(smis));
       GET_VALUE_OR_ABORT(temp_array, BuildInlinedAllocation(
                                          temp_vobj, AllocationType::kYoung));
     }
@@ -12308,7 +12253,8 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
   ValueNode* done = current_interpreter_frame_.get(args[1]);
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
-  VirtualObject* iter_result = CreateJSIteratorResult(map, value, done);
+  VirtualObject* iter_result =
+      reducer_.CreateJSIteratorResult(map, value, done);
   return SetAccumulator(
       BuildInlinedAllocation(iter_result, AllocationType::kYoung));
 }
@@ -12419,7 +12365,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
                      JSPromise::HasHandlerBit::kMask),
       offsetof(JSPromise, flags_), StoreTaggedMode::kDefault));
 
-  VirtualObject* task = CreateAsyncResumeTask(
+  VirtualObject* task = reducer_.CreateAsyncResumeTask(
       async_function_object, fulfilled_value,
       GetSmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
   ValueNode* task_node;
@@ -12453,14 +12399,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionEnter(
   if (!can_allocate_array) return {};
 
   // Creating the Promise object.
-  VirtualObject* promise = CreateJSPromiseObject();
+  VirtualObject* promise = reducer_.CreateJSPromiseObject();
 
   // Creating the AsyncFunction object.
   // Create the register file.
   auto undefined = GetRootConstant(RootIndex::kUndefinedValue);
   base::SmallVector<ValueNode*, 16> values(register_count, undefined);
-  VirtualObject* register_file = CreateFixedArray(base::VectorOf(values));
-  VirtualObject* async_function = CreateJSAsyncFunctionObject(
+  VirtualObject* register_file =
+      reducer_.CreateFixedArray(base::VectorOf(values));
+  VirtualObject* async_function = reducer_.CreateJSAsyncFunctionObject(
       GetContext(), closure, receiver, register_file, promise);
 
   return BuildInlinedAllocation(async_function, AllocationType::kYoung);
@@ -12675,12 +12622,13 @@ ReduceResult MaglevGraphBuilder::BuildGenericConstruct(
 
 ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
     ValueNode* key, ValueNode* value) {
-  VirtualObject* elements = CreateFixedArray(base::VectorOf({key, value}));
+  VirtualObject* elements =
+      reducer_.CreateFixedArray(base::VectorOf({key, value}));
   compiler::MapRef map =
       broker()->target_native_context().js_array_packed_elements_map(broker());
   VirtualObject* array;
-  GET_VALUE_OR_ABORT(
-      array, CreateJSArray(map, map.instance_size(), GetInt32Constant(2)));
+  GET_VALUE_OR_ABORT(array, reducer_.CreateJSArray(map, map.instance_size(),
+                                                   GetInt32Constant(2)));
   array->set(offsetof(JSObject, elements_), elements);
   return BuildInlinedAllocation(array, AllocationType::kYoung);
 }
@@ -12691,8 +12639,8 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     AllocationType allocation_type) {
   VirtualObject* array;
   GET_VALUE_OR_ABORT(
-      array,
-      CreateJSArray(map, slack_tracking_prediction.instance_size(), length));
+      array, reducer_.CreateJSArray(
+                 map, slack_tracking_prediction.instance_size(), length));
   array->set(offsetof(JSObject, elements_), elements);
   for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
        i++) {
@@ -12706,7 +12654,8 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
     ValueNode* array, IterationKind iteration_kind) {
   compiler::MapRef map =
       broker()->target_native_context().initial_array_iterator_map(broker());
-  VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
+  VirtualObject* iterator =
+      reducer_.CreateJSArrayIterator(map, array, iteration_kind);
   return BuildInlinedAllocation(iterator, AllocationType::kYoung);
 }
 
@@ -12730,14 +12679,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   }
   auto undefined = GetRootConstant(RootIndex::kUndefinedValue);
   base::SmallVector<ValueNode*, 16> values(length, undefined);
-  VirtualObject* register_file = CreateFixedArray(base::VectorOf(values));
+  VirtualObject* register_file =
+      reducer_.CreateFixedArray(base::VectorOf(values));
 
   // Create the JS[Async]GeneratorObject instance.
   compiler::SlackTrackingPrediction slack_tracking_prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           function);
   compiler::MapRef initial_map = function.initial_map(broker());
-  VirtualObject* generator = CreateJSGeneratorObject(
+  VirtualObject* generator = reducer_.CreateJSGeneratorObject(
       initial_map, slack_tracking_prediction.instance_size(), GetContext(),
       closure, receiver, register_file);
 
@@ -12809,8 +12759,9 @@ ValueNode* MaglevGraphBuilder::BuildElementsArray(
     ElementsKind elements_kind, base::Vector<ValueNode*> values) {
   DCHECK(IsFastElementsKind(elements_kind));
   DCHECK_GT(static_cast<int>(values.size()), 0);
-  return IsDoubleElementsKind(elements_kind) ? CreateFixedDoubleArray(values)
-                                             : CreateFixedArray(values);
+  return IsDoubleElementsKind(elements_kind)
+             ? reducer_.CreateFixedDoubleArray(values)
+             : reducer_.CreateFixedArray(values);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
@@ -13027,8 +12978,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
-        return BuildInlinedAllocation(CreateJSConstructor(target_function),
-                                      AllocationType::kYoung);
+        return BuildInlinedAllocation(
+            reducer_.CreateJSConstructor(target_function),
+            AllocationType::kYoung);
       }
       break;
     }
@@ -13045,7 +12997,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
         GET_VALUE_OR_ABORT(value,
                            BuildToString(args[0], ToString::kThrowOnSymbol));
       }
-      return BuildInlinedAllocation(CreateJSStringWrapper(value),
+      return BuildInlinedAllocation(reducer_.CreateJSStringWrapper(value),
                                     AllocationType::kYoung);
     }
     case Builtin::kPromiseConstructor:
@@ -13111,10 +13063,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
             TryGetConstant<JSFunction>(new_target)) {
       if (compiler::OptionalMapRef map = TryGetDerivedMap(
               broker(), target_constant, new_target_function.value())) {
-        GET_VALUE_OR_ABORT(implicit_receiver,
-                           BuildInlinedAllocation(
-                               CreateJSConstructor(new_target_function.value()),
-                               AllocationType::kYoung));
+        GET_VALUE_OR_ABORT(
+            implicit_receiver,
+            BuildInlinedAllocation(
+                reducer_.CreateJSConstructor(new_target_function.value()),
+                AllocationType::kYoung));
       }
     }
     if (implicit_receiver == nullptr) {
@@ -13511,8 +13464,9 @@ ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {
         broker()->target_native_context();
     compiler::MapRef map =
         native_context.regexp_function(broker()).initial_map(broker());
-    return SetAccumulator(BuildInlinedAllocation(
-        CreateRegExpLiteralObject(map, literal), AllocationType::kYoung));
+    return SetAccumulator(
+        BuildInlinedAllocation(reducer_.CreateRegExpLiteralObject(map, literal),
+                               AllocationType::kYoung));
   }
   // Fallback.
   return SetAccumulator(
@@ -13577,8 +13531,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   // Initial JSArray map shouldn't have any in-object properties.
   SBXCHECK_EQ(map.GetInObjectProperties(), 0);
   VirtualObject* array;
-  GET_VALUE_OR_ABORT(
-      array, CreateJSArray(map, map.instance_size(), GetSmiConstant(0)));
+  GET_VALUE_OR_ABORT(array, reducer_.CreateJSArray(map, map.instance_size(),
+                                                   GetSmiConstant(0)));
   return SetAccumulator(BuildInlinedAllocation(array, AllocationType::kYoung));
 }
 
@@ -13649,13 +13603,13 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 
   VirtualObject* fast_literal;
   if (boilerplate_map.IsJSArrayMap()) {
-    MaybeReduceResult fast_array = CreateJSArray(
+    MaybeReduceResult fast_array = reducer_.CreateJSArray(
         boilerplate_map, boilerplate_map.instance_size(),
         GetConstant(boilerplate.AsJSArray().GetBoilerplateLength(broker())));
     CHECK(fast_array.HasValue());
     fast_literal = fast_array.value()->Cast<VirtualObject>();
   } else {
-    fast_literal = CreateJSObject(boilerplate_map);
+    fast_literal = reducer_.CreateJSObject(boilerplate_map);
   }
 
   int inobject_properties = boilerplate_map.GetInObjectProperties();
@@ -13713,8 +13667,9 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
       fast_literal->set(
-          offset, CreateHeapNumber(GetFloat64Constant(Float64::FromBits(
-                      boilerplate_value.AsHeapNumber().value_as_bits()))));
+          offset,
+          reducer_.CreateHeapNumber(GetFloat64Constant(Float64::FromBits(
+              boilerplate_value.AsHeapNumber().value_as_bits()))));
     } else {
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
@@ -13759,8 +13714,9 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
             boilerplate_elements_as_fda.GetFromImmutableFixedDoubleArray(i)));
       }
 
-      fast_literal->set(offsetof(JSObject, elements_),
-                        CreateFixedDoubleArray(base::VectorOf(values)));
+      fast_literal->set(
+          offsetof(JSObject, elements_),
+          reducer_.CreateFixedDoubleArray(base::VectorOf(values)));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
@@ -13789,7 +13745,8 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         }
       }
 
-      VirtualObject* elements = CreateFixedArray(base::VectorOf(values));
+      VirtualObject* elements =
+          reducer_.CreateFixedArray(base::VectorOf(values));
       fast_literal->set(offsetof(JSObject, elements_), elements);
     }
   }
@@ -13802,482 +13759,6 @@ VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
   current_interpreter_frame_.add_object(vobject);
   old->allocation()->UpdateObject(vobject);
   return vobject;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateHeapNumber(ValueNode* value) {
-  using Shape = VirtualHeapNumberShape;
-  int slot_count = Shape::header_slot_count;
-  SBXCHECK_EQ(slot_count, 2);
-  compiler::MapRef map = broker()->heap_number_map();
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(HeapNumber, value_), value);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateConsString(ValueNode* map,
-                                                    ValueNode* length,
-                                                    ValueNode* first,
-                                                    ValueNode* second) {
-  using Shape = VirtualConsStringShape;
-  int slot_count = Shape::header_slot_count;
-  SBXCHECK_EQ(slot_count, 5);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout,
-      compiler::OptionalMapRef{}, slot_count);
-  vobj->set(offsetof(HeapObject, map_), map);
-  vobj->set(offsetof(ConsString, raw_hash_field_),
-            GetInt32Constant(Name::kEmptyHashField));
-  vobj->set(offsetof(ConsString, length_), length);
-  vobj->set(offsetof(ConsString, first_), first);
-  vobj->set(offsetof(ConsString, second_), second);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
-  using Shape = VirtualJSObjectShape;
-  DCHECK(!map.is_dictionary_map());
-  DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_GE(slot_count, 3);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSObject, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-
-  // Initialize all in-object property slots to undefined.
-  if (map.GetInObjectProperties() > 0) {
-    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
-    for (int i = 0; i < map.GetInObjectProperties(); i++) {
-      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
-    }
-  }
-
-  return vobj;
-}
-
-ReduceResult MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
-                                               int instance_size,
-                                               ValueNode* length) {
-  using Shape = VirtualJSArrayShape;
-  int slot_count = instance_size / kTaggedSize;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSArray, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  // Either the value is a Smi already, or we force a conversion to Smi and
-  // cache the value in its alternative representation node.
-  // TODO(454485895): Consider removing this workaround since
-  // HoleyFloat64ToTagged now canonicalizes by default.
-  RETURN_IF_ABORT(GetSmiValue(length));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSArray, length_), length);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSStringWrapper(ValueNode* value) {
-  using Shape = VirtualJSPrimitiveWrapperShape;
-  compiler::MapRef map =
-      broker()->target_native_context().string_function(broker()).initial_map(
-          broker());
-  int slot_count = Shape::header_slot_count;
-  SBXCHECK_EQ(slot_count, 4);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSObject, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSPrimitiveWrapper, value_), value);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSArrayIterator(
-    compiler::MapRef map, ValueNode* iterated_object, IterationKind kind) {
-  using Shape = VirtualJSArrayIteratorShape;
-  int slot_count = Shape::header_slot_count;
-  SBXCHECK_EQ(slot_count, 6);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSArrayIterator, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSArrayIterator, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSArrayIterator, iterated_object_), iterated_object);
-  vobj->set(offsetof(JSArrayIterator, next_index_), GetInt32Constant(0));
-  vobj->set(offsetof(JSArrayIterator, kind_),
-            GetInt32Constant(static_cast<int>(kind)));
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
-    compiler::JSFunctionRef constructor) {
-  DCHECK(constructor.has_initial_map(broker()));
-  using Shape = VirtualJSObjectShape;
-  // TODO(jgruber): SlackTrackingPrediction should store the initial_map.
-  compiler::SlackTrackingPrediction prediction =
-      broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
-          constructor);
-  compiler::MapRef map = constructor.initial_map(broker());
-  int slot_count = prediction.instance_size() / kTaggedSize;
-  SBXCHECK_GE(slot_count, 3);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSObject, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  if (prediction.inobject_property_count() != 0) {
-    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
-    for (int i = 0; i < prediction.inobject_property_count(); i++) {
-      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
-    }
-  }
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateFixedArray(
-    base::Vector<ValueNode* const> values) {
-  const compiler::MapRef& map = broker()->fixed_array_map();
-
-  using Shape = VirtualFixedArrayShape;
-  int length = values.length();
-  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
-  DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
-            0);
-#if TAGGED_SIZE_8_BYTES
-  // FixedArray header fields are: map, length, optional_padding
-  DCHECK_EQ(Shape::header_slot_count, 3);
-#else
-  // FixedArray header fields are: map, length
-  DCHECK_EQ(Shape::header_slot_count, 2);
-#endif  // TAGGED_SIZE_8_BYTES
-  DCHECK_EQ(length,
-            (FixedArray::SizeFor(length) - FixedArrayBase::kHeaderSize) /
-                FieldSizeOf(Shape::kBodyFieldType));
-
-  int slot_count = Shape::header_slot_count + length;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  DCHECK_EQ(vobj->size(), FixedArray::SizeFor(length));
-
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
-#if TAGGED_SIZE_8_BYTES
-  vobj->set(FixedArrayBase::kPaddingOffset, GetInt32Constant(0));
-#endif  // TAGGED_SIZE_8_BYTES
-  for (int i = 0; i < length; i++) {
-    DCHECK_NOT_NULL(values[i]);
-    vobj->set(FixedArray::OffsetOfElementAt(i), values[i]);
-  }
-
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
-    base::Vector<ValueNode* const> values) {
-  compiler::MapRef map = broker()->fixed_double_array_map();
-
-  using T = FixedDoubleArray;
-  using Shape = VirtualFixedDoubleArrayShape;
-  uint32_t length = values.length();
-  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
-
-  int slot_count = Shape::header_slot_count + length;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  DCHECK_EQ(vobj->size(), T::SizeFor(length));
-
-#if TAGGED_SIZE_8_BYTES
-  DCHECK_EQ(Shape::header_slot_count, 3);
-#else
-  DCHECK_EQ(Shape::header_slot_count, 2);
-#endif  // TAGGED_SIZE_8_BYTES
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
-#if TAGGED_SIZE_8_BYTES
-  vobj->set(FixedArrayBase::kPaddingOffset, GetInt32Constant(0));
-#endif  // TAGGED_SIZE_8_BYTES
-  for (uint32_t i = 0; i < length; i++) {
-    vobj->set(T::OffsetOfElementAt(i), values[i]);
-  }
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateContext(
-    compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
-    ValueNode* previous_context, std::optional<ValueNode*> extension) {
-  using Shape = ContextShape;
-  SBXCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
-  DCHECK_EQ(Context::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType), 0);
-  DCHECK_EQ(Shape::header_slot_count + length,
-            Context::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
-
-  int slot_count = Shape::header_slot_count + length;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(Context, length_), GetSmiConstant(length));
-  vobj->set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
-            GetConstant(scope_info));
-  vobj->set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-            previous_context);
-  int index = Context::PREVIOUS_INDEX + 1;
-  if (extension.has_value()) {
-    SBXCHECK_GE(length, Context::MIN_CONTEXT_EXTENDED_SLOTS);
-    vobj->set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
-              extension.value());
-    index++;
-  }
-  for (; index < length; index++) {
-    vobj->set(Context::OffsetOfElementAt(index),
-              GetRootConstant(RootIndex::kUndefinedValue));
-  }
-  EnsureType(vobj, NodeType::kContext);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateArgumentsObject(
-    compiler::MapRef map, ValueNode* length, ValueNode* elements,
-    std::optional<ValueNode*> callee) {
-  using Shape = VirtualJSObjectShape;
-  DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, offsetof(JSArray, length_));
-  DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, offsetof(JSArray, length_));
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_EQ(slot_count, callee.has_value() ? 5 : 4);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSArray, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_), elements);
-  CHECK(length->Is<Int32Constant>() || length->Is<ArgumentsLength>() ||
-        length->Is<RestLength>());
-  vobj->set(offsetof(JSArray, length_), length);
-  if (callee.has_value()) {
-    vobj->set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
-  }
-  DCHECK(vobj->map()->IsJSArgumentsObjectMap() || vobj->map()->IsJSArrayMap());
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateMappedArgumentsElements(
-    compiler::MapRef map, int mapped_count, ValueNode* context,
-    ValueNode* unmapped_elements) {
-  using Shape = VirtualSloppyArgumentsElementsShape;
-  int slot_count = Shape::header_slot_count + mapped_count;
-#if TAGGED_SIZE_8_BYTES
-  DCHECK_EQ(Shape::header_slot_count, 5);
-#else
-  DCHECK_EQ(Shape::header_slot_count, 4);
-#endif  // TAGGED_SIZE_8_BYTES
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(SloppyArgumentsElements, length_),
-            GetInt32Constant(mapped_count));
-#if TAGGED_SIZE_8_BYTES
-  vobj->set(offsetof(SloppyArgumentsElements, optional_padding_),
-            GetInt32Constant(0));
-#endif  // TAGGED_SIZE_8_BYTES
-  vobj->set(offsetof(SloppyArgumentsElements, context_), context);
-  vobj->set(offsetof(SloppyArgumentsElements, arguments_), unmapped_elements);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
-    compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal) {
-  using Shape = VirtualJSRegExpShape;
-  DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
-  int slot_count = Shape::header_slot_count + JSRegExp::kInObjectFieldCount;
-  SBXCHECK_EQ(slot_count, 6);
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSRegExp, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSRegExp, data_),
-            GetTrustedConstant(literal.data(broker()),
-                               kRegExpDataIndirectPointerTag));
-  vobj->set(offsetof(JSRegExp, flags_), GetInt32Constant(literal.flags()));
-  vobj->set(JSRegExp::kLastIndexOffset,
-            GetInt32Constant(JSRegExp::kInitialLastIndexValue));
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
-    compiler::MapRef map, int instance_size, ValueNode* context,
-    ValueNode* closure, ValueNode* receiver, ValueNode* register_file) {
-  InstanceType instance_type = map.instance_type();
-  DCHECK(instance_type == JS_GENERATOR_OBJECT_TYPE ||
-         instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE);
-  const bool is_async = instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE;
-  const vobj::ObjectLayout* object_layout =
-      is_async ? &VirtualJSAsyncGeneratorObjectShape::kObjectLayout
-               : &VirtualJSGeneratorObjectShape::kObjectLayout;
-
-  int slot_count = instance_size / kTaggedSize;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSGeneratorObject, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSGeneratorObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSGeneratorObject, context_), context);
-  vobj->set(offsetof(JSGeneratorObject, function_), closure);
-  vobj->set(offsetof(JSGeneratorObject, receiver_), receiver);
-  vobj->set(offsetof(JSGeneratorObject, input_or_debug_pos_),
-            GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(offsetof(JSGeneratorObject, resume_mode_),
-            GetInt32Constant(JSGeneratorObject::kNext));
-  vobj->set(offsetof(JSGeneratorObject, continuation_),
-            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
-  vobj->set(offsetof(JSGeneratorObject, parameters_and_registers_),
-            register_file);
-  if (is_async) {
-    vobj->set(offsetof(JSAsyncGeneratorObject, queue_),
-              GetRootConstant(RootIndex::kUndefinedValue));
-    vobj->set(offsetof(JSAsyncGeneratorObject, is_awaiting_),
-              GetInt32Constant(0));
-  }
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSAsyncFunctionObject(
-    ValueNode* context, ValueNode* closure, ValueNode* receiver,
-    ValueNode* register_file, ValueNode* promise) {
-  compiler::MapRef map =
-      broker()->target_native_context().async_function_object_map(broker());
-  const vobj::ObjectLayout* object_layout =
-      &VirtualJSAsyncFunctionObjectShape::kObjectLayout;
-
-  constexpr int slot_count = sizeof(JSAsyncFunctionObject) / kTaggedSize;
-  static_assert(slot_count == 13,
-                "If the number of slots in JSAsyncFunctionObject changes, then "
-                "the additional slots need to be initialized below");
-
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSAsyncFunctionObject, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSAsyncFunctionObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSAsyncFunctionObject, context_), context);
-  vobj->set(offsetof(JSAsyncFunctionObject, function_), closure);
-  vobj->set(offsetof(JSAsyncFunctionObject, receiver_), receiver);
-  vobj->set(offsetof(JSAsyncFunctionObject, input_or_debug_pos_),
-            GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(offsetof(JSAsyncFunctionObject, resume_mode_),
-            GetInt32Constant(JSGeneratorObject::kNext));
-  vobj->set(offsetof(JSAsyncFunctionObject, continuation_),
-            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
-  vobj->set(offsetof(JSAsyncFunctionObject, parameters_and_registers_),
-            register_file);
-  vobj->set(offsetof(JSAsyncFunctionObject, promise_), promise);
-  vobj->set(offsetof(JSAsyncFunctionObject, await_resolve_closure_),
-            GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(offsetof(JSAsyncFunctionObject, await_reject_closure_),
-            GetRootConstant(RootIndex::kUndefinedValue));
-
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSPromiseObject() {
-  compiler::MapRef promise_map =
-      broker()->target_native_context().promise_function(broker()).initial_map(
-          broker());
-  int instance_size = promise_map.instance_size();
-  int slot_count = instance_size / kTaggedSize;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this,
-      &VirtualJSPromiseObjectShape::kObjectLayout, promise_map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(promise_map));
-  vobj->set(offsetof(JSPromise, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSPromise, reactions_or_result_), GetSmiConstant(0));
-  static_assert(v8::Promise::kPending == 0);
-  vobj->set(offsetof(JSPromise, flags_), GetSmiConstant(0));
-  static_assert(sizeof(JSPromise) == 5 * kTaggedSize);
-  for (int offset = sizeof(JSPromise);
-       offset < static_cast<int>(sizeof(JSPromise)) +
-                    v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
-       offset += kTaggedSize) {
-    vobj->set(offset, GetSmiConstant(0));
-  }
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateAsyncResumeTask(ValueNode* generator,
-                                                         ValueNode* value,
-                                                         ValueNode* kind) {
-  compiler::MapRef map = broker()->async_resume_task_map();
-  int instance_size = map.instance_size();
-  int slot_count = instance_size / kTaggedSize;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this,
-      &VirtualAsyncResumeTaskShape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-  ValueNode* cped =
-      AddNewNodeNoInputConversion<GetContinuationPreservedEmbedderData>({});
-  vobj->set(ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,
-            cped);
-#endif
-  vobj->set(ObjectTraits<AsyncResumeTask>::kGeneratorOffset, generator);
-  vobj->set(ObjectTraits<AsyncResumeTask>::kValueOffset, value);
-  vobj->set(ObjectTraits<AsyncResumeTask>::kKindOffset, kind);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSIteratorResult(compiler::MapRef map,
-                                                          ValueNode* value,
-                                                          ValueNode* done) {
-  using Shape = VirtualJSIteratorResultShape;
-  static_assert(JSIteratorResult::kSize == 5 * kTaggedSize);
-  int slot_count = Shape::header_slot_count;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSIteratorResult, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSObject, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSIteratorResult::kValueOffset, value);
-  vobj->set(JSIteratorResult::kDoneOffset, done);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
-                                                          ValueNode* string) {
-  using Shape = VirtualJSStringIteratorShape;
-  static_assert(sizeof(JSStringIterator) == 5 * kTaggedSize);
-  int slot_count = Shape::header_slot_count;
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  vobj->set(offsetof(HeapObject, map_), GetConstant(map));
-  vobj->set(offsetof(JSStringIterator, properties_or_hash_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSStringIterator, elements_),
-            GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(offsetof(JSStringIterator, string_), string);
-  vobj->set(offsetof(JSStringIterator, index_), GetInt32Constant(0));
-  return vobj;
 }
 
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
@@ -14394,7 +13875,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
   if (length == 0) {
     return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
-  return CreateFixedArray(
+  return reducer_.CreateFixedArray(
       base::VectorOf(&caller_details_->arguments[start_index + 1], length));
 }
 
@@ -14411,7 +13892,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedUnmappedArgumentsElements(
     values[i] = caller_details_->arguments[i + 1];
   }
 
-  return CreateFixedArray(base::VectorOf(values));
+  return reducer_.CreateFixedArray(base::VectorOf(values));
 }
 
 template <CreateArgumentsType type>
@@ -14424,7 +13905,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
         if (is_inline()) {
           int length = argument_count_without_receiver();
           ValueNode* elements = BuildInlinedArgumentsElements(0, length);
-          return CreateArgumentsObject(
+          return reducer_.CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
               GetInt32Constant(length), elements, GetClosure());
         } else {
@@ -14437,7 +13918,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               AddNewNodeNoInputConversion<ArgumentsElements>(
                   {length_tagged}, CreateArgumentsType::kUnmappedArguments,
                   parameter_count_without_receiver());
-          return CreateArgumentsObject(
+          return reducer_.CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
               length, elements, GetClosure());
         }
@@ -14459,14 +13940,14 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
           int mapped_count = std::min(param_count, length);
           ValueNode* unmapped_elements =
               BuildInlinedUnmappedArgumentsElements(mapped_count);
-          VirtualObject* elements = CreateMappedArgumentsElements(
+          VirtualObject* elements = reducer_.CreateMappedArgumentsElements(
               broker()->sloppy_arguments_elements_map(), mapped_count,
               GetContext(), unmapped_elements);
           for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
             elements->set(SloppyArgumentsElements::OffsetOfElementAt(i),
                           GetInt32Constant(param_idx_in_ctxt));
           }
-          return CreateArgumentsObject(
+          return reducer_.CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
               GetInt32Constant(length), elements, GetClosure());
@@ -14481,7 +13962,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               AddNewNodeNoInputConversion<ArgumentsElements>(
                   {length_tagged}, CreateArgumentsType::kMappedArguments,
                   param_count);
-          VirtualObject* elements = CreateMappedArgumentsElements(
+          VirtualObject* elements = reducer_.CreateMappedArgumentsElements(
               broker()->sloppy_arguments_elements_map(), param_count,
               GetContext(), unmapped_elements);
           ValueNode* the_hole_value = GetConstant(broker()->the_hole_value());
@@ -14500,7 +13981,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             GET_VALUE(value, result);
             elements->set(SloppyArgumentsElements::OffsetOfElementAt(i), value);
           }
-          return CreateArgumentsObject(
+          return reducer_.CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
                   broker()),
               length, elements, GetClosure());
@@ -14510,7 +13991,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
       if (is_inline()) {
         int length = argument_count_without_receiver();
         ValueNode* elements = BuildInlinedArgumentsElements(0, length);
-        return CreateArgumentsObject(
+        return reducer_.CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
             GetInt32Constant(length), elements);
       } else {
@@ -14523,7 +14004,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             AddNewNodeNoInputConversion<ArgumentsElements>(
                 {length_tagged}, CreateArgumentsType::kUnmappedArguments,
                 parameter_count_without_receiver());
-        return CreateArgumentsObject(
+        return reducer_.CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
             length, elements);
       }
@@ -14534,7 +14015,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             std::max(0, argument_count_without_receiver() - start_index);
         ValueNode* elements =
             BuildInlinedArgumentsElements(start_index, length);
-        return CreateArgumentsObject(
+        return reducer_.CreateArgumentsObject(
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
             GetInt32Constant(length), elements);
@@ -14550,7 +14031,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                 parameter_count_without_receiver());
         RestLength* rest_length = AddNewNodeNoInputConversion<RestLength>(
             {}, parameter_count_without_receiver());
-        return CreateArgumentsObject(
+        return reducer_.CreateArgumentsObject(
             broker()->target_native_context().js_array_packed_elements_map(
                 broker()),
             rest_length, elements);
@@ -14629,8 +14110,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
       native_context.object_function(broker()).initial_map(broker());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  return SetAccumulator(
-      BuildInlinedAllocation(CreateJSObject(map), AllocationType::kYoung));
+  return SetAccumulator(BuildInlinedAllocation(reducer_.CreateJSObject(map),
+                                               AllocationType::kYoung));
 }
 
 ReduceResult MaglevGraphBuilder::VisitCloneObject() {
@@ -14688,7 +14169,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
   const int kContextAllocationLimit = 16;
   if (context_length > kContextAllocationLimit) return {};
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-  auto context = CreateContext(map, context_length, scope, GetContext());
+  auto context =
+      reducer_.CreateContext(map, context_length, scope, GetContext());
   return BuildInlinedAllocation(context, AllocationType::kYoung);
 }
 
@@ -14716,7 +14198,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateCatchContext() {
   // CreateCatchContext <exception> <scope_info_idx>
   ValueNode* exception = LoadRegister(0);
   compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
-  auto context = CreateContext(
+  auto context = reducer_.CreateContext(
       broker()->target_native_context().catch_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
   RETURN_IF_ABORT(
@@ -14781,7 +14263,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateWithContext() {
   // CreateWithContext <register> <scope_info_idx>
   ValueNode* object = LoadRegister(0);
   compiler::ScopeInfoRef scope_info = GetRefOperand<ScopeInfo>(1);
-  auto context = CreateContext(
+  auto context = reducer_.CreateContext(
       broker()->target_native_context().with_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
   RETURN_IF_ABORT(

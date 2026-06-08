@@ -30,6 +30,8 @@ class AccessBuilderTS;
 
 namespace maglev {
 class MaglevGraphBuilder;
+template <typename BaseT>
+class MaglevReducer;
 struct VirtualNameShape;
 }
 
@@ -293,6 +295,8 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
   friend class maglev::MaglevGraphBuilder;
+  template <typename BaseT>
+  friend class maglev::MaglevReducer;
   friend class maglev::MaglevAssembler;
   friend struct maglev::VirtualNameShape;
   friend class compiler::AccessBuilder;
