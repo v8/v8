@@ -62,7 +62,7 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
     bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
     if (generating_builtins || CpuFeatures::SupportsSimd128()) {
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedVR.Count() * kSimd128Size;
     } else {
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
     }
@@ -92,6 +92,9 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
+      int vr_extrabytes = kCallerSavedVR.Count() * kSimd128Size -
+                          kCallerSavedFPU.Count() * kDoubleSize;
+      DCHECK_GE(vr_extrabytes, 0);
 
       li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
@@ -102,20 +105,20 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       {
         CpuFeatureScope lsx_scope(
             this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-        MultiPushLSX(kCallerSavedFPU);
+        MultiPushLSX(kCallerSavedVR);
       }
       Branch(&done);
 
       bind(&no_simd);
       MultiPushFPU(kCallerSavedFPU);
-      Sub_d(sp, sp, kCallerSavedFPU.Count() * kDoubleSize);
+      Sub_d(sp, sp, vr_extrabytes);
 
       bind(&done);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedVR.Count() * kSimd128Size;
     } else {
       if (CpuFeatures::SupportsSimd128()) {
-        MultiPushLSX(kCallerSavedFPU);
-        bytes += kCallerSavedFPU.Count() * kSimd128Size;
+        MultiPushLSX(kCallerSavedVR);
+        bytes += kCallerSavedVR.Count() * kSimd128Size;
       } else {
         MultiPushFPU(kCallerSavedFPU);
         bytes += kCallerSavedFPU.Count() * kDoubleSize;
@@ -143,6 +146,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
+      int vr_extrabytes = kCallerSavedVR.Count() * kSimd128Size -
+                          kCallerSavedFPU.Count() * kDoubleSize;
+      DCHECK_GE(vr_extrabytes, 0);
 
       li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
@@ -153,20 +159,20 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       {
         CpuFeatureScope lsx_scope(
             this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-        MultiPopLSX(kCallerSavedFPU);
+        MultiPopLSX(kCallerSavedVR);
       }
       Branch(&done);
 
       bind(&no_simd);
-      Add_d(sp, sp, kCallerSavedFPU.Count() * kDoubleSize);
+      Add_d(sp, sp, vr_extrabytes);
       MultiPopFPU(kCallerSavedFPU);
 
       bind(&done);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedVR.Count() * kSimd128Size;
     } else {
       if (CpuFeatures::SupportsSimd128()) {
-        MultiPopLSX(kCallerSavedFPU);
-        bytes += kCallerSavedFPU.Count() * kSimd128Size;
+        MultiPopLSX(kCallerSavedVR);
+        bytes += kCallerSavedVR.Count() * kSimd128Size;
       } else {
         MultiPopFPU(kCallerSavedFPU);
         bytes += kCallerSavedFPU.Count() * kDoubleSize;
