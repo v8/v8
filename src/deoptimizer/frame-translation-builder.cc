@@ -8,6 +8,7 @@
 
 #include "src/base/vlq.h"
 #include "src/deoptimizer/translated-state.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array-inl.h"
 
 #ifdef V8_USE_ZLIB

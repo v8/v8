@@ -12,6 +12,7 @@
 #include 'src/objects/call-site-info.h'
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
+#include 'src/objects/hash-seed-wrapper.h'
 #include 'src/objects/js-atomics-synchronization.h'
 #include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
@@ -281,6 +282,7 @@ type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 extern class DoubleStringCache extends HeapObject;
+extern class HashSeedWrapper extends HeapObject;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;

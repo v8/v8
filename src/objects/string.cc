@@ -1947,7 +1947,7 @@ uint32_t String::ComputeAndSetRawHash(
   DCHECK_IMPLIES(!v8_flags.shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
-  const HashSeed seed = HashSeed(EarlyGetReadOnlyRoots());
+  const HashSeed seed = HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this));
   size_t start = 0;
   Tagged<String> string = this;
   StringShape shape(string);
@@ -1994,7 +1994,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
@@ -2009,7 +2009,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;

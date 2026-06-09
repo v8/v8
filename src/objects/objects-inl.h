@@ -30,13 +30,14 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/bigint.h"
 #include "src/objects/casting.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
@@ -129,6 +130,7 @@ DEF_CAST_TRAITS(Foreign)
 DEF_CAST_TRAITS(FreeSpace)
 DEF_CAST_TRAITS(GcSafeCode)
 DEF_CAST_TRAITS(GlobalDictionary)
+DEF_CAST_TRAITS(HashSeedWrapper)
 DEF_CAST_TRAITS(InterceptorInfo)
 DEF_CAST_TRAITS(JSArgumentsObject)
 DEF_CAST_TRAITS(JSArray)
@@ -202,7 +204,6 @@ DEF_CAST_TRAITS(JSWeakMap)
 DEF_CAST_TRAITS(JSWeakSet)
 DEF_CAST_TRAITS(JSWrappedFunction)
 DEF_CAST_TRAITS(LoadHandler)
-DEF_CAST_TRAITS(Map)
 DEF_CAST_TRAITS(MegaDomHandler)
 DEF_CAST_TRAITS(Module)
 DEF_CAST_TRAITS(Microtask)
@@ -1188,9 +1189,6 @@ bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
   return V8_UNLIKELY(HasReadOnlyLengthSlowPath(array));
 }
 
-EarlyReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
-  return ReadOnlyHeap::EarlyGetReadOnlyRoots(this);
-}
 
 void HeapObject::set_map(Isolate* isolate, Tagged<Map> value) {
   set_map<EmitWriteBarrier::kYes>(isolate, value, kRelaxedStore,

@@ -25,7 +25,6 @@
 namespace v8 {
 namespace internal {
 
-DEF_CAST_TRAITS(Symbol)
 
 Tagged<PrimitiveHeapObject> Symbol::description() const {
   return description_.load();

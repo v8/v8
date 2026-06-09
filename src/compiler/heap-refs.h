@@ -247,6 +247,9 @@ struct ref_traits<False> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<Hole> : public ref_traits<HeapObject> {};
 
+template <>
+struct ref_traits<HashSeedWrapper> : public ref_traits<HeapObject> {};
+
 #define DEFINE_HOLE_TYPE(Name, name, Root) \
   template <>                              \
   struct ref_traits<Name> : public ref_traits<HeapObject> {};

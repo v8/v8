@@ -140,6 +140,7 @@ namespace internal {
   V(FreeSpace)                                  \
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
+  V(HashSeedWrapper)                            \
   V(HeapNumber)                                 \
   V(InterceptorInfo)                            \
   V(InternalizedString)                         \

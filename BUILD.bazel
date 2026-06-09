@@ -2171,6 +2171,8 @@ filegroup(
         "src/objects/function-syntax-kind.h",
         "src/objects/hash-table.h",
         "src/objects/hash-table-inl.h",
+        "src/objects/hash-seed-wrapper.h",
+        "src/objects/hash-seed-wrapper-inl.h",
         "src/objects/heap-number.h",
         "src/objects/heap-number-inl.h",
         "src/objects/heap-object.h",

@@ -51,7 +51,8 @@ SafeHeapObjectSize HeapObject::SafeSize() const {
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
 #undef TYPE_CHECKER
-
+DEF_CAST_TRAITS(Map)
+DEF_CAST_TRAITS(Symbol)
 DEF_CAST_TRAITS(ConsString)
 DEF_CAST_TRAITS(ExternalOneByteString)
 DEF_CAST_TRAITS(ExternalString)

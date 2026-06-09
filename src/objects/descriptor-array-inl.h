@@ -13,6 +13,7 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/bigint.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"

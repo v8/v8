@@ -2602,16 +2602,18 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 // Mirror C++ StringHasher::SeedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1, m2 and m3 from the hash seed byte array. In the compiled code
+  // Load m1, m2 and m3 from the hash seed wrapper. In the compiled code
   // these will always come from the read-only roots.
-  TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
-  intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
-  TNode<Uint32T> m1 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1Offset));
-  TNode<Uint32T> m2 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2Offset));
-  TNode<Uint32T> m3 = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3Offset));
+  TNode<HashSeedWrapper> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
+  constexpr int kM1Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m1);
+  constexpr int kM2Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m2);
+  constexpr int kM3Offset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m3);
+  TNode<Uint32T> m1 = LoadObjectField<Uint32T>(hash_seed, kM1Offset);
+  TNode<Uint32T> m2 = LoadObjectField<Uint32T>(hash_seed, kM2Offset);
+  TNode<Uint32T> m3 = LoadObjectField<Uint32T>(hash_seed, kM3Offset);
 
   TNode<Word32T> x = value;
   // 3-round xorshift-multiply.
@@ -2631,16 +2633,18 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
 
 // Mirror C++ StringHasher::UnseedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::UnseedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1_inv, m2_inv and m3_inv from the hash seed byte array. In the
+  // Load m1_inv, m2_inv and m3_inv from the hash seed wrapper. In the
   // compiled code these will always come from the read-only roots.
-  TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
-  intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
-  TNode<Uint32T> m1_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1InvOffset));
-  TNode<Uint32T> m2_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2InvOffset));
-  TNode<Uint32T> m3_inv = Load<Uint32T>(
-      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3InvOffset));
+  TNode<HashSeedWrapper> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
+  constexpr int kM1InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m1_inv);
+  constexpr int kM2InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m2_inv);
+  constexpr int kM3InvOffset =
+      offsetof(HashSeedWrapper, data_) + offsetof(HashSeed::Data, m3_inv);
+  TNode<Uint32T> m1_inv = LoadObjectField<Uint32T>(hash_seed, kM1InvOffset);
+  TNode<Uint32T> m2_inv = LoadObjectField<Uint32T>(hash_seed, kM2InvOffset);
+  TNode<Uint32T> m3_inv = LoadObjectField<Uint32T>(hash_seed, kM3InvOffset);
 
   TNode<Word32T> x = value;
   // 3-round xorshift-multiply (inverse).

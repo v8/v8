@@ -754,7 +754,7 @@ Tagged<ScopeInfo> ScopeInfo::Empty(Isolate* isolate) {
 }
 
 bool ScopeInfo::IsEmpty() const {
-  return this == &*EarlyGetReadOnlyRoots().empty_scope_info();
+  return this == ReadOnlyHeap::EarlyGetReadOnlyRoots(this).empty_scope_info();
 }
 
 ScopeType ScopeInfo::scope_type() const {

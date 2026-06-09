@@ -16,13 +16,13 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate-utils.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
@@ -33,7 +33,6 @@
 #include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/strings/unicode-inl.h"
@@ -1807,7 +1806,7 @@ bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
@@ -1820,7 +1819,7 @@ bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
     *index = StringHasher::DecodeArrayIndexFromHashField(
-        field, HashSeed(EarlyGetReadOnlyRoots()));
+        field, HashSeed(ReadOnlyHeap::EarlyGetReadOnlyRoots(this)));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {

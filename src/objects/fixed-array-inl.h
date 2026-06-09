@@ -14,7 +14,10 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/local-factory-inl.h"
+#include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"
@@ -22,10 +25,11 @@
 #include "src/objects/hole.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 #include "src/torque/runtime-macro-shims.h"
@@ -62,8 +66,8 @@ bool TaggedArrayBase<D, ElementT_, P>::IsInBounds(int index) const {
 
 template <class D, class ElementT_, class P>
 bool TaggedArrayBase<D, ElementT_, P>::IsCowArray() const {
-  return this->map() ==
-         this->EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
+  return this->map() == ReadOnlyHeap::EarlyGetReadOnlyRoots(this)
+                            .unchecked_fixed_cow_array_map();
 }
 
 template <class D, class ElementT_, class P>

@@ -123,10 +123,6 @@ V8_OBJECT class HeapObject {
   inline void set_map_word_forwarded(Tagged<HeapObject> target_object,
                                      ReleaseStoreTag);
 
-  // This is slower than GetReadOnlyRoots, but safe to call during
-  // bootstrapping.
-  inline EarlyReadOnlyRoots EarlyGetReadOnlyRoots() const;
-
   // Converts an address to a HeapObject pointer.
   static inline Tagged<HeapObject> FromAddress(Address address) {
     DCHECK_TAG_ALIGNED(address);

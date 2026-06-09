@@ -5238,7 +5238,7 @@ template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash() {
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = GetWriteBarrierMode(no_gc);
-  EarlyReadOnlyRoots roots = EarlyGetReadOnlyRoots();
+  EarlyReadOnlyRoots roots = ReadOnlyHeap::EarlyGetReadOnlyRoots(this);
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {

@@ -144,6 +144,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<Hole> NewHole();
 
+  Handle<HashSeedWrapper> NewHashSeedWrapper();
+
   JSDispatchHandle NewJSDispatchHandle(uint16_t parameter_count,
                                        DirectHandle<Code> code,
                                        JSDispatchTable::Space* space);

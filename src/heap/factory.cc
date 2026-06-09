@@ -53,6 +53,7 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/hash-seed-wrapper.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
@@ -5540,6 +5541,18 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   }
 
   return function_handle;
+}
+
+Handle<HashSeedWrapper> Factory::NewHashSeedWrapper() {
+  static_assert(sizeof(HashSeedWrapper) <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = read_only_roots().hash_seed_wrapper_map();
+  constexpr size_t data_offset = offsetof(HashSeedWrapper, data_);
+  static_assert(data_offset == 4 || data_offset == 8);
+  AllocationAlignment alignment =
+      data_offset == 4 ? kDoubleUnaligned : kDoubleAligned;
+  Tagged<HeapObject> result = AllocateRawWithImmortalMap(
+      sizeof(HashSeedWrapper), AllocationType::kReadOnly, map, alignment);
+  return handle(Cast<HashSeedWrapper>(result), isolate());
 }
 
 JSDispatchHandle Factory::NewJSDispatchHandle(uint16_t parameter_count,

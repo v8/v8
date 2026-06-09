@@ -667,7 +667,7 @@ Tagged<ScopeInfo> SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
   if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
-  return EarlyGetReadOnlyRoots().empty_scope_info();
+  return ReadOnlyHeap::EarlyGetReadOnlyRoots(this).empty_scope_info();
 }
 
 void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,

@@ -33,6 +33,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/hash-seed-wrapper-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type.h"
@@ -313,6 +314,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case DOUBLE_STRING_CACHE_TYPE:
       Cast<DoubleStringCache>(this)->DoubleStringCacheVerify(isolate);
+      break;
+    case HASH_SEED_WRAPPER_TYPE:
+      Cast<HashSeedWrapper>(this)->HashSeedWrapperVerify(isolate);
       break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)                \
@@ -1850,6 +1854,10 @@ void PrimitiveHeapObject::PrimitiveHeapObjectVerify(Isolate* isolate) {
 void HeapNumber::HeapNumberVerify(Isolate* isolate) {
   PrimitiveHeapObjectVerify(isolate);
   CHECK(Is<HeapNumber>(this));
+}
+
+void HashSeedWrapper::HashSeedWrapperVerify(Isolate* isolate) {
+  CHECK(Is<HashSeedWrapper>(this));
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {

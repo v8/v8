@@ -27,6 +27,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/hash-seed-wrapper.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type.h"
@@ -344,6 +345,13 @@ class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return sizeof(HeapNumber);
+  }
+};
+
+class HashSeedWrapper::BodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(HashSeedWrapper);
   }
 };
 

@@ -74,6 +74,7 @@ class MaybeObjectSize final {
   V(Foreign)                          \
   V(FunctionTemplateInfo)             \
   V(HeapNumber)                       \
+  V(HashSeedWrapper)                  \
   V(InterceptorInfo)                  \
   V(Hole)                             \
   V(Map)                              \

@@ -109,7 +109,8 @@ struct StaticReadOnlyRoot {
       kClosureFeedbackCellArrayMap + 40;
   static constexpr Tagged_t kForeignMap = kFeedbackVectorMap + 40;
   static constexpr Tagged_t kTrustedForeignMap = kForeignMap + 40;
-  static constexpr Tagged_t kMegaDomHandlerMap = kTrustedForeignMap + 40;
+  static constexpr Tagged_t kHashSeedWrapperMap = kTrustedForeignMap + 40;
+  static constexpr Tagged_t kMegaDomHandlerMap = kHashSeedWrapperMap + 40;
   static constexpr Tagged_t kFixedDoubleArrayMap = kMegaDomHandlerMap + 40;
   static constexpr Tagged_t kFeedbackMetadataArrayMap =
       kFixedDoubleArrayMap + 40;
@@ -146,8 +147,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kPreparseDataMap = kInterceptorInfoMap + 40;
   static constexpr Tagged_t kSharedFunctionInfoMap = kPreparseDataMap + 40;
   static constexpr Tagged_t kCodeMap = kSharedFunctionInfoMap + 40;
-  static constexpr Tagged_t kHashSeed = kCodeMap + 40;
-  static constexpr Tagged_t kprototype_string = kHashSeed + 40;
+  static constexpr Tagged_t kHashSeed = kCodeMap + 44;
+  static constexpr Tagged_t kprototype_string = kHashSeed + 36;
   static constexpr Tagged_t kname_string = kprototype_string + 24;
   static constexpr Tagged_t klength_string = kname_string + 16;
   static constexpr Tagged_t kenumerable_string = klength_string + 20;
@@ -179,9 +180,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kSmiMaxValuePlusOne = kSmiMinValue + 12;
   static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap =
       kSmiMaxValuePlusOne + 12;
+  // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kPromiseRejectReactionJobTaskMap =
       kPromiseFulfillReactionJobTaskMap + 40;
-  // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kAsyncResumeTaskMap =
       kPromiseRejectReactionJobTaskMap + 40;
   static constexpr Tagged_t kCallableTaskMap = kAsyncResumeTaskMap + 40;
@@ -1069,7 +1070,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kLastAllocatedRoot = 0x18016d;
 };
 
-static constexpr std::array<Tagged_t, 880> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1130,6 +1131,7 @@ static constexpr std::array<Tagged_t, 880> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFeedbackMetadataArrayMap,
     StaticReadOnlyRoot::kFeedbackVectorMap,
     StaticReadOnlyRoot::kForeignMap,
+    StaticReadOnlyRoot::kHashSeedWrapperMap,
     StaticReadOnlyRoot::kFunctionTemplateInfoMap,
     StaticReadOnlyRoot::kGlobalDictionaryMap,
     StaticReadOnlyRoot::kInstructionStreamMap,
