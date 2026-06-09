@@ -32,6 +32,10 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
 
+if (!build_with_v8_embedder && !(defined(build_with_node) && build_with_node)) {
+  import("//third_party/partition_alloc/partition_alloc.gni")
+}
+
 # For faster Windows builds. See https://crbug.com/v8/8475.
 emit_builtins_as_inline_asm = is_win && is_clang
 
@@ -1580,6 +1584,12 @@ config("features") {
   }
   if (v8_function_arguments_caller_are_own_props) {
     defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
+  }
+  if (!build_with_v8_embedder &&
+      !(defined(build_with_node) && build_with_node)) {
+    if (enable_user_space_zero_segment) {
+      defines += [ "PA_ENABLE_USER_SPACE_ZERO_SEGMENT" ]
+    }
   }
 }
 

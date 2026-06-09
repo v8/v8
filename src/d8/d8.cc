@@ -5500,7 +5500,7 @@ V8_NOINLINE void FuzzerMonitor::SimulateErrors() {
 
 V8_NOINLINE void FuzzerMonitor::ControlFlowViolation() {
   // Control flow violation caught by CFI.
-  void (*func)() = (void (*)()) & Dummy;
+  void (*func)() = (void (*)())&Dummy;
   func();
 }
 
@@ -6695,8 +6695,6 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   worker->Terminate();
 }
 
-
-
 namespace {
 
 bool FlagMatches(const char* flag, char** arg, bool keep_flag = false) {
@@ -7700,17 +7698,9 @@ int Shell::Main(int argc, char* argv[]) {
   ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
 
-  // clang-format off
-  // V8_OS_LINUX does include CrOS as well.
-#if (defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)) \
-    ||(defined(V8_OS_DARWIN) && !defined(V8_OS_IOS))
-  // clang-format on
-#if !defined(V8_USE_ADDRESS_SANITIZER) &&   \
-    !defined(V8_USE_HWADDRESS_SANITIZER) && \
-    !defined(V8_USE_MEMORY_SANITIZER) &&    \
-    !defined(V8_USE_UNDEFINED_BEHAVIOR_SANITIZER) && !defined(V8_IS_TSAN)
+  // TODO(40925855): Enable this more broadly outside of d8.
+#if defined(PA_ENABLE_USER_SPACE_ZERO_SEGMENT)
   i::v8_flags.sandbox_prohibit_insecure_mode = true;
-#endif
 #endif
 
   if (!v8::Shell::SetOptions(argc, argv)) return 1;
