@@ -849,9 +849,9 @@ void Code::SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
 void Code::ClearInstructionStartForSerialization(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
   // The instruction start is stored in this object's code pointer table.
-  WriteField<CodePointerHandle>(
+  WriteField<IndirectPointerHandle>(
       offsetof(ExposedTrustedObject, self_indirect_pointer_),
-      kNullCodePointerHandle);
+      kNullIndirectPointerHandle);
 #endif  // V8_ENABLE_SANDBOX
   set_instruction_start(isolate, kNullAddress);
   ExternalCodeField<Object>::Release_Store(this, Smi::zero());

@@ -61,9 +61,9 @@ struct WasmCodePointerTableEntry {
 // All methods are thread-safe if not specified otherwise.
 class V8_EXPORT_PRIVATE WasmCodePointerTable
     : public SegmentedTable<WasmCodePointerTableEntry,
-                            kCodePointerTableReservationSize> {
+                            kWasmCodePointerTableReservationSize> {
   using Base = SegmentedTable<WasmCodePointerTableEntry,
-                              kCodePointerTableReservationSize>;
+                              kWasmCodePointerTableReservationSize>;
   static_assert(WasmCodePointer::kWasmCodePointerTableEntrySize ==
                 sizeof(WasmCodePointerTableEntry));
 #ifdef V8_TARGET_ARCH_64_BIT

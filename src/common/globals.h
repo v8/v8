@@ -3129,7 +3129,7 @@ class WasmCodePointer {
       kSystemPointerSize + (V8_ENABLE_SANDBOX_BOOL ? kUInt64Size : 0);
 #ifdef V8_TARGET_ARCH_64_BIT
   static constexpr uint32_t kIndexSpaceSize =
-      kCodePointerTableReservationSize / kWasmCodePointerTableEntrySize;
+      kWasmCodePointerTableReservationSize / kWasmCodePointerTableEntrySize;
 #else   // V8_TARGET_ARCH_64_BIT
   static constexpr uint32_t kIndexSpaceSize =
       (kMaxUInt32 / kWasmCodePointerTableEntrySize) + 1;

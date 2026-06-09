@@ -34,7 +34,6 @@ To securely reference objects outside the sandbox, V8 uses indirection via point
 *   **External Pointer**: References non-V8 ("external") objects. It is an index into the **ExternalPointerTable (EPT)**. The EPT performs type checks on access to prevent type confusion attacks.
 *   **CppHeap Pointer**: References objects on the `CppHeap`. It is an index into the **CppHeapPointerTable**. It uses a different type tagging scheme supporting type hierarchies.
 *   **Trusted Pointer**: References a **TrustedObject** (see below) located in trusted space. It is an index into the **TrustedPointerTable (TPT)**.
-*   **Code Pointer**: A specialized trusted pointer that always points to a `Code` object, using the **CodePointerTable (CPT)**. This also directly provides the entry point for execution.
 
 ### 3. Pointers strictly outside the Sandbox
 
@@ -74,6 +73,5 @@ The `ExternalPointerTable` (EPT) is a fundamental component of the V8 Sandbox de
 *   `src/sandbox/`: Implementation of the sandbox.
 *   `src/sandbox/sandbox.h`: Main sandbox class and configuration.
 *   `src/sandbox/external-pointer-table.h`: External pointer table implementation.
-*   `src/sandbox/code-pointer-table.h`: Code pointer table implementation.
 *   `src/sandbox/trusted-pointer-table.h`: Trusted pointer table implementation.
 *   `src/sandbox/cppheap-pointer-table.h`: CppHeap pointer table implementation.

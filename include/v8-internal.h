@@ -917,37 +917,10 @@ static_assert((1 << (32 - kTrustedPointerHandleShift)) == kMaxTrustedPointers,
               "kTrustedPointerTableReservationSize and "
               "kTrustedPointerHandleShift don't match");
 
-//
-// Code Pointers.
-//
-// A pointer to a Code object.
-// Essentially a specialized version of a trusted pointer that (when the
-// sandbox is enabled) uses the code pointer table (CPT) instead of the TPT.
-// Each entry in the CPT contains both a pointer to a Code object as well as a
-// pointer to the Code's entrypoint. This allows calling/jumping into Code with
-// one fewer memory access (compared to the case where the entrypoint pointer
-// first needs to be loaded from the Code object). As such, a CodePointerHandle
-// can be used both to obtain the referenced Code object and to directly load
-// its entrypoint.
-//
-// When the sandbox is disabled, these are regular tagged pointers.
-//
-// TODO(498510170): Removing these explicit code pointer handles is work in
-// progress.
-using CodePointerHandle = IndirectPointerHandle;
-
-// The size of the virtual memory reservation for the code pointer table.
+// The size of the virtual memory reservation for the Wasm code pointer table.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
-constexpr size_t kCodePointerTableReservationSize = 128 * MB;
-
-// Code pointer handles are shifted by a different amount than indirect pointer
-// handles as the tables have a different maximum size.
-constexpr uint32_t kCodePointerHandleShift = 8;
-
-// A null handle always references an entry that contains nullptr.
-constexpr CodePointerHandle kNullCodePointerHandle = kNullIndirectPointerHandle;
-
+constexpr size_t kWasmCodePointerTableReservationSize = 128 * MB;
 
 // Constants that can be used to mark places that should be modified once
 // certain types of objects are moved out of the sandbox and into trusted space.
