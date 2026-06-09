@@ -1648,13 +1648,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     TagObject(js_fun->context(), "(context)");
     SetInternalReference(entry, "context", js_fun->context(),
                          offsetof(JSFunction, context_));
-    JSDispatchHandle handle = js_fun->dispatch_handle();
-    if (handle != kNullJSDispatchHandle) {
-      SetInternalReference(entry, "code", js_fun->code(isolate),
-                           offsetof(JSFunction, dispatch_handle_));
-    } else {
-      MarkVisitedField(offsetof(JSFunction, dispatch_handle_));
-    }
+    SetInternalReference(entry, "code", js_fun->code(isolate),
+                         offsetof(JSFunction, dispatch_handle_));
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = Cast<JSGlobalObject>(obj);
     SetInternalReference(entry, "global_proxy", global_obj->raw_global_proxy(),
