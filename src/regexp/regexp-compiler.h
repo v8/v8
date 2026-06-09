@@ -518,7 +518,7 @@ class FrequencyCollator {
   int total_samples_;
 };
 
-class Compiler {
+class V8_EXPORT_PRIVATE Compiler {
  public:
   Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,
            bool is_one_byte);

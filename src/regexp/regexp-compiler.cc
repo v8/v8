@@ -321,6 +321,7 @@ Compiler::Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,
       work_list_(nullptr),
       recursion_depth_(0),
       flags_(flags),
+      macro_assembler_(nullptr),
       one_byte_(one_byte),
       reg_exp_too_big_(false),
       limiting_recursion_(false),
@@ -1768,7 +1769,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   // Do not collect any quick check details if the text node reads backward,
   // since it reads in the opposite direction than we use for quick checks.
   if (read_backward()) return;
-  Isolate* isolate = compiler->macro_assembler()->isolate();
+  Isolate* isolate = compiler->isolate();
   DCHECK(characters_filled_in < details->characters());
   int characters = details->characters();
   const uint32_t char_mask = CharMask(compiler->one_byte());
@@ -1841,6 +1842,11 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       ClassRanges* tree = elm.class_ranges();
       ZoneList<CharacterRange>* ranges = tree->ranges(zone());
+      // Canonicalize ranges to ensure they are disjoint and sorted. This is
+      // required for the correctness of the determines_perfectly check below,
+      // which computes the total character count by summing the sizes of the
+      // ranges.
+      CharacterRange::Canonicalize(ranges);
       if (tree->is_negated() || ranges->is_empty()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
@@ -1861,17 +1867,13 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
             return;
           }
         }
+        int total_characters = 0;
         CharacterRange range = ranges->at(first_range);
         const base::uc32 first_from = range.from();
         const base::uc32 first_to =
             (range.to() > char_mask) ? char_mask : range.to();
+        total_characters += (first_to - first_from + 1);
         const uint32_t differing_bits = (first_from ^ first_to);
-        // A mask and compare is only perfect if the differing bits form a
-        // number like 00011111 with one single block of trailing 1s.
-        if ((differing_bits & (differing_bits + 1)) == 0 &&
-            first_from + differing_bits == first_to) {
-          pos->determines_perfectly = true;
-        }
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
         uint32_t bits = (first_from & common_bits);
         for (int i = first_range + 1; i < ranges->length(); i++) {
@@ -1880,12 +1882,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           if (from > char_mask) continue;
           const base::uc32 to =
               (range.to() > char_mask) ? char_mask : range.to();
-          // Here we are combining more ranges into the mask and compare
-          // value.  With each new range the mask becomes more sparse and
-          // so the chances of a false positive rise.  A character class
-          // with multiple ranges is assumed never to be equivalent to a
-          // mask and compare operation.
-          pos->determines_perfectly = false;
+          total_characters += (to - from + 1);
           uint32_t new_common_bits = (from ^ to);
           new_common_bits = ~SmearBitsRight(new_common_bits);
           common_bits &= new_common_bits;
@@ -1896,6 +1893,12 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         }
         pos->mask = common_bits;
         pos->value = bits;
+        // A mask-and-compare check is perfectly precise (no false positives)
+        // iff the number of matching characters in the class equals the number
+        // of combinations allowed by the ignored bits (2^zero_bits).
+        unsigned int zero_bits =
+            base::bits::CountPopulation((~common_bits) & char_mask);
+        pos->determines_perfectly = (total_characters == (1 << zero_bits));
       }
       characters_filled_in++;
       DCHECK(characters_filled_in <= details->characters());

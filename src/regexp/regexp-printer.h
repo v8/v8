@@ -125,7 +125,7 @@ class NodePrinterBase : public PrinterBase {
   const char prefix_;
 };
 
-class Diagnostics {
+class V8_EXPORT_PRIVATE Diagnostics {
  public:
   Diagnostics(std::ostream& os, Zone* zone);
   ~Diagnostics();

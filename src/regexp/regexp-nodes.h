@@ -150,7 +150,7 @@ class EmitResult final {
 #define RETURN_IF_ERROR(stmt) \
   if (EmitResult r = (stmt); V8_UNLIKELY(r.IsError())) return r
 
-class Node : public ZoneObject {
+class V8_EXPORT_PRIVATE Node : public ZoneObject {
  public:
   explicit Node(Zone* zone)
       : replacement_(nullptr),
@@ -293,7 +293,7 @@ class Node : public ZoneObject {
   Zone* zone_;
 };
 
-class SeqNode : public Node {
+class V8_EXPORT_PRIVATE SeqNode : public Node {
  public:
   explicit SeqNode(Node* on_success)
       : Node(on_success->zone()), on_success_(on_success) {}
@@ -442,7 +442,7 @@ class ActionNode : public SeqNode {
   friend Zone;
 };
 
-class TextNode : public SeqNode {
+class V8_EXPORT_PRIVATE TextNode : public SeqNode {
  public:
   TextNode(ZoneList<TextElement>* elms, bool read_backward, Node* on_success)
       : SeqNode(on_success), elms_(elms), read_backward_(read_backward) {}
@@ -592,7 +592,7 @@ class UnanchoredAdvanceNode : public SeqNode {
                     BoyerMooreLookahead* bm, bool not_at_start) override;
 };
 
-class EndNode : public Node {
+class V8_EXPORT_PRIVATE EndNode : public Node {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : Node(zone), action_(action) {

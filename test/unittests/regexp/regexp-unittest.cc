@@ -2627,6 +2627,97 @@ TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
   CHECK(IsNull(*result));
 }
 
+TEST_F(RegExpTest, QuickCheckDeterminesPerfectly) {
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+
+  // Create an EndNode to serve as the successor.
+  regexp::EndNode* accept =
+      zone.New<regexp::EndNode>(regexp::EndNode::ACCEPT, &zone);
+
+  auto check_determines_perfectly =
+      [&](ZoneList<regexp::CharacterRange>* ranges, bool is_one_byte) {
+        regexp::TextNode* node = regexp::TextNode::CreateForCharacterRanges(
+            &zone, ranges, false, accept);
+        regexp::Compiler compiler(i_isolate(), &zone, 0, regexp::Flags(),
+                                  is_one_byte);
+        regexp::QuickCheckDetails details(1);
+        node->GetQuickCheckDetails(&details, &compiler, 0, false,
+                                   regexp::Node::kRecursionBudget);
+        return details.positions(0)->determines_perfectly;
+      };
+
+  // 1. Singleton range 'a' (always perfect)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(1, &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('a'), &zone);
+    EXPECT_TRUE(check_determines_perfectly(ranges, true));
+  }
+
+  // 2. Disjoint ranges containing 'a' and 'A' (perfect, differing in 1 bit:
+  // 0x20)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(2, &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('a'), &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('A'), &zone);
+    EXPECT_TRUE(check_determines_perfectly(ranges, true));
+  }
+
+  // 3. Disjoint ranges 'a', 'A', 'b', 'B' (not perfect, zero bits = 3 (0x20,
+  // 0x02, 0x01), combinations = 8, total = 4)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(4, &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('a'), &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('A'), &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('b'), &zone);
+    ranges->Add(regexp::CharacterRange::Singleton('B'), &zone);
+    EXPECT_FALSE(check_determines_perfectly(ranges, true));
+  }
+
+  // 4. Non-canonical ranges that overlap but can be canonicalized into a
+  // perfect check. E.g., 'a' and 'a' (redundant), or overlapping ranges like
+  // [0, 2] and [1, 3] which canonicalize to [0, 3] (perfect, zero bits = 2)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(2, &zone);
+    ranges->Add(regexp::CharacterRange::Range(0, 2), &zone);
+    ranges->Add(regexp::CharacterRange::Range(1, 3), &zone);
+    // Canonicalized to [0, 3] (4 characters: 0, 1, 2, 3), zero bits = 2,
+    // perfect! Without canonicalization, total_characters would be counted as 3
+    // + 3 = 6, which != 4, and would fail determines_perfectly.
+    EXPECT_TRUE(check_determines_perfectly(ranges, true));
+  }
+
+  // 5. Perfect single range [\x60-\x63] (diff = 3, contiguous block of trailing
+  // 1s, starts at boundary)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(1, &zone);
+    ranges->Add(regexp::CharacterRange::Range(0x60, 0x63), &zone);
+    EXPECT_TRUE(check_determines_perfectly(ranges, true));
+  }
+
+  // 6. Imperfect single range [\x61-\x62] (diff = 3, starts at incorrect
+  // boundary, e.g. not aligned with block of 4)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(1, &zone);
+    ranges->Add(regexp::CharacterRange::Range(0x61, 0x62), &zone);
+    EXPECT_FALSE(check_determines_perfectly(ranges, true));
+  }
+
+  // 7. Imperfect single range [\x60-\x62] (diff = 2, non-contiguous block of
+  // trailing 1s, i.e. bit 0 is fixed)
+  {
+    ZoneList<regexp::CharacterRange>* ranges =
+        zone.New<ZoneList<regexp::CharacterRange>>(1, &zone);
+    ranges->Add(regexp::CharacterRange::Range(0x60, 0x62), &zone);
+    EXPECT_FALSE(check_determines_perfectly(ranges, true));
+  }
+}
+
 // The bug below is only reliably observable under sandbox hardware support,
 // where the freed RegExpStack page is unmapped and a buggy JIT Push through
 // the dangling BSP segfaults. On other builds the success-path BSP recovery
