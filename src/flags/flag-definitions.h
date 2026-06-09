@@ -705,14 +705,15 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 DEFINE_BOOL(turbolev_truncated_int32_phis, true,
             "Enable truncated to int32 representation in the phi selector")
 
-DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
-                            "Enable Maglev range value analysis pass")
+// TODO(victorgomes): Consider renaming this to turbolev range analysis, since
+// it doesn't not enable this pass in the maglev pipeline?
+DEFINE_BOOL(maglev_range_analysis, true,
+            "Enable Maglev range value analysis pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_range_analysis,
                       "Trace Maglev range value analysis pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_kna, "Trace Maglev known node aspects")
 DEFINE_BOOL(maglev_use_unreliable_maps, true,
             "Use unreliable unstable maps in Maglev")
-DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
 DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
