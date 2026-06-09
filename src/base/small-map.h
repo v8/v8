@@ -179,7 +179,7 @@ class SmallMap {
 
   class const_iterator;
 
-  class iterator {
+  class V8_GSL_POINTER iterator {
    public:
     typedef typename NormalMap::iterator::iterator_category iterator_category;
     typedef typename NormalMap::iterator::value_type value_type;
@@ -246,7 +246,7 @@ class SmallMap {
     typename NormalMap::iterator map_iter_;
   };
 
-  class const_iterator {
+  class V8_GSL_POINTER const_iterator {
    public:
     typedef
         typename NormalMap::const_iterator::iterator_category iterator_category;

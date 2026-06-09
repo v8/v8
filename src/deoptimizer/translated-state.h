@@ -9,6 +9,7 @@
 #include <stack>
 #include <vector>
 
+#include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/simd128.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -276,7 +277,7 @@ class TranslatedFrame {
 
   using ValuesContainer = base::SmallVector<TranslatedValue, 8>;
 
-  class iterator {
+  class V8_GSL_POINTER iterator {
    public:
     iterator& operator++() {
       ++input_index_;

@@ -12,6 +12,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
@@ -272,7 +273,7 @@ class RandomAccessStackDominatorNode
 
 // A simple iterator to walk over the predecessors of a block. Note that the
 // iteration order is reversed.
-class PredecessorIterator {
+class V8_GSL_POINTER PredecessorIterator {
  public:
   explicit PredecessorIterator(const Block* block) : current_(block) {}
 
@@ -923,7 +924,7 @@ class Graph {
   };
 
   template <class OperationT, typename GraphT>
-  class OperationIterator
+  class V8_GSL_POINTER OperationIterator
       : public base::iterator<std::bidirectional_iterator_tag, OperationT> {
    public:
     static_assert(std::is_same_v<std::remove_const_t<OperationT>, Operation> &&

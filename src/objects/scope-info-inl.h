@@ -8,6 +8,7 @@
 #include "src/objects/scope-info.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "include/v8config.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/heap-object-inl.h"
@@ -443,7 +444,7 @@ bool ScopeInfo::HasInlinedLocalNames() const {
 template <typename ScopeInfoPtr>
 class ScopeInfo::LocalNamesRange {
  public:
-  class Iterator {
+  class V8_GSL_POINTER Iterator {
    public:
     Iterator(const LocalNamesRange* range, InternalIndex index)
         : range_(range), index_(index) {

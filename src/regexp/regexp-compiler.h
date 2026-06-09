@@ -7,6 +7,7 @@
 
 #include <bitset>
 
+#include "include/v8config.h"
 #include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -373,7 +374,7 @@ class Trace {
   EmitResult AdvanceCurrentPositionInTrace(int by, Compiler* compiler);
   const Trace* next() const { return next_; }
 
-  class ConstIterator final {
+  class V8_GSL_POINTER ConstIterator final {
    public:
     ConstIterator& operator++() {
       trace_ = trace_->next();

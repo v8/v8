@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
@@ -551,7 +552,7 @@ class TemplateHashMap
     Value* second;
   };
 
-  class Iterator {
+  class V8_GSL_POINTER Iterator {
    public:
     Iterator& operator++() {
       entry_ = map_->Next(entry_);

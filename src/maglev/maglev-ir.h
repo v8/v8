@@ -8,6 +8,7 @@
 #include <optional>
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/bit-field.h"
 #include "src/base/bits.h"
 #include "src/base/bounds.h"
@@ -6211,7 +6212,7 @@ class VirtualObjectList {
 
   explicit VirtualObjectList(VirtualObject* head) : head_(head) {}
 
-  class Iterator final {
+  class V8_GSL_POINTER Iterator final {
    public:
     explicit Iterator(VirtualObject* entry) : entry_(entry) {}
 

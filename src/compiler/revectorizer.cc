@@ -4,6 +4,7 @@
 
 #include "src/compiler/revectorizer.h"
 
+#include "include/v8config.h"
 #include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
@@ -339,7 +340,7 @@ bool MaybePackSignExtensionOp(const ZoneVector<Node*>& node_group) {
   UNREACHABLE();
 }
 
-class EffectChainIterator {
+class V8_GSL_POINTER EffectChainIterator {
  public:
   explicit EffectChainIterator(Node* node) : node_(node), prev_(nullptr) {}
 
