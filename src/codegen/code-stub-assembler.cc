@@ -9424,7 +9424,7 @@ ToDirectStringAssembler::ToDirectStringAssembler(
 #else
       var_instance_type_(LoadInstanceType(string), this),
 #endif
-      var_offset_(Int32Constant(0), this),
+      var_offset_(IntPtrConstant(0), this),
       var_is_external_(Int32Constant(0), this),
       flags_(flags) {
 }
@@ -9538,7 +9538,11 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
       const TNode<String> string = var_string_.value();
       const TNode<Int32T> sliced_offset = LoadAndUntagToWord32ObjectField(
           string, offsetof(SlicedString, offset_));
-      var_offset_ = Int32Add(var_offset_.value(), sliced_offset);
+      // Clamp accumulated offsets using 32-bit wrapping arithmetic to prevent
+      // out-of-sandbox reads under memory corruption (see b/519768343).
+      const TNode<Int32T> new_offset =
+          Int32Add(TruncateIntPtrToInt32(var_offset_.value()), sliced_offset);
+      var_offset_ = Signed(ChangeUint32ToWord(Unsigned(new_offset)));
 
       const TNode<String> parent =
           LoadObjectField<String>(string, offsetof(SlicedString, parent_));
