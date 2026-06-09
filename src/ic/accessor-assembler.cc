@@ -2481,13 +2481,23 @@ void AccessorAssembler::CheckDescriptorConsidersNumbersMutable(
 void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
                                                       TNode<Float64T> right,
                                                       Label* miss) {
-  // TODO(verwaest): Use a single compare on 64bit archs.
-  const TNode<Uint32T> lhs_hi = Float64ExtractHighWord32(left);
-  const TNode<Uint32T> rhs_hi = Float64ExtractHighWord32(right);
-  GotoIfNot(Word32Equal(lhs_hi, rhs_hi), miss);
-  const TNode<Uint32T> lhs_lo = Float64ExtractLowWord32(left);
-  const TNode<Uint32T> rhs_lo = Float64ExtractLowWord32(right);
-  GotoIfNot(Word32Equal(lhs_lo, rhs_lo), miss);
+  if (Is64()) {
+    // Single 64-bit compare on 64-bit archs (x64, arm64): bit-cast both
+    // values to a 64-bit integer and compare. Replaces the previous two
+    // 32-bit Word32Equal checks (with two sequential branches) by one
+    // Word64Equal + one branch on the StoreField kConstField fast path
+    // (every redundant constant double store hits this).
+    GotoIfNot(Word64Equal(BitcastFloat64ToInt64(left),
+                          BitcastFloat64ToInt64(right)),
+              miss);
+  } else {
+    const TNode<Uint32T> lhs_hi = Float64ExtractHighWord32(left);
+    const TNode<Uint32T> rhs_hi = Float64ExtractHighWord32(right);
+    GotoIfNot(Word32Equal(lhs_hi, rhs_hi), miss);
+    const TNode<Uint32T> lhs_lo = Float64ExtractLowWord32(left);
+    const TNode<Uint32T> rhs_lo = Float64ExtractLowWord32(right);
+    GotoIfNot(Word32Equal(lhs_lo, rhs_lo), miss);
+  }
 }
 
 void AccessorAssembler::HandleStoreFieldAndReturn(
