@@ -377,6 +377,9 @@
   'compiler/conditional-chain': [SKIP],
   'compiler/regress-815392': [SKIP],
   'es6/unicode-regexp-unanchored-advance': [SKIP],
+  # Hash collisions cause O(n^2) behavior, leading to timeout.
+  'lower_limits_mode/regress/regress-crbug-405910175-map': [SKIP],
+  'lower_limits_mode/regress/regress-crbug-405910175-set': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-655573': [SKIP],
   'regress/regress-862433': [SKIP],

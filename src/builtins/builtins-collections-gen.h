@@ -410,7 +410,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // OrderedHashMap).
   template <typename CollectionType>
   void StoreOrderedHashTableNewEntry(
-      const TNode<CollectionType> table, const TNode<IntPtrT> hash,
+      const TNode<CollectionType> table, TNode<IntPtrT> hash,
       const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
       const ApplyAtEntry<CollectionType>& store_at_new_entry);
 

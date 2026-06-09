@@ -1875,9 +1875,12 @@ TF_BUILTIN(MapPrototypeGetOrInsertComputed, CollectionsBuiltinsAssembler) {
 
 template <typename CollectionType>
 void CollectionsBuiltinsAssembler::StoreOrderedHashTableNewEntry(
-    const TNode<CollectionType> table, const TNode<IntPtrT> hash,
+    const TNode<CollectionType> table, TNode<IntPtrT> hash,
     const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
     const ApplyAtEntry<CollectionType>& store_at_new_entry) {
+#ifdef V8_LOWER_LIMITS_MODE
+  hash = WordAnd(hash, IntPtrConstant(0xf));
+#endif
   const TNode<IntPtrT> bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
