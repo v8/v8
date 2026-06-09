@@ -413,6 +413,7 @@ path. Add it with -I<path> to the command line
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 #endif
 # define V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND (V8_HAS_CPP_ATTRIBUTE(clang::lifetimebound))
+# define V8_HAS_CPP_ATTRIBUTE_GSL_POINTER (V8_HAS_CPP_ATTRIBUTE(gsl::Pointer))
 
 # define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
@@ -710,6 +711,16 @@ path. Add it with -I<path> to the command line
   __attribute__((used, visibility("default")))
 #else
 #define V8_SYMBOL_USED /* NOT SUPPORTED */
+#endif
+
+// Annotate a class indicating it represents a non-owning pointer.
+// This is used by Clang's lifetime-safety analysis to catch dangling pointers
+// by tracking the lifetime of the borrowed resources.
+// https://clang.llvm.org/docs/AttributeReference.html#pointer
+#if V8_HAS_CPP_ATTRIBUTE_GSL_POINTER
+#define V8_GSL_POINTER [[gsl::Pointer]]
+#else
+#define V8_GSL_POINTER /* NOT SUPPORTED */
 #endif
 
 

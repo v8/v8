@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_H_
 #define V8_OBJECTS_TAGGED_FIELD_H_
 
+#include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/base/template-meta-programming/functional.h"
@@ -34,7 +35,7 @@ using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
 using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::WEAK, Tagged_t>;
 
 template <typename T, typename CompressionScheme>
-class TaggedMember : public TaggedMemberBase {
+class V8_GSL_POINTER TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
 
