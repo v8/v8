@@ -79,28 +79,6 @@ Managed<wasm::NativeModule>::Ptr WasmModuleObject::native_module() {
   return managed_native_module()->ptr();
 }
 
-// WasmMemoryMapDescriptor
-Tagged<Weak<HeapObject>> WasmMemoryMapDescriptor::memory() const {
-  return memory_.load();
-}
-void WasmMemoryMapDescriptor::set_memory(Tagged<Weak<HeapObject>> value,
-                                         WriteBarrierMode mode) {
-  memory_.store(this, value, mode);
-}
-
-int32_t WasmMemoryMapDescriptor::file_descriptor() const {
-  return file_descriptor_;
-}
-void WasmMemoryMapDescriptor::set_file_descriptor(int32_t value) {
-  file_descriptor_ = value;
-}
-
-uint32_t WasmMemoryMapDescriptor::offset() const { return offset_; }
-void WasmMemoryMapDescriptor::set_offset(uint32_t value) { offset_ = value; }
-
-uint32_t WasmMemoryMapDescriptor::size() const { return size_; }
-void WasmMemoryMapDescriptor::set_size(uint32_t value) { size_ = value; }
-
 // WasmMemoryObject
 Tagged<UnionOf<JSArrayBuffer, Undefined>> WasmMemoryObject::array_buffer()
     const {

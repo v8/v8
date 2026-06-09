@@ -509,8 +509,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
       return kVisitWasmArray;
-    case WASM_MEMORY_MAP_DESCRIPTOR_TYPE:
-      return kVisitWasmMemoryMapDescriptor;
     case WASM_FUNC_REF_TYPE:
       return kVisitWasmFuncRef;
     case WASM_GLOBAL_OBJECT_TYPE:

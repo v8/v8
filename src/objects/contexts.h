@@ -391,6 +391,8 @@ enum ContextLookupFlags {
   V(WASM_SUSPENDER_CONSTRUCTOR_INDEX, JSFunction, wasm_suspender_constructor)  \
   V(WASM_SUSPENDING_MAP, Map, wasm_suspending_map)                             \
   V(WASM_SUSPENDING_PROTOTYPE, JSObject, wasm_suspending_prototype)            \
+  V(WASM_MEMORY_MAP_DESCRIPTOR_TEMPLATE_INDEX, ObjectTemplateInfo,             \
+    wasm_memory_map_descriptor_template)                                       \
   V(WASM_MEMORY_MAP_DESCRIPTOR_CONSTRUCTOR_INDEX, JSFunction,                  \
     wasm_memory_map_descriptor_constructor)                                    \
   V(TEMPLATE_WEAKMAP_INDEX, HeapObject, template_weakmap)                      \

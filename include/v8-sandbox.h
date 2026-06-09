@@ -59,6 +59,7 @@ enum class CppHeapPointerTag : uint16_t {
   // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
   kInspectorV8ConsoleTag,
   kInspectorTaskInfoTag,
+  kWasmMemoryMapDescriptorTag,
   kLastV8InternalTag,
   kLastObjectWrappableTag = kLastV8InternalTag,
 

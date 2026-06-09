@@ -14,6 +14,7 @@
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
+#include "v8-platform.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -305,24 +306,15 @@ class V8_EXPORT WasmMemoryMapDescriptor : public Object {
  public:
   WasmMemoryMapDescriptor() = delete;
 
-  V8_INLINE static WasmMemoryMapDescriptor* Cast(Value* value) {
-#ifdef V8_ENABLE_CHECKS
-    CheckCast(value);
-#endif
-    return static_cast<WasmMemoryMapDescriptor*>(value);
-  }
-
-  using WasmFileDescriptor = int32_t;
+  using WasmFileDescriptor = SharedMemoryHandle::PlatformHandle;
 
   static Local<WasmMemoryMapDescriptor> New(Isolate* isolate,
                                             WasmFileDescriptor fd);
 
-  void Unmap();
+  static bool Unmap(Isolate* isolate, Local<Object> wasm_memory_map_descriptor);
 
-  size_t Map(Local<WasmMemoryObject> memory, uint32_t offset);
-
- private:
-  static void CheckCast(Value* object);
+  static size_t Map(Isolate* isolate, Local<Object> wasm_memory_map_descriptor,
+                    Local<WasmMemoryObject> memory, size_t offset);
 };
 }  // namespace v8
 

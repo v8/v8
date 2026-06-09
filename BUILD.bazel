@@ -3228,6 +3228,8 @@ filegroup(
             "src/wasm/wasm-js.cc",
             "src/wasm/wasm-js.h",
             "src/wasm/wasm-linkage.h",
+            "src/wasm/wasm-memory-map-descriptor.cc",
+            "src/wasm/wasm-memory-map-descriptor.h",
             "src/wasm/wasm-module.cc",
             "src/wasm/wasm-module.h",
             "src/wasm/wasm-module-builder.cc",

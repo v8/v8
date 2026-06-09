@@ -361,56 +361,7 @@ inline constexpr int WasmTableObject::kTrustedDataOffsetEnd =
     offsetof(WasmTableObject, trusted_data_) + kTrustedPointerSize - 1;
 inline constexpr int WasmTableObject::kHeaderSize = sizeof(WasmTableObject);
 
-V8_OBJECT class WasmMemoryMapDescriptor : public JSObject {
- public:
-  using Super = JSObject;
 
-  inline Tagged<Weak<HeapObject>> memory() const;
-  inline void set_memory(Tagged<Weak<HeapObject>> value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline int32_t file_descriptor() const;
-  inline void set_file_descriptor(int32_t value);
-
-  inline uint32_t offset() const;
-  inline void set_offset(uint32_t value);
-
-  inline uint32_t size() const;
-  inline void set_size(uint32_t value);
-
-  V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryMapDescriptor>
-  NewFromAnonymous(Isolate* isolate, size_t length);
-
-  V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryMapDescriptor>
-  NewFromFileDescriptor(
-      Isolate* isolate,
-      v8::WasmMemoryMapDescriptor::WasmFileDescriptor file_descriptor);
-
-  // Returns the number of bytes that got mapped into the WebAssembly.Memory.
-  V8_EXPORT_PRIVATE size_t MapDescriptor(DirectHandle<WasmMemoryObject> memory,
-                                         size_t offset);
-
-  // Returns `false` if an error occurred, otherwise `true`.
-  V8_EXPORT_PRIVATE bool UnmapDescriptor();
-
-  DECL_PRINTER(WasmMemoryMapDescriptor)
-  DECL_VERIFIER(WasmMemoryMapDescriptor)
-
-  class BodyDescriptor;
-
-  static const int kHeaderSize;
-
-  TaggedMember<Weak<HeapObject>> memory_;
-  int32_t file_descriptor_;
-  uint32_t offset_;
-  uint32_t size_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t padding_;
-#endif  // TAGGED_SIZE_8_BYTES
-} V8_OBJECT_END;
-
-inline constexpr int WasmMemoryMapDescriptor::kHeaderSize =
-    sizeof(WasmMemoryMapDescriptor);
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
 V8_OBJECT class WasmMemoryObject : public JSObject {

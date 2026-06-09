@@ -2731,8 +2731,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return WasmInstanceObject::kHeaderSize;
     case WASM_MEMORY_OBJECT_TYPE:
       return WasmMemoryObject::kHeaderSize;
-    case WASM_MEMORY_MAP_DESCRIPTOR_TYPE:
-      return WasmMemoryMapDescriptor::kHeaderSize;
     case WASM_MODULE_OBJECT_TYPE:
       return WasmModuleObject::kHeaderSize;
     case WASM_TABLE_OBJECT_TYPE:

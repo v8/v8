@@ -157,6 +157,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-memory-map-descriptor.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -3865,12 +3866,10 @@ VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
 VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
 #if V8_ENABLE_WEBASSEMBLY
-VALUE_IS_SPECIFIC_TYPE(WasmMemoryMapDescriptor, WasmMemoryMapDescriptor)
 VALUE_IS_SPECIFIC_TYPE(WasmMemoryObject, WasmMemoryObject)
 VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
 VALUE_IS_SPECIFIC_TYPE(WasmNull, WasmNull)
 #else
-bool Value::IsWasmMemoryMapDescriptor() const { return false; }
 bool Value::IsWasmMemoryObject() const { return false; }
 bool Value::IsWasmModuleObject() const { return false; }
 bool Value::IsWasmNull() const { return false; }
@@ -4211,12 +4210,6 @@ void v8::Proxy::CheckCast(Value* that) {
 void v8::WasmMemoryObject::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsWasmMemoryObject(), "v8::WasmMemoryObject::Cast",
                   "Value is not a WasmMemoryObject");
-}
-
-void v8::WasmMemoryMapDescriptor::CheckCast(Value* that) {
-  Utils::ApiCheck(that->IsWasmMemoryMapDescriptor(),
-                  "v8::WasmMemoryMapDescriptor::Cast",
-                  "Value is not a WasmMemoryMapDescriptor");
 }
 
 void v8::WasmModuleObject::CheckCast(Value* that) {
@@ -8945,10 +8938,9 @@ Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
     v8::Isolate* v8_isolate, WasmMemoryMapDescriptor::WasmFileDescriptor fd) {
 #if V8_ENABLE_WEBASSEMBLY
   CHECK(i::v8_flags.experimental_wasm_memory_control);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::DirectHandle<i::WasmMemoryMapDescriptor> result =
-      i::WasmMemoryMapDescriptor::NewFromFileDescriptor(i_isolate, fd);
-  return Utils::ToLocal(result);
+  v8::Local<v8::Object> wrapper =
+      i::wasm::WasmMemoryMapDescriptor::NewFromFileDescriptor(v8_isolate, fd);
+  return wrapper.As<WasmMemoryMapDescriptor>();
 #else
   Utils::ApiCheck(false, "WasmMemoryMapDescriptor::New",
                   "WebAssembly support is not enabled");
@@ -8956,12 +8948,20 @@ Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
 #endif
 }
 
-size_t WasmMemoryMapDescriptor::Map(Local<WasmMemoryObject> memory,
-                                    uint32_t offset) {
+// static
+size_t WasmMemoryMapDescriptor::Map(v8::Isolate* v8_isolate,
+                                    Local<Object> wasm_memory_map_descriptor,
+                                    Local<WasmMemoryObject> memory,
+                                    size_t offset) {
 #if V8_ENABLE_WEBASSEMBLY
   CHECK(i::v8_flags.experimental_wasm_memory_control);
-  return Utils::OpenDirectHandle(this)->MapDescriptor(
-      Utils::OpenDirectHandle(*memory), offset);
+
+  auto* descriptor =
+      v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
+                         i::wasm::WasmMemoryMapDescriptor>(
+          v8_isolate, wasm_memory_map_descriptor);
+  if (!descriptor) return 0;
+  return descriptor->Map(v8_isolate, Utils::OpenDirectHandle(*memory), offset);
 #else
   Utils::ApiCheck(false, "WasmMemoryMapDescriptor::Map",
                   "WebAssembly support is not enabled");
@@ -8969,10 +8969,21 @@ size_t WasmMemoryMapDescriptor::Map(Local<WasmMemoryObject> memory,
 #endif
 }
 
-void WasmMemoryMapDescriptor::Unmap() {
+// static
+bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* v8_isolate,
+                                    Local<Object> wasm_memory_map_descriptor) {
 #if V8_ENABLE_WEBASSEMBLY
   CHECK(i::v8_flags.experimental_wasm_memory_control);
-  Utils::OpenDirectHandle(this)->UnmapDescriptor();
+  auto* descriptor =
+      v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
+                         i::wasm::WasmMemoryMapDescriptor>(
+          v8_isolate, wasm_memory_map_descriptor);
+  if (descriptor) {
+    return descriptor->Unmap(v8_isolate);
+  }
+  v8_isolate->ThrowError(
+      "Incompatible receiver, expected WebAssembly.MemoryMapDescriptor");
+  return false;
 #else
   Utils::ApiCheck(false, "WasmMemoryMapDescriptor::Unmap",
                   "WebAssembly support is not enabled");

@@ -1521,15 +1521,6 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {
   JSObjectPrintBody(os, this);
 }
 
-void WasmMemoryMapDescriptor::WasmMemoryMapDescriptorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "WasmMemoryMapDescriptor");
-  os << "\n - memory: " << Brief(memory());
-  os << "\n - file_descriptor: " << file_descriptor();
-  os << "\n - offset: " << offset();
-  os << "\n - size: " << size();
-  JSObjectPrintBody(os, this);
-}
-
 void WasmMemoryObject::WasmMemoryObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, this, "WasmMemoryObject");
   os << "\n - array_buffer: " << Brief(array_buffer());

@@ -3500,10 +3500,6 @@ void WasmArray::WasmArrayVerify(Isolate* isolate) {
   CHECK(Is<WasmArray>(this));
 }
 
-void WasmMemoryMapDescriptor::WasmMemoryMapDescriptorVerify(Isolate* isolate) {
-  CHECK(Is<WasmMemoryMapDescriptor>(this));
-}
-
 void WasmMemoryObject::WasmMemoryObjectVerify(Isolate* isolate) {
   CHECK(Is<WasmMemoryObject>(this));
   Object::VerifyPointer(isolate, array_buffer());

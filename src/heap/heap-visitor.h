@@ -108,7 +108,6 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmArray)               \
   IF_WASM(V, WasmFastApiCallData)     \
   IF_WASM(V, WasmFuncRef)             \
-  IF_WASM(V, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmNull)                \
   IF_WASM(V, WasmResumeData)          \
   IF_WASM(V, WasmStringViewIter)      \

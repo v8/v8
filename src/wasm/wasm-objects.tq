@@ -265,19 +265,6 @@ extern class WasmMemoryObject extends JSObject {
   @if(TAGGED_SIZE_8_BYTES) padding_for_flags_2: uint32;
 }
 
-@cppObjectLayoutDefinition
-extern class WasmMemoryMapDescriptor extends JSObject {
-  // TODO(ahaas): Don't store the file descriptor here directly, but store it
-  // in an array in the isolate, and only store an index into that array here.
-  // An attacker could otherwise change the file descriptor here and thereby
-  // access an arbitrary file descriptor.
-  memory: Weak<WasmMemoryObject>;
-  file_descriptor: int32;
-  // TODO(339678654,ahaas): Support memory64.
-  offset: uint32;
-  size: uint32;
-  @if(TAGGED_SIZE_8_BYTES) padding: uint32;
-}
 
 @cppObjectLayoutDefinition
 extern class WasmGlobalObject extends JSObject {

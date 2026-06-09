@@ -88,50 +88,50 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-#define TO_LOCAL_LIST(V)                                                \
-  V(ToLocal, AccessorPair, debug::AccessorPair)                         \
-  V(ToLocal, NativeContext, Context)                                    \
-  V(ToLocal, Object, Value)                                             \
-  V(ToLocal, Module, Module)                                            \
-  V(ToLocal, Name, Name)                                                \
-  V(ToLocal, String, String)                                            \
-  V(ToLocal, InternalizedString, String)                                \
-  V(ToLocal, Symbol, Symbol)                                            \
-  V(ToLocal, JSDate, Object)                                            \
-  V(ToLocal, JSRegExp, RegExp)                                          \
-  V(ToLocal, JSReceiver, Object)                                        \
-  V(ToLocal, JSObject, Object)                                          \
-  V(ToLocal, JSFunction, Function)                                      \
-  V(ToLocal, JSArray, Array)                                            \
-  V(ToLocal, JSMap, Map)                                                \
-  V(ToLocal, JSSet, Set)                                                \
-  V(ToLocal, JSProxy, Proxy)                                            \
-  V(ToLocal, JSArrayBuffer, ArrayBuffer)                                \
-  V(ToLocal, JSArrayBufferView, ArrayBufferView)                        \
-  V(ToLocal, JSDataView, DataView)                                      \
-  V(ToLocal, JSPromise, Promise)                                        \
-  V(ToLocal, JSRabGsabDataView, DataView)                               \
-  V(ToLocal, JSTypedArray, TypedArray)                                  \
-  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                    \
-  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                    \
-  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                        \
-  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)                \
-  V(SignatureToLocal, FunctionTemplateInfo, Signature)                  \
-  V(MessageToLocal, Object, Message)                                    \
-  V(StackTraceToLocal, StackTraceInfo, StackTrace)                      \
-  V(StackFrameToLocal, StackFrameInfo, StackFrame)                      \
-  V(NumberToLocal, Object, Number)                                      \
-  V(IntegerToLocal, Object, Integer)                                    \
-  V(Uint32ToLocal, Object, Uint32)                                      \
-  V(ToLocal, BigInt, BigInt)                                            \
-  V(ExternalToLocal, JSObject, External)                                \
-  V(CallableToLocal, JSReceiver, Function)                              \
-  V(ToLocalPrimitive, Object, Primitive)                                \
-  V(FixedArrayToLocal, FixedArray, FixedArray)                          \
-  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)                  \
-  V(ToLocal, ScriptOrModule, ScriptOrModule)                            \
-  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal)     \
-  IF_WASM(V, ToLocal, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
+#define TO_LOCAL_LIST(V)                                            \
+  V(ToLocal, AccessorPair, debug::AccessorPair)                     \
+  V(ToLocal, NativeContext, Context)                                \
+  V(ToLocal, Object, Value)                                         \
+  V(ToLocal, Module, Module)                                        \
+  V(ToLocal, Name, Name)                                            \
+  V(ToLocal, String, String)                                        \
+  V(ToLocal, InternalizedString, String)                            \
+  V(ToLocal, Symbol, Symbol)                                        \
+  V(ToLocal, JSDate, Object)                                        \
+  V(ToLocal, JSRegExp, RegExp)                                      \
+  V(ToLocal, JSReceiver, Object)                                    \
+  V(ToLocal, JSObject, Object)                                      \
+  V(ToLocal, JSFunction, Function)                                  \
+  V(ToLocal, JSArray, Array)                                        \
+  V(ToLocal, JSMap, Map)                                            \
+  V(ToLocal, JSSet, Set)                                            \
+  V(ToLocal, JSProxy, Proxy)                                        \
+  V(ToLocal, JSArrayBuffer, ArrayBuffer)                            \
+  V(ToLocal, JSArrayBufferView, ArrayBufferView)                    \
+  V(ToLocal, JSDataView, DataView)                                  \
+  V(ToLocal, JSPromise, Promise)                                    \
+  V(ToLocal, JSRabGsabDataView, DataView)                           \
+  V(ToLocal, JSTypedArray, TypedArray)                              \
+  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                \
+  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                \
+  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                    \
+  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)            \
+  V(SignatureToLocal, FunctionTemplateInfo, Signature)              \
+  V(MessageToLocal, Object, Message)                                \
+  V(StackTraceToLocal, StackTraceInfo, StackTrace)                  \
+  V(StackFrameToLocal, StackFrameInfo, StackFrame)                  \
+  V(NumberToLocal, Object, Number)                                  \
+  V(IntegerToLocal, Object, Integer)                                \
+  V(Uint32ToLocal, Object, Uint32)                                  \
+  V(ToLocal, BigInt, BigInt)                                        \
+  V(ExternalToLocal, JSObject, External)                            \
+  V(CallableToLocal, JSReceiver, Function)                          \
+  V(ToLocalPrimitive, Object, Primitive)                            \
+  V(FixedArrayToLocal, FixedArray, FixedArray)                      \
+  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)              \
+  V(ToLocal, ScriptOrModule, ScriptOrModule)                        \
+  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal) \
+  IF_WASM(V, ToLocal, WasmMemoryObject, WasmMemoryObject)           \
   IF_WASM(V, ToLocal, WasmModuleObject, WasmModuleObject)
 
 #define TO_LOCAL_NAME_LIST(V) \
@@ -207,7 +207,6 @@ class RegisteredExtension {
   V(FixedArray, FixedArray)                                    \
   V(ModuleRequest, ModuleRequest)                              \
   V(CppHeapExternal, CppHeapExternalObject)                    \
-  IF_WASM(V, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {

@@ -314,7 +314,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
-    case WASM_MEMORY_MAP_DESCRIPTOR_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_STACK_OBJECT_TYPE:
     case WASM_SUSPENDER_OBJECT_TYPE:
