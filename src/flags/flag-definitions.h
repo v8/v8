@@ -2499,8 +2499,8 @@ DEFINE_INT(random_gc_interval, 0,
            "Collect garbage after random(0, X) V8 allocations. It overrides "
            "gc_interval.")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
-DEFINE_INT(cppgc_random_gc_interval, 0,
-           "Collect garbage after random(0, X) cppgc allocations.")
+DEFINE_UINT(cppgc_random_gc_interval, 0,
+            "Collect garbage after random(0, X) cppgc allocations.")
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 DEFINE_INT(dispatch_table_gc_interval, -1,
