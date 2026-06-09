@@ -717,6 +717,9 @@ DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
 DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
+DEFINE_BOOL(maglev_verify_dominance, false,
+            "verify dominance of eager deopt frame inputs")
+DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_verify_dominance)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,
