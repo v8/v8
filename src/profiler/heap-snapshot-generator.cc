@@ -1957,7 +1957,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   // Wasm object maps overload the dependent_code field to store the
   // immediate supertype map. Emit without field offset to avoid
   // double-marking the slot.
-  if (IsWasmObjectMap(map)) {
+  if (IsWasmObjectMap(map) && map->has_immediate_supertype_map()) {
     TagObject(map->immediate_supertype_map(), "(immediate supertype map)");
     SetInternalReference(entry, "immediate_supertype_map",
                          map->immediate_supertype_map());

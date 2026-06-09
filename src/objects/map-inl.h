@@ -1073,6 +1073,10 @@ Tagged<Map> Map::immediate_supertype_map() const {
   // dependent_code_ slot is reused for the supertype map on Wasm maps.
   return Cast<Map>(dependent_code_.load());
 }
+bool Map::has_immediate_supertype_map() const {
+  DCHECK(IsWasmObjectMap(this));
+  return Is<Map>(dependent_code_.load());
+}
 void Map::set_immediate_supertype_map(Tagged<Map> value,
                                       WriteBarrierMode mode) {
   DCHECK(IsWasmObjectMap(this));

@@ -754,6 +754,7 @@ V8_OBJECT class Map : public HeapObject {
   // (i.e. the canonical RTT for their static type) here, for fast access
   // from type checks in generated code.
   DECL_ACCESSORS(immediate_supertype_map, Tagged<Map>)
+  inline bool has_immediate_supertype_map() const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
