@@ -91,6 +91,8 @@
   'd8/d8-os': [PASS, NO_VARIANTS],
   'd8/d8-performance-now': [PASS, NO_VARIANTS, ['mode != release or simulator_run', SKIP]],
   'regexp-global': [PASS, NO_VARIANTS],
+  'regexp-jetstream': [PASS, SLOW, NO_VARIANTS],
+  'regexp-not-jetstream': [PASS, SLOW, NO_VARIANTS],
   'regress/regress-4595': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
   'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
@@ -1151,6 +1153,8 @@
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
   'regexp-unicode-sets': [PASS,FAIL],
+  'regexp-not-jetstream': [SKIP],
+  'regexp-jetstream': [SKIP],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
