@@ -1547,56 +1547,73 @@ bool Node::KeepRecursing(Compiler* compiler) {
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                               BoyerMooreLookahead* bm, bool not_at_start) {
-  std::optional<Flags> old_flags;
-  if (action_type_ == MODIFY_FLAGS) {
-    // It is not guaranteed that we hit the resetting modify flags node, due to
-    // recursion budget limitation for filling in BMInfo. Therefore we reset the
-    // flags manually to the previous state after recursing.
-    old_flags = bm->compiler()->flags();
-    bm->compiler()->set_flags(flags());
-  }
-  if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
-    // We use the node after the lookaround to fill in the eats_at_least info
-    // so we have to use the same node to fill in the Boyer-Moore info.
-    success_node()->on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                                               not_at_start);
-  } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
-    // We don't use the node after a positive submatch success because it
-    // rewinds the position.  Since we returned 0 as the eats_at_least value for
-    // this node, we don't need to fill in any data.
-    on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+  switch (action_type_) {
+    case SET_REGISTER_FOR_LOOP:
+    case INCREMENT_REGISTER:
+    case STORE_POSITION:
+    case RESTORE_POSITION:
+    case BEGIN_NEGATIVE_SUBMATCH:
+    case EMPTY_MATCH_CHECK:
+    case CLEAR_CAPTURES:
+    case EATS_AT_LEAST:
+      on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+      break;
+    case MODIFY_FLAGS: {
+      std::optional<Flags> old_flags = bm->compiler()->flags();
+      bm->compiler()->set_flags(flags());
+      on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+      bm->compiler()->set_flags(*old_flags);
+      break;
+    }
+    case BEGIN_POSITIVE_SUBMATCH:
+      // We use the node after the lookaround to fill in the eats_at_least info
+      // so we have to use the same node to fill in the Boyer-Moore info.
+      success_node()->on_success()->FillInBMInfo(isolate, offset, budget - 1,
+                                                 bm, not_at_start);
+      break;
+    case POSITIVE_SUBMATCH_SUCCESS:
+      // We don't use the node after a positive submatch success because it
+      // rewinds the position. Since we returned 0 as the eats_at_least value
+      // for this node, we don't need to fill in any data.
+      break;
   }
   SaveBMInfo(bm, not_at_start, offset);
-  if (old_flags.has_value()) {
-    bm->compiler()->set_flags(*old_flags);
-  }
 }
 
 void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       Compiler* compiler, int filled_in,
                                       bool not_at_start, int budget) {
-  if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
-    // We use the node after the lookaround to fill in the eats_at_least info
-    // so we have to use the same node to fill in the QuickCheck info.
-    success_node()->on_success()->GetQuickCheckDetails(
-        details, compiler, filled_in, not_at_start, budget - 1);
-  } else if (action_type() != POSITIVE_SUBMATCH_SUCCESS) {
-    // We don't use the node after a positive submatch success because it
-    // rewinds the position.  Since we returned 0 as the eats_at_least value
-    // for this node, we don't need to fill in any data.
-    std::optional<Flags> old_flags;
-    if (action_type() == MODIFY_FLAGS) {
-      // It is not guaranteed that we hit the resetting modify flags node, as
-      // GetQuickCheckDetails doesn't travers the whole graph. Therefore we
-      // reset the flags manually to the previous state after recursing.
-      old_flags = compiler->flags();
+  switch (action_type()) {
+    case SET_REGISTER_FOR_LOOP:
+    case INCREMENT_REGISTER:
+    case STORE_POSITION:
+    case RESTORE_POSITION:
+    case BEGIN_NEGATIVE_SUBMATCH:
+    case EMPTY_MATCH_CHECK:
+    case CLEAR_CAPTURES:
+    case EATS_AT_LEAST:
+      on_success()->GetQuickCheckDetails(details, compiler, filled_in,
+                                         not_at_start, budget - 1);
+      break;
+    case MODIFY_FLAGS: {
+      std::optional<Flags> old_flags = compiler->flags();
       compiler->set_flags(flags());
-    }
-    on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                       not_at_start, budget - 1);
-    if (old_flags.has_value()) {
+      on_success()->GetQuickCheckDetails(details, compiler, filled_in,
+                                         not_at_start, budget - 1);
       compiler->set_flags(*old_flags);
+      break;
     }
+    case BEGIN_POSITIVE_SUBMATCH:
+      // We use the node after the lookaround to fill in the eats_at_least info
+      // so we have to use the same node to fill in the QuickCheck info.
+      success_node()->on_success()->GetQuickCheckDetails(
+          details, compiler, filled_in, not_at_start, budget - 1);
+      break;
+    case POSITIVE_SUBMATCH_SUCCESS:
+      // We don't use the node after a positive submatch success because it
+      // rewinds the position. Since we returned 0 as the eats_at_least value
+      // for this node, we don't need to fill in any data.
+      break;
   }
 }
 
@@ -3601,6 +3618,38 @@ EmitResult ActionNode::Emit(Compiler* compiler, Trace* trace) {
   return EmitResult::Success();
 }
 
+EmitResult UnanchoredAdvanceNode::Emit(Compiler* compiler, Trace* trace) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
+  }
+  assembler->UnanchoredAdvance(IsEitherUnicode(compiler->flags()),
+                               trace->backtrack());
+
+  Trace successor_trace(*trace);
+  successor_trace.InvalidateCurrentCharacter();
+  successor_trace.set_at_start(Trace::FALSE_VALUE);
+
+  RETURN_IF_ERROR(on_success()->Emit(compiler, &successor_trace));
+  return EmitResult::Success();
+}
+
+void UnanchoredAdvanceNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                                 Compiler* compiler,
+                                                 int characters_filled_in,
+                                                 bool not_at_start,
+                                                 int budget) {
+  // UnanchoredAdvance dynamically shifts position, so we do not propagate
+  // details through it.
+}
+
+void UnanchoredAdvanceNode::FillInBMInfo(Isolate* isolate, int offset,
+                                         int budget, BoyerMooreLookahead* bm,
+                                         bool not_at_start) {
+  // UnanchoredAdvance dynamically shifts position, so we do not propagate
+  // details through it.
+}
+
 EmitResult BackReferenceNode::Emit(Compiler* compiler, Trace* trace) {
   TRACE_EMIT("BackReference");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
@@ -3666,6 +3715,10 @@ class AssertionPropagator : public AllStatic {
   static void VisitAction(ActionNode* that) {
     // If the next node is interested in what it follows then this node
     // has to be interested too so it can pass the information on.
+    that->info()->AddFromFollowing(that->on_success()->info());
+  }
+
+  static void VisitUnanchoredAdvance(UnanchoredAdvanceNode* that) {
     that->info()->AddFromFollowing(that->on_success()->info());
   }
 
@@ -3750,6 +3803,12 @@ class EatsAtLeastPropagator : public AllStatic {
         that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
         break;
     }
+  }
+
+  static void VisitUnanchoredAdvance(UnanchoredAdvanceNode* that) {
+    uint8_t eats_at_least = base::saturated_cast<uint8_t>(
+        1 + that->on_success()->eats_at_least_info()->from_not_start);
+    that->set_eats_at_least_info(EatsAtLeastInfo(eats_at_least));
   }
 
   static void VisitChoice(ChoiceNode* that, int i) {
@@ -3864,6 +3923,12 @@ class Analysis : public NodeVisitor {
     EnsureAnalyzed(that->on_success());
     if (has_failed()) return;
     STATIC_FOR_EACH(Propagators::VisitAction(that));
+  }
+
+  void VisitUnanchoredAdvance(UnanchoredAdvanceNode* that) override {
+    EnsureAnalyzed(that->on_success());
+    if (has_failed()) return;
+    STATIC_FOR_EACH(Propagators::VisitUnanchoredAdvance(that));
   }
 
   void VisitChoice(ChoiceNode* that) override {

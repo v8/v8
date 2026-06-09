@@ -34,7 +34,8 @@ class Trace;
   VISIT(NegativeLookaroundChoice) \
   VISIT(BackReference)            \
   VISIT(Assertion)                \
-  VISIT(Text)
+  VISIT(Text)                     \
+  VISIT(UnanchoredAdvance)
 
 #define FORWARD_DECLARE(type) class type##Node;
 FOR_EACH_NODE_TYPE(FORWARD_DECLARE)
@@ -577,6 +578,20 @@ class BackReferenceNode : public SeqNode {
   bool read_backward_;
 };
 
+class UnanchoredAdvanceNode : public SeqNode {
+ public:
+  explicit UnanchoredAdvanceNode(Node* on_success) : SeqNode(on_success) {}
+  UnanchoredAdvanceNode* AsUnanchoredAdvanceNode() override { return this; }
+  void Accept(NodeVisitor* visitor) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(Compiler* compiler,
+                                        Trace* trace) override;
+  void GetQuickCheckDetails(QuickCheckDetails* details, Compiler* compiler,
+                            int characters_filled_in, bool not_at_start,
+                            int budget) override;
+  void FillInBMInfo(Isolate* isolate, int offset, int budget,
+                    BoyerMooreLookahead* bm, bool not_at_start) override;
+};
+
 class EndNode : public Node {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
@@ -595,7 +610,7 @@ class EndNode : public Node {
                     BoyerMooreLookahead* bm, bool not_at_start) override {}
   Action action() const { return action_; }
 
-  virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
+  bool IsBacktrack() const override { return action_ == BACKTRACK; }
 
  private:
   Action action_;

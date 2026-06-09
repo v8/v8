@@ -113,6 +113,12 @@ void NodePrinter<Node>::VisitAction(ActionNode* node) {
   PrintSuccess(node);
 }
 
+void NodePrinter<Node>::VisitUnanchoredAdvance(UnanchoredAdvanceNode* node) {
+  PrintNodeLabel(node, "UnanchoredAdvance");
+  os() << "unanchored advance";
+  PrintSuccess(node);
+}
+
 void NodePrinter<Node>::PrintGuard(const Guard* guard) {
   os() << guard->reg() << " ";
   switch (guard->op()) {

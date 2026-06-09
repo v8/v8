@@ -274,6 +274,14 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
   Visit(successor);
 }
 
+void DotPrinterImpl::VisitUnanchoredAdvance(UnanchoredAdvanceNode* that) {
+  os_ << "  n" << that << " [label=\"unanchored advance\", shape=septagon];\n";
+  PrintAttributes(that);
+  Node* successor = that->on_success();
+  os_ << "  n" << that << " -> n" << successor << ";\n";
+  Visit(successor);
+}
+
 void DotPrinter::DotPrint(const char* label, Node* node) {
   StdoutStream os;
   DotPrinterImpl printer(os);

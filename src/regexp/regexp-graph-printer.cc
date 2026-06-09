@@ -136,6 +136,11 @@ void GraphPrinter::Scheduler::VisitAction(ActionNode* node) {
   VisitSeqNode(node->AsSeqNode());
 }
 
+void GraphPrinter::Scheduler::VisitUnanchoredAdvance(
+    UnanchoredAdvanceNode* node) {
+  VisitSeqNode(node->AsSeqNode());
+}
+
 void GraphPrinter::Scheduler::VisitChoice(ChoiceNode* node) {
   ZoneList<GuardedAlternative>* alternatives = node->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {

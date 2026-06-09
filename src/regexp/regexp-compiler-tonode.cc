@@ -494,15 +494,7 @@ void AddLoneTrailSurrogates(Compiler* compiler, ChoiceNode* result,
 Node* UnanchoredAdvance(Compiler* compiler, Node* on_success) {
   // This implements ES2015 21.2.5.2.3, AdvanceStringIndex.
   DCHECK(!compiler->read_backward());
-  Zone* zone = compiler->zone();
-  // Advance any character. If the character happens to be a lead surrogate and
-  // we advanced into the middle of a surrogate pair, it will work out, as
-  // nothing will match from there. We will have to advance again, consuming
-  // the associated trail surrogate.
-  ZoneList<CharacterRange>* range =
-      CharacterRange::List(zone, CharacterRange::Range(0, kMaxUtf16CodeUnit));
-  Node* node =
-      TextNode::CreateForCharacterRanges(zone, range, false, on_success);
+  Node* node = compiler->zone()->New<UnanchoredAdvanceNode>(on_success);
   REGISTER_NODE(node);
   return node;
 }
