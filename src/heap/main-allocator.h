@@ -131,7 +131,8 @@ class LinearAreaOriginalData {
   std::pair<Address, Address> GetTopAndLimit() const {
     // The order of the two loads is important. See SetTopAndLimit().
     auto top = original_top_.load(std::memory_order_acquire);
-    auto limit = original_limit_.load(std::memory_order_relaxed);
+    // This synchronizes with the release store in SetTopAndLimit().
+    auto limit = original_limit_.load(std::memory_order_acquire);
     return std::make_pair(top, limit);
   }
 

@@ -947,7 +947,10 @@ std::pair<Address, Address> LinearAreaOriginalData::GetTopAndLimitLocked()
 void LinearAreaOriginalData::SetTopAndLimit(Address top, Address limit) {
   base::MutexGuard guard(mutex_);
   // The order of the two stores is important. See GetTopAndLimit().
-  original_limit_.store(limit, std::memory_order_relaxed);
+  // The release-store here guarantees that once we start changing LAB
+  // boundaries, all object initialization stores are observable as well for the
+  // concurrent marker.
+  original_limit_.store(limit, std::memory_order_release);
   // Use acquire/release semantics here to prevent subsequent stores to move
   // before this store here.
   original_top_.exchange(top, std::memory_order_acq_rel);
