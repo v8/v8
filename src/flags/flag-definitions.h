@@ -1183,6 +1183,11 @@ DEFINE_INT(minimum_invocations_before_optimization, 2,
 // dozen executions of the code instead of a few hundred or thousand. As a rule
 // of thumb, aiming for things to happen 5x to 10x sooner in this mode than
 // they otherwise would is probably not unreasonable.
+//
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(jit_fuzzing, false,
             "Set JIT tiering thresholds suitable for JIT fuzzing")
 // Tier up to Maglev should happen soon afterwards.
@@ -3574,6 +3579,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable strict terminating DCHECKs to prevent accidentally "
     "keeping on executing JS after terminating V8.")
 
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(
     fuzzing, false,
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
@@ -3625,6 +3634,11 @@ DEFINE_BOOL_READONLY(
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 // Sandbox fuzzing mode requires the memory corruption API.
+//
+// WARNING: Avoid adding implications to this flag unless they always make
+// sense. Unnecessary implications reduce default configuration coverage and
+// limit fuzzer exploration. Prefer flag randomization in fuzzer configs
+// instead.
 DEFINE_BOOL(sandbox_fuzzing, false,
             "Enable sandbox fuzzing mode. This exposes the memory corruption "
             "API and enables the sandbox crash filter to terminate the process "
