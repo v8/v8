@@ -144,7 +144,8 @@ Reduction WasmTyper::Reduce(Node* node) {
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
       // {is_uninhabited} can happen in unreachable branches.
       if (object_type.type.is_uninhabited() ||
-          object_type.type == wasm::kWasmNullRef) {
+          object_type.type == wasm::kWasmNullRef ||
+          object_type.type == wasm::kWasmSharedNullRef) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }
@@ -158,12 +159,13 @@ Reduction WasmTyper::Reduce(Node* node) {
     }
     case IrOpcode::kWasmStructGet: {
       Node* object = NodeProperties::GetValueInput(node, 0);
-      // This can happen either because the object has not been typed yet.
+      // This can happen because the object has not been typed yet.
       if (!NodeProperties::IsTyped(object)) return NoChange();
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
       // {is_uninhabited} can happen in unreachable branches.
       if (object_type.type.is_uninhabited() ||
-          object_type.type == wasm::kWasmNullRef) {
+          object_type.type == wasm::kWasmNullRef ||
+          object_type.type == wasm::kWasmSharedNullRef) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }

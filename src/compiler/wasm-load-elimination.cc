@@ -191,7 +191,8 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   // will always trap.
   wasm::ValueType struct_type =
       NodeProperties::GetType(input_struct).AsWasm().type;
-  if (struct_type == wasm::kWasmNullRef) {
+  if (struct_type == wasm::kWasmNullRef ||
+      struct_type == wasm::kWasmSharedNullRef) {
     return NoChange();
   }
   // The node is in unreachable code if its input is uninhabitable (bottom or
@@ -277,7 +278,8 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   // will always trap.
   wasm::ValueType struct_type =
       NodeProperties::GetType(input_struct).AsWasm().type;
-  if (struct_type == wasm::kWasmNullRef) {
+  if (struct_type == wasm::kWasmNullRef ||
+      struct_type == wasm::kWasmSharedNullRef) {
     return NoChange();
   }
 
