@@ -1822,7 +1822,11 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldByFieldIndex(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
     LoadFixedArrayElement* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->IndexInput().node())) {
+    REPLACE_AND_RETURN_IF_DONE(
+        reducer_.TryBuildLoadFixedArrayElementConstantIndex(
+            node->ElementsInput().node(), cst.value(), node->load_type()));
+  }
   return ProcessResult::kContinue;
 }
 

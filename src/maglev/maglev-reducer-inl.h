@@ -1469,6 +1469,28 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
 }
 
 template <typename BaseT>
+MaybeReduceResult
+MaglevReducer<BaseT>::TryBuildLoadFixedArrayElementConstantIndex(
+    ValueNode* elements, int32_t index, LoadType type) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
+    return {};
+  }
+  if (compiler::OptionalFixedArrayRef fixed_array_ref =
+          TryGetConstant<FixedArray>(elements)) {
+    if (static_cast<uint32_t>(index) < fixed_array_ref->length()) {
+      compiler::OptionalObjectRef maybe_value =
+          fixed_array_ref->TryGet(broker(), static_cast<uint32_t>(index));
+      if (maybe_value) return GetConstant(*maybe_value);
+    } else {
+      return {};
+    }
+  }
+  int offset = FixedArray::OffsetOfElementAt(index);
+  return AddNewNodeNoInputConversion<LoadTaggedField>(
+      {elements}, offset, type, false, PropertyKey::None());
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildCheckMaps(
     ValueNode* object, base::Vector<const compiler::MapRef> maps,
     std::optional<ValueNode*> map,

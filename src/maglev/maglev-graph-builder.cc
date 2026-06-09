@@ -4314,17 +4314,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
-  if (compiler::OptionalFixedArrayRef fixed_array_ref =
-          TryGetConstant<FixedArray>(elements)) {
-    if (index >= 0 &&
-        static_cast<uint32_t>(index) < fixed_array_ref->length()) {
-      compiler::OptionalObjectRef maybe_value =
-          fixed_array_ref->TryGet(broker(), static_cast<uint32_t>(index));
-      if (maybe_value) return GetConstant(*maybe_value);
-    } else {
-      return BuildAbort(AbortReason::kUnreachable);
-    }
-  }
+
   if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
@@ -4338,12 +4328,9 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       }
     }
   }
-  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
-    return BuildAbort(AbortReason::kUnreachable);
-  }
-  return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, FixedArray::OffsetOfElementAt(index), type, false,
-      PropertyKey::None());
+  RETURN_IF_DONE(reducer_.TryBuildLoadFixedArrayElementConstantIndex(
+      elements, index, type));
+  return BuildAbort(AbortReason::kUnreachable);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,

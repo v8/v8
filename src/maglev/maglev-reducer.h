@@ -656,6 +656,9 @@ class MaglevReducer {
                                           compiler::HeapObjectRef ref,
                                           DeoptimizeReason reason);
 
+  MaybeReduceResult TryBuildLoadFixedArrayElementConstantIndex(
+      ValueNode* elements, int32_t index, LoadType type);
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.
