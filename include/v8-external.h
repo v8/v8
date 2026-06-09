@@ -22,6 +22,17 @@ using ExternalPointerTypeTag = uint16_t;
 
 constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
 
+enum InternalExternalPointerTypeTag : uint16_t {
+  kFirstInternalExternalPointerTypeTag = V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+  kDictionaryValueTag = kFirstInternalExternalPointerTypeTag,
+  kLastInternalExternalPointerTypeTag = kDictionaryValueTag,
+};
+
+static_assert(kLastInternalExternalPointerTypeTag ==
+                  V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+              "Internal external pointer tags must be the last tags in the "
+              "range below V8_EXTERNAL_POINTER_TAG_COUNT.");
+
 /**
  * A JavaScript value that wraps a C++ void*. This type of value is mainly used
  * to associate C++ data structures with JavaScript objects.
