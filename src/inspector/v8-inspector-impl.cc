@@ -309,13 +309,12 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   DCHECK(contextById->find(contextId) == contextById->cend());
   (*contextById)[contextId].reset(context);
   int contextGroupId = info.contextGroupId;
-  std::shared_ptr<InspectedContext> contextRef = (*contextById)[contextId];
   forEachSession(contextGroupId, [this, contextGroupId, contextId,
-                                  contextRef](V8InspectorSessionImpl* session) {
+                                  &context](V8InspectorSessionImpl* session) {
     if (!getContext(contextGroupId, contextId)) return;
-    session->runtimeAgent()->addBindings(contextRef.get());
+    session->runtimeAgent()->addBindings(context);
     if (!getContext(contextGroupId, contextId)) return;
-    session->runtimeAgent()->reportExecutionContextCreated(contextRef.get());
+    session->runtimeAgent()->reportExecutionContextCreated(context);
   });
 }
 
