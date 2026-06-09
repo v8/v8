@@ -50,7 +50,8 @@ reporting, to avoid cluttering the output.*
 To maximize efficiency, use different build configurations based on the task:
 
 - **`x64.debug`**: Use this for deep debugging of a single test case (e.g., with
-  GDB). It is slow but provides full debug information and assertions.
+  GDB). It provides full debug information and assertions, but is extremely slow
+  and **must be avoided** for running `mjsunit` tests in bulk.
 - **`x64.optdebug`**: Use this for running the entire test suite. It strikes a
   balance between performance and debuggability, allowing for faster full-suite
   checks while still preserving assertions.
