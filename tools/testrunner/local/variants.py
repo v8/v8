@@ -209,6 +209,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--turbofan",
         "--turboshaft",
         "--wasm-in-js-inlining-body",
+        "--wasm-in-js-inlining-wrapper",
         "--turbolev",
         "--turbolev-future",
         "--maglev",
@@ -285,14 +286,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
-    "turbolev_future": [
-        "--no-turbolev",
-        "--no-wasm-in-js-inlining-wrapper",
-    ],
-    "stress_turbolev_future": [
-        "--no-turbolev",
-        "--no-wasm-in-js-inlining-wrapper",
-    ],
+    "turbolev_future": ["--no-turbolev",],
+    "stress_turbolev_future": ["--no-turbolev",],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
     "code_serializer": [

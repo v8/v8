@@ -85,8 +85,8 @@ class WasmInJSInliningReducer : public Next {
     pending_caller_frame_state_ = {};
 
     if (descriptor->js_wasm_call_parameters) {
-      // TODO(353475584): Wrapper and body inlining in Turboshaft is only
-      // implemented for the Turbolev frontend right now.
+      // The only way we attach this metadata is in the Turbolev frontend when
+      // JS-to-Wasm wrapper inlining is enabled.
       CHECK(v8_flags.turbolev);
       CHECK(v8_flags.wasm_in_js_inlining_wrapper);
 
