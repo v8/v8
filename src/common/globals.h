@@ -604,15 +604,25 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
+#if defined(V8_TARGET_OS_IOS)
+// iOS has limited virtual address space (64GB); reduce table size to fit more
+// isolates.
+constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
+#else
 constexpr size_t kJSDispatchTableReservationSize =
     (V8_LOWER_LIMITS_MODE_BOOL ? 16 : 256) * MB;
+#endif  // defined(V8_TARGET_OS_IOS)
 // The maximum number of entries in a JSDispatchTable.
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
 
+#if defined(V8_TARGET_OS_IOS)
+constexpr uint32_t kJSDispatchHandleShift = 9;
+#else
 constexpr uint32_t kJSDispatchHandleShift = V8_LOWER_LIMITS_MODE_BOOL ? 12 : 8;
+#endif  // defined(V8_TARGET_OS_IOS)
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");
