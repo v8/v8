@@ -2607,7 +2607,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));
         __ BranchShort(&compareExchange, ne, i.TempRegister(2),
                        Operand(zero_reg));
-        __ bind(&exit);
       } else {
         Label compare_exchange;
         __ bind(&compare_exchange);
