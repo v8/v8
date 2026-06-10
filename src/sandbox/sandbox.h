@@ -81,6 +81,12 @@ class V8_EXPORT_PRIVATE Sandbox {
   // accesses.
   static constexpr size_t kSmiAddressRangePadding = 4 * KB;
 
+  // A heuristic used by the sandbox crash filter to identify crashes on
+  // unaddressable accesses (e.g. on ARM64). Note that this is only a testing
+  // heuristic and does not reflect the actual virtual address space size,
+  // which is determined dynamically during sandbox initialization.
+  static constexpr int kMaxVirtualAddressBitsForCrashFilter = 48;
+
   /**
    * Initializes this sandbox.
    *

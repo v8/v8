@@ -1153,12 +1153,13 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       }
 
       if (info->si_code == SI_KERNEL && faultaddr == 0) {
-        // This combination appears to indicate a crash at a non-canonical
-        // address on Linux. Crashes at non-canonical addresses are for example
-        // caused by failed external pointer type checks. Memory accesses that
-        // _always_ land at a non-canonical address are not exploitable and so
-        // these are filtered out here. However, testcases need to be written
-        // with this in mind and must cause crashes at valid addresses.
+        // This combination indicates a crash at a non-canonical address on some
+        // architectures on Linux (e.g., x64). Crashes at non-canonical
+        // addresses are for example caused by failed external pointer type
+        // checks. Memory accesses that _always_ land at a non-canonical address
+        // are not exploitable and so these are filtered out here. However,
+        // testcases need to be written with this in mind and must cause crashes
+        // at valid addresses.
         FilterCrash(
             "Caught harmless memory access violation (non-canonical address).");
       }
@@ -1171,6 +1172,14 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         // of the address is set, and if so assume that it's a kernel address.
         FilterCrash(
             "Caught harmless memory access violation (kernel space address).");
+      }
+
+      if ((faultaddr >> Sandbox::kMaxVirtualAddressBitsForCrashFilter) != 0) {
+        // On some architectures (e.g., ARM64) unaddressable dereferences
+        // trigger SEGV_MAPERR and the actual faultaddr (instead of SI_KERNEL
+        // with nullptr). Filter out similarly to the non-canonical case above.
+        FilterCrash(
+            "Caught harmless memory access violation (unaddressable access).");
       }
 
       if (faultaddr < 0x1000) {

@@ -512,6 +512,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "sandbox/bytecode-verifier-unittest.cc",
     "sandbox/libcxx-hardening-unittest.cc",
     "sandbox/pointer-table-unittest.cc",
+    "sandbox/sandbox-crash-filter-unittest.cc",
     "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
     "sandbox/sandbox-violation-unittest.cc",
