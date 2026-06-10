@@ -310,6 +310,8 @@ concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
                                           std::declval<int>());
   b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
                                            std::declval<int>());
+  b->TryBuildLoadFixedDoubleArrayElementFromAllocation(
+      std::declval<ValueNode*>(), std::declval<int>());
   b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
                                        std::declval<ValueNode*>());
 };
@@ -873,6 +875,9 @@ class MaglevReducer {
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None());
 
+  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
+                                                ValueNode* index);
+
   ReduceResult BuildStoreTaggedField(
       ValueNode* object, ValueNode* value, int offset,
       StoreTaggedMode store_mode,
@@ -1041,6 +1046,8 @@ class MaglevReducer {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #define MAGLEV_REDUCER_BUILTIN(V)              \
+  V(ArrayIsArray)                              \
+  V(ArrayPrototypeAt)                          \
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \

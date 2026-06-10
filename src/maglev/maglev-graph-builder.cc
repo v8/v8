@@ -4124,6 +4124,32 @@ MaglevGraphBuilder::TryBuildLoadTaggedFieldFromAllocation(ValueNode* object,
   return value;
 }
 
+MaybeReduceResult
+MaglevGraphBuilder::TryBuildLoadFixedDoubleArrayElementFromAllocation(
+    ValueNode* elements, int index) {
+  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
+    return BuildAbort(AbortReason::kUnreachable);
+  }
+  if (!CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
+    return {};
+  }
+  VirtualObject* vobject =
+      GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
+  std::optional<uint32_t> length =
+      TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
+  if (!length.has_value()) {
+    return {};
+  }
+  if (static_cast<uint32_t>(index) >= length.value()) {
+    return BuildAbort(AbortReason::kUnreachable);
+  }
+  // Initializing stores can place conversion nodes (e.g.
+  // ChangeInt32ToFloat64) into the virtual object, but conversion nodes
+  // must not leak into the interpreter frame state -- they belong in
+  // NodeInfo as alternative representations.
+  return vobject->get(FixedDoubleArray::OffsetOfElementAt(index))->Unwrap();
+}
+
 bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
                                                            ValueNode* value) {
   auto get_allocation = [](ValueNode* node) -> AllocationBlock* {
@@ -4192,47 +4218,6 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
     return AddNewNode<StoreFixedArrayElementWithWriteBarrier>(
         {elements, index, value});
   }
-}
-
-ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
-    ValueNode* elements, int index) {
-  if (index < 0 || static_cast<uint32_t>(index) >= FixedArray::kMaxLength) {
-    return BuildAbort(AbortReason::kUnreachable);
-  }
-
-  // We won't try to reason about the type of the elements array and thus also
-  // cannot end up with an empty type for it.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-
-  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
-    VirtualObject* vobject =
-        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-    std::optional<uint32_t> length =
-        TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
-    if (length.has_value()) {
-      if (static_cast<uint32_t>(index) < length.value()) {
-        // Initializing stores can place conversion nodes (e.g.
-        // ChangeInt32ToFloat64) into the virtual object, but conversion nodes
-        // must not leak into the interpreter frame state -- they belong in
-        // NodeInfo as alternative representations.
-        return vobject->get(FixedDoubleArray::OffsetOfElementAt(index))
-            ->Unwrap();
-      } else {
-        return BuildAbort(AbortReason::kUnreachable);
-      }
-    }
-  }
-
-  return AddNewNodeNoInputConversion<LoadFixedDoubleArrayElement>(
-      {elements, GetInt32Constant(index)});
-}
-
-ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
-    ValueNode* elements, ValueNode* index) {
-  if (auto constant = TryGetInt32Constant(index)) {
-    return BuildLoadFixedDoubleArrayElement(elements, constant.value());
-  }
-  return AddNewNode<LoadFixedDoubleArrayElement>({elements, index});
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(
@@ -8031,67 +8016,6 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   return result;
 }
 
-namespace {
-
-bool CanInlineArrayIteratingBuiltin(compiler::JSHeapBroker* broker,
-                                    const PossibleMaps& maps,
-                                    ElementsKind* kind_return) {
-  DCHECK_NE(0, maps.size());
-  *kind_return = maps.at(0).elements_kind();
-  for (compiler::MapRef map : maps) {
-    if (!map.supports_fast_array_iteration(broker) ||
-        !UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-}  // namespace
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (args.count() == 0) return GetBooleanConstant(false);
-
-  ValueNode* node = args[0];
-
-  if (CheckType(node, NodeType::kJSArray)) {
-    return GetBooleanConstant(true);
-  }
-
-  MapInference inference(this, node);
-  if (auto possible_maps = inference.TryGetPossibleMaps()) {
-    bool has_array_map = false;
-    bool has_proxy_map = false;
-    bool has_other_map = false;
-    for (compiler::MapRef map : *possible_maps) {
-      InstanceType type = map.instance_type();
-      if (InstanceTypeChecker::IsJSArray(type)) {
-        has_array_map = true;
-      } else if (InstanceTypeChecker::IsJSProxy(type)) {
-        has_proxy_map = true;
-      } else {
-        has_other_map = true;
-      }
-    }
-    if ((has_array_map ^ has_other_map) && !has_proxy_map) {
-      if (has_array_map) {
-        if (auto node_info = known_node_aspects().TryGetInfoFor(node)) {
-          node_info->IntersectType(NodeType::kJSArray);
-        }
-      }
-      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
-      return GetBooleanConstant(has_array_map);
-    }
-  }
-
-  if (is_turbolev()) {
-    return AddNewNode<ObjectIsArray>({node});
-  }
-  // TODO(dmercadier): consider supporting ObjectIsArray in Maglev.
-  return {};
-}
-
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -8711,95 +8635,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   VirtualObject* iter_result = reducer_.CreateJSIteratorResult(
       map, subgraph.get(ret_value), subgraph.get(is_done));
   return reducer_.BuildInlinedAllocation(iter_result, AllocationType::kYoung);
-}
-
-MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
-    compiler::JSFunctionRef target, CallArguments& args) {
-  if (!CanSpeculateCall()) return {};
-
-  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
-    TRACE(TraceColor::kRed << "! Failed to reduce Array.prototype.at - "
-                              "NoElementsProtector invalidated");
-    return {};
-  }
-
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  MapInference inference(this, receiver);
-  auto possible_maps = inference.TryGetPossibleMaps();
-  ElementsKind elements_kind = NO_ELEMENTS;
-  // TODO(42204525): Support polymorphism. I.e., DOUBLE_ELEMENTS and ELEMENTS
-  // together.
-  if (!possible_maps || !CanInlineArrayIteratingBuiltin(
-                            broker(), *possible_maps, &elements_kind)) {
-    return {};
-  }
-  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
-
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(receiver));
-  ValueNode* index = nullptr;
-  if (args.count() == 0) {
-    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
-    index = GetInt32Constant(0);
-  } else {
-    GET_VALUE_OR_ABORT(index,
-                       Select(
-                           [&](BranchBuilder& builder) {
-                             return BuildBranchIfInt32Compare(
-                                 builder, Operation::kLessThan, args[0],
-                                 GetInt32Constant(0));
-                           },
-                           [&]() -> ReduceResult {
-                             return AddNewNode<Int32Add>({args[0], length});
-                           },
-                           [&]() -> ReduceResult { return args[0]; }));
-  }
-
-  ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
-
-  return Select(
-      [&](BranchBuilder& builder) {
-        return BuildBranchIfInt32Compare(builder,
-                                         Operation::kGreaterThanOrEqual, index,
-                                         GetInt32Constant(0));
-      },
-      [&]() {
-        return Select(
-            [&](BranchBuilder& builder) {
-              return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
-                                               index, length);
-            },
-            [&]() -> ReduceResult {
-              ValueNode* element;
-              if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-                GET_VALUE_OR_ABORT(element,
-                                   AddNewNode<LoadHoleyFixedDoubleArrayElement>(
-                                       {elements, index}));
-              } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-                GET_VALUE_OR_ABORT(
-                    element, BuildLoadFixedDoubleArrayElement(elements, index));
-              } else {
-                LoadType type = elements_kind == PACKED_SMI_ELEMENTS
-                                    ? LoadType::kSmi
-                                    : LoadType::kUnknown;
-                GET_VALUE_OR_ABORT(
-                    element, BuildLoadFixedArrayElement(elements, index, type));
-              }
-              if (IsHoleyElementsKind(elements_kind)) {
-                GET_VALUE_OR_ABORT(
-                    element, AddNewNode<ConvertHoleToUndefined>({element}));
-              }
-
-              return element;
-            },
-            [&]() -> ReduceResult {
-              return GetRootConstant(RootIndex::kUndefinedValue);
-            });
-      },
-      [&]() -> ReduceResult {
-        return GetRootConstant(RootIndex::kUndefinedValue);
-      });
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(

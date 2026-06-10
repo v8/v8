@@ -510,6 +510,21 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadTaggedField(ValueNode* object,
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildLoadFixedDoubleArrayElement(
+    ValueNode* elements, ValueNode* index) {
+  // We won't try to reason about the type of the elements array and thus also
+  // cannot end up with an empty type for it.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+  if constexpr (ReducerBaseWithAllocationTracking<BaseT>) {
+    if (auto constant = TryGetInt32Constant(index)) {
+      RETURN_IF_DONE(base_->TryBuildLoadFixedDoubleArrayElementFromAllocation(
+          elements, constant.value()));
+    }
+  }
+  return AddNewNode<LoadFixedDoubleArrayElement>({elements, index});
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::BuildStoreTaggedField(
     ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
     PropertyKey property_key, MaybeAssignedFlag maybe_assigned) {
@@ -898,6 +913,191 @@ ReduceResult MaglevReducer<BaseT>::BuildAndAllocateJSArrayIterator(
       broker()->target_native_context().initial_array_iterator_map(broker());
   VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
   return BuildInlinedAllocation(iterator, AllocationType::kYoung);
+}
+
+inline bool CanInlineArrayIteratingBuiltin(compiler::JSHeapBroker* broker,
+                                           const PossibleMaps& maps,
+                                           ElementsKind* kind_return) {
+  DCHECK_NE(0, maps.size());
+  *kind_return = maps.at(0).elements_kind();
+  for (compiler::MapRef map : maps) {
+    if (!map.supports_fast_array_iteration(broker) ||
+        !UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayIsArray(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) return GetBooleanConstant(false);
+
+  ValueNode* node = args[0];
+
+  if (CheckType(node, NodeType::kJSArray)) {
+    return GetBooleanConstant(true);
+  }
+
+  MapInference<MaglevReducer<BaseT>> inference(this, node);
+  if (auto possible_maps = inference.TryGetPossibleMaps()) {
+    bool has_array_map = false;
+    bool has_proxy_map = false;
+    bool has_other_map = false;
+    for (compiler::MapRef map : *possible_maps) {
+      InstanceType type = map.instance_type();
+      if (InstanceTypeChecker::IsJSArray(type)) {
+        has_array_map = true;
+      } else if (InstanceTypeChecker::IsJSProxy(type)) {
+        has_proxy_map = true;
+      } else {
+        has_other_map = true;
+      }
+    }
+    if ((has_array_map ^ has_other_map) && !has_proxy_map) {
+      if (has_array_map) {
+        if (auto node_info = known_node_aspects().TryGetInfoFor(node)) {
+          node_info->IntersectType(NodeType::kJSArray);
+        }
+      }
+      RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+      return GetBooleanConstant(has_array_map);
+    }
+  }
+
+  if (is_turbolev()) {
+    return AddNewNode<ObjectIsArray>({node});
+  }
+  // TODO(dmercadier): consider supporting ObjectIsArray in Maglev.
+  return {};
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    TRACE(TraceColor::kRed << "! Failed to reduce Array.prototype.at - "
+                              "NoElementsProtector invalidated");
+    return {};
+  }
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  MapInference<MaglevReducer<BaseT>> inference(this, receiver);
+  auto possible_maps = inference.TryGetPossibleMaps();
+  ElementsKind elements_kind = NO_ELEMENTS;
+  // TODO(42204525): Support polymorphism. I.e., DOUBLE_ELEMENTS and ELEMENTS
+  // together.
+  if (!possible_maps || !CanInlineArrayIteratingBuiltin(
+                            broker(), *possible_maps, &elements_kind)) {
+    return {};
+  }
+  RETURN_IF_ABORT(inference.InsertMapChecks(zone()));
+
+  ValueNode* length;
+  if (ValueNode* loaded_property = known_node_aspects().TryFindLoadedProperty(
+          receiver, broker()->length_string())) {
+    length = loaded_property;
+  } else {
+    GET_VALUE_OR_ABORT(
+        length, BuildLoadTaggedField(receiver, offsetof(JSArray, length_),
+                                     LoadType::kUnknown, false,
+                                     broker()->length_string()));
+    RecordKnownProperty(receiver, broker()->length_string(), length, false,
+                        compiler::AccessMode::kLoad);
+  }
+
+  ValueNode* index = nullptr;
+  if (args.count() == 0) {
+    index = GetInt32Constant(0);
+  } else {
+    GET_VALUE_OR_ABORT(index,
+                       Select(
+                           [&](auto& sg, auto* label) -> BranchResult {
+                             return BuildBranchIfInt32Compare(
+                                 sg, label, Operation::kLessThan, args[0],
+                                 GetInt32Constant(0));
+                           },
+                           [&]() -> ReduceResult {
+                             return AddNewNode<Int32Add>({args[0], length});
+                           },
+                           [&]() -> ReduceResult { return args[0]; }));
+  }
+
+  ValueNode* elements;
+  if (ValueNode* loaded_property = known_node_aspects().TryFindLoadedProperty(
+          receiver, PropertyKey::Elements())) {
+    elements = loaded_property;
+  } else {
+    GET_VALUE_OR_ABORT(elements, BuildLoadTaggedField(
+                                     receiver, offsetof(JSObject, elements_)));
+    RecordKnownProperty(receiver, PropertyKey::Elements(), elements, false,
+                        compiler::AccessMode::kLoad);
+    if (is_turbolev()) {
+      RETURN_IF_ABORT(AddNewNode<AssumeMap>(
+          {elements},
+          compiler::ZoneRefSet<Map>(IsDoubleElementsKind(elements_kind)
+                                        ? broker()->fixed_double_array_map()
+                                        : broker()->fixed_array_map())));
+    }
+  }
+
+  return Select(
+      [&](auto& sg, auto* label) -> BranchResult {
+        return BuildBranchIfInt32Compare(sg, label,
+                                         Operation::kGreaterThanOrEqual, index,
+                                         GetInt32Constant(0));
+      },
+      [&]() {
+        return Select(
+            [&](auto& sg, auto* label) -> BranchResult {
+              return BuildBranchIfInt32Compare(sg, label, Operation::kLessThan,
+                                               index, length);
+            },
+            [&]() -> ReduceResult {
+              ValueNode* element;
+              if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+                GET_VALUE_OR_ABORT(element,
+                                   AddNewNode<LoadHoleyFixedDoubleArrayElement>(
+                                       {elements, index}));
+              } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
+                GET_VALUE_OR_ABORT(
+                    element, BuildLoadFixedDoubleArrayElement(elements, index));
+              } else {
+                LoadType type = elements_kind == PACKED_SMI_ELEMENTS
+                                    ? LoadType::kSmi
+                                    : LoadType::kUnknown;
+                if (auto constant = TryGetInt32Constant(index)) {
+                  auto const_res = TryBuildLoadFixedArrayElementConstantIndex(
+                      elements, constant.value(), type);
+                  if (const_res.IsDone()) {
+                    element = const_res.value();
+                  } else {
+                    GET_VALUE_OR_ABORT(element,
+                                       AddNewNode<LoadFixedArrayElement>(
+                                           {elements, index}, type));
+                  }
+                } else {
+                  GET_VALUE_OR_ABORT(element, AddNewNode<LoadFixedArrayElement>(
+                                                  {elements, index}, type));
+                }
+              }
+              if (IsHoleyElementsKind(elements_kind)) {
+                GET_VALUE_OR_ABORT(
+                    element, AddNewNode<ConvertHoleToUndefined>({element}));
+              }
+
+              return element;
+            },
+            [&]() -> ReduceResult {
+              return GetRootConstant(RootIndex::kUndefinedValue);
+            });
+      },
+      [&]() -> ReduceResult {
+        return GetRootConstant(RootIndex::kUndefinedValue);
+      });
 }
 
 template <typename BaseT>

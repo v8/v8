@@ -858,10 +858,8 @@ class MaglevGraphBuilder {
 #define MAGLEV_GRAPH_BUILDER_REDUCED_BUILTINS(V) \
   V(ArrayConstructor)                            \
   V(ArrayForEach)                                \
-  V(ArrayIsArray)                                \
   V(ArrayIteratorPrototypeNext)                  \
   V(ArrayMap)                                    \
-  V(ArrayPrototypeAt)                            \
   V(ArrayPrototypeSlice)                         \
   V(ArrayPrototypePush)                          \
   V(ArrayPrototypePop)                           \
@@ -1221,6 +1219,8 @@ class MaglevGraphBuilder {
                                             int offset);
   std::optional<ValueNode*> TryBuildLoadTaggedFieldFromAllocation(
       ValueNode* object, int offset);
+  MaybeReduceResult TryBuildLoadFixedDoubleArrayElementFromAllocation(
+      ValueNode* elements, int index);
   bool TryElideWriteBarrierForAllocation(ValueNode* object, ValueNode* value);
 
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
@@ -1253,9 +1253,10 @@ class MaglevGraphBuilder {
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
-  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
-                                                ValueNode* index);
+                                                ValueNode* index) {
+    return reducer_.BuildLoadFixedDoubleArrayElement(elements, index);
+  }
   ReduceResult BuildStoreFixedDoubleArrayElement(ElementsKind elements_kind,
                                                  ValueNode* elements,
                                                  ValueNode* index,
