@@ -523,7 +523,7 @@ struct XorShift128Result {
   random: uint64;
 }
 
-// LINT.IfChange(xorshift128+)
+// LINT.IfChange(xorshift128)
 macro RandomToDouble(random: uint64): float64 {
   // Get a random [0,2**53) integer value (up to MAX_SAFE_INTEGER) by dropping
   // 11 bits of the state.
@@ -548,7 +548,7 @@ macro XorShift128(s0In: uint64, s1In: uint64): XorShift128Result {
     random: random
   };
 }
-// LINT.ThenChange(/src/base/utils/random-number-generator.h:xorshift128+)
+// LINT.ThenChange(/src/base/utils/random-number-generator.h:xorshift128)
 
 // https://tc39.es/ecma262/#sec-math.random
 transitioning javascript builtin MathRandom(
