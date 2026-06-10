@@ -396,11 +396,9 @@ void MaglevInliner::UpdatePredecessorsOf(BasicBlock* block,
     block->set_predecessor(new_pred);
     return;
   }
-  for (int i = 0; i < block->predecessor_count(); i++) {
-    if (block->predecessor_at(i) == prev_pred) {
-      block->state()->set_predecessor_at(i, new_pred);
-      break;
-    }
+  int predecessor_id = block->get_predecessor_index(prev_pred);
+  if (predecessor_id >= 0) {
+    block->state()->set_predecessor_at(predecessor_id, new_pred);
   }
 }
 

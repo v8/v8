@@ -317,6 +317,11 @@ class MergePointInterpreterFrameState {
       bool was_used, interpreter::Register context_register, Graph* graph,
       compiler::OptionalScopeInfoRef context_scope_info);
 
+  static MergePointInterpreterFrameState* NewForPeel(
+      const MaglevCompilationUnit& info,
+      const MergePointInterpreterFrameState& template_state,
+      BasicBlock** predecessors, int predecessor_count);
+
   compiler::OptionalScopeInfoRef context_scope_info() const {
     return context_scope_info_;
   }
@@ -496,6 +501,8 @@ class MergePointInterpreterFrameState {
 
   int merge_offset() const { return merge_offset_; }
 
+  const MaglevCompilationUnit& unit() const { return *unit_; }
+
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
   const compiler::LoopInfo* loop_info() const {
@@ -595,6 +602,7 @@ class MergePointInterpreterFrameState {
   }
 
   int merge_offset_;
+  const MaglevCompilationUnit* unit_;
 
   uint32_t predecessor_count_;
   uint32_t predecessors_so_far_;

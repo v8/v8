@@ -46,7 +46,8 @@ inline bool FlagsMightEnableMaglevTracing() {
          v8_flags.trace_maglev_object_tracking ||
          v8_flags.trace_maglev_phi_untagging ||
          v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation ||
-         v8_flags.trace_maglev_kna || v8_flags.trace_maglev_graph_optimizer;
+         v8_flags.trace_maglev_kna || v8_flags.trace_maglev_graph_optimizer ||
+         v8_flags.turbolev_trace_loop_peeling;
 }
 
 struct CompilationFlags {
@@ -68,6 +69,7 @@ struct CompilationFlags {
   const bool can_speculative_additive_safe_int;
 
   const bool trace_inlining;
+  const bool trace_loop_peeling;
   const bool is_non_eager_inlining_enabled;
   const bool is_inline_api_calls_enabled;
   const bool enable_truncated_int32_phis;
@@ -85,6 +87,7 @@ struct CompilationFlags {
     return {
         /* can_speculative_additive_safe_int */ false,
         v8_flags.trace_maglev_inlining,
+        /* trace_loop_peeling */ false,
         v8_flags.maglev_non_eager_inlining,
         v8_flags.maglev_inline_api_calls,
         /* enable_truncated_int32_phis */ false,
@@ -106,6 +109,7 @@ struct CompilationFlags {
             v8_flags.turbolev_additive_safe_int_feedback &&
             v8_flags.turbolev_non_eager_inlining,
         v8_flags.trace_turbo_inlining,
+        v8_flags.turbolev_trace_loop_peeling,
         v8_flags.turbolev_non_eager_inlining,
         // TODO(victorgomes): Inline API calls are still not supported by
         // Turbolev.

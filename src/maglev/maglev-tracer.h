@@ -220,6 +220,8 @@ class TraceLogger {
 
 // We assume that the class using this macro has a field tracer_.
 #define TRACE_INLINING(...) TRACE_IMPL(trace_inlining, tracer_, __VA_ARGS__)
+#define TRACE_PEEL(...) \
+  TRACE_IMPL(trace_loop_peeling, tracer_, "[loop-peeling] " << __VA_ARGS__)
 
 }  // namespace v8::internal::maglev
 

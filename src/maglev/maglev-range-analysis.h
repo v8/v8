@@ -487,13 +487,7 @@ class RangeProcessor {
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
-    int predecessor_id = -1;
-    for (int i = 0; i < block->predecessor_count(); ++i) {
-      if (block->predecessor_at(i) == pred) {
-        predecessor_id = i;
-        break;
-      }
-    }
+    int predecessor_id = block->get_predecessor_index(pred);
     DCHECK_NE(predecessor_id, -1);
     for (Phi* phi : *block->phis()) {
       Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));

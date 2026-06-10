@@ -4,6 +4,7 @@
 
 // Flags: --turbofan --turbolev --turbolev-future --allow-natives-syntax
 // Flags: --trace-turbo-filter=jsFunc --trace-turbo-graph --no-stress-maglev
+// Flags: --no-turbolev-non-eager-loop-peeling
 
 d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");

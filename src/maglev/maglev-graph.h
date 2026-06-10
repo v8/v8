@@ -31,6 +31,16 @@ class MaglevCallSiteInfoCompare {
 using MaglevCallSiteCandidates =
     ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
 
+class MaglevCompilationUnit;
+
+struct MaglevLoopPeelInfo {
+  const MaglevCompilationUnit* unit;
+  int loop_header_offset;
+  int bytecode_size;
+  BasicBlock* header = nullptr;
+};
+using MaglevPeelableLoops = ZoneVector<MaglevLoopPeelInfo>;
+
 struct MaglevCallerDetails;
 struct InliningTreeDebugInfo : public ZoneObject {
   compiler::SharedFunctionInfoRef shared;
@@ -67,6 +77,7 @@ class Graph final : public ZoneObject {
         eager_deopt_top_frames_(zone()),
         lazy_deopt_top_frames_(zone()),
         inlineable_calls_(zone()),
+        peelable_loops_(zone()),
         allocations_escape_map_(zone()),
         allocations_elide_map_(zone()),
         register_inputs_(),
@@ -104,7 +115,6 @@ class Graph final : public ZoneObject {
     blocks_.insert(blocks_.begin() + index + 1, new_blocks.begin(),
                    new_blocks.end());
   }
-
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
   void RemoveUnreachableBlocks();
@@ -184,6 +194,8 @@ class Graph final : public ZoneObject {
   ZoneVector<ValueNode*>& parameters() { return parameters_; }
 
   MaglevCallSiteCandidates& inlineable_calls() { return inlineable_calls_; }
+
+  MaglevPeelableLoops& peelable_loops() { return peelable_loops_; }
 
   const ZoneAbslFlatHashSet<DeoptFrame*>& eager_deopt_top_frames() const {
     return eager_deopt_top_frames_;
@@ -376,6 +388,7 @@ class Graph final : public ZoneObject {
   ZoneAbslFlatHashMap<DeoptFrame*, std::pair<interpreter::Register, int>>
       lazy_deopt_top_frames_;
   MaglevCallSiteCandidates inlineable_calls_;
+  MaglevPeelableLoops peelable_loops_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;

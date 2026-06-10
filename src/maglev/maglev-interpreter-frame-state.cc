@@ -180,6 +180,28 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
 }
 
 // static
+MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForPeel(
+    const MaglevCompilationUnit& info,
+    const MergePointInterpreterFrameState& template_state,
+    BasicBlock** predecessors, int predecessor_count) {
+  DCHECK_GE(predecessor_count, 1);
+  auto* state = info.zone()->New<MergePointInterpreterFrameState>(
+      info, template_state.merge_offset(), predecessor_count, predecessor_count,
+      predecessors, BasicBlockType::kDefault,
+      template_state.frame_state_.liveness(),
+      template_state.context_scope_info_);
+  state->frame_state_.ForEachValue(
+      info, [&](ValueNode*& dst, interpreter::Register reg) {
+        dst = template_state.frame_state_.GetValueOf(reg, info);
+      });
+  if (template_state.known_node_aspects_ != nullptr) {
+    state->known_node_aspects_ =
+        template_state.known_node_aspects_->Clone(info.zone());
+  }
+  return state;
+}
+
+// static
 MergePointInterpreterFrameState*
 MergePointInterpreterFrameState::NewForCatchBlock(
     const MaglevCompilationUnit& unit,
@@ -216,6 +238,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
     const compiler::BytecodeLivenessState* liveness,
     compiler::OptionalScopeInfoRef context_scope_info)
     : merge_offset_(merge_offset),
+      unit_(&info),
       predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
       bitfield_(kBasicBlockTypeBits::encode(type) |

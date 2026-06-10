@@ -1788,6 +1788,10 @@ class DeoptInfo {
  public:
   DeoptFrame& top_frame() { return *top_frame_; }
   const DeoptFrame& top_frame() const { return *top_frame_; }
+  void set_top_frame(DeoptFrame* frame) {
+    DCHECK_NULL(input_locations_);
+    top_frame_ = frame;
+  }
   const compiler::FeedbackSource& feedback_to_update() const {
     return feedback_to_update_;
   }
@@ -2103,6 +2107,54 @@ class NodeBase : public ZoneObject {
     Derived* node =
         Allocate<Derived>(zone, input_count, std::forward<Args>(args)...);
     return node;
+  }
+
+  // TODO(victorgomes): We don't support cloning throwable nodes.
+  template <class Derived>
+  static Derived* CloneRaw(Derived* src, Zone* zone) {
+    static_assert(!Derived::kProperties.can_throw());
+    static_assert(NodeBase::opcode_of<Derived> != Opcode::kPhi);
+    // TODO(victorgomes): this prefix-size computation is duplicated with
+    // Allocate(); hoist it into a shared helper so the two can't drift apart.
+    constexpr size_t size_before_inputs =
+        ExceptionHandlerInfoSize(Derived::kProperties) +
+        RegisterSnapshotSize(Derived::kProperties) +
+        EagerDeoptInfoSize(Derived::kProperties) +
+        LazyDeoptInfoSize(Derived::kProperties);
+    size_t input_bytes = src->input_count() * sizeof(ValueNode*);
+    size_t size_before_node;
+    if constexpr (Is64()) {
+      size_before_node = size_before_inputs + input_bytes;
+    } else {
+      size_before_node =
+          RoundUp<alignof(Derived)>(size_before_inputs + input_bytes);
+    }
+    const size_t total = size_before_node + sizeof(Derived);
+    intptr_t raw =
+        reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(total));
+    intptr_t src_lo = reinterpret_cast<intptr_t>(src) - size_before_node;
+    memcpy(reinterpret_cast<void*>(raw), reinterpret_cast<const void*>(src_lo),
+           total);
+    Derived* clone = reinterpret_cast<Derived*>(raw + size_before_node);
+    // The cloned node is not yet attached to a block and has no regalloc
+    // info. Reset the union to a clean state.
+#ifdef DEBUG
+    clone->state_ = kNull;
+#endif
+    clone->owner_ = nullptr;
+    // Inputs have been byte-copied from `src`, so they currently point at
+    // the source's input nodes WITHOUT having added a use to those nodes
+    // for the clone. Zero them so the caller can use set_input(), which
+    // will manage use counts correctly.
+    for (int i = 0; i < clone->input_count(); ++i) {
+      *(clone->input_base() - i) = nullptr;
+    }
+    // For ValueNode clones, the byte copy also duplicates `use_count_`
+    // from the source. Reset it: the clone has no users yet.
+    if constexpr (std::is_base_of_v<ValueNode, Derived>) {
+      clone->reset_use();
+    }
+    return clone;
   }
 
   // Overwritten by subclasses.
@@ -2596,6 +2648,7 @@ class ValueNode : public Node {
     use_count_++;
   }
   inline void remove_use();
+  void reset_use() { use_count_ = 0; }
   // Avoid revisiting nodes when processing an unused node's inputs, by marking
   // it as visited.
   void mark_unused_inputs_visited() {

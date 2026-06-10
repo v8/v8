@@ -784,6 +784,10 @@ DEFINE_BOOL(maglev_non_eager_inlining, false,
             "enable Maglev non-eager inlining")
 DEFINE_BOOL(turbolev_non_eager_inlining, true,
             "enable Turbolev non-eager inlining")
+DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_loop_peeling,
+                            "enable Turbolev non-eager loop peeling")
+DEFINE_DEVELOPER_FLAG(turbolev_trace_loop_peeling,
+                      "trace turbolev non-eager loop peeling decisions")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
