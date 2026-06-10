@@ -322,8 +322,7 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Tagged<Script> script) {
   // We set "is_eval" for wrapped scripts to get an outer declaration scope.
   // This is a bit hacky, but ok since we can't be both eval and wrapped.
   DCHECK_EQ(flags().is_eval() && !script->is_wrapped(),
-            flags().is_toplevel() &&
-                script->compilation_type() == Script::CompilationType::kEval);
+            script->compilation_type() == Script::CompilationType::kEval);
   DCHECK_EQ(flags().is_module(), script->origin_options().IsModule());
   DCHECK_IMPLIES(flags().block_coverage_enabled() && script->IsUserJavaScript(),
                  source_range_map() != nullptr);
