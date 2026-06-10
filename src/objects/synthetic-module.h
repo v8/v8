@@ -54,6 +54,10 @@ V8_OBJECT class SyntheticModule : public Module {
   inline void set_evaluation_steps(
       Tagged<Foreign> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  inline Tagged<Object> host_defined_options() const;
+  inline void set_host_defined_options(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
  private:
   friend class Module;
 
@@ -75,6 +79,7 @@ V8_OBJECT class SyntheticModule : public Module {
   TaggedMember<String> name_;
   TaggedMember<FixedArray> export_names_;
   TaggedMember<Foreign> evaluation_steps_;
+  TaggedMember<Object> host_defined_options_;
 } V8_OBJECT_END;
 
 template <>

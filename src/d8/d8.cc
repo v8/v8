@@ -849,12 +849,7 @@ class ModuleEmbedderData {
 
   explicit ModuleEmbedderData(Isolate* isolate)
       : isolate_(isolate),
-        module_to_specifier_map(10, ModuleGlobalHash(isolate)),
-        json_module_to_parsed_json_map(10,
-                                       module_to_specifier_map.hash_function()),
-        text_module_to_text_map(10, module_to_specifier_map.hash_function()),
-        bytes_module_to_bytes_map(10, module_to_specifier_map.hash_function()) {
-  }
+        module_to_specifier_map(10, ModuleGlobalHash(isolate)) {}
 
   std::string GetModuleSpecifier(Local<Module> module) {
     Global<Module> global_module(isolate_, module);
@@ -877,26 +872,7 @@ class ModuleEmbedderData {
     return module_source_it->second.Get(isolate_);
   }
 
-  Local<Value> GetJsonModuleValue(Local<Module> module) {
-    auto json_value_it =
-        json_module_to_parsed_json_map.find(Global<Module>(isolate_, module));
-    CHECK(json_value_it != json_module_to_parsed_json_map.end());
-    return json_value_it->second.Get(isolate_);
-  }
 
-  Local<Value> GetTextModuleValue(Local<Module> module) {
-    auto text_value_it =
-        text_module_to_text_map.find(Global<Module>(isolate_, module));
-    CHECK(text_value_it != text_module_to_text_map.end());
-    return text_value_it->second.Get(isolate_);
-  }
-
-  Local<Value> GetBytesModuleValue(Local<Module> module) {
-    auto bytes_value_it =
-        bytes_module_to_bytes_map.find(Global<Module>(isolate_, module));
-    CHECK(bytes_value_it != bytes_module_to_bytes_map.end());
-    return bytes_value_it->second.Get(isolate_);
-  }
 
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
       const std::string& specifier, Local<FixedArray> import_attributes,
@@ -943,18 +919,6 @@ class ModuleEmbedderData {
   // Map from Module to its URL as defined in the ScriptOrigin
   std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
       module_to_specifier_map;
-  // Map from JSON Module to its parsed content, for use in module
-  // JSONModuleEvaluationSteps
-  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
-      json_module_to_parsed_json_map;
-  // Map from text Module to its string content, for use in module
-  // TextModuleEvaluationSteps
-  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
-      text_module_to_text_map;
-  // Map from bytes Module to its Uint8Array content, for use in module
-  // BytesModuleEvaluationSteps
-  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
-      bytes_module_to_bytes_map;
 
   // Origin location used for resolving modules when referrer is null.
   std::string origin;
@@ -1517,12 +1481,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     module = v8::Module::CreateSyntheticModule(
         isolate,
         String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::JSONModuleEvaluationSteps);
-
-    CHECK(module_data->json_module_to_parsed_json_map
-              .insert(std::make_pair(Global<Module>(isolate, module),
-                                     Global<Value>(isolate, parsed_json)))
-              .second);
+        export_names, Shell::JSONModuleEvaluationSteps, parsed_json);
   } else if (module_type == ModuleType::kText) {
     auto export_names = v8::to_array<Local<String>>(
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
@@ -1530,13 +1489,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     module = v8::Module::CreateSyntheticModule(
         isolate,
         String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::TextModuleEvaluationSteps);
-
-    CHECK(module_data->text_module_to_text_map
-              .insert(std::make_pair(
-                  Global<Module>(isolate, module),
-                  Global<Value>(isolate, source_text.ToLocalChecked())))
-              .second);
+        export_names, Shell::TextModuleEvaluationSteps,
+        source_text.ToLocalChecked());
   } else if (module_type == ModuleType::kBytes) {
     CHECK(raw_file);
     Local<v8::ArrayBuffer> buffer =
@@ -1557,12 +1511,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     module = v8::Module::CreateSyntheticModule(
         isolate,
         String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
-        export_names, Shell::BytesModuleEvaluationSteps);
-
-    CHECK(module_data->bytes_module_to_bytes_map
-              .insert(std::make_pair(Global<Module>(isolate, module),
-                                     Global<Value>(isolate, uint8_array)))
-              .second);
+        export_names, Shell::BytesModuleEvaluationSteps, uint8_array);
   } else {
     UNREACHABLE();
   }
@@ -1640,9 +1589,8 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
-  i::Managed<ModuleEmbedderData>::Ptr module_data =
-      GetModuleDataFromContext(context);
-  Local<Value> json_value = module_data->GetJsonModuleValue(module);
+  Local<Value> json_value =
+      module->GetSyntheticModuleHostDefinedOptions().As<Value>();
 
   TryCatch try_catch(isolate);
   Maybe<bool> result = module->SetSyntheticModuleExport(
@@ -1665,9 +1613,8 @@ MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
-  i::Managed<ModuleEmbedderData>::Ptr module_data =
-      GetModuleDataFromContext(context);
-  Local<Value> text_value = module_data->GetTextModuleValue(module);
+  Local<Value> text_value =
+      module->GetSyntheticModuleHostDefinedOptions().As<Value>();
 
   TryCatch try_catch(isolate);
   Maybe<bool> result = module->SetSyntheticModuleExport(
@@ -1690,9 +1637,8 @@ MaybeLocal<Value> Shell::BytesModuleEvaluationSteps(Local<Context> context,
                                                     Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
-  i::Managed<ModuleEmbedderData>::Ptr module_data =
-      GetModuleDataFromContext(context);
-  Local<Value> bytes_value = module_data->GetBytesModuleValue(module);
+  Local<Value> bytes_value =
+      module->GetSyntheticModuleHostDefinedOptions().As<Value>();
 
   TryCatch try_catch(isolate);
   Maybe<bool> result = module->SetSyntheticModuleExport(

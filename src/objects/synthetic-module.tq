@@ -7,4 +7,5 @@ extern class SyntheticModule extends Module {
   name: String;
   export_names: FixedArray;
   evaluation_steps: Foreign;
+  host_defined_options: Object;
 }

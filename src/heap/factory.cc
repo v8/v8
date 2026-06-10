@@ -4002,7 +4002,8 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
 
 Handle<SyntheticModule> Factory::NewSyntheticModule(
     DirectHandle<String> module_name, DirectHandle<FixedArray> export_names,
-    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
+    DirectHandle<Object> host_defined_options) {
   ReadOnlyRoots roots(isolate());
 
   const uint32_t exports_len = export_names->ulength().value();
@@ -4027,6 +4028,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   module->set_export_names(*export_names);
   module->set_exports(*exports);
   module->set_evaluation_steps(*evaluation_steps_foreign);
+  module->set_host_defined_options(*host_defined_options);
   return handle(module, isolate());
 }
 

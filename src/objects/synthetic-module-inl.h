@@ -39,6 +39,14 @@ void SyntheticModule::set_evaluation_steps(Tagged<Foreign> value,
                                            WriteBarrierMode mode) {
   evaluation_steps_.store(this, value, mode);
 }
+
+Tagged<Object> SyntheticModule::host_defined_options() const {
+  return host_defined_options_.load();
+}
+void SyntheticModule::set_host_defined_options(Tagged<Object> value,
+                                               WriteBarrierMode mode) {
+  host_defined_options_.store(this, value, mode);
+}
 }  // namespace internal
 }  // namespace v8
 

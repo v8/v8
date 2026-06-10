@@ -2483,7 +2483,8 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
 Local<Module> Module::CreateSyntheticModule(
     Isolate* v8_isolate, Local<String> module_name,
     const MemorySpan<const Local<String>>& export_names,
-    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
+    Local<Data> host_defined_options) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   auto i_module_name = Utils::OpenDirectHandle(*module_name);
@@ -2496,9 +2497,32 @@ Local<Module> Module::CreateSyntheticModule(
         Utils::OpenDirectHandle(*export_names[i]));
     i_export_names->set(i, *str);
   }
+  i::DirectHandle<i::Object> i_host_defined_options;
+  if (host_defined_options.IsEmpty()) {
+    i_host_defined_options = i_isolate->factory()->undefined_value();
+  } else {
+    i_host_defined_options = Utils::OpenDirectHandle(*host_defined_options);
+  }
+
   return v8::Utils::ToLocal(
       i::DirectHandle<i::Module>(i_isolate->factory()->NewSyntheticModule(
-          i_module_name, i_export_names, evaluation_steps)));
+          i_module_name, i_export_names, evaluation_steps,
+          i_host_defined_options)));
+}
+
+Local<Data> Module::GetSyntheticModuleHostDefinedOptions() const {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
+  i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+
+  Utils::ApiCheck(
+      i::IsSyntheticModule(*self),
+      "v8::Module::GetSyntheticModuleHostDefinedOptions",
+      "v8::Module::GetSyntheticModuleHostDefinedOptions must only be called on "
+      "a SyntheticModule");
+  return ToApiHandle<Data>(i::direct_handle(
+      i::Cast<i::SyntheticModule>(self)->host_defined_options(), i_isolate));
 }
 
 Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,

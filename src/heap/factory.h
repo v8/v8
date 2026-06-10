@@ -942,7 +942,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
       DirectHandle<String> module_name, DirectHandle<FixedArray> export_names,
-      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
+      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
+      DirectHandle<Object> host_defined_options);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
       std::shared_ptr<BackingStore> backing_store,

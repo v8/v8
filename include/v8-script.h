@@ -363,7 +363,14 @@ class V8_EXPORT Module : public Data {
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
       const MemorySpan<const Local<String>>& export_names,
-      SyntheticModuleEvaluationSteps evaluation_steps);
+      SyntheticModuleEvaluationSteps evaluation_steps,
+      Local<Data> host_defined_options = Local<Data>());
+
+  /**
+   * Returns the host defined options set during CreateSyntheticModule().
+   * Must only be called on SyntheticModules.
+   */
+  Local<Data> GetSyntheticModuleHostDefinedOptions() const;
 
   /**
    * Set this module's exported value for the name export_name to the specified
