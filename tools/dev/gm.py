@@ -185,6 +185,16 @@ def v8_root_dir() -> Path:
 
 V8_ROOT_DIR = v8_root_dir()
 
+if V8_DIR != V8_ROOT_DIR:
+  res = subprocess.run([
+      sys.executable,
+      str(V8_DIR / "tools" / "dev" / "setup_worktree_build.py"),
+      str(V8_ROOT_DIR),
+      str(V8_DIR),
+  ])
+  if res.returncode != 0:
+    sys.exit(res.returncode)
+
 RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
 
 if (V8_ROOT_DIR.parent / "chrome").exists():
@@ -206,13 +216,7 @@ else:
   else:
     OUTDIR = Path(V8_DIR / OUTDIR_BASENAME)
 
-if V8_DIR != V8_ROOT_DIR:
-  subprocess.run([
-      sys.executable,
-      str(V8_DIR / "tools" / "dev" / "setup_worktree_build.py"),
-      str(V8_ROOT_DIR),
-      str(V8_DIR),
-  ])
+
 
 BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
