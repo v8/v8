@@ -243,7 +243,6 @@ in_category(
         gclient_vars = [GCLIENT_VARS.NO_BENCHMARKS],
         disable_resultdb_exports = True,
         barrier = BARRIER.NONE,
-        work_in_progress = True,
     ),
 )
 
