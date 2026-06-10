@@ -29,23 +29,27 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
-#define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
+#define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName,             \
+                                             SynchronizationPointName)        \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurboshaft, \
-                                       RuntimeCallStats::kThreadSpecific)     \
+                                       RuntimeCallStats::kThreadSpecific,     \
+                                       SynchronizationPointName)              \
   static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;                \
   static void AssertTurboshaftPhase() {                                       \
     static_assert(TurboshaftPhase<Name##Phase>);                              \
   }
 
-#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name) \
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Turboshaft##Name)
+#define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name)                  \
+  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Turboshaft##Name, \
+                                       "Turboshaft" #Name)
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(Name) \
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Name)
+  DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, Name, "Turboshaft" #Name)
 
 #define DECL_TURBOSHAFT_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS_WITH_LEGACY_NAME( \
     Name)                                                                      \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, PhaseKind::kTurboshaft,           \
-                                       RuntimeCallStats::kExact)               \
+                                       RuntimeCallStats::kExact,               \
+                                       "Turboshaft" #Name)                     \
   static constexpr char kPhaseName[] = "V8.TF" #Name;                          \
   static void AssertTurboshaftPhase() {                                        \
     static_assert(TurboshaftPhase<Name##Phase>);                               \

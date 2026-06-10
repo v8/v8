@@ -2845,5 +2845,34 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
   return *result_handle;
 }
 
+// Blocks the background compiler (or other background tasks) at the specified
+// synchronization point. The task will remain blocked until %Resume is called.
+// This is primarily used for deterministically testing race conditions.
+RUNTIME_FUNCTION(Runtime_BlockAt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+  isolate->isolate_group()->SetBlockAtSynchronizationPointForTesting(
+      phase_name->ToStdString());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// Resumes a background compiler (or other background task) that was previously
+// blocked by %BlockAt at the specified synchronization point.
+RUNTIME_FUNCTION(Runtime_Resume) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+  bool resumed = isolate->isolate_group()->ResumeSynchronizationPointForTesting(
+      phase_name->ToStdString());
+  if (!resumed) {
+    return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+        "No thread is currently blocked at this synchronization point"));
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

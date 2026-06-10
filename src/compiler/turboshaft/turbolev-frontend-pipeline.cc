@@ -11,6 +11,7 @@
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
+#include "src/init/isolate-group.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
@@ -35,7 +36,8 @@ namespace v8::internal::compiler::turboshaft {
 // TODO(victorgomes): Should we create a Turbolev phase kind?
 #define DECL_TURBOLEV_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurbolev, \
-                                       RuntimeCallStats::kThreadSpecific)   \
+                                       RuntimeCallStats::kThreadSpecific,   \
+                                       "Turbolev" #Name)                    \
                                                                             \
   static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;
 
@@ -293,6 +295,7 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
                                                  Phase::kCounterMode);
 #endif
   Phase phase;
+  SYNCHRONIZATION_POINT_FOR_TESTING(Phase::synchronization_point_name());
   bool result = phase.Run(graph_, std::forward<Args>(args)...);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     PrintMaglevGraph(Phase::phase_name());

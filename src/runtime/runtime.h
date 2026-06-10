@@ -555,6 +555,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
+  F(BlockAt, 1, 1)                                                       \
   F(VerifyGetJSBuiltinState, 1, 1)                                       \
   F(ClearFunctionFeedback, 1, 1)                                         \
   F(ClearMegamorphicStubCache, 0, 1)                                     \
@@ -665,6 +666,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(RegexpHasNativeCode, 2, 1)                                           \
   F(RegexpIsUnmodified, 1, 1)                                            \
   F(RegexpTypeTag, 1, 1)                                                 \
+  F(Resume, 1, 1)                                                        \
   F(RunningInSimulator, 0, 1)                                            \
   F(RuntimeEvaluateREPL, 1, 1)                                           \
   F(ScheduleGCInStackCheck, 0, 1)                                        \

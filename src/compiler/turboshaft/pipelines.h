@@ -33,6 +33,7 @@
 #include "src/compiler/turboshaft/turbolev-graph-builder.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
+#include "src/init/isolate-group.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-in-js-inlining-phase.h"
@@ -100,6 +101,9 @@ class V8_EXPORT_PRIVATE Pipeline {
     Phase phase;
     using result_t =
         decltype(phase.Run(data_, temp_zone, std::forward<Args>(args)...));
+
+    SYNCHRONIZATION_POINT_FOR_TESTING(Phase::synchronization_point_name());
+
     if constexpr (std::is_same_v<result_t, void>) {
       phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {

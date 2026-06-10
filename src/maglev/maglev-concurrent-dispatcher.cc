@@ -15,6 +15,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
+#include "src/init/isolate-group.h"
 #include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
@@ -119,6 +120,7 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
         isolate,
         info()->toplevel_compilation_unit()->shared_function_info().object());
   }
+  SYNCHRONIZATION_POINT_FOR_TESTING("MaglevPrepareJob");
   EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
@@ -127,6 +129,7 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   BeginPhaseKind("V8.MaglevExecuteJob");
+  SYNCHRONIZATION_POINT_FOR_TESTING("MaglevExecuteJob");
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();

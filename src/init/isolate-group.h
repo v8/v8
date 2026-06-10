@@ -5,22 +5,28 @@
 #ifndef V8_INIT_ISOLATE_GROUP_H_
 #define V8_INIT_ISOLATE_GROUP_H_
 
+#include <atomic>
+#include <functional>
+#include <map>
 #include <memory>
+#include <string>
+#include <string_view>
 
 #include "absl/container/flat_hash_set.h"
 #include "include/v8-memory-span.h"
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
+#include "src/execution/thread-id.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/check.h"
-#include "src/utils/allocation.h"
-
 #include "src/sandbox/js-dispatch-table.h"
+#include "src/utils/allocation.h"
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
@@ -347,6 +353,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
+  void SetBlockAtSynchronizationPointForTesting(
+      std::string synchronization_point);
+  bool ResumeSynchronizationPointForTesting(
+      std::string_view synchronization_point);
+  void DoSynchronizationPointForTesting(std::string_view synchronization_point);
+
  private:
   friend class base::LeakyObject<IsolateGroup>;
   friend class MemoryPool;
@@ -375,6 +387,17 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current_non_inlined();
   static void set_current_non_inlined(IsolateGroup* group);
 #endif
+
+  struct SynchronizationPointDataForTesting {
+    base::ConditionVariable cv;
+    bool is_blocking = false;
+    ThreadId block_requester_thread = ThreadId::Invalid();
+  };
+  std::atomic<bool> any_synchronization_point_for_testing_{false};
+  base::Mutex synchronization_point_mutex_for_testing_;
+  std::map<std::string, std::unique_ptr<SynchronizationPointDataForTesting>,
+           std::less<>>
+      synchronization_point_data_for_testing_;
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
@@ -431,5 +454,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 }  // namespace internal
 }  // namespace v8
+
+// A synchronization point that allows background threads to be predictably
+// blocked and resumed by JS testing intrinsics (%BlockAt and %Resume).
+#define SYNCHRONIZATION_POINT_FOR_TESTING(sync_point_name) \
+  IsolateGroup::current()->DoSynchronizationPointForTesting(sync_point_name)
 
 #endif  // V8_INIT_ISOLATE_GROUP_H_
