@@ -101,8 +101,9 @@ struct ExternalPointerTableEntry {
   // The source entry remains valid.
   inline void CopyFrom(const ExternalPointerTableEntry& src);
 
-  // Mark this entry as alive during table garbage collection.
-  inline void Mark();
+  // Mark this entry as alive during table garbage collection. Returns true if
+  // the entry transitioned from un-marked to marked, and false otherwise.
+  inline bool Mark();
 
   static constexpr bool IsWriteProtected = false;
 
