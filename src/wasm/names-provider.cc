@@ -454,6 +454,7 @@ size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t CanonicalTypeNamesProvider::EstimateCurrentMemoryConsumption() const {
+  base::MutexGuard lock(&mutex_);
   size_t result = sizeof(this) + payload_size_estimate_;
   result += type_names_.capacity() * sizeof(StringT);
   result += ContentSize(field_names_);
@@ -468,13 +469,13 @@ size_t CanonicalTypeNamesProvider::EstimateCurrentMemoryConsumption() const {
 }
 
 void CanonicalTypeNamesProvider::DecodeNameSections() {
-  // TODO(jkummerow): We'll probably need to lock read accesses too.
-  base::MutexGuard lock(&mutex_);
+  mutex_.AssertHeld();
   type_names_.resize(GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
   GetWasmEngine()->DecodeAllNameSections(this);
 }
 
 void CanonicalTypeNamesProvider::DecodeNames(NativeModule* native_module) {
+  mutex_.AssertHeld();  // Only called indirectly from {DecodeNameSections}.
   const WasmModule* module = native_module->module();
   if (module->canonical_typenames_decoded) return;
   module->canonical_typenames_decoded = true;
@@ -490,6 +491,7 @@ void CanonicalTypeNamesProvider::DecodeNames(NativeModule* native_module) {
 void CanonicalTypeNamesProvider::PrintTypeName(
     StringBuilder& out, CanonicalTypeIndex type_index,
     NamesProvider::IndexAsComment index_as_comment) {
+  base::MutexGuard lock(&mutex_);
   uint32_t index = type_index.index;
   if (index >= type_names_.size() || type_names_[index].empty()) {
     DecodeNameSections();
@@ -532,6 +534,7 @@ void CanonicalTypeNamesProvider::PrintValueType(StringBuilder& out,
 void CanonicalTypeNamesProvider::PrintFieldName(StringBuilder& out,
                                                 CanonicalTypeIndex struct_index,
                                                 uint32_t field_index) {
+  base::MutexGuard lock(&mutex_);
   uint32_t index = struct_index.index;
   if (index >= type_names_.size()) DecodeNameSections();
 
