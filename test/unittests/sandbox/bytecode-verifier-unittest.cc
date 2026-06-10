@@ -636,7 +636,11 @@ TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-TEST_F(BytecodeVerifierTest, ForbiddenRuntimeFunction) {
+class BytecodeVerifierForbiddenRuntimeFunctionTest
+    : public BytecodeVerifierTest,
+      public ::testing::WithParamInterface<Runtime::FunctionId> {};
+
+TEST_P(BytecodeVerifierForbiddenRuntimeFunctionTest, Basic) {
   i::FlagScope<bool> f(&v8_flags.fuzzing, true);
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
@@ -644,16 +648,19 @@ TEST_F(BytecodeVerifierTest, ForbiddenRuntimeFunction) {
   Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
   Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
 
-  // Test that disallowed runtime functions are blocked by the verifier, for
-  // example TrapHandlerThrowWasmError.
-  uint16_t runtime_id =
-      static_cast<uint16_t>(Runtime::kTrapHandlerThrowWasmError);
+  // Test that disallowed runtime functions are blocked by the verifier.
+  Runtime::FunctionId runtime_id = GetParam();
+  const Runtime::Function* function = Runtime::FunctionForId(runtime_id);
+  int8_t nargs = function->nargs;
+  if (nargs < 0) nargs = 0;
+
+  uint16_t runtime_id_val = static_cast<uint16_t>(runtime_id);
   std::vector<uint8_t> kRawBytes = {
       static_cast<uint8_t>(interpreter::Bytecode::kCallRuntime),
-      static_cast<uint8_t>(runtime_id & 0xFF),
-      static_cast<uint8_t>((runtime_id >> 8) & 0xFF),
+      static_cast<uint8_t>(runtime_id_val & 0xFF),
+      static_cast<uint8_t>((runtime_id_val >> 8) & 0xFF),
       static_cast<uint8_t>(interpreter::Register(0).ToOperand()),
-      0,  // argument count
+      static_cast<uint8_t>(nargs),
       static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
 
   Handle<BytecodeArray> bc =
@@ -662,6 +669,11 @@ TEST_F(BytecodeVerifierTest, ForbiddenRuntimeFunction) {
   ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
                             "Disallowed runtime function");
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    BytecodeVerifierTest, BytecodeVerifierForbiddenRuntimeFunctionTest,
+    ::testing::Values(Runtime::kTrapHandlerThrowWasmError,
+                      Runtime::kWasmAllocateFeedbackVector));
 #endif
 
 TEST_F(BytecodeVerifierTest, ExtraWideJumpLoopToOverflowedOffset) {
