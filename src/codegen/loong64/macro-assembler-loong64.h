@@ -429,6 +429,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPushFPU(DoubleRegList regs);
   void MultiPushLSX(DoubleRegList regs);
   void MultiPushFPUWideStride(DoubleRegList regs);
+  void MultiPushFPUOrLSX(DoubleRegList regs, bool need_align = false);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -486,6 +487,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPopFPU(DoubleRegList regs);
   void MultiPopLSX(DoubleRegList regs);
   void MultiPopFPUWideStride(DoubleRegList regs);
+  void MultiPopFPUOrLSX(DoubleRegList regs, bool need_align = false);
 
   // These PushAll/PopAll respect the order of the registers in the stack from
   // low index to high.

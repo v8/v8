@@ -99,7 +99,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
       Ld_bu(scratch, MemOperand(scratch, 0));
-      Branch(&no_simd, le, scratch, Operand(zero_reg));
+      Branch(&no_simd, eq, scratch, Operand(zero_reg));
 
       // Save vector registers.
       {
@@ -153,7 +153,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
       Ld_bu(scratch, MemOperand(scratch, 0));
-      Branch(&no_simd, le, scratch, Operand(zero_reg));
+      Branch(&no_simd, eq, scratch, Operand(zero_reg));
 
       // Save vector registers.
       {
@@ -2109,6 +2109,92 @@ void MacroAssembler::MultiPopFPUWideStride(DoubleRegList regs) {
     }
   }
   Add_d(sp, sp, Operand(stack_offset));
+}
+
+void MacroAssembler::MultiPushFPUOrLSX(DoubleRegList regs, bool need_align) {
+#if V8_ENABLE_SIMD128
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    // Check if machine has simd enabled, if so push vector registers. If not
+    // then only push double registers.
+    Label no_simd, done;
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    li(scratch, ExternalReference::supports_simd_128_address());
+    // If != 0 then simd is available.
+    Ld_bu(scratch, MemOperand(scratch, 0));
+    Branch(&no_simd, eq, scratch, Operand(zero_reg));
+
+    // Save vector registers.
+    {
+      CpuFeatureScope lsx_scope(
+          this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      MultiPushLSX(regs);
+    }
+    Branch(&done);
+
+    bind(&no_simd);
+    MultiPushFPU(regs);
+    if (need_align) Sub_d(sp, sp, regs.Count() * kDoubleSize);
+
+    bind(&done);
+  } else {
+    if (CpuFeatures::SupportsSimd128()) {
+      MultiPushLSX(regs);
+    } else {
+      MultiPushFPU(regs);
+      if (need_align) Sub_d(sp, sp, regs.Count() * kDoubleSize);
+    }
+  }
+#else
+  MultiPushFPU(regs);
+  if (need_align) Sub_d(sp, sp, regs.Count() * kDoubleSize);
+#endif
+}
+
+void MacroAssembler::MultiPopFPUOrLSX(DoubleRegList regs, bool need_align) {
+#if V8_ENABLE_SIMD128
+  bool generating_builtins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_builtins) {
+    // Check if machine has simd enabled, if so pop vector registers. If not
+    // then only pop double registers.
+    Label no_simd, done;
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    li(scratch, ExternalReference::supports_simd_128_address());
+    // If != 0 then simd is available.
+    Ld_bu(scratch, MemOperand(scratch, 0));
+    Branch(&no_simd, eq, scratch, Operand(zero_reg));
+
+    // Restore vector registers.
+    {
+      CpuFeatureScope lsx_scope(
+          this, LSX, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
+      MultiPopLSX(regs);
+    }
+    Branch(&done);
+
+    bind(&no_simd);
+    if (need_align) Add_d(sp, sp, regs.Count() * kDoubleSize);
+    MultiPopFPU(regs);
+
+    bind(&done);
+  } else {
+    if (CpuFeatures::SupportsSimd128()) {
+      MultiPopLSX(regs);
+    } else {
+      if (need_align) Add_d(sp, sp, regs.Count() * kDoubleSize);
+      MultiPopFPU(regs);
+    }
+  }
+#else
+  if (need_align) Add_d(sp, sp, regs.Count() * kDoubleSize);
+  MultiPopFPU(regs);
+#endif
 }
 
 void MacroAssembler::Bstrpick_w(Register rk, Register rj, uint16_t msbw,
