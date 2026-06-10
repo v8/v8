@@ -475,8 +475,8 @@ macro IncrementIfSmi<A: type>(x: A): A {
 }
 
 type NumberOrFixedArray = Number|FixedArray;
-macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
-    uint32 {
+macro TypeswitchExample(implicit context: Context)(
+                           x: NumberOrFixedArray): uint32 {
   let result: uint32 = 0;
   typeswitch (IncrementIfSmi(x)) {
     case (_x: FixedArray): {
@@ -513,8 +513,8 @@ macro TestTypeswitch(implicit context: Context)(): void {
 }
 
 @export
-macro TestTypeswitchAsanLsanFailure(implicit context: Context)(obj: Object):
-    void {
+macro TestTypeswitchAsanLsanFailure(implicit context: Context)(
+                                       obj: Object): void {
   typeswitch (obj) {
     case (_o: Smi): {
     }

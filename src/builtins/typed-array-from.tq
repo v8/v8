@@ -14,8 +14,8 @@ const kArrayPrototypeValues: constexpr BuiltinsName
 const kSetPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kSetPrototypeValues';
 
-extern builtin IterableToList(implicit context: Context)(JSAny, JSAny):
-    JSArray;
+extern builtin IterableToList(implicit context: Context)(JSAny,
+                              JSAny): JSArray;
 
 macro CanCopyElementsFastNumber(source: JSArray): bool {
   const map: Map = source.map;

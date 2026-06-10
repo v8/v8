@@ -54,8 +54,8 @@ macro StoreArrayHole(elements: FixedArray, k: Smi): void {
   elements.objects[k] = TheHole;
 }
 
-extern macro SetPropertyLength(implicit context: Context)(JSAny, Number):
-    void;
+extern macro SetPropertyLength(implicit context: Context)(JSAny,
+                                Number): void;
 
 const kLengthDescriptorIndex:
     constexpr int31 generates 'JSArray::kLengthDescriptorIndex';
@@ -63,8 +63,8 @@ const kAttributesReadOnlyMask: constexpr int31
     generates 'PropertyDetails::kAttributesReadOnlyMask';
 
 @export
-macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
-    void labels Bailout {
+macro EnsureArrayLengthWritable(implicit context: Context)(
+                                   map: Map): void labels Bailout {
   // Don't support arrays in dictionary named property mode.
   if (IsDictionaryMap(map)) {
     goto Bailout;
