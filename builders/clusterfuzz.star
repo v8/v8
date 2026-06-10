@@ -197,6 +197,20 @@ in_category(
 )
 
 in_category(
+    "Fuzzilli",
+    v8_builder(
+        name = "V8 Linux64 - Fuzzilli - builder",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+        disable_resultdb_exports = True,
+        use_siso = SISO.CHROMIUM_TRUSTED,
+        barrier = BARRIER.TREE_CLOSER,
+    ),
+)
+
+in_category(
     "FuzzTest",
     clusterfuzz_builder(
         name = "V8 Centipede Linux64 ASAN  - release builder",
