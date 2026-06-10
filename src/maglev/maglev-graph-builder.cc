@@ -6608,27 +6608,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
-  NodeType node_type = GetType(string);
-  if (node_type == NodeType::kNone) {
-    return BuildAbort(AbortReason::kUnreachable);
-  }
-  DCHECK(NodeTypeIs(node_type, NodeType::kString));
-  if (auto vo_string = string->TryCast<InlinedAllocation>()) {
-    VirtualObject* vobj = vo_string->object();
-    if (vobj->object_type() == vobj::ObjectType::kConsString) {
-      return vobj->get(offsetof(String, length_));
-    }
-  }
-  if (auto const_string = TryGetConstant<String>(string)) {
-    return GetInt32Constant(const_string->length());
-  }
-  if (ValueNode* const_length =
-          known_node_aspects().TryFindLoadedConstantProperty(
-              string, PropertyKey::StringLength())) {
-    TRACE("  * Reusing constant [String length]"
-          << PrintNodeLabel(const_length) << ": " << PrintNode(const_length));
-    return const_length;
-  }
+  RETURN_IF_DONE(reducer_.TryReduceStringLength(string));
   ValueNode* result;
   GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
   reducer_.RecordKnownProperty(string, PropertyKey::StringLength(), result,

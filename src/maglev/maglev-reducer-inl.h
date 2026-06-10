@@ -4235,6 +4235,33 @@ ReduceResult MaglevReducer<BaseT>::BuildLoadJSDataViewDataPointer(
 }
 
 template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringLength(
+    ValueNode* string) {
+  NodeType node_type = GetType(string);
+  if (node_type == NodeType::kNone ||
+      !NodeTypeCanBe(node_type, NodeType::kString)) {
+    return base_->BuildAbort(AbortReason::kUnreachable);
+  }
+  if (auto vo_string = string->template TryCast<InlinedAllocation>()) {
+    VirtualObject* vobj = vo_string->object();
+    if (vobj->object_type() == vobj::ObjectType::kConsString) {
+      return vobj->get(offsetof(String, length_));
+    }
+  }
+  if (auto const_string = TryGetConstant<String>(string)) {
+    return GetInt32Constant(const_string->length());
+  }
+  if (ValueNode* const_length =
+          known_node_aspects().TryFindLoadedConstantProperty(
+              string, PropertyKey::StringLength())) {
+    TRACE("  * Reusing constant [String length]"
+          << PrintNodeLabel(const_length) << ": " << PrintNode(const_length));
+    return const_length;
+  }
+  return MaybeReduceResult::Fail();
+}
+
+template <typename BaseT>
 template <typename LoadNode>
 MaybeReduceResult MaglevReducer<BaseT>::TryBuildLoadDataView(
     const CallArguments& args, ExternalArrayType type) {

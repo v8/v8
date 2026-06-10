@@ -13,6 +13,7 @@
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
@@ -32,6 +33,7 @@ namespace internal {
 namespace maglev {
 
 struct MaglevCallSiteInfo;
+class MaglevGraphBuilder;
 template <typename BaseT>
 class MaglevReducer;
 template <typename BaseT>
@@ -1113,6 +1115,7 @@ class MaglevReducer {
                                           Function&& getValue);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+  MaybeReduceResult TryReduceStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
                                       InstanceType first, InstanceType last);

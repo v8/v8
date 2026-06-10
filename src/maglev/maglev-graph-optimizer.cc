@@ -668,15 +668,24 @@ void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
   }
 }
 
-ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
-    DeoptimizeReason reason) {
+template <typename NodeT, typename ReasonT>
+ReduceResult MaglevGraphOptimizer::EmitAbruptBlockEnd(ReasonT reason) {
   BasicBlock* block = reducer_.current_block();
   ControlNode* control = block->reset_control_node();
   block->set_deferred(true);
   block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Deopt>({}, reason);
+  ReduceResult result = reducer_.AddNewControlNode<NodeT>({}, reason);
   CHECK(!result.IsDoneWithAbort());
   return ReduceResult::DoneWithAbort();
+}
+
+ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
+    DeoptimizeReason reason) {
+  return EmitAbruptBlockEnd<Deopt>(reason);
+}
+
+ReduceResult MaglevGraphOptimizer::BuildAbort(AbortReason reason) {
+  return EmitAbruptBlockEnd<Abort>(reason);
 }
 
 ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
@@ -2501,7 +2510,8 @@ ProcessResult MaglevGraphOptimizer::VisitStringEqual(
 
 ProcessResult MaglevGraphOptimizer::VisitStringLength(
     StringLength* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryReduceStringLength(node->StringInput().node()));
   return ProcessResult::kContinue;
 }
 
