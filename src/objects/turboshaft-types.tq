@@ -225,8 +225,8 @@ builtin CheckTurboshaftFloat64Type(
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWord32(implicit context: Context)(prefix: String|Smi,
-                          value: uint32): Undefined {
+builtin DebugPrintWord32(
+    implicit context: Context)(prefix: String|Smi, value: uint32): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       Print(kCStringNull, value);
@@ -239,8 +239,8 @@ builtin DebugPrintWord32(implicit context: Context)(prefix: String|Smi,
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintWord64(implicit context: Context)(prefix: String|Smi,
-                          value: uint64): Undefined {
+builtin DebugPrintWord64(
+    implicit context: Context)(prefix: String|Smi, value: uint64): Undefined {
   if constexpr (Is64()) {
     typeswitch (prefix) {
       case (Smi): {
@@ -258,8 +258,8 @@ builtin DebugPrintWord64(implicit context: Context)(prefix: String|Smi,
 }
 
 @customInterfaceDescriptor
-builtin DebugPrintFloat32(implicit context: Context)(prefix: String|Smi,
-                           value: float32): Undefined {
+builtin DebugPrintFloat32(
+    implicit context: Context)(prefix: String|Smi, value: float32): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       Print(kCStringNull, value);
@@ -285,8 +285,8 @@ builtin DebugPrintFloat64(
   return Undefined;
 }
 
-builtin DebugPrintObject(implicit context: Context)(prefix: String|Smi,
-                          value: Object): Undefined {
+builtin DebugPrintObject(
+    implicit context: Context)(prefix: String|Smi, value: Object): Undefined {
   typeswitch (prefix) {
     case (Smi): {
       typeswitch (value) {
