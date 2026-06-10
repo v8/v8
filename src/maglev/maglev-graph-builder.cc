@@ -519,13 +519,14 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // and the back edge), and initialise with the current state.
   MergePointInterpreterFrameState* loop_state =
       MergePointInterpreterFrameState::NewForLoop(
-          variable_frame_, builder_, *dummy_unit_, 0, 2, loop_header_liveness,
-          loop_info);
+          variable_frame_, *dummy_unit_, builder_->is_inline(),
+          builder_->graph(), 0, 2, loop_header_liveness, loop_info);
 
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_state->Merge(builder_, *dummy_unit_, variable_frame_,
-                      loop_predecessor);
+    loop_state->Merge(builder_->graph(), builder_->is_tracing(), *dummy_unit_,
+                      variable_frame_, loop_predecessor,
+                      builder_->GetCurrentScopeInfo());
   }
 
   // Start a new basic block for the loop.
@@ -602,8 +603,9 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::EndLoop(LoopLabel* loop_label) {
       builder_->FinishBlockNoAbort<JumpLoop>({}, loop_label->loop_header_);
   {
     BorrowParentKnownNodeAspectsAndVOs borrow(this);
-    loop_label->merge_state_->MergeLoop(builder_, *dummy_unit_, variable_frame_,
-                                        block);
+    loop_label->merge_state_->MergeLoop(
+        builder_->graph(), builder_->is_tracing(), *dummy_unit_,
+        variable_frame_, block, builder_->GetLatestCheckpointedFrame());
   }
   block->set_predecessor_id(loop_label->merge_state_->predecessor_count() - 1);
 }
@@ -765,13 +767,15 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
 
   } else {
     // If there already is a frame state, merge.
-    label->variable_merge_state_->Merge(builder_, *dummy_unit_, variable_frame_,
-                                        predecessor);
+    label->variable_merge_state_->Merge(
+        builder_->graph(), builder_->is_tracing(), *dummy_unit_,
+        variable_frame_, predecessor, builder_->GetCurrentScopeInfo());
     if (label->ShouldTrackInterpreterFrameState()) {
       DCHECK_NOT_NULL(label->merge_state_);
-      label->merge_state_->Merge(builder_, *compilation_unit(),
+      label->merge_state_->Merge(builder_->graph(), builder_->is_tracing(),
+                                 *compilation_unit(),
                                  builder_->current_interpreter_frame_,
-                                 predecessor);
+                                 predecessor, builder_->GetCurrentScopeInfo());
     }
   }
 }
@@ -1001,8 +1005,8 @@ void MaglevGraphBuilder::BuildMergeStates() {
     DCHECK_NULL(merge_states_[offset]);
     TRACE("- Creating loop merge state at @" << offset);
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
-        current_interpreter_frame_, this, *compilation_unit_, offset,
-        predecessor_count(offset), liveness, &loop_info);
+        current_interpreter_frame_, *compilation_unit_, is_inline(), graph(),
+        offset, predecessor_count(offset), liveness, &loop_info);
   }
 
   if (bytecode().handler_table_size() > 0) {
@@ -7950,8 +7954,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
     if (IsInsideTryBlock()) {
       // Merge the current state into the handler state.
       GetCatchBlockFrameState()->MergeThrow(
-          this, compilation_unit_,
-          *current_interpreter_frame_.known_node_aspects());
+          graph(), is_tracing(), current_interpreter_frame_, compilation_unit_);
     }
     catch_block_details.deopt_frame_distance++;
   }
@@ -13963,8 +13966,8 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   // predecessors: the two copies of `JumpLoop`.
   InitializePredecessorCount(loop_header, 2);
   merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
-      current_interpreter_frame_, this, *compilation_unit_, loop_header, 2,
-      GetInLivenessFor(loop_header),
+      current_interpreter_frame_, *compilation_unit_, is_inline(), graph(),
+      loop_header, 2, GetInLivenessFor(loop_header),
       &bytecode_analysis_.GetLoopInfoFor(loop_header),
       /* has_been_peeled */ true);
 
@@ -13975,8 +13978,8 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   DCHECK_IMPLIES(in_peeled_iteration(),
                  v8_flags.maglev_optimistic_peeled_loops);
   merge_states_[loop_header]->InitializeLoop(
-      this, *compilation_unit_, current_interpreter_frame_, block,
-      GetCurrentScopeInfo(), in_peeled_iteration(), loop_effects_);
+      graph(), is_tracing(), *compilation_unit_, current_interpreter_frame_,
+      block, GetCurrentScopeInfo(), in_peeled_iteration(), loop_effects_);
 
   if (track_peeled_effects) {
     EndLoopEffects(loop_header);
@@ -14038,8 +14041,10 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
     ClobberAccumulator();
     if (in_optimistic_peeling_iteration()) {
       // Let's see if we can finish this loop without peeling it.
-      if (!merge_states_[target]->TryMergeLoop(this, current_interpreter_frame_,
-                                               FinishLoopBlock)) {
+      if (!merge_states_[target]->TryMergeLoop(
+              broker(), graph(), is_tracing(), *compilation_unit(),
+              current_interpreter_frame_, FinishLoopBlock,
+              GetLatestCheckpointedFrame())) {
         merge_states_[target]->MergeDeadLoop(*compilation_unit());
       }
       if (is_loop_effect_tracking_enabled()) {
@@ -14048,7 +14053,9 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
     }
   } else {
     BasicBlock* block = FinishLoopBlock();
-    merge_states_[target]->MergeLoop(this, current_interpreter_frame_, block);
+    merge_states_[target]->MergeLoop(graph(), is_tracing(), *compilation_unit(),
+                                     current_interpreter_frame_, block,
+                                     GetLatestCheckpointedFrame());
     block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
     if (is_peeled_loop) {
       DCHECK(!in_peeled_iteration());
@@ -14121,7 +14128,9 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
 
   } else {
     // If there already is a frame state, merge.
-    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
+    merge_states_[target]->Merge(graph(), is_tracing(), *compilation_unit(),
+                                 current_interpreter_frame_, predecessor,
+                                 GetCurrentScopeInfo());
   }
 }
 
@@ -14219,7 +14228,9 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameStateForReturn(
     // Again, all returns should have the same liveness, so double check this.
     DCHECK(GetInLiveness()->Equals(
         *merge_states_[target]->frame_state().liveness()));
-    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
+    merge_states_[target]->Merge(graph(), is_tracing(), *compilation_unit(),
+                                 current_interpreter_frame_, predecessor,
+                                 GetCurrentScopeInfo());
   }
 }
 
@@ -14258,7 +14269,9 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameStateForSuspendGenerator(
         merge_states_[target]->frame_state().liveness()->AccumulatorIsLive());
     DCHECK_EQ(
         merge_states_[target]->frame_state().liveness()->live_value_count(), 1);
-    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
+    merge_states_[target]->Merge(graph(), is_tracing(), *compilation_unit(),
+                                 current_interpreter_frame_, predecessor,
+                                 GetCurrentScopeInfo());
   }
 }
 
@@ -16370,8 +16383,9 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
       } else {
         predecessor = FinishBlockNoAbort<Jump>({}, &jump_targets_[offset]);
       }
-      merge_state->Merge(this, *compilation_unit_, current_interpreter_frame_,
-                         predecessor);
+      merge_state->Merge(graph(), is_tracing(), *compilation_unit_,
+                         current_interpreter_frame_, predecessor,
+                         GetCurrentScopeInfo());
     }
 
     auto block_type = merge_state->is_exception_handler() ? "exception handler"
@@ -16848,8 +16862,8 @@ void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
       // Merge the current state into the handler state.
       auto state = GetCatchBlockFrameState();
       DCHECK_NOT_NULL(state);
-      state->MergeThrow(this, compilation_unit_,
-                        *current_interpreter_frame_.known_node_aspects());
+      state->MergeThrow(graph(), is_tracing(), current_interpreter_frame_,
+                        compilation_unit_);
     }
   } else {
     // Patch no exception handler marker.

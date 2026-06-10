@@ -197,9 +197,9 @@ void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
         label->predecessor_count(), predecessor, label->variable_liveness_,
         /*context_scope_info=*/std::nullopt);
   } else {
-    label->variable_merge_state_->Merge(reducer_->graph(),
-                                        reducer_->is_tracing(), *dummy_unit_,
-                                        variable_frame_, predecessor);
+    label->variable_merge_state_->Merge(
+        reducer_->graph(), reducer_->is_tracing(), *dummy_unit_,
+        variable_frame_, predecessor, std::nullopt);
   }
   variable_frame_.clear_known_node_aspects();
 }

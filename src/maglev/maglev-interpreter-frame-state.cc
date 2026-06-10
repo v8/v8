@@ -113,8 +113,8 @@ void MergePointInterpreterFrameState::set_is_resumable_loop(Graph* graph) {
 
 // static
 MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
-    const InterpreterFrameState& start_state, const MaglevGraphBuilder* builder,
-    const MaglevCompilationUnit& info, int merge_offset, int predecessor_count,
+    const InterpreterFrameState& start_state, const MaglevCompilationUnit& info,
+    bool is_inline, Graph* graph, int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
     const compiler::LoopInfo* loop_info, bool has_been_peeled) {
   MergePointInterpreterFrameState* state =
@@ -126,7 +126,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
   state->loop_metadata_ = LoopMetadata{loop_info, nullptr};
-  if (loop_info->resumable() && !builder->is_inline()) {
+  if (loop_info->resumable() && !is_inline) {
     // Note that inlined loops are never resumable:
     //
     //  - for generators, we only inline the part of the function that sets up
@@ -140,7 +140,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
     //  non-inlined version of the function.
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
-    state->set_is_resumable_loop(builder->graph());
+    state->set_is_resumable_loop(graph);
   }
   auto& assignments = loop_info->assignments();
   auto& frame_state = state->frame_state_;
@@ -276,11 +276,6 @@ void PrintAfterMerge(Graph* graph, bool is_tracing, ValueNode* merged_value,
 }
 }  // namespace
 
-void MergePointInterpreterFrameState::Merge(MaglevGraphBuilder* builder,
-                                            InterpreterFrameState& unmerged,
-                                            BasicBlock* predecessor) {
-  Merge(builder, *builder->compilation_unit(), unmerged, predecessor);
-}
 
 void MergePointInterpreterFrameState::MergePhis(
     Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
@@ -299,13 +294,6 @@ void MergePointInterpreterFrameState::MergePhis(
       });
 }
 
-void MergePointInterpreterFrameState::MergePhis(
-    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    InterpreterFrameState& unmerged, BasicBlock* predecessor,
-    bool optimistic_loop_phis) {
-  MergePhis(builder->graph(), builder->is_tracing(), compilation_unit, unmerged,
-            predecessor, optimistic_loop_phis);
-}
 
 void MergePointInterpreterFrameState::MergeVirtualObject(
     Graph* graph, bool is_tracing, const VirtualObjectList unmerged_vos,
@@ -337,7 +325,8 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
 }
 
 void MergePointInterpreterFrameState::MergeVirtualObjects(
-    Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
+    Graph* graph, bool is_tracing,
+    const MaglevCompilationUnit& compilation_unit,
     const KnownNodeAspects& unmerged_aspects) {
   if (known_node_aspects_->virtual_objects().is_empty()) return;
 
@@ -407,18 +396,11 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
   }
 }
 
-void MergePointInterpreterFrameState::MergeVirtualObjects(
-    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    const KnownNodeAspects& unmerged_aspects) {
-  MergeVirtualObjects(builder->graph(), builder->is_tracing(), compilation_unit,
-                      unmerged_aspects);
-}
-
 void MergePointInterpreterFrameState::InitializeLoop(
-    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
+    Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& unmerged, BasicBlock* predecessor,
-    compiler::ScopeInfoRef context_scope_info, bool optimistic_initial_state,
-    LoopEffects* loop_effects) {
+    compiler::OptionalScopeInfoRef context_scope_info,
+    bool optimistic_initial_state, LoopEffects* loop_effects) {
   DCHECK(is_unmerged_loop());
   context_scope_info_ = context_scope_info;
   DCHECK_IMPLIES(optimistic_initial_state,
@@ -431,13 +413,13 @@ void MergePointInterpreterFrameState::InitializeLoop(
   DCHECK(is_unmerged_loop());
   DCHECK_EQ(predecessors_so_far_, 0);
   known_node_aspects_ = unmerged.known_node_aspects()->CloneForLoopHeader(
-      optimistic_initial_state, loop_effects, builder->zone());
+      optimistic_initial_state, loop_effects, graph->zone());
   unmerged.virtual_objects().Snapshot();
-  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Initializing "
                           << (optimistic_initial_state ? "optimistic " : "")
                           << "loop state...");
-  MergePhis(builder, compilation_unit, unmerged, predecessor,
+  MergePhis(graph, is_tracing, compilation_unit, unmerged, predecessor,
             optimistic_initial_state);
 
   predecessors_so_far_ = 1;
@@ -451,32 +433,22 @@ void MergePointInterpreterFrameState::InitializeWithBasicBlock(
 }
 
 void MergePointInterpreterFrameState::Merge(
-    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    InterpreterFrameState& unmerged, BasicBlock* predecessor) {
+    Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
+    InterpreterFrameState& unmerged, BasicBlock* predecessor,
+    compiler::OptionalScopeInfoRef context_scope_info) {
   DCHECK_GT(predecessor_count_, 1);
   DCHECK_LT(predecessors_so_far_, predecessor_count_);
 
+  predecessors_[predecessors_so_far_] = predecessor;
+
   if (known_node_aspects_ == nullptr) {
-    predecessors_[predecessors_so_far_] = predecessor;
-    return InitializeLoop(builder, compilation_unit, unmerged, predecessor,
-                          builder->GetCurrentScopeInfo());
+    return InitializeLoop(graph, is_tracing, compilation_unit, unmerged,
+                          predecessor, context_scope_info);
   }
 
   if (!has_context_scope_info()) {
-    set_context_scope_info(builder->GetCurrentScopeInfo());
+    set_context_scope_info(context_scope_info);
   }
-
-  Merge(builder->graph(), builder->is_tracing(), compilation_unit, unmerged,
-        predecessor);
-}
-
-void MergePointInterpreterFrameState::Merge(
-    Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
-    InterpreterFrameState& unmerged, BasicBlock* predecessor) {
-  DCHECK_GT(predecessor_count_, 1);
-  DCHECK_LT(predecessors_so_far_, predecessor_count_);
-  DCHECK_NOT_NULL(known_node_aspects_);
-  predecessors_[predecessors_so_far_] = predecessor;
 
   known_node_aspects_->Merge(*unmerged.known_node_aspects(), graph->zone());
   if (V8_UNLIKELY(is_tracing)) {
@@ -494,33 +466,26 @@ void MergePointInterpreterFrameState::Merge(
 }
 
 void MergePointInterpreterFrameState::MergeLoop(
-    MaglevGraphBuilder* builder, InterpreterFrameState& loop_end_state,
-    BasicBlock* loop_end_block) {
-  MergeLoop(builder, *builder->compilation_unit(), loop_end_state,
-            loop_end_block);
-}
-
-void MergePointInterpreterFrameState::MergeLoop(
-    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block) {
+    Graph* graph, bool is_tracing, MaglevCompilationUnit& compilation_unit,
+    InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block,
+    DeoptFrame* backedge_deopt_frame) {
   // This should be the last predecessor we try to merge.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
+  backedge_deopt_frame_ = backedge_deopt_frame;
 
-  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kInfo << "Merging loop backedge...");
-  frame_state_.ForEachValue(
-      compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(builder->graph(), builder->is_tracing(), value,
-                         loop_end_state.get(reg), reg, known_node_aspects_);
-        MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
-                       value, loop_end_state.get(reg));
-        PrintAfterMerge(builder->graph(), builder->is_tracing(), value,
-                        known_node_aspects_);
-      });
+  frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
+                                                  interpreter::Register reg) {
+    PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
+                     known_node_aspects_);
+    MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
+                   value, loop_end_state.get(reg));
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+  });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
 
@@ -542,15 +507,16 @@ void MergePointInterpreterFrameState::MergeLoop(
 }
 
 bool MergePointInterpreterFrameState::TryMergeLoop(
-    MaglevGraphBuilder* builder, InterpreterFrameState& loop_end_state,
-    const std::function<BasicBlock*()>& FinishBlock) {
+    compiler::JSHeapBroker* broker, Graph* graph, bool is_tracing,
+    MaglevCompilationUnit& compilation_unit,
+    InterpreterFrameState& loop_end_state,
+    const std::function<BasicBlock*()>& FinishBlock,
+    DeoptFrame* backedge_deopt_frame) {
   // This should be the last predecessor we try to merge.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
 
-  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
-
-  auto& compilation_unit = *builder->compilation_unit();
+  backedge_deopt_frame_ = backedge_deopt_frame;
 
   DCHECK_NOT_NULL(known_node_aspects_);
   DCHECK(v8_flags.maglev_optimistic_peeled_loops);
@@ -558,7 +524,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   // TODO(olivf): This could be done faster by consulting loop_effects_
   if (!loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
           *known_node_aspects_)) {
-    const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+    const MaglevCompilationInfo* info = compilation_unit.info();
     TRACE(TraceColor::kRed << "Merging failed, peeling loop instead... ");
     ClearLoopInfo();
     return false;
@@ -571,15 +537,14 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     Phi* phi = value->Cast<Phi>();
     if (!phi->is_loop_phi()) return;
     if (phi->merge_state() != this) return;
-    NodeType old_type =
-        known_node_aspects_->GetTypeUnchecked(builder->broker(), phi);
+    NodeType old_type = known_node_aspects_->GetTypeUnchecked(broker, phi);
     if (old_type != NodeType::kUnknown) {
       NodeType new_type = loop_end_state.known_node_aspects()->GetTypeUnchecked(
-          builder->broker(), loop_end_state.get(reg));
+          broker, loop_end_state.get(reg));
       // TODO(428667907): Ideally we should bail out early for the kNone type.
       if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
         if (v8_flags.trace_maglev_loop_speeling) {
-          TraceLogger(builder->tracer())
+          TraceLogger(Tracer(compilation_unit.info()))
               << "Cannot merge " << new_type << " into " << old_type << " for r"
               << reg.index();
         }
@@ -597,17 +562,16 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   loop_end_block->set_predecessor_id(input);
   predecessors_[input] = loop_end_block;
 
-  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  const MaglevCompilationInfo* info = compilation_unit.info();
   TRACE(TraceColor::kRed << "Next peeling not needed due to compatible state.")
-  frame_state_.ForEachValue(
-      compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(builder->graph(), builder->is_tracing(), value,
-                         loop_end_state.get(reg), reg, known_node_aspects_);
-        MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
-                       value, loop_end_state.get(reg));
-        PrintAfterMerge(builder->graph(), builder->is_tracing(), value,
-                        known_node_aspects_);
-      });
+  frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
+                                                  interpreter::Register reg) {
+    PrintBeforeMerge(graph, is_tracing, value, loop_end_state.get(reg), reg,
+                     known_node_aspects_);
+    MergeLoopValue(graph, is_tracing, reg, *loop_end_state.known_node_aspects(),
+                   value, loop_end_state.get(reg));
+    PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
+  });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
   ClearLoopInfo();
@@ -628,48 +592,43 @@ const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
 }
 
 void MergePointInterpreterFrameState::MergeThrow(
-    MaglevGraphBuilder* builder, const MaglevCompilationUnit* handler_unit,
-    const KnownNodeAspects& known_node_aspects) {
+    Graph* graph, bool is_tracing, const InterpreterFrameState& builder_frame,
+    const MaglevCompilationUnit* handler_unit) {
   // We don't count total predecessors on exception handlers, but we do want to
   // special case the first predecessor so we do count predecessors_so_far
   DCHECK_EQ(predecessor_count_, 0);
   DCHECK(is_exception_handler());
 
-  DCHECK_EQ(builder->compilation_unit(), handler_unit);
+  const KnownNodeAspects& known_node_aspects =
+      *builder_frame.known_node_aspects();
 
-  const InterpreterFrameState& builder_frame =
-      builder->current_interpreter_frame();
-
-  const MaglevCompilationInfo* info = builder->compilation_unit()->info();
+  const MaglevCompilationInfo* info = handler_unit->info();
   TRACE(TraceColor::kInfo << "Merging into exception handler @" << this);
   PrintVirtualObjects(info, known_node_aspects.virtual_objects());
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
-    known_node_aspects_ = known_node_aspects.Clone(builder->zone());
+    known_node_aspects_ = known_node_aspects.Clone(graph->zone());
   } else {
-    known_node_aspects_->Merge(known_node_aspects, builder->zone());
-    MergeVirtualObjects(builder, *builder->compilation_unit(),
-                        known_node_aspects);
+    known_node_aspects_->Merge(known_node_aspects, graph->zone());
+    MergeVirtualObjects(graph, is_tracing, *handler_unit, known_node_aspects);
   }
 
   frame_state_.ForEachParameter(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(builder->graph(), builder->is_tracing(), value,
-                         builder_frame.get(reg), reg, known_node_aspects_);
-        value = MergeValue(builder, reg, known_node_aspects, value,
+        PrintBeforeMerge(graph, is_tracing, value, builder_frame.get(reg), reg,
+                         known_node_aspects_);
+        value = MergeValue(graph, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(builder->graph(), builder->is_tracing(), value,
-                        known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
       });
   frame_state_.ForEachLocal(
       *handler_unit, [&](ValueNode*& value, interpreter::Register reg) {
-        PrintBeforeMerge(builder->graph(), builder->is_tracing(), value,
-                         builder_frame.get(reg), reg, known_node_aspects_);
-        value = MergeValue(builder, reg, known_node_aspects, value,
+        PrintBeforeMerge(graph, is_tracing, value, builder_frame.get(reg), reg,
+                         known_node_aspects_);
+        value = MergeValue(graph, reg, known_node_aspects, value,
                            builder_frame.get(reg), nullptr);
-        PrintAfterMerge(builder->graph(), builder->is_tracing(), value,
-                        known_node_aspects_);
+        PrintAfterMerge(graph, is_tracing, value, known_node_aspects_);
       });
 
   // Pick out the context value from the incoming registers.
@@ -677,14 +636,13 @@ void MergePointInterpreterFrameState::MergeThrow(
   // the identity for generator-restored context. If generator value restores
   // were handled differently, we could avoid emitting a Phi here.
   ValueNode*& context = frame_state_.context(*handler_unit);
-  PrintBeforeMerge(builder->graph(), builder->is_tracing(), context,
+  PrintBeforeMerge(graph, is_tracing, context,
                    builder_frame.get(catch_block_context_register_),
                    catch_block_context_register_, known_node_aspects_);
   context = MergeValue(
-      builder, catch_block_context_register_, known_node_aspects, context,
+      graph, catch_block_context_register_, known_node_aspects, context,
       builder_frame.get(catch_block_context_register_), nullptr);
-  PrintAfterMerge(builder->graph(), builder->is_tracing(), context,
-                  known_node_aspects_);
+  PrintAfterMerge(graph, is_tracing, context, known_node_aspects_);
 
   predecessors_so_far_++;
 }
@@ -829,15 +787,6 @@ NodeType MergePointInterpreterFrameState::AlternativeType(
     const Alternatives* alt) {
   if (!alt) return NodeType::kUnknown;
   return alt->node_type();
-}
-
-ValueNode* MergePointInterpreterFrameState::MergeValue(
-    const MaglevGraphBuilder* builder, interpreter::Register owner,
-    const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-    ValueNode* unmerged, Alternatives::List* per_predecessor_alternatives,
-    bool optimistic_loop_phis) {
-  return MergeValue(builder->graph(), owner, unmerged_aspects, merged, unmerged,
-                    per_predecessor_alternatives, optimistic_loop_phis);
 }
 
 ValueNode* MergePointInterpreterFrameState::MergeValue(
@@ -1093,7 +1042,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
 }
 
 void MergePointInterpreterFrameState::MergeLoopValue(
-    MaglevGraphBuilder* builder, interpreter::Register owner,
+    Graph* graph, bool is_tracing, interpreter::Register owner,
     const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
     ValueNode* unmerged) {
   Phi* result = merged->TryCast<Phi>();
@@ -1103,8 +1052,8 @@ void MergePointInterpreterFrameState::MergeLoopValue(
   }
   DCHECK_EQ(result->owner(), owner);
   NodeType unmerged_type =
-      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
-  unmerged = EnsureTagged(builder->graph(), unmerged_aspects, unmerged,
+      unmerged_aspects.GetTypeUnchecked(graph->broker(), unmerged);
+  unmerged = EnsureTagged(graph, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
 

@@ -28,7 +28,6 @@ namespace maglev {
 
 class BasicBlock;
 class Graph;
-class MaglevGraphBuilder;
 class MergePointInterpreterFrameState;
 struct LoopEffects;
 
@@ -307,7 +306,7 @@ class MergePointInterpreterFrameState {
 
   static MergePointInterpreterFrameState* NewForLoop(
       const InterpreterFrameState& start_state,
-      const MaglevGraphBuilder* builder, const MaglevCompilationUnit& info,
+      const MaglevCompilationUnit& info, bool is_inline, Graph* graph,
       int merge_offset, int predecessor_count,
       const compiler::BytecodeLivenessState* liveness,
       const compiler::LoopInfo* loop_info, bool has_been_peeled = false);
@@ -318,7 +317,6 @@ class MergePointInterpreterFrameState {
       bool was_used, interpreter::Register context_register, Graph* graph,
       compiler::OptionalScopeInfoRef context_scope_info);
 
-  // Merges an unmerged framestate with a possibly merged framestate into |this|
   compiler::OptionalScopeInfoRef context_scope_info() const {
     return context_scope_info_;
   }
@@ -327,45 +325,41 @@ class MergePointInterpreterFrameState {
   }
   void set_context_scope_info(compiler::OptionalScopeInfoRef scope_info);
 
+  // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void Merge(MaglevGraphBuilder* graph_builder, InterpreterFrameState& unmerged,
-             BasicBlock* predecessor);
-  void Merge(MaglevGraphBuilder* graph_builder,
-             MaglevCompilationUnit& compilation_unit,
-             InterpreterFrameState& unmerged, BasicBlock* predecessor);
   void Merge(Graph* graph, bool is_tracing,
              MaglevCompilationUnit& compilation_unit,
-             InterpreterFrameState& unmerged, BasicBlock* predecessor);
-  void InitializeLoop(MaglevGraphBuilder* graph_builder,
+             InterpreterFrameState& unmerged, BasicBlock* predecessor,
+             compiler::OptionalScopeInfoRef context_scope_info);
+  void InitializeLoop(Graph* graph, bool is_tracing,
                       MaglevCompilationUnit& compilation_unit,
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
-                      compiler::ScopeInfoRef context_scope_info,
+                      compiler::OptionalScopeInfoRef context_scope_info,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
   void InitializeWithBasicBlock(BasicBlock* current_block);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void MergeLoop(MaglevGraphBuilder* graph_builder,
-                 InterpreterFrameState& loop_end_state,
-                 BasicBlock* loop_end_block);
-  void MergeLoop(MaglevGraphBuilder* graph_builder,
+  void MergeLoop(Graph* graph, bool is_tracing,
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& loop_end_state,
-                 BasicBlock* loop_end_block);
+                 BasicBlock* loop_end_block, DeoptFrame* backedge_deopt_frame);
   void set_loop_effects(LoopEffects* loop_effects);
   const LoopEffects* loop_effects();
   // Merges a frame-state that might not be mergable, in which case we need to
   // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
-  bool TryMergeLoop(MaglevGraphBuilder* graph_builder,
+  bool TryMergeLoop(compiler::JSHeapBroker* broker, Graph* graph,
+                    bool is_tracing, MaglevCompilationUnit& compilation_unit,
                     InterpreterFrameState& loop_end_state,
-                    const std::function<BasicBlock*()>& FinishBlock);
+                    const std::function<BasicBlock*()>& FinishBlock,
+                    DeoptFrame* backedge_deopt_frame);
 
   // Merges an unmerged framestate into a possibly merged framestate at the
   // start of the target catchblock.
-  void MergeThrow(MaglevGraphBuilder* handler_builder,
-                  const MaglevCompilationUnit* handler_unit,
-                  const KnownNodeAspects& known_node_aspects);
+  void MergeThrow(Graph* graph, bool is_tracing,
+                  const InterpreterFrameState& builder_frame,
+                  const MaglevCompilationUnit* handler_unit);
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
@@ -563,18 +557,8 @@ class MergePointInterpreterFrameState {
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& unmerged, BasicBlock* predecessor,
                  bool optimistic_loop_phis);
-  void MergePhis(MaglevGraphBuilder* builder,
-                 MaglevCompilationUnit& compilation_unit,
-                 InterpreterFrameState& unmerged, BasicBlock* predecessor,
-                 bool optimistic_loop_phis);
 
   ValueNode* MergeValue(Graph* graph, interpreter::Register owner,
-                        const KnownNodeAspects& unmerged_aspects,
-                        ValueNode* merged, ValueNode* unmerged,
-                        Alternatives::List* per_predecessor_alternatives,
-                        bool optimistic_loop_phis = false);
-  ValueNode* MergeValue(const MaglevGraphBuilder* builder,
-                        interpreter::Register owner,
                         const KnownNodeAspects& unmerged_aspects,
                         ValueNode* merged, ValueNode* unmerged,
                         Alternatives::List* per_predecessor_alternatives,
@@ -583,10 +567,7 @@ class MergePointInterpreterFrameState {
   void ReducePhiPredecessorCount(unsigned num);
 
   void MergeVirtualObjects(Graph* graph, bool is_tracing,
-                           MaglevCompilationUnit& compilation_unit,
-                           const KnownNodeAspects& unmerged_aspects);
-  void MergeVirtualObjects(MaglevGraphBuilder* builder,
-                           MaglevCompilationUnit& compilation_unit,
+                           const MaglevCompilationUnit& compilation_unit,
                            const KnownNodeAspects& unmerged_aspects);
 
   void MergeVirtualObject(Graph* graph, bool is_tracing,
@@ -598,7 +579,7 @@ class MergePointInterpreterFrameState {
       Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
       ValueNode* unmerged);
 
-  void MergeLoopValue(MaglevGraphBuilder* graph_builder,
+  void MergeLoopValue(Graph* graph, bool is_tracing,
                       interpreter::Register owner,
                       const KnownNodeAspects& unmerged_aspects,
                       ValueNode* merged, ValueNode* unmerged);
@@ -687,15 +668,6 @@ struct LoopEffects {
   }
 };
 
-inline VirtualObjectList DeoptFrame::GetVirtualObjects() const {
-  if (type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    // Recover virtual object list using the last object before the
-    // deopt frame creation.
-    return VirtualObjectList(as_interpreted().last_virtual_object());
-  }
-  DCHECK_NOT_NULL(parent());
-  return parent()->GetVirtualObjects();
-}
 
 }  // namespace maglev
 }  // namespace internal

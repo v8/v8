@@ -6254,6 +6254,16 @@ class VirtualObjectList {
   VirtualObject* head_;
 };
 
+inline VirtualObjectList DeoptFrame::GetVirtualObjects() const {
+  if (type() == DeoptFrame::FrameType::kInterpretedFrame) {
+    // Recover virtual object list using the last object before the
+    // deopt frame creation.
+    return VirtualObjectList(as_interpreted().last_virtual_object());
+  }
+  DCHECK_NOT_NULL(parent());
+  return parent()->GetVirtualObjects();
+}
+
 enum class EscapeAnalysisResult {
   kUnknown,
   kElided,
