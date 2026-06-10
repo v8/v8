@@ -58,6 +58,13 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder(
+        name = "V8 Linux64 - Fuzzilli - builder",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        notify_owners = ["saelo@google.com", "cffsmith@google.com"],
+        notifies = ["blamelist"],
+    ),
+    experiment_builder(
         name = "V8 Linux64 - sticky mark bits - debug",
         parent_builder = "V8 Linux64 - sticky mark bits - debug builder",
         notify_owners = ["bikineev@chromium.org", "omerkatz@chromium.org"],
