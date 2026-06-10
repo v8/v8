@@ -15,6 +15,7 @@
 #include "src/base/float16.h"
 #include "src/base/ieee754.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
@@ -1194,7 +1195,13 @@ wasm::StackMemory* find_wasmfx_handler_stack(Isolate* isolate,
     // Get the handler table and search for a matching tag.
     WasmCode* wasm_code = to->wasm_code();
     DCHECK_NOT_NULL(wasm_code);
-
+    // Establish a release-acquire relationship with
+    // NativeModule::PublishCodeLocked. Although hardware synchronization is
+    // guaranteed transitively via the instruction cache flushing barriers (or
+    // x64 TSO) when publishing JIT code, C++ compilers and TSan do not
+    // understand this JIT-to-C++ data flow and report a false positive data
+    // race.
+    TSAN_ACQUIRE(wasm_code);
     base::Vector<const uint8_t> effect_handlers = wasm_code->effect_handlers();
     Tagged<Object> trusted_instance_data_obj(base::Memory<Address>(
         target_fp + WasmFrameConstants::kWasmInstanceDataOffset));

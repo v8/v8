@@ -17,6 +17,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
 #include "src/base/vector.h"
@@ -1517,6 +1518,12 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
   }
 
   WasmCode* code = owned_code.get();
+  // Establish a release-acquire relationship with find_wasmfx_handler_stack.
+  // Although hardware synchronization is guaranteed transitively via the
+  // instruction cache flushing barriers (or x64 TSO) when publishing JIT code,
+  // C++ compilers and TSan do not understand this JIT-to-C++ data flow and
+  // report a false positive data race.
+  TSAN_RELEASE(code);
   new_owned_code_.emplace_back(std::move(owned_code));
   DCHECK_NULL(owned_code);
 
