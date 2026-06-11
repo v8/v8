@@ -1645,6 +1645,46 @@ class JSUint8ArraySetFromResult : public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSUint8ArraySetFromResult);
 };
 
+V8_OBJECT class JSInternalPrototypeBase : public JSObject {
+} V8_OBJECT_END;
+V8_OBJECT class JSObjectPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSRegExpPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSPromisePrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSTypedArrayPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSSetPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSIteratorPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSArrayIteratorPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSMapIteratorPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSSetIteratorPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+V8_OBJECT class JSStringIteratorPrototype : public JSInternalPrototypeBase {
+} V8_OBJECT_END;
+
+V8_OBJECT class JSApiObject : public JSAPIObjectWithEmbedderSlots {
+} V8_OBJECT_END;
+// TODO(jgruber): This only exists to widen the JSApiObject instance type into
+// the embedder-reservable range [kFirstJSApiObjectType, kLastJSApiObjectType],
+// by pinning the upper bound at kLastJSApiObjectType. Removing it requires a
+// way to reserve an arbitrary-width instance type range for a childless class
+// in the instance type generator.
+V8_OBJECT class JSLastDummyApiObject : public JSApiObject {
+} V8_OBJECT_END;
+V8_OBJECT class JSSpecialApiObject : public JSSpecialObject {
+} V8_OBJECT_END;
+
+V8_OBJECT class JSContextExtensionObject : public JSObject {
+} V8_OBJECT_END;
+V8_OBJECT class JSError : public JSObject {
+} V8_OBJECT_END;
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

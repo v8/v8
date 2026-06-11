@@ -9,6 +9,7 @@
 #include "include/v8-typed-array.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/sandbox/external-pointer.h"
 #include "torque-generated/bit-fields.h"
@@ -645,6 +646,34 @@ V8_OBJECT class JSRabGsabDataView : public JSDataViewOrRabGsabDataView {
 
   inline size_t GetByteLength() const;
   inline bool IsOutOfBounds() const;
+} V8_OBJECT_END;
+
+V8_OBJECT class TypedArrayConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
+V8_OBJECT class Uint8TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Int8TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Uint16TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Int16TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Uint32TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Int32TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Float16TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Float32TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Float64TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Uint8ClampedTypedArrayConstructor
+    : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Biguint64TypedArrayConstructor : public TypedArrayConstructor {
+} V8_OBJECT_END;
+V8_OBJECT class Bigint64TypedArrayConstructor : public TypedArrayConstructor {
 } V8_OBJECT_END;
 
 }  // namespace internal

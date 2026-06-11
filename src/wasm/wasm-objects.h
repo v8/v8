@@ -1174,7 +1174,7 @@ V8_OBJECT class WasmDispatchTableForImports : public TrustedObject {
 } V8_OBJECT_END;
 
 // A Wasm exception that has been thrown out of Wasm code.
-class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
+V8_OBJECT class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
   static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
@@ -1206,7 +1206,7 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmExceptionPackage);
-};
+} V8_OBJECT_END;
 
 void V8_EXPORT_PRIVATE
 EncodeI32ExceptionValue(DirectHandle<FixedArray> encoded_values,

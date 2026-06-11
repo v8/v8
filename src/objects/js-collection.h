@@ -45,7 +45,7 @@ V8_OBJECT class JSSet final : public JSCollection {
   DECL_VERIFIER(JSSet)
 } V8_OBJECT_END;
 
-V8_OBJECT class JSSetIterator final
+V8_OBJECT class JSSetIterator
     : public OrderedHashTableIterator<JSSetIterator, OrderedHashSet> {
  public:
   // Dispatched behavior.
@@ -65,7 +65,7 @@ V8_OBJECT class JSMap final : public JSCollection {
   DECL_VERIFIER(JSMap)
 } V8_OBJECT_END;
 
-V8_OBJECT class JSMapIterator final
+V8_OBJECT class JSMapIterator
     : public OrderedHashTableIterator<JSMapIterator, OrderedHashMap> {
  public:
   // Dispatched behavior.
@@ -124,6 +124,17 @@ V8_OBJECT class JSWeakSet final : public JSWeakCollection {
   // Dispatched behavior.
   DECL_PRINTER(JSWeakSet)
   DECL_VERIFIER(JSWeakSet)
+} V8_OBJECT_END;
+
+V8_OBJECT class JSMapKeyIterator : public JSMapIterator {
+} V8_OBJECT_END;
+V8_OBJECT class JSMapKeyValueIterator : public JSMapIterator {
+} V8_OBJECT_END;
+V8_OBJECT class JSMapValueIterator : public JSMapIterator {
+} V8_OBJECT_END;
+V8_OBJECT class JSSetKeyValueIterator : public JSSetIterator {
+} V8_OBJECT_END;
+V8_OBJECT class JSSetValueIterator : public JSSetIterator {
 } V8_OBJECT_END;
 
 }  // namespace internal

@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // [4 + number of transitions * kTransitionSize]: start of slack
 // TODO(olivf): The slots for prototype transitions and side-steps could be
 // shared.
-class TransitionArray : public WeakFixedArray {
+V8_OBJECT class TransitionArray : public WeakFixedArray {
  public:
   // Do linear search for small arrays, and for searches in the background
   // thread.
@@ -474,7 +474,7 @@ class TransitionArray : public WeakFixedArray {
 
   inline Tagged<WeakFixedArray> GetSideStepTransitions();
   inline void SetSideStepTransitions(Tagged<WeakFixedArray> transitions);
-};
+} V8_OBJECT_END;
 
 }  // namespace v8::internal
 

@@ -772,7 +772,26 @@ inline constexpr int Context::SlotOffset(int index) {
   return OffsetOfElementAt(index) - kHeapObjectTag;
 }
 
-class NativeContext : public Context {
+V8_OBJECT class AwaitContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class BlockContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class CatchContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class DebugEvaluateContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class EvalContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class ModuleContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class ScriptContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class WithContext : public Context {
+} V8_OBJECT_END;
+V8_OBJECT class FunctionContext : public Context {
+} V8_OBJECT_END;
+
+V8_OBJECT class NativeContext : public Context {
  public:
   // TODO(neis): Move some stuff from Context here.
 
@@ -858,12 +877,12 @@ class NativeContext : public Context {
  private:
   static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
-};
-
+} V8_OBJECT_END;
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
-class ScriptContextTable : public TaggedArrayBase<ScriptContextTable, Context> {
+V8_OBJECT class ScriptContextTable
+    : public TaggedArrayBase<ScriptContextTable, Context> {
   using Super = TaggedArrayBase<ScriptContextTable, Context>;
 
  public:
@@ -919,7 +938,7 @@ class ScriptContextTable : public TaggedArrayBase<ScriptContextTable, Context> {
   uint32_t length_;
   TaggedMember<NameToIndexHashTable> names_to_context_index_;
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
-};
+} V8_OBJECT_END;
 
 using ContextField = Context::Field;
 

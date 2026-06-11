@@ -121,7 +121,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   }
 };
 
-template <typename Derived, typename ShapeT>
+V8_OBJECT template <typename Derived, typename ShapeT>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
     : public HashTableBase {
  public:
@@ -305,7 +305,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                               InternalIndex expected);
 
   void Swap(InternalIndex entry1, InternalIndex entry2, WriteBarrierMode mode);
-};
+} V8_OBJECT_END;
 
 #define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                             \
   extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)            \
@@ -472,7 +472,7 @@ EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
 // by the GC. The GC treats its entries as ephemerons: both key and value are
 // weak references, however if the key is strongly reachable its corresponding
 // value is also kept alive.
-class V8_EXPORT_PRIVATE EphemeronHashTable
+V8_OBJECT class V8_EXPORT_PRIVATE EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
  public:
   static inline Handle<Map> GetMap(RootsTable& roots);
@@ -488,7 +488,7 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
   friend class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
   inline void set_key(int index, Tagged<Object> value);
   inline void set_key(int index, Tagged<Object> value, WriteBarrierMode mode);
-};
+} V8_OBJECT_END;
 
 // ObjectMultihashTable is a hash table that maps Object keys to N Object
 // values. The Object values are stored inline in the underlying FixedArray.
@@ -528,8 +528,7 @@ class ObjectMultiHashTableBase
 };
 
 class ObjectTwoHashTable
-    : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {
-};
+    : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {};
 
 class ObjectHashSetShape : public ObjectHashTableShape {
  public:
@@ -563,7 +562,7 @@ class NameToIndexShape : public BaseShape<Tagged<Name>> {
   static const uint32_t kHashBits = 0;
 };
 
-class V8_EXPORT_PRIVATE NameToIndexHashTable
+V8_OBJECT class V8_EXPORT_PRIVATE NameToIndexHashTable
     : public HashTable<NameToIndexHashTable, NameToIndexShape> {
  public:
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
@@ -591,7 +590,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   static inline int EntryToValueIndex(InternalIndex entry) {
     return EntryToIndex(entry) + NameToIndexShape::kEntryValueIndex;
   }
-};
+} V8_OBJECT_END;
 
 class RegisteredSymbolTableShape : public BaseShape<DirectHandle<String>> {
  public:
@@ -607,7 +606,7 @@ class RegisteredSymbolTableShape : public BaseShape<DirectHandle<String>> {
   static const uint32_t kHashBits = 0;
 };
 
-class RegisteredSymbolTable
+V8_OBJECT class RegisteredSymbolTable
     : public HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape> {
  public:
   Tagged<Object> SlowReverseLookup(Tagged<Object> value);
@@ -628,7 +627,7 @@ class RegisteredSymbolTable
   static inline int EntryToValueIndex(InternalIndex entry) {
     return EntryToIndex(entry) + RegisteredSymbolTableShape::kEntryValueIndex;
   }
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

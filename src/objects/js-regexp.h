@@ -389,6 +389,9 @@ V8_OBJECT class JSRegExpResultIndices : public JSArray {
   static constexpr int kGroupsDescriptorIndex = 1;
 } V8_OBJECT_END;
 
+V8_OBJECT class JSRegExpConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

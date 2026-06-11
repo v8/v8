@@ -8,6 +8,7 @@
 #include "include/v8-promise.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
 #include "torque-generated/bit-fields.h"
@@ -120,6 +121,9 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
                                                 DirectHandle<Object> reactions,
                                                 DirectHandle<Object> argument,
                                                 PromiseReaction::Type type);
+} V8_OBJECT_END;
+
+V8_OBJECT class JSPromiseConstructor : public JSFunctionWithPrototype {
 } V8_OBJECT_END;
 
 }  // namespace internal

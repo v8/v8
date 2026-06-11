@@ -7,6 +7,7 @@
 
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -219,6 +220,9 @@ V8_OBJECT class TemplateLiteralObject : public JSArray {
 
 inline constexpr int TemplateLiteralObject::kHeaderSize =
     sizeof(TemplateLiteralObject);
+
+V8_OBJECT class JSArrayConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

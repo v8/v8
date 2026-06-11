@@ -596,6 +596,9 @@ inline constexpr int JSFunctionWithPrototype::kHeaderSize =
 inline constexpr int JSFunctionWithPrototype::kMinSize =
     sizeof(JSFunctionWithPrototype);
 
+V8_OBJECT class JSClassConstructor : public JSFunctionWithPrototype {
+} V8_OBJECT_END;
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
