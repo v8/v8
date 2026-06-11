@@ -822,7 +822,7 @@ class LiftoffCompiler {
     DCHECK_IMPLIES(!for_debugging_, debug_sidetable_builder_ == nullptr);
 
     if (v8_flags.wasm_code_coverage) {
-      DCHECK_EQ(for_debugging_, kForDebugging);
+      DCHECK(for_debugging_);
       coverage_instrumentation_ =
           std::make_unique<WasmCoverageInstrumentation<FullDecoder>>(
               coverage_data);
