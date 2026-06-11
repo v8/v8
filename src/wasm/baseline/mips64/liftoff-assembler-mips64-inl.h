@@ -1748,9 +1748,29 @@ I64_BINOP_I(xor, Xor)
 I64_SHIFTOP_I(shl, dsll)
 I64_SHIFTOP_I(sar, dsra)
 I64_SHIFTOP_I(shr, dsrl)
+I64_SHIFTOP_I(ror, drotr)
 
 #undef I64_SHIFTOP
 #undef I64_SHIFTOP_I
+
+void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Dsubu(scratch, zero_reg, amount);
+  drotrv(dst.gp(), src.gp(), scratch);
+}
+
+void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
+                                     int32_t amount) {
+  int amount_ror = 64 - amount;
+  amount_ror &= 63;
+  if (amount_ror < 32) {
+    drotr(dst.gp(), src.gp(), amount_ror);
+  } else {
+    drotr32(dst.gp(), src.gp(), amount_ror - 32);
+  }
+}
 
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   Dext(dst, src, 0, 32);
