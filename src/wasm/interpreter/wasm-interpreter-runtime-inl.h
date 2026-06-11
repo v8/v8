@@ -235,7 +235,10 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
 
 inline DirectHandle<WasmTrustedInstanceData>
 WasmInterpreterRuntime::wasm_trusted_instance_data() const {
-  return direct_handle(instance_object_->trusted_data(isolate_), isolate_);
+  // Must be called from within a WasmInterpreterRuntime::InstanceScope so that
+  // the GC keeps the instance object alive for this access.
+  DCHECK(!current_instance_.is_null());
+  return direct_handle(current_instance_->trusted_data(isolate_), isolate_);
 }
 
 inline WasmInterpreterThread::State InterpreterHandle::ContinueExecution(

@@ -450,22 +450,6 @@ void WasmExecutionTimer::Terminate() {
 }
 
 namespace {
-void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  Address* global_handle_location =
-      reinterpret_cast<Address*>(data.GetParameter());
-  GlobalHandles::Destroy(global_handle_location);
-}
-
-IndirectHandle<WasmInstanceObject> MakeWeak(
-    Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object) {
-  Handle<WasmInstanceObject> weak_instance =
-      isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
-  Address* global_handle_location = weak_instance.location();
-  GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
-                          &NopFinalizer, v8::WeakCallbackType::kParameter);
-  return weak_instance;
-}
-
 std::optional<wasm::ValueType> GetWasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) return {};
@@ -737,11 +721,10 @@ WasmInterpreter::WasmInterpreter(
     const ModuleWireBytes& wire_bytes,
     DirectHandle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
-      instance_object_(MakeWeak(isolate, instance_object)),
       module_bytes_(wire_bytes.start(), wire_bytes.end(), &zone_),
       codemap_(isolate, module, module_bytes_.data(), &zone_) {
   wasm_runtime_ = std::make_shared<WasmInterpreterRuntime>(
-      module, isolate, instance_object_, &codemap_);
+      module, isolate, instance_object, &codemap_);
   module->SetWasmInterpreter(wasm_runtime_);
 
 #if !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)

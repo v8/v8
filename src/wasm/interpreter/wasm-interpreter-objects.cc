@@ -8,6 +8,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
+#include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -46,6 +47,12 @@ bool WasmInterpreterObject::RunInterpreter(
   DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
+  // Publish the currently-executing instance to the runtime so that
+  // wasm_trusted_instance_data() (and any cross-instance identity checks)
+  // always see the correct, GC-rooted instance.
+  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
+      handle->ptr()->interpreter()->GetWasmRuntime(), instance);
+
   return handle->ptr()->Execute(thread, frame_pointer,
                                 static_cast<uint32_t>(func_index),
                                 argument_values, return_values);
@@ -67,6 +74,10 @@ bool WasmInterpreterObject::RunInterpreter(
       WasmTrustedInstanceData::GetInterpreterObject(instance);
   DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetInterpreterHandle(isolate, interpreter_object);
+
+  // See comment in the other RunInterpreter overload above.
+  wasm::WasmInterpreterRuntime::InstanceScope instance_scope(
+      handle->ptr()->interpreter()->GetWasmRuntime(), instance);
 
   return handle->ptr()->Execute(
       thread, frame_pointer, static_cast<uint32_t>(func_index), interpreter_sp);

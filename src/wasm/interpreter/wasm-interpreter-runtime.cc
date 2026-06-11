@@ -327,13 +327,27 @@ IndirectFunctionTableEntry::IndirectFunctionTableEntry(
   DCHECK_LT(entry_index, table_->length());
 }
 
+WasmInterpreterRuntime::InstanceScope::InstanceScope(
+    WasmInterpreterRuntime* runtime, DirectHandle<WasmInstanceObject> instance)
+    : runtime_(runtime), previous_(runtime->current_instance_) {
+  DCHECK(!instance.is_null());
+  // Re-handlify into the current HandleScope so that GC keeps the instance
+  // alive for the lifetime of this scope, independent of how the caller
+  // obtained `instance`.
+  runtime->current_instance_ =
+      IndirectHandle<WasmInstanceObject>(*instance, runtime->isolate_);
+}
+
+WasmInterpreterRuntime::InstanceScope::~InstanceScope() {
+  runtime_->current_instance_ = previous_;
+}
+
 WasmInterpreterRuntime::WasmInterpreterRuntime(
     const WasmModule* module, Isolate* isolate,
-    IndirectHandle<WasmInstanceObject> instance_object,
+    DirectHandle<WasmInstanceObject> instance_object,
     WasmInterpreter::CodeMap* codemap)
     : isolate_(isolate),
       module_(module),
-      instance_object_(instance_object),
       codemap_(codemap),
       start_function_index_(UINT_MAX),
       trap_function_index_(-1),
@@ -349,6 +363,11 @@ WasmInterpreterRuntime::WasmInterpreterRuntime(
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 {
   DCHECK(v8_flags.wasm_jitless);
+
+  // Initialization touches wasm_trusted_instance_data(); publish the instance
+  // for the duration of these calls. The handle is rooted in the caller's
+  // (WasmInterpreter) HandleScope.
+  InstanceScope instance_scope(this, instance_object);
 
   InitMemoryAddresses();
   InitIndirectFunctionTables();
@@ -375,6 +394,9 @@ void WasmInterpreterRuntime::UpdateMemoryAddress(
   WasmInterpreterRuntime* wasm_runtime =
       handle->ptr()->interpreter()->GetWasmRuntime();
   DCHECK_LT(memory_index, wasm_runtime->module_->memories.size());
+
+  // Publish the instance for the duration of this call.
+  InstanceScope instance_scope(wasm_runtime, instance);
   wasm_runtime->InitMemoryAddresses();
 }
 
@@ -1423,14 +1445,15 @@ void WasmInterpreterRuntime::ExecuteImportedFunction(
   // Store a pointer to the current FrameState before leaving the current
   // Activation.
   current_frame_.current_bytecode_ = code;
+  // For tail calls, the caller's frame is being replaced, so its
+  // caught_exceptions_ GlobalHandle must be freed now to avoid leaking it.
+  if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
   thread->SetCurrentFrame(current_frame_);
   thread->SetCurrentActivationFrame(
       reinterpret_cast<uint32_t*>(current_frame_.current_sp_ + slot_offset),
       slot_offset, current_stack_size,
       current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
       ref_stack_fp_offset);
-
-  if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
 
   ExternalCallResult result = CallImportedFunction(
       code, func_index,
@@ -1811,6 +1834,9 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
       handle->ptr()->interpreter()->GetWasmRuntime();
+
+  // Publish the instance for the duration of this call.
+  InstanceScope instance_scope(wasm_runtime, instance);
   wasm_runtime->PurgeIndirectCallCache(table_index);
 }
 
@@ -1889,7 +1915,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
   if (!table[entry_index]) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-    IndirectFunctionTableEntry entry(instance_object_, table_index,
+    IndirectFunctionTableEntry entry(current_instance_, table_index,
                                      entry_index);
 
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
@@ -1900,7 +1926,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
           TrustedCast<WasmInstanceObject>(
               trusted_instance_object->instance_object()),
           isolate_);
-      if (instance_object_.is_identical_to(instance_object)) {
+      if (current_instance_.is_identical_to(instance_object)) {
         // Same-instance Wasm call.
         uint32_t func_index = entry.function_index();
         DCHECK(func_index != IndirectCallValue::kInvalidFunctionIndex);
@@ -1954,6 +1980,9 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     // Activation.
     WasmInterpreterThread* thread = this->thread();
     current_frame_.current_bytecode_ = current_code;
+    // For tail calls, the caller's frame is being replaced, so its
+    // caught_exceptions_ GlobalHandle must be freed now to avoid leaking it.
+    if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
     thread->SetCurrentFrame(current_frame_);
     thread->SetCurrentActivationFrame(
         sp, slot_offset, stack_pos,
@@ -1961,7 +1990,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
         ref_stack_fp_offset);
 
     // TODO(paolosev@microsoft.com): Optimize this code.
-    IndirectFunctionTableEntry entry(instance_object_, table_index,
+    IndirectFunctionTableEntry entry(current_instance_, table_index,
                                      entry_index);
     DirectHandle<Object> object_implicit_arg(entry.implicit_arg(), isolate_);
 
@@ -1969,8 +1998,6 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
     // so StoreRefArgsIntoStackSlots / StoreRefResultsIntoRefStack must always
     // walk the callsite signature to find ref positions.
     const FunctionSig* callsite_signature = module_->signature({sig_index});
-
-    if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
 
     if (IsWasmTrustedInstanceData(*object_implicit_arg)) {
       // Call Wasm function in a different instance.
@@ -2062,7 +2089,7 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   bool hasWasmInstance = IsWasmTrustedInstanceData(*object_implicit_arg);
   if (hasWasmInstance) {
     if (TrustedCast<WasmTrustedInstanceData>(object_implicit_arg)
-            ->instance_object() == *instance_object_) {
+            ->instance_object() == *current_instance_) {
       // InternalCall
       uint32_t function_index = internal->function_index();
       if (is_tail_call) {
@@ -2088,6 +2115,9 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   // Activation.
   WasmInterpreterThread* thread = this->thread();
   current_frame_.current_bytecode_ = current_code;
+  // For tail calls, the caller's frame is being replaced, so its
+  // caught_exceptions_ GlobalHandle must be freed now to avoid leaking it.
+  if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
   thread->SetCurrentFrame(current_frame_);
   thread->SetCurrentActivationFrame(
       sp, slot_offset, stack_pos,
@@ -2115,7 +2145,6 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     // Note that tail calls to host functions do not have to guarantee tail
     // behaviour, so it is ok to recursively allocate C++ stack frames here.
     uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
-    if (is_tail_call) current_frame_.DisposeCaughtExceptionsArray(isolate_);
     StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset, signature);
 
     // Use the callee's declared canonical signature for JS return-value
@@ -2647,7 +2676,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
     // cross-instance calls in the interpreter without recursively adding C++
     // stack frames.
 
-    DCHECK(*target_instance != *instance_object_);
+    DCHECK(*target_instance != *current_instance_);
     bool success = WasmInterpreterObject::RunInterpreter(
         isolate_, frame_pointer, target_instance, target_function_index, fp);
     if (success) {

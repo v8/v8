@@ -29,8 +29,31 @@ struct WasmTag;
 class WasmInterpreterRuntime {
  public:
   WasmInterpreterRuntime(const WasmModule* module, Isolate* isolate,
-                         IndirectHandle<WasmInstanceObject> instance_object,
+                         DirectHandle<WasmInstanceObject> instance_object,
                          WasmInterpreter::CodeMap* codemap);
+
+  // RAII scope that publishes the currently-executing WasmInstanceObject to the
+  // runtime for the duration of one C++ entry. The handle is rooted in the
+  // caller's HandleScope, so the GC keeps the instance alive while this scope
+  // is on the C++ stack. Nested scopes save/restore the previous instance,
+  // which is required for cross-instance call_indirect / re-entry.
+  //
+  // Every public method of WasmInterpreterRuntime that ultimately calls
+  // wasm_trusted_instance_data() must be invoked while an InstanceScope is
+  // active on this runtime (debug DCHECKs enforce this).
+  class V8_NODISCARD InstanceScope final {
+   public:
+    InstanceScope(WasmInterpreterRuntime* runtime,
+                  DirectHandle<WasmInstanceObject> instance);
+    ~InstanceScope();
+
+    InstanceScope(const InstanceScope&) = delete;
+    InstanceScope& operator=(const InstanceScope&) = delete;
+
+   private:
+    WasmInterpreterRuntime* const runtime_;
+    IndirectHandle<WasmInstanceObject> const previous_;
+  };
 
   inline WasmBytecode* GetFunctionBytecode(uint32_t func_index);
 
@@ -292,10 +315,10 @@ class WasmInterpreterRuntime {
   inline Address EffectiveAddress(uint32_t memory_index, uint64_t index) const;
 
   // Checks if [index, index+size) is in range [0, WasmMemSize), where
-  // WasmMemSize is the size of the Memory object associated to
-  // {instance_object_}. (Notice that only a single memory is supported).
+  // WasmMemSize is the size of the Wasm memory identified by {memory_index}
+  // in the currently-executing instance.
   // If not in range, {size} is clamped to its valid range.
-  // It in range, out_address contains the (virtual memory) address of the
+  // If in range, out_address contains the (virtual memory) address of the
   // {index}th memory location in the Wasm memory.
   inline bool BoundsCheckMemRange(uint32_t memory_index, uint64_t index,
                                   uint64_t* size, Address* out_address) const;
@@ -341,7 +364,25 @@ class WasmInterpreterRuntime {
 
   Isolate* isolate_;
   const WasmModule* module_;
-  IndirectHandle<WasmInstanceObject> instance_object_;
+  // Stack-published handle to the currently-executing WasmInstanceObject.
+  // Set by an InstanceScope on every C++ entry into the runtime and cleared
+  // on scope exit. We deliberately do NOT keep a global handle (weak or
+  // strong) to the instance here:
+  //   - A strong global handle would form a GC cycle through
+  //     WasmInstanceObject -> trusted_data -> interpreter_object ->
+  //     Managed<InterpreterHandle> -> WasmInterpreter ->
+  //     shared_ptr<WasmInterpreterRuntime> -> this handle, permanently
+  //     pinning every instance ever interpreted.
+  //   - A weak global handle (the previous design) is unsafe: when the
+  //     WasmInstanceObject is collected, the slot is freed and may be
+  //     reused by an unrelated global handle, turning every subsequent
+  //     access into a use-after-free that silently aliases another
+  //     instance's trusted data.
+  // The InstanceScope pattern avoids both problems: the handle is rooted
+  // in the calling C++ frame's HandleScope (which the GC scans), and the
+  // runtime never observes it between entries.
+  IndirectHandle<WasmInstanceObject> current_instance_;
+
   WasmInterpreter::CodeMap* codemap_;
 
   uint32_t start_function_index_;

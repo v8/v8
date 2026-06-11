@@ -3557,3 +3557,144 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   });
   assertEquals(42, instance.exports.main());
 })();
+
+// The WasmInterpreterRuntime previously held its WasmInstanceObject through a
+// weak global handle (with a no-op finalizer). When the instance was collected,
+// the handle slot was freed and could be reused by an unrelated
+// WasmInstanceObject.
+// Subsequent interpreter calls would silently dereference the wrong instance's
+// trusted_data, aliasing globals across instances and corrupting memory. The fix
+// replaces the weak handle with a stack-rooted InstanceScope published at every
+// C++ entry into the runtime.
+//
+// The outer module uses Wasm exception handling (try/throw/catch with
+// return_call in the catch handler) because the interpreter's exception
+// unwinding path is what leaves the runtime in the stale state.
+// The host import re-enters the first instance (read) and the outer instance
+// (nop) before throwing a JS exception, creating nested activations that
+// exercise the problematic cleanup path.
+(function testRegressInterpreterInstanceUaf() {
+  print(arguments.callee.name);
+
+  const TARGET_REF_SLOT = 3669;
+  const ATTACKER_REF_GLOBALS = 0;
+  const ATTEMPTS = 128;
+  const keepAlive = [];
+  const refPayload = {marker: 0x41414141};
+
+  function buildVictimModule(targetRefSlot) {
+    const builder = new WasmModuleBuilder();
+    builder.addGlobal(kWasmI32, true, false, wasmI32Const(123));
+    for (let i = 0; i < targetRefSlot; i++) {
+      builder.addGlobal(kWasmExternRef, true);
+    }
+    const sinkGlobalIndex = 1 + targetRefSlot;
+    builder.addGlobal(kWasmExternRef, true);
+
+    builder.addFunction('read', kSig_i_v)
+        .addBody([kExprGlobalGet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    builder.addFunction('write', kSig_v_i)
+        .addBody([kExprLocalGet, 0, kExprGlobalSet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    builder.addFunction('writeControlledRef', kSig_v_r)
+        .addBody([
+          kExprLocalGet, 0,
+          kExprGlobalSet, ...wasmUnsignedLeb(sinkGlobalIndex),
+        ])
+        .exportFunc();
+
+    return builder.toModule();
+  }
+
+  function buildAttackerModule(refGlobals) {
+    const builder = new WasmModuleBuilder();
+    builder.addGlobal(kWasmI32, true, false, wasmI32Const(456));
+    for (let i = 0; i < refGlobals; i++) {
+      builder.addGlobal(kWasmExternRef, true);
+    }
+    builder.addFunction('read', kSig_i_v)
+        .addBody([kExprGlobalGet, ...wasmUnsignedLeb(0)])
+        .exportFunc();
+    return builder.toModule();
+  }
+
+  function buildOuterModule() {
+    const builder = new WasmModuleBuilder();
+    const hostImport = builder.addImport('m', 'host', kSig_v_v);
+    const tag = builder.addTag(kSig_v_v);
+    builder.addFunction('nop', kSig_i_v)
+        .addBody([kExprI32Const, 7])
+        .exportFunc();
+    builder.addFunction('outer', kSig_v_v)
+        .addBody([
+          kExprTry, kWasmVoid,
+            kExprThrow, tag,
+          kExprCatch, tag,
+            kExprReturnCall, hostImport,
+          kExprEnd,
+        ])
+        .exportFunc();
+    return builder.toModule();
+  }
+
+  const outerModule = buildOuterModule();
+  const victimModule = buildVictimModule(TARGET_REF_SLOT);
+  const attackerModule = buildAttackerModule(ATTACKER_REF_GLOBALS);
+
+  function fail(message) {
+    throw new Error(message);
+  }
+
+  function triggerStaleCleanup(victim) {
+    let outer = null;
+
+    function host() {
+      const first = victim.exports.read();
+      if (first !== 123) fail("unexpected victim first read " + first);
+
+      const nop = outer.exports.nop();
+      if (nop !== 7) fail("unexpected nop result " + nop);
+
+      throw 13;
+    }
+
+    outer = new WebAssembly.Instance(outerModule, {m: {host}});
+    try {
+      outer.exports.outer();
+    } catch (_) {}
+  }
+
+  function runAttempt(attempt) {
+    const victim = new WebAssembly.Instance(victimModule);
+    const attacker = new WebAssembly.Instance(attackerModule);
+    keepAlive.push(victim, attacker);
+
+    triggerStaleCleanup(victim);
+
+    attacker.exports.read();
+
+    const marker = 789 + attempt;
+    victim.exports.write(marker);
+
+    if (attacker.exports.read() !== marker) {
+      return false;
+    }
+
+    print("controlled write alias observed");
+    return true;
+  }
+
+  let bugDetected = false;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    if (runAttempt(attempt)) {
+      bugDetected = true;
+      break;
+    }
+  }
+
+  // With the fix (InstanceScope), globals must remain isolated across instances.
+  if (bugDetected) {
+    throw new Error("FAIL: cross-instance globals aliasing detected");
+  }
+})();

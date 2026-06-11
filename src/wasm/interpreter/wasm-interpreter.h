@@ -520,6 +520,12 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
     void SetCurrentFrame(const FrameState& frame_state) {
       current_frame_state_ = frame_state;
+      // The thread's copy is a non-owning bookmark used for stack traces and
+      // frame restoration on reentrant calls.  It must never hold a
+      // caught_exceptions_ GlobalHandle because the caller's live
+      // current_frame_ is the sole owner; a stale copy here would lead to a
+      // double-free if the frame is restored and then unwound.
+      current_frame_state_.caught_exceptions_ = Handle<FixedArray>::null();
     }
     const FrameState& GetCurrentFrame() const { return current_frame_state_; }
 
@@ -870,7 +876,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // {InterpreterCode} vector in the {CodeMap}. It is also passed to
   // {WasmDecoder} used to parse the 'locals' in a Wasm function.
   Zone zone_;
-  IndirectHandle<WasmInstanceObject> instance_object_;
 
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
