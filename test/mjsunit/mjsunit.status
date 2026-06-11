@@ -2089,6 +2089,7 @@
   # Wasm code coverage is not supported yet.
   'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
+  'wasm/regression-521715545': [SKIP]
 }],  # arch in [ppc64, s390x]'
 
 ##############################################################################
