@@ -31788,7 +31788,7 @@ class GCedWithCppHeapExternalJSRef
     v8::HandleScope scope(isolate_);
     v8::Local<v8::CppHeapExternal> external =
         v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-            isolate, data, v8::CppHeapPointerTag::kDefaultTag);
+            isolate, data, v8::CppHeapPointerTag::kTagForTesting);
     v8_cpp_heap_external_.Reset(isolate_, external);
   }
 
@@ -31799,8 +31799,8 @@ class GCedWithCppHeapExternalJSRef
     auto external = v8::Local<v8::CppHeapExternal>::Cast(data);
     return external->Value<TestGarbagedCollectedData>(
         isolate_,
-        v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kDefaultTag,
-                                   v8::CppHeapPointerTag::kDefaultTag));
+        v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kTagForTesting,
+                                   v8::CppHeapPointerTag::kTagForTesting));
   }
 
   void Trace(cppgc::Visitor* v) const { v->Trace(v8_cpp_heap_external_); }
@@ -31872,7 +31872,7 @@ TEST(ContinuationPreservedEmbedderDataV2_CppHeapExternal) {
             cpp_heap->GetAllocationHandle()));
     v8::Local<v8::CppHeapExternal> external =
         v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-            isolate, cpp_object.Get(), v8::CppHeapPointerTag::kDefaultTag);
+            isolate, cpp_object.Get(), v8::CppHeapPointerTag::kTagForTesting);
     isolate->SetContinuationPreservedEmbedderDataV2(external);
 
     v8::Local<v8::Data> result =
@@ -31881,9 +31881,9 @@ TEST(ContinuationPreservedEmbedderDataV2_CppHeapExternal) {
     TestGarbagedCollectedData* data =
         v8::Local<v8::CppHeapExternal>::Cast(result)
             ->Value<TestGarbagedCollectedData>(
-                isolate,
-                v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kDefaultTag,
-                                           v8::CppHeapPointerTag::kDefaultTag));
+                isolate, v8::CppHeapPointerTagRange(
+                             v8::CppHeapPointerTag::kTagForTesting,
+                             v8::CppHeapPointerTag::kTagForTesting));
     CHECK_EQ(data, cpp_object.Get());
   }
 

@@ -4663,10 +4663,11 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
           object_template->NewInstance(context).ToLocalChecked();
       wrappable1 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
-      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj1,
-                                                           wrappable1);
-      CHECK_EQ(wrappable1, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
-                               isolate, obj1));
+      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj1,
+                                                              wrappable1);
+      CHECK_EQ(
+          wrappable1,
+          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj1));
       CHECK(context->Global()->Set(context, v8_str("obj1"), obj1).FromJust());
 
       v8::Local<v8::Object> obj2 =
@@ -4674,10 +4675,11 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
       wrappable2 = cppgc::MakeGarbageCollected<DummyWrappable>(
           cpp_heap->GetAllocationHandle());
       wrappable2->is_special = true;
-      v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj2,
-                                                           wrappable2);
-      CHECK_EQ(wrappable2, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
-                               isolate, obj2));
+      v8::Object::Wrap<v8::CppHeapPointerTag::kTagForTesting>(isolate, obj2,
+                                                              wrappable2);
+      CHECK_EQ(
+          wrappable2,
+          v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(isolate, obj2));
       CHECK(context->Global()->Set(context, v8_str("obj2"), obj2).FromJust());
 
       creator.SetDefaultContext(context, SerializeInternalFieldsCallback(),

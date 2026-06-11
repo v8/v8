@@ -43,7 +43,7 @@ class ClearingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
     // in the wrappable field.
     BasicTracedReference<v8::Value>* original_handle =
         reinterpret_cast<BasicTracedReference<v8::Value>*>(
-            v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
+            v8::Object::Unwrap<CppHeapPointerTag::kTagForTesting>(
                 isolate_, handle.As<v8::Object>()));
     original_handle->Reset();
   }

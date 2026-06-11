@@ -57,14 +57,18 @@ enum class CppHeapPointerTag : uint16_t {
 
   kFirstV8InternalTag = 0x6000,
   // V8-internal Oilpan objects that use v8::Object::Wrap() should go here.
+  kTagForTesting,
   kInspectorV8ConsoleTag,
   kInspectorTaskInfoTag,
   kWasmMemoryMapDescriptorTag,
   kLastV8InternalTag,
-  kLastObjectWrappableTag = kLastV8InternalTag,
 
-  kDefaultTag = 0x7000,
+#if !V8_ENABLE_SANDBOX
+  // Embedders that use the sandbox should use specific tags for each type.
+  kDefaultTag,
+#endif  // !V8_ENABLE_SANDBOX
 
+  kLastObjectWrappableTag = 0x7ffc,
   kZappedEntryTag = 0x7ffd,
   kEvacuationEntryTag = 0x7ffe,
   kFreeEntryTag = 0x7fff,
@@ -81,7 +85,9 @@ constexpr CppHeapPointerTagRange kAnyCppHeapPointer(
     CppHeapPointerTag::kFirstTag, CppHeapPointerTag::kZappedEntryTag);
 
 // All tags that are used with v8::Object::Wrappable have to be within this
-// tag range.
+// tag range. The reason is that in some cases, an APIWrapper object has to be
+// unwrapped to access the v8::Object::Wrappable base class, e.g. to get type
+// information.
 constexpr CppHeapPointerTagRange kObjectWrappableTagRange(
     CppHeapPointerTag::kFirstObjectWrappableTag,
     CppHeapPointerTag::kLastObjectWrappableTag);
