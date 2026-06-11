@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_KNOWN_NODE_ASPECTS_H_
 #define V8_MAGLEV_MAGLEV_KNOWN_NODE_ASPECTS_H_
 
+#include <iosfwd>
 #include <utility>
 
 #include "src/base/logging.h"
@@ -758,7 +759,8 @@ class KnownNodeAspects {
     }
   }
 
-  void TraceLoadedProperties(TraceLogger* logger) const;
+  void Print(std::ostream& os) const;
+  void Print() const { return Print(std::cout); }
 
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),
@@ -890,6 +892,8 @@ class KnownNodeAspects {
     return it != node_infos_.end();
   }
 };
+
+std::ostream& operator<<(std::ostream& os, const KnownNodeAspects& aspects);
 
 template <typename MapContainer>
 class KnownMapsMerger {

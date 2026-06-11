@@ -27,7 +27,9 @@ namespace {
 const char* kRed = "\033[31m";
 const char* kGreen = "\033[32m";
 const char* kYellow = "\033[33m";
+const char* kCyan = "\033[36m";
 const char* kReset = "\033[0m";
+const char* kBold = "\033[1m";
 
 void PrintPossibleMaps(std::ostream& os, const PossibleMaps& maps) {
   os << "{ ";
@@ -643,48 +645,6 @@ KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
   return {ContextStoreResult::kSetNewValue, std::move(aliased_slots)};
 }
 
-void KnownNodeAspects::TraceLoadedProperties(TraceLogger* logger) const {
-  *logger << "  Constant properties:" << TraceNewline{};
-  for (auto [key, map] : loaded_constant_properties_) {
-    *logger << "    - " << key << ": { ";
-    bool is_first = true;
-    for (auto [object, value] : map) {
-      if (!is_first) *logger << ", ";
-      is_first = false;
-      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
-    }
-    *logger << " }" << TraceNewline{};
-  }
-
-  *logger << "  Non-constant properties:" << TraceNewline{};
-  for (auto [key, map] : loaded_properties_) {
-    *logger << "    - " << key << ": { ";
-    bool is_first = true;
-    for (auto [object, value] : map) {
-      if (!is_first) *logger << ", ";
-      is_first = false;
-      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
-    }
-    *logger << " }" << TraceNewline{};
-  }
-  *logger << "  Constant context slots:" << TraceNewline{};
-  for (auto [key, object] : loaded_context_constants_) {
-    *logger << "    - ";
-    PrintNodeLabel(std::get<ValueNode*>(key));
-    *logger << "@" << std::get<int>(key) << ": ";
-    *logger << PrintNodeLabel(object);
-    *logger << TraceNewline{};
-  }
-  *logger << "  Non-constant context slots:" << TraceNewline{};
-  for (auto [key, object] : loaded_context_slots_) {
-    *logger << "    - ";
-    PrintNodeLabel(std::get<ValueNode*>(key));
-    *logger << "@" << std::get<int>(key) << ": ";
-    *logger << PrintNodeLabel(object);
-    *logger << TraceNewline{};
-  }
-}
-
 #ifdef DEBUG
 bool IsStringRootIndex(RootIndex index) {
   if (index > RootIndex::kLastReadOnlyRoot) return false;
@@ -693,6 +653,106 @@ bool IsStringRootIndex(RootIndex index) {
   return IsInternalizedString(obj);
 }
 #endif
+
+void KnownNodeAspects::Print(std::ostream& os) const {
+  os << kBold << kCyan << "=== KnownNodeAspects (epoch: " << effect_epoch_
+     << ", side_effects_require_invalidation: "
+     << side_effects_require_invalidation_
+     << ", aliasing_contexts: " << static_cast<int>(may_have_aliasing_contexts_)
+     << ") ===" << kReset << "\n";
+
+  if (!node_infos_.empty()) {
+    os << kBold << "Node Infos:" << kReset << "\n";
+    for (const auto& [node, info] : node_infos_) {
+      os << "  - " << kGreen << PrintNodeLabel(node) << kReset
+         << ": type=" << kYellow << info.type() << kReset;
+      if (info.possible_maps_are_known()) {
+        os << ", maps=";
+        PrintPossibleMaps(os, info.possible_maps());
+        if (info.maps_are_stale()) {
+          os << " " << kRed << "[stale]" << kReset;
+        }
+      }
+      if (info.any_map_or_node_type_is_unstable()) {
+        os << " " << kRed << "[unstable]" << kReset;
+      }
+      if (!info.alternative().has_none()) {
+        os << ", alternatives={";
+        bool first_alt = true;
+        auto print_alt = [&](const char* name, ValueNode* alt_node) {
+          if (alt_node) {
+            if (!first_alt) os << ", ";
+            first_alt = false;
+            os << name << ": " << kGreen << PrintNodeLabel(alt_node) << kReset;
+          }
+        };
+        print_alt("tagged", info.alternative().tagged());
+        print_alt("int32", info.alternative().int32());
+        print_alt("truncated_int32_to_number",
+                  info.alternative().truncated_int32_to_number());
+        print_alt("float64", info.alternative().float64());
+        print_alt("holey_float64", info.alternative().holey_float64());
+        print_alt("checked_value", info.alternative().checked_value());
+        os << "}";
+      }
+      os << "\n";
+    }
+  }
+
+  auto print_properties = [&](const char* label,
+                              const LoadedPropertyMap& properties) {
+    if (properties.empty()) return;
+    os << kBold << label << ":" << kReset << "\n";
+    for (const auto& [key, map] : properties) {
+      os << "  - " << kYellow << key << kReset << ": { ";
+      bool is_first = true;
+      for (const auto& [object, value] : map) {
+        if (!is_first) os << ", ";
+        is_first = false;
+        os << kGreen << PrintNodeLabel(object) << kReset << " => " << kGreen
+           << PrintNodeLabel(value) << kReset;
+      }
+      os << " }\n";
+    }
+  };
+
+  print_properties("Loaded Constant Properties", loaded_constant_properties_);
+  print_properties("Loaded Properties", loaded_properties_);
+
+  auto print_context_slots = [&](const char* label,
+                                 const LoadedContextSlots& slots) {
+    if (slots.empty()) return;
+    os << kBold << label << ":" << kReset << "\n";
+    for (const auto& [key, object] : slots) {
+      if (!object) continue;
+      os << "  - " << kGreen << PrintNodeLabel(std::get<ValueNode*>(key))
+         << kReset << "@" << std::get<int>(key) << " => " << kGreen
+         << PrintNodeLabel(object) << kReset << "\n";
+    }
+  };
+
+  print_context_slots("Loaded Context Constants", loaded_context_constants_);
+  print_context_slots("Loaded Context Slots", loaded_context_slots_);
+
+  if (!available_expressions_.empty()) {
+    os << kBold << "Available Expressions:" << kReset << "\n";
+    for (const auto& [hash, expr] : available_expressions_) {
+      os << "  - " << kYellow << "0x" << std::hex << hash << std::dec << kReset
+         << ": " << kGreen << PrintNodeLabel(expr.node) << kReset
+         << " (epoch: " << expr.effect_epoch << ")\n";
+    }
+  }
+
+  if (!virtual_objects_.is_empty()) {
+    os << kBold << "Virtual Objects:" << kReset << "\n";
+    virtual_objects_.Print(os, "  ");
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const KnownNodeAspects& aspects) {
+  aspects.Print(os);
+  return os;
+}
 
 }  // namespace maglev
 }  // namespace internal

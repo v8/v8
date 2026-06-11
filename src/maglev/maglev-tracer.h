@@ -54,9 +54,6 @@ struct TraceBytecode {
 struct TraceVirtualObjects {
   const VirtualObjectList& virtual_objects;
 };
-struct TraceKNA {
-  const KnownNodeAspects& kna;
-};
 
 // Trace graph building helpers.
 struct TraceNewNode {
@@ -185,11 +182,6 @@ class TraceLogger {
       GetCurrentGraphLabeller()->PrintNodeLabel(os_, vo, false);
       os_ << "; ";
     }
-    return *this;
-  }
-
-  TraceLogger& operator<<(const TraceKNA& tag) {
-    tag.kna.TraceLoadedProperties(this);
     return *this;
   }
 

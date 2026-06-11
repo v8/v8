@@ -16076,7 +16076,7 @@ BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
         << "New empty block " << TraceColor::kInfo << TraceNewline{}
         << "  VOs (IFS): "
         << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-        << TraceNewline{} << TraceKNA(known_node_aspects()));
+        << TraceNewline{} << known_node_aspects());
   DCHECK_NULL(current_block());
   set_current_block(zone()->New<BasicBlock>(nullptr, zone()));
   BasicBlock* result = FinishBlockNoAbort<Jump>({}, &jump_targets);
@@ -16376,7 +16376,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
           << compilation_unit()->shared_function_info().object()
           << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
           << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-          << TraceNewline{} << TraceKNA(known_node_aspects()));
+          << TraceNewline{} << known_node_aspects());
 
     if (V8_UNLIKELY(merge_state->is_exception_handler())) {
       CHECK_EQ(predecessor_count(offset), 0);
@@ -16931,7 +16931,7 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
           << *compilation_unit_->shared_function_info().object()
           << TraceColor::kInfo << TraceNewline{} << "  VOs (IFS): "
           << TraceVirtualObjects{current_interpreter_frame_.virtual_objects()}
-          << TraceNewline{} << TraceKNA(known_node_aspects()));
+          << TraceNewline{} << known_node_aspects());
     StartNewBlock(next_block_offset, predecessor);
   } else {
     MergeIntoFrameState(predecessor, next_block_offset);
