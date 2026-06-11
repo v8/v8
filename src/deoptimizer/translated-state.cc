@@ -25,6 +25,7 @@
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/map-inl.h"

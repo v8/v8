@@ -14,28 +14,25 @@
 #include "src/base/bits.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/linkage-location.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/logging/counters.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/code.h"
-#include "src/objects/instance-type-checker.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
-#include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
@@ -53,6 +50,8 @@
 
 namespace v8 {
 namespace internal {
+
+using base::Memory;
 
 static_assert(CommonFrameConstants::kCPSlotSize ==
               Internals::kFrameCPSlotCount * kSystemPointerSize);
@@ -78,7 +77,7 @@ Address AddressOf(const StackHandler* handler) {
   // We work around that by storing the real stack address in the "padding"
   // field. StackHandlers allocated from generated code have 0 as padding.
   Address padding =
-      base::Memory<Address>(raw + StackHandlerConstants::kPaddingOffset);
+      Memory<Address>(raw + StackHandlerConstants::kPaddingOffset);
   if (padding != 0) return padding;
 #endif
   return raw;
@@ -2712,7 +2711,7 @@ uint32_t JavaScriptFrame::GetActualArgumentCount() const {
 
 Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   const int offset = BuiltinContinuationFrameConstants::kFunctionOffset;
-  return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
+  return Cast<JSFunction>(Tagged<Object>(Memory<Address>(fp() + offset)));
 }
 
 uint32_t JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -3547,19 +3546,17 @@ intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
 }
 
 void BaselineFrame::PatchContext(Tagged<Context> value) {
-  base::Memory<Address>(fp() + BaselineFrameConstants::kContextOffset) =
-      value.ptr();
+  Memory<Address>(fp() + BaselineFrameConstants::kContextOffset) = value.ptr();
 }
 
 Tagged<JSFunction> BuiltinFrame::function() const {
   const int offset = BuiltinFrameConstants::kFunctionOffset;
-  return Cast<JSFunction>(Tagged<Object>(base::Memory<Address>(fp() + offset)));
+  return Cast<JSFunction>(Tagged<Object>(Memory<Address>(fp() + offset)));
 }
 
 uint32_t BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  uint32_t argc =
-      Smi::ToUInt(Tagged<Object>(base::Memory<Address>(fp() + offset)));
+  uint32_t argc = Smi::ToUInt(Tagged<Object>(Memory<Address>(fp() + offset)));
   DCHECK_GE(argc, kJSArgcReceiverSlots);
   return argc - kJSArgcReceiverSlots;
 }

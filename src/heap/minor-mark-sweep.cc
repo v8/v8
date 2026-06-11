@@ -49,6 +49,7 @@
 #include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-forwarding-table-inl.h"

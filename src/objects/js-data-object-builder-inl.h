@@ -14,6 +14,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"

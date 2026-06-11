@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/paged-spaces-inl.h"  // For PagedSpaceObjectIterator.
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

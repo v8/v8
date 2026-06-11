@@ -10,6 +10,8 @@
 #include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-ast-printer.h"
 #include "src/regexp/regexp-graph-printer.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"

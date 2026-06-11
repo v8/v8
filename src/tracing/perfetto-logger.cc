@@ -17,7 +17,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/spaces.h"
 #include "src/logging/log.h"
-#include "src/objects/abstract-code.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"

@@ -7,6 +7,7 @@
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/string.h"
 
 namespace v8 {

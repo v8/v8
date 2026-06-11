@@ -2184,6 +2184,7 @@ filegroup(
         "src/objects/heap-number-inl.h",
         "src/objects/heap-object.h",
         "src/objects/heap-object-inl.h",
+        "src/objects/heap-object-set-map-inl.h",
         "src/objects/instance-type.h",
         "src/objects/instance-type-checker.h",
         "src/objects/instance-type-inl.h",

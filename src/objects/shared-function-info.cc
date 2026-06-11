@@ -8,14 +8,13 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/execution/isolate-utils.h"
 #include "src/heap/combined-heap.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 

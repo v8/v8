@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

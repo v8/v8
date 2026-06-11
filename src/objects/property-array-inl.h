@@ -8,7 +8,8 @@
 #include "src/objects/property-array.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):

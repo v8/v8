@@ -10,8 +10,8 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/sandbox/check.h"
 #include "src/utils/memcopy.h"
 

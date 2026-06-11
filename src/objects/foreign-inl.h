@@ -11,7 +11,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
 

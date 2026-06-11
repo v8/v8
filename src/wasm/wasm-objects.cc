@@ -22,6 +22,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/futex-emulation.h"
 #include "src/logging/counters.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"

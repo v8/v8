@@ -4,14 +4,12 @@
 
 #include "src/codegen/compiler.h"
 
-#include <algorithm>
 #include <memory>
 #include <optional>
 
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
-#include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/fpu.h"
 #include "src/base/logging.h"
@@ -34,7 +32,6 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -47,16 +44,14 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/visit-object.h"
-#include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
-#include "src/objects/js-function.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -69,8 +64,6 @@
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/tracing/traced-value.h"
-#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #ifdef V8_ENABLE_MAGLEV

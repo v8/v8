@@ -10,6 +10,7 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/pod-array-inl.h"
 

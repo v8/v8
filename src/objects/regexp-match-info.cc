@@ -4,6 +4,7 @@
 
 #include <optional>
 
+#include "src/heap/factory-inl.h"
 #include "src/objects/regexp-match-info-inl.h"
 
 namespace v8::internal {

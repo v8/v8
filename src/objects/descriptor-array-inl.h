@@ -16,6 +16,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/maybe-object-inl.h"

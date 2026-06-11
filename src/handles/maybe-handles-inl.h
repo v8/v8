@@ -8,7 +8,6 @@
 #include "src/handles/maybe-handles.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/base/macros.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/maybe-object-inl.h"

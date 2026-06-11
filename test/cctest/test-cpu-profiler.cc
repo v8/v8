@@ -52,6 +52,7 @@
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/log.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profiler-listener.h"

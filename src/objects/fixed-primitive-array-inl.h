@@ -17,10 +17,10 @@
 #include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/read-only-heap-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/objects-inl.h"  // For set_map_after_allocation.
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/roots/roots-inl.h"

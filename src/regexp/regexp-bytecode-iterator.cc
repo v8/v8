@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-bytecode-iterator.h"
 
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/regexp/regexp-bytecode-iterator-inl.h"
 #include "src/regexp/regexp-bytecodes-inl.h"
 

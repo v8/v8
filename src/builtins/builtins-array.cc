@@ -20,6 +20,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/fixed-primitive-array.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"

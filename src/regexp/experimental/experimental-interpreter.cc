@@ -7,6 +7,7 @@
 #include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/sandbox/check.h"

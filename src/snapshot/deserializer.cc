@@ -21,6 +21,7 @@
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects-body-descriptors-inl.h"

@@ -44,6 +44,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"

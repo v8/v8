@@ -11,6 +11,8 @@
 #include "src/base/bits.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):

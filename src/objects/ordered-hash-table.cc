@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"

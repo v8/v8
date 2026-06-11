@@ -6,7 +6,6 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -15,6 +14,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
