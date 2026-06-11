@@ -14,7 +14,7 @@ const kSmallOrderedHashTableLoadFactor: constexpr int31
 @abstract
 @cppObjectLayoutDefinition
 extern class SmallOrderedHashTable extends HeapObject
-    generates 'TNode<HeapObject>' {}
+    generates 'HeapObject' {}
 
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();

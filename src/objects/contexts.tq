@@ -44,17 +44,17 @@ const kContextCellFloat64: constexpr int32 generates 'ContextCell::kFloat64';
 const kContextCellDetached:
     constexpr int32 generates 'ContextCell::kDetached';
 
-extern class AwaitContext extends Context generates 'TNode<Context>';
-extern class BlockContext extends Context generates 'TNode<Context>';
-extern class CatchContext extends Context generates 'TNode<Context>';
+extern class AwaitContext extends Context generates 'Context';
+extern class BlockContext extends Context generates 'Context';
+extern class CatchContext extends Context generates 'Context';
 extern class DebugEvaluateContext extends Context
-    generates 'TNode<Context>';
-extern class EvalContext extends Context generates 'TNode<Context>';
-extern class ModuleContext extends Context generates 'TNode<Context>';
-extern class ScriptContext extends Context generates 'TNode<Context>';
-extern class WithContext extends Context generates 'TNode<Context>';
+    generates 'Context';
+extern class EvalContext extends Context generates 'Context';
+extern class ModuleContext extends Context generates 'Context';
+extern class ScriptContext extends Context generates 'Context';
+extern class WithContext extends Context generates 'Context';
 
-extern class FunctionContext extends Context generates 'TNode<Context>';
+extern class FunctionContext extends Context generates 'Context';
 
 extern macro IsEmptyDependentCode(Object): bool;
 extern macro IsUndefinedContextCell(Object): bool;

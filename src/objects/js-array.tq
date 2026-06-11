@@ -78,7 +78,7 @@ extern class TemplateLiteralObject extends JSArray {
 
 @doNotGenerateCast
 extern class JSArrayConstructor extends JSFunctionWithPrototype
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 
 macro NewJSArray(
     implicit context: Context)(map: Map, elements: FixedArrayBase): JSArray {

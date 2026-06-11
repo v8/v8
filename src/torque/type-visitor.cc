@@ -59,21 +59,15 @@ const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl,
 }
 
 namespace {
-std::string ComputeGeneratesType(std::optional<std::string> opt_gen,
-                                 bool enforce_tnode_type) {
+std::string ComputeGeneratesType(std::optional<std::string> opt_gen) {
   if (!opt_gen) return "";
-  const std::string& generates = *opt_gen;
-  if (enforce_tnode_type) {
-    return UnwrapTNodeTypeName(generates);
-  }
-  return generates;
+  return *opt_gen;
 }
 }  // namespace
 
 const AbstractType* TypeVisitor::ComputeType(
     AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
-  std::string generates =
-      ComputeGeneratesType(decl->generates, !decl->IsConstexpr());
+  std::string generates = ComputeGeneratesType(decl->generates);
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
@@ -287,9 +281,7 @@ const ClassType* TypeVisitor::ComputeType(
   }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
-      bool enforce_tnode_type = true;
-      std::string explicit_generates =
-          ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      std::string explicit_generates = ComputeGeneratesType(decl->generates);
       if (explicit_generates == generates) {
         Lint("Unnecessary 'generates' clause for class ", decl->name->value);
       }

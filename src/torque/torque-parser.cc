@@ -1153,7 +1153,7 @@ std::optional<ParseResult> MakeClassDeclaration(
   if (transient) abstract_type_flags |= AbstractTypeFlag::kTransient;
   TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
       constexpr_name, abstract_type_flags, constexpr_extends,
-      generates ? UnwrapTNodeTypeName(*generates) : name->value);
+      generates ? *generates : name->value);
   constexpr_decl->pos = name->pos;
   result.push_back(constexpr_decl);
 

@@ -35,16 +35,16 @@ type never;
 
 type IntegerLiteral constexpr 'IntegerLiteral';
 
-type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
+type Tagged generates 'MaybeObject' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'Object';
-type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+    generates 'Object' constexpr 'Object';
+type Smi extends StrongTagged generates 'Smi' constexpr 'Smi';
 type TaggedIndex extends StrongTagged
-    generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
+    generates 'TaggedIndex' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged
-    generates 'TNode<Weak<HeapObject>>' constexpr 'Weak<HeapObject>';
+    generates 'Weak<HeapObject>' constexpr 'Weak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;
@@ -113,36 +113,36 @@ type JSAnyNotSmi = JSAnyNotNumber|HeapNumber;
 // be any other primitive value.
 type JSPrototype = JSReceiver|Null;
 
-type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
-type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
+type int32 generates 'Int32T' constexpr 'int32_t';
+type uint32 generates 'Uint32T' constexpr 'uint32_t';
 type int31 extends int32
-    generates 'TNode<Int32T>' constexpr 'int31_t';
+    generates 'Int32T' constexpr 'int31_t';
 type uint31 extends uint32
-    generates 'TNode<Uint32T>' constexpr 'uint32_t';
+    generates 'Uint32T' constexpr 'uint32_t';
 type int16 extends int31
-    generates 'TNode<Int16T>' constexpr 'int16_t';
+    generates 'Int16T' constexpr 'int16_t';
 type uint16 extends uint31
-    generates 'TNode<Uint16T>' constexpr 'uint16_t';
-type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
+    generates 'Uint16T' constexpr 'uint16_t';
+type int8 extends int16 generates 'Int8T' constexpr 'int8_t';
 type uint8 extends uint16
-    generates 'TNode<Uint8T>' constexpr 'uint8_t';
+    generates 'Uint8T' constexpr 'uint8_t';
 type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
-type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
-type uint64 generates 'TNode<Uint64T>' constexpr 'uint64_t';
-type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
-type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
+type int64 generates 'Int64T' constexpr 'int64_t';
+type uint64 generates 'Uint64T' constexpr 'uint64_t';
+type intptr generates 'IntPtrT' constexpr 'intptr_t';
+type uintptr generates 'UintPtrT' constexpr 'uintptr_t';
 type float16_raw_bits
-    generates 'TNode<Float16RawBitsT>' constexpr 'uint16_t';
-type float32 generates 'TNode<Float32T>' constexpr 'float';
-type float64 generates 'TNode<Float64T>' constexpr 'double';
-type bool generates 'TNode<BoolT>' constexpr 'bool';
-type bint generates 'TNode<BInt>' constexpr 'BInt';
+    generates 'Float16RawBitsT' constexpr 'uint16_t';
+type float32 generates 'Float32T' constexpr 'float';
+type float64 generates 'Float64T' constexpr 'double';
+type bool generates 'BoolT' constexpr 'bool';
+type bint generates 'BInt' constexpr 'BInt';
 type string constexpr 'const char*';
-type DispatchHandle generates 'TNode<JSDispatchHandleT>';
+type DispatchHandle generates 'JSDispatchHandleT';
 
-type Simd128 generates 'TNode<Simd128T>';
-type I8X16 extends Simd128 generates 'TNode<I8x16T>';
+type Simd128 generates 'Simd128T';
+type I8X16 extends Simd128 generates 'I8x16T';
 
 // Represents a std::function which produces the generated TNode type of T.
 // Useful for passing values to and from CSA code that uses LazyNode<T>, which
@@ -231,43 +231,43 @@ struct float64_or_undefined_or_hole {
 @doNotGenerateCast
 @abstract
 extern class JSInternalPrototypeBase extends JSObject
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSObjectPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSRegExpPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSPromisePrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSTypedArrayPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSSetPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSArrayIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSMapIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 @doNotGenerateCast
 extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
 @doNotGenerateCast
-extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
+extern class HashTable extends FixedArray generates 'FixedArray';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
 extern class OrderedNameDictionary extends HashTable;
@@ -279,25 +279,25 @@ extern class SimpleNameDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
-    generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
+    generates 'ObjectHashTable' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 extern class DoubleStringCache extends HeapObject;
 extern class HashSeedWrapper extends HeapObject;
 
-type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
+type RawPtr generates 'RawPtrT' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
-    generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+    generates 'ExternalPointerT' constexpr 'ExternalPointer_t';
 type CppHeapPointer
-    generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
+    generates 'CppHeapPointerT' constexpr 'CppHeapPointer_t';
 type TrustedPointer
-    generates 'TNode<TrustedPointerT>' constexpr 'TrustedPointer_t';
+    generates 'TrustedPointerT' constexpr 'TrustedPointer_t';
 type TrustedPointer<To : type extends ExposedTrustedObject> extends
     TrustedPointer;
 type ProtectedPointer extends Tagged;
 type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;
-type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
+type BuiltinPtr extends Smi generates 'BuiltinPtr';
 
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
@@ -324,7 +324,7 @@ type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
     CallableApiObject;
 
 type WriteBarrierMode
-    generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
+    generates 'Int32T' constexpr 'WriteBarrierMode';
 
 extern enum UpdateFeedbackMode {
   kOptionalFeedback,
@@ -690,7 +690,7 @@ const UNSAFE_SKIP_WRITE_BARRIER:
 extern transitioning macro AllocateJSIteratorResult(
     implicit context: Context)(JSAny, Boolean): JSObject;
 
-extern class Filler extends HeapObject generates 'TNode<HeapObject>';
+extern class Filler extends HeapObject generates 'HeapObject';
 
 // Various logical subclasses of JSObject, which have their own instance types
 // but not their own class definitions:
@@ -699,7 +699,7 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
 extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
 // range.
@@ -707,15 +707,15 @@ extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
 @doNotGenerateCast
 @highestInstanceTypeWithinParentClassRange
 extern class JSLastDummyApiObject extends JSApiObject
-    generates 'TNode<JSObject>';
+    generates 'JSObject';
 
 // Like JSApiObject, but requires access checks and/or has interceptors.
 @apiExposedInstanceTypeValue(0x410)
 extern class JSSpecialApiObject extends JSSpecialObject
-    generates 'TNode<JSSpecialObject>';
+    generates 'JSSpecialObject';
 extern class JSContextExtensionObject extends JSObject
-    generates 'TNode<JSObject>';
-extern class JSError extends JSObject generates 'TNode<JSObject>';
+    generates 'JSObject';
+extern class JSError extends JSObject generates 'JSObject';
 
 extern macro Is64(): constexpr bool;
 

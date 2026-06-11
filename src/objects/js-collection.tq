@@ -30,19 +30,19 @@ extern class JSWeakMap extends JSWeakCollection {}
 @cppObjectLayoutDefinition
 extern class JSMapIterator extends JSCollectionIterator {}
 extern class JSMapKeyIterator extends JSMapIterator
-    generates 'TNode<JSMapIterator>';
+    generates 'JSMapIterator';
 extern class JSMapKeyValueIterator extends JSMapIterator
-    generates 'TNode<JSMapIterator>';
+    generates 'JSMapIterator';
 extern class JSMapValueIterator extends JSMapIterator
-    generates 'TNode<JSMapIterator>';
+    generates 'JSMapIterator';
 
 @abstract
 @cppObjectLayoutDefinition
 extern class JSSetIterator extends JSCollectionIterator {}
 extern class JSSetKeyValueIterator extends JSSetIterator
-    generates 'TNode<JSSetIterator>';
+    generates 'JSSetIterator';
 extern class JSSetValueIterator extends JSSetIterator
-    generates 'TNode<JSSetIterator>';
+    generates 'JSSetIterator';
 
 transient type JSSetWithNoCustomIteration extends JSSet;
 transient type JSMapWithNoCustomIteration extends JSMap;

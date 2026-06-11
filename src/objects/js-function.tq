@@ -80,4 +80,4 @@ extern class JSFunctionWithPrototype extends JSFunction {
 @doNotGenerateCast
 @highestInstanceTypeWithinParentClassRange
 extern class JSClassConstructor extends JSFunctionWithPrototype
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';

@@ -157,40 +157,40 @@ extern class JSRabGsabDataView extends JSDataViewOrRabGsabDataView {}
 @abstract
 @doNotGenerateCast
 extern class TypedArrayConstructor extends JSFunctionWithPrototype
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint8TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int8TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Int32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float16TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float32TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Float64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Uint8ClampedTypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Biguint64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';
 @doNotGenerateCast
 extern class Bigint64TypedArrayConstructor extends TypedArrayConstructor
-    generates 'TNode<JSFunction>';
+    generates 'JSFunction';

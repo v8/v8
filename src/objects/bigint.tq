@@ -6,7 +6,7 @@
 // in global namespace
 @cppObjectLayoutDefinition
 extern class BigIntBase extends PrimitiveHeapObject
-    generates 'TNode<BigInt>';
+    generates 'BigInt';
 
 type BigInt extends BigIntBase;
 
