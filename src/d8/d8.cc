@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -1794,7 +1795,12 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 
 MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
     Local<Context> initiator_context) {
-  Local<Context> context = v8::Context::New(Isolate::GetCurrent());
+  Isolate* isolate = Isolate::GetCurrent();
+  Local<Context> context = v8::Context::New(isolate);
+  if (context.IsEmpty()) {
+    ThrowError(isolate, "Failed to create ShadowRealm context");
+    return MaybeLocal<Context>();
+  }
   i::Managed<ModuleEmbedderData>::Ptr shadow_realm_data =
       InitializeModuleEmbedderData(context);
   i::Managed<ModuleEmbedderData>::Ptr initiator_data =
