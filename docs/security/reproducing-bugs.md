@@ -29,7 +29,7 @@ If a POC stops reproducing when any of the above flags are set, it is likely not
 
 The steps are generally similar to regular security bugs.
 The difference is the bugs are expected to reproduce with `--run-as-sandbox-security-poc` in addition to any provided flags.
-A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected").
+A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected") when run in the [sandbox testing environment](../../src/sandbox/README.md#testing).
 Crashes reported as "harmless" by the filter do not qualify as sandbox escapes.
 If the crash still occurs with this flag enabled, and the test filter does not consider it harmless, it is likely a valid security vulnerability (**Type=Vulnerability**).
 

@@ -13,7 +13,7 @@ These classifications refer to Buganizer which is the issue tracker used by Chro
 - **Priority**: A priority that in general is at least the severity.
 In certain circumstances, e.g., in-the-wild exploitation, we may raise the priority further.
 - **Security_Impact-{Head, Beta, Stable, Extended, None}** hotlists: Derived from the milestones set in the **Found In** field, this hotlist specifies the earliest affected release channel.
-Should not normally be set by humans, except in the case of **Security_Impact-None** (hotlistid: 5433277) which means that the bug is in a disabled feature, or otherwise doesn't impact Chrome: see the section below for more details.
+Should not normally be set by humans, except in the case of **Security_Impact-None** ([hotlistid:5433277](https://issues.chromium.org/hotlists/5433277)) which means that the bug is in a disabled feature, or otherwise doesn't impact Chrome: see the section below for more details.
 
 In addition, the following fields are set as part of triaging:
 - **Found In**: Should point to the milestone this was discovered to be broken.
@@ -25,34 +25,23 @@ It is okay to be conservative if unknown, e.g., to assume that the bug was prese
 
 V8 Sandbox bypasses are included in Chrome’s VRP.
 A successful bypass must show write access outside of the sandbox.
-Read access is not considered part of the attack model.
+Read access is not considered part of the attack model and will be downgraded to a regular bug and addressed on best effort basis.
 
 These bugs are currently treated differently from regular security bugs.
 Specifically, the following properties are different from regular security bugs:
 
 - **Severity**: S2
-- **Security_Impact-None** (hotlistid: 5433277)
-- **v8-sandbox** (hotlistid: 4802478)
+- **Security_Impact-None** ([hotlistid:5433277](https://issues.chromium.org/hotlists/5433277))
+- **v8-sandbox** ([hotlistid:4802478](https://issues.chromium.org/hotlists/4802478))
+
+Note that further mitigating factors may additionally apply.
+E.g., requiring a debugger further reduces the severity of such issues as well.
 
 ## Reproducing security bugs
 
 Security bugs should have proof-of-concept reproductions (POCs) attached to them.
 V8 currently still accepts bugs without a POC with the caveat that such bugs have a much higher chance of being dismissed quickly.
 See [the detailed documentation](reproducing-bugs.md) for the various different configurations V8 can be put in.
-
-### Regular security bugs
-
-Bugs should reproduce on `d8` by providing `--run-as-security-poc` in addition to possibly other flags.
-Additional stress flags may be passed and can be useful to trigger compiler tiering and garbage collection.
-Bugs that only reproduce without `--run-as-security-poc` have a much higher chance of not being considered security bugs in the first place.
-See the section below for common scenarios that lead to reclassifications.
-
-### Sandbox security bugs
-
-The same general principles apply to sandbox security bugs.
-To ease classification, bugs should reproduce on `d8` by providing `--run-as-sandbox-security-poc` in addition to possibly other flags in the [sandbox testing environment](../../src/sandbox/README.md#testing).
-A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected").
-Crashes reported as "harmless" by the filter do not qualify as sandbox escapes.
 
 ## Common cases for conditional features and code
 
@@ -114,6 +103,40 @@ Invalid ("bogus") `DCHECK`s should still be fixed or removed.
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
 
+### Breakage through directly invoking internal runtime functions with `%`-syntax
+
+Runtime functions like `%IterableForEach()` are directly visible to JavaScript programs via `--allow-natives-syntax`.
+The functions are not supposed to be tested this way, as they generally have pre- and post-conditions.
+This can lead to crashes (e.g., [484110302](https://crbug.com/484110302)) when they are incorrectly used.
+Such crashes are working as intended.
+
+Functions that are exposed under fuzzing are specified in [`Runtime::IsEnabledForFuzzing()`](https://source.chromium.org/search?q=Runtime::IsEnabledForFuzzing()&ss=chromium).
+This function also mentions potential caveats that could still lead to crashes.
+To make this clear, V8 will automatically remove any calls to unsupported functions when being invoked with `--fuzzing`.
+
+### Relying on broken snapshots to craft vulnerabilities
+
+V8 uses snapshots that are deserialized at startup.
+These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ regarding [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
+
+### Bugs reproducing only with `--enable-inspector`
+
+Fields: **component=Platform>DevTools** ([componentid:1457055](https://issues.chromium.org/issues?q=componentid:1457055)), **Type=Bug**, **Security_Impact-None**
+
+In addition, assignee should be one of the [OWNERS](../../src/inspector/OWNERS).
+
+Rationale: `--enable-inspector` does not accurately represent the production behavior of DevTools.
+`inspector-test` should be used for valid reproductions.
+For more details see [security documentation](../../src/inspector/SECURITY.md).
+
+### Bugs in platforms that are not officially supported by Chrome
+
+Fields: **Type=Vulnerability**, **Security_Impact-None**, **v8-unsupported-chrome** ([hotlistid:8384111](https://issues.chromium.org/hotlists/8384111))
+
+In addition, assignee should be one of the well-known OWNERS of the platform.
+
+Rationale: The bugs may be security bugs but are outside of the scope of Chrome.
+
 ### Sandbox: Reliance on libc++ hardening
 
 V8's sandbox security boundary relies on libc++ hardening (specifically
@@ -135,29 +158,3 @@ intent.
 Fields: **Type=Bug**, **Security_Impact-None**
 
 Rationale: Sandbox bypasses that only lead to read access outside of the sandbox are not considered security vulnerabilities for now.
-
-### Breakage through directly invoking internal runtime functions with `%`-syntax
-
-Runtime functions like `%IterableForEach()` are directly visible to JavaScript programs via `--allow-natives-syntax`.
-The functions are not supposed to be tested this way, as they generally have pre- and post-conditions.
-This can lead to crashes (e.g., [484110302](https://crbug.com/484110302)) when they are incorrectly used.
-Such crashes are working as intended.
-
-Functions that are exposed under fuzzing are specified in [`Runtime::IsEnabledForFuzzing()`](https://source.chromium.org/search?q=Runtime::IsEnabledForFuzzing()&ss=chromium).
-This function also mentions potential caveats that could still lead to crashes.
-To make this clear, V8 will automatically remove any calls to unsupported functions when being invoked with `--fuzzing`.
-
-### Relying on broken snapshots to craft vulnerabilities
-
-V8 uses snapshots that are deserialized at startup.
-These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ regarding [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
-
-### Bugs reproducing only with `--enable-inspector`
-
-Fields: **component=Platform>DevTools** (componentid:1457055), **Type=Bug**, **Security_Impact-None**
-
-In addition, assignee should be one of the [OWNERS](../../src/inspector/OWNERS).
-
-Rationale: `--enable-inspector` does not accurately represent the production behavior of DevTools.
-`inspector-test` should be used for valid reproductions.
-For more details see [security documentation](../../src/inspector/SECURITY.md).
