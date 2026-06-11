@@ -2748,8 +2748,13 @@ class MachineLoweringReducer : public Next {
               receiver, AccessBuilder::ForSlicedStringOffset());
           receiver = __ template LoadField<String>(
               receiver, AccessBuilder::ForSlicedStringParent());
-          position = __ WordPtrAdd(position,
-                                   __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
+          // Clamp accumulated offsets using 32-bit wrapping arithmetic to
+          // prevent out-of-sandbox reads under memory corruption (see
+          // b/519768343).
+          V<Word32> position_32 = __ TruncateWordPtrToWord32(position);
+          V<Word32> new_position_32 =
+              __ Word32Add(position_32, __ UntagSmi(offset));
+          position = __ ChangeUint32ToUintPtr(new_position_32);
           GOTO(loop);
         }
 
