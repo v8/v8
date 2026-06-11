@@ -858,9 +858,14 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
     return false;
   }
 
-  uint32_t min_lane_index =
+  // Use uint8_t to match start_lane type and avoid type mismatch.
+  uint8_t min_lane_index =
       std::min(info0.value().start_lane, info1.value().start_lane);
-  if (std::abs(info0.value().start_lane - info1.value().start_lane) != 4) {
+  uint8_t max_lane_index =
+      std::max(info0.value().start_lane, info1.value().start_lane);
+
+  // Check lane difference without std::abs on unsigned types.
+  if (max_lane_index - min_lane_index != 4) {
     return false;
   }
   if (info0.value().lane_size == 1) {

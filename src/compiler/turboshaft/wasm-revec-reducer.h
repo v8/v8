@@ -494,9 +494,9 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   struct LaneExtendInfo {
     OpIndex extract_from;
     Simd128ExtractLaneOp::Kind extract_kind;
-    int extract_lane_index;
+    uint8_t extract_lane_index;  // Lane index is always 0-15, use uint8_t
     ChangeOp::Kind change_kind;
-    int replace_lane_index;
+    uint8_t replace_lane_index;  // Lane index is always 0-15, use uint8_t
   };
 
   PackNode* BuildTree(const NodeGroup& roots);
@@ -757,7 +757,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     V<Simd256> og_index = pnode->RevectorizedNode();
     // Skip revectorized node.
     if (!og_index.valid()) {
-      OpIndex base = __ MapToNewGraph(load_transform.base());
+      V<WordPtr> base = __ MapToNewGraph(load_transform.base());
       V<WordPtr> index = __ MapToNewGraph(load_transform.index());
       int offset = load_transform.offset;
       DCHECK_EQ(load_transform.offset, 0);
@@ -783,9 +783,9 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
         if (offset0 != offset1) {
           V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
-          base =
-              __ WordBinop(add_op.left(), og_offset0, WordBinopOp::Kind::kAdd,
-                           WordRepresentation::Word64());
+          base = V<WordPtr>::Cast(__ WordBinop(add_op.left(), og_offset0,
+                                               WordBinopOp::Kind::kAdd,
+                                               WordRepresentation::Word64()));
         }
       }
 
@@ -1057,8 +1057,12 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
               __ input_graph().Get(load_index).template Cast<LoadOp>();
 
           const int bytes_per_lane = is_32 ? 4 : 8;
-          const int splat_index = pnode->info().splat_index() * bytes_per_lane;
-          const int offset = splat_index + load.offset;
+          // splat_index*bytes_per_lane is at most 28; load.offset is the WASM
+          // memarg immediate (up to INT32_MAX). Compute in int64 to avoid
+          // signed-int32 overflow that would sign-extend to a negative base.
+          const int64_t splat_index =
+              pnode->info().splat_index() * bytes_per_lane;
+          const int64_t offset = splat_index + load.offset;
 
           V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
                                           __ IntPtrConstant(offset));
