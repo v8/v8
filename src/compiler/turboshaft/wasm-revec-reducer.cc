@@ -353,8 +353,10 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         result = true;
         break;
       } else if (input > start) {
+        if (!inputs_set.insert(input).second) continue;
         // Check whether the input is already a force-packing node.
         PackNode* pnode = GetPackNode(input);
+
         if ((pnode && pnode->IsForcePackNode()) ||
             GetIntersectPackNodes(input)) {
           result = true;
@@ -373,7 +375,6 @@ bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
         // We should ensure that there is no back edge.
         DCHECK_LT(input, to_visit_node);
         to_visit.push_back(input);
-        inputs_set.insert(input);
       }
     }
 
