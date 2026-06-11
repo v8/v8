@@ -414,7 +414,7 @@ int DebuggableStackFrameIterator::FrameFunctionCount() const {
 
 FrameSummary DebuggableStackFrameIterator::GetTopValidFrame() const {
   DCHECK(!done());
-  // Like FrameSummary::GetTop, but additionally observes
+  // Like FrameSummary::GetInnermost, but additionally observes
   // DebuggableStackFrameIterator filtering semantics.
   FrameSummaries summaries = frame()->Summarize();
   if (is_javascript()) {
@@ -3023,20 +3023,10 @@ FrameSummary::~FrameSummary() {
 #undef FRAME_SUMMARY_DESTR
 }
 
-FrameSummary FrameSummary::GetTop(const CommonFrame* frame) {
+FrameSummary FrameSummary::GetInnermost(const CommonFrame* frame) {
   FrameSummaries summaries = frame->Summarize();
   DCHECK_LT(0, summaries.size());
   return summaries.frames.back();
-}
-
-FrameSummary FrameSummary::GetBottom(const CommonFrame* frame) {
-  return Get(frame, 0);
-}
-
-FrameSummary FrameSummary::GetSingle(const CommonFrame* frame) {
-  FrameSummaries summaries = frame->Summarize();
-  DCHECK_EQ(1, summaries.size());
-  return summaries.frames.front();
 }
 
 FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
@@ -3598,7 +3588,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
   accumulator->PrintName(script()->name());
 
   FrameSummary::WasmFrameSummary top_summary =
-      FrameSummary::GetTop(this).AsWasm();
+      FrameSummary::GetInnermost(this).AsWasm();
   int func_index = static_cast<int>(top_summary.function_index());
   base::Vector<const uint8_t> raw_func_name =
       module_object()->GetRawFunctionName(func_index);
@@ -3962,7 +3952,7 @@ int WasmInterpreterEntryFrame::function_index(
 }
 
 int WasmInterpreterEntryFrame::position() const {
-  return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
+  return FrameSummary::GetInnermost(this).AsWasmInterpreted().SourcePosition();
 }
 
 Tagged<Object> WasmInterpreterEntryFrame::context() const {

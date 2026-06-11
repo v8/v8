@@ -599,9 +599,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 
   ~FrameSummary();
 
-  static FrameSummary GetTop(const CommonFrame* frame);
-  static FrameSummary GetBottom(const CommonFrame* frame);
-  static FrameSummary GetSingle(const CommonFrame* frame);
+  static FrameSummary GetInnermost(const CommonFrame* frame);
   static FrameSummary Get(const CommonFrame* frame, int index);
 
   void EnsureSourcePositionsAvailable();
@@ -1942,7 +1940,7 @@ class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
 #endif  // V8_ENABLE_WEBASSEMBLY
   inline JavaScriptFrame* javascript_frame() const;
 
-  // Use this instead of FrameSummary::GetTop(javascript_frame) to keep
+  // Use this instead of FrameSummary::GetInnermost(javascript_frame) to keep
   // filtering behavior consistent with the rest of
   // DebuggableStackFrameIterator.
   FrameSummary GetTopValidFrame() const;
