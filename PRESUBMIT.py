@@ -555,6 +555,24 @@ def _CheckMultiLineIfBraces(input_api, output_api):
   return []
 
 
+def _CheckDepsGitignored(input_api, output_api):
+  """Checks that all dependencies in DEPS are gitignored."""
+  affected_files = [f.LocalPath() for f in input_api.AffectedFiles()]
+  if {"DEPS", ".gitignore"}.isdisjoint(affected_files):
+    return []
+
+  script_path = input_api.os_path.join(input_api.PresubmitLocalPath(), "tools",
+                                       "dev", "verify_deps_ignored.py")
+
+  return input_api.RunTests([
+      input_api.Command(
+          name="verify_deps_ignored",
+          cmd=[input_api.python3_executable, script_path],
+          kwargs={"cwd": input_api.PresubmitLocalPath()},
+          message=output_api.PresubmitError)
+  ])
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
@@ -578,6 +596,7 @@ def _CommonChecks(input_api, output_api):
       _RunTestsWithVPythonSpec,
       _CheckPythonLiterals,
       _CheckMultiLineIfBraces,
+      _CheckDepsGitignored,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])

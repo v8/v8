@@ -23,26 +23,28 @@
 *~
 .#*
 .*.sw?
+
+.agents
 .cache
 .ccls-cache
-.clangd
 .clang-format-cache
+.clangd
 .cpplint-cache
 .cproject
 .DS_Store
 .gclient_entries
 .gdb_history
+.gemini
 .idea
+.jetskicli
 .jslint-cache
 .landmines
 .project
 .pydevproject
 .settings
+.setup_worktree.lock
 .torquelint-cache
 .vscode
-.agents
-.gemini
-.jetskicli
 
 # Directories added by standalone gclient setup.
 /.cipd
@@ -53,6 +55,8 @@
 /.gcs_entries
 
 /_*
+/agents/internal
+/agents/shared
 /base
 /build
 /buildtools
@@ -151,4 +155,3 @@ MODULE.bazel.lock
 GEMINI.md
 AGENTS.md
 /worktrees
-/agents/shared/
