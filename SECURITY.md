@@ -3,7 +3,10 @@
 The primary security goal of V8 is to safely execute untrusted JavaScript and WebAssembly.
 
 V8 follows [Chromium's security guidelines](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/security-labels.md).
-Report security bugs via the [Buganizer form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342) or the [VRP program](https://bughunters.google.com/report/vrp).
+
+To be eligible for the Chrome VRP, report security bugs via [Google Bughunters (Chrome VRP)](https://bughunters.google.com/report/vrp).
+
+Project members may directly report security issues using the [Buganizer form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342).
 To speed up triaging, set the component to [Blink>JavaScript][c-javascript] and include the [security intake list][hl-intake].
 
 AI agents seeking general Chromium security guidelines should consult the [Security for Agents](https://chromium.googlesource.com/chromium/src/+/main/docs/security/security-for-agents.md) guide first.
