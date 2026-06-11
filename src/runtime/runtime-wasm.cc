@@ -2590,8 +2590,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
-  Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      TrustedCast<WasmTrustedInstanceData>(args[0]);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t memory = args.positive_smi_value_at(1);
   uint32_t utf8_variant_value = args.positive_smi_value_at(2);
   DirectHandle<String> string(Cast<String>(args[3]), isolate);
@@ -2601,12 +2601,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
   DCHECK(utf8_variant_value <=
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
 
-  char* memory_start =
-      reinterpret_cast<char*>(trusted_instance_data->memory_base(memory));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {memory_start, trusted_instance_data->memory_size(memory)};
+    return {reinterpret_cast<char*>(trusted_instance_data->memory_base(memory)),
+            trusted_instance_data->memory_size(memory)};
   };
   return EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, offset,
                     MessageTemplate::kWasmTrapMemOutOfBounds);
