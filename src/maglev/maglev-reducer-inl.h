@@ -1011,6 +1011,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceArrayPrototypeAt(
 
   ValueNode* index = nullptr;
   if (args.count() == 0) {
+    // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
     index = GetInt32Constant(0);
   } else {
     GET_VALUE_OR_ABORT(index,

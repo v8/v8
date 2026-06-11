@@ -4111,6 +4111,11 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
 std::optional<ValueNode*>
 MaglevGraphBuilder::TryBuildLoadTaggedFieldFromAllocation(ValueNode* object,
                                                           int offset) {
+  // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
+  // could let the path below handle map loads as well. But, maglev currently
+  // doesn't like this at all - doing so creates problems like OOB vobject field
+  // loads, and missed JSArray elements kind transitions. We should understand
+  // whether this is an issue with --maglev-object-tracking.
   if (offset == offsetof(HeapObject, map_)) return std::nullopt;
   if (!(IsFieldConstant(object, offset) ||
         CanTrackObjectChanges(object, TrackObjectMode::kLoad))) {
@@ -4165,6 +4170,10 @@ bool MaglevGraphBuilder::TryElideWriteBarrierForAllocation(ValueNode* object,
     }
     return nullptr;
   };
+  // No need for a write barrier if both object and value are part of the same
+  // folded young allocation.
+  // Turbolev will do this optimization later after allocation folding. Doing it
+  // here could interfere with turboshaft pretenuring.
   AllocationBlock* allocation = get_allocation(object);
   if (!is_turbolev() && allocation != nullptr &&
       reducer_.current_allocation_block() == allocation &&
