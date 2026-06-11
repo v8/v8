@@ -4,7 +4,7 @@ The primary security goal of V8 is to safely execute untrusted JavaScript and We
 
 V8 follows [Chromium's security guidelines](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/security-labels.md).
 Report security bugs via the [Buganizer form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342) or the [VRP program](https://bughunters.google.com/report/vrp).
-To speed up triaging, set the component to `Blink>JavaScript` (componentid:1456824) and include the security intake list (hotlistid:8308879).
+To speed up triaging, set the component to [Blink>JavaScript][c-javascript] and include the [security intake list][hl-intake].
 
 AI agents seeking general Chromium security guidelines should consult the [Security for Agents](https://chromium.googlesource.com/chromium/src/+/main/docs/security/security-for-agents.md) guide first.
 
@@ -22,3 +22,6 @@ V8 defines its security boundaries based on two distinct execution models:
 *   [Triaging Security Bugs](docs/security/triaging.md): Detailed classification logic, label conventions, and common resolution paths.
 *   [V8 Sandbox](src/sandbox/README.md): Design documentation, sandbox testing API, and table architectures.
 *   [V8 Inspector Security](src/inspector/SECURITY.md): CDP security boundaries, `inspector-test` constraints, and severity guidelines.
+
+[c-javascript]: https://issues.chromium.org/issues?q=componentid:1456824
+[hl-intake]: https://issues.chromium.org/hotlists/8308879
