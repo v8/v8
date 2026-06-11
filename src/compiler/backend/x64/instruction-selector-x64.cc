@@ -2444,10 +2444,7 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
         g.GetEffectiveAddressMemoryOperand(rhs, inputs, &input_count);
     opcode |= AddressingModeField::encode(addressing_mode);
   } else {
-    // TODO(thibaudm): Make sure that live ranges are never split at
-    // instructions (only at gaps), then switch to {g.Use(rhs)} here.
-    // inputs[input_count++] = g.Use(rhs);
-    inputs[input_count++] = g.UseUnique(rhs);
+    inputs[input_count++] = g.Use(rhs);
   }
   DCHECK_GE(arraysize(inputs), input_count);
 

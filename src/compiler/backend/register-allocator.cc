@@ -3122,6 +3122,11 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
   if (new_end != range->End()) {
     TRACE("Found new end for %d:%d at %d\n", range->TopLevel()->vreg(),
           range->relative_id(), new_end.value());
+    // Shift the split position to the last gap position. This is to ensure that
+    // if a connecting move is needed, that move coincides with the start of the
+    // range that it defines.
+    new_end = new_end.IsGapPosition() ? new_end : new_end.FullStart().End();
+    DCHECK_GT(new_end, range->Start());
     LiveRange* tail = SplitRangeAt(range, new_end);
     AddToUnhandled(tail);
   }
