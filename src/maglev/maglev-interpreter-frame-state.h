@@ -505,6 +505,12 @@ class MergePointInterpreterFrameState {
 
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
+  KnownNodeAspects* backedge_known_node_aspects() const {
+    DCHECK(is_loop());
+    DCHECK_NOT_NULL(backedge_known_node_aspects_);
+    return backedge_known_node_aspects_;
+  }
+
   const compiler::LoopInfo* loop_info() const {
     DCHECK(loop_metadata_.has_value());
     DCHECK_NOT_NULL(loop_metadata_->loop_info);
@@ -617,6 +623,9 @@ class MergePointInterpreterFrameState {
   MergePointRegisterState register_state_;
   KnownNodeAspects* known_node_aspects_ = nullptr;
   compiler::OptionalScopeInfoRef context_scope_info_;
+
+  // The KNA from the backedge (end of the loop). Only used for loop headers.
+  KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
 
   union {
     // {pre_predecessor_alternatives_} is used to keep track of the alternatives

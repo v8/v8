@@ -497,6 +497,10 @@ void MergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
+  if (graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
+    backedge_known_node_aspects_ =
+        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  }
   backedge_deopt_frame_ = backedge_deopt_frame;
 
   const MaglevCompilationInfo* info = compilation_unit.info();
@@ -539,8 +543,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
 
-  backedge_deopt_frame_ = backedge_deopt_frame;
-
   DCHECK_NOT_NULL(known_node_aspects_);
   DCHECK(v8_flags.maglev_optimistic_peeled_loops);
 
@@ -579,6 +581,12 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     ClearLoopInfo();
     return false;
   }
+
+  if (graph->compilation_info()->flags().is_non_eager_inlining_enabled) {
+    backedge_known_node_aspects_ =
+        loop_end_state.known_node_aspects()->Clone(graph->zone());
+  }
+  backedge_deopt_frame_ = backedge_deopt_frame;
 
   BasicBlock* loop_end_block = FinishBlock();
   int input = predecessor_count_ - 1;
