@@ -2730,20 +2730,28 @@ class LiftoffCompiler {
     __ PushRegister(kS128, dst);
   }
 
-  void EmitDivOrRem64CCall(LiftoffRegister dst, LiftoffRegister lhs,
-                           LiftoffRegister rhs, ExternalReference ext_ref,
-                           Label* trap_by_zero,
-                           Label* trap_unrepresentable = nullptr) {
-    // Cannot emit native instructions, build C call.
+  void EmitDivOrRem64CCall(
+      LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs,
+      ExternalReference ext_ref, FullDecoder* decoder, Builtin builtin_by_zero,
+      Builtin builtin_unrepresentable = Builtin::kNoBuiltinId) {
     LiftoffRegister ret = __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
     LiftoffRegister result_regs[] = {ret, dst};
     GenerateCCallWithStackBuffer(result_regs, kI32, kI64,
                                  {{kI64, lhs, 0}, {kI64, rhs, 0}}, ext_ref);
-    FREEZE_STATE(trapping);
-    __ emit_i32_cond_jumpi(kEqual, trap_by_zero, ret.gp(), 0, trapping);
-    if (trap_unrepresentable) {
-      __ emit_i32_cond_jumpi(kEqual, trap_unrepresentable, ret.gp(), -1,
-                             trapping);
+
+    // After the C call, all registers are spilled. Create the traps now.
+    // The snapshot will correctly reflect that all references are on the stack.
+    // TODO(clemensb): The operands of the div/rem operation are not visible in
+    // the debugger, as they were already popped from the value stack.
+    OolTrapLabel trap_by_zero = AddOutOfLineTrap(decoder, builtin_by_zero);
+
+    __ emit_i32_cond_jumpi(kEqual, trap_by_zero.label(), ret.gp(), 0,
+                           trap_by_zero.frozen());
+    if (builtin_unrepresentable != Builtin::kNoBuiltinId) {
+      OolTrapLabel trap_unrepresentable =
+          AddOutOfLineTrap(decoder, builtin_unrepresentable);
+      __ emit_i32_cond_jumpi(kEqual, trap_unrepresentable.label(), ret.gp(), -1,
+                             trap_unrepresentable.frozen());
     }
   }
 
@@ -3026,15 +3034,14 @@ class LiftoffCompiler {
             UNREACHABLE();
 #else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_div();
-            Label* div_by_zero_ptr = div_by_zero->label();
-            Label* div_unrepresentable_ptr = div_unrepresentable->label();
-            // TODO(513426275): Capturing the label here and then resetting the
-            // OolTrapLabel is problematic as it might result in a stale
-            // stack state.
-            div_by_zero.reset();
+            // Reset the traps to unfreeze the state before the fallback.
+            // The OOL code will be unused, new OOL code will be generated after
+            // the C call.
             div_unrepresentable.reset();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr,
-                                div_unrepresentable_ptr);
+            div_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, decoder,
+                                Builtin::kThrowWasmTrapDivByZero,
+                                Builtin::kThrowWasmTrapDivUnrepresentable);
 #endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
@@ -3051,12 +3058,12 @@ class LiftoffCompiler {
             UNREACHABLE();
 #else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
-            Label* div_by_zero_ptr = div_by_zero->label();
-            // TODO(513426275): Capturing the label here and then resetting the
-            // OolTrapLabel is problematic as it might result in a stale
-            // stack state.
+            // Reset the trap to unfreeze the state before the fallback.
+            // The OOL code will be unused, new OOL code will be generated after
+            // the C call.
             div_by_zero.reset();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr);
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, decoder,
+                                Builtin::kThrowWasmTrapDivByZero);
 #endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
@@ -3073,12 +3080,12 @@ class LiftoffCompiler {
             UNREACHABLE();
 #else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
-            Label* rem_by_zero_ptr = rem_by_zero->label();
-            // TODO(513426275): Capturing the label here and then resetting the
-            // OolTrapLabel is problematic as it might result in a stale
-            // stack state.
+            // Reset the trap to unfreeze the state before the fallback.
+            // The OOL code will be unused, new OOL code will be generated after
+            // the C call.
             rem_by_zero.reset();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, decoder,
+                                Builtin::kThrowWasmTrapRemByZero);
 #endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
@@ -3095,12 +3102,12 @@ class LiftoffCompiler {
             UNREACHABLE();
 #else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
-            Label* rem_by_zero_ptr = rem_by_zero->label();
-            // TODO(513426275): Capturing the label here and then resetting the
-            // OolTrapLabel is problematic as it might result in a stale
-            // stack state.
+            // Reset the trap to unfreeze the state before the fallback.
+            // The OOL code will be unused, new OOL code will be generated after
+            // the C call.
             rem_by_zero.reset();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, decoder,
+                                Builtin::kThrowWasmTrapRemByZero);
 #endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
