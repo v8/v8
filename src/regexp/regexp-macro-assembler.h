@@ -9,7 +9,7 @@
 
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"
 

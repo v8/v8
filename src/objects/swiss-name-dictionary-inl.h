@@ -12,9 +12,11 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 

@@ -12,6 +12,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/log.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-inl.h"

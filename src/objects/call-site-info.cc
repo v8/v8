@@ -10,6 +10,7 @@
 #include "src/builtins/builtins.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"
 

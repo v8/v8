@@ -9,6 +9,7 @@
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"

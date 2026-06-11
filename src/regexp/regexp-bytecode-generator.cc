@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "src/ast/ast.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
 #include "src/regexp/regexp-bytecode-peephole.h"
 #include "src/regexp/regexp-bytecodes-inl.h"

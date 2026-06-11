@@ -12,10 +12,8 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory.h"
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

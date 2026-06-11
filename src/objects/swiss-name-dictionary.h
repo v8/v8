@@ -10,7 +10,7 @@
 
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/swiss-hash-table-helpers.h"

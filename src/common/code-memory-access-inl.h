@@ -11,6 +11,8 @@
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/tagged.h"
+#include "src/utils/memcopy.h"
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
 #endif

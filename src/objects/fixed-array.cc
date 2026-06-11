@@ -4,19 +4,11 @@
 
 #include "src/objects/fixed-array.h"
 
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 
 namespace v8 {
 namespace internal {
-
-int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
-  return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
-          ElementsKindToShiftSize(kind));
-}
-
-bool FixedArrayBase::IsCowArray() const {
-  return map() == GetReadOnlyRoots().fixed_cow_array_map();
-}
 
 template <template <typename> typename HandleType>
   requires(

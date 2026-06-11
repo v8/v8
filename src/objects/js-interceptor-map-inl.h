@@ -10,6 +10,7 @@
 
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/templates-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

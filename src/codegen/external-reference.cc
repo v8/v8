@@ -33,6 +33,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/ieee754.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/module.h"

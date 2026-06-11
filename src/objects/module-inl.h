@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"

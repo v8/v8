@@ -9,7 +9,6 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/contexts-inl.h"
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

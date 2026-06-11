@@ -11,18 +11,16 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 #include "src/common/globals.h"
-#include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
-#include "src/objects/dictionary-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string-table-inl.h"
-#include "src/strings/string-hasher.h"
+#include "src/objects/tagged-field-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -125,11 +123,6 @@ Handle<Foreign> Factory::NewForeign(Address addr,
   DisallowGarbageCollection no_gc;
   foreign->init_foreign_address<tag>(isolate(), addr);
   return handle(foreign, isolate());
-}
-
-DirectHandle<Object> Factory::NewURIError() {
-  return NewError(isolate()->uri_error_function(),
-                  MessageTemplate::kURIMalformed);
 }
 
 ReadOnlyRoots Factory::read_only_roots() const {

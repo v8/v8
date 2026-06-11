@@ -20,6 +20,7 @@
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/abstract-code-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/instance-type-inl.h"

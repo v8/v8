@@ -5,6 +5,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"

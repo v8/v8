@@ -8,6 +8,9 @@
 #include "src/objects/js-array.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/execution/isolate-inl.h"
+#include "src/objects/fixed-array-base-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/tagged-field-inl.h"
 

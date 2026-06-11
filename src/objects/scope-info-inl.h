@@ -10,8 +10,10 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/oddball-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/string.h"
 #include "src/roots/roots-inl.h"
 

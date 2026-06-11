@@ -8,6 +8,7 @@
 #include "src/objects/prototype.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/execution/isolate-inl.h"  // For Isolate::native_context().
 #include "src/handles/handles-inl.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/map-inl.h"

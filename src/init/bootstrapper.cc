@@ -22,6 +22,7 @@
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
@@ -76,7 +77,7 @@
 #endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/property-cell-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"

@@ -9,7 +9,6 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-snapshot.h"
 #include "src/heap/factory.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/serializer-deserializer.h"

@@ -14,6 +14,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/hash-table-inl.h"

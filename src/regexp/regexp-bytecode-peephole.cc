@@ -12,7 +12,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/flags/flags.h"
-#include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-primitive-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-bytecodes-inl.h"

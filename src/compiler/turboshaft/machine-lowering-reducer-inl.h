@@ -33,6 +33,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-checker.h"

@@ -32,6 +32,7 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/bigint.h"
 #include "src/objects/casting.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
@@ -114,7 +115,6 @@ DEF_CAST_TRAITS(CoverageInfo)
 DEF_CAST_TRAITS(CppHeapExternalObject)
 DEF_CAST_TRAITS(DataHandler)
 DEF_CAST_TRAITS(DeoptimizationData)
-DEF_CAST_TRAITS(DependentCode)
 DEF_CAST_TRAITS(DescriptorArray)
 DEF_CAST_TRAITS(DictionaryTemplateInfo)
 DEF_CAST_TRAITS(DoubleStringCache)
@@ -207,9 +207,7 @@ DEF_CAST_TRAITS(LoadHandler)
 DEF_CAST_TRAITS(MegaDomHandler)
 DEF_CAST_TRAITS(Module)
 DEF_CAST_TRAITS(Microtask)
-DEF_CAST_TRAITS(Name)
 DEF_CAST_TRAITS(NameDictionary)
-DEF_CAST_TRAITS(NameToIndexHashTable)
 DEF_CAST_TRAITS(NativeContext)
 DEF_CAST_TRAITS(NormalizedMapCache)
 DEF_CAST_TRAITS(NumberDictionary)
@@ -227,7 +225,6 @@ DEF_CAST_TRAITS(PrimitiveHeapObject)
 DEF_CAST_TRAITS(PromiseReactionJobTask)
 DEF_CAST_TRAITS(PropertyArray)
 DEF_CAST_TRAITS(PropertyCell)
-DEF_CAST_TRAITS(ScopeInfo)
 DEF_CAST_TRAITS(SharedFunctionInfo)
 DEF_CAST_TRAITS(SimpleNameDictionary)
 DEF_CAST_TRAITS(SimpleNumberDictionary)
@@ -577,8 +574,6 @@ DEF_HEAP_OBJECT_PREDICATE(IsDeoptimizationData) {
 }
 
 DEF_HEAP_OBJECT_PREDICATE(IsHandlerTable) { return IsFixedArrayExact(obj); }
-
-DEF_HEAP_OBJECT_PREDICATE(IsDependentCode) { return IsWeakArrayList(obj); }
 
 DEF_HEAP_OBJECT_PREDICATE(IsOSROptimizedCodeCache) {
   return IsWeakFixedArray(obj);

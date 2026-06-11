@@ -17,7 +17,6 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"

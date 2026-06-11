@@ -11,7 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/objects/dictionary.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/literal-objects-inl.h"

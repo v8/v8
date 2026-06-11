@@ -1044,8 +1044,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<Object> NewInvalidStringLengthError();
 
-  inline DirectHandle<Object> NewURIError();
-
   Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
                             MessageTemplate template_index,
                             base::Vector<const DirectHandle<Object>> args);

@@ -9,7 +9,6 @@
 #include "src/execution/local-isolate.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/contexts.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"

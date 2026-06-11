@@ -6,7 +6,6 @@
 #define V8_REGEXP_REGEXP_CODE_GENERATOR_H_
 
 #include "src/handles/handles.h"
-#include "src/objects/fixed-array.h"
 #include "src/regexp/regexp-bytecode-iterator.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-error.h"

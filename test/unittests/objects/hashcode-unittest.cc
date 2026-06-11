@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "src/init/v8.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/utils/utils.h"
 #include "test/unittests/test-utils.h"

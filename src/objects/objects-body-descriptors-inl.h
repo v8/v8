@@ -25,6 +25,7 @@
 #include "src/objects/data-handler.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-seed-wrapper.h"

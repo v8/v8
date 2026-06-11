@@ -7,7 +7,7 @@
 
 #include "src/codegen/handler-table.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/fixed-primitive-array.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

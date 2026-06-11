@@ -13,11 +13,12 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/contexts.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/property-cell-inl.h"
 
 namespace v8 {
 namespace internal {

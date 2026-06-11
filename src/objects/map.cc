@@ -19,21 +19,18 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map-updater.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
-#include "src/objects/tagged-field.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
-#include "src/utils/ostreams.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal {
 

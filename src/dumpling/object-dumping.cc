@@ -8,9 +8,9 @@
 #include <iostream>
 #include <vector>
 
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 #include "src/strings/string-stream.h"
 

@@ -10,9 +10,11 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

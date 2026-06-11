@@ -10,6 +10,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/property-cell-inl.h"
 
 namespace v8 {
 namespace internal {

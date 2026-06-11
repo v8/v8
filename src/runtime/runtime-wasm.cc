@@ -18,6 +18,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/object-list-macros.h"

@@ -15,6 +15,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"

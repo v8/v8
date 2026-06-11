@@ -11,6 +11,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/pod-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -5,6 +5,7 @@
 #include "src/objects/js-struct.h"
 
 #include "src/heap/heap-layout-inl.h"
+#include "src/objects/dictionary-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/off-heap-hash-table-inl.h"
