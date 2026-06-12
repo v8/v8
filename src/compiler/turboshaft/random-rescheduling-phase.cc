@@ -171,14 +171,11 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     if V8_UNLIKELY (trace_scheduling_) {
       std::cout << "VisitBlock: input " << input_block->index() << "\n";
     }
-    // Skip rescheduling for large blocks as the rescheduling otherwise gets too
-    // slow.
-    bool reschedule = input_block->OpCountUpperBound() < 500;
-    VisitBlockBody(input_block, -1, reschedule);
+    VisitBlockBody(input_block);
   }
 
-  void VisitBlockBody(const Block* input_block, int added_block_phi_input = -1,
-                      bool reschedule = true) {
+  void VisitBlockBody(const Block* input_block,
+                      int added_block_phi_input = -1) {
     CHECK_NOT_NULL(__ current_block());
     current_input_block_ = input_block;
 
@@ -229,35 +226,26 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     }
 
     // Now visit and schedule everything else.
-    if (!reschedule) {
-      for (OpIndex index : graph_.OperationIndices(*input_block)) {
-        const Operation& op = graph_.Get(index);
-        if (op.Is<PhiOp>() || op.Is<ParameterOp>() ||
-            op.Is<CatchBlockBeginOp>() || op.IsBlockTerminator()) {
-          continue;
+    Graph::OpIndexIterator first_unscheduled_iter =
+        graph_.OperationIndices(*input_block).begin();
+
+    while (true) {
+      ComputeReadyOperations(input_block, first_unscheduled_iter);
+      OpIndex next_op = PickNextOperation();
+      if (!next_op.valid()) break;
+
+      CHECK_EQ(op_states_[next_op], OpState::kReady);
+
+      VisitOpAndUpdateMapping(next_op, input_block);
+      op_states_[next_op] = OpState::kScheduled;
+
+      if V8_UNLIKELY (trace_scheduling_) {
+        std::cout << std::setw(4) << next_op.id() << ":" << graph_.Get(next_op)
+                  << " out of {";
+        for (OpIndex ready_op : ready_ops_) {
+          std::cout << ready_op.id() << ", ";
         }
-        op_states_[index] = OpState::kScheduled;
-        VisitOpAndUpdateMapping(index, input_block);
-      }
-    } else {
-      while (true) {
-        ComputeReadyOperations(input_block);
-        OpIndex next_op = PickNextOperation();
-        if (!next_op.valid()) break;
-
-        CHECK_EQ(op_states_[next_op], OpState::kReady);
-
-        VisitOpAndUpdateMapping(next_op, input_block);
-        op_states_[next_op] = OpState::kScheduled;
-
-        if V8_UNLIKELY (trace_scheduling_) {
-          std::cout << std::setw(4) << next_op.id() << ":"
-                    << graph_.Get(next_op) << " out of {";
-          for (OpIndex ready_op : ready_ops_) {
-            std::cout << ready_op.id() << ", ";
-          }
-          std::cout << "}\n";
-        }
+        std::cout << "}\n";
       }
     }
 
@@ -317,8 +305,12 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     return AllInputsScheduled(index);
   }
 
-  void ComputeReadyOperations(const Block* input_block) {
+  void ComputeReadyOperations(const Block* input_block,
+                              Graph::OpIndexIterator& first_unscheduled_iter) {
     ready_ops_.clear();
+
+    Graph::OpIndexIterator block_end =
+        graph_.OperationIndices(*input_block).end();
 
     // When considering the next operation to schedule, this is the sum of all
     // effects that we have seen from the current position up to that operation,
@@ -326,20 +318,29 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     // schedule.
     EffectDimensions::Bits produced_effects = 0;
 
-    for (OpIndex index : graph_.OperationIndices(*input_block)) {
+    // Whether we found at least one new unscheduled operation.
+    bool has_advanced = false;
+
+    for (Graph::OpIndexIterator iter = first_unscheduled_iter;
+         iter != block_end; ++iter) {
+      OpIndex index = *iter;
       const Operation& op = graph_.Get(index);
       switch (op_states_[index]) {
         case OpState::kPending:
-          if (IsReady(index, op, produced_effects)) {
-            // This is ready to be scheduled.
-            op_states_[index] = OpState::kReady;
-            ready_ops_.insert(index);
+          if (!IsReady(index, op, produced_effects)) {
+            break;
           }
-          break;
+          op_states_[index] = OpState::kReady;
+          [[fallthrough]];
         case OpState::kReady:
           // If this was ready before, it should still be.
           CHECK(IsReady(index, op, produced_effects));
           ready_ops_.insert(index);
+          if (!has_advanced) {
+            has_advanced = true;
+            first_unscheduled_iter = iter;
+          }
+          if (ready_ops_.size() == 30) return;
           break;
         case OpState::kFixed:
           // This operation has a fixed position and cannot be rescheduled, but

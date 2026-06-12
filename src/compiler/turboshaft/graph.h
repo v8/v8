@@ -920,7 +920,7 @@ class Graph {
 
    private:
     OpIndex index_;
-    const Graph* const graph_;
+    const Graph* graph_;
   };
 
   template <class OperationT, typename GraphT>
