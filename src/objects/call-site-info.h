@@ -29,7 +29,12 @@ V8_OBJECT class CallSiteInfo : public Struct {
   using IsConstructorBit = IsStrictBit::Next<bool, 1>;
   using IsAsmJsAtNumberConversionBit = IsConstructorBit::Next<bool, 1>;
   using IsAsyncBit = IsAsmJsAtNumberConversionBit::Next<bool, 1>;
+#if V8_ENABLE_DRUMBRAKE
+  using IsWasmInterpretedFrameBit = IsAsyncBit::Next<bool, 1>;
+  using IsBuiltinBit = IsWasmInterpretedFrameBit::Next<bool, 1>;
+#else
   using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
+#endif
   using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
   using IsDeferredBaselineFrameBit = IsSourcePositionComputedBit::Next<bool, 1>;
   enum Flag : uint32_t {
@@ -40,12 +45,19 @@ V8_OBJECT class CallSiteInfo : public Struct {
     kIsConstructor = IsConstructorBit::kMask,
     kIsAsmJsAtNumberConversion = IsAsmJsAtNumberConversionBit::kMask,
     kIsAsync = IsAsyncBit::kMask,
+#if V8_ENABLE_DRUMBRAKE
+    kIsWasmInterpretedFrame = IsWasmInterpretedFrameBit::kMask,
+#endif
     kIsBuiltin = IsBuiltinBit::kMask,
     kIsSourcePositionComputed = IsSourcePositionComputedBit::kMask,
     kIsDeferredBaselineFrame = IsDeferredBaselineFrameBit::kMask,
   };
   using Flags = base::Flags<Flag>;
+#if V8_ENABLE_DRUMBRAKE
+  static constexpr int kFlagCount = 10;
+#else
   static constexpr int kFlagCount = 9;
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool IsWasm() const;
