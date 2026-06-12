@@ -94,6 +94,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
   V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
+  V(CpuFeatures, kInt32Size, cpu_features)                                     \
   ISOLATE_DATA_FIELDS_TIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS

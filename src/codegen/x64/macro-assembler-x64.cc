@@ -3840,7 +3840,7 @@ void MacroAssembler::IncsspqIfSupported(Register number_of_words,
                                         Register scratch) {
   // Optimized code can validate at runtime whether the cpu supports the
   // incsspq instruction, so it shouldn't use this method.
-  CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
+  CHECK(options().generating_embedded_builtin);
   DCHECK_NE(number_of_words, scratch);
   Label not_supported;
   ExternalReference supports_cetss =

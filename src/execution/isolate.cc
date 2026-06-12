@@ -6379,6 +6379,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
+  isolate_data_.cpu_features_ = CpuFeatures::SupportedFeatures();
+
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate;
   }

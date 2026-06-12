@@ -61,6 +61,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   options.record_reloc_info_for_serialization = serializer;
   options.enable_root_relative_access =
       !serializer && !generating_embedded_builtin;
+  options.generating_embedded_builtin = generating_embedded_builtin;
 #ifdef USE_SIMULATOR
   // Even though the simulator is enabled, we may still need to generate code
   // that may need to run on both the simulator and real hardware. For example,

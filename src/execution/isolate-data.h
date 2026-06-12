@@ -465,6 +465,10 @@ class IsolateData final {
   // Counts deopt points if deopt_every_n_times is enabled.
   uint64_t stress_deopt_count_ = 0;
 
+  // Cache of CpuFeatures::SupportedFeatures() for easy access from generated
+  // code.
+  CpuFeatureSet cpu_features_;
+
 #if !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.
   JSDispatchHandle* builtin_dispatch_table() { return builtin_dispatch_table_; }

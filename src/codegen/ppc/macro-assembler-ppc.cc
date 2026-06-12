@@ -617,9 +617,7 @@ void MacroAssembler::MultiPushF64AndV128(DoubleRegList dregs,
                                          Register location) {
   MultiPushDoubles(dregs);
 #if V8_ENABLE_WEBASSEMBLY
-  bool generating_builtins =
-      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_builtins) {
+  if (options().generating_embedded_builtin) {
     // V8 uses the same set of fp param registers as Simd param registers.
     // As these registers are two different sets on ppc we must make
     // sure to also save them when Simd is enabled.
@@ -653,9 +651,7 @@ void MacroAssembler::MultiPopF64AndV128(DoubleRegList dregs,
                                         Register scratch1, Register scratch2,
                                         Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  bool generating_builtins =
-      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_builtins) {
+  if (options().generating_embedded_builtin) {
     Label pop_empty_simd, simd_popped;
     Move(scratch1, ExternalReference::supports_simd_128_address());
     LoadU8(scratch1, MemOperand(scratch1), scratch2);

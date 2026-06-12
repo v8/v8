@@ -4131,7 +4131,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
       has_write_barrier ? g.UseUniqueRegister(base) : g.UseRegister(base),
       has_write_barrier ? g.UseUniqueRegister(index) : g.UseRegister(index),
       g.UseUniqueRegister(old_value), g.UseUniqueRegister(new_value)};
-  InstructionOperand outputs[1];
+  // When LSE is supported, CAS uses the same register for the |old_value| and
+  // output result. However, to avoid special cases, we let them be different
+  // registers at the expense of an extra mov instruction.
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
@@ -4139,15 +4142,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   }
   if (CpuFeatures::IsSupported(LSE)) {
     InstructionOperand temps[] = {g.TempRegister()};
-    // The tagged variant needs to not overwrite the input register to check
-    // whether the cas was successful and a write barrier needs to be executed.
-    outputs[0] = has_write_barrier ? g.DefineAsRegister(node)
-                                   : g.DefineSameAsInput(node, 2);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   } else {
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    outputs[0] = g.DefineAsRegister(node);
     selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   }

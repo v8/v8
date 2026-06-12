@@ -237,6 +237,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // PC-relative calls may be used. So, we fall back to an indirect mode.
   // TODO(v8:11527): remove once kForMksnapshot is removed.
   bool use_pc_relative_calls_and_jumps_for_mksnapshot = false;
+  // Generating builtins with mksnapshot, this option can be used when the
+  // isolate isn't available.
+  bool generating_embedded_builtin = false;
 
   // On some platforms, all code is created within a certain address range in
   // the process, and the base of this code range is configured here.

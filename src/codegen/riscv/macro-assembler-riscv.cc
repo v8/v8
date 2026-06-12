@@ -2766,9 +2766,7 @@ void MacroAssembler::SaveVectorRegisters(const Simd128RegList& reg_list) {
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
   ASM_CODE_COMMENT(this);
-  bool generating_builtins =
-      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_builtins) {
+  if (options().generating_embedded_builtin) {
     li(kScratchReg, ExternalReference::supports_simd_128_address());
     Lb(kScratchReg, MemOperand(kScratchReg, 0));
     // If != 0, then simd is available.
@@ -2810,9 +2808,7 @@ void MacroAssembler::RestoreVectorRegisters(const Simd128RegList& reg_list) {
   // vector registers might not exist and accessing them would SIGILL.
   Label not_simd, done;
   ASM_CODE_COMMENT(this);
-  bool generating_builtins =
-      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_builtins) {
+  if (options().generating_embedded_builtin) {
     li(kScratchReg, ExternalReference::supports_simd_128_address());
     Lb(kScratchReg, MemOperand(kScratchReg, 0));
     // If != 0, then simd is available.

@@ -181,7 +181,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // Platform-dependent implementation.
   static void ProbeImpl(bool cross_compile);
 
-  static base::EnumSet<CpuFeature, unsigned> supported_;
+  static CpuFeatureSet supported_;
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;

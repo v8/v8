@@ -59,9 +59,8 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_SIMD128
-    bool generating_builtins =
-        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_builtins || CpuFeatures::SupportsSimd128()) {
+    if (options().generating_embedded_builtin ||
+        CpuFeatures::SupportsSimd128()) {
       bytes += kCallerSavedVR.Count() * kSimd128Size;
     } else {
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
@@ -86,9 +85,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_SIMD128
-    bool generating_builtins =
-        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_builtins) {
+    if (options().generating_embedded_builtin) {
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -138,9 +135,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
 #if V8_ENABLE_SIMD128
-    bool generating_builtins =
-        isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_builtins) {
+    if (options().generating_embedded_builtin) {
       // Check if machine has simd enabled, if so push vector registers. If not
       // then only push double registers.
       Label no_simd, done;
