@@ -300,6 +300,8 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
+  // TODO(olivf): Support allocation folding across control flow.
+  reducer_.ClearCurrentAllocationBlock();
   reducer_.set_current_block(block);
   TRACE(TraceColor::kYellow << "Entering block b" << block->id());
   if (block->is_loop()) {
