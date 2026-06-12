@@ -2482,27 +2482,113 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
       offsetof(Map, inobject_properties_start_or_constructor_function_index_)));
 }
 
-TNode<Object> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {
-  TVARIABLE(
-      Object, result,
-      LoadObjectField(
-          map, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
+TNode<Object> CodeStubAssembler::LoadConstructorOrBackPointer(TNode<Map> map) {
+  return LoadObjectField(
+      map, offsetof(Map, constructor_or_back_pointer_or_native_context_));
+}
 
-  Label done(this), loop(this, &result);
+// LINT.IfChange(MapGetConstructor)
+TNode<HeapObject> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {
+  TVARIABLE(HeapObject, result, CAST(LoadConstructorOrBackPointer(map)));
+
+  Label if_initial_map(this), done(this), loop(this, &result);
   Goto(&loop);
   BIND(&loop);
   {
-    GotoIf(TaggedIsSmi(result.value()), &done);
-    TNode<BoolT> is_map_type = IsMap(CAST(result.value()));
-    GotoIfNot(is_map_type, &done);
-    result = LoadObjectField(
-        CAST(result.value()),
-        offsetof(Map, constructor_or_back_pointer_or_native_context_));
+    GotoIfNot(IsMap(result.value()), &if_initial_map);
+    TNode<Map> back_pointer = CAST(result.value());
+    result = CAST(LoadConstructorOrBackPointer(back_pointer));
     Goto(&loop);
+  }
+  BIND(&if_initial_map);
+  {
+    // |result| contains the initial maps's constructor field value.
+    GotoIfNot(IsTuple2(result.value()), &done);
+
+    // Tuple is a pair of {constructor, new_target_name}.
+    TNode<Tuple2> tuple = CAST(result.value());
+    CSA_DCHECK(
+        this,
+        IsJSFunction(CAST(LoadObjectField(tuple, offsetof(Tuple2, value1_)))));
+    CSA_DCHECK(
+        this,
+        IsString(CAST(LoadObjectField(tuple, offsetof(Tuple2, value2_)))));
+
+    result = CAST(LoadObjectField(tuple, offsetof(Tuple2, value1_)));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
+TNode<HeapObject> CodeStubAssembler::LoadInitialMapConstructor(
+    TNode<Map> initial_map) {
+  // Initial maps are expected to contain
+  //  - JSFunction|FunctionTemplateInfo - constructor for non-derived
+  //      constructor case,
+  //  - Tuple2<JSFunction,String> - {constructor, new_target_name} for derived
+  //      constructor case,
+  TVARIABLE(HeapObject, result,
+            CAST(LoadConstructorOrBackPointer(initial_map)));
+  CSA_DCHECK(this, Word32Any(IsJSFunction(result.value()),
+                             IsFunctionTemplateInfo(result.value()),
+                             IsTuple2(result.value())));
+
+  Label done(this);
+  GotoIfNot(IsTuple2(result.value()), &done);
+
+  // Unwrap the {constructor, new_target_name} tuple.
+  {
+    TNode<Tuple2> tuple = CAST(result.value());
+    CSA_DCHECK(
+        this,
+        IsJSFunction(CAST(LoadObjectField(tuple, offsetof(Tuple2, value1_)))));
+    CSA_DCHECK(
+        this,
+        IsString(CAST(LoadObjectField(tuple, offsetof(Tuple2, value2_)))));
+
+    result = CAST(LoadObjectField(tuple, offsetof(Tuple2, value1_)));
+    Goto(&done);
   }
   BIND(&done);
   return result.value();
 }
+
+void CodeStubAssembler::GotoIfInitialMapConstructorNotEqual(
+    TNode<Map> initial_map, TNode<JSFunction> constructor,
+    Label* if_not_equal) {
+  // Initial maps are expected to contain
+  //  - JSFunction|FunctionTemplateInfo - constructor for non-derived
+  //      constructor case,
+  //  - Tuple2<JSFunction,String> - {constructor, new_target_name} for derived
+  //      constructor case,
+  TNode<HeapObject> maybe_ctor =
+      CAST(LoadConstructorOrBackPointer(initial_map));
+  CSA_DCHECK(this, Word32Any(IsJSFunction(maybe_ctor),
+                             IsFunctionTemplateInfo(maybe_ctor),
+                             IsTuple2(maybe_ctor)));
+
+  Label done(this);
+  GotoIf(TaggedEqual(maybe_ctor, constructor), &done);
+  GotoIfNot(IsTuple2(maybe_ctor), if_not_equal);
+
+  // Unwrap the {constructor, new_target_name} tuple.
+  {
+    TNode<Tuple2> tuple = CAST(maybe_ctor);
+    CSA_DCHECK(
+        this,
+        IsJSFunction(CAST(LoadObjectField(tuple, offsetof(Tuple2, value1_)))));
+    CSA_DCHECK(
+        this,
+        IsString(CAST(LoadObjectField(tuple, offsetof(Tuple2, value2_)))));
+
+    auto value1 = LoadObjectField(tuple, offsetof(Tuple2, value1_));
+    Branch(TaggedEqual(value1, constructor), &done, if_not_equal);
+  }
+  BIND(&done);
+}
+// LINT.ThenChange(/src/objects/map-inl.h:MapGetConstructor)
 
 TNode<Uint32T> CodeStubAssembler::LoadMapEnumLength(TNode<Map> map) {
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
@@ -12088,26 +12174,6 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
 
     BIND(&done);
   }
-}
-
-TNode<Object> CodeStubAssembler::GetConstructor(TNode<Map> map) {
-  TVARIABLE(HeapObject, var_maybe_constructor);
-  var_maybe_constructor = map;
-  Label loop(this, &var_maybe_constructor), done(this);
-  GotoIfNot(IsMap(var_maybe_constructor.value()), &done);
-  Goto(&loop);
-
-  BIND(&loop);
-  {
-    var_maybe_constructor = CAST(LoadObjectField(
-        var_maybe_constructor.value(),
-        offsetof(Map, constructor_or_back_pointer_or_native_context_)));
-    GotoIf(IsMap(var_maybe_constructor.value()), &loop);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return var_maybe_constructor.value();
 }
 
 TNode<NativeContext> CodeStubAssembler::GetCreationContextFromMap(

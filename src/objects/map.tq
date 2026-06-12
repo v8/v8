@@ -83,6 +83,33 @@ extern class Map extends HeapObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 
   prototype: JSReceiver|Null;
+
+  // For Context and meta maps, this field can be:
+  //  - Null - contextless meta Map (used for non-JSReceiver objects and for
+  //      remote JSReceivers).
+  //  - NativeContext - respective native context to which given Context or
+  //      meta Map belongs.
+  //  - Smi - might contain Smi::uninitialized_deserialization_value() during
+  //      deserialization of a meta Map.
+  //
+  // For non-JSReceiver maps, this field is Null.
+  //
+  // For JSReceiver's initial maps (root maps), this field holds:
+  //  - JSFunction|FunctionTemplateInfo - constructor for the non-derived
+  //      case (new.target == constructor).
+  //  - Tuple2 - a pair of <JSFunction,String>, a constructor and new.target's
+  //      name for the derived case (new.target != constructor).
+  //
+  // For prototype maps, this field might also contain:
+  //  - String - original constructor name for non-derived constructor case
+  //      (in order to save memory we might remove the link to the original
+  //      constructor if that's not observable and store just the constructor
+  //      name instead, assuming that the constructor function is the Object
+  //      function from the respective native context).
+  //
+  // For non-root JSReceiver's maps, this field contains:
+  //  - Map - back pointer to the parent map in the transition tree.
+  //
   constructor_or_back_pointer_or_native_context: Object;
 
   @if(V8_ENABLE_WEBASSEMBLY) instance_descriptors: DescriptorArray

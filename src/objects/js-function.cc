@@ -926,11 +926,10 @@ void JSFunction::SetInitialMap(Isolate* isolate,
   SetInitialMap(isolate, function, initial_map, prototype, function);
 }
 
-void JSFunction::SetInitialMap(Isolate* isolate,
-                               DirectHandle<JSFunction> function,
-                               DirectHandle<Map> initial_map,
-                               DirectHandle<JSPrototype> prototype,
-                               DirectHandle<JSFunction> constructor) {
+void JSFunction::SetInitialMap(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    DirectHandle<Map> initial_map, DirectHandle<JSPrototype> prototype,
+    DirectHandle<UnionOf<JSFunction, Tuple2>> constructor) {
   if (initial_map->prototype() != *prototype) {
     Map::SetPrototype(isolate, initial_map, prototype);
   }
@@ -1161,7 +1160,8 @@ bool FastInitializeDerivedMap(Isolate* isolate,
                               DirectHandle<JSFunction> constructor,
                               DirectHandle<Map> constructor_initial_map) {
   // Use the default intrinsic prototype instead.
-  if (!new_target->has_prototype_slot()) return false;
+  DCHECK(new_target->has_prototype_slot());
+
   // Check that |function|'s initial map still in sync with the |constructor|,
   // otherwise we must create a new initial map for |function|.
   if (new_target->has_initial_map() &&
@@ -1204,7 +1204,13 @@ bool FastInitializeDerivedMap(Isolate* isolate,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   DirectHandle<JSReceiver> prototype(new_target->instance_prototype(), isolate);
-  JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
+  DirectHandle<String> new_target_name =
+      JSFunction::GetDebugName(isolate, new_target, AllowAllocation::kNo);
+
+  DirectHandle<Tuple2> constructor_tuple = isolate->factory()->NewTuple2(
+      constructor, new_target_name, AllocationType::kOld);
+  JSFunction::SetInitialMap(isolate, new_target, map, prototype,
+                            constructor_tuple);
   DCHECK(IsJSReceiver(new_target->instance_prototype()));
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();
@@ -1230,7 +1236,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
   InstanceType new_target_instance_type = new_target->map()->instance_type();
-  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type)) {
+  if (InstanceTypeChecker::IsJSFunctionWithPrototype(
+          new_target_instance_type)) {
     DirectHandle<JSFunction> function = Cast<JSFunction>(new_target);
     if (FastInitializeDerivedMap(isolate, function, constructor,
                                  constructor_initial_map)) {
@@ -1242,8 +1249,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
   // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
   // fall back to the intrinsicDefaultProto.
   DirectHandle<Object> prototype;
-  if (InstanceTypeChecker::IsJSFunction(new_target_instance_type) &&
-      Cast<JSFunction>(new_target)->has_prototype_slot()) {
+  if (InstanceTypeChecker::IsJSFunctionWithPrototype(
+          new_target_instance_type)) {
     DirectHandle<JSFunction> function = Cast<JSFunction>(new_target);
     // Make sure the new.target.prototype is cached.
     EnsureHasInitialMap(isolate, function);
@@ -1296,7 +1303,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
             *constructor);
   return Map::GetDerivedMap(isolate, constructor_initial_map,
-                            Cast<JSReceiver>(prototype));
+                            Cast<JSReceiver>(prototype), constructor,
+                            new_target);
 }
 
 namespace {

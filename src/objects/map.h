@@ -482,6 +482,8 @@ V8_OBJECT class Map : public HeapObject {
   // This property is implemented according to ES6, section 7.2.3.
   DECL_BOOLEAN_ACCESSORS(is_callable)
 
+  // TODO(ishell): remove |new_target_is_base| bit, derived class case can be
+  // detected by IsTuple2(GetConstructorRaw()).
   DECL_BOOLEAN_ACCESSORS(new_target_is_base)
   DECL_BOOLEAN_ACCESSORS(is_extensible)
   DECL_BOOLEAN_ACCESSORS(is_prototype_map)
@@ -733,10 +735,10 @@ V8_OBJECT class Map : public HeapObject {
   inline Tagged<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
   inline void SetConstructor(Tagged<Object> constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // Constructor getter that performs at most the given number of steps
-  // in the transition tree. Returns either the constructor or the map at
-  // which the walk has stopped.
-  inline Tagged<Object> TryGetConstructor(int max_steps);
+  // Gets constructor value and decodes new.target name, constructor and
+  // derived constructor tuple if present.
+  struct ConstructorData;
+  inline Tagged<HeapObject> GetConstructor(ConstructorData* out) const;
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
@@ -968,7 +970,9 @@ V8_OBJECT class Map : public HeapObject {
   // Returns the map to be used for instances when the given {prototype} is
   // passed to Reflect.construct or proxy constructors.
   static Handle<Map> GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
-                                   DirectHandle<JSReceiver> prototype);
+                                   DirectHandle<JSReceiver> prototype,
+                                   DirectHandle<JSFunction> constructor,
+                                   DirectHandle<JSReceiver> new_target);
 
   // Computes a hash value for this map, to be used e.g. in HashTables. The
   // prototype value should be either the Map's prototype or another prototype
@@ -1237,6 +1241,33 @@ V8_OBJECT class Map : public HeapObject {
   uint32_t optional_padding_;
 #endif
   TaggedMember<JSPrototype> prototype_;
+
+  // For Context and meta maps, this field can be:
+  //  - Null - contextless meta Map (used for non-JSReceiver objects and for
+  //      remote JSReceivers).
+  //  - NativeContext - respective native context to which given Context or
+  //      meta Map belongs.
+  //  - Smi - might contain Smi::uninitialized_deserialization_value() during
+  //      deserialization of a meta Map.
+  //
+  // For non-JSReceiver maps, this field is Null.
+  //
+  // For JSReceiver's initial maps (root maps), this field holds:
+  //  - JSFunction|FunctionTemplateInfo - constructor for the non-derived
+  //      case (new.target == constructor).
+  //  - Tuple2 - a pair of <JSFunction,String>, a constructor and new.target's
+  //      name for the derived case (new.target != constructor).
+  //
+  // For prototype maps, this field might also contain:
+  //  - String - original constructor name for non-derived constructor case
+  //      (in order to save memory we might remove the link to the original
+  //      constructor if that's not observable and store just the constructor
+  //      name instead, assuming that the constructor function is the Object
+  //      function from the respective native context).
+  //
+  // For non-root JSReceiver's maps, this field contains:
+  //  - Map - back pointer to the parent map in the transition tree.
+  //
   TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
 #if V8_ENABLE_WEBASSEMBLY
   TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;

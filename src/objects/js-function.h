@@ -381,10 +381,10 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
                             DirectHandle<Map> initial_map,
                             DirectHandle<JSPrototype> prototype);
-  static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            DirectHandle<Map> initial_map,
-                            DirectHandle<JSPrototype> prototype,
-                            DirectHandle<JSFunction> constructor);
+  static void SetInitialMap(
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      DirectHandle<Map> initial_map, DirectHandle<JSPrototype> prototype,
+      DirectHandle<UnionOf<JSFunction, Tuple2>> constructor);
 
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(

@@ -351,10 +351,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
-  TNode<Object> new_target_constructor = LoadObjectField(
-      initial_map,
-      offsetof(Map, constructor_or_back_pointer_or_native_context_));
-  GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
+  GotoIfInitialMapConstructorNotEqual(initial_map, target, call_runtime);
 
   TVARIABLE(HeapObject, properties);
 

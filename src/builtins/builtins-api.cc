@@ -20,6 +20,7 @@ namespace internal {
 
 namespace {
 
+// LINT.IfChange(GetCompatibleReceiver)
 // Returns true if the function can legally be called with this receiver,
 // otherwise false.
 // TODO(ishell): CallOptimization duplicates this logic, merge.
@@ -50,6 +51,7 @@ bool IsCompatibleReceiver(Isolate* isolate, Tagged<FunctionTemplateInfo> info,
   }
   return false;
 }
+// LINT.ThenChange(/src/builtins/builtins-call-gen.cc:GetCompatibleReceiver)
 
 // argv and argc are the same as those passed to FunctionCallbackInfo:
 // - argc is the number of arguments excluding the receiver

@@ -852,7 +852,7 @@ Running test: testMixedSetPropertiesPreview
 
 Running test: testObjWithArrayAsProto
 {
-    description : Array
+    description : Object
     overflow : false
     properties : [
     ]

@@ -5059,12 +5059,7 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
 Local<String> v8::Object::GetConstructorName() {
   // TODO(v8:12547): Consider adding GetConstructorName(Local<Context>).
   auto self = Utils::OpenDirectHandle(this);
-  i::Isolate* i_isolate;
-  if (i::HeapLayout::InWritableSharedSpace(*self)) {
-    i_isolate = i::Isolate::Current();
-  } else {
-    i_isolate = i::Isolate::Current();
-  }
+  i::Isolate* i_isolate = i::Isolate::Current();
   i::DirectHandle<i::String> name =
       i::JSReceiver::GetConstructorName(i_isolate, self);
   return Utils::ToLocal(name);
@@ -6715,6 +6710,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
 
       proxy_template->SetInternalFieldCount(
           global_template->InternalFieldCount());
+      proxy_constructor->set_class_name(global_constructor->class_name());
 
       // Migrate security handlers from global_template to
       // proxy_template.  Temporarily removing access check

@@ -1253,11 +1253,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<MaybeObject>(LoadObjectField(object, offset));
   }
 
-  TNode<Object> LoadConstructorOrBackPointer(TNode<Map> map) {
-    return LoadObjectField(
-        map, offsetof(Map, constructor_or_back_pointer_or_native_context_));
-  }
-
   TNode<Simd128T> LoadSimd128(TNode<IntPtrT> ptr) {
     return Load<Simd128T>(ptr);
   }
@@ -1419,8 +1414,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadMapInobjectPropertiesStartInWords(TNode<Map> map);
   // Load the constructor function index of a Map (only for primitive maps).
   TNode<IntPtrT> LoadMapConstructorFunctionIndex(TNode<Map> map);
+  // Load the constructor_or_backpointer field of Map.
+  TNode<Object> LoadConstructorOrBackPointer(TNode<Map> map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
-  TNode<Object> LoadMapConstructor(TNode<Map> map);
+  TNode<HeapObject> LoadMapConstructor(TNode<Map> map);
+  // Load the initial map's constructor (equivalent to Map::GetConstructor()
+  // for initial maps).
+  TNode<HeapObject> LoadInitialMapConstructor(TNode<Map> initial_map);
+  // Load the initial map's constructor and compares against given value.
+  // It's more efficient for non-derived constructor cases than using
+  // TaggedEquals(LoadInitialMapConstructor(initial_map), constructor).
+  void GotoIfInitialMapConstructorNotEqual(TNode<Map> initial_map,
+                                           TNode<JSFunction> constructor,
+                                           Label* if_not_equal);
+
   // Load the EnumLength of a Map.
   TNode<Uint32T> LoadMapEnumLength(TNode<Map> map);
   // Load the back-pointer of a Map.
@@ -2269,7 +2276,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<NativeContext> GetFunctionRealm(TNode<Context> context,
                                         TNode<JSReceiver> receiver,
                                         Label* if_bailout);
-  TNode<Object> GetConstructor(TNode<Map> map);
 
   void FindNonDefaultConstructor(TNode<JSFunction> this_function,
                                  TVariable<Object>& constructor,

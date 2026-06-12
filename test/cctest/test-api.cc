@@ -13464,12 +13464,14 @@ THREADED_TEST(SubclassGetConstructorName) {
       "class Parent {}"
       "class Child extends Parent {}"
       "var p = new Parent();"
-      "var c = new Child();")
+      "var c = new Child();"
+      "var c_proto = Object.getPrototypeOf(c);")
       ->Run(context.local())
       .ToLocalChecked();
 
   CheckGetConstructorNameOfVar(context, "p", "Parent");
   CheckGetConstructorNameOfVar(context, "c", "Child");
+  CheckGetConstructorNameOfVar(context, "c_proto", "Child");
 }
 
 static v8::Isolate::CreateParams CreateTestParams() {

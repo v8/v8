@@ -65,6 +65,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   return sfi;
 }
 
+// LINT.IfChange(GetCompatibleReceiver)
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
 #ifdef V8_RUNTIME_CALL_STATS
   LocalHeap* local_heap = LocalHeap::Current();
@@ -109,6 +110,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // Didn't find the required type in the inheritance chain.
   return false;
 }
+// LINT.ThenChange(/src/builtins/builtins-call-gen.cc:GetCompatibleReceiver)
 
 bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
     Tagged<Object> object) const {

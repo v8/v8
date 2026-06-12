@@ -1196,6 +1196,66 @@ bool Map::BelongsToSameNativeContextAs(Tagged<Context> context) const {
   return this_meta_map == context_meta_map;
 }
 
+// LINT.IfChange(MapGetConstructor)
+
+// This struct is defined outside of Map class because the V8_OBJECT
+// macro enables "-Wpadded" warning (requirement for explicit padding) which
+// we don't need for this struct.
+struct Map::ConstructorData {
+  // Prohibit GC for the lifetime of this object.
+  DisallowGarbageCollection no_gc;
+
+  // The base constructor function (for both non-derived and derived cases).
+  Tagged<UnionOf<JSFunction, FunctionTemplateInfo>> constructor;
+  // The new.target function name (for both non-derived and derived cases).
+  Tagged<String> new_target_name;
+  // The <constructor, new_target_name> tuple for the derived constructor case.
+  // value1 holds the base constructor JSFunction, value2 holds the String.
+  Tagged<Tuple2> derived_constructor_tuple;
+  // True when constructor field is set.
+  bool has_constructor = false;
+  // True when new_target_name field is set.
+  bool has_new_target_name = false;
+  // True in case of derived class constructor, false otherwise.
+  bool is_derived_constructor = false;
+};
+
+Tagged<HeapObject> Map::GetConstructor(ConstructorData* out) const {
+  Tagged<HeapObject> maybe_ctor = Cast<HeapObject>(GetConstructorRaw());
+  DCHECK(!IsMap(maybe_ctor));
+  out->has_new_target_name = false;
+  out->has_constructor = false;
+  out->is_derived_constructor = false;
+
+  if (IsNull(maybe_ctor)) {
+    return maybe_ctor;
+  }
+
+  if (IsTuple2(maybe_ctor)) {
+    Tagged<Tuple2> tuple = Cast<Tuple2>(maybe_ctor);
+    out->is_derived_constructor = true;
+    out->has_constructor = true;
+    out->has_new_target_name = true;
+    out->derived_constructor_tuple = tuple;
+    out->constructor = Cast<JSFunction>(tuple->value1());
+    out->new_target_name = Cast<String>(tuple->value2());
+    return out->constructor;
+  }
+  if (IsString(maybe_ctor)) {
+    out->has_new_target_name = true;
+    out->new_target_name = Cast<String>(maybe_ctor);
+    // This is a prototype object's map with erased constructor field.
+    // This map can't be an initial map, so we don't bother returning
+    // Object function.
+    return maybe_ctor;
+  }
+  DCHECK(IsJSFunction(maybe_ctor) || IsFunctionTemplateInfo(maybe_ctor));
+  out->has_constructor = true;
+  out->constructor =
+      Cast<UnionOf<JSFunction, FunctionTemplateInfo>>(maybe_ctor);
+  return maybe_ctor;
+}
+
 Tagged<Object> Map::GetConstructorRaw() const {
   Tagged<Object> maybe_constructor = constructor_or_back_pointer();
   // Follow any back pointers.
@@ -1215,17 +1275,9 @@ Tagged<Object> Map::GetConstructorRaw() const {
   return maybe_constructor;
 }
 
-Tagged<Object> Map::GetConstructor() const { return GetConstructorRaw(); }
-
-Tagged<Object> Map::TryGetConstructor(int max_steps) {
-  Tagged<Object> maybe_constructor = constructor_or_back_pointer();
-  // Follow any back pointers.
-  while (IsMap(maybe_constructor)) {
-    if (max_steps-- == 0) return Smi::FromInt(0);
-    maybe_constructor =
-        Cast<Map>(maybe_constructor)->constructor_or_back_pointer();
-  }
-  return maybe_constructor;
+Tagged<Object> Map::GetConstructor() const {
+  ConstructorData data;
+  return GetConstructor(&data);
 }
 
 Tagged<FunctionTemplateInfo> Map::GetFunctionTemplateInfo() const {
@@ -1238,6 +1290,7 @@ Tagged<FunctionTemplateInfo> Map::GetFunctionTemplateInfo() const {
   DCHECK(IsFunctionTemplateInfo(constructor));
   return Cast<FunctionTemplateInfo>(constructor);
 }
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:MapGetConstructor,/src/compiler/heap-refs.cc:MapGetConstructor)
 
 void Map::SetConstructor(Tagged<Object> constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.

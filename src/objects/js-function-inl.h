@@ -468,15 +468,13 @@ bool JSFunction::TryGetPrototypeOrInitialMap(
     out->instance_prototype = initial_map->prototype();
     out->has_initial_map = true;
     out->initial_map = initial_map;
-    // Constructors from https://tc39.es/proposal-structs/ do not have
-    // instance prototypes yet. Per-Realm prototypes is currently an open
-    // design question and not included in this draft. Thus, once bootstrapper
-    // is done, this is the only "legitimate" case of a function without an
-    // instance prototype.
+    // Although JavaScript doesn't provide a way to create a function without
+    // instance prototype, internally we create such functions. For example:
+    //  - in Wasm debugger, see GetOrCreateDebugProxyMap(),
+    //  - constructors from https://tc39.es/proposal-structs/ do not have
+    //    instance prototypes yet, per-Realm prototypes is currently an open
+    //    design question and not included in this draft.
     out->has_instance_prototype = !IsNull(out->instance_prototype);
-    DCHECK_IMPLIES(!out->has_instance_prototype,
-                   Isolate::Current()->bootstrapper()->IsActive() ||
-                       v8_flags.harmony_struct);
     return true;
   }
   DCHECK(IsJSReceiver(proto_or_map));

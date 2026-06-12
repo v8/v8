@@ -12,8 +12,8 @@ Running test: testClassNames
 }
 {
     result : {
-        className : ThisIsB
-        description : ThisIsB(0)
+        className : B
+        description : B(0)
         objectId : <objectId>
         subtype : map
         type : object
@@ -21,8 +21,8 @@ Running test: testClassNames
 }
 {
     result : {
-        className : ThisIsC
-        description : ThisIsC(0)
+        className : C
+        description : C(0)
         objectId : <objectId>
         subtype : map
         type : object

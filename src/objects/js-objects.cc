@@ -603,98 +603,72 @@ Tagged<String> JSReceiver::class_name() {
 namespace {
 std::pair<MaybeDirectHandle<JSFunction>, DirectHandle<String>>
 GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
-  DisallowGarbageCollection no_gc;
-  // If the object was instantiated simply with base == new.target, the
-  // constructor on the map provides the most accurate name.
-  // Don't provide the info for prototypes, since their constructors are
-  // reclaimed and replaced by Object in OptimizeAsPrototype.
-  if (!IsJSProxy(*receiver) && receiver->map()->new_target_is_base() &&
-      !receiver->map()->is_prototype_map()) {
-    DirectHandle<Object> maybe_constructor(receiver->map()->GetConstructor(),
-                                           isolate);
-    if (IsJSFunction(*maybe_constructor)) {
-      DirectHandle<JSFunction> constructor =
-          Cast<JSFunction>(maybe_constructor);
-      DirectHandle<String> name =
-          JSFunction::GetDebugName(isolate, constructor, AllowAllocation::kNo);
-      if (name->length() != 0 &&
-          !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
-        return std::make_pair(indirect_handle(constructor, isolate), name);
-      }
-    } else if (IsFunctionTemplateInfo(*maybe_constructor)) {
-      DirectHandle<FunctionTemplateInfo> function_template =
-          Cast<FunctionTemplateInfo>(maybe_constructor);
-      if (!IsUndefined(function_template->class_name())) {
-        return std::make_pair(
-            MaybeHandle<JSFunction>(),
-            handle(Cast<String>(function_template->class_name()), isolate));
-      }
-    }
+  if (IsJSProxy(*receiver)) {
+    // This is an inlined JSProxy case from JSReceiver::class_name().
+    DirectHandle<String> name = receiver->map()->is_callable()
+                                    ? isolate->factory()->Function_string()
+                                    : isolate->factory()->Object_string();
+    return std::make_pair(kNullMaybe, name);
   }
-  bool is_hidden_prototype = false;
-  for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
-       it.AdvanceIgnoringProxies()) {
-    auto current = PrototypeIterator::GetCurrent<JSReceiver>(it);
 
-    LookupIterator it_to_string_tag(
-        isolate, receiver, isolate->factory()->to_string_tag_symbol(), current,
-        LookupIterator::OWN_SKIP_INTERCEPTOR);
-    auto maybe_to_string_tag =
-        JSReceiver::GetDataProperty(&it_to_string_tag, AllowAllocation::kNo);
-    if (IsString(*maybe_to_string_tag)) {
-      return std::make_pair(MaybeHandle<JSFunction>(),
-                            Cast<String>(maybe_to_string_tag));
+  DirectHandle<JSFunction> constructor;
+  DirectHandle<String> constructor_name;
+  {
+    // ConstructorData comes with no_gc scope.
+    Map::ConstructorData data;
+    receiver->map()->GetConstructor(&data);
+
+    if (data.has_new_target_name) {
+      constructor_name = direct_handle(data.new_target_name, isolate);
     }
 
-    // If current object is a hidden prototype then the most accurate name
-    // is the class name of its constructor's template.
-    if (is_hidden_prototype) {
-      DirectHandle<Object> maybe_constructor(current->map()->GetConstructor(),
-                                             isolate);
-      if (IsFunctionTemplateInfo(*maybe_constructor)) {
-        DirectHandle<FunctionTemplateInfo> function_template =
-            Cast<FunctionTemplateInfo>(maybe_constructor);
-        if (!IsUndefined(function_template->class_name())) {
+    if (data.has_constructor) {
+      if (IsJSFunction(data.constructor)) {
+        constructor =
+            direct_handle(Cast<JSFunction>(data.constructor), isolate);
+        if (!data.has_new_target_name) {
+          // If the new.target name wasn't provided, read the name from the
+          // constructor function.
+          constructor_name = JSFunction::GetDebugName(isolate, constructor,
+                                                      AllowAllocation::kNo);
+        }
+      } else if (!data.is_derived_constructor) {
+        // For non-derived Api constructors, the class name is the most
+        // accurate name if available.
+        CHECK(IsFunctionTemplateInfo(data.constructor));
+        auto maybe_name =
+            Cast<FunctionTemplateInfo>(data.constructor)->class_name();
+
+        if (!IsUndefined(maybe_name)) {
           return std::make_pair(
-              MaybeHandle<JSFunction>(),
-              handle(Cast<String>(function_template->class_name()), isolate));
+              kNullMaybe, direct_handle(Cast<String>(maybe_name), isolate));
         }
       }
     }
+  }
+  // At this point constructor might be both computed or not.
 
-    // Consider the following example:
-    //
-    //   function A() {}
-    //   function B() {}
-    //   B.prototype = new A();
-    //   B.prototype.constructor = B;
-    //
-    // The constructor name for `B.prototype` must yield "A", so we don't take
-    // "constructor" into account for the receiver itself, but only starting
-    // on the prototype chain.
-    if (!receiver.is_identical_to(current)) {
-      LookupIterator it_constructor(
-          isolate, receiver, isolate->factory()->constructor_string(), current,
-          LookupIterator::OWN_SKIP_INTERCEPTOR);
-      auto maybe_constructor =
-          JSReceiver::GetDataProperty(&it_constructor, AllowAllocation::kNo);
-      if (IsJSFunction(*maybe_constructor)) {
-        auto constructor = Cast<JSFunction>(maybe_constructor);
-        auto name = SharedFunctionInfo::DebugName(
-            isolate, direct_handle(constructor->shared(), isolate),
-            AllowAllocation::kNo);
-
-        if (name->length() != 0 &&
-            !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
-          return std::make_pair(constructor, name);
-        }
-      }
-    }
-    is_hidden_prototype = IsJSGlobalProxy(*current);
+  // If constructor name is not empty and not "Object", use it. Otherwise,
+  // fallback to querying Symbol.toStringTag property.
+  if (!constructor_name.is_null() && constructor_name->length() != 0 &&
+      !constructor_name->Equals(ReadOnlyRoots(isolate).Object_string())) {
+    return std::make_pair(constructor, constructor_name);
   }
 
-  return std::make_pair(MaybeHandle<JSFunction>(),
-                        handle(receiver->class_name(), isolate));
+  // Try querying Symbol.toStringTag property from the prototype chain
+  // in a side-effectless way, respecting the cross-origin boundaries.
+  LookupIterator it_to_string_tag(
+      isolate, receiver, isolate->factory()->to_string_tag_symbol(),
+      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  auto maybe_to_string_tag =
+      JSReceiver::GetDataProperty(&it_to_string_tag, AllowAllocation::kNo);
+  if (IsString(*maybe_to_string_tag)) {
+    return std::make_pair(constructor, Cast<String>(maybe_to_string_tag));
+  }
+
+  // Constructor name is not available, deduce it from instance type.
+  return std::make_pair(constructor,
+                        direct_handle(receiver->class_name(), isolate));
 }
 }  // anonymous namespace
 
@@ -5108,15 +5082,38 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
     new_map->set_is_prototype_map(true);
 
     // Replace the pointer to the exact constructor with the Object function
-    // from the same context if undetectable from JS. This is to avoid keeping
-    // memory alive unnecessarily.
-    Tagged<Object> maybe_constructor = new_map->GetConstructorRaw();
-    if (IsJSFunction(maybe_constructor)) {
-      Tagged<JSFunction> constructor = Cast<JSFunction>(maybe_constructor);
-      if (!constructor->shared()->IsApiFunction()) {
-        Tagged<NativeContext> context = constructor->native_context();
-        Tagged<JSFunction> object_function = context->object_function();
-        new_map->SetConstructor(object_function);
+    // from the same context or with a function name string if undetectable
+    // from JS. This is to avoid keeping memory alive unnecessarily.
+    {
+      // ConstructorData comes with no_gc scope.
+      Map::ConstructorData data;
+      new_map->GetConstructor(&data);
+      if (data.has_constructor && IsJSFunction(data.constructor)) {
+        Tagged<JSFunction> constructor = Cast<JSFunction>(data.constructor);
+        if (!constructor->shared()->IsApiFunction()) {
+          Tagged<NativeContext> context = new_map->map()->native_context();
+          Tagged<JSFunction> object_function = context->object_function();
+
+          if (data.is_derived_constructor) {
+            data.derived_constructor_tuple->set_value1(object_function);
+            // |value2| contains the derived constructor name, keep it as is.
+            DCHECK(IsString(data.derived_constructor_tuple->value2()));
+
+          } else if (constructor == object_function) {
+            // Shortcut. Most of the prototype objects for non-derived
+            // constructors are created via Object constructor function, whose
+            // name is known.
+            new_map->SetConstructor(ReadOnlyRoots(isolate).Object_string());
+
+          } else {
+            // Non-derived constructor case with a prototype created via some
+            // custom constructor function. Record its name.
+            Tagged<String> name = *JSFunction::GetDebugName(
+                isolate, direct_handle(constructor, isolate),
+                AllowAllocation::kNo);
+            new_map->SetConstructor(name);
+          }
+        }
       }
     }
     JSObject::MigrateToMap(isolate, object, new_map);

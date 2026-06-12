@@ -678,8 +678,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int size, AllocationAlignment alignment, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
 
-  DirectHandle<JSObject> NewFunctionPrototype(
-      DirectHandle<JSFunction> function);
+  DirectHandle<JSObject> NewFunctionPrototype(DirectHandle<JSFunction> function,
+                                              bool enable_setup_mode = true);
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
