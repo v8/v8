@@ -200,23 +200,23 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 #endif  // V8_IS_TSAN
 
-  base::Vector<uint8_t> instructions() const {
+  base::Vector<uint8_t> instructions() const V8_LIFETIME_BOUND {
     return base::VectorOf(instructions_, instructions_size_);
   }
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
   size_t instructions_size() const { return instructions_size_; }
-  base::Vector<const uint8_t> reloc_info() const {
+  base::Vector<const uint8_t> reloc_info() const V8_LIFETIME_BOUND {
     return {trapping_instructions_data().end(), reloc_info_size_};
   }
-  base::Vector<const uint8_t> source_positions() const {
+  base::Vector<const uint8_t> source_positions() const V8_LIFETIME_BOUND {
     return {reloc_info().end(), source_positions_size_};
   }
-  base::Vector<const uint8_t> inlining_positions() const {
+  base::Vector<const uint8_t> inlining_positions() const V8_LIFETIME_BOUND {
     return {source_positions().end(), inlining_positions_size_};
   }
-  base::Vector<const uint8_t> deopt_data() const {
+  base::Vector<const uint8_t> deopt_data() const V8_LIFETIME_BOUND {
     return {inlining_positions().end(), deopt_data_size_};
   }
 
@@ -266,17 +266,18 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // (otherwise debug side table positions would not match up).
   bool is_inspectable() const { return is_liftoff() && for_debugging(); }
 
-  base::Vector<const uint8_t> trapping_instructions_data() const {
+  base::Vector<const uint8_t> trapping_instructions_data() const
+      V8_LIFETIME_BOUND {
     return {meta_data_.get(), trapping_instructions_size_};
   }
 
   base::Vector<const trap_handler::TrappingInstructionData>
-  trapping_instructions() const {
+  trapping_instructions() const V8_LIFETIME_BOUND {
     return base::Vector<const trap_handler::TrappingInstructionData>::cast(
         trapping_instructions_data());
   }
 
-  base::Vector<const uint8_t> effect_handlers() const {
+  base::Vector<const uint8_t> effect_handlers() const V8_LIFETIME_BOUND {
     return {deopt_data().end(), effect_handlers_size_};
   }
 
@@ -665,8 +666,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {WasmCode} object in the argument. Ownership is transferred to the
   // {NativeModule}. Returns {nullptr} if the {AssumptionsJournal} in the
   // argument is non-nullptr and contains invalid assumptions.
-  WasmCode* PublishCode(UnpublishedWasmCode);
-  std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode>);
+  WasmCode* PublishCode(UnpublishedWasmCode) V8_LIFETIME_BOUND;
+  std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode>)
+      V8_LIFETIME_BOUND;
 
   // Clears outdated code as necessary when a new instantiation's imports
   // conflict with previously seen well-known imports.
@@ -703,7 +705,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier, base::Vector<const uint8_t> effect_handlers);
 
   // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(DirectHandle<Code> code, uint64_t signature_hash);
+  WasmCode* AddCodeForTesting(DirectHandle<Code> code,
+                              uint64_t signature_hash) V8_LIFETIME_BOUND;
 
   // Allocates and initializes the {lazy_compile_table_} and initializes the
   // first jump table with jumps to the {lazy_compile_table_}.
@@ -722,17 +725,17 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // current import statuses that these code objects depend on. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
   std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
-  SnapshotCodeTable() const;
+  SnapshotCodeTable() const V8_LIFETIME_BOUND;
   // Creates a snapshot of all {owned_code_}, will transfer new code (if any) to
   // {owned_code_}.
-  std::vector<WasmCode*> SnapshotAllOwnedCode() const;
+  std::vector<WasmCode*> SnapshotAllOwnedCode() const V8_LIFETIME_BOUND;
 
-  WasmCode* GetCode(uint32_t index) const;
+  WasmCode* GetCode(uint32_t index) const V8_LIFETIME_BOUND;
   bool HasCode(uint32_t index) const;
   bool HasCodeWithTier(uint32_t index, ExecutionTier tier) const;
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
-  WasmModuleSourceMap* GetWasmSourceMap() const;
+  WasmModuleSourceMap* GetWasmSourceMap() const V8_LIFETIME_BOUND;
 
   Address jump_table_start() const {
     return main_jump_table_ ? main_jump_table_->instruction_start()
@@ -760,7 +763,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // or when enabling a component that needs all code to be logged (profiler).
   void LogWasmCodes(Isolate*, Tagged<Script>);
 
-  CompilationState* compilation_state() const {
+  CompilationState* compilation_state() const V8_LIFETIME_BOUND {
     return compilation_state_.get();
   }
 
@@ -778,7 +781,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   base::Vector<const uint8_t> wire_bytes() const V8_LIFETIME_BOUND {
     return std::atomic_load(&wire_bytes_)->as_vector();
   }
-  const WasmModule* module() const { return module_.get(); }
+  const WasmModule* module() const V8_LIFETIME_BOUND { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
   size_t committed_code_space() const {
     return code_allocator_.committed_code_space();
@@ -807,7 +810,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  WasmCode* Lookup(Address) const;
+  WasmCode* Lookup(Address) const V8_LIFETIME_BOUND;
 
   WasmEnabledFeatures enabled_features() const { return enabled_features_; }
   const CompileTimeImports& compile_imports() const { return compile_imports_; }
@@ -862,12 +865,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool HasDebugInfo() const;
 
   // Get or create the debug info for this NativeModule.
-  DebugInfo* GetDebugInfo();
+  DebugInfo* GetDebugInfo() V8_LIFETIME_BOUND;
 
   // Get or create the NamesProvider. Requires {HasWireBytes()}.
-  NamesProvider* GetNamesProvider();
+  NamesProvider* GetNamesProvider() V8_LIFETIME_BOUND;
 
-  std::atomic<uint32_t>* tiering_budget_array() const {
+  std::atomic<uint32_t>* tiering_budget_array() const V8_LIFETIME_BOUND {
     return tiering_budgets_.get();
   }
 
@@ -919,7 +922,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return old_val == target;
   }
 
-  const std::shared_ptr<FastApiData[]>& fast_api_data() const {
+  const std::shared_ptr<FastApiData[]>& fast_api_data() const
+      V8_LIFETIME_BOUND {
     return fast_api_data_;
   }
 
@@ -941,7 +945,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return coverage_data_;
   }
 
-  DelayedCounterUpdates* counter_updates() { return &counter_updates_; }
+  DelayedCounterUpdates* counter_updates() V8_LIFETIME_BOUND {
+    return &counter_updates_;
+  }
 
   void RegisterStackEntryWrapper(std::shared_ptr<WasmWrapperHandle> wrapper) {
     base::LockGuard<base::Mutex> guard(stack_wrapper_mutex_);

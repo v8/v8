@@ -143,16 +143,17 @@ V8_OBJECT class WasmModuleObject : public JSObject {
  public:
   using Super = JSObject;
 
-  inline Tagged<Managed<wasm::NativeModule>> managed_native_module() const;
+  inline Tagged<Managed<wasm::NativeModule>> managed_native_module() const
+      V8_LIFETIME_BOUND;
   inline void set_managed_native_module(
       Tagged<Managed<wasm::NativeModule>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Script> script() const;
+  inline Tagged<Script> script() const V8_LIFETIME_BOUND;
   inline void set_script(Tagged<Script> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Managed<wasm::NativeModule>::Ptr native_module();
+  inline Managed<wasm::NativeModule>::Ptr native_module() V8_LIFETIME_BOUND;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -638,10 +639,10 @@ V8_OBJECT class V8_EXPORT_PRIVATE WasmTrustedInstanceData
   inline uint8_t* memory_base(uint32_t memory_index) const;
   inline size_t memory_size(uint32_t memory_index) const;
 
-  inline wasm::NativeModule* native_module() const;
+  inline wasm::NativeModule* native_module() const V8_LIFETIME_BOUND;
 
-  inline Tagged<WasmModuleObject> module_object() const;
-  inline const wasm::WasmModule* module() const;
+  inline Tagged<WasmModuleObject> module_object() const V8_LIFETIME_BOUND;
+  inline const wasm::WasmModule* module() const V8_LIFETIME_BOUND;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmTrustedInstanceData)
@@ -842,15 +843,13 @@ V8_OBJECT class WasmInstanceObject : public JSObject {
   inline Tagged<WasmTrustedInstanceData> trusted_data_allow_unpublished(
       IsolateForSandbox isolate) const;
 
-  inline Tagged<WasmModuleObject> module_object() const;
+  inline Tagged<WasmModuleObject> module_object() const V8_LIFETIME_BOUND;
   inline void set_module_object(Tagged<WasmModuleObject> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<JSObject> exports_object() const;
+  inline Tagged<JSObject> exports_object() const V8_LIFETIME_BOUND;
   inline void set_exports_object(Tagged<JSObject> value,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline const wasm::WasmModule* module() const;
 
   class BodyDescriptor;
 

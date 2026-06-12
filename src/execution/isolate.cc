@@ -1083,7 +1083,7 @@ class CallSiteBuilder {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     DirectHandle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm;
-    if (wasm::is_asmjs_module(instance->module())) {
+    if (wasm::is_asmjs_module(summary.wasm_trusted_instance_data()->module())) {
       flags |= CallSiteInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
         flags |= CallSiteInfo::kIsAsmJsAtNumberConversion;
@@ -1101,7 +1101,7 @@ class CallSiteBuilder {
       FrameSummary::WasmInterpretedFrameSummary const& summary) {
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm | CallSiteInfo::kIsWasmInterpretedFrame;
-    DCHECK(!wasm::is_asmjs_module(instance->module()));
+    DCHECK(!wasm::is_asmjs_module(summary.instance_data()->module()));
     // We don't have any code object in the interpreter, so we pass 'undefined'.
     auto code = isolate_->factory()->undefined_value();
     AppendFrame(instance,

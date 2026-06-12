@@ -164,9 +164,8 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
 #if V8_ENABLE_DRUMBRAKE
   if (iterator_.frame()->is_wasm_interpreter_entry()) {
     auto frame = WasmInterpreterEntryFrame::cast(iterator_.frame());
-    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate_);
-    auto offset =
-        instance->module()->functions[frame->function_index(0)].code.offset();
+    const wasm::WasmModule* module = frame->trusted_instance_data()->module();
+    auto offset = module->functions[frame->function_index(0)].code.offset();
     return v8::debug::Location(inlined_frame_index_, offset);
   }
 #endif  // V8_ENABLE_DRUMBRAKE

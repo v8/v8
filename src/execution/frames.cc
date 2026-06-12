@@ -2953,7 +2953,7 @@ Handle<Object> FrameSummary::WasmInterpretedFrameSummary::receiver() const {
 }
 
 int FrameSummary::WasmInterpretedFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module();
+  const wasm::WasmModule* module = instance_data()->module();
   return GetSourcePosition(module, function_index(), byte_offset(),
                            false /*at_to_number_conversion*/);
 }

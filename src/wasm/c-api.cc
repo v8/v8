@@ -1152,8 +1152,9 @@ own<Frame> CreateFrameFromInternal(i::DirectHandle<i::FixedArray> frames,
                                                   isolate);
   uint32_t func_index = frame->GetWasmFunctionIndex();
   size_t module_offset = i::CallSiteInfo::GetSourcePosition(frame);
-  size_t func_offset = module_offset - i::wasm::GetWasmFunctionOffset(
-                                           instance->module(), func_index);
+  const i::wasm::WasmModule* module = instance->trusted_data(isolate)->module();
+  size_t func_offset =
+      module_offset - i::wasm::GetWasmFunctionOffset(module, func_index);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
       GetInstance(store, instance), func_index, func_offset, module_offset)));
 }

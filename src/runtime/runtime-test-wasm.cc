@@ -628,15 +628,14 @@ RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
-  Tagged<WasmInstanceObject> instance = frame->wasm_instance();
 
-  const wasm::WasmGlobal& global =
-      instance->module()->globals[info->global_index];
+  const wasm::WasmModule* module = frame->trusted_instance_data()->module();
+  const wasm::WasmGlobal& global = module->globals[info->global_index];
 
   wasm::ExecutionTier tier = frame->wasm_code()->tier();
 
   wasm::WasmValue value =
-      instance->trusted_data(isolate)->GetGlobalValue(isolate, global);
+      frame->trusted_instance_data()->GetGlobalValue(isolate, global);
 
   wasm::GlobalTraceEntry trace_entry = {
       .function_index = frame->GetInnermostFunctionIndex(),
@@ -817,7 +816,9 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  const wasm::WasmModule* module = module_object->native_module()->module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
+  const wasm::WasmModule* module = native_module->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
   wasm::ModuleTypeIndex type_index{0};
   Tagged<Map> map =
@@ -1102,7 +1103,8 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
   static constexpr uint32_t kMask = (1u << wasm::ValueType::kNumIndexBits) - 1;
   wasm::ModuleTypeIndex type_index{
       static_cast<uint32_t>(Cast<Smi>(args[0]).value()) & kMask};
-  const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
+  const wasm::WasmModule* module =
+      Cast<WasmInstanceObject>(args[1])->trusted_data(isolate)->module();
   // If we get an invalid type index, make up the additional data; the result
   // may still be useful for fuzzers for causing interesting confusion.
   wasm::ValueType t = module->has_type(type_index)

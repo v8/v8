@@ -200,7 +200,8 @@ int CallSiteInfo::GetEnclosingLineNumber(DirectHandle<CallSiteInfo> info) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto* module = info->GetWasmInstance()->trusted_data(isolate)->module();
     auto func_index = info->GetWasmFunctionIndex();
     int position = wasm::GetSourcePosition(module, func_index, 0,
                                            info->IsAsmJsAtNumberConversion());
@@ -216,7 +217,8 @@ int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = Isolate::Current();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto* module = info->GetWasmInstance()->trusted_data(isolate)->module();
     auto func_index = info->GetWasmFunctionIndex();
     return GetWasmFunctionOffset(module, func_index);
   }
@@ -227,7 +229,8 @@ int CallSiteInfo::GetEnclosingColumnNumber(DirectHandle<CallSiteInfo> info) {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsAsmJsWasm()) {
-    auto* module = info->GetWasmInstance()->module();
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto* module = info->GetWasmInstance()->trusted_data(isolate)->module();
     auto func_index = info->GetWasmFunctionIndex();
     int position = wasm::GetSourcePosition(module, func_index, 0,
                                            info->IsAsmJsAtNumberConversion());
@@ -695,7 +698,8 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
 #if V8_ENABLE_WEBASSEMBLY
 #if V8_ENABLE_DRUMBRAKE
   if (info->IsWasmInterpretedFrame()) {
-    auto module = info->GetWasmInstance()->module();
+    // TODO(clemensb): This can load the wrong module via in-sandbox corruption.
+    auto module = info->GetWasmInstance()->trusted_data(isolate)->module();
     uint32_t func_index = info->GetWasmFunctionIndex();
     return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());

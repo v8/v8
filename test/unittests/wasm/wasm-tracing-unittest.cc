@@ -54,12 +54,12 @@ class WasmTracingTest : public TestWithContextAndZone {
     Tagged<WasmTrustedInstanceData> instance_data_b =
         instance_b->trusted_data(v8_isolate);
 
-    bool globals_match =
-        fuzzing::GlobalsMatch(v8_isolate, instance_a->module(), instance_data_a,
-                              instance_data_b, false);
-    bool memories_match =
-        fuzzing::MemoriesMatch(v8_isolate, instance_a->module(),
-                               instance_data_a, instance_data_b, false);
+    const WasmModule* module_a = instance_data_a->module();
+
+    bool globals_match = fuzzing::GlobalsMatch(
+        v8_isolate, module_a, instance_data_a, instance_data_b, false);
+    bool memories_match = fuzzing::MemoriesMatch(
+        v8_isolate, module_a, instance_data_a, instance_data_b, false);
 
     if (globals_match && memories_match) {
       return result;

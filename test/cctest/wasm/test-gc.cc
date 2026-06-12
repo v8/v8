@@ -216,7 +216,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_wasm_deopt;
 
   const CanonicalSig* LookupCanonicalSigFor(uint32_t function_index) const {
-    auto* module = instance_object_->module();
+    auto* module = instance_object_->trusted_data(isolate_)->module();
     CanonicalTypeIndex sig_id =
         module->canonical_sig_id(module->functions[function_index].sig_index);
     return GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);

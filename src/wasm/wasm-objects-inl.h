@@ -32,6 +32,7 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/isolate-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -492,13 +493,6 @@ Tagged<JSObject> WasmInstanceObject::exports_object() const {
 void WasmInstanceObject::set_exports_object(Tagged<JSObject> value,
                                             WriteBarrierMode mode) {
   exports_object_.store(this, value, mode);
-}
-
-// Note: in case of existing in-sandbox corruption, this could return an
-// incorrect WasmModule! For security-relevant code, prefer reading
-// {native_module()} from a {WasmTrustedInstanceData}.
-const wasm::WasmModule* WasmInstanceObject::module() const {
-  return module_object()->native_module()->module();
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(

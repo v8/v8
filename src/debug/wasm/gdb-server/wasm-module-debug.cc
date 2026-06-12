@@ -117,15 +117,16 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
             script = Cast<Script>(javascript.script());
           } else if (summary.IsWasm()) {
             FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
-            offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),
-                                           wasm.function_index()) +
+            offset = GetWasmFunctionOffset(
+                         wasm.wasm_trusted_instance_data()->module(),
+                         wasm.function_index()) +
                      wasm.code_offset();
             script = wasm.script();
             bool zeroth_frame = call_stack.empty();
             if (!zeroth_frame) {
-              Managed<NativeModule>::Ptr native_module =
-                  wasm.wasm_instance()->module_object()->native_module();
-              offset = ReturnPc(native_module.raw(), offset);
+              NativeModule* native_module =
+                  wasm.wasm_trusted_instance_data()->native_module();
+              offset = ReturnPc(native_module, offset);
             }
           }
 
