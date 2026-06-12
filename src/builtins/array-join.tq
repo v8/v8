@@ -206,11 +206,6 @@ struct Buffer {
 
     const nofSeparatorsInt: intptr = nofSeparators;
     const sepsLen: intptr = separatorLength * nofSeparatorsInt;
-    // Detect integer overflow
-    // TODO(turbofan): Replace with overflow-checked multiplication.
-    if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
-        ThrowInvalidStringLength(context);
-      }
 
     this.totalStringLength = AddStringLength(this.totalStringLength, sepsLen);
     if (write) deferred {
@@ -357,11 +352,33 @@ macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
 transitioning macro FastArrayJoin(
     implicit context: Context)(kind: constexpr ElementsKind,
     array: FastJSArrayForRead, sep: String, lengthNumber: Number): String {
-  const elements = array.elements;
-
+  // Check early if the separators might overflow.
   let len: uintptr = Convert<uintptr>(lengthNumber);
+  // Fast array length is guaranteed to fit in Smi.
+  dcheck(len <= Convert<uintptr>(kMaxFastArrayLength));
+  static_assert(Convert<uintptr>(kMaxFastArrayLength) < kSmiMaxValue);
+  // If separatorLength <= 1, fast arrays cannot overflow the separator counter
+  // or exceed kStringMaxLength from separators alone, because their maximum
+  // length is bounded by kMaxFastArrayLength (32MB) which is much smaller
+  // than kStringMaxLength (268MB/536MB). Thus we only need to perform checks
+  // if separatorLength > 1.
+  static_assert(
+      (Convert<uintptr>(kMaxFastArrayLength) - 1) <=
+      Convert<uintptr>(kStringMaxLength));
 
   const separatorLength: intptr = sep.length_intptr;
+  if (separatorLength > 1 && len > 1) {
+    const lenInt: int32 = Convert<int32>(Signed(len));
+    const sepLenInt: int32 = Convert<int32>(separatorLength);
+    try {
+      const res = TryInt32Mul(lenInt - 1, sepLenInt) otherwise IfOverflow;
+      if (res > Convert<int32>(kStringMaxLength)) goto IfOverflow;
+    } label IfOverflow {
+      ThrowInvalidStringLength(context);
+    }
+  }
+
+  const elements = array.elements;
   let nofSeparators: intptr = 0;
   let buffer: Buffer = NewBuffer(len, sep);
 
@@ -752,6 +769,38 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
     implicit context: Context)(useToLocaleString: constexpr bool,
     o: JSReceiver, len: Number, sep: String, locales: JSAny,
     options: JSAny): JSAny {
+  // Check early if the separators might overflow.
+  const separatorLength: intptr = sep.length_intptr;
+  if (separatorLength >= 1) {
+    typeswitch (len) {
+      case (lenSmi: Smi): {
+        const lenInt: int32 = Convert<int32>(lenSmi);
+        if (lenInt > 1) {
+          try {
+            // Optimization for the most common case of 1-character separators
+            // (e.g. ',').  In this case, the total separator length is simply
+            // `len - 1`. We can bypass the multiplication entirely and perform
+            // a direct comparison on `len`.
+            if (separatorLength == 1 && len - 1 > kStringMaxLength) {
+              goto IfOverflow;
+            }
+            const sepLenInt: int32 = Convert<int32>(separatorLength);
+            const res = TryInt32Mul(lenInt - 1, sepLenInt) otherwise IfOverflow;
+            if (res > Convert<int32>(kStringMaxLength)) goto IfOverflow;
+          } label IfOverflow {
+            ThrowInvalidStringLength(context);
+          }
+        }
+      }
+      case (HeapNumber): {
+        // If len is a HeapNumber (and positive), it must be > kSmiMaxValue.
+        // Since kSmiMaxValue > kStringMaxLength, any join with a non-empty
+        // separator will inevitably exceed the maximum string length.
+        static_assert(kSmiMaxValue > Convert<uintptr>(kStringMaxLength));
+        ThrowInvalidStringLength(context);
+      }
+    }
+  }
   // If the receiver is not empty and not already being joined, continue with
   // the normal join algorithm.
   if (len > 0 && JoinStackPushInline(o)) {
@@ -829,6 +878,7 @@ transitioning builtin ArrayPrototypeJoinImpl(
   } label NotFastJSArray {
     // Fall through.
   }
+
   // TODO(ishell): perform stack checks rarely.
   PerformStackCheck(context);
   return CycleProtectedArrayJoin<JSArray>(
