@@ -116,6 +116,11 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
                         std::vector<uint8_t>* bytes);
 };
 
+template <typename T>
+v8_inspector::String16 ConvertAssociatedData(std::string_view data) {
+  return v8_inspector::String16(data);
+}
+
 }  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_UTIL_H_

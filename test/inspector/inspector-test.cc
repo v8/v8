@@ -4,11 +4,13 @@
 
 #include <locale.h>
 
+#include <list>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-container.h"
 #include "include/v8-exception.h"
 #include "include/v8-initialization.h"
 #include "include/v8-local-handle.h"
@@ -387,18 +389,25 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
 
   static bool IsValidConnectSessionArgs(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
-    if (info.Length() < 3 || info.Length() > 4) return false;
+    if (info.Length() < 3 || info.Length() > 5) return false;
     if (!info[0]->IsInt32() || !info[1]->IsString() || !info[2]->IsFunction()) {
       return false;
     }
-    return info.Length() == 3 || info[3]->IsBoolean();
+    if (info.Length() >= 4 && !info[3]->IsBoolean() &&
+        !info[3]->IsUndefined()) {
+      return false;
+    }
+    if (info.Length() >= 5 && !info[4]->IsObject() && !info[4]->IsUndefined()) {
+      return false;
+    }
+    return true;
   }
 
   static void ConnectSession(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (!IsValidConnectSessionArgs(info)) {
       FATAL(
           "Internal error: connectionSession(context_group_id, state, "
-          "dispatch, is_fully_trusted).");
+          "dispatch, is_fully_trusted, embedder_state).");
     }
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     std::shared_ptr<FrontendChannelImpl> channel =
@@ -411,17 +420,99 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     std::vector<uint8_t> state =
         ToBytes(info.GetIsolate(), info[1].As<v8::String>());
     int context_group_id = info[0].As<v8::Int32>()->Value();
-    bool is_fully_trusted =
-        info.Length() == 3 || info[3].As<v8::Boolean>()->Value();
+    bool is_fully_trusted = true;
+    if (info.Length() >= 4 && info[3]->IsBoolean()) {
+      is_fully_trusted = info[3].As<v8::Boolean>()->Value();
+    }
+
+    v8_inspector::V8EmbedderState embedder_state;
+    std::list<std::vector<uint16_t>> string_storage;
+    auto get_string_view = [&](v8::Local<v8::Value> val) {
+      if (!val.IsEmpty() && val->IsString()) {
+        string_storage.push_back(
+            ToVector(info.GetIsolate(), val.As<v8::String>()));
+        return v8_inspector::StringView(string_storage.back().data(),
+                                        string_storage.back().size());
+      }
+      return v8_inspector::StringView();
+    };
+
+    if (info.Length() >= 5 && info[4]->IsObject()) {
+      v8::Local<v8::Object> embedder_state_obj = info[4].As<v8::Object>();
+      v8::Local<v8::Value> url_bps_val;
+      if (embedder_state_obj
+              ->Get(context, ToV8String(info.GetIsolate(), "urlBreakpoints"))
+              .ToLocal(&url_bps_val) &&
+          url_bps_val->IsArray()) {
+        v8::Local<v8::Array> bp_array = url_bps_val.As<v8::Array>();
+        uint32_t length = bp_array->Length();
+        for (uint32_t i = 0; i < length; ++i) {
+          v8::Local<v8::Value> element;
+          if (!bp_array->Get(context, i).ToLocal(&element) ||
+              !element->IsObject()) {
+            FATAL(
+                "Internal error: connectSession urlBreakpoints elements must "
+                "be objects.");
+          }
+          v8::Local<v8::Object> bp_obj = element.As<v8::Object>();
+
+          v8::Local<v8::Value> id_val, line_val, col_val, type_val, sel_val,
+              cond_val;
+          v8::Isolate* isolate = info.GetIsolate();
+          if (!bp_obj->Get(context, ToV8String(isolate, "breakpointId"))
+                   .ToLocal(&id_val) ||
+              !bp_obj->Get(context, ToV8String(isolate, "lineNumber"))
+                   .ToLocal(&line_val) ||
+              !bp_obj->Get(context, ToV8String(isolate, "columnNumber"))
+                   .ToLocal(&col_val) ||
+              !bp_obj->Get(context, ToV8String(isolate, "selectorType"))
+                   .ToLocal(&type_val) ||
+              !bp_obj->Get(context, ToV8String(isolate, "selector"))
+                   .ToLocal(&sel_val) ||
+              !bp_obj->Get(context, ToV8String(isolate, "condition"))
+                   .ToLocal(&cond_val)) {
+            FATAL("Internal error: failed to get breakpoint properties.");
+          }
+
+          if (!id_val->IsString() || !line_val->IsInt32() ||
+              !type_val->IsInt32() || !sel_val->IsString()) {
+            FATAL("Internal error: invalid breakpoint properties.");
+          }
+
+          v8_inspector::V8URLBreakpoint bp;
+          bp.breakpointId = get_string_view(id_val);
+          bp.lineNumber = line_val.As<v8::Int32>()->Value();
+          if (!col_val.IsEmpty() && col_val->IsInt32()) {
+            bp.columnNumber = col_val.As<v8::Int32>()->Value();
+          }
+          int type_int = type_val.As<v8::Int32>()->Value();
+          if (type_int == v8_inspector::V8URLBreakpoint::kUrl) {
+            bp.selectorType = v8_inspector::V8URLBreakpoint::kUrl;
+          } else if (type_int == v8_inspector::V8URLBreakpoint::kUrlRegex) {
+            bp.selectorType = v8_inspector::V8URLBreakpoint::kUrlRegex;
+          } else if (type_int == v8_inspector::V8URLBreakpoint::kScriptHash) {
+            bp.selectorType = v8_inspector::V8URLBreakpoint::kScriptHash;
+          } else {
+            FATAL("Internal error: invalid selectorType.");
+          }
+          bp.selector = get_string_view(sel_val);
+          bp.condition = get_string_view(cond_val);
+
+          embedder_state.urlBreakpoints.push_back(bp);
+        }
+      }
+    }
+
     std::optional<int> session_id;
-    RunSyncTask(backend_runner_,
-                [context_group_id, &session_id, &channel, &state,
-                 is_fully_trusted](InspectorIsolateData* data) {
-                  session_id = data->ConnectSession(
-                      context_group_id,
-                      v8_inspector::StringView(state.data(), state.size()),
-                      std::move(channel), is_fully_trusted);
-                });
+    RunSyncTask(backend_runner_, [context_group_id, &session_id, &channel,
+                                  &state, is_fully_trusted,
+                                  embedder_state = std::move(embedder_state)](
+                                     InspectorIsolateData* data) mutable {
+      session_id = data->ConnectSession(
+          context_group_id,
+          v8_inspector::StringView(state.data(), state.size()),
+          std::move(channel), is_fully_trusted, std::move(embedder_state));
+    });
 
     CHECK(session_id.has_value());
     info.GetReturnValue().Set(v8::Int32::New(info.GetIsolate(), *session_id));

@@ -193,8 +193,9 @@ std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   ChannelWrapper* wrappedChannel = cppgc::MakeGarbageCollected<ChannelWrapper>(
       m_isolate->GetCppHeap()->GetAllocationHandle(), channel);
-  return std::unique_ptr<V8InspectorSession>(connectImpl(
-      contextGroupId, wrappedChannel, state, client_trust_level, pause_state));
+  return std::unique_ptr<V8InspectorSession>(
+      connectImpl(contextGroupId, wrappedChannel, state, client_trust_level,
+                  pause_state, V8EmbedderState()));
 }
 
 std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
@@ -203,14 +204,16 @@ std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
   ChannelWrapper* wrappedChannel = cppgc::MakeGarbageCollected<ChannelWrapper>(
       m_isolate->GetCppHeap()->GetAllocationHandle(), channel);
   return connectShared(contextGroupId, wrappedChannel, state,
-                       client_trust_level, pause_state);
+                       client_trust_level, pause_state, V8EmbedderState());
 }
 
 std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
     int contextGroupId, V8Inspector::ManagedChannel* channel, StringView state,
-    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
-  std::shared_ptr<V8InspectorSessionImpl> session(connectImpl(
-      contextGroupId, channel, state, client_trust_level, pause_state));
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state,
+    V8EmbedderState embedder_state) {
+  std::shared_ptr<V8InspectorSessionImpl> session(
+      connectImpl(contextGroupId, channel, state, client_trust_level,
+                  pause_state, std::move(embedder_state)));
   // TODO(crbug.com/40071155): Move to V8InspectorSessionImpl::create once the
   // unique_ptr version is no longer required.
   session->setWeakThis(session);
@@ -219,7 +222,8 @@ std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
 
 V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
     int contextGroupId, V8Inspector::ManagedChannel* channel, StringView state,
-    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state,
+    V8EmbedderState embedder_state) {
   int sessionId = ++m_lastSessionId;
   std::shared_ptr<V8DebuggerBarrier> debuggerBarrier;
   if (pause_state == kWaitingForDebugger) {
@@ -237,7 +241,7 @@ V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
   }
   V8InspectorSessionImpl* session = V8InspectorSessionImpl::create(
       this, contextGroupId, sessionId, channel, state, client_trust_level,
-      std::move(debuggerBarrier));
+      std::move(debuggerBarrier), std::move(embedder_state));
   m_sessions[contextGroupId][sessionId] = session;
   return session;
 }

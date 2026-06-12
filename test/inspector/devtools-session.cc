@@ -17,13 +17,15 @@ DevToolsSession* DevToolsSession::Connect(
     int context_group_id, const v8_inspector::StringView& state,
     v8_inspector::V8Inspector::ClientTrustLevel client_trust_level,
     v8_inspector::V8Inspector::SessionPauseState pause_state,
-    std::shared_ptr<v8_inspector::V8Inspector::Channel> channel) {
+    std::shared_ptr<v8_inspector::V8Inspector::Channel> channel,
+    v8_inspector::V8EmbedderState embedder_state) {
   v8::SealHandleScope seal_handle_scope(isolate);
   DevToolsSession* session = cppgc::MakeGarbageCollected<DevToolsSession>(
       isolate->GetCppHeap()->GetAllocationHandle(), ++last_session_id_,
       context_group_id, std::move(channel));
   session->v8_session_ = inspector->connectShared(
-      context_group_id, session, state, client_trust_level, pause_state);
+      context_group_id, session, state, client_trust_level, pause_state,
+      std::move(embedder_state));
   return session;
 }
 

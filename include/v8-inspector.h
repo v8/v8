@@ -8,7 +8,10 @@
 #include <stdint.h>
 
 #include <cctype>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "cppgc/garbage-collected.h"  // NOLINT(build/include_directory)
 #include "v8-isolate.h"       // NOLINT(build/include_directory)
@@ -365,6 +368,22 @@ struct V8_EXPORT V8StackTraceId {
   std::unique_ptr<StringBuffer> ToString();
 };
 
+struct V8_EXPORT V8URLBreakpoint {
+  StringView breakpointId;
+  int lineNumber;
+  std::optional<int> columnNumber;
+
+  enum SelectorType { kUrl, kUrlRegex, kScriptHash };
+  SelectorType selectorType;
+  StringView selector;
+
+  StringView condition;
+};
+
+struct V8_EXPORT V8EmbedderState {
+  std::vector<V8URLBreakpoint> urlBreakpoints;
+};
+
 class V8_EXPORT V8Inspector {
  public:
   static std::unique_ptr<V8Inspector> create(v8::Isolate*, V8InspectorClient*);
@@ -456,7 +475,8 @@ class V8_EXPORT V8Inspector {
   // have to worry about the life-time of `channel`.
   virtual std::shared_ptr<V8InspectorSession> connectShared(
       int contextGroupId, ManagedChannel* channel, StringView state,
-      ClientTrustLevel clientTrustLevel, SessionPauseState pauseState) = 0;
+      ClientTrustLevel clientTrustLevel, SessionPauseState pauseState,
+      V8EmbedderState = {}) = 0;
 
   // API methods.
   virtual std::unique_ptr<V8StackTrace> createStackTrace(

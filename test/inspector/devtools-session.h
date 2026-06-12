@@ -25,7 +25,8 @@ class DevToolsSession : public v8_inspector::V8Inspector::ManagedChannel {
       int context_group_id, const v8_inspector::StringView& state,
       v8_inspector::V8Inspector::ClientTrustLevel client_trust_level,
       v8_inspector::V8Inspector::SessionPauseState pause_state,
-      std::shared_ptr<v8_inspector::V8Inspector::Channel> channel);
+      std::shared_ptr<v8_inspector::V8Inspector::Channel> channel,
+      v8_inspector::V8EmbedderState embedder_state = {});
   void Disconnect();
 
   void Trace(cppgc::Visitor* visitor) const override;

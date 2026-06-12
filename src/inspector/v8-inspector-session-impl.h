@@ -39,7 +39,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       V8InspectorImpl*, int contextGroupId, int sessionId,
       V8Inspector::ManagedChannel*, StringView state,
       v8_inspector::V8Inspector::ClientTrustLevel,
-      std::shared_ptr<V8DebuggerBarrier>);
+      std::shared_ptr<V8DebuggerBarrier>, V8EmbedderState = {});
   ~V8InspectorSessionImpl() override;
   V8InspectorSessionImpl(const V8InspectorSessionImpl&) = delete;
   V8InspectorSessionImpl& operator=(const V8InspectorSessionImpl&) = delete;
@@ -123,7 +123,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
                          V8Inspector::ManagedChannel*, StringView state,
                          V8Inspector::ClientTrustLevel,
-                         std::shared_ptr<V8DebuggerBarrier>);
+                         std::shared_ptr<V8DebuggerBarrier>, V8EmbedderState);
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.

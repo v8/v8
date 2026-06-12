@@ -95,17 +95,19 @@ V8InspectorSessionImpl* V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::ManagedChannel* channel, StringView state,
     V8Inspector::ClientTrustLevel clientTrustLevel,
-    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
-  return new V8InspectorSessionImpl(inspector, contextGroupId, sessionId,
-                                    channel, state, clientTrustLevel,
-                                    std::move(debuggerBarrier));
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier,
+    V8EmbedderState embedderState) {
+  return new V8InspectorSessionImpl(
+      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel,
+      std::move(debuggerBarrier), std::move(embedderState));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::ManagedChannel* channel, StringView savedState,
     V8Inspector::ClientTrustLevel clientTrustLevel,
-    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier,
+    V8EmbedderState embedderState)
     : m_contextGroupId(contextGroupId),
       m_sessionId(sessionId),
       m_inspector(inspector),
@@ -128,7 +130,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
 
   m_debuggerAgent.reset(new V8DebuggerAgentImpl(
-      this, this, agentState(protocol::Debugger::Metainfo::domainName)));
+      this, this, agentState(protocol::Debugger::Metainfo::domainName),
+      std::move(embedderState.urlBreakpoints)));
   protocol::Debugger::Dispatcher::wire(&m_dispatcher, m_debuggerAgent.get());
 
   m_consoleAgent.reset(new V8ConsoleAgentImpl(

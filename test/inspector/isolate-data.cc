@@ -195,7 +195,7 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
 std::optional<int> InspectorIsolateData::ConnectSession(
     int context_group_id, const v8_inspector::StringView& state,
     std::shared_ptr<v8_inspector::V8Inspector::Channel> channel,
-    bool is_fully_trusted) {
+    bool is_fully_trusted, v8_inspector::V8EmbedderState embedder_state) {
   if (contexts_.find(context_group_id) == contexts_.end()) return std::nullopt;
 
   DevToolsSession* session = DevToolsSession::Connect(
@@ -204,7 +204,7 @@ std::optional<int> InspectorIsolateData::ConnectSession(
                        : v8_inspector::V8Inspector::kUntrusted,
       waiting_for_debugger_ ? v8_inspector::V8Inspector::kWaitingForDebugger
                             : v8_inspector::V8Inspector::kNotWaitingForDebugger,
-      std::move(channel));
+      std::move(channel), std::move(embedder_state));
   sessions_[session->session_id()] =
       cppgc::Persistent<DevToolsSession>(session);
 
