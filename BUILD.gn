@@ -1173,6 +1173,7 @@ external_cppgc_defines = [
   "CPPGC_CAGED_HEAP",
   "CPPGC_ENABLE_API_CHECKS",
   "CPPGC_ENABLE_LARGER_CAGE",
+  "CPPGC_ENABLE_OBJECT_SECTION_GCINFO",
   "CPPGC_ENABLE_SLOW_API_CHECKS",
   "CPPGC_POINTER_COMPRESSION",
   "CPPGC_SLIM_WRITE_BARRIER",
@@ -1211,6 +1212,9 @@ if (cppgc_enable_pointer_compression) {
 }
 if (cppgc_enable_larger_cage) {
   enabled_external_cppgc_defines += [ "CPPGC_ENABLE_LARGER_CAGE" ]
+}
+if (cppgc_enable_object_section_gcinfo) {
+  enabled_external_cppgc_defines += [ "CPPGC_ENABLE_OBJECT_SECTION_GCINFO" ]
 }
 if (cppgc_enable_slim_write_barrier) {
   enabled_external_cppgc_defines += [ "CPPGC_SLIM_WRITE_BARRIER" ]

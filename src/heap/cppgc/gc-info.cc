@@ -1,3 +1,4 @@
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -9,17 +10,6 @@
 #include "src/heap/cppgc/gc-info-table.h"
 
 namespace cppgc::internal {
-
-namespace {
-
-HeapObjectName GetHiddenName(
-    const void*, HeapObjectNameForUnnamedObject name_retrieval_mode) {
-  return {
-      NameProvider::kHiddenName,
-      name_retrieval_mode == HeapObjectNameForUnnamedObject::kUseHiddenName};
-}
-
-}  // namespace
 
 // static
 GCInfoIndex EnsureGCInfoIndexTrait::EnsureGCInfoIndex(
@@ -55,3 +45,4 @@ GCInfoIndex EnsureGCInfoIndexTrait::EnsureGCInfoIndex(
 }
 
 }  // namespace cppgc::internal
+#endif  // !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)

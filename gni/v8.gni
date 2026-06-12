@@ -231,6 +231,9 @@ declare_args() {
   # pointer compression, set cppgc_enable_caged_heap = false.
   cppgc_enable_pointer_compression = false
 
+  cppgc_enable_object_section_gcinfo =
+      (is_linux || is_mac) && !is_component_build
+
   # Enable support for larger cages, up to 16GB.
   # iOS cannot mmap above 8GB, so use the smaller cage.
   cppgc_enable_larger_cage = !is_ios

@@ -19,19 +19,7 @@
 namespace cppgc {
 namespace internal {
 
-// GCInfo contains metadata for objects that are instantiated from classes that
-// inherit from GarbageCollected.
-struct GCInfo final {
-  constexpr GCInfo(FinalizationCallback finalize, TraceCallback trace,
-                   NameCallback name)
-      : finalize(finalize), trace(trace), name(name) {}
-
-  FinalizationCallback finalize;
-  TraceCallback trace;
-  NameCallback name;
-  size_t padding = 0;
-};
-
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 class V8_EXPORT GCInfoTable final {
  public:
   // At maximum |kMaxIndex - 1| indices are supported.
@@ -97,6 +85,7 @@ class V8_EXPORT GCInfoTable final {
 
   v8::base::Mutex table_mutex_;
 };
+#endif
 
 class V8_EXPORT GlobalGCInfoTable final {
  public:
@@ -108,6 +97,7 @@ class V8_EXPORT GlobalGCInfoTable final {
   // times with the same `page_allocator` argument.
   static void Initialize(PageAllocator& page_allocator);
 
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
   // Accessors for the singleton table.
   static GCInfoTable& GetMutable() { return *global_table_; }
   static const GCInfoTable& Get() { return *global_table_; }
@@ -115,10 +105,17 @@ class V8_EXPORT GlobalGCInfoTable final {
   static const GCInfo& GCInfoFromIndex(GCInfoIndex index) {
     return Get().GCInfoFromIndex(index);
   }
+#else
+  static const GCInfo& GCInfoFromIndex(GCInfoIndex index) {
+    return GCInfoTableSection::GCInfoFromIndex(index);
+  }
+#endif
 
  private:
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
   // Singleton for each process. Retrieved through Get().
   static GCInfoTable* global_table_;
+#endif
 
   DISALLOW_NEW_AND_DELETE()
 };

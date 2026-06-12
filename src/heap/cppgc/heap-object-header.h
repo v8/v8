@@ -186,7 +186,7 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
 #if defined(V8_HOST_ARCH_64_BIT) && !defined(CPPGC_CAGED_HEAP)
   USE(padding_);
 #endif  // defined(V8_HOST_ARCH_64_BIT) && !defined(CPPGC_CAGED_HEAP)
-  DCHECK_LT(gc_info_index, GCInfoTable::kMaxIndex);
+  DCHECK_LT(gc_info_index, kMaxGCInfoIndex);
   DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
   encoded_low_ = EncodeSize(size);

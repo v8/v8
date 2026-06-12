@@ -18,6 +18,7 @@
 namespace cppgc {
 namespace internal {
 
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 namespace {
 
 // GCInfoTable::table_, the table which holds GCInfos, is maintained as a
@@ -37,9 +38,11 @@ GCInfoTable* GlobalGCInfoTable::global_table_ = nullptr;
 constexpr GCInfoIndex GCInfoTable::kMaxIndex;
 constexpr GCInfoIndex GCInfoTable::kMinIndex;
 constexpr GCInfoIndex GCInfoTable::kInitialWantedLimit;
+#endif  // !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 
 // static
 void GlobalGCInfoTable::Initialize(PageAllocator& page_allocator) {
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
   static v8::base::LeakyObject<GCInfoTable> table(page_allocator,
                                                   GetGlobalOOMHandler());
   if (!global_table_) {
@@ -47,8 +50,10 @@ void GlobalGCInfoTable::Initialize(PageAllocator& page_allocator) {
   } else {
     CHECK_EQ(&page_allocator, &global_table_->allocator());
   }
+#endif  // !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 }
 
+#if !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 GCInfoTable::GCInfoTable(PageAllocator& page_allocator,
                          FatalOutOfMemoryHandler& oom_handler)
     : page_allocator_(page_allocator),
@@ -147,6 +152,7 @@ GCInfoIndex GCInfoTable::RegisterNewGCInfo(
   registered_index.store(new_index, std::memory_order_release);
   return new_index;
 }
+#endif  // !defined(CPPGC_ENABLE_OBJECT_SECTION_GCINFO)
 
 }  // namespace internal
 }  // namespace cppgc

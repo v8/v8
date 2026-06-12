@@ -173,7 +173,7 @@ TEST(HeapObjectHeaderDeathTest, ConstructorTooLargeSize) {
 }
 
 TEST(HeapObjectHeaderDeathTest, ConstructorTooLargeGCInfoIndex) {
-  constexpr GCInfoIndex kGCInfoIndex = GCInfoTable::kMaxIndex + 1;
+  constexpr GCInfoIndex kGCInfoIndex = kMaxGCInfoIndex + 1;
   constexpr size_t kSize = kAllocationGranularity;
   EXPECT_DEATH_IF_SUPPORTED(HeapObjectHeader header(kSize, kGCInfoIndex), "");
 }
