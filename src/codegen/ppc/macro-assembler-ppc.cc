@@ -210,12 +210,14 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond, CRegister cr) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   Label skip;
 
   if (cond != al) b(NegateCondition(cond), &skip, cr);
 
-  mov(ip, Operand(target, rmode));
-  mtctr(ip);
+  mov(scratch, Operand(target, rmode));
+  mtctr(scratch);
   bctr();
 
   bind(&skip);
@@ -279,6 +281,8 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(cond == al);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   // This can likely be optimized to make use of bc() with 24bit relative
   //
@@ -286,8 +290,8 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
   // bc( BA, .... offset, LKset);
   //
 
-  mov(ip, Operand(target, rmode));
-  mtctr(ip);
+  mov(scratch, Operand(target, rmode));
+  mtctr(scratch);
   bctrl();
   RecordPcForSafepoint();
 }
@@ -310,14 +314,15 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
-  // Use ip directly instead of using UseScratchRegisterScope, as we do not
-  // preserve scratch registers across calls.
+  UseScratchRegisterScope temps(this);
+  temps.Include(ip);
+  Register scratch = temps.Acquire();
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute: {
       Label skip;
-      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      mov(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
       if (cond != al) b(NegateCondition(cond), &skip);
-      Call(ip);
+      Call(scratch);
       bind(&skip);
       break;
     }
@@ -325,9 +330,9 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
       Label skip;
-      LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
+      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip);
-      Call(ip);
+      Call(scratch);
       bind(&skip);
       break;
     }
@@ -339,9 +344,9 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
              cond);
       } else {
         Label skip;
-        LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
+        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
         if (cond != al) b(NegateCondition(cond), &skip);
-        Call(ip);
+        Call(scratch);
         bind(&skip);
       }
       break;
@@ -353,14 +358,15 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
                                      CRegister cr) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
-  // Use ip directly instead of using UseScratchRegisterScope, as we do not
-  // preserve scratch registers across calls.
+  UseScratchRegisterScope temps(this);
+  temps.Include(ip);
+  Register scratch = temps.Acquire();
   switch (options().builtin_call_jump_mode) {
     case BuiltinCallJumpMode::kAbsolute: {
       Label skip;
-      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      mov(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
       if (cond != al) b(NegateCondition(cond), &skip, cr);
-      Jump(ip);
+      Jump(scratch);
       bind(&skip);
       break;
     }
@@ -368,9 +374,9 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
       Label skip;
-      LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
+      LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip, cr);
-      Jump(ip);
+      Jump(scratch);
       bind(&skip);
       break;
     }
@@ -382,9 +388,9 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
              cond, cr);
       } else {
         Label skip;
-        LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
+        LoadU64(scratch, EntryFromBuiltinAsOperand(builtin), r0);
         if (cond != al) b(NegateCondition(cond), &skip, cr);
-        Jump(ip);
+        Jump(scratch);
         bind(&skip);
       }
       break;
@@ -1245,19 +1251,22 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
+  UseScratchRegisterScope temps(this);
+  temps.Include(ip);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && load_constant_pool_pointer_reg) {
     // Push type explicitly so we can leverage the constant pool.
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
     LoadConstantPoolPointerRegister();
     if (!StackFrame::IsJavaScript(type)) {
-      mov(ip, Operand(StackFrame::TypeToMarker(type)));
-      push(ip);
+      Register scratch = temps.Acquire();
+      mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+      push(scratch);
     }
   } else {
     Register scratch = no_reg;
     if (!StackFrame::IsJavaScript(type)) {
-      scratch = ip;
+      scratch = temps.Acquire();
       mov(scratch, Operand(StackFrame::TypeToMarker(type)));
     }
     PushCommonFrame(scratch);
@@ -1269,6 +1278,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
+  UseScratchRegisterScope temps(this);
+  temps.Include(ip);
+  Register scratch = temps.Acquire();
   // r3: preserved
   // r4: preserved
   // r5: preserved
@@ -1277,7 +1289,7 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   // the caller's state.
   int frame_ends;
   LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  LoadU64(ip, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  LoadU64(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
@@ -1287,7 +1299,7 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   AddS64(sp, fp,
          Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment),
          r0);
-  mr(fp, ip);
+  mr(fp, scratch);
   return frame_ends;
 }
 
@@ -1322,8 +1334,8 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // all of the pushes that have happened inside of V8
   // since we were called from C code
 
-  mov(ip, Operand(StackFrame::TypeToMarker(frame_type)));
-  PushCommonFrame(ip);
+  mov(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
+  PushCommonFrame(scratch);
   // Reserve room for saved entry sp.
   subi(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
 
@@ -1947,8 +1959,10 @@ void MacroAssembler::Abort(AbortReason reason) {
       // ensure that the interpreter_entry_return_pc_offset is the same for
       // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
       // when v8_flags.debug_code is enabled.
-      LoadEntryFromBuiltin(Builtin::kAbort, ip);
-      Call(ip);
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadEntryFromBuiltin(Builtin::kAbort, scratch);
+      Call(scratch);
     } else {
       CallBuiltin(Builtin::kAbort);
     }
@@ -4901,10 +4915,12 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   CHECK_LE(target, Builtins::kLastTier0);
-  LoadU64(ip, MemOperand(kRootRegister,
-                         IsolateData::BuiltinEntrySlotOffset(target)));
-  Call(ip);
+  LoadU64(scratch, MemOperand(kRootRegister,
+                              IsolateData::BuiltinEntrySlotOffset(target)));
+  Call(scratch);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);
