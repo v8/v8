@@ -2471,7 +2471,7 @@ DEFINE_BOOL(lazy_new_space_shrinking, false,
             "Enables the lazy new space shrinking strategy")
 DEFINE_BOOL(trim_descriptor_arrays_in_gc, true,
             "Shrink descriptor arrays during GCs")
-DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, true,
+DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, false,
             "Shrink descriptor arrays during GCs with stack")
 DEFINE_IMPLICATION(trim_descriptor_arrays_in_gc_with_stack,
                    trim_descriptor_arrays_in_gc)
