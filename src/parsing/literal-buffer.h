@@ -9,6 +9,7 @@
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/strings/unicode-decoder.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +37,32 @@ class LiteralBuffer final {
       ConvertToTwoByte();
     }
     AddTwoByteChar(code_unit);
+  }
+
+  // Adds a range of UTF-16 code units. In one-byte mode all code units in
+  // the range must fit into one byte (callers batch only ASCII ranges); the
+  // narrowing copy below vectorizes well. In two-byte mode the range is
+  // copied as-is.
+  V8_INLINE void AddRangeFromUtf16(const uint16_t* begin, const uint16_t* end) {
+    size_t length = static_cast<size_t>(end - begin);
+    if (V8_LIKELY(is_one_byte())) {
+      if (V8_UNLIKELY(position_ + length > backing_store_.size())) {
+        ExpandBufferTo(position_ + length);
+      }
+      uint8_t* dst = backing_store_.begin() + position_;
+      for (size_t i = 0; i < length; i++) {
+        DCHECK_LE(begin[i], unibrow::Latin1::kMaxChar);
+        dst[i] = static_cast<uint8_t>(begin[i]);
+      }
+      position_ += length;
+    } else {
+      size_t size = length * base::kUC16Size;
+      if (V8_UNLIKELY(position_ + size > backing_store_.size())) {
+        ExpandBufferTo(position_ + size);
+      }
+      MemCopy(backing_store_.begin() + position_, begin, size);
+      position_ += size;
+    }
   }
 
   bool is_one_byte() const { return is_one_byte_; }
@@ -97,6 +124,7 @@ class LiteralBuffer final {
   void AddTwoByteChar(base::uc32 code_unit);
   size_t NewCapacity(size_t min_capacity);
   V8_NOINLINE V8_PRESERVE_MOST void ExpandBuffer();
+  V8_NOINLINE V8_PRESERVE_MOST void ExpandBufferTo(size_t min_size);
   void ConvertToTwoByte();
 
   base::Vector<uint8_t> backing_store_;

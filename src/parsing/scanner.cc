@@ -557,19 +557,18 @@ Token::Value Scanner::ScanString() {
 
   next().literal_chars.Start();
   while (true) {
-    AdvanceUntil([this](base::uc32 c0) {
-      if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) {
-        if (V8_UNLIKELY(unibrow::IsStringLiteralLineTerminator(c0))) {
-          return true;
-        }
-        AddLiteralChar(c0);
-        return false;
-      }
-      uint8_t char_flags = character_scan_flags[c0];
-      if (MayTerminateString(char_flags)) return true;
-      AddLiteralChar(c0);
-      return false;
-    });
+    // Consumed ASCII characters are bulk-appended to the literal buffer via
+    // the range callback. Non-ASCII characters terminate the range scan and
+    // are handled by the outer loop below (via the final AddLiteralChar),
+    // which keeps the common all-ASCII scan fast.
+    AdvanceUntilRange(
+        [](base::uc32 c0) {
+          if (V8_UNLIKELY(static_cast<uint32_t>(c0) > kMaxAscii)) return true;
+          return MayTerminateString(character_scan_flags[c0]);
+        },
+        [this](const uint16_t* start, const uint16_t* end) {
+          next().literal_chars.AddRangeFromUtf16(start, end);
+        });
 
     while (c0_ == '\\') {
       Advance();

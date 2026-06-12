@@ -45,6 +45,18 @@ void LiteralBuffer::ExpandBuffer() {
   backing_store_ = new_store;
 }
 
+void LiteralBuffer::ExpandBufferTo(size_t min_size) {
+  size_t min_capacity =
+      std::max({kInitialCapacity, backing_store_.size(), min_size});
+  base::Vector<uint8_t> new_store =
+      base::Vector<uint8_t>::New(NewCapacity(min_capacity));
+  if (position_ > 0) {
+    MemCopy(new_store.begin(), backing_store_.begin(), position_);
+  }
+  backing_store_.Dispose();
+  backing_store_ = new_store;
+}
+
 void LiteralBuffer::ConvertToTwoByte() {
   DCHECK(is_one_byte());
   base::Vector<uint8_t> new_store;

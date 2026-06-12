@@ -95,6 +95,40 @@ class Utf16CharacterStream {
     }
   }
 
+  // Like AdvanceUntil, but additionally reports each contiguous range of
+  // skipped-over (i.e. {check} returned false) code units via
+  // {on_range}(start, end) before the underlying buffer is refilled and
+  // before returning. The code unit that terminated the scan is not part of
+  // the range. This lets callers bulk-process consumed characters instead of
+  // handling them one by one inside {check}.
+  template <typename FunctionType, typename RangeCallback>
+  V8_INLINE base::uc32 AdvanceUntilRange(FunctionType check,
+                                         RangeCallback on_range) {
+    while (true) {
+      const uint16_t* range_start = buffer_cursor_;
+      auto next_cursor_pos =
+          std::find_if(buffer_cursor_, buffer_end_, [&check](uint16_t raw_c0_) {
+            base::uc32 c0_ = static_cast<base::uc32>(raw_c0_);
+            return check(c0_);
+          });
+
+      if (next_cursor_pos != range_start) {
+        on_range(range_start, next_cursor_pos);
+      }
+
+      if (next_cursor_pos == buffer_end_) {
+        buffer_cursor_ = buffer_end_;
+        if (!ReadBlockChecked(pos())) {
+          buffer_cursor_++;
+          return kEndOfInput;
+        }
+      } else {
+        buffer_cursor_ = next_cursor_pos + 1;
+        return static_cast<base::uc32>(*next_cursor_pos);
+      }
+    }
+  }
+
   // Go back one by one character in the input stream.
   // This undoes the most recent Advance().
   inline void Back() {
@@ -561,6 +595,11 @@ class V8_EXPORT_PRIVATE Scanner {
   template <typename FunctionType>
   V8_INLINE void AdvanceUntil(FunctionType check) {
     c0_ = source_->AdvanceUntil(check);
+  }
+
+  template <typename FunctionType, typename RangeCallback>
+  V8_INLINE void AdvanceUntilRange(FunctionType check, RangeCallback on_range) {
+    c0_ = source_->AdvanceUntilRange(check, on_range);
   }
 
   bool CombineSurrogatePair() {
