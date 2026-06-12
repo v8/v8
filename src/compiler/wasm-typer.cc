@@ -218,7 +218,7 @@ Reduction WasmTyper::Reduce(Node* node) {
 
   TRACE("function: %d, node: %d:%s, from: %s, to: %s\n", function_index_,
         node->id(), node->op()->mnemonic(),
-        NodeProperties::IsTyped(node)
+        NodeProperties::IsTyped(node) && NodeProperties::GetType(node).IsWasm()
             ? NodeProperties::GetType(node).AsWasm().type.name().c_str()
             : "<untyped>",
         computed_type.type.name().c_str());
