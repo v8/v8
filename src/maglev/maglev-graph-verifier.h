@@ -138,11 +138,23 @@ class MaglevGraphVerifier {
     return Intersect(def_block, use_block) == def_block;
   }
 
-  // Whether `value` dominates a use in `use_block`. Values with no defining
-  // block (constants, parameters, OSR values) dominate every use.
+  // Some nodes don't belong to a given block (eg, Constants, Parameters...) and
+  // so it's always valid to use them even though they aren't defined. All other
+  // nodes should be defined before they are used.
+  bool RequiresDefinition(ValueNode* node) {
+    Opcode opcode = node->opcode();
+    if (IsConstantNode(opcode)) return false;
+    if (opcode == Opcode::kInitialValue) return false;
+    if (opcode == Opcode::kDeadValue) return false;
+    return true;
+  }
+
+  // Whether `value` dominates a use in `use_block`.
   bool ValueDominatesUse(ValueNode* value, BasicBlock* use_block) {
     auto def_it = def_block_.find(value);
-    if (def_it == def_block_.end()) return true;
+    if (def_it == def_block_.end()) {
+      return !RequiresDefinition(value);
+    }
     BasicBlock* def_block = def_it->second;
     // Same block: the definition must come before the use (tracked as we go).
     if (def_block == use_block) return defined_.contains(value);
@@ -153,7 +165,9 @@ class MaglevGraphVerifier {
   // predecessor and so ignore intra-block ordering.
   bool ValueBlockDominatesUse(ValueNode* value, BasicBlock* use_block) {
     auto def_it = def_block_.find(value);
-    if (def_it == def_block_.end()) return true;
+    if (def_it == def_block_.end()) {
+      return !RequiresDefinition(value);
+    }
     return BlockDominates(def_it->second, use_block);
   }
 
