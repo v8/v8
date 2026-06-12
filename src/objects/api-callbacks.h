@@ -18,8 +18,6 @@ namespace internal {
 class Undefined;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/api-callbacks-tq.inc"
-
 // An accessor must have a getter, but can have no setter.
 //
 // When setting a property, V8 searches accessors in prototypes.

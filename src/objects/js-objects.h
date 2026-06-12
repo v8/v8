@@ -38,8 +38,6 @@ class ElementsAccessor;
 class Undefined;
 class Null;
 
-#include "torque-generated/src/objects/js-objects-tq.inc"
-
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 V8_OBJECT class JSReceiver : public HeapObject {

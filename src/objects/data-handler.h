@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/data-handler-tq.inc"
-
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
 V8_OBJECT class DataHandler : public Struct {

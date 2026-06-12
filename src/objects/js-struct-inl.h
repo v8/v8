@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-struct-tq-inl.inc"
-
 }  // namespace internal
 }  // namespace v8
 

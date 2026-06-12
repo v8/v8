@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
-
 Tagged<FeedbackCell::Value> FeedbackCell::value() const {
   return value_.load();
 }

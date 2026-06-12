@@ -14,8 +14,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-shared-array-tq.inc"
-
 V8_OBJECT class JSSharedArray : public AlwaysSharedSpaceJSObject {
  public:
   DECL_PRINTER(JSSharedArray)

@@ -97,6 +97,7 @@ struct PositionInfo {
   end: Smi;
 }
 
+// LINT.IfChange(ScopeInfoStructs)
 struct FunctionVariableInfo {
   name: String|Zero;
   context_or_stack_slot_index: Smi;
@@ -117,6 +118,7 @@ struct ModuleVariable {
   index: Smi;
   properties: SmiTagged<VariableProperties>;
 }
+// LINT.ThenChange(src/objects/scope-info.h)
 
 const kMaxInlinedLocalNamesSize:
     constexpr int32 generates 'kScopeInfoMaxInlinedLocalNamesSize';

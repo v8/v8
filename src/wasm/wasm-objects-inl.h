@@ -45,8 +45,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
-
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                         \
   DEF_GETTER(holder, has_##name, bool) {                                       \
     Tagged<Object> value = TaggedField<Object, offset>::load(cage_base, this); \

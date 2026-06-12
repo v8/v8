@@ -20,8 +20,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/foreign-tq-inl.inc"
-
 template <ExternalPointerTag tag>
 Address Foreign::foreign_address(IsolateForSandbox isolate) const {
   return foreign_address_.load<tag>(isolate);

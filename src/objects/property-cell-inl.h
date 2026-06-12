@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-cell-tq-inl.inc"
-
 Tagged<DependentCode> PropertyCell::dependent_code() const {
   return dependent_code_.load();
 }

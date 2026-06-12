@@ -16,8 +16,6 @@ namespace internal {
 
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/struct-tq.inc"
-
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.

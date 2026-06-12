@@ -17,8 +17,6 @@ namespace internal {
 
 class KeyAccumulator;
 
-#include "torque-generated/src/objects/js-proxy-tq.inc"
-
 // The JSProxy describes ECMAScript Harmony proxies
 V8_OBJECT class JSProxy : public JSReceiver {
  public:

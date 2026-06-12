@@ -14,8 +14,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/turboshaft-types-tq.inc"
-
 class TurboshaftFloatSpecialValues {
  public:
   using NanBit = base::BitField<bool, 0, 1, uint32_t>;

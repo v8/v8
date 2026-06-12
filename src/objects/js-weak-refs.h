@@ -19,8 +19,6 @@ namespace internal {
 class NativeContext;
 class WeakCell;
 
-#include "torque-generated/src/objects/js-weak-refs-tq.inc"
-
 // FinalizationRegistry object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
 V8_OBJECT class JSFinalizationRegistry : public JSObject {

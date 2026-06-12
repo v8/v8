@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/primitive-heap-object-tq-inl.inc"
-
 }  // namespace internal
 }  // namespace v8
 

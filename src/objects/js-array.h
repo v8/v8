@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-array-tq.inc"
-
 // The JSArray describes JavaScript Arrays
 //  Such an array can be in one of two modes:
 //    - fast, backing storage is a FixedArray and length <= elements.length();

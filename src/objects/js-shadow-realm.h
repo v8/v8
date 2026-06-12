@@ -15,8 +15,6 @@ namespace internal {
 
 class NativeContext;
 
-#include "torque-generated/src/objects/js-shadow-realm-tq.inc"
-
 // ShadowRealm object from the JS ShadowRealm spec proposal:
 // https://github.com/tc39/proposal-shadowrealm
 V8_OBJECT class JSShadowRealm : public JSObject {

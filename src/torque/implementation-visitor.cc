@@ -1851,13 +1851,7 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
     // TODO(torque-builder): Pass file directly.
     WriteFile(base_filename + "-tq-csa.cc", std::move(csa_cc));
     WriteFile(base_filename + "-tq-csa.h", streams.csa_headerfile.str());
-    WriteFile(base_filename + "-tq.inc",
-              streams.class_definition_headerfile.str());
-    WriteFile(
-        base_filename + "-tq-inl.inc",
-        streams.class_definition_inline_headerfile_macro_declarations.str() +
-            streams.class_definition_inline_headerfile_macro_definitions.str() +
-            streams.class_definition_inline_headerfile.str());
+
     WriteFile(base_filename + "-tq.cc", streams.class_definition_ccfile.str());
   }
 

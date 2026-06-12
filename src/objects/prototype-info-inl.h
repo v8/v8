@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/prototype-info-tq-inl.inc"
-
 Tagged<UnionOf<JSModuleNamespace, Undefined>> PrototypeInfo::module_namespace()
     const {
   return module_namespace_.load();

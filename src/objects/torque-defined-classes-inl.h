@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/torque-defined-classes-tq-inl.inc"
-
 }  // namespace internal
 }  // namespace v8
 

@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/script-tq-inl.inc"
-
 Tagged<UnionOf<String, Undefined>> Script::source() const {
   return source_.load();
 }

@@ -19,8 +19,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/struct-tq-inl.inc"
-
 Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {
   value1_.store(this, value, mode);

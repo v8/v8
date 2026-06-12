@@ -21,8 +21,6 @@ namespace v8::internal {
 
 class RegExpData;
 
-#include "torque-generated/src/objects/js-regexp-tq.inc"
-
 class RegExpData;
 
 // Regular expressions

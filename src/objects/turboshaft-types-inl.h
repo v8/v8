@@ -15,8 +15,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/turboshaft-types-tq-inl.inc"
-
 // TurboshaftWord32RangeType
 uint32_t TurboshaftWord32RangeType::from() const { return from_; }
 void TurboshaftWord32RangeType::set_from(uint32_t value) { from_ = value; }

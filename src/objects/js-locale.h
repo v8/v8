@@ -25,8 +25,6 @@ class Locale;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-locale-tq.inc"
-
 V8_OBJECT class JSLocale : public JSObject {
  public:
   // Creates locale object with properties derived from input locale string

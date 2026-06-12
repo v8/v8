@@ -167,8 +167,6 @@ using MapHandles =
     DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
 using MapHandlesSpan = std::span<DirectHandle<Map>>;
 
-#include "torque-generated/src/objects/map-tq.inc"
-
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:
 //  - Size information about the object

@@ -19,8 +19,6 @@ class AsyncGeneratorRequest;
 class JSPromise;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/js-generator-tq.inc"
-
 V8_OBJECT class JSGeneratorObject : public JSObject {
  public:
   enum ResumeMode { kNext, kReturn, kThrow, kRethrow };

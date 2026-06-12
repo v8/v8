@@ -9,6 +9,7 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
@@ -26,9 +27,6 @@ class LocalizedNumberFormatter;
 
 namespace v8 {
 namespace internal {
-
-#include "src/base/bit-field.h"
-#include "torque-generated/src/objects/js-duration-format-tq.inc"
 
 V8_OBJECT class JSDurationFormat : public JSObject {
  public:

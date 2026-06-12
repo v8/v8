@@ -41,8 +41,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/shared-function-info-tq-inl.inc"
-
 // static
 int PreparseData::SizeFor(int data_length, int children_length) {
   return OFFSET_OF_DATA_START(PreparseData) +

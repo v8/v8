@@ -45,8 +45,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/js-objects-tq-inl.inc"
-
 Tagged<FixedArrayBase> JSObject::elements() const { return elements_.load(); }
 
 Tagged<FixedArrayBase> JSObject::elements(RelaxedLoadTag) const {

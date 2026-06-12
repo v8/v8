@@ -19,8 +19,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-shared-array-tq-inl.inc"
-
 }  // namespace internal
 }  // namespace v8
 

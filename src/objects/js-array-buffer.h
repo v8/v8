@@ -22,8 +22,6 @@ namespace internal {
 
 class ArrayBufferExtension;
 
-#include "torque-generated/src/objects/js-array-buffer-tq.inc"
-
 V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
  public:
 // The maximum length for JSArrayBuffer's supported by V8.

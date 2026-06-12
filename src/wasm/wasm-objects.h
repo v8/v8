@@ -68,8 +68,6 @@ class Managed;
 template <typename CppType>
 class TrustedManaged;
 
-#include "torque-generated/src/wasm/wasm-objects-tq.inc"
-
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   DECL_GETTER(has_##name, bool)             \
   DECL_ACCESSORS(name, type)

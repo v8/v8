@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/data-handler-tq-inl.inc"
-
 // static
 constexpr int DataHandler::OffsetOf(int index) {
   return OFFSET_OF_DATA_START(DataHandler) +

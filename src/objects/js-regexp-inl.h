@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-regexp-tq-inl.inc"
-
 Tagged<Object> JSRegExp::last_index() const {
   return TaggedField<Object, kLastIndexOffset>::load(this);
 }

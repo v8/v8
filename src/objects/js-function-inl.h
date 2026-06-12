@@ -34,8 +34,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/js-function-tq-inl.inc"
-
 // JSBoundFunction accessors.
 Tagged<JSCallable> JSBoundFunction::bound_target_function() const {
   return bound_target_function_.load();

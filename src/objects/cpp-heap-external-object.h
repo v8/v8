@@ -13,8 +13,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/cpp-heap-external-object-tq.inc"
-
 V8_OBJECT class CppHeapExternalObject : public HeapObject {
  public:
   DECL_PRINTER(CppHeapExternalObject)

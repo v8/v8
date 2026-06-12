@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-array-tq-inl.inc"
-
 int PropertyArray::length_and_hash() const {
   return length_and_hash_.load().value();
 }

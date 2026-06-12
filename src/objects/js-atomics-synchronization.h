@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-atomics-synchronization-tq.inc"
-
 namespace detail {
 class WaiterQueueLockGuard;
 class WaiterQueueNode;

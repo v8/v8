@@ -29,8 +29,6 @@ class ListFormatter;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-list-format-tq.inc"
-
 V8_OBJECT class JSListFormat : public JSObject {
  public:
   // Creates relative time format object with properties derived from input

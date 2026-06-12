@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/templates-tq-inl.inc"
-
 Tagged<UnionOf<Undefined, ObjectTemplateInfo>>
 FunctionTemplateRareData::prototype_template() const {
   return prototype_template_.load();

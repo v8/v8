@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
-
 Tagged<NativeContext> JSFinalizationRegistry::native_context() const {
   return native_context_.load();
 }

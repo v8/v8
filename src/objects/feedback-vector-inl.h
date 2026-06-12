@@ -27,8 +27,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
-
 #define ASSERT_BUILTIN_ID_CONSECUTIVE(V, Location, Representation, Kind, \
                                       Index)                             \
   static_assert(                                                         \

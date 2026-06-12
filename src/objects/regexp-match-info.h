@@ -18,11 +18,6 @@ namespace internal {
 class Object;
 class String;
 
-// TODO(jgruber): These should no longer be included here; instead, all
-// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
-#include "torque-generated/src/objects/regexp-match-info-tq.inc"
-
-
 // The property RegExpMatchInfo includes the matchIndices array of the last
 // successful regexp match (an array of start/end index pairs for the match and
 // all the captured substrings), the invariant is that there are at least two

@@ -21,8 +21,6 @@ class MessageLocation;
 class WasmInstanceObject;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/call-site-info-tq.inc"
-
 V8_OBJECT class CallSiteInfo : public Struct {
  public:
   using IsWasmBit = base::BitField<bool, 0, 1, uint32_t>;

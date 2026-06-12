@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/embedder-data-array-tq-inl.inc"
-
 int EmbedderDataArray::length() const { return length_.load().value(); }
 
 void EmbedderDataArray::set_length(int value) {

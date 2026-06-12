@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/megadom-handler-tq-inl.inc"
-
 Tagged<MaybeObject> MegaDomHandler::accessor() const {
   return accessor_.load();
 }

@@ -17,8 +17,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/third_party/v8/builtins/array-sort-tq.inc"
-
 // SortState's fields are accessed exclusively from Torque-generated code
 // (third_party/v8/builtins/array-sort.tq and src/builtins/array-to-sorted.tq);
 // no C++ accessors are needed.

@@ -16,8 +16,6 @@ namespace v8::internal {
 
 class Undefined;
 
-#include "torque-generated/src/objects/feedback-cell-tq.inc"
-
 // This is a special cell used to maintain both the link between a
 // closure and its feedback vector, as well as a way to count the
 // number of closures created for a certain function per native

@@ -31,8 +31,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
-
 Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
 void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
   keys_.store(this, value, mode);

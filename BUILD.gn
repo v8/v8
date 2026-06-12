@@ -2484,9 +2484,7 @@ template("run_torque") {
       outputs += [
         "$destination_folder/$filetq-csa.cc",
         "$destination_folder/$filetq-csa.h",
-        "$destination_folder/$filetq-inl.inc",
         "$destination_folder/$filetq.cc",
-        "$destination_folder/$filetq.inc",
       ]
     }
 
@@ -2656,14 +2654,9 @@ v8_cluster_source_set("torque_generated_initializers") {
 
 # Build lists of torque-generated definition files for clustering
 torque_def_cc_files = []
-torque_def_inc_files = []
 foreach(file, torque_files) {
   filetq = string_replace(file, ".tq", "-tq")
   torque_def_cc_files += [ "$target_gen_dir/torque-generated/$filetq.cc" ]
-  torque_def_inc_files += [
-    "$target_gen_dir/torque-generated/$filetq-inl.inc",
-    "$target_gen_dir/torque-generated/$filetq.inc",
-  ]
 }
 
 v8_cluster_source_set("torque_generated_definitions") {
@@ -2692,9 +2685,6 @@ v8_cluster_source_set("torque_generated_definitions") {
 
   sources = torque_def_cc_files +
             [ "$target_gen_dir/torque-generated/class-forward-declarations.h" ]
-
-  # Add .inc files (always included, not compiled directly)
-  sources += torque_def_inc_files
 
   configs = [ ":internal_config" ]
 }

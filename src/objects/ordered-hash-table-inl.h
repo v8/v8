@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/ordered-hash-table-tq-inl.inc"
-
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::IsKey(ReadOnlyRoots roots,
                                                  Tagged<Object> k) {

@@ -42,8 +42,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/map-tq-inl.inc"
-
 // `instance_descriptors_` is a TaggedMember<UnionOf<DescriptorArray,
 // WasmStruct>> on Wasm builds; the `instance_descriptors` and
 // `custom_descriptor` accessors are deliberately overlapping narrower views

@@ -17,8 +17,6 @@ namespace internal {
 class FixedArray;
 class WeakFixedArray;
 
-#include "torque-generated/src/objects/property-cell-tq.inc"
-
 V8_OBJECT class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.

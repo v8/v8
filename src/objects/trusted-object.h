@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/trusted-object-tq.inc"
-
 // An object that is trusted to not have been modified in a malicious way.
 //
 // Typical examples of trusted objects are containers for bytecode or code

@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/module-tq-inl.inc"
-
 Tagged<Object> ScriptOrModule::resource_name() const {
   return resource_name_.load();
 }

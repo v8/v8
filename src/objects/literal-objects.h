@@ -22,8 +22,6 @@ namespace internal {
 class ClassLiteral;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/literal-objects-tq.inc"
-
 V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
  public:
   inline Tagged<ObjectBoilerplateDescription> boilerplate_description() const;

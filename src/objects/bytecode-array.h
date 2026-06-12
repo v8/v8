@@ -21,10 +21,6 @@ namespace interpreter {
 class Register;
 }  // namespace interpreter
 
-// TODO(jgruber): These should no longer be included here; instead, all
-// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
-#include "torque-generated/src/objects/bytecode-array-tq.inc"
-
 // BytecodeArray represents a sequence of interpreter bytecodes.
 V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
  public:

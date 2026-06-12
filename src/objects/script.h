@@ -33,8 +33,6 @@ namespace wasm {
 class NativeModule;
 }  // namespace wasm
 
-#include "torque-generated/src/objects/script-tq.inc"
-
 // Script describes a script which has been added to the VM.
 V8_OBJECT class Script : public Struct {
  public:

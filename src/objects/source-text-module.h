@@ -21,8 +21,6 @@ namespace internal {
 class UnorderedModuleSet;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/source-text-module-tq.inc"
-
 // The runtime representation of an ECMAScript Source Text Module Record.
 // https://tc39.es/ecma262/#sec-source-text-module-records
 V8_OBJECT class SourceTextModule : public Module {

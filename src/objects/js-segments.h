@@ -28,8 +28,6 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segments-tq.inc"
-
 V8_OBJECT class JSSegments : public JSObject {
  public:
   // https://tc39.es/ecma402/#sec-createsegmentsobject

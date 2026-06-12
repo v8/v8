@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/turbofan-types-tq-inl.inc"
-
 // TurbofanBitsetType
 uint32_t TurbofanBitsetType::bitset_low() const { return bitset_low_; }
 void TurbofanBitsetType::set_bitset_low(uint32_t value) { bitset_low_ = value; }

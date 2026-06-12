@@ -24,8 +24,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-temporal-objects-tq.inc"
-
 // For a type wrapping a rust field, add accessors for it
 // including a initialize_with_wrapped_rust_value() that can be used in
 // templates. Declares the TaggedMember storage slot as well, so the

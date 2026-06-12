@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/managed.h"
@@ -24,9 +25,6 @@ namespace v8 {
 namespace internal {
 
 class DisplayNamesInternal;
-
-#include "src/base/bit-field.h"
-#include "torque-generated/src/objects/js-display-names-tq.inc"
 
 V8_OBJECT class JSDisplayNames : public JSObject {
  public:

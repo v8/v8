@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/embedder-data-array-tq.inc"
-
 // This is a storage array for embedder data fields stored in native context.
 // It's basically an "array of EmbedderDataSlots".
 // Note, if the pointer compression is enabled the embedder data slot also

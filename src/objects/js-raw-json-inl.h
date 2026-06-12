@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-raw-json-tq-inl.inc"
-
 bool JSRawJson::HasInitialLayout(Isolate* isolate) const {
   return map() == *isolate->js_raw_json_map();
 }

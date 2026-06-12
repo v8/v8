@@ -363,16 +363,12 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           break;
         }
         case VariableLocation::MODULE: {
-          scope_info->set(
-              module_var_entry +
-                  TorqueGeneratedModuleVariableOffsets::kNameOffset /
-                      kTaggedSize,
-              *var->name(), *mode);
-          scope_info->set(
-              module_var_entry +
-                  TorqueGeneratedModuleVariableOffsets::kIndexOffset /
-                      kTaggedSize,
-              Smi::FromInt(var->index()));
+          scope_info->set(module_var_entry +
+                              offsetof(ModuleVariableInfo, name) / kTaggedSize,
+                          *var->name(), *mode);
+          scope_info->set(module_var_entry +
+                              offsetof(ModuleVariableInfo, index) / kTaggedSize,
+                          Smi::FromInt(var->index()));
           uint32_t properties =
               VariableModeBits::encode(var->mode()) |
               InitFlagBit::encode(var->initialization_flag()) |
@@ -395,8 +391,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           }
           scope_info->set(
               module_var_entry +
-                  TorqueGeneratedModuleVariableOffsets::kPropertiesOffset /
-                      kTaggedSize,
+                  offsetof(ModuleVariableInfo, properties) / kTaggedSize,
               Smi::FromInt(properties));
           module_var_entry += kModuleVariableEntryLength;
           break;

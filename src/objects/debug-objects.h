@@ -27,8 +27,6 @@ class StackTraceInfo;
 class BytecodeArray;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/debug-objects-tq.inc"
-
 // The DebugInfo class holds additional information for a function being
 // debugged.
 V8_OBJECT class DebugInfo : public Struct {

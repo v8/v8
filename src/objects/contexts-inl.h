@@ -26,8 +26,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/contexts-tq-inl.inc"
-
 SafeHeapObjectSize ScriptContextTable::length(AcquireLoadTag) const {
   return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_));
 }

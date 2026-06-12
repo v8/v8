@@ -25,8 +25,6 @@ class Zone;
 template <typename T>
 class ZoneForwardList;
 
-#include "torque-generated/src/objects/module-tq.inc"
-
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
 // https://tc39.es/ecma262/#sec-abstract-module-records

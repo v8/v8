@@ -25,8 +25,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/debug-objects-tq-inl.inc"
-
 int BreakPointInfo::source_position() const {
   return source_position_.load().value();
 }

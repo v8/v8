@@ -29,8 +29,6 @@ namespace internal {
 
 class FunctionTemplateRareData;
 
-#include "torque-generated/src/objects/templates-tq.inc"
-
 struct CFunctionWithSignature {
   const Address address;
   const CFunctionInfo* signature;

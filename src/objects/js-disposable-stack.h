@@ -19,8 +19,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-disposable-stack-tq.inc"
-
 // Valid states for a DisposableStack.
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposablestack-objects
 enum class DisposableStackState { kDisposed, kPending };

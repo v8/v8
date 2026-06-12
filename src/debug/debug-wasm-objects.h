@@ -26,8 +26,6 @@ namespace wasm {
 class WasmValue;
 }  // namespace wasm
 
-#include "torque-generated/src/debug/debug-wasm-objects-tq.inc"
-
 class ArrayList;
 class WasmFrame;
 class WasmInstanceObject;

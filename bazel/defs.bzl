@@ -351,8 +351,6 @@ def _torque_files_impl(ctx):
         if root[:len(v8root)] == v8root:
             root = root[len(v8root):]
         file = ctx.attr.prefix + "/torque-generated/" + root
-        defs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
-        defs.append(ctx.actions.declare_file(file + "-tq.inc"))
         defs.append(ctx.actions.declare_file(file + "-tq.cc"))
         inits.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
         inits.append(ctx.actions.declare_file(file + "-tq-csa.h"))

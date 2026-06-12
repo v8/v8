@@ -450,8 +450,6 @@ enum ContextLookupFlags {
     shared_space_js_object_has_instance)                                       \
   NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
 
-#include "torque-generated/src/objects/contexts-tq.inc"
-
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
 // dynamically pushed 'with' contexts (or 'scopes' in ECMA-262 speak).

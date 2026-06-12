@@ -14,8 +14,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-descriptor-object-tq.inc"
-
 V8_OBJECT class PropertyDescriptorObject : public Struct {
  public:
   using IsEnumerableBit = base::BitField<bool, 0, 1, uint32_t>;

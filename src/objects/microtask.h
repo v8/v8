@@ -18,8 +18,6 @@ class StructBodyDescriptor;
 class MicrotaskQueueBuiltinsAssembler;
 class JSGeneratorObject;
 
-#include "torque-generated/src/objects/microtask-tq.inc"
-
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.

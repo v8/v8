@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/source-text-module-tq-inl.inc"
-
 Tagged<String> ModuleRequest::specifier() const { return specifier_.load(); }
 void ModuleRequest::set_specifier(Tagged<String> value, WriteBarrierMode mode) {
   specifier_.store(this, value, mode);

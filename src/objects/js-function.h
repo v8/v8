@@ -20,8 +20,6 @@ class AbstractCode;
 class ClosureFeedbackCellArray;
 class Tuple2;
 
-#include "torque-generated/src/objects/js-function-tq.inc"
-
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.

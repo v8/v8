@@ -25,8 +25,6 @@
 
 namespace v8::internal {
 
-#include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
-
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
   return reinterpret_cast<ctrl_t*>(
       field_address(CtrlTableStartOffset(Capacity())));

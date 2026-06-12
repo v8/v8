@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/cell-tq-inl.inc"
-
 Tagged<MaybeObject> Cell::maybe_value() const { return maybe_value_.load(); }
 
 Tagged<MaybeObject> Cell::maybe_value(RelaxedLoadTag) const {

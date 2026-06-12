@@ -20,8 +20,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/microtask-tq-inl.inc"
-
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 Tagged<Object> Microtask::continuation_preserved_embedder_data() const {
   return continuation_preserved_embedder_data_.load();

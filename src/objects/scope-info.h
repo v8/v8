@@ -21,11 +21,6 @@
 namespace v8 {
 namespace internal {
 
-// scope-info-tq.inc uses NameToIndexHashTable.
-class NameToIndexHashTable;
-
-#include "torque-generated/src/objects/scope-info-tq.inc"
-
 class SourceTextModuleInfo;
 class StringSet;
 class Zone;
@@ -48,6 +43,19 @@ struct VariableLookupResult {
   MaybeAssignedFlag maybe_assigned_flag;
   int initializer_position;
 };
+
+// LINT.IfChange(ScopeInfoStructs)
+struct FunctionVariableInfo {
+  TaggedMember<Object> name;
+  TaggedMember<Smi> context_or_stack_slot_index;
+};
+
+struct ModuleVariableInfo {
+  TaggedMember<String> name;
+  TaggedMember<Smi> index;
+  TaggedMember<Smi> properties;
+};
+// LINT.ThenChange(src/objects/scope-info.tq)
 
 // ScopeInfo represents information about different scopes of a source
 // program  and the allocation of the scope's variables. Scope information
@@ -527,9 +535,9 @@ V8_OBJECT class ScopeInfo : public HeapObject {
                       int* initializer_position = nullptr);
 
   static const int kFunctionNameEntries =
-      TorqueGeneratedFunctionVariableInfoOffsets::kSize / kTaggedSize;
+      sizeof(FunctionVariableInfo) / kTaggedSize;
   static const int kModuleVariableEntryLength =
-      TorqueGeneratedModuleVariableOffsets::kSize / kTaggedSize;
+      sizeof(ModuleVariableInfo) / kTaggedSize;
 
   // Properties of variables.
   using VariableModeBits = base::BitField<VariableMode, 0, 4, uint32_t>;

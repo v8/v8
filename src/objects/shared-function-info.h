@@ -53,8 +53,6 @@ class ValueType;
 }  // namespace wasm
 #endif
 
-#include "torque-generated/src/objects/shared-function-info-tq.inc"
-
 // Defines whether the source positions should be created during function
 // compilation.
 enum class CreateSourcePositions { kNo, kYes };

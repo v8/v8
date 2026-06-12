@@ -270,8 +270,6 @@ using MaybeObjectHandles = std::vector<MaybeObjectHandle>;
 
 class FeedbackMetadata;
 
-#include "torque-generated/src/objects/feedback-vector-tq.inc"
-
 // ClosureFeedbackCellArray contains feedback cells used when creating closures
 // from a function. This is created once the function is compiled and is either
 // held by the feedback vector (if allocated) or by the FeedbackCell of the

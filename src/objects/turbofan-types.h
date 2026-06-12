@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/turbofan-types-tq.inc"
-
 class TurbofanTypeLowBits {
  public:
   using UnusedPaddingField1Bit = base::BitField<bool, 0, 1, uint32_t>;

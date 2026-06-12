@@ -18,8 +18,6 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-#include "torque-generated/src/objects/allocation-site-tq.inc"
-
 V8_OBJECT class AllocationSite : public HeapObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;

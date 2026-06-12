@@ -35,8 +35,6 @@ class ObjectBuiltinsAssembler;
 class ObjectEntriesValuesBuiltinsAssembler;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/descriptor-array-tq.inc"
-
 // An EnumCache is a pair used to hold keys and indices caches.
 V8_OBJECT class EnumCache : public Struct {
  public:

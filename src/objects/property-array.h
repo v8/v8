@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-array-tq.inc"
-
 V8_OBJECT class PropertyArray : public HeapObject {
  public:
   // [length]: length of the array.

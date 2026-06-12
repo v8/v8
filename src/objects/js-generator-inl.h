@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-generator-tq-inl.inc"
-
 Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> AsyncGeneratorRequest::next()
     const {
   return next_.load();

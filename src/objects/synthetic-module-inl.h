@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/synthetic-module-tq-inl.inc"
-
 Tagged<String> SyntheticModule::name() const { return name_.load(); }
 void SyntheticModule::set_name(Tagged<String> value, WriteBarrierMode mode) {
   name_.store(this, value, mode);
