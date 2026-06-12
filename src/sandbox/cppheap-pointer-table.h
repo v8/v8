@@ -81,9 +81,8 @@ struct CppHeapPointerTableEntry {
   // Invalidates the source entry.
   inline void Evacuate(CppHeapPointerTableEntry& dest);
 
-  // Mark this entry as alive during table garbage collection. Returns true if
-  // the entry transitioned from un-marked to marked, and false otherwise.
-  inline bool Mark();
+  // Mark this entry as alive during table garbage collection.
+  inline void Mark();
 
   static constexpr bool IsWriteProtected = false;
 
