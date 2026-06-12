@@ -2879,8 +2879,7 @@ RUNTIME_FUNCTION(Runtime_Resume) {
 // optionally provided in milliseconds.
 RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  DCHECK_GE(2, args.length());
+  CHECK_UNLESS_FUZZING(args.length() == 1 || args.length() == 2);
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
 
