@@ -130,8 +130,8 @@ void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register input_reg = ToRegister(ValueInput());
 
-  // Copy input(32 bit) to scratch. Is input equal(64 bit) to scratch?
-  __ movl(kScratchRegister, input_reg);
+  // Copy input(32 bit signed) to scratch. Is input equal(64 bit) to scratch?
+  __ movsxlq(kScratchRegister, input_reg);
   __ cmpq(kScratchRegister, input_reg);
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
 }
