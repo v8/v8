@@ -37,6 +37,7 @@
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
   'wasm/pause': [SKIP],
+  'wasm/turbofan-inlining-shared': [SKIP],
 }], # single_generation
 
 ['official_build', {

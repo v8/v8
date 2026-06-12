@@ -164,6 +164,14 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
     TRACE("- not inlining: function is imported");
     return false;
   }
+  if (native_module->compilation_state()->detected_features().has_shared()) {
+    // The Turbofan Wasm code has not been updated to support the experimental
+    // shared-everything feature. It is unlikely that it will become
+    // non-experimental any time soon while we plan to remove the Turbofan code
+    // soon.
+    TRACE("- not inlining: module uses experimental 'shared' feature");
+    return false;
+  }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
   SharedFlag is_shared = module->type(inlinee.sig_index).is_shared;
