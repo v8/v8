@@ -2874,5 +2874,32 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// Waits until the given synchronization point is reached. Throws an exception
+// if the point is not armed or if a timeout is reached. The timeout is
+// optionally provided in milliseconds.
+RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  DCHECK_GE(2, args.length());
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  DirectHandle<String> phase_name = args.at<String>(0);
+
+  base::TimeDelta timeout = base::TimeDelta::FromMilliseconds(1000);
+  if (args.length() == 2) {
+    CHECK_UNLESS_FUZZING(IsSmi(args[1]));
+    timeout = base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
+  }
+
+  bool timed_out = false;
+  bool blocked = isolate->isolate_group()->WaitUntilBlockedForTesting(
+      phase_name->ToStdString(), timeout, timed_out);
+  if (!blocked) {
+    return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+        timed_out ? "Synchronization point wait timed out"
+                  : "Synchronization point not found or not armed"));
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

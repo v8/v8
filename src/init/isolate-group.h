@@ -19,6 +19,7 @@
 #include "src/base/page-allocator.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
@@ -353,10 +354,21 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
+  // Arms the given synchronization point. When a thread reaches it, it will
+  // block until resumed.
   void SetBlockAtSynchronizationPointForTesting(
       std::string synchronization_point);
+  // Resumes a thread currently blocked at the given synchronization point.
+  // Returns false if it wasn't armed.
   bool ResumeSynchronizationPointForTesting(
       std::string_view synchronization_point);
+  // Waits until the given synchronization point is reached by some thread.
+  // Returns false if it wasn't armed or on timeout (in which case `timed_out`
+  // is set to true as well). Note: this does not arm the synchronization point;
+  // it must be armed first.
+  bool WaitUntilBlockedForTesting(std::string_view synchronization_point,
+                                  base::TimeDelta timeout, bool& timed_out);
+  // Called when the synchronization point is reached; blocks if it was armed.
   void DoSynchronizationPointForTesting(std::string_view synchronization_point);
 
  private:
@@ -390,7 +402,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   struct SynchronizationPointDataForTesting {
     base::ConditionVariable cv;
-    bool is_blocking = false;
+    // Set to true to signal that any thread that reaches this point should
+    // block.
+    bool block_requested = false;
+    // Set to true when a thread has reached the point and is currently blocked.
+    bool blocked = false;
+    // The identity of the thread that set the `block_requested` flag.
     ThreadId block_requester_thread = ThreadId::Invalid();
   };
   std::atomic<bool> any_synchronization_point_for_testing_{false};

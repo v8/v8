@@ -45,7 +45,7 @@ Running with `--allow-natives-syntax --expose-gc` exposes:
 - **WebAssembly**: `%WasmTierUpFunction(func)`
 - **Debugging**: `%DebugPrint(value)`, `%DisassembleFunction(func)` (requires `is_debug`), `%HeapObjectVerify(obj)` (requires `is_debug` or `v8_enable_verify_heap`), `%SystemBreak()`
 - **Garbage Collection**: `gc()`, `%SimulateNewspaceFull()`
-- **Synchronization**: `%BlockAt(synchronization_point)`, `%Resume(synchronization_point)`
+- **Synchronization**: `%BlockAt(synchronization_point)`, `%WaitUntilBlocked(synchronization_point[, timeout])`, `%Resume(synchronization_point)`
 
 For WebAssembly, the `WasmModuleBuilder` (`test/mjsunit/wasm/wasm-module-builder.js`) should be used to construct POCs whenever possible.
 The easiest way is to just invoke the script from JavaScript in `d8` using `d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js')`.

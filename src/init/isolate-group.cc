@@ -11,6 +11,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/isolate.h"
@@ -742,7 +743,7 @@ void IsolateGroup::SetBlockAtSynchronizationPointForTesting(
   if (!data) {
     data = std::make_unique<SynchronizationPointDataForTesting>();
   }
-  data->is_blocking = true;
+  data->block_requested = true;
   data->block_requester_thread = ThreadId::Current();
 }
 
@@ -750,13 +751,51 @@ bool IsolateGroup::ResumeSynchronizationPointForTesting(
     std::string_view synchronization_point) {
   base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
   auto it = synchronization_point_data_for_testing_.find(synchronization_point);
-  if (it == synchronization_point_data_for_testing_.end() ||
-      !it->second->is_blocking) {
-    return false;
-  }
-  it->second->is_blocking = false;
-  it->second->cv.NotifyAll();
+  if (it == synchronization_point_data_for_testing_.end()) return false;
+  auto* data = it->second.get();
+  if (!data->block_requested) return false;
+  data->block_requested = false;
+  data->cv.NotifyAll();
   return true;
+}
+
+bool IsolateGroup::WaitUntilBlockedForTesting(
+    std::string_view synchronization_point, base::TimeDelta timeout,
+    bool& timed_out) {
+  bool success = false;
+  auto wait_loop = [this, synchronization_point, timeout, &timed_out,
+                    &success]() {
+    base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
+    auto it =
+        synchronization_point_data_for_testing_.find(synchronization_point);
+    if (it == synchronization_point_data_for_testing_.end()) return;
+    auto* data = it->second.get();
+    if (!data->block_requested && !data->blocked) return;
+
+    const base::TimeTicks start = base::TimeTicks::Now();
+    while (!data->blocked) {
+      const base::TimeDelta elapsed = base::TimeTicks::Now() - start;
+      if (elapsed >= timeout) {
+        timed_out = true;
+        return;
+      }
+      bool notified = data->cv.WaitFor(
+          &synchronization_point_mutex_for_testing_, timeout - elapsed);
+      if (!notified && !data->blocked) {
+        timed_out = true;
+        return;
+      }
+    }
+    success = true;
+  };
+
+  LocalHeap* local_heap = LocalHeap::Current();
+  if (local_heap && local_heap->IsRunning()) {
+    local_heap->ExecuteWhileParked(wait_loop);
+  } else {
+    wait_loop();
+  }
+  return success;
 }
 
 void IsolateGroup::DoSynchronizationPointForTesting(
@@ -774,16 +813,19 @@ void IsolateGroup::DoSynchronizationPointForTesting(
         synchronization_point_data_for_testing_.find(synchronization_point);
     if (it == synchronization_point_data_for_testing_.end()) return;
     data = it->second.get();
-    if (!data->is_blocking) return;
+    if (!data->block_requested) return;
     // Prevent self-deadlocks.
     CHECK_NE(data->block_requester_thread, ThreadId::Current());
   }
 
   auto wait_loop = [&mutex = synchronization_point_mutex_for_testing_, data]() {
     base::MutexGuard lock(&mutex);
-    while (data->is_blocking) {
+    data->blocked = true;
+    data->cv.NotifyAll();
+    while (data->block_requested) {
       data->cv.Wait(&mutex);
     }
+    data->blocked = false;
   };
 
   LocalHeap* local_heap = LocalHeap::Current();

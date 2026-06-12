@@ -30,8 +30,7 @@ function g() { f(); }
 %OptimizeFunctionOnNextCall(g, 'concurrent');
 g();
 
-let start = Date.now();
-while (Date.now() - start < 1000) {}
+%WaitUntilBlocked('TurbofanEarlyGraphTrimming');
 
 const aMod = Sandbox.getAddressOf(mod);
 const aInst = Sandbox.getAddressOf(inst);
