@@ -353,6 +353,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining','shards': 2},
+      {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling', 'shards': 2},
       {'name': 'v8testing', 'variant': 'scavenger_chaos_mode', 'shards': 2},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
@@ -573,6 +574,7 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
+      {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev'},
@@ -706,6 +708,7 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
+      {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling'},
       {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
@@ -1361,6 +1364,7 @@
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
+      {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling'},
       {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
@@ -1459,6 +1463,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'turbofan_random_rescheduling'},
       {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.

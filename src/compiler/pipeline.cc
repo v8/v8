@@ -3103,6 +3103,10 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+  if (v8_flags.wasm_random_rescheduling) {
+    CHECK(turboshaft_pipeline.Run<turboshaft::RandomReschedulingPhase>());
+  }
+
   const bool uses_wasm_gc_features =
       detected->has_gc() || detected->has_typed_funcref() ||
       detected->has_stringref() || detected->has_imported_strings() ||

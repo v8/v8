@@ -103,7 +103,7 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
         op_states_(input_graph.op_id_count(), OpState::kPending, phase_zone,
                    &input_graph),
         ready_ops_(phase_zone),
-        rng_(data->isolate()->random_number_generator()->NextInt64()) {}
+        rng_(v8_flags.random_seed ^ input_graph.op_id_count()) {}
 
   void Run() {
     Analyze();
@@ -171,11 +171,14 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     if V8_UNLIKELY (trace_scheduling_) {
       std::cout << "VisitBlock: input " << input_block->index() << "\n";
     }
-    VisitBlockBody(input_block);
+    // Skip rescheduling for large blocks as the rescheduling otherwise gets too
+    // slow.
+    bool reschedule = input_block->OpCountUpperBound() < 500;
+    VisitBlockBody(input_block, -1, reschedule);
   }
 
-  void VisitBlockBody(const Block* input_block,
-                      int added_block_phi_input = -1) {
+  void VisitBlockBody(const Block* input_block, int added_block_phi_input = -1,
+                      bool reschedule = true) {
     CHECK_NOT_NULL(__ current_block());
     current_input_block_ = input_block;
 
@@ -212,7 +215,6 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     }
 
     // Visiting Phis.
-    base::SmallVector<OpIndex, 64> new_phi_values;
     for (OpIndex index : graph_.OperationIndices(*input_block)) {
       CHECK_NOT_NULL(__ current_block());
       if (graph_.Get(index).template Is<PhiOp>()) {
@@ -227,23 +229,35 @@ class RandomRescheduler : public Assembler<ReschedulingReducer, GraphVisitor> {
     }
 
     // Now visit and schedule everything else.
-    while (true) {
-      ComputeReadyOperations(input_block);
-      OpIndex next_op = PickNextOperation();
-      if (!next_op.valid()) break;
-
-      CHECK_EQ(op_states_[next_op], OpState::kReady);
-
-      VisitOpAndUpdateMapping(next_op, input_block);
-      op_states_[next_op] = OpState::kScheduled;
-
-      if V8_UNLIKELY (trace_scheduling_) {
-        std::cout << std::setw(4) << next_op.id() << ":" << graph_.Get(next_op)
-                  << " out of {";
-        for (OpIndex ready_op : ready_ops_) {
-          std::cout << ready_op.id() << ", ";
+    if (!reschedule) {
+      for (OpIndex index : graph_.OperationIndices(*input_block)) {
+        const Operation& op = graph_.Get(index);
+        if (op.Is<PhiOp>() || op.Is<ParameterOp>() ||
+            op.Is<CatchBlockBeginOp>() || op.IsBlockTerminator()) {
+          continue;
         }
-        std::cout << "}\n";
+        op_states_[index] = OpState::kScheduled;
+        VisitOpAndUpdateMapping(index, input_block);
+      }
+    } else {
+      while (true) {
+        ComputeReadyOperations(input_block);
+        OpIndex next_op = PickNextOperation();
+        if (!next_op.valid()) break;
+
+        CHECK_EQ(op_states_[next_op], OpState::kReady);
+
+        VisitOpAndUpdateMapping(next_op, input_block);
+        op_states_[next_op] = OpState::kScheduled;
+
+        if V8_UNLIKELY (trace_scheduling_) {
+          std::cout << std::setw(4) << next_op.id() << ":"
+                    << graph_.Get(next_op) << " out of {";
+          for (OpIndex ready_op : ready_ops_) {
+            std::cout << ready_op.id() << ", ";
+          }
+          std::cout << "}\n";
+        }
       }
     }
 

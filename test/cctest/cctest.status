@@ -785,7 +785,7 @@
 }],
 
 ################################################################################
-['variant == stress or variant == wasm_assert_types or variant == instruction_scheduling or variant == stress_instruction_scheduling', {
+['variant == stress or variant == wasm_assert_types or variant == instruction_scheduling or variant == stress_instruction_scheduling or variant == turbofan_random_rescheduling', {
   # The 'stress' variant (and the other listed variants) sets the '--no-liftoff'
   # flag, which means that Wasm compiles directly to TurboFan. This makes the
   # cache no longer incremental, and these tests don't make sense.

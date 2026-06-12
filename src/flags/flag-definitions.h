@@ -2208,6 +2208,9 @@ DEFINE_BOOL(wasm_bulkmem_inlining, true,
             "enable inline code generation for small bulk memory operations")
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_random_rescheduling,
+    "enable Turbofan's random rescheduling phase for wasm functions")
 DEFINE_BOOL(wasm_loop_peeling, true, "enable loop peeling for wasm functions")
 DEFINE_SIZE_T(wasm_loop_peeling_max_size, 1000, "maximum size for peeling")
 DEFINE_DEVELOPER_FLAG(trace_wasm_loop_peeling, "trace wasm loop peeling")

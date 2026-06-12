@@ -159,6 +159,11 @@ ALL_VARIANT_FLAGS = {
     "stress_instruction_scheduling": [
         "--turbo-stress-instruction-scheduling", "--no-liftoff"
     ],
+    "turbofan_random_rescheduling": [
+        "--no-liftoff",
+        # TODO(nicohartmann): Enable randomized JS rescheduling.
+        "--wasm-random-rescheduling"
+    ],
     # Google3 variant.
     "google3": [],
 }
@@ -169,6 +174,12 @@ ALL_VARIANT_FLAGS = {
 kIncompatibleFlagsForNoTurbofan = [
     "--turbofan", "--liftoff", "--validate-asm", "--maglev", "--turbolev",
     "--turbolev-future", "--stress-concurrent-inlining", "--turboshaft"
+]
+
+kIncompatibleFlagsForNoLiftoff = [
+    "--liftoff-only",
+    "--wasm-dynamic-tiering",
+    "--wasm-deopt",
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -236,27 +247,14 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     # SerializeInternalFieldsCallback for it, so they are incompatible with
     # stress_snapshot.
     "stress_snapshot": ["--expose-fast-api"],
-    "stress": [
-        # 'stress' disables Liftoff, which conflicts with flags that require
-        # Liftoff support.
-        "--liftoff-only",
-        "--wasm-dynamic-tiering",
-        "--wasm-deopt",
-    ],
-    "instruction_scheduling": [
-        # instruction_scheduling disables Liftoff, which conflicts with flags
-        # that require Liftoff support.
-        "--liftoff-only",
-        "--wasm-dynamic-tiering",
-        "--wasm-deopt",
-    ],
-    "stress_instruction_scheduling": [
-        # stress_instruction_scheduling disables Liftoff, which conflicts with
-        # flags that require Liftoff support.
-        "--liftoff-only",
-        "--wasm-dynamic-tiering",
-        "--wasm-deopt",
-    ],
+    "stress":
+        kIncompatibleFlagsForNoLiftoff,
+    "instruction_scheduling":
+        kIncompatibleFlagsForNoLiftoff,
+    "stress_instruction_scheduling":
+        kIncompatibleFlagsForNoLiftoff,
+    "turbofan_random_rescheduling":
+        kIncompatibleFlagsForNoLiftoff,
     "sparkplug": ["--jitless", "--no-sparkplug"],
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless", "--no-maglev"],
