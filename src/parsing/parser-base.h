@@ -2670,7 +2670,7 @@ bool ParserBase<Impl>::VerifyCanHaveAutoAccessorOrThrow(
     default:
       impl()->ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position,
-                            name_expression->position() == -1
+                            name_expression->position() < name_token_position
                                 ? name_token_position
                                 : name_expression->position()),
           Token::kAccessor);
@@ -2891,7 +2891,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kSpread:
       impl()->ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position,
-                            name_expression->position() == -1
+                            name_expression->position() < name_token_position
                                 ? name_token_position
                                 : name_expression->position()),
           name_token);
