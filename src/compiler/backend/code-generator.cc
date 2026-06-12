@@ -1666,6 +1666,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
         if (type == MachineType::HoleyFloat64() &&
             constant.ToFloat64().AsUint64() == kHoleNanInt64) {
           literal = DeoptimizationLiteral::HoleNaN();
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        } else if (type == MachineType::HoleyFloat64() &&
+                   constant.ToFloat64().AsUint64() == kUndefinedNanInt64) {
+          literal =
+              DeoptimizationLiteral(isolate()->factory()->undefined_value());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         } else {
           literal = DeoptimizationLiteral(constant.ToFloat64().value());
         }
