@@ -400,5 +400,68 @@ void TestOutParameter(Isolate* isolate) {
   OutParameterFunction(&raw_obj, isolate);
 }
 
+class JSDispatchHandleMember;
+template <typename T, typename CompressionScheme>
+class TaggedMember;
+
+JSDispatchHandleMember* ReturnRawJSDispatchHandleMember(Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  return nullptr;
+}
+
+JSDispatchHandle* ReturnRawJSDispatchHandle(Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  return nullptr;
+}
+
+void DummyTakePointers(JSDispatchHandleMember* a, JSDispatchHandleMember* b) {}
+void DummyTakePointers2(JSDispatchHandle* a, JSDispatchHandle* b) {}
+
+void TestJSDispatchHandleMemberEvalOrder(Isolate* isolate) {
+  // Should cause warning.
+  DummyTakePointers(ReturnRawJSDispatchHandleMember(isolate),
+                    ReturnRawJSDispatchHandleMember(isolate));
+}
+
+void TestJSDispatchHandleEvalOrder(Isolate* isolate) {
+  // Should cause warning.
+  DummyTakePointers2(ReturnRawJSDispatchHandle(isolate),
+                     ReturnRawJSDispatchHandle(isolate));
+}
+
+void TestTaggedMemberDeadVar(TaggedMember<Object, void> raw_member,
+                             Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestJSDispatchHandleMemberDeadVar(JSDispatchHandleMember* raw_member,
+                                       Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestJSDispatchHandleDeadVar(JSDispatchHandle* raw_handle,
+                                 Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_handle);
+}
+
+void TestTaggedMemberPtrDeadVar(TaggedMember<Object, void>* raw_member,
+                                Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_member);
+}
+
+void TestHeapObjectPtrDeadVar(HeapObject* raw_obj, Isolate* isolate) {
+  CauseGCManaged(42, isolate);
+  // Should cause warning.
+  USE(raw_obj);
+}
+
 }  // namespace internal
 }  // namespace v8
