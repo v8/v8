@@ -10,6 +10,7 @@
 #include "src/objects/managed.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/object-macros.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -461,6 +462,114 @@ void TestHeapObjectPtrDeadVar(HeapObject* raw_obj, Isolate* isolate) {
   CauseGCManaged(42, isolate);
   // Should cause warning.
   USE(raw_obj);
+}
+
+[[noreturn]] void NoReturnCauseGC(Isolate* isolate) {
+  CauseGCRaw(Tagged<Object>(), isolate);
+  // Infinite loop to satisfy [[noreturn]] without extra headers
+  while (true) {
+  }
+}
+
+void TestNoReturnGC(Isolate* isolate) {
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  NoReturnCauseGC(isolate);
+  Print(raw_obj);
+}
+
+class TestVisitor : public ObjectVisitor {
+ public:
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
+                     ObjectSlot end) override {
+    isolate_->heap()->CollectGarbage(OLD_SPACE,
+                                     GarbageCollectionReason::kTesting);
+  }
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {}
+  void VisitInstructionStreamPointer(Tagged<Code> host,
+                                     InstructionStreamSlot slot) override {}
+
+  TestVisitor(Isolate* isolate) : isolate_(isolate) {}
+
+ private:
+  Isolate* isolate_;
+};
+
+void TestVisitorVisitor(Isolate* isolate) {
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  Tagged<JSObject> raw_obj = *obj1;
+
+  TestVisitor visitor(isolate);
+  Address addr = reinterpret_cast<Address>(&raw_obj);
+  ObjectSlot slot(addr);
+
+  visitor.VisitPointer(raw_obj, slot);
+
+  Print(raw_obj);
+}
+
+void TestBaseVisitorVisitor(Isolate* isolate) {
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  Tagged<JSObject> raw_obj = *obj1;
+
+  TestVisitor visitor(isolate);
+  ObjectVisitor* base_visitor = &visitor;
+  Address addr = reinterpret_cast<Address>(&raw_obj);
+  ObjectSlot slot(addr);
+
+  base_visitor->VisitPointer(raw_obj, slot);
+
+  Print(raw_obj);
+}
+
+class SafeVisitor : public ObjectVisitor {
+ public:
+  void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
+                     ObjectSlot end) override {}
+  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {}
+  void VisitInstructionStreamPointer(Tagged<Code> host,
+                                     InstructionStreamSlot slot) override {}
+};
+
+void TestSafeVisitorVisitor(Isolate* isolate) {
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  Tagged<JSObject> raw_obj = *obj1;
+
+  SafeVisitor visitor;
+  Address addr = reinterpret_cast<Address>(&raw_obj);
+  ObjectSlot slot(addr);
+
+  visitor.VisitPointer(raw_obj, slot);
+
+  Print(raw_obj);
+}
+
+void TestBaseVisitorPolymorphic(ObjectVisitor* base_visitor, Isolate* isolate) {
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  Tagged<JSObject> raw_obj = *obj1;
+  Address addr = reinterpret_cast<Address>(&raw_obj);
+  ObjectSlot slot(addr);
+  // Should cause warning polymorphically because TestVisitor::VisitPointers
+  // causes GC!
+  base_visitor->VisitPointer(raw_obj, slot);
+  Print(raw_obj);
+}
+
+class SubTestVisitor : public TestVisitor {
+ public:
+  SubTestVisitor(Isolate* isolate) : TestVisitor(isolate) {}
+};
+
+void TestSubVisitorNonOverride(Isolate* isolate) {
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  Tagged<JSObject> raw_obj = *obj1;
+  SubTestVisitor visitor(isolate);
+  Address addr = reinterpret_cast<Address>(&raw_obj);
+  ObjectSlot slot(addr);
+  // Should cause warning because parent TestVisitor::VisitPointers causes GC!
+  visitor.VisitPointer(raw_obj, slot);
+  Print(raw_obj);
 }
 
 }  // namespace internal

@@ -579,7 +579,8 @@ class ClassHierarchy:
       for parent_m, child_m in node.overrides.items():
         root_m = self.find_root_virtual_method(parent_m)
         normalized[root_m] = child_m
-      node.overrides = normalized
+      node.overrides.update(normalized)
+      node.json_overrides.update(normalized)
 
   def is_subclass(self, derived, base):
     if derived == base:
