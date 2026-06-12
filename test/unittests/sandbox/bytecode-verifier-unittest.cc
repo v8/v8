@@ -353,6 +353,36 @@ TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidData) {
                             "Invalid exception handler data");
 }
 
+TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidValueData) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  const int kLdaZeroOffset = 0;
+  const int kReturnOffset = 1;
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(
+      HandlerTable::LengthForRange(1), AllocationType::kTrusted);
+  {
+    HandlerTable table(*handler_table);
+    table.SetRangeStart(0, kLdaZeroOffset);
+    table.SetRangeEnd(0, kReturnOffset);
+    table.SetRangeHandler(0, kReturnOffset, HandlerTable::CAUGHT);
+    table.SetRangeData(0, interpreter::Register::invalid_value().index());
+  }
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
+                            "Invalid exception handler data");
+}
+
 TEST_F(BytecodeVerifierTest, HandlerTableEntryWithNegativeRange) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
