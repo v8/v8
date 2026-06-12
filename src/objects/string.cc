@@ -139,6 +139,8 @@ void String::MakeThin(IsolateT* isolate,
   DisallowGarbageCollection no_gc;
   DCHECK_NE(this, internalized);
 
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeThinString");
+
   Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
@@ -350,6 +352,8 @@ bool String::MakeExternal(Isolate* isolate,
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalTwoByteString");
+
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   DCHECK(
@@ -440,6 +444,8 @@ bool String::MakeExternal(Isolate* isolate,
                           v8::String::ExternalOneByteStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
+
+  SYNCHRONIZATION_POINT_FOR_TESTING("MakeExternalOneByteString");
 
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.

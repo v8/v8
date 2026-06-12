@@ -818,22 +818,13 @@ void IsolateGroup::DoSynchronizationPointForTesting(
     CHECK_NE(data->block_requester_thread, ThreadId::Current());
   }
 
-  auto wait_loop = [&mutex = synchronization_point_mutex_for_testing_, data]() {
-    base::MutexGuard lock(&mutex);
-    data->blocked = true;
-    data->cv.NotifyAll();
-    while (data->block_requested) {
-      data->cv.Wait(&mutex);
-    }
-    data->blocked = false;
-  };
-
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (local_heap && local_heap->IsRunning()) {
-    local_heap->ExecuteWhileParked(wait_loop);
-  } else {
-    wait_loop();
+  base::MutexGuard lock(&synchronization_point_mutex_for_testing_);
+  data->blocked = true;
+  data->cv.NotifyAll();
+  while (data->block_requested) {
+    data->cv.Wait(&synchronization_point_mutex_for_testing_);
   }
+  data->blocked = false;
 }
 
 }  // namespace internal
