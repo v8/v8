@@ -251,8 +251,8 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
   }
   // TODO(clemensb): Implement more instructions if necessary.
   if (memcmp(insn_pos, "mov", 3) != 0 && memcmp(insn_pos, "sub", 3) != 0 &&
-      memcmp(insn_pos, "add", 3) != 0) {
-    FATAL("Not a mov/sub/add/cmp/cmpxchg: %s\n", buffer);
+      memcmp(insn_pos, "add", 3) != 0 && memcmp(insn_pos, "vmov", 4) != 0) {
+    FATAL("Not a recognized instruction: %s\n", buffer);
   }
 
   // Find the position of the comma to figure out if the memory operand is
