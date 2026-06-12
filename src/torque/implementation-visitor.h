@@ -799,8 +799,6 @@ class ImplementationVisitor {
       switch (output_type_) {
         case OutputType::kCSA:
           return streams->csa_ccfile;
-        case OutputType::kCC:
-          return streams->class_definition_inline_headerfile_macro_definitions;
         case OutputType::kCCDebug:
           return debug_macros_cc_;
         default:
@@ -814,8 +812,6 @@ class ImplementationVisitor {
       switch (output_type_) {
         case OutputType::kCSA:
           return streams->csa_headerfile;
-        case OutputType::kCC:
-          return streams->class_definition_inline_headerfile_macro_declarations;
         case OutputType::kCCDebug:
           return debug_macros_h_;
         default:

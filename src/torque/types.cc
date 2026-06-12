@@ -1042,9 +1042,6 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   if (this->ShouldGenerateCppObjectLayoutDefinitionAsserts()) {
     GlobalContext::EnsureInCCDebugOutputList(TorqueMacro::cast(macro),
                                              macro->Position().source);
-  } else {
-    GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro),
-                                        macro->Position().source);
   }
 }
 
