@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <span>
+
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -1101,7 +1103,7 @@ void TestArrayBufferViewGetContent(const char* source, void* expected) {
 
   auto view = v8::Local<v8::ArrayBufferView>::Cast(CompileRun(source));
   uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
-  v8::MemorySpan<uint8_t> storage(buffer);
+  std::span<uint8_t> storage(buffer);
   storage = view->GetContents(storage);
   CHECK_EQ(view->ByteLength(), storage.size());
   if (expected) {

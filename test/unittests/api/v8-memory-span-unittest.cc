@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+START_ALLOW_USE_DEPRECATED()
+
 TEST(MemorySpanTest, Simple) {
   std::vector<int> v{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -90,6 +92,8 @@ TEST(MemorySpanTest, ImplicitConversions) {
     test(ready, 0, 0);
   }
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace internal
 }  // namespace v8

@@ -6,13 +6,13 @@
 #define INCLUDE_V8_TEMPLATE_H_
 
 #include <cstddef>
+#include <span>
 #include <string_view>
 
 #include "v8-data.h"               // NOLINT(build/include_directory)
 #include "v8-exception.h"          // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
-#include "v8-memory-span.h"        // NOLINT(build/include_directory)
 #include "v8-object.h"             // NOLINT(build/include_directory)
 #include "v8config.h"              // NOLINT(build/include_directory)
 
@@ -569,7 +569,7 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const MemorySpan<const CFunction>& c_function_overloads = {});
+      const std::span<const CFunction>& c_function_overloads = {});
 
   /**
    * Creates a function template backed/cached by a private property.
@@ -602,7 +602,7 @@ class V8_EXPORT FunctionTemplate : public Template {
   void SetCallHandler(
       FunctionCallback callback, Local<Data> data = {},
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const MemorySpan<const CFunction>& c_function_overloads = {});
+      const std::span<const CFunction>& c_function_overloads = {});
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);
@@ -1185,8 +1185,8 @@ class V8_EXPORT DictionaryTemplate final : public Data {
    *
    * \param names the keys that can be passed on instantiation.
    */
-  static Local<DictionaryTemplate> New(
-      Isolate* isolate, MemorySpan<const std::string_view> names);
+  static Local<DictionaryTemplate> New(Isolate* isolate,
+                                       std::span<const std::string_view> names);
 
   /**
    * Creates a new instance of this template.
@@ -1198,7 +1198,7 @@ class V8_EXPORT DictionaryTemplate final : public Data {
    *   empty `MaybeLocal`s.
    */
   V8_WARN_UNUSED_RESULT Local<Object> NewInstance(
-      Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values);
+      Local<Context> context, std::span<MaybeLocal<Value>> property_values);
 
   V8_INLINE static DictionaryTemplate* Cast(Data* data);
 

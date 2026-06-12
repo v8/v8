@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <span>
 
 #include "include/v8-inspector.h"
 #include "include/v8-local-handle.h"
@@ -145,25 +146,25 @@ TEST_F(InspectorTest, BinaryToBase64) {
   uint8_t input[] = {'a', 'b', 'c'};
   {
     auto binary = v8_inspector::protocol::Binary::fromSpan(
-        MemorySpan<const uint8_t>(input, 0));
+        std::span<const uint8_t>(input, 0));
     v8_inspector::protocol::String base64 = binary.toBase64();
     CHECK_EQ(base64.utf8(), "");
   }
   {
     auto binary = v8_inspector::protocol::Binary::fromSpan(
-        MemorySpan<const uint8_t>(input, 1));
+        std::span<const uint8_t>(input, 1));
     v8_inspector::protocol::String base64 = binary.toBase64();
     CHECK_EQ(base64.utf8(), "YQ==");
   }
   {
     auto binary = v8_inspector::protocol::Binary::fromSpan(
-        MemorySpan<const uint8_t>(input, 2));
+        std::span<const uint8_t>(input, 2));
     v8_inspector::protocol::String base64 = binary.toBase64();
     CHECK_EQ(base64.utf8(), "YWI=");
   }
   {
     auto binary = v8_inspector::protocol::Binary::fromSpan(
-        MemorySpan<const uint8_t>(input, 3));
+        std::span<const uint8_t>(input, 3));
     v8_inspector::protocol::String base64 = binary.toBase64();
     CHECK_EQ(base64.utf8(), "YWJj");
   }
@@ -173,7 +174,7 @@ TEST_F(InspectorTest, BinaryBase64RoundTrip) {
   std::array<uint8_t, 256> values;
   for (uint16_t b = 0x0; b <= 0xFF; ++b) values[b] = b;
   auto binary = v8_inspector::protocol::Binary::fromSpan(
-      MemorySpan<const uint8_t>(values));
+      std::span<const uint8_t>(values));
   v8_inspector::protocol::String base64 = binary.toBase64();
   bool success = false;
   auto roundtrip_binary =

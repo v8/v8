@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <span>
 
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
@@ -201,7 +202,7 @@ void ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(
 
 // static
 DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
-    Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
+    Isolate* isolate, const std::span<const std::string_view>& names) {
   DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(
       static_cast<int>(names.size()), AllocationType::kOld);
   int index = 0;
@@ -222,7 +223,7 @@ namespace {
 
 DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     Isolate* isolate, DirectHandle<FixedArray> property_names,
-    const MemorySpan<MaybeLocal<Value>>& property_values,
+    const std::span<MaybeLocal<Value>>& property_values,
     int num_properties_set) {
   DirectHandle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
       isolate->slow_object_with_object_prototype_map(), num_properties_set,
@@ -251,7 +252,7 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
 DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
-    const MemorySpan<MaybeLocal<Value>>& property_values) {
+    const std::span<MaybeLocal<Value>>& property_values) {
   Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 

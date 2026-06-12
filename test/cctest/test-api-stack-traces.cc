@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <span>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -810,8 +812,8 @@ void CaptureStackIdsAndContexts(
 
   std::vector<v8::StackTrace::ScriptIdAndContext> results(10);
   auto result_span = v8::StackTrace::CurrentScriptIdsAndContexts(
-      isolate, v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>(
-                   results.data(), frame_limit));
+      isolate, std::span<v8::StackTrace::ScriptIdAndContext>(results.data(),
+                                                             frame_limit));
 
   CHECK_EQ(result_span.size(), expectedFrames.size());
   for (size_t i = 0; i < result_span.size(); ++i) {
@@ -1082,7 +1084,7 @@ void CaptureScriptData(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::vector<v8::StackTrace::ScriptData> results(10);
   auto result_span = v8::StackTrace::CurrentScriptData(
       isolate,
-      v8::MemorySpan<v8::StackTrace::ScriptData>(results.data(), frame_limit));
+      std::span<v8::StackTrace::ScriptData>(results.data(), frame_limit));
 
   capturedFramesScriptData.clear();
   for (size_t i = 0; i < result_span.size(); ++i) {

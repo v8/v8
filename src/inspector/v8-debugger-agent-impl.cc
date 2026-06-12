@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
@@ -1370,7 +1371,7 @@ Response V8DebuggerAgentImpl::getScriptSource(
     if (cachedScriptIt != m_cachedScripts.end()) {
       *scriptSource = cachedScriptIt->source;
       *bytecode = protocol::Binary::fromSpan(
-          v8::MemorySpan<const uint8_t>(cachedScriptIt->bytecode));
+          std::span<const uint8_t>(cachedScriptIt->bytecode));
       return Response::Success();
     }
     return Response::ServerError("No script for id: " + scriptId.utf8());

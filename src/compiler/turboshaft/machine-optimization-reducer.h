@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_MACHINE_OPTIMIZATION_REDUCER_H_
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -2347,7 +2348,7 @@ class MachineOptimizationReducer : public Next {
         [this](OpIndex input) -> std::optional<Simd128BinopOp::Kind> {
       using unop_extmul_pair =
           std::pair<Simd128UnaryOp::Kind, Simd128BinopOp::Kind>;
-      std::array extend_muls = to_array<unop_extmul_pair>({
+      std::array extend_muls = std::to_array<unop_extmul_pair>({
           {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
            Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S},
           {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,

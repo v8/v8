@@ -7,8 +7,8 @@
 
 #include <atomic>
 #include <optional>
+#include <span>
 
-#include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array-base.h"
@@ -165,7 +165,7 @@ enum class ObjectFields {
 
 using MapHandles =
     DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
-using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
+using MapHandlesSpan = std::span<DirectHandle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"
 

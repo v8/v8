@@ -7,12 +7,12 @@
 
 #include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <variant>
 
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
-#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
 #include "v8-platform.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -52,7 +52,7 @@ class V8_EXPORT CompiledWasmModule {
   /**
    * Get the (wasm-encoded) wire bytes that were used to compile this module.
    */
-  MemorySpan<const uint8_t> GetWireBytesRef();
+  std::span<const uint8_t> GetWireBytesRef();
 
   const std::string& source_url() const { return source_url_; }
 
@@ -111,7 +111,7 @@ class V8_EXPORT WasmModuleObject : public Object {
    * Compile a Wasm module from the provided uncompiled bytes.
    */
   static MaybeLocal<WasmModuleObject> Compile(
-      Isolate* isolate, MemorySpan<const uint8_t> wire_bytes);
+      Isolate* isolate, std::span<const uint8_t> wire_bytes);
 
   V8_INLINE static WasmModuleObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -139,7 +139,7 @@ class V8_EXPORT WasmStreaming final {
   class ModuleCachingInterface {
    public:
     // Get the full wire bytes, to check against the cached version.
-    virtual MemorySpan<const uint8_t> GetWireBytes() const = 0;
+    virtual std::span<const uint8_t> GetWireBytes() const = 0;
     // Pass serialized (cached) compiled module bytes, to be deserialized and
     // used as the result of this streaming compilation.
     // The passed bytes will only be accessed inside this callback, i.e.
@@ -147,7 +147,7 @@ class V8_EXPORT WasmStreaming final {
     // The return value indicates whether V8 could use the passed bytes; {false}
     // would be returned on e.g. version mismatch.
     // This method can only be called once.
-    virtual bool SetCachedCompiledModuleBytes(MemorySpan<const uint8_t>) = 0;
+    virtual bool SetCachedCompiledModuleBytes(std::span<const uint8_t>) = 0;
   };
 
   using ModuleCachingCallback = std::function<void(ModuleCachingInterface&)>;

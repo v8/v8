@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <span>
 #include <vector>
 
 #include "src/base/memory.h"
@@ -222,7 +223,7 @@ String16 V8DebuggerScript::buildId() const {
       auto maybe_build_id =
           v8::debug::WasmScript::Cast(*script)->GetModuleBuildId();
       if (maybe_build_id.IsJust()) {
-        v8::MemorySpan<const uint8_t> buildId = maybe_build_id.FromJust();
+        std::span<const uint8_t> buildId = maybe_build_id.FromJust();
         String16Builder buildIdFormatter;
         for (size_t i = 0; i < buildId.size(); i++) {
           buildIdFormatter.appendUnsignedAsHex(

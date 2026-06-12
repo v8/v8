@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -16,7 +17,6 @@
 #include "include/v8-embedder-heap.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
-#include "include/v8-memory-span.h"
 #include "include/v8-promise.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
@@ -263,7 +263,7 @@ class WasmScript : public Script {
   struct DebugSymbols {
     enum class Type { SourceMap, EmbeddedDWARF, ExternalDWARF };
     Type type;
-    v8::MemorySpan<const char> external_url;
+    std::span<const char> external_url;
   };
   std::vector<DebugSymbols> GetDebugSymbols() const;
 
@@ -278,7 +278,7 @@ class WasmScript : public Script {
 
   uint32_t GetFunctionHash(int function_index);
 
-  Maybe<v8::MemorySpan<const uint8_t>> GetModuleBuildId() const;
+  Maybe<std::span<const uint8_t>> GetModuleBuildId() const;
 
   int CodeOffset() const;
   int CodeLength() const;

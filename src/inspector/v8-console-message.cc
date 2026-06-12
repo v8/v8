@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-console-message.h"
 
+#include <span>
+
 #include "include/v8-container.h"
 #include "include/v8-context.h"
 #include "include/v8-inspector.h"
@@ -449,7 +451,7 @@ ConsoleAPIType V8ConsoleMessage::type() const { return m_type; }
 std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     v8::Local<v8::Context> v8Context, int contextId, int groupId,
     V8InspectorImpl* inspector, double timestamp, ConsoleAPIType type,
-    v8::MemorySpan<const v8::Local<v8::Value>> arguments,
+    std::span<const v8::Local<v8::Value>> arguments,
     const String16& consoleContext,
     std::unique_ptr<V8StackTraceImpl> stackTrace) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();

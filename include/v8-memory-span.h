@@ -15,11 +15,10 @@ namespace v8 {
 /**
  * Points to an unowned contiguous buffer holding a known number of elements.
  *
- * This is an alias for std::span. In a future version, it will be marked as:
- * V8_DEPRECATE_SOON("Use std::span instead.")
+ * This is an alias for std::span.
  */
 template <typename T>
-using MemorySpan = std::span<T>;
+using MemorySpan V8_DEPRECATE_SOON("Use std::span instead.") = std::span<T>;
 
 /**
  * Helper function template to create an array of fixed length, initialized by
@@ -28,16 +27,17 @@ using MemorySpan = std::span<T>;
  *
  *   auto arr = v8::to_array<Local<String>>({v8_str("one"), v8_str("two")});
  *
- * This is an alias for std::to_array. In a future version, it will be marked
- * as: V8_DEPRECATE_SOON("Use std::to_array instead.")
+ * This is an alias for std::to_array.
  */
 
 template <typename T, std::size_t N>
+V8_DEPRECATE_SOON("Use std::to_array instead.")
 [[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
   return std::to_array(a);
 }
 
 template <typename T, std::size_t N>
+V8_DEPRECATE_SOON("Use std::to_array instead.")
 [[nodiscard]] constexpr std::array<std::remove_cv_t<T>, N> to_array(
     T (&&a)[N]) {
   return std::to_array(std::move(a));

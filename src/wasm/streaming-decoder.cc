@@ -5,6 +5,7 @@
 #include "src/wasm/streaming-decoder.h"
 
 #include <optional>
+#include <span>
 
 #include "src/logging/counters.h"
 #include "src/wasm/decoder.h"
@@ -412,12 +413,12 @@ void AsyncStreamingDecoder::Finish(
           : processor(proc), wire_bytes(wire_bytes) {}
 
       // Public API:
-      MemorySpan<const uint8_t> GetWireBytes() const override {
+      std::span<const uint8_t> GetWireBytes() const override {
         return wire_bytes;
       }
 
       bool SetCachedCompiledModuleBytes(
-          MemorySpan<const uint8_t> module_bytes) override {
+          std::span<const uint8_t> module_bytes) override {
         if (did_try_deserialization) {
           FATAL("SetCachedCompiledModuleBytes can only be called once");
         }

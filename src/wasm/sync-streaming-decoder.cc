@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <span>
+
 #include "src/execution/isolate.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -77,12 +79,12 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
             : decoder(decoder), wire_bytes(wire_bytes) {}
 
         // Public API:
-        MemorySpan<const uint8_t> GetWireBytes() const override {
+        std::span<const uint8_t> GetWireBytes() const override {
           return wire_bytes;
         }
 
         bool SetCachedCompiledModuleBytes(
-            MemorySpan<const uint8_t> module_bytes) override {
+            std::span<const uint8_t> module_bytes) override {
           CHECK(!did_try_deserialization);
           did_try_deserialization = true;
           deserialized_module_object =

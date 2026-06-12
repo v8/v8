@@ -9,10 +9,12 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <iomanip>
 #include <iterator>
 #include <limits>
+#include <span>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -1363,8 +1365,8 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
     case ModuleType::kWebAssembly: {
       if (!v8::WasmModuleObject::Compile(
                isolate,
-               MemorySpan<const uint8_t>(static_cast<uint8_t*>(file->memory()),
-                                         file->size()))
+               std::span<const uint8_t>(static_cast<uint8_t*>(file->memory()),
+                                        file->size()))
                .ToLocal(&module_source)) {
         return MaybeLocal<Object>();
       }
@@ -1476,7 +1478,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       return MaybeLocal<Module>();
     }
 
-    auto export_names = v8::to_array<Local<String>>(
+    auto export_names = std::to_array<Local<String>>(
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
@@ -1484,7 +1486,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
         export_names, Shell::JSONModuleEvaluationSteps, parsed_json);
   } else if (module_type == ModuleType::kText) {
-    auto export_names = v8::to_array<Local<String>>(
+    auto export_names = std::to_array<Local<String>>(
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
@@ -1506,7 +1508,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     Local<v8::Uint8Array> uint8_array =
         v8::Uint8Array::New(buffer, 0, raw_file->size());
 
-    auto export_names = v8::to_array<Local<String>>(
+    auto export_names = std::to_array<Local<String>>(
         {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(

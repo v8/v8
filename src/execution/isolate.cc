@@ -13,6 +13,7 @@
 #include <fstream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -1992,8 +1993,7 @@ class CurrentScriptIdStackVisitor {
 class CurrentScriptIdsAndContextsStackVisitor {
  public:
   CurrentScriptIdsAndContextsStackVisitor(
-      Isolate* isolate,
-      v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data)
+      Isolate* isolate, std::span<StackTrace::ScriptIdAndContext> frame_data)
       : isolate_(isolate), frame_data_(frame_data) {
     DCHECK_LT(0, frame_data.size());
   }
@@ -2035,14 +2035,14 @@ class CurrentScriptIdsAndContextsStackVisitor {
   }
 
   Isolate* const isolate_;
-  v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
+  std::span<StackTrace::ScriptIdAndContext> frame_data_;
   size_t cur_frame_ = 0;
 };
 
 class CurrentScriptDataStackVisitor {
  public:
-  CurrentScriptDataStackVisitor(
-      Isolate* isolate, v8::MemorySpan<StackTrace::ScriptData> frame_data)
+  CurrentScriptDataStackVisitor(Isolate* isolate,
+                                std::span<StackTrace::ScriptData> frame_data)
       : isolate_(isolate), frame_data_(frame_data) {
     DCHECK_LT(0, frame_data.size());
   }
@@ -2085,7 +2085,7 @@ class CurrentScriptDataStackVisitor {
   }
 
   Isolate* const isolate_;
-  v8::MemorySpan<StackTrace::ScriptData> frame_data_;
+  std::span<StackTrace::ScriptData> frame_data_;
   size_t cur_frame_ = 0;
 };
 
@@ -2126,7 +2126,7 @@ int Isolate::CurrentScriptId() {
 }
 
 size_t Isolate::CurrentScriptIdsAndContexts(
-    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+    std::span<StackTrace::ScriptIdAndContext> frame_data) {
   if (frame_data.size() == 0) {
     return 0;
   }
@@ -2138,7 +2138,7 @@ size_t Isolate::CurrentScriptIdsAndContexts(
 }
 
 size_t Isolate::CurrentScriptData(
-    v8::MemorySpan<StackTrace::ScriptData> frame_data) {
+    std::span<StackTrace::ScriptData> frame_data) {
   if (frame_data.size() == 0) return 0;
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
               perfetto::StaticString(__func__));

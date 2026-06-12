@@ -8,6 +8,7 @@
 #include <cmath>      // For isnan.
 #include <limits>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -1169,7 +1170,7 @@ i::DirectHandle<i::FunctionTemplateInfo> FunctionTemplateNew(
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const MemorySpan<const CFunction>& c_function_overloads = {}) {
+    const std::span<const CFunction>& c_function_overloads = {}) {
   i::DirectHandle<i::FunctionTemplateInfo> obj =
       i_isolate->factory()->NewFunctionTemplateInfo(length, do_not_cache);
   {
@@ -1227,11 +1228,11 @@ Local<FunctionTemplate> FunctionTemplate::New(
   }
 
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  i::DirectHandle<i::FunctionTemplateInfo> templ = FunctionTemplateNew(
-      i_isolate, callback, data, signature, length, behavior, false,
-      Local<Private>(), side_effect_type,
-      c_function ? MemorySpan<const CFunction>{c_function, 1}
-                 : MemorySpan<const CFunction>{});
+  i::DirectHandle<i::FunctionTemplateInfo> templ =
+      FunctionTemplateNew(i_isolate, callback, data, signature, length,
+                          behavior, false, Local<Private>(), side_effect_type,
+                          c_function ? std::span<const CFunction>{c_function, 1}
+                                     : std::span<const CFunction>{});
 
   if (instance_type) {
     if (!Utils::ApiCheck(
@@ -1269,7 +1270,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
     Isolate* v8_isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type,
-    const MemorySpan<const CFunction>& c_function_overloads) {
+    const std::span<const CFunction>& c_function_overloads) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate,
                                      RCCId::kAPI_FunctionTemplate_New);
@@ -1328,7 +1329,7 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
 void FunctionTemplate::SetCallHandler(
     FunctionCallback callback, v8::Local<Data> data,
     SideEffectType side_effect_type,
-    const MemorySpan<const CFunction>& c_function_overloads) {
+    const std::span<const CFunction>& c_function_overloads) {
   auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* i_isolate = i::Isolate::Current();
@@ -1837,7 +1838,7 @@ void ObjectTemplate::SetCodeLike() {
 }
 
 Local<DictionaryTemplate> DictionaryTemplate::New(
-    Isolate* isolate, MemorySpan<const std::string_view> names) {
+    Isolate* isolate, std::span<const std::string_view> names) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate,
                                      RCCId::kAPI_DictionaryTemplate_New);
@@ -1846,7 +1847,7 @@ Local<DictionaryTemplate> DictionaryTemplate::New(
 }
 
 Local<Object> DictionaryTemplate::NewInstance(
-    Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values) {
+    Local<Context> context, std::span<MaybeLocal<Value>> property_values) {
   i::Isolate* i_isolate = i::Isolate::Current();
   ApiRuntimeCallStatsScope rcs_scope(
       i_isolate, RCCId::kAPI_DictionaryTemplate_NewInstance);
@@ -2482,7 +2483,7 @@ MaybeLocal<Value> Module::EvaluateForImportDefer(Local<Context> context) {
 
 Local<Module> Module::CreateSyntheticModule(
     Isolate* v8_isolate, Local<String> module_name,
-    const MemorySpan<const Local<String>>& export_names,
+    const std::span<const Local<String>>& export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps,
     Local<Data> host_defined_options) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -3357,10 +3358,9 @@ int StackTrace::CurrentScriptId(Isolate* v8_isolate) {
   return i_isolate->CurrentScriptId();
 }
 
-v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+std::span<v8::StackTrace::ScriptIdAndContext>
 StackTrace::CurrentScriptIdsAndContexts(
-    Isolate* v8_isolate,
-    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+    Isolate* v8_isolate, std::span<StackTrace::ScriptIdAndContext> frame_data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
@@ -3368,8 +3368,8 @@ StackTrace::CurrentScriptIdsAndContexts(
   return {frame_data.data(), written};
 }
 
-v8::MemorySpan<v8::StackTrace::ScriptData> StackTrace::CurrentScriptData(
-    Isolate* v8_isolate, v8::MemorySpan<ScriptData> frame_data) {
+std::span<v8::StackTrace::ScriptData> StackTrace::CurrentScriptData(
+    Isolate* v8_isolate, std::span<ScriptData> frame_data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
 
@@ -8920,7 +8920,7 @@ OwnedBuffer CompiledWasmModule::Serialize() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
+std::span<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 #if V8_ENABLE_WEBASSEMBLY
   base::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.begin(), bytes_vec.size()};
@@ -8969,7 +8969,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
-    Isolate* v8_isolate, MemorySpan<const uint8_t> wire_bytes) {
+    Isolate* v8_isolate, std::span<const uint8_t> wire_bytes) {
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -9373,8 +9373,8 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   return bytes_to_copy;
 }
 
-v8::MemorySpan<uint8_t> v8::ArrayBufferView::GetContents(
-    v8::MemorySpan<uint8_t> storage) {
+std::span<uint8_t> v8::ArrayBufferView::GetContents(
+    std::span<uint8_t> storage) {
   internal::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
   if (self->IsDetachedOrOutOfBounds()) return {};

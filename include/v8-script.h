@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <span>
 #include <tuple>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
-#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-message.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -362,7 +362,7 @@ class V8_EXPORT Module : public Data {
    */
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
-      const MemorySpan<const Local<String>>& export_names,
+      const std::span<const Local<String>>& export_names,
       SyntheticModuleEvaluationSteps evaluation_steps,
       Local<Data> host_defined_options = Local<Data>());
 

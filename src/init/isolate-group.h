@@ -9,11 +9,11 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
 #include "absl/container/flat_hash_set.h"
-#include "include/v8-memory-span.h"
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
@@ -263,7 +263,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current() { return GetDefault(); }
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-  MemorySpan<Address> external_ref_table() { return external_ref_table_; }
+  std::span<Address> external_ref_table() { return external_ref_table_; }
 
   bool has_shared_space_isolate() const {
     return shared_space_isolate_ != nullptr;

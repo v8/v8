@@ -27,11 +27,13 @@
 
 #include "test/cctest/test-api.h"
 
+#include <array>
 #include <climits>
 #include <csignal>
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 
@@ -5546,7 +5548,7 @@ THREADED_TEST(Array_New_FromVector) {
   LocalContext context;
   v8::HandleScope scope(context.isolate());
   Local<v8::Array> array;
-  auto numbers = v8::to_array<Local<Value>>({v8_num(1), v8_num(2), v8_num(3)});
+  auto numbers = std::to_array<Local<Value>>({v8_num(1), v8_num(2), v8_num(3)});
   array = v8::Array::New(context.isolate(), numbers.data(), numbers.size());
   CHECK_EQ(numbers.size(), array->Length());
   ExpectArrayValues({1, 2, 3}, context.local(), array);
@@ -24981,7 +24983,7 @@ Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
 
 Local<Module> CreateAndInstantiateSyntheticModule(
     v8::Isolate* isolate, Local<String> module_name, Local<Context> context,
-    const v8::MemorySpan<const v8::Local<v8::String>>& export_names,
+    const std::span<const v8::Local<v8::String>>& export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   Local<Module> module = v8::Module::CreateSyntheticModule(
       isolate, module_name, export_names, evaluation_steps);
@@ -25015,7 +25017,7 @@ Local<Module> CompileAndInstantiateModuleFromCache(
 v8::MaybeLocal<Module> SyntheticModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("test_export")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("test_export")});
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       CcTest::isolate(),
       v8_str("SyntheticModuleResolveCallback-TestSyntheticModule"), context,
@@ -25026,7 +25028,7 @@ v8::MaybeLocal<Module> SyntheticModuleResolveCallback(
 v8::MaybeLocal<Module> SyntheticModuleThatThrowsDuringEvaluateResolveCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("test_export")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("test_export")});
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       CcTest::isolate(),
       v8_str("SyntheticModuleThatThrowsDuringEvaluateResolveCallback-"
@@ -25119,7 +25121,7 @@ TEST(CreateSyntheticModule) {
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope cscope(context);
 
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("default")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
 
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       isolate, v8_str("CreateSyntheticModule-TestSyntheticModule"), context,
@@ -25160,7 +25162,7 @@ TEST(CreateSyntheticModuleGC) {
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope cscope(context);
 
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("default")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
   v8::Local<v8::String> module_name =
       v8_str("CreateSyntheticModule-TestSyntheticModuleGC");
 
@@ -25184,7 +25186,7 @@ TEST(CreateSyntheticModuleGCName) {
 
   {
     v8::EscapableHandleScope inner_scope(isolate);
-    auto export_names = v8::to_array<Local<v8::String>>({v8_str("default")});
+    auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
     v8::Local<v8::String> module_name =
         v8_str("CreateSyntheticModuleGCName-TestSyntheticModule");
     module = inner_scope.Escape(v8::Module::CreateSyntheticModule(
@@ -25211,7 +25213,7 @@ TEST(SyntheticModuleSetExports) {
 
   Local<String> foo_string = v8_str("foo");
   Local<String> bar_string = v8_str("bar");
-  auto export_names = v8::to_array<Local<v8::String>>({foo_string});
+  auto export_names = std::to_array<Local<v8::String>>({foo_string});
 
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       isolate, v8_str("SyntheticModuleSetExports-TestSyntheticModule"), context,
@@ -25279,7 +25281,7 @@ TEST(SyntheticModuleEvaluationStepsNoThrow) {
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope cscope(context);
 
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("default")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
 
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       isolate,
@@ -25301,7 +25303,7 @@ TEST(SyntheticModuleEvaluationStepsThrow) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
   v8::Context::Scope cscope(context);
 
-  auto export_names = v8::to_array<Local<v8::String>>({v8_str("default")});
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
 
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       isolate,
@@ -25327,7 +25329,7 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
   v8::Context::Scope cscope(context);
 
   Local<String> test_export_string = v8_str("test_export");
-  auto export_names = v8::to_array<Local<v8::String>>({test_export_string});
+  auto export_names = std::to_array<Local<v8::String>>({test_export_string});
 
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       isolate,
@@ -31689,8 +31691,8 @@ THREADED_TEST(Regress40643872) {
       CompileRun("new Uint8Array()").As<v8::Uint8Array>();
 
   uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
-  v8::MemorySpan<uint8_t> storage(buffer);
-  v8::MemorySpan<uint8_t> contents = ta->GetContents(storage);
+  std::span<uint8_t> storage(buffer);
+  std::span<uint8_t> contents = ta->GetContents(storage);
   CHECK_EQ(contents.data(), nullptr);
   CHECK_EQ(contents.size(), 0);
 }

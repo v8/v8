@@ -4,7 +4,9 @@
 
 #include "src/inspector/v8-console.h"
 
+#include <array>
 #include <atomic>
+#include <span>
 
 #include "include/cppgc/allocation.h"
 #include "include/v8-container.h"
@@ -13,6 +15,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "include/v8-object.h"
 #include "include/v8-profiler.h"
 #include "include/v8-sandbox.h"
 #include "src/base/lazy-instance.h"
@@ -32,7 +35,6 @@
 #include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/trace-id.h"
-#include "v8-object.h"
 
 namespace v8_inspector {
 
@@ -106,12 +108,12 @@ class ConsoleHelper {
 
   void reportCallWithArgument(ConsoleAPIType type, const String16& message) {
     auto arguments =
-        v8::to_array<v8::Local<v8::Value>>({toV8String(isolate(), message)});
+        std::to_array<v8::Local<v8::Value>>({toV8String(isolate(), message)});
     reportCall(type, arguments);
   }
 
   void reportCall(ConsoleAPIType type,
-                  v8::MemorySpan<const v8::Local<v8::Value>> arguments) {
+                  std::span<const v8::Local<v8::Value>> arguments) {
     if (!groupId()) return;
     // Depending on the type of the console message, we capture only parts of
     // the stack trace, or no stack trace at all.
@@ -158,7 +160,7 @@ class ConsoleHelper {
       return;
     }
     auto arguments =
-        v8::to_array<v8::Local<v8::Value>>({toV8String(isolate(), message)});
+        std::to_array<v8::Local<v8::Value>>({toV8String(isolate(), message)});
     reportCall(ConsoleAPIType::kWarning, arguments);
   }
 

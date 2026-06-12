@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <span>
+
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/objects/managed.h"
@@ -113,7 +115,7 @@ class WasmSerializationTest {
     heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
-  v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }
+  std::span<const uint8_t> wire_bytes() const { return wire_bytes_; }
 
   CompileTimeImports MakeCompileTimeImports() { return CompileTimeImports{}; }
 
@@ -162,7 +164,7 @@ class WasmSerializationTest {
           v8_module_obj.As<v8::WasmModuleObject>();
       v8::CompiledWasmModule compiled_module =
           v8_module_object->GetCompiledModule();
-      v8::MemorySpan<const uint8_t> uncompiled_bytes =
+      std::span<const uint8_t> uncompiled_bytes =
           compiled_module.GetWireBytesRef();
       uint8_t* bytes_copy =
           zone()->AllocateArray<uint8_t>(uncompiled_bytes.size());
@@ -208,8 +210,8 @@ class WasmSerializationTest {
   // imports.
   CompileTimeImports compile_imports_;
   v8::OwnedBuffer data_;
-  v8::MemorySpan<const uint8_t> wire_bytes_ = {};
-  v8::MemorySpan<const uint8_t> serialized_bytes_ = {};
+  std::span<const uint8_t> wire_bytes_ = {};
+  std::span<const uint8_t> serialized_bytes_ = {};
   FlagScope<int> tier_up_quickly_{&v8_flags.wasm_tiering_budget, 1000};
 };
 

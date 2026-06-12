@@ -8,10 +8,10 @@
 #include <stdint.h>
 
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include "include/v8-exception.h"
-#include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
 #include "src/objects/contexts.h"
@@ -492,12 +492,12 @@ V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {
   using BodyDescriptor = StructBodyDescriptor;
 
   static DirectHandle<DictionaryTemplateInfo> Create(
-      Isolate* isolate, const v8::MemorySpan<const std::string_view>& names);
+      Isolate* isolate, const std::span<const std::string_view>& names);
 
   static DirectHandle<JSObject> NewInstance(
       DirectHandle<NativeContext> context,
       DirectHandle<DictionaryTemplateInfo> self,
-      const MemorySpan<MaybeLocal<Value>>& property_values);
+      const std::span<MaybeLocal<Value>>& property_values);
 
   DECL_PRINTER(DictionaryTemplateInfo)
   DECL_VERIFIER(DictionaryTemplateInfo)

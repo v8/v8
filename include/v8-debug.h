@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <span>
+
 #include "v8-script.h"  // NOLINT(build/include_directory)
 #include "v8config.h"   // NOLINT(build/include_directory)
 
@@ -205,9 +207,9 @@ class V8_EXPORT StackTrace {
    *
    */
   V8_DEPRECATE_SOON("Use CurrentScriptData instead")
-  static v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+  static std::span<v8::StackTrace::ScriptIdAndContext>
   CurrentScriptIdsAndContexts(Isolate* isolate,
-                              v8::MemorySpan<ScriptIdAndContext> frame_data);
+                              std::span<ScriptIdAndContext> frame_data);
 
   /**
    * Writes up to the first `frame_data.size()` valid script ids, functions, and
@@ -222,8 +224,8 @@ class V8_EXPORT StackTrace {
    * WARNING: This is an unfinished experimental feature. Semantics and
    * implementation may change frequently.
    */
-  static v8::MemorySpan<v8::StackTrace::ScriptData> CurrentScriptData(
-      Isolate* isolate, v8::MemorySpan<ScriptData> frame_data);
+  static std::span<v8::StackTrace::ScriptData> CurrentScriptData(
+      Isolate* isolate, std::span<ScriptData> frame_data);
 };
 
 }  // namespace v8
