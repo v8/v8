@@ -77,27 +77,25 @@ extern class JSSpecialObject extends JSCustomElementsObject {
   cpp_heap_wrappable: CppHeapPointer;
 }
 
-// LINT.IfChange(MapGetDerivedMap)
 macro GetDerivedMap(
     implicit context: Context)(target: JSFunction,
     newTarget: JSReceiver): Map {
   try {
-    const newTargetFunc =
+    const constructor =
         Cast<JSFunctionWithPrototype>(newTarget) otherwise SlowPath;
-    dcheck(IsConstructor(newTargetFunc));
-    const initialMap =
-        Cast<Map>(newTargetFunc.prototype_or_initial_map) otherwise SlowPath;
-    const maybeCtor = LoadInitialMapConstructor(initialMap);
-    if (maybeCtor != target) {
+    dcheck(IsConstructor(constructor));
+    if (Is<TheHole>(constructor.prototype_or_initial_map)) goto SlowPath;
+    const map =
+        Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
+    if (LoadConstructorOrBackPointer(map) != target) {
       goto SlowPath;
     }
 
-    return initialMap;
+    return map;
   } label SlowPath {
     return runtime::GetDerivedMap(context, target, newTarget, FalseConstant());
   }
 }
-// LINT.ThenChange(/src/objects/map-inl.h:MapGetDerivedMap)
 
 macro GetDerivedRabGsabTypedArrayMap(
     implicit context: Context)(target: JSFunction,

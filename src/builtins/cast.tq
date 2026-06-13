@@ -70,11 +70,6 @@ macro IsFeedbackVector(o: HeapObject): bool {
 }
 
 @export
-macro IsFunctionTemplateInfo(o: HeapObject): bool {
-  return Is<FunctionTemplateInfo>(o);
-}
-
-@export
 macro IsHeapNumber(o: HeapObject): bool {
   return Is<HeapNumber>(o);
 }

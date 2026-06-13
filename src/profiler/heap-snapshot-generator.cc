@@ -1934,22 +1934,21 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
   } else {
     Tagged<Object> constructor_or_back_pointer =
         map->constructor_or_back_pointer();
-    const char* reference_name;
     if (IsMap(constructor_or_back_pointer)) {
       TagObject(constructor_or_back_pointer, "(back pointer)");
-      reference_name = "back_pointer";
-    } else if (IsTuple2(constructor_or_back_pointer)) {
-      TagObject(constructor_or_back_pointer, "(derived constructor tuple)");
-      reference_name = "derived_constructor_tuple";
+      SetInternalReference(
+          entry, "back_pointer", constructor_or_back_pointer,
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
     } else if (IsFunctionTemplateInfo(constructor_or_back_pointer)) {
       TagObject(constructor_or_back_pointer, "(constructor function data)");
-      reference_name = "constructor_function_data";
+      SetInternalReference(
+          entry, "constructor_function_data", constructor_or_back_pointer,
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
     } else {
-      reference_name = "constructor";
+      SetInternalReference(
+          entry, "constructor", constructor_or_back_pointer,
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
     }
-    SetInternalReference(
-        entry, reference_name, constructor_or_back_pointer,
-        offsetof(Map, constructor_or_back_pointer_or_native_context_));
   }
   TagObject(map->dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", map->dependent_code(),

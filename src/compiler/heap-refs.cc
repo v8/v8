@@ -1959,7 +1959,6 @@ MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->FindRootMap());
 }
 
-// LINT.IfChange(MapGetConstructor)
 OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
   // Keep in sync with Map::GetConstructor.
   HeapObjectRef current = *this;
@@ -1973,15 +1972,12 @@ OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
   } while (current.IsMap());
 
   if (current.IsTuple2()) {
-    // Get constructor from the {constructor, new_target_name} tuple.
-    DCHECK(current.AsTuple2().value1(broker).value().IsJSFunction());
-    DCHECK(current.AsTuple2().value2(broker).value().IsString());
+    // Get constructor from the {constructor, non-instance_prototype} tuple.
     return current.AsTuple2().value1(broker);
   }
 
   return current;
 }
-// LINT.ThenChange(/src/objects/map-inl.h:MapGetConstructor)
 
 NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
   // Immutable after initialization.

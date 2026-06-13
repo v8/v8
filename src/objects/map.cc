@@ -994,12 +994,9 @@ DirectHandle<Map> Map::GetObjectCreateMap(Isolate* isolate,
   return Map::TransitionRootMapToPrototypeForNewObject(isolate, map, prototype);
 }
 
-// LINT.IfChange(MapGetDerivedMap)
 // static
 Handle<Map> Map::GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
-                               DirectHandle<JSReceiver> prototype,
-                               DirectHandle<JSFunction> constructor,
-                               DirectHandle<JSReceiver> new_target) {
+                               DirectHandle<JSReceiver> prototype) {
   DCHECK(IsUndefined(from->GetBackPointer()));
 
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
@@ -1019,21 +1016,6 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
       if (map->prototype() != *prototype) {
         Map::SetPrototype(isolate, map, prototype);
       }
-
-      DirectHandle<String> new_target_name;
-      if (IsJSFunction(*new_target)) {
-        new_target_name = JSFunction::GetDebugName(
-            isolate, direct_handle(Cast<JSFunction>(*new_target), isolate),
-            AllowAllocation::kNo);
-      } else {
-        // For other constructible new.targets like JSBoundFunction,
-        // JSProxy, etc., just use "Object" as the name for simplicity.
-        new_target_name = isolate->factory()->Object_string();
-      }
-
-      DirectHandle<Tuple2> constructor_tuple = isolate->factory()->NewTuple2(
-          constructor, new_target_name, AllocationType::kOld);
-      map->SetConstructor(*constructor_tuple);
       PrototypeInfo::AddDerivedMap(info, map, isolate);
     }
     return map;
@@ -1044,7 +1026,6 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, DirectHandle<Map> from,
   return Map::TransitionRootMapToPrototypeForNewObject(isolate, from,
                                                        prototype);
 }
-// LINT.ThenChange(/src/objects/js-objects.tq:MapGetDerivedMap)
 
 static bool ContainsMap(MapHandlesSpan maps, Tagged<Map> map) {
   DCHECK(!map.is_null());
@@ -1911,9 +1892,7 @@ DirectHandle<Map> Map::AsLanguageMode(
       Map::CopyInitialMap(isolate, function_map, initial_map->instance_size(),
                           initial_map->GetInObjectProperties(),
                           initial_map->UnusedPropertyFields());
-  // Inherit the initial map's constructor data as is (it's either
-  // a constructor function or a tuple<constructor, new_target_name>).
-  map->SetConstructor(initial_map->GetConstructorRaw());
+  map->SetConstructor(initial_map->GetConstructor());
   map->set_prototype(initial_map->prototype());
   map->set_construction_counter(initial_map->construction_counter());
 
@@ -2195,16 +2174,10 @@ DirectHandle<Map> Map::TransitionToDataProperty(
       reason = buffer.begin();
     }
 #endif
-    bool feedback_normalization = false;
-    DirectHandle<Object> maybe_constructor;
-    if (v8_flags.feedback_normalization && map->new_target_is_base()) {
-      maybe_constructor = direct_handle(map->GetConstructor(), isolate);
-      if (IsJSFunction(*maybe_constructor) &&
-          !Cast<JSFunction>(*maybe_constructor)->shared()->native()) {
-        feedback_normalization = true;
-      }
-    }
-    if (feedback_normalization) {
+    DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);
+    if (v8_flags.feedback_normalization && map->new_target_is_base() &&
+        IsJSFunction(*maybe_constructor) &&
+        !Cast<JSFunction>(*maybe_constructor)->shared()->native()) {
       auto constructor = Cast<JSFunction>(maybe_constructor);
       DCHECK_NE(*constructor, constructor->native_context()->object_function());
       DirectHandle<Map> initial_map(constructor->initial_map(), isolate);
@@ -2439,7 +2412,7 @@ bool Map::EquivalentToForTransition(
     const Tagged<Map> other, ConcurrencyMode cmode,
     DirectHandle<HeapObject> new_prototype,
     std::optional<InstanceType> new_instance_type) const {
-  CHECK_EQ(GetConstructorRaw(), other->GetConstructorRaw());
+  CHECK_EQ(GetConstructor(), other->GetConstructor());
   if (new_instance_type) {
     if (*new_instance_type != other->instance_type()) return false;
   } else {

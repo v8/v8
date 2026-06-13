@@ -446,11 +446,6 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltin(
       .Build();
 }
 
-// Creates a builtin constructor function, with new shared function info
-// and initial map according to given prototype, instance type, instance
-// size and inobject properties count, etc.
-// If given |prototype| is the hole this function also creates the prototype
-// object if it's required for the function kind necessary.
 V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
     Isolate* isolate, DirectHandle<String> name, Builtin builtin,
     DirectHandle<UnionOf<JSPrototype, Hole>> prototype, InstanceType type,
@@ -489,11 +484,11 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   if (DEBUG_BOOL && InstanceTypeChecker::IsJSFunctionWithPrototype(type)) {
     DCHECK_EQ(instance_size, JSFunctionWithPrototype::kMinSize);
   }
-  if (IsTheHole(*prototype)) {
-    // Don't enable setup mode in bootstrapper to ensure that all builtin
-    // prototype objects included into context snapshot are in fast mode.
-    const bool enable_setup_mode = false;
-    prototype = factory->NewFunctionPrototype(result, enable_setup_mode);
+  // TODO(littledan): Why do we have this is_generator test when
+  // NewFunctionPrototype already handles finding an appropriately
+  // shared prototype?
+  if (!IsResumableFunction(info->kind()) && IsTheHole(*prototype)) {
+    prototype = factory->NewFunctionPrototype(result);
   }
   JSFunction::SetInitialMap(isolate, result, initial_map,
                             Cast<JSPrototype>(prototype));
@@ -933,11 +928,8 @@ void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
   }
 
   // Allocate a new prototype for the object function.
-  // Don't enable setup mode in bootstrapper to ensure that all builtin
-  // prototype objects included into context snapshot are in fast mode.
-  const bool enable_setup_mode = false;
   DirectHandle<JSObject> object_function_prototype =
-      factory->NewFunctionPrototype(object_fun, enable_setup_mode);
+      factory->NewFunctionPrototype(object_fun);
 
   {
     DirectHandle<Map> map = Map::Copy(
@@ -1093,6 +1085,8 @@ void Genesis::CreateIteratorMaps(DirectHandle<JSFunction> empty) {
       generator_function_prototype, "GeneratorFunction with name");
   native_context()->set_generator_function_with_name_map(*map);
 
+  DirectHandle<JSFunction> object_function(native_context()->object_function(),
+                                           isolate());
   DirectHandle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
   Map::SetPrototype(isolate(), generator_object_prototype_map,
                     generator_object_prototype);
@@ -1199,6 +1193,8 @@ void Genesis::CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty) {
       async_generator_function_prototype, "AsyncGeneratorFunction with name");
   native_context()->set_async_generator_function_with_name_map(*map);
 
+  DirectHandle<JSFunction> object_function(native_context()->object_function(),
+                                           isolate());
   DirectHandle<Map> async_generator_object_prototype_map =
       Map::Create(isolate(), 0);
   Map::SetPrototype(isolate(), async_generator_object_prototype_map,
@@ -1381,17 +1377,12 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Step 1: Create a fresh JSGlobalObject.
   DirectHandle<JSFunction> js_global_object_function;
   DirectHandle<ObjectTemplateInfo> js_global_object_template;
-  DirectHandle<String> class_name = factory()->Object_string();
   if (!global_proxy_template.IsEmpty()) {
     // Get prototype template of the global_proxy_template.
     DirectHandle<ObjectTemplateInfo> data =
         v8::Utils::OpenDirectHandle(*global_proxy_template);
     DirectHandle<FunctionTemplateInfo> global_constructor(
         Cast<FunctionTemplateInfo>(data->constructor()), isolate());
-    if (!IsUndefined(global_constructor->class_name())) {
-      class_name = direct_handle(Cast<String>(global_constructor->class_name()),
-                                 isolate());
-    }
     DirectHandle<Object> proto_template(
         global_constructor->GetPrototypeTemplate(), isolate());
     if (!IsUndefined(*proto_template)) {
@@ -1400,11 +1391,19 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   }
 
   if (js_global_object_template.is_null()) {
+    DirectHandle<String> name = factory()->empty_string();
+    DirectHandle<JSObject> prototype =
+        factory()->NewFunctionPrototype(isolate()->object_function());
     js_global_object_function = CreateFunctionForBuiltinWithPrototype(
-        isolate(), class_name, Builtin::kIllegal, factory()->the_hole_value(),
-        JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kHeaderSize, 0, MUTABLE, 0,
-        kDontAdapt);
-
+        isolate(), name, Builtin::kIllegal, prototype, JS_GLOBAL_OBJECT_TYPE,
+        JSGlobalObject::kHeaderSize, 0, MUTABLE, 0, kDontAdapt);
+#ifdef DEBUG
+    LookupIterator it(isolate(), prototype, factory()->constructor_string(),
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    DirectHandle<Object> value = Object::GetProperty(&it).ToHandleChecked();
+    DCHECK(it.IsFound());
+    DCHECK_EQ(*isolate()->object_function(), *value);
+#endif
   } else {
     DirectHandle<FunctionTemplateInfo> js_global_object_constructor(
         Cast<FunctionTemplateInfo>(js_global_object_template->constructor()),
@@ -1424,8 +1423,9 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Step 2: (re)initialize the global proxy object.
   DirectHandle<JSFunction> global_proxy_function;
   if (global_proxy_template.IsEmpty()) {
+    DirectHandle<String> name = factory()->empty_string();
     global_proxy_function = CreateFunctionForBuiltinWithPrototype(
-        isolate(), class_name, Builtin::kIllegal, factory()->the_hole_value(),
+        isolate(), name, Builtin::kIllegal, factory()->the_hole_value(),
         JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::SizeWithEmbedderFields(0), 0,
         MUTABLE, 0, kDontAdapt);
   } else {
@@ -1734,17 +1734,17 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 #undef PLAIN_TIME_GETTER_LIST
 #undef INSTALL_PLAIN_TIME_GETTER_FUNC
 
-#define PLAIN_TIME_FUNC_LIST(V)        \
-  V(add, Add, 1)                       \
-  V(subtract, Subtract, 1)             \
-  V(with, With, 1)                     \
-  V(until, Until, 1)                   \
-  V(since, Since, 1)                   \
-  V(round, Round, 1)                   \
-  V(equals, Equals, 1)                 \
-  V(toLocaleString, ToLocaleString, 0) \
-  V(toString, ToString, 0)             \
-  V(toJSON, ToJSON, 0)                 \
+#define PLAIN_TIME_FUNC_LIST(V)          \
+  V(add, Add, 1)                         \
+  V(subtract, Subtract, 1)               \
+  V(with, With, 1)                       \
+  V(until, Until, 1)                     \
+  V(since, Since, 1)                     \
+  V(round, Round, 1)                     \
+  V(equals, Equals, 1)                   \
+  V(toLocaleString, ToLocaleString, 0)   \
+  V(toString, ToString, 0)               \
+  V(toJSON, ToJSON, 0)                   \
   V(valueOf, ValueOf, 0)
 
 #define INSTALL_PLAIN_TIME_FUNC(p, N, min)                            \

@@ -2489,13 +2489,11 @@ TEST(GetConstructor) {
       "var Constructor2 = function() {};\n"
       "var obj2 = new Constructor2();\n"
       "var obj3 = {};\n"
-      "obj3.__proto__ = { constructor: function Constructor3() {},\n"
-      "                   [Symbol.toStringTag]: 'Ctor3' };\n"
+      "obj3.__proto__ = { constructor: function Constructor3() {} };\n"
       "var obj4 = {};\n"
       "// Slow properties\n"
       "for (var i=0; i<2000; ++i) obj4[\"p\" + i] = i;\n"
-      "obj4.__proto__ = { constructor: function Constructor4() {},\n"
-      "                   [Symbol.toStringTag]: 'Ctor4' };\n"
+      "obj4.__proto__ = { constructor: function Constructor4() {} };\n"
       "var obj5 = {};\n"
       "var obj6 = {};\n"
       "obj6.constructor = 6;");
@@ -2530,13 +2528,13 @@ TEST(GetConstructor) {
                                    .As<v8::Object>();
   i::DirectHandle<i::JSObject> js_obj5 =
       i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj5));
-  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj5).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj5).is_null());
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::DirectHandle<i::JSObject> js_obj6 =
       i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj6));
-  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj6).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj6).is_null());
 }
 
 TEST(GetConstructorName) {
@@ -2550,13 +2548,11 @@ TEST(GetConstructorName) {
       "var Constructor2 = function() {};\n"
       "var obj2 = new Constructor2();\n"
       "var obj3 = {};\n"
-      "obj3.__proto__ = { constructor: function Constructor3() {},\n"
-      "                   [Symbol.toStringTag]: 'Ctor3' };\n"
+      "obj3.__proto__ = { constructor: function Constructor3() {} };\n"
       "var obj4 = {};\n"
       "// Slow properties\n"
       "for (var i=0; i<2000; ++i) obj4[\"p\" + i] = i;\n"
-      "obj4.__proto__ = { constructor: function Constructor4() {},\n"
-      "                   [Symbol.toStringTag]: 'Ctor4' };\n"
+      "obj4.__proto__ = { constructor: function Constructor4() {} };\n"
       "var obj5 = {};\n"
       "var obj6 = {};\n"
       "obj6.constructor = 6;");
@@ -2581,15 +2577,15 @@ TEST(GetConstructorName) {
                                    .As<v8::Object>();
   i::DirectHandle<i::JSObject> js_obj3 =
       i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj3));
-  CHECK_EQ(0, StringCmp("Ctor3", i::V8HeapExplorer::GetConstructorName(
-                                     i_isolate, *js_obj3)));
+  CHECK_EQ(0, StringCmp("Constructor3", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::DirectHandle<i::JSObject> js_obj4 =
       i::Cast<i::JSObject>(v8::Utils::OpenDirectHandle(*obj4));
-  CHECK_EQ(0, StringCmp("Ctor4", i::V8HeapExplorer::GetConstructorName(
-                                     i_isolate, *js_obj4)));
+  CHECK_EQ(0, StringCmp("Constructor4", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();

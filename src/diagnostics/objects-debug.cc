@@ -862,19 +862,11 @@ void Map::MapVerify(Isolate* isolate) {
     // Check constructor value in JSFunction's maps.
     if (IsJSFunctionMap(this) && !IsMap(constructor_or_back_pointer())) {
       Tagged<Object> maybe_constructor = constructor_or_back_pointer();
-      if (IsTuple2(maybe_constructor)) {
-        Tagged<Tuple2> tuple = Cast<Tuple2>(maybe_constructor);
-        CHECK(IsJSFunction(tuple->value1()));
-        CHECK(IsString(tuple->value2()));
-      } else {
-        CHECK(IsJSFunction(maybe_constructor) ||
-              IsFunctionTemplateInfo(maybe_constructor) ||
-              IsString(maybe_constructor) ||
-              // The above check might fail until empty function setup is done.
-              IsUndefined(isolate->raw_native_context()->GetNoCell(
-                  Context::EMPTY_FUNCTION_INDEX)));
-        CHECK_IMPLIES(IsString(maybe_constructor), is_prototype_map());
-      }
+      CHECK(IsJSFunction(maybe_constructor) ||
+            IsFunctionTemplateInfo(maybe_constructor) ||
+            // The above check might fail until empty function setup is done.
+            IsUndefined(isolate->raw_native_context()->GetNoCell(
+                Context::EMPTY_FUNCTION_INDEX)));
     }
   }
 

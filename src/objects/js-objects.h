@@ -291,7 +291,7 @@ V8_OBJECT class JSReceiver : public HeapObject {
   // that was used to instantiate the object), if any. If a FunctionTemplate is
   // used to instantiate the object, the class_name of the FunctionTemplate is
   // returned instead.
-  V8_EXPORT_PRIVATE static DirectHandle<String> GetConstructorName(
+  static DirectHandle<String> GetConstructorName(
       Isolate* isolate, DirectHandle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>

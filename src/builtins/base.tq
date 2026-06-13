@@ -1525,7 +1525,6 @@ operator '.length=' macro StoreFastJSArrayLength(
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 
 extern macro LoadConstructorOrBackPointer(Map): Object;
-extern macro LoadInitialMapConstructor(Map): HeapObject;
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): JSAny
     labels NotData, IfHole;

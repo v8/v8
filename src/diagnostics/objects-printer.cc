@@ -4858,22 +4858,7 @@ void Map::MapPrint(std::ostream& os) {
   os << "\n - prototype: " << Brief(prototype());
 
   if (!IsContextMap(this)) {
-    ConstructorData data;
-    Tagged<HeapObject> maybe_ctor = GetConstructor(&data);
-    if (data.is_derived_constructor) {
-      os << "\n - derived constructor tuple:"
-         << Brief(data.derived_constructor_tuple);
-      os << "\n   - constructor: " << Brief(data.constructor);
-      os << "\n   - new.target name: " << Brief(data.new_target_name);
-
-    } else if (data.has_constructor) {
-      os << "\n - constructor: " << Brief(data.constructor);
-
-    } else if (data.has_new_target_name) {
-      os << "\n - constructor name: " << Brief(data.new_target_name);
-    } else {
-      os << "\n - constructor: " << Brief(maybe_ctor);
-    }
+    os << "\n - constructor: " << Brief(GetConstructor());
   }
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - construction counter: " << construction_counter();

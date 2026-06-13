@@ -3361,39 +3361,23 @@ DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 
 DirectHandle<JSObject> Factory::NewFunctionPrototype(
-    DirectHandle<JSFunction> function, bool enable_setup_mode) {
+    DirectHandle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
   DirectHandle<NativeContext> native_context(function->native_context(),
                                              isolate());
-  FunctionKind function_kind = function->shared()->kind();
   DirectHandle<Map> new_map;
-  bool initialize_constructor_name = false;
-
-  // All async generator functions are resumable functions.
-  DCHECK_IMPLIES(IsAsyncGeneratorFunction(function_kind),
-                 IsResumableFunction(function_kind));
-
-  if (V8_UNLIKELY(IsResumableFunction(function_kind))) {
-    // Reuse a non-prototype map which has a prototype value already
-    // set to [async_]generator_object_prototype. Once the new prototype
-    // object turns into a prototype mode it'll get its own unique map.
-    if (IsAsyncGeneratorFunction(function_kind)) {
-      new_map = direct_handle(
-          native_context->async_generator_object_prototype_map(), isolate());
-    } else {
-      new_map = direct_handle(native_context->generator_object_prototype_map(),
-                              isolate());
-    }
+  if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
+    new_map = direct_handle(
+        native_context->async_generator_object_prototype_map(), isolate());
+  } else if (IsResumableFunction(function->shared()->kind())) {
+    // Generator and async function prototypes can share maps since they
+    // don't have "constructor" properties.
+    new_map = direct_handle(native_context->generator_object_prototype_map(),
+                            isolate());
   } else {
-    // Ideally, we should have used the function to create a prototype object
-    // which should have properly wired constructor value but we can't
-    // because of a chicken-egg problem: function doesn't have an initial
-    // map because it doesn't have a prototype object yet. Thus we have to
-    // create the object using Object constructor, turn it to prototype
-    // mode (which would give it unique map) and set the constructor name.
-    initialize_constructor_name = true;
-
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
     DirectHandle<JSFunction> object_function(native_context->object_function(),
                                              isolate());
     DCHECK(object_function->has_initial_map());
@@ -3406,23 +3390,6 @@ DirectHandle<JSObject> Factory::NewFunctionPrototype(
   if (!IsResumableFunction(function->shared()->kind())) {
     JSObject::AddProperty(isolate(), prototype, constructor_string(), function,
                           DONT_ENUM);
-  }
-
-  // Turn it to prototype mode here since the next thing the caller will do
-  // is to set this object as a prototype of the new function's initial map.
-  // Doing this after adding the "constructor" property allows to follow the
-  // transition tree and avoid creation of one extra map.
-  JSObject::OptimizeAsPrototype(prototype, enable_setup_mode);
-
-  if (initialize_constructor_name) {
-    DCHECK(prototype->map()->is_prototype_map());
-    // The proto object has just been created and it got a unique prototype
-    // map. Set the constructor field appropriately. This is not applicable
-    // to generator and async functions because they share the prototype
-    // object's map.
-    auto name =
-        JSFunction::GetDebugName(isolate(), function, AllowAllocation::kNo);
-    prototype->map()->SetConstructor(*name);
   }
 
   return prototype;

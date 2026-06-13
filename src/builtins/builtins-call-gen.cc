@@ -589,13 +589,6 @@ TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
-// LINT.IfChange(GetCompatibleReceiver)
-// TODO(ishell): once the dust settles, cleanup handling of hidden prototypes.
-// The only object with hidden prototype is JSGlobalProxy which has an
-// unique constructor function template. Thus it doesn't make sense to
-// perform a signature check against JSGlobalProxy's constructor (it'll fail
-// anyway) and we can proceed with checking the signature for the underlying
-// JSGlobalObject.
 TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
     TNode<JSReceiver> receiver, TNode<HeapObject> signature,
     TNode<Context> context) {
@@ -617,27 +610,40 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
     // but instead do that as part of the template loop below. The only
     // thing we care about is that the template is actually a HeapObject.
     TNode<HeapObject> holder = var_holder.value();
-
-    // Load the constructor field from the holder's map.
-    TNode<HeapObject> constructor = LoadMapConstructor(LoadMap(holder));
-
-    // Now there are two cases for {constructor} that we care about here:
-    //
-    //  1. {constructor} is a JSFunction, and we can load the template
-    //     from its SharedFunctionInfo::function_data field (which
-    //     may not actually be a FunctionTemplateInfo).
-    //  2. {constructor} is a FunctionTemplateInfo (or some other
-    //     HeapObject), in which case we can directly use that for
-    //     the template loop below (non-FunctionTemplateInfo objects
-    //     will be ruled out there).
-    //
-    TVARIABLE(HeapObject, var_template, constructor);
-    Label template_loop(this, &var_template),
+    TVARIABLE(HeapObject, var_template, LoadMap(holder));
+    Label template_map_loop(this, &var_template),
+        template_loop(this, &var_template),
         template_from_closure(this, &var_template);
+    Goto(&template_map_loop);
+    BIND(&template_map_loop);
     {
-      TNode<Map> constructor_map = LoadMap(constructor);
-      GotoIf(IsJSFunctionMap(constructor_map), &template_from_closure);
-      Goto(&template_loop);
+      // Load the constructor field from the current map (in the
+      // {var_template} variable), and see if that is a HeapObject.
+      // If it's a Smi then it is non-instance prototype on some
+      // initial map, which cannot be the case for API instances.
+      TNode<Object> constructor = LoadObjectField(
+          var_template.value(),
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
+      GotoIf(TaggedIsSmi(constructor), &holder_next);
+
+      // Now there are three cases for {constructor} that we care
+      // about here:
+      //
+      //  1. {constructor} is a JSFunction, and we can load the template
+      //     from its SharedFunctionInfo::function_data field (which
+      //     may not actually be a FunctionTemplateInfo).
+      //  2. {constructor} is a Map, in which case it's not a constructor
+      //     but a back-pointer and we follow that.
+      //  3. {constructor} is a FunctionTemplateInfo (or some other
+      //     HeapObject), in which case we can directly use that for
+      //     the template loop below (non-FunctionTemplateInfo objects
+      //     will be ruled out there).
+      //
+      var_template = CAST(constructor);
+      TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
+      GotoIf(IsJSFunctionInstanceType(template_type), &template_from_closure);
+      Branch(IsMapInstanceType(template_type), &template_map_loop,
+             &template_loop);
     }
 
     BIND(&template_from_closure);
@@ -693,7 +699,6 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
   BIND(&holder_found);
   return CAST(var_holder.value());
 }
-// LINT.ThenChange(/src/builtins/builtins-call-gen.cc:GetCompatibleReceiver,/src/objects/templates.cc:GetCompatibleReceiver)
 
 // static
 constexpr bool CallOrConstructBuiltinsAssembler::IsAccessCheckRequired(
