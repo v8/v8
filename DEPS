@@ -281,7 +281,7 @@ deps = {
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '3d2de1816307bac63c16a297e8c4dc501b4076df',
   'third_party/fast_float/src':
-    Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '8234a896236a6c98ee66cf214b31ca15e24579ca',
+    Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '34164f547b7df3f5d794ff67e9f885c36819ebfc',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '4f34a41435a29fbf91cb3c6e0bcaffff6598c190',
     'condition': 'checkout_fuchsia',
@@ -329,7 +329,7 @@ deps = {
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'c3027d884967773057bf74b957e3fea87e5df4d7',
   'third_party/jsoncpp/source':
-    Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + 'd4d072177213b117fb81d4cfda140de090616161',
+    Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '5f1f240f10a19a61929b5c573974900cb62e9dac',
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '5abc7f839700f0f17338434e1c1c6a8c87c00c11',
   'third_party/libc++abi/src':
