@@ -1107,9 +1107,6 @@
   'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-source-and-export': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-named-import': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-namespace-get': [SKIP],
-  'staging/sm/Error/constructor-proto': [SKIP],
-  'staging/sm/Error/prototype': [SKIP],
-  'staging/sm/Error/prototype-properties': [SKIP],
 }],
 # End roll-watcher patch
 ####
