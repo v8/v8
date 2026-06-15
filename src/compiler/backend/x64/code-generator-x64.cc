@@ -3533,10 +3533,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64Movsh:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         CpuFeatureScope f16c_scope(masm(), F16C);
         CpuFeatureScope avx2_scope(masm(), AVX2);
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ vpbroadcastw(i.OutputDoubleRegister(), i.MemoryOperand());
         __ vcvtph2ps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       } else {
@@ -3544,6 +3544,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ vcvtps2ph(kScratchDoubleReg, i.InputDoubleRegister(index), 0);
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ Pextrw(operand, kScratchDoubleReg, static_cast<uint8_t>(0));
       }
       break;

@@ -745,6 +745,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
                                         offset_imm, i64_offset, shift_amount);
   DCHECK(!src_op.IsPostIndex());  // See MacroAssembler::LoadStoreMacroComplex.
+  if (type.value() == LoadType::kF32LoadF16) {
+    constexpr uint8_t kConversionInstruction = 1;
+    GetTrappingInstruction<LoadOrStore::kLoad, kConversionInstruction>
+        collect_trapping_load(this, trapping_load_pc);
+    Ldr(dst.fp().H(), src_op);
+    Fcvt(dst.fp().S(), dst.fp().H());
+    return;
+  }
   GetTrappingInstruction<LoadOrStore::kLoad> collect_trapping_load(
       this, trapping_load_pc);
   switch (type.value()) {
@@ -781,16 +789,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF32Load:
       Ldr(dst.fp().S(), src_op);
       break;
-    case LoadType::kF32LoadF16: {
-      Ldr(dst.fp().H(), src_op);
-      Fcvt(dst.fp().S(), dst.fp().H());
-      break;
-    }
     case LoadType::kF64Load:
       Ldr(dst.fp().D(), src_op);
       break;
     case LoadType::kS128Load:
       Ldr(dst.fp().Q(), src_op);
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
 }
@@ -823,8 +829,12 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       Str(src.gp().X(), dst_op);
       break;
     case StoreType::kF32StoreF16: {
-      Fcvt(src.fp().H(), src.fp().S());
-      Str(src.fp().H(), dst_op);
+      UseScratchRegisterScope temps(this);
+      VRegister temp_h = temps.AcquireH();
+      // We collect the last instruction as the trap so it's safe to emit
+      // multiple instructions as long as the store is last.
+      Fcvt(temp_h, src.fp().S());
+      Str(temp_h, dst_op);
       break;
     }
     case StoreType::kF32Store:

@@ -2716,12 +2716,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fcvt(i.OutputDoubleRegister().S(), i.OutputDoubleRegister().H());
       break;
     }
-    case kArm64StrH:
+    case kArm64StrH: {
+      if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(0, base::bit_cast<int32_t>(i.InputFloat32(0)));
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ Strh(wzr, i.MemoryOperand(1));
+        break;
+      }
+      UseScratchRegisterScope temps(masm());
+      VRegister tmp_h = temps.AcquireH();
+      __ Fcvt(tmp_h, i.InputFloatRegister(0).S());
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Fcvt(i.InputFloat32OrZeroRegister(0).H(),
-              i.InputFloat32OrZeroRegister(0).S());
-      __ Str(i.InputFloat32OrZeroRegister(0).H(), i.MemoryOperand(1));
+      __ Str(tmp_h, i.MemoryOperand(1));
       break;
+    }
     case kArm64LdrS:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());

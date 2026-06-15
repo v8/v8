@@ -879,6 +879,8 @@
   'regress/wasm/regress-499027764': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
   'wasm/fp16-load-mul': [SKIP],
+  'wasm/fp16-oob-trap': [SKIP],
+  'wasm/fp16-store': [SKIP],
   'wasm/simd-fp16': [SKIP],
 
   # --experimental-wasm-rab-integration
