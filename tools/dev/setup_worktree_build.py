@@ -64,8 +64,14 @@ def create_relative_symlinks(source_root: Path, target_dir: Path,
 
 def get_shared_dirs(root_entries_file: Path) -> list[str]:
   dirs = [
-      "build", "buildtools", "base", "tools/clang", "tools/rust",
-      "tools/luci-go"
+      "build",
+      "buildtools",
+      "base",
+      "tools/clang",
+      "tools/rust",
+      "tools/luci-go",
+      "test/wasm-js/tests",
+      "test/wasm-spec-tests/tests",
   ]
   if root_entries_file.is_file():
     try:
