@@ -830,7 +830,7 @@ class WasmInJsInliningInterface {
         object.type, target,
         compiler::GetExactness(decoder->module_, target.heap_type())};
     result->op =
-        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
+        __ WasmTypeCast(object.get<Object>(), rtt, frame_state_, config);
   }
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
@@ -849,7 +849,7 @@ class WasmInJsInliningInterface {
             type, null_succeeds ? wasm::kNullable : wasm::kNonNullable)};
     V<Map> rtt = OpIndex::Invalid();
     result->op =
-        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
+        __ WasmTypeCast(object.get<Object>(), rtt, frame_state_, config);
   }
 
   // TODO(dlehmann,353475584): Support linear memory in the inlinee.

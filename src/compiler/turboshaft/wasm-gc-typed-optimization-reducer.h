@@ -319,8 +319,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       WasmTypeCheckConfig config{from_type, cast_op.config.to,
                                  cast_op.config.exactness};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
-                             __ MapToNewGraph(cast_op.rtt()), config,
-                             __ MapToNewGraph(cast_op.frame_state()));
+                             __ MapToNewGraph(cast_op.rtt()),
+                             __ MapToNewGraph(cast_op.frame_state()), config);
     }
     goto no_change;
   }

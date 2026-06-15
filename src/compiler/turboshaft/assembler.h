@@ -4237,10 +4237,12 @@ class AssemblerOpInterface : public Next {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
 
+  // WasmTrap in Wasm code does not pass a frame state.
   void WasmTrap(TrapId trap_id) {
     WasmTrap(OptionalV<EagerFrameState>{}, trap_id);
   }
 
+  // WasmTrap from Wasm inlined into JS needs a frame state.
   void WasmTrap(OptionalV<EagerFrameState> frame_state, TrapId trap_id) {
     ReduceIfReachableWasmTrap(frame_state, trap_id);
   }
@@ -5177,12 +5179,19 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
+  // WasmTypeCast in Wasm code does not pass a frame state.
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
-                         WasmTypeCheckConfig config,
-                         OptionalV<EagerFrameState> frame_state = {}) {
+                         WasmTypeCheckConfig config) {
+    return WasmTypeCast(object, rtt, {}, config);
+  }
+
+  // WasmTypeCast from Wasm inlined into JS needs a frame state.
+  V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
+                         OptionalV<EagerFrameState> frame_state,
+                         WasmTypeCheckConfig config) {
     DCHECK(__ generating_unreachable_operations() ||
            rtt.valid() != config.to.is_abstract_ref());
-    return ReduceIfReachableWasmTypeCast(object, rtt, config, frame_state);
+    return ReduceIfReachableWasmTypeCast(object, rtt, frame_state, config);
   }
 
   V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared,

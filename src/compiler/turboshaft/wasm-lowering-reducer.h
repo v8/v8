@@ -126,12 +126,12 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> REDUCE(WasmTypeCast)(V<Object> object, OptionalV<Map> rtt,
-                                 WasmTypeCheckConfig config,
-                                 OptionalV<EagerFrameState> frame_state) {
+                                 OptionalV<EagerFrameState> frame_state,
+                                 WasmTypeCheckConfig config) {
     if (rtt.has_value()) {
-      return ReduceWasmTypeCastRtt(object, rtt, config, frame_state);
+      return ReduceWasmTypeCastRtt(object, rtt, frame_state, config);
     } else {
-      return ReduceWasmTypeCastAbstract(object, config, frame_state);
+      return ReduceWasmTypeCastAbstract(object, frame_state, config);
     }
   }
 
@@ -814,8 +814,8 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> ReduceWasmTypeCastAbstract(V<Object> object,
-                                       WasmTypeCheckConfig config,
-                                       OptionalV<EagerFrameState> frame_state) {
+                                       OptionalV<EagerFrameState> frame_state,
+                                       WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
     const bool null_succeeds = config.to.is_nullable();
     const bool object_can_be_i31 =
@@ -901,8 +901,8 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
-                                  WasmTypeCheckConfig config,
-                                  OptionalV<EagerFrameState> frame_state) {
+                                  OptionalV<EagerFrameState> frame_state,
+                                  WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
