@@ -36,7 +36,9 @@
 #include "src/init/isolate-group.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/turboshaft/wasm-gc-optimize-phase.h"
 #include "src/compiler/turboshaft/wasm-in-js-inlining-phase.h"
+#include "src/compiler/turboshaft/wasm-lowering-phase.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal::compiler::turboshaft {
@@ -222,6 +224,16 @@ class V8_EXPORT_PRIVATE Pipeline {
         data_->turbolev_graph_has_inlineable_wasm_calls()) {
       DCHECK(v8_flags.turbolev);
       RUN_MAYBE_ABORT(turboshaft::WasmInJSInliningPhase);
+
+      // These optimizations need a separate phase due to the analysis of the
+      // input graph. They are also somewhat risky, so keep them behind a flag
+      // at first.
+      if (v8_flags.wasm_in_js_inlining_opt) {
+        RUN_MAYBE_ABORT(turboshaft::WasmGCOptimizePhase);
+      }
+
+      // We need the `WasmLoweringReducer` for lowering, e.g., `global.get` etc.
+      RUN_MAYBE_ABORT(turboshaft::WasmLoweringPhase);
     }
 #endif  // !V8_ENABLE_WEBASSEMBLY
 

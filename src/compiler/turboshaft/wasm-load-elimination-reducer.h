@@ -602,8 +602,8 @@ class WasmLoadEliminationReducer : public Next {
       Asm().data(), Asm().modifiable_input_graph(), Asm().phase_zone()};
 };
 
-void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
-                                               bool compute_start_snapshot) {
+inline void WasmLoadEliminationAnalyzer::ProcessBlock(
+    const Block& block, bool compute_start_snapshot) {
   if (compute_start_snapshot) {
     BeginBlock(&block);
   }
@@ -735,10 +735,22 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
 
       default:
-        // Operations that `can_write` should invalidate the state. All such
-        // operations should be already handled above, which means that we don't
-        // need a `if (can_write) { Invalidate(); }` here.
-        CHECK(!op.Effects().can_write());
+        // Operations that `can_write` should invalidate the state. In the Wasm
+        // pipeline, all such Wasm-only operations should be already handled
+        // explicitly above, so the CHECK ensures that we didn't forget any. In
+        // the JS pipeline, we run this reducer as part of Wasm-in-JS inlining
+        // and before `MachineLoweringReducer`. Thus, there are several more JS
+        // and Simplified operations that we didn't handle above and that shall
+        // invalidate the state.
+        if (memory_.data_->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+          CHECK(!op.Effects().can_write());
+        } else {
+          DCHECK_EQ(memory_.data_->pipeline_kind(),
+                    TurboshaftPipelineKind::kJS);
+          if (op.Effects().can_write()) {
+            memory_.InvalidateMaybeAliasing();
+          }
+        }
 
         // Even if the operation doesn't write, it could create an alias to its
         // input by returning it. This happens for instance in Phis and in
@@ -765,9 +777,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 // not valid. Similarly, replacing a Tagged with an untagged value is probably
 // not valid because of the GC.
 
-bool RepIsCompatible(RegisterRepresentation actual,
-                     RegisterRepresentation expected_reg_repr,
-                     uint8_t in_memory_size) {
+inline bool RepIsCompatible(RegisterRepresentation actual,
+                            RegisterRepresentation expected_reg_repr,
+                            uint8_t in_memory_size) {
   if (in_memory_size !=
       MemoryRepresentation::FromRegisterRepresentation(actual, true)
           .SizeInBytes()) {
@@ -784,8 +796,8 @@ bool RepIsCompatible(RegisterRepresentation actual,
   return expected_reg_repr == actual;
 }
 
-void WasmLoadEliminationAnalyzer::ProcessStructGet(OpIndex op_idx,
-                                                   const StructGetOp& get) {
+inline void WasmLoadEliminationAnalyzer::ProcessStructGet(
+    OpIndex op_idx, const StructGetOp& get) {
   // TODO(mliedtke): struct.atomic.get also participates in load-elimination by
   // providing values that can be used to load-eliminate struct.get operations
   // for the same field. Is this the desired behavior?
@@ -805,8 +817,8 @@ void WasmLoadEliminationAnalyzer::ProcessStructGet(OpIndex op_idx,
   memory_.Insert(get, op_idx);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessStructSet(OpIndex op_idx,
-                                                   const StructSetOp& set) {
+inline void WasmLoadEliminationAnalyzer::ProcessStructSet(
+    OpIndex op_idx, const StructSetOp& set) {
   if (memory_.HasValueWithIncorrectMutability(set)) {
     // This struct.set is unreachable. We don't have a good way to annotate
     // it as such, so we use "replace with itself" as a sentinel.
@@ -825,12 +837,12 @@ void WasmLoadEliminationAnalyzer::ProcessStructSet(OpIndex op_idx,
   }
 }
 
-void WasmLoadEliminationAnalyzer::ProcessAtomicRMW(
+inline void WasmLoadEliminationAnalyzer::ProcessAtomicRMW(
     OpIndex op_idx, const StructAtomicRMWOp& op) {
   memory_.Invalidate(op);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessArrayLength(
+inline void WasmLoadEliminationAnalyzer::ProcessArrayLength(
     OpIndex op_idx, const ArrayLengthOp& length) {
   static constexpr int offset = wle::kArrayLengthFieldIndex;
   OpIndex existing = memory_.FindLoadLike(length.array(), offset);
@@ -848,14 +860,14 @@ void WasmLoadEliminationAnalyzer::ProcessArrayLength(
   memory_.InsertLoadLike(length.array(), offset, op_idx);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessWasmAllocateArray(
+inline void WasmLoadEliminationAnalyzer::ProcessWasmAllocateArray(
     OpIndex op_idx, const WasmAllocateArrayOp& alloc) {
   non_aliasing_objects_.Set(op_idx, true);
   static constexpr int offset = wle::kArrayLengthFieldIndex;
   memory_.InsertLoadLike(op_idx, offset, alloc.length());
 }
 
-void WasmLoadEliminationAnalyzer::ProcessStringAsWtf16(
+inline void WasmLoadEliminationAnalyzer::ProcessStringAsWtf16(
     OpIndex op_idx, const StringAsWtf16Op& op) {
   static constexpr int offset = wle::kStringAsWtf16Index;
   OpIndex existing = memory_.FindLoadLike(op.string(), offset);
@@ -868,7 +880,7 @@ void WasmLoadEliminationAnalyzer::ProcessStringAsWtf16(
   memory_.InsertLoadLike(op.string(), offset, op_idx);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessStringPrepareForGetCodeUnit(
+inline void WasmLoadEliminationAnalyzer::ProcessStringPrepareForGetCodeUnit(
     OpIndex op_idx, const StringPrepareForGetCodeUnitOp& prep) {
   static constexpr int offset = wle::kStringPrepareForGetCodeunitIndex;
   OpIndex existing = memory_.FindLoadLike(prep.string(), offset);
@@ -882,7 +894,7 @@ void WasmLoadEliminationAnalyzer::ProcessStringPrepareForGetCodeUnit(
   memory_.InsertLoadLike(prep.string(), offset, op_idx);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessAnyConvertExtern(
+inline void WasmLoadEliminationAnalyzer::ProcessAnyConvertExtern(
     OpIndex op_idx, const AnyConvertExternOp& convert) {
   static constexpr int offset = wle::kAnyConvertExternIndex;
   OpIndex existing = memory_.FindLoadLike(convert.object(), offset);
@@ -895,7 +907,7 @@ void WasmLoadEliminationAnalyzer::ProcessAnyConvertExtern(
   memory_.InsertLoadLike(convert.object(), offset, op_idx);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessAssertNotNull(
+inline void WasmLoadEliminationAnalyzer::ProcessAssertNotNull(
     OpIndex op_idx, const AssertNotNullOp& assert) {
   static constexpr int offset = wle::kAssertNotNullIndex;
   OpIndex existing = memory_.FindLoadLike(assert.object(), offset);
@@ -912,8 +924,8 @@ void WasmLoadEliminationAnalyzer::ProcessAssertNotNull(
 // anything that was guaranteed to not alias with anything (because it's in
 // {non_aliasing_objects_}) can alias with anything when coming back from the
 // call if it was an argument of the call.
-void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
-                                              const CallOp& op) {
+inline void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
+                                                     const CallOp& op) {
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
@@ -945,14 +957,14 @@ void WasmLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   memory_.InvalidateMaybeAliasing();
 }
 
-void WasmLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
+inline void WasmLoadEliminationAnalyzer::InvalidateAllNonAliasingInputs(
     const Operation& op) {
   for (OpIndex input : op.inputs()) {
     InvalidateIfAlias(input);
   }
 }
 
-void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
+inline void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
   if (auto key = non_aliasing_objects_.TryGetKeyFor(op_idx);
       key.has_value() && non_aliasing_objects_.Get(*key)) {
     // An known non-aliasing object was passed as input to the Call; the Call
@@ -968,8 +980,8 @@ void WasmLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
 // before load elimination). So, there is no need to invalidate non-aliases, and
 // we just DCHECK in this function that indeed, nothing else than a Smi check
 // happens on non-aliasing objects.
-void WasmLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
-                                                  const WordBinopOp& binop) {
+inline void WasmLoadEliminationAnalyzer::DcheckWordBinop(
+    OpIndex op_idx, const WordBinopOp& binop) {
 #ifdef DEBUG
   auto check = [&](V<Word> left, V<Word> right) {
     if (auto key = non_aliasing_objects_.TryGetKeyFor(left);
@@ -985,13 +997,13 @@ void WasmLoadEliminationAnalyzer::DcheckWordBinop(OpIndex op_idx,
 #endif
 }
 
-void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
-                                                  const AllocateOp&) {
+inline void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
+                                                         const AllocateOp&) {
   // In particular, this handles {struct.new}.
   non_aliasing_objects_.Set(op_idx, true);
 }
 
-OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
+inline OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   base::Vector<const OpIndex> inputs = phi.inputs();
   // This copies some of the functionality of {RequiredOptimizationReducer}:
   // Phis whose inputs are all the same value can be replaced by that value.
@@ -1015,22 +1027,23 @@ OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   return OpIndex::Invalid();
 }
 
-void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
+inline void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx,
+                                                    const PhiOp& phi) {
   InvalidateAllNonAliasingInputs(phi);
   replacements_[op_idx] = MaybeReplacePhi(phi);
 }
 
-void WasmLoadEliminationAnalyzer::FinishBlock(const Block* block) {
+inline void WasmLoadEliminationAnalyzer::FinishBlock(const Block* block) {
   block_to_snapshot_mapping_[block->index()] =
       Snapshot{non_aliasing_objects_.Seal(), memory_.Seal()};
 }
 
-void WasmLoadEliminationAnalyzer::SealAndDiscard() {
+inline void WasmLoadEliminationAnalyzer::SealAndDiscard() {
   non_aliasing_objects_.Seal();
   memory_.Seal();
 }
 
-void WasmLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
+inline void WasmLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
     const Block& loop_header) {
   auto non_aliasing_snapshot = non_aliasing_objects_.Seal();
   auto memory_snapshot = memory_.Seal();
@@ -1043,7 +1056,7 @@ void WasmLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
   memory_.StartNewSnapshot(memory_snapshot);
 }
 
-bool WasmLoadEliminationAnalyzer::BackedgeHasSnapshot(
+inline bool WasmLoadEliminationAnalyzer::BackedgeHasSnapshot(
     const Block& loop_header) const {
   DCHECK(loop_header.IsLoop());
   return block_to_snapshot_mapping_[loop_header.LastPredecessor()->index()]

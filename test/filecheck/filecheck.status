@@ -54,6 +54,7 @@
   'wasm-in-js-inlining-turboshaft': [SKIP],
   'wasm-in-js-inlining-turboshaft-stacktrace-api': [SKIP],
   'wasm-gc-inlining-turboshaft': [SKIP],
+  'wasm-in-js-inlining-turboshaft-opt': [SKIP],
   'js-wasm-wrapper-inlining-eager-deopt': [SKIP],
   'js-wasm-wrapper-inlining-type-combos': [SKIP],
 }],
@@ -64,6 +65,13 @@
 
 ['not memory_corruption_api', {
   'wasm/corrupted-function-data': [SKIP],
-}]
+}],
+
+['mode == release and dcheck_always_on == False', {
+  # The optimizations test requires `--turboshaft-trace-reduction` to verify
+  # Turboshaft reducer traces, which is a developer-only flag not supported
+  # in standard release builds.
+  'wasm-in-js-inlining-turboshaft-opt': [SKIP],
+}],
 
 ]

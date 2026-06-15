@@ -49,11 +49,12 @@ inline bool IsCastToCustomDescriptor(const wasm::WasmModule* module,
 
 class WasmGCTypeAnalyzer {
  public:
-  WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone)
-      : data_(data), graph_(graph), phase_zone_(zone) {
+  WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone,
+                     const wasm::FunctionSig* signature)
+      : data_(data), graph_(graph), phase_zone_(zone), signature_(signature) {
     // If we ever want to run this analyzer for Wasm wrappers, we'll need
     // to make it handle their {CanonicalSig} signatures.
-    DCHECK_NOT_NULL(signature_);
+    DCHECK(signature_ || v8_flags.wasm_in_js_inlining_opt);
   }
 
   void Run();
@@ -125,7 +126,7 @@ class WasmGCTypeAnalyzer {
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::FunctionSig* signature_ = data_->wasm_module_sig();
+  const wasm::FunctionSig* signature_;
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge
@@ -262,7 +263,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ WasmTrap(TrapId::kTrapIllegalCast);
+      __ WasmTrap(__ MapToNewGraph(cast_op.frame_state()),
+                  TrapId::kTrapIllegalCast);
       return OpIndex::Invalid();
     }
     if (type != wasm::ValueType()) {
@@ -281,7 +283,8 @@ class WasmGCTypedOptimizationReducer : public Next {
           // The inferred heap type is already as specific as the cast target,
           // but the source can be nullable and the target cannot be, so a null
           // check is still required.
-          return __ AssertNotNull(__ MapToNewGraph(cast_op.object()), type,
+          return __ AssertNotNull(__ MapToNewGraph(cast_op.object()),
+                                  __ MapToNewGraph(cast_op.frame_state()), type,
                                   TrapId::kTrapIllegalCast);
         }
       }
@@ -294,7 +297,9 @@ class WasmGCTypedOptimizationReducer : public Next {
                                                               cast_op.object()),
                                                           type)
                                               : __ Word32Constant(0);
-        __ TrapIfNot(non_trapping_condition, TrapId::kTrapIllegalCast);
+        __ TrapIfNot(non_trapping_condition,
+                     __ MapToNewGraph(cast_op.frame_state()),
+                     TrapId::kTrapIllegalCast);
         if (!to_nullable) {
           __ Unreachable();
         }
@@ -314,7 +319,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       WasmTypeCheckConfig config{from_type, cast_op.config.to,
                                  cast_op.config.exactness};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
-                             __ MapToNewGraph(cast_op.rtt()), config);
+                             __ MapToNewGraph(cast_op.rtt()), config,
+                             __ MapToNewGraph(cast_op.frame_state()));
     }
     goto no_change;
   }
@@ -398,7 +404,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ WasmTrap(assert_not_null.trap_id);
+      __ WasmTrap(__ MapToNewGraph(assert_not_null.frame_state()),
+                  assert_not_null.trap_id);
       return OpIndex::Invalid();
     }
     if (type.is_non_nullable()) {
@@ -452,7 +459,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ WasmTrap(TrapId::kTrapNullDereference);
+      __ WasmTrap(__ MapToNewGraph(struct_get.frame_state()),
+                  TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -480,7 +488,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ WasmTrap(TrapId::kTrapNullDereference);
+      __ WasmTrap(__ MapToNewGraph(struct_set.frame_state()),
+                  TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -504,6 +513,16 @@ class WasmGCTypedOptimizationReducer : public Next {
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
     AssertType(array_length.array(), type);
+    if (type.is_uninhabited()) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ WasmTrap(__ MapToNewGraph(array_length.frame_state()),
+                  TrapId::kTrapNullDereference);
+      return OpIndex::Invalid();
+    }
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
@@ -581,7 +600,8 @@ class WasmGCTypedOptimizationReducer : public Next {
  private:
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
-  WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};
+  WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone(),
+                               __ data()->wasm_module_sig()};
   OptionalV<WasmTrustedInstanceData> instance_data_;
 };
 

@@ -7895,8 +7895,9 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   bool is_nullable;
 
   static constexpr OpEffects effects =
-      SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
-                           : OpEffects().CanReadMemory().CanAllocate();
+      SmiValuesAre31Bits()
+          ? OpEffects().CanReadMemory()
+          : OpEffects().CanReadMemory().CanAllocateWithoutIdentity();
 
   explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared,
                               bool is_nullable)

@@ -1784,6 +1784,11 @@ DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
 DEFINE_BOOL(wasm_in_js_inlining_wrapper, true,
             "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_in_js_inlining_opt,
+    "enable optimizations for Wasm-in-JS inlining in Turboshaft")
+DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_opt)
+
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_unrolling, true,

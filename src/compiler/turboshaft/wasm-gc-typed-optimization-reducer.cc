@@ -285,7 +285,20 @@ void WasmGCTypeAnalyzer::ProcessExternConvertAny(const ExternConvertAnyOp& op) {
   RefineTypeKnowledge(graph_.Index(op), result_type, op);
 }
 
+// In the JS-to-Wasm inlining pipeline, the entry-point is a JS function, so
+// `signature_` (the Wasm signature of the compiled function) is null.
+// The ParameterOp nodes represent the outer JS arguments, not the inlined
+// Wasm function's parameters (which have been replaced by the arguments
+// passed at the inlined call sites). Therefore, we cannot type the outer JS
+// parameters using a Wasm signature, and we skip them. Type information
+// will instead propagate from typed operations inside the inlined Wasm
+// bodies (like casts, struct.get, etc.).
 void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {
+  if (!signature_) {
+    DCHECK_EQ(data_->pipeline_kind(), TurboshaftPipelineKind::kJS);
+    DCHECK(v8_flags.wasm_in_js_inlining_opt);
+    return;
+  }
   if (parameter.parameter_index != wasm::kWasmInstanceDataParameterIndex) {
     RefineTypeKnowledge(graph_.Index(parameter),
                         signature_->GetParam(parameter.parameter_index - 1),
