@@ -145,7 +145,7 @@ V8_OBJECT class JSArray : public JSObject {
 
   // This constant is somewhat arbitrary. Any large enough value would work.
   static constexpr uint32_t kMaxFastArrayLength =
-      V8_LOWER_LIMITS_MODE_BOOL ? (8 * 1024 * 1024) : (32 * 1024 * 1024);
+      V8_LOWER_LIMITS_MODE_BOOL ? (1 * 1024 * 1024) : (32 * 1024 * 1024);
   static_assert(kMaxFastArrayLength <= kMaxArrayLength);
   static_assert(kMaxFastArrayLength <= kMaxFixedArrayCapacity);
 
