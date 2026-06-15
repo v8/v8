@@ -224,7 +224,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Construct appropriate subgraph to check that the {value} matches
   // the previously recorded {name} feedback.
   Node* BuildCheckEqualsName(NameRef name, Node* value, Node* effect,
-                             Node* control);
+                             Control* control);
 
   // Returns true if {str} can safely be read:
   //   - if we are on the main thread, then any string can safely be read

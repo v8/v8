@@ -1856,6 +1856,24 @@ enum KeyType { kIntPtr, kName, kBailout };
 // CodeStubAssembler::TryToIntptr can handle!
 KeyType TryConvertKey(Handle<Object> key, Isolate* isolate, intptr_t* index_out,
                       Handle<Name>* name_out) {
+  ReadOnlyRoots roots(isolate);
+  if (*key == roots.undefined_value()) {
+    *name_out = isolate->factory()->undefined_string();
+    return kName;
+  }
+  if (*key == roots.null_value()) {
+    *name_out = isolate->factory()->null_string();
+    return kName;
+  }
+  if (*key == roots.true_value()) {
+    *name_out = isolate->factory()->true_string();
+    return kName;
+  }
+  if (*key == roots.false_value()) {
+    *name_out = isolate->factory()->false_string();
+    return kName;
+  }
+
   if (IsSmi(*key)) {
     *index_out = Smi::ToInt(*key);
     return kIntPtr;

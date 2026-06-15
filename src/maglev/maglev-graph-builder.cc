@@ -11060,14 +11060,66 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
 
 ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
     ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason) {
-  if (!TryGetConstant<HeapObject>(node) && ref.IsInternalizedString()) {
-    if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
-      return EmitUnconditionalDeopt(reason);
+  if (ref.IsInternalizedString()) {
+    compiler::InternalizedStringRef expected_string =
+        ref.AsInternalizedString();
+    compiler::JSHeapBroker* b = broker();
+    compiler::OptionalHeapObjectRef expected_primitive;
+    NodeType allowed_type = NodeType::kString;
+
+    if (expected_string.equals(b->undefined_string())) {
+      expected_primitive = b->undefined_value();
+      allowed_type = UnionType(allowed_type, NodeType::kUndefined);
+    } else if (expected_string.equals(b->null_string())) {
+      expected_primitive = b->null_value();
+      allowed_type = UnionType(allowed_type, NodeType::kNull);
+    } else if (expected_string.equals(b->true_string())) {
+      expected_primitive = b->true_value();
+      allowed_type = UnionType(allowed_type, NodeType::kBoolean);
+    } else if (expected_string.equals(b->false_string())) {
+      expected_primitive = b->false_value();
+      allowed_type = UnionType(allowed_type, NodeType::kBoolean);
     }
-    RETURN_IF_ABORT(AddNewNode<CheckValueEqualsString>(
-        {node}, ref.AsInternalizedString(), reason));
-    reducer_.SetKnownValue(node, ref, NodeType::kString);
-    return ReduceResult::Done();
+
+    if (compiler::OptionalHeapObjectRef constant =
+            TryGetConstant<HeapObject>(node)) {
+      if (expected_primitive.has_value() &&
+          constant->equals(*expected_primitive)) {
+        return ReduceResult::Done();
+      }
+      // If it is a constant but not the expected primitive, it will definitely
+      // fail the BuildCheckValueByReference below and deopt.
+    } else {
+      if (IntersectType(GetType(node), allowed_type) == NodeType::kNone) {
+        return EmitUnconditionalDeopt(reason);
+      }
+
+      if (expected_primitive.has_value()) {
+        ReduceResult select_result = Select(
+            [&](BranchBuilder& builder) {
+              ValueNode* primitive_const = GetConstant(*expected_primitive);
+              return BuildBranchIfReferenceEqual(builder, node,
+                                                 primitive_const);
+            },
+            [&]() -> ReduceResult {
+              // It is the primitive, we can just bypass the check.
+              return node;
+            },
+            [&]() -> ReduceResult {
+              // It is not the primitive, we must do the string check.
+              RETURN_IF_ABORT(AddNewNode<CheckValueEqualsString>(
+                  {node}, expected_string, reason));
+              return node;
+            });
+        RETURN_IF_ABORT(select_result);
+        return ReduceResult::Done();
+      } else {
+        RETURN_IF_ABORT(AddNewNode<CheckValueEqualsString>(
+            {node}, expected_string, reason));
+        reducer_.SetKnownValue(node, ref, NodeType::kString);
+        return ReduceResult::Done();
+      }
+    }
   }
   return BuildCheckValueByReference(node, ref, reason);
 }

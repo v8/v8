@@ -1020,7 +1020,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   PropertyCellType property_cell_type = property_details.cell_type();
   DCHECK_EQ(PropertyKind::kData, property_details.kind());
 
-  Node* control = NodeProperties::GetControlInput(node);
+  Control control{NodeProperties::GetControlInput(node)};
   if (effect == nullptr) {
     effect = NodeProperties::GetEffectInput(node);
   }
@@ -1055,7 +1055,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   // Ensure that {key} matches the specified {name} (if {key} is given).
   if (key != nullptr) {
-    effect = BuildCheckEqualsName(name, key, effect, control);
+    effect = BuildCheckEqualsName(name, key, effect, &control);
   }
 
   // If we have a {lookup_start_object} to validate, we do so by checking that
@@ -1491,7 +1491,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Ensure that {key} matches the specified name (if {key} is given).
   if (key != nullptr) {
     effect = BuildCheckEqualsName(feedback.original_name_maybe_thin(), key,
-                                  effect, control);
+                                  effect, &control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -4502,21 +4502,57 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
 Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef name,
                                                           Node* value,
                                                           Node* effect,
-                                                          Node* control) {
+                                                          Control* control) {
   DCHECK(name.IsUniqueName());
-  Operator const* op;
   if (name.IsSymbol()) {
-    op = simplified()->CheckEqualsSymbol();
     // CheckEqualsSymbol is really just a TaggedEqual and will just return false
     // if {value} is not a Symbol.
+    return graph()->NewNode(simplified()->CheckEqualsSymbol(),
+                            jsgraph()->ConstantNoHole(name, broker()), value,
+                            effect, *control);
   } else {
     DCHECK(name.IsString());
-    op = simplified()->CheckEqualsInternalizedString();
-    effect = graph()->NewNode(simplified()->CheckString(FeedbackSource()),
-                              value, effect, control);
+    JSHeapBroker* b = broker();
+    Node* expected_primitive = nullptr;
+    if (name.equals(b->undefined_string())) {
+      expected_primitive = jsgraph()->UndefinedConstant();
+    } else if (name.equals(b->null_string())) {
+      expected_primitive = jsgraph()->NullConstant();
+    } else if (name.equals(b->true_string())) {
+      expected_primitive = jsgraph()->TrueConstant();
+    } else if (name.equals(b->false_string())) {
+      expected_primitive = jsgraph()->FalseConstant();
+    }
+
+    if (expected_primitive != nullptr) {
+      Node* cond = graph()->NewNode(simplified()->ReferenceEqual(), value,
+                                    expected_primitive);
+      Node* branch = graph()->NewNode(common()->Branch(), cond, *control);
+
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue = effect;
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* efalse = effect;
+
+      efalse = graph()->NewNode(simplified()->CheckString(FeedbackSource()),
+                                value, efalse, if_false);
+      Node* check_false = graph()->NewNode(
+          simplified()->CheckEqualsInternalizedString(),
+          jsgraph()->ConstantNoHole(name, broker()), value, efalse, if_false);
+
+      *control =
+          Control(graph()->NewNode(common()->Merge(2), if_true, if_false));
+      return graph()->NewNode(common()->EffectPhi(2), etrue, check_false,
+                              *control);
+    } else {
+      effect = graph()->NewNode(simplified()->CheckString(FeedbackSource()),
+                                value, effect, *control);
+      return graph()->NewNode(simplified()->CheckEqualsInternalizedString(),
+                              jsgraph()->ConstantNoHole(name, broker()), value,
+                              effect, *control);
+    }
   }
-  return graph()->NewNode(op, jsgraph()->ConstantNoHole(name, broker()), value,
-                          effect, control);
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(

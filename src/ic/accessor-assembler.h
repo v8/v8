@@ -369,6 +369,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                               : isolate->store_stub_cache();
     }
 
+    StoreICParameters WithName(TNode<Object> name) const {
+      return StoreICParameters(context_, receiver_, receiver_map_, name, value_,
+                               flags_, slot_, vector_, mode_);
+    }
+
    private:
     TNode<Context> context_;
     TNode<JSAny> receiver_;
