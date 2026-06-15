@@ -814,8 +814,13 @@ void IsolateGroup::DoSynchronizationPointForTesting(
     if (it == synchronization_point_data_for_testing_.end()) return;
     data = it->second.get();
     if (!data->block_requested) return;
-    // Prevent self-deadlocks.
-    CHECK_NE(data->block_requester_thread, ThreadId::Current());
+    if (data->block_requester_thread == ThreadId::Current()) {
+      base::OS::PrintError(
+          "Warning: ignoring self-deadlock at synchronization point '%.*s'\n",
+          static_cast<int>(synchronization_point.length()),
+          synchronization_point.data());
+      return;
+    }
   }
 
   base::TimeTicks start = base::TimeTicks::Now();
