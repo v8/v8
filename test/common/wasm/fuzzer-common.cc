@@ -1300,15 +1300,24 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
-  // The first byte specifies some internal configuration, like which function
-  // is compiled with which compiler, and other flags.
-  uint8_t configuration_byte = data.empty() ? 0 : data[0];
+  // The first byte specifies which flags are set.
+  uint8_t flags_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
 
   // Enable Wasm type assertions half the time.
-  const bool assert_types = configuration_byte & 1;
-  configuration_byte >>= 1;
+  const bool assert_types = flags_byte & 1;
+  flags_byte >>= 1;
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
+  // Enable rescheduling of operations in the Turboshaft graph half the time.
+  const bool turbofan_random_rescheduling = flags_byte & 1;
+  flags_byte >>= 1;
+  FlagScope<bool> rescheduling_scope(&v8_flags.wasm_random_rescheduling,
+                                     turbofan_random_rescheduling);
+
+  // The next byte specifies some internal configuration, like which function
+  // is compiled with which compiler.
+  uint8_t configuration_byte = data.empty() ? 0 : data[0];
+  if (!data.empty()) data += 1;
 
   // Derive the compiler configuration for the first four functions from the
   // configuration byte, to choose for each function between:
