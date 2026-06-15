@@ -2510,10 +2510,21 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  // Link the two.
-  WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
+  // If the memory was grown in the meantime, the JSArrayBuffer we just read
+  // might be stale. In that case, we don't link it to the WasmMemoryObject, so
+  // the first access to the `buffer` property will create a fresh
+  // JSArrayBuffer with the correct length.
+  // We use GetByteLength() here because for resizable shared buffers,
+  // byte_length() will trigger a DCHECK.
+  std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
+  if (buffer->GetByteLength() < backing_store->byte_length()) {
+    backing_store->AttachSharedWasmMemoryObject(isolate_, result);
+  } else {
+    // Link the two.
+    WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
+  }
   result->managed_backing_store()->SetManagedObject(
-      buffer->GetBackingStore(), isolate_, buffer->GetByteLength());
+      backing_store, isolate_, backing_store->byte_length());
 
   return result;
 }
