@@ -871,7 +871,7 @@ class MaglevReducer {
                                        ValueNode* kind);
 
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
-                                    LoadType type = LoadType::kUnknown,
+                                    NodeType type = NodeType::kUnknown,
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None());
 

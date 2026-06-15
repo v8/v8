@@ -35,6 +35,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/maglev/maglev-reducer.h"
 #include "src/maglev/maglev-tracer.h"
 #include "src/objects/bytecode-array.h"
@@ -1224,7 +1225,7 @@ class MaglevGraphBuilder {
   bool TryElideWriteBarrierForAllocation(ValueNode* object, ValueNode* value);
 
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
-                                    LoadType type = LoadType::kUnknown,
+                                    NodeType type = NodeType::kUnknown,
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None()) {
     return reducer_.BuildLoadTaggedField(object, offset, type, is_const, key);
@@ -1324,7 +1325,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
-                                      LoadType length_type = LoadType::kSmi);
+                                      NodeType length_type = NodeType::kSmi);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(

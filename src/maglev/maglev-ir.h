@@ -8370,35 +8370,35 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
  public:
-  explicit LoadTaggedField(uint64_t bitfield, const int offset, LoadType type,
+  explicit LoadTaggedField(uint64_t bitfield, const int offset, NodeType type,
                            bool is_const, PropertyKey property_key)
-      : Base(bitfield | LoadTypeField::encode(type) |
-             IsConstantLoadField::encode(is_const)),
+      : Base(bitfield | IsConstantLoadField::encode(is_const)),
         offset_(offset),
+        type_(type),
         property_key_(property_key) {}
+
   static constexpr OpProperties kProperties = OpProperties::CanRead();
   DECLARE_UNOP(Tagged)
 
   int offset() const { return offset_; }
-  LoadType load_type() const { return LoadTypeField::decode(bitfield()); }
+  NodeType type() const { return type_; }
   bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
   PropertyKey property_key() const { return property_key_; }
 
-  NodeType type() const { return NodeTypeFromLoadType(load_type()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
   auto options() const {
-    return std::tuple{offset(), load_type(), is_const(), property_key()};
+    return std::tuple{offset(), type(), is_const(), property_key()};
   }
 
  private:
   const int offset_;
+  const NodeType type_;
   PropertyKey property_key_;
-  using LoadTypeField = NextBitField<LoadType, kLoadTypeBitSize>;
-  using IsConstantLoadField = LoadTypeField::Next<bool, 1>;
+  using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadContextSlotNoCells

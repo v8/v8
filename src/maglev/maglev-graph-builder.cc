@@ -38,6 +38,7 @@
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/processed-feedback.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/protectors.h"
 #include "src/flags/flags.h"
@@ -110,6 +111,38 @@ class FunctionContextSpecialization final : public AllStatic {
     return {};
   }
 };
+
+NodeType NodeTypeFromAccessInfo(
+    compiler::JSHeapBroker* broker,
+    const compiler::PropertyAccessInfo& access_info) {
+  if (access_info.field_representation().IsSmi()) {
+    return NodeType::kSmi;
+  }
+
+  if (access_info.field_representation().IsDouble()) {
+    return NodeType::kHeapNumber;
+  }
+
+  if (access_info.field_map().has_value()) {
+    return StaticTypeForMap(access_info.field_map().value(), broker);
+  }
+
+  const auto type = access_info.field_type();
+  if (type.Is(compiler::Type::SignedSmall())) {
+    return NodeType::kSmi;
+  }
+  if (type.Is(compiler::Type::Boolean())) {
+    return NodeType::kBoolean;
+  }
+  if (type.Is(compiler::Type::Receiver())) {
+    return NodeType::kJSReceiver;
+  }
+  if (type.Is(compiler::Type::Object())) {
+    return NodeType::kAnyHeapObject;
+  }
+
+  return NodeType::kUnknown;
+}
 
 }  // namespace
 
@@ -2763,7 +2796,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextCell(
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       RETURN_VALUE(BuildLoadTaggedField(GetConstant(slot_ref),
                                         offsetof(ContextCell, tagged_value_),
-                                        LoadType::kSmi));
+                                        NodeType::kSmi));
     }
     case ContextCell::kInt32:
       DCHECK_EQ(assigned, kMaybeAssigned);
@@ -4405,21 +4438,6 @@ bool AccessInfoGuaranteedConst(
   return true;
 }
 
-LoadType FieldRepresentationToLoadType(Representation repr) {
-  switch (repr.kind()) {
-    case Representation::kSmi:
-      return LoadType::kSmi;
-    case Representation::kHeapObject:
-      return LoadType::kAnyHeapObject;
-    case Representation::kDouble:
-    case Representation::kNone:
-    case Representation::kTagged:
-    case Representation::kWasmValue:
-    case Representation::kNumRepresentations:
-      return LoadType::kUnknown;
-  }
-  UNREACHABLE();
-}
 }  // namespace
 
 ReduceResult MaglevGraphBuilder::BuildLoadField(
@@ -4476,18 +4494,17 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
     GET_VALUE_OR_ABORT(heap_number,
                        AddNewNode<LoadTaggedField>(
                            {load_source}, field_index.offset(),
-                           LoadType::kHeapNumber, false, PropertyKey::None()));
+                           NodeType::kHeapNumber, false, PropertyKey::None()));
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
-  // TODO(dmercadier): can we use `access_info.type()` to get a more precise
-  // type than what `access_info.field_representation()` gives us?
-  LoadType type =
-      FieldRepresentationToLoadType(access_info.field_representation());
+
+  const auto node_type = NodeTypeFromAccessInfo(this->broker(), access_info);
   ValueNode* value;
   GET_VALUE_OR_ABORT(value, BuildLoadTaggedField(
-                                load_source, field_index.offset(), type,
+                                load_source, field_index.offset(), node_type,
                                 AccessInfoGuaranteedConst(access_info), name));
+
   // Insert stable field information if present.
   NodeInfo* known_info = GetOrCreateInfoFor(value);
   if (access_info.field_representation().IsSmi()) {
@@ -4521,7 +4538,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
-                                                        LoadType length_type) {
+                                                        NodeType length_type) {
   // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
   // searching the constant values.
   MaybeReduceResult known_length =
@@ -4566,7 +4583,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
   // The feedback cell is only set when the JSFunction is allocated, or via
   // LiveEdit, but that doesn't concern optimized code, so treat it as const.
   return BuildLoadTaggedField(closure, offsetof(JSFunction, feedback_cell_),
-                              LoadType::kUnknown, true);
+                              NodeType::kUnknown, true);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
@@ -4582,7 +4599,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
     return slow_closure->ContextInput().node();
   }
   return BuildLoadTaggedField(closure, offsetof(JSFunction, context_),
-                              LoadType::kContext);
+                              NodeType::kContext);
 }
 
 ReduceResult MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
@@ -4691,7 +4708,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       GET_VALUE_OR_ABORT(
           heap_number, AddNewNode<LoadTaggedField>(
                            {store_target}, field_index.offset(),
-                           LoadType::kHeapNumber, false, PropertyKey::None()));
+                           NodeType::kHeapNumber, false, PropertyKey::None()));
       return AddNewNode<StoreFloat64>(
           {heap_number, value}, static_cast<int>(offsetof(HeapNumber, value_)));
     }
@@ -4770,7 +4787,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
       return BuildLoadTaggedField(cell, offsetof(Cell, maybe_value_),
-                                  LoadType::kUnknown, false, name);
+                                  NodeType::kUnknown, false, name);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
@@ -5038,7 +5055,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
   if (descriptor_index == LoadHandler::kArrayLengthFieldDescriptorIndex) {
     RETURN_IF_ABORT(BuildCheckInstanceType(
         lookup_start_object, NodeType::kJSArray, JS_ARRAY_TYPE, JS_ARRAY_TYPE));
-    return BuildLoadJSArrayLength(lookup_start_object, LoadType::kNumber);
+    return BuildLoadJSArrayLength(lookup_start_object, NodeType::kNumber);
   }
 
   RETURN_IF_ABORT(AddNewNode<CheckHomomorphicMap>(
@@ -8533,8 +8550,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   GET_VALUE_OR_ABORT(
       length,
       BuildLoadJSArrayLength(iterated_object, IsFastElementsKind(elements_kind)
-                                                  ? LoadType::kSmi
-                                                  : LoadType::kNumber));
+                                                  ? NodeType::kSmi
+                                                  : NodeType::kNumber));
   ValueNode* uint32_length;
   GET_VALUE_OR_ABORT(uint32_length, GetUint32ElementIndex(length));
 
@@ -15245,7 +15262,7 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
   GET_VALUE_OR_ABORT(
       context,
       BuildLoadTaggedField(generator, offsetof(JSGeneratorObject, context_),
-                           LoadType::kContext));
+                           NodeType::kContext));
 
   SetContext(context);
   ValueNode* array;
@@ -15492,7 +15509,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
   GET_VALUE_OR_ABORT(
       iterator_kind,
       BuildLoadTaggedField(iterator, offsetof(JSArrayIterator, kind_),
-                           LoadType::kSmi));
+                           NodeType::kSmi));
 
   ValueNode* value;
   GET_VALUE_OR_ABORT(
@@ -15517,13 +15534,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorForOfNext(
             GET_VALUE_OR_ABORT(
                 index, BuildLoadTaggedField(
                            iterator, offsetof(JSArrayIterator, next_index_),
-                           LoadType::kSmi));
+                           NodeType::kSmi));
 
             // Since the array has fast elements, its length is a Smi, and the
             // Smi loads below are safe.
             ValueNode* length;
             GET_VALUE_OR_ABORT(length, BuildLoadJSArrayLength(iterated_object,
-                                                              LoadType::kSmi));
+                                                              NodeType::kSmi));
 
             ValueNode* int32_index;
             GET_VALUE_OR_ABORT(int32_index, GetInt32ElementIndex(index));

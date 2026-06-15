@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/utils/bit-vector.h"
 
 #define TRACE_RANGE(...)                                      \
@@ -356,7 +357,7 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
-    if (node->load_type() == LoadType::kSmi) {
+    if (node->type() == NodeType::kSmi) {
       UnionUpdate(node, Range::Smi());
     }
     return ProcessResult::kContinue;

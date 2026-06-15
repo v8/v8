@@ -57,6 +57,7 @@
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
@@ -3399,7 +3400,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
     MemoryRepresentation mem_repr = MemoryRepresentation::AnyTagged();
-    if (node->load_type() == maglev::LoadType::kSmi) {
+    if (node->type() == maglev::NodeType::kSmi) {
       mem_repr = MemoryRepresentation::TaggedSigned();
     }
     return ProcessAbstractLoadTaggedField(node, mem_repr);

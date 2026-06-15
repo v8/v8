@@ -28,6 +28,7 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
@@ -8766,8 +8767,8 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
   if (is_const()) {
     os << ", is_const";
   }
-  if (load_type() != LoadType::kUnknown) {
-    os << ", " << load_type();
+  if (type() != NodeType::kUnknown) {
+    os << ", " << type();
   }
   os << ")";
 }
