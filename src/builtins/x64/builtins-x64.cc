@@ -5630,12 +5630,22 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ movq(rdi, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ movq(rax, Operand(rbp, StandardFrameConstants::kArgCOffset));
 
+  // If the actual argument count for the previous invocation is smaller than
+  // the formal parameter count then use the latter as the actual argument
+  // count for the next invocation instead of the former.
+  // This approach avoids dropping adapted parameters for simplicity while
+  // keeping the caller stack balanced after the call.
+  __ movq(rcx, Operand(rbp, UnoptimizedFrameConstants::kBytecodeArrayFromFp));
+  __ movzxwq(rcx, FieldOperand(rcx, offsetof(BytecodeArray, parameter_size_)));
+  __ cmpq(rax, rcx);
+  __ cmovq(kLessThan, rax, rcx);
+
   __ LeaveFrame(StackFrame::INTERPRETED);
 
-  // The arguments are already in the stack (including any necessary padding),
-  // we should not try to massage the arguments again.
+  // The arguments are already in the stack, but we might need to adapt them
+  // if the function signature changed (e.g. via LiveEdit).
   __ InvokeFunction(rdi, no_reg, rax, InvokeType::kJump,
-                    ArgumentAdaptionMode::kDontAdapt);
+                    ArgumentAdaptionMode::kAdapt);
 }
 
 #undef __

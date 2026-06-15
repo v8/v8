@@ -61,6 +61,7 @@ enum IndirectPointerTag : uint16_t {
   kRegExpDataIndirectPointerTag,
   kInterpreterDataIndirectPointerTag,
   kUncompiledDataIndirectPointerTag,
+  kDebugInfoIndirectPointerTag,
   kBytecodeArrayIndirectPointerTag,
   // All code pointers share the same tag (pointing to Code objects). Their
   // instruction stream start is guarded by another tag (CodeEntrypointTag).
@@ -249,6 +250,8 @@ V8_INLINE IndirectPointerTag IndirectPointerTagFromInstanceType(
       return kBytecodeArrayIndirectPointerTag;
     case INTERPRETER_DATA_TYPE:
       return kInterpreterDataIndirectPointerTag;
+    case DEBUG_INFO_TYPE:
+      return kDebugInfoIndirectPointerTag;
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE:

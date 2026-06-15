@@ -84,52 +84,52 @@ void DebugInfo::set_coverage_info(
   coverage_info_.store(this, value, mode);
 }
 
-Tagged<BytecodeArray> DebugInfo::original_bytecode_array(
-    IsolateForSandbox isolate) const {
-  return original_bytecode_array_.load(isolate);
+Tagged<BytecodeArray> DebugInfo::original_bytecode_array() const {
+  DCHECK(has_original_bytecode_array());
+  return TrustedCast<BytecodeArray>(original_bytecode_array_.load());
 }
-Tagged<BytecodeArray> DebugInfo::original_bytecode_array(
-    IsolateForSandbox isolate, AcquireLoadTag tag) const {
-  return original_bytecode_array_.Acquire_Load(isolate);
+Tagged<BytecodeArray> DebugInfo::original_bytecode_array(AcquireLoadTag) const {
+  DCHECK(has_original_bytecode_array());
+  return TrustedCast<BytecodeArray>(original_bytecode_array_.Acquire_Load());
 }
 void DebugInfo::set_original_bytecode_array(Tagged<BytecodeArray> value,
                                             WriteBarrierMode mode) {
   original_bytecode_array_.store(this, value, mode);
 }
 void DebugInfo::set_original_bytecode_array(Tagged<BytecodeArray> value,
-                                            ReleaseStoreTag tag,
+                                            ReleaseStoreTag,
                                             WriteBarrierMode mode) {
   original_bytecode_array_.Release_Store(this, value, mode);
 }
 bool DebugInfo::has_original_bytecode_array() const {
-  return !original_bytecode_array_.is_empty();
+  return original_bytecode_array_.load() != Smi::zero();
 }
 void DebugInfo::clear_original_bytecode_array() {
-  original_bytecode_array_.clear(this);
+  original_bytecode_array_.store(this, Smi::zero(), SKIP_WRITE_BARRIER);
 }
 
-Tagged<BytecodeArray> DebugInfo::debug_bytecode_array(
-    IsolateForSandbox isolate) const {
-  return debug_bytecode_array_.load(isolate);
+Tagged<BytecodeArray> DebugInfo::debug_bytecode_array() const {
+  DCHECK(has_debug_bytecode_array());
+  return TrustedCast<BytecodeArray>(debug_bytecode_array_.load());
 }
-Tagged<BytecodeArray> DebugInfo::debug_bytecode_array(
-    IsolateForSandbox isolate, AcquireLoadTag tag) const {
-  return debug_bytecode_array_.Acquire_Load(isolate);
+Tagged<BytecodeArray> DebugInfo::debug_bytecode_array(AcquireLoadTag) const {
+  DCHECK(has_debug_bytecode_array());
+  return TrustedCast<BytecodeArray>(debug_bytecode_array_.Acquire_Load());
 }
 void DebugInfo::set_debug_bytecode_array(Tagged<BytecodeArray> value,
                                          WriteBarrierMode mode) {
   debug_bytecode_array_.store(this, value, mode);
 }
 void DebugInfo::set_debug_bytecode_array(Tagged<BytecodeArray> value,
-                                         ReleaseStoreTag tag,
+                                         ReleaseStoreTag,
                                          WriteBarrierMode mode) {
   debug_bytecode_array_.Release_Store(this, value, mode);
 }
 bool DebugInfo::has_debug_bytecode_array() const {
-  return !debug_bytecode_array_.is_empty();
+  return debug_bytecode_array_.load() != Smi::zero();
 }
 void DebugInfo::clear_debug_bytecode_array() {
-  debug_bytecode_array_.clear(this);
+  debug_bytecode_array_.store(this, Smi::zero(), SKIP_WRITE_BARRIER);
 }
 
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
@@ -147,12 +147,12 @@ bool DebugInfo::HasInstrumentedBytecodeArray() {
 
 Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  return original_bytecode_array(isolate, kAcquireLoad);
+  return original_bytecode_array(kAcquireLoad);
 }
 
 Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  Tagged<BytecodeArray> result = debug_bytecode_array(isolate, kAcquireLoad);
+  Tagged<BytecodeArray> result = debug_bytecode_array(kAcquireLoad);
   DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
   return result;
 }

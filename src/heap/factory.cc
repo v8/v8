@@ -4533,8 +4533,9 @@ Handle<DebugInfo> Factory::NewDebugInfo(
     DirectHandle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo(isolate()));
 
-  auto debug_info =
-      NewStructInternal<DebugInfo>(DEBUG_INFO_TYPE, AllocationType::kOld);
+  Tagged<DebugInfo> debug_info =
+      TrustedCast<DebugInfo>(AllocateRawWithImmortalMap(
+          sizeof(DebugInfo), AllocationType::kTrusted, *debug_info_map()));
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw_shared = *shared;
   debug_info->set_flags(DebugInfo::kNone, kRelaxedStore);
@@ -4542,9 +4543,11 @@ Handle<DebugInfo> Factory::NewDebugInfo(
   debug_info->set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
   debug_info->set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  debug_info->set_coverage_info(*undefined_value(), SKIP_WRITE_BARRIER);
   debug_info->clear_original_bytecode_array();
   debug_info->clear_debug_bytecode_array();
 
+  debug_info->InitAndPublish(isolate());
   return handle(debug_info, isolate());
 }
 

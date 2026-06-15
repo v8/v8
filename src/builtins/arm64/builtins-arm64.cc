@@ -5723,12 +5723,22 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ ldr(x0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
+  // If the actual argument count for the previous invocation is smaller than
+  // the formal parameter count then use the latter as the actual argument
+  // count for the next invocation instead of the former.
+  // This approach avoids dropping adapted parameters for simplicity while
+  // keeping the caller stack balanced after the call.
+  __ Ldr(x10, MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ Ldrh(x10.W(),
+          FieldMemOperand(x10, offsetof(BytecodeArray, parameter_size_)));
+  __ Cmp(x0, x10);
+  __ Csel(x0, x10, x0, kLessThan);
+
   __ LeaveFrame(StackFrame::INTERPRETED);
 
-  // The arguments are already in the stack (including any necessary padding),
-  // we should not try to massage the arguments again.
-  __ InvokeFunction(x1, x0, InvokeType::kJump,
-                    ArgumentAdaptionMode::kDontAdapt);
+  // The arguments are already in the stack, but we might need to adapt them
+  // if the function signature changed (e.g. via LiveEdit).
+  __ InvokeFunction(x1, x0, InvokeType::kJump, ArgumentAdaptionMode::kAdapt);
 }
 
 #undef __

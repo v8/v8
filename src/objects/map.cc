@@ -479,9 +479,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case PROTOTYPE_SHARED_CLOSURE_INFO_TYPE:
       return kVisitPrototypeSharedClosureInfo;
 
-    case DEBUG_INFO_TYPE:
-      return kVisitDebugInfo;
-
     case CALL_SITE_INFO_TYPE:
       return kVisitCallSiteInfo;
 

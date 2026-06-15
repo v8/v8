@@ -3685,15 +3685,15 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
 }
 
 void DebugInfo::DebugInfoVerify(Isolate* isolate) {
-  CHECK(Is<Struct>(this));
+  CHECK(Is<ExposedTrustedObject>(this));
   CHECK(Is<DebugInfo>(this));
   Object::VerifyPointer(isolate, shared());
   Object::VerifyPointer(isolate, break_points());
   Object::VerifyPointer(isolate, coverage_info());
   CHECK_IMPLIES(has_original_bytecode_array(),
-                IsBytecodeArray(original_bytecode_array(isolate)));
+                IsBytecodeArray(original_bytecode_array()));
   CHECK_IMPLIES(has_debug_bytecode_array(),
-                IsBytecodeArray(debug_bytecode_array(isolate)));
+                IsBytecodeArray(debug_bytecode_array()));
 }
 
 void BreakPointInfo::BreakPointInfoVerify(Isolate* isolate) {

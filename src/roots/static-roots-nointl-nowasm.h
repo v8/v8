@@ -205,8 +205,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kClassBoilerplateMap = kBytecodeWrapperMap + 40;
   static constexpr Tagged_t kClassPositionsMap = kClassBoilerplateMap + 40;
   static constexpr Tagged_t kCodeWrapperMap = kClassPositionsMap + 40;
-  static constexpr Tagged_t kDebugInfoMap = kCodeWrapperMap + 40;
-  static constexpr Tagged_t kErrorStackDataMap = kDebugInfoMap + 40;
+  static constexpr Tagged_t kErrorStackDataMap = kCodeWrapperMap + 40;
   static constexpr Tagged_t kFunctionTemplateRareDataMap =
       kErrorStackDataMap + 40;
   static constexpr Tagged_t kModuleRequestMap =
@@ -304,8 +303,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kObjectTemplateInfoMap =
       kFunctionTemplateInfoMap + 40;
   static constexpr Tagged_t kInterpreterDataMap = kObjectTemplateInfoMap + 40;
+  static constexpr Tagged_t kDebugInfoMap = kInterpreterDataMap + 40;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap =
-      kInterpreterDataMap + 40;
+      kDebugInfoMap + 40;
   static constexpr Tagged_t kUncompiledDataWithPreparseDataMap =
       kUncompiledDataWithoutPreparseDataMap + 40;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataWithJobMap =
@@ -1175,6 +1175,7 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kProtectedFixedArrayMap,
     StaticReadOnlyRoot::kProtectedWeakFixedArrayMap,
     StaticReadOnlyRoot::kInterpreterDataMap,
+    StaticReadOnlyRoot::kDebugInfoMap,
     StaticReadOnlyRoot::kSharedFunctionInfoWrapperMap,
     StaticReadOnlyRoot::kTrustedForeignMap,
     StaticReadOnlyRoot::kUncompiledDataWithoutPreparseDataMap,
@@ -1907,7 +1908,6 @@ static constexpr std::array<Tagged_t, 881> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kClassBoilerplateMap,
     StaticReadOnlyRoot::kClassPositionsMap,
     StaticReadOnlyRoot::kCodeWrapperMap,
-    StaticReadOnlyRoot::kDebugInfoMap,
     StaticReadOnlyRoot::kEnumCacheMap,
     StaticReadOnlyRoot::kErrorStackDataMap,
     StaticReadOnlyRoot::kFunctionTemplateRareDataMap,

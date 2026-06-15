@@ -29,7 +29,7 @@ class StructBodyDescriptor;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-V8_OBJECT class DebugInfo : public Struct {
+V8_OBJECT class DebugInfo : public ExposedTrustedObject {
  public:
   // Bit positions in |flags|.
   using HasBreakInfoBit = base::BitField<bool, 0, 1, uint32_t>;
@@ -75,8 +75,12 @@ V8_OBJECT class DebugInfo : public Struct {
   inline Tagged<BytecodeArray> OriginalBytecodeArray(Isolate* isolate);
   inline Tagged<BytecodeArray> DebugBytecodeArray(Isolate* isolate);
 
-  DECL_TRUSTED_POINTER_ACCESSORS(original_bytecode_array, BytecodeArray)
-  DECL_TRUSTED_POINTER_ACCESSORS(debug_bytecode_array, BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(original_bytecode_array, BytecodeArray)
+  DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(original_bytecode_array,
+                                                   BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(debug_bytecode_array, BytecodeArray)
+  DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(debug_bytecode_array,
+                                                   BytecodeArray)
 
   // --- Break points ---
   // --------------------
@@ -196,10 +200,8 @@ V8_OBJECT class DebugInfo : public Struct {
   TaggedMember<FixedArray> break_points_;
   TaggedMember<Smi> flags_;
   TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
-      original_bytecode_array_;
-  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
-      debug_bytecode_array_;
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> original_bytecode_array_;
+  ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> debug_bytecode_array_;
 } V8_OBJECT_END;
 
 // The BreakPointInfo class holds information for break points set in a

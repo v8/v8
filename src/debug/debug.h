@@ -31,6 +31,7 @@ class InterpretedFrame;
 class JavaScriptFrame;
 class JSGeneratorObject;
 class StackFrame;
+class ProtectedFixedArray;
 
 // Step actions.
 enum StepAction : int8_t {
@@ -728,7 +729,8 @@ class V8_EXPORT_PRIVATE Debug {
   friend class LiveEdit;
   friend class SuppressDebug;
 
-  friend DirectHandle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend DirectHandle<ProtectedFixedArray>
+  GetDebuggedFunctions();                            // In test-debug.cc
   friend void CheckDebuggerUnloaded();               // In test-debug.cc
 };
 

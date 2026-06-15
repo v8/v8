@@ -396,6 +396,7 @@ namespace internal {
 #define CONCRETE_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)                       \
   APPLY(V, BytecodeArray, BYTECODE_ARRAY)                                      \
   APPLY(V, Code, CODE)                                                         \
+  APPLY(V, DebugInfo, DEBUG_INFO)                                              \
   APPLY(V, InstructionStream, INSTRUCTION_STREAM)                              \
   APPLY(V, InterpreterData, INTERPRETER_DATA)                                  \
   APPLY(V, UncompiledDataWithPreparseData, UNCOMPILED_DATA_WITH_PREPARSE_DATA) \

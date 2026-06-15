@@ -60,7 +60,6 @@ class MaybeObjectSize final {
   V(ContextCell)                      \
   V(CoverageInfo)                     \
   V(DataHandler)                      \
-  V(DebugInfo)                        \
   V(DescriptorArray)                  \
   V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \

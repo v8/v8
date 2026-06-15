@@ -131,13 +131,13 @@ static void PrepareStep(i::StepAction step_action) {
 namespace v8 {
 namespace internal {
 
-DirectHandle<FixedArray> GetDebuggedFunctions() {
+DirectHandle<ProtectedFixedArray> GetDebuggedFunctions() {
   i::Isolate* isolate = CcTest::i_isolate();
   DebugInfoCollection* infos = &isolate->debug()->debug_infos_;
 
   int count = static_cast<int>(infos->Size());
-  DirectHandle<FixedArray> debugged_functions =
-      CcTest::i_isolate()->factory()->NewFixedArray(count);
+  DirectHandle<ProtectedFixedArray> debugged_functions =
+      CcTest::i_isolate()->factory()->NewProtectedFixedArray(count);
 
   int i = 0;
   DebugInfoCollection::Iterator it(infos);

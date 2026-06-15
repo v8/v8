@@ -850,6 +850,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
                  object_template_info)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
+    ALLOCATE_MAP(DEBUG_INFO_TYPE, sizeof(DebugInfo), debug_info)
 
     ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
                  sizeof(UncompiledDataWithoutPreparseData),

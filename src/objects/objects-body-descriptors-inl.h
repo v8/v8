@@ -1181,13 +1181,12 @@ class DebugInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kDebugInfoIndirectPointerTag, v);
     IteratePointers(obj, offsetof(DebugInfo, shared_),
                     offsetof(DebugInfo, coverage_info_) + kTaggedSize, v);
-    Tagged<DebugInfo> debug_info = Cast<DebugInfo>(obj);
-    IterateTrustedPointer(obj, &debug_info->debug_bytecode_array_, v,
-                          IndirectPointerMode::kStrong);
-    IterateTrustedPointer(obj, &debug_info->original_bytecode_array_, v,
-                          IndirectPointerMode::kStrong);
+    IterateProtectedPointer(obj, offsetof(DebugInfo, debug_bytecode_array_), v);
+    IterateProtectedPointer(obj, offsetof(DebugInfo, original_bytecode_array_),
+                            v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {

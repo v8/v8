@@ -35,7 +35,7 @@ bitfield struct DebuggerHints extends uint31 {
 }
 
 @cppObjectLayoutDefinition
-extern class DebugInfo extends Struct {
+extern class DebugInfo extends ExposedTrustedObject {
   shared: SharedFunctionInfo;
   // Bit field containing various information collected for debugging.
   debugger_hints: SmiTagged<DebuggerHints>;
@@ -47,11 +47,11 @@ extern class DebugInfo extends Struct {
   // The original uninstrumented bytecode array for functions with break
   // points - the instrumented bytecode is held in the shared function info.
   // Can contain Smi::zero() if cleared.
-  original_bytecode_array: TrustedPointer<BytecodeArray>;
+  original_bytecode_array: ProtectedPointer<BytecodeArray>;
   // The debug instrumented bytecode array for functions with break points
   // - also pointed to by the shared function info.
   // Can contain Smi::zero() if cleared.
-  debug_bytecode_array: TrustedPointer<BytecodeArray>;
+  debug_bytecode_array: ProtectedPointer<BytecodeArray>;
 }
 
 @export
