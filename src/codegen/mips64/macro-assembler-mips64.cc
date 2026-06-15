@@ -59,7 +59,7 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
     bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
     if (generating_builtins || CpuFeatures::SupportsSimd128()) {
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedWR.Count() * kSimd128Size;
     } else {
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
     }
@@ -88,24 +88,27 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
+      int wr_extrabytes = kCallerSavedWR.Count() * kSimd128Size -
+                          kCallerSavedFPU.Count() * kDoubleSize;
+      DCHECK_GE(wr_extrabytes, 0);
       li(scratch, ExternalReference::supports_simd_128_address());
       Lbu(scratch, MemOperand(scratch, 0));
       Branch(&no_simd, le, scratch, Operand(zero_reg));
       {
         CpuFeatureScope msa_scope(
             this, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-        MultiPushMSA(kCallerSavedFPU);
+        MultiPushMSA(kCallerSavedWR);
       }
       Branch(&done);
       bind(&no_simd);
       MultiPushFPU(kCallerSavedFPU);
-      Dsubu(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+      Dsubu(sp, sp, Operand(wr_extrabytes));
       bind(&done);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedWR.Count() * kSimd128Size;
     } else if (CpuFeatures::SupportsSimd128()) {
       CpuFeatureScope msa_scope(this, MIPS_SIMD);
-      MultiPushMSA(kCallerSavedFPU);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      MultiPushMSA(kCallerSavedWR);
+      bytes += kCallerSavedWR.Count() * kSimd128Size;
     } else {
       MultiPushFPU(kCallerSavedFPU);
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
@@ -131,24 +134,27 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Label no_simd, done;
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
+      int wr_extrabytes = kCallerSavedWR.Count() * kSimd128Size -
+                          kCallerSavedFPU.Count() * kDoubleSize;
+      DCHECK_GE(wr_extrabytes, 0);
       li(scratch, ExternalReference::supports_simd_128_address());
       Lbu(scratch, MemOperand(scratch, 0));
       Branch(&no_simd, le, scratch, Operand(zero_reg));
       {
         CpuFeatureScope msa_scope(
             this, MIPS_SIMD, CpuFeatureScope::CheckPolicy::kDontCheckSupported);
-        MultiPopMSA(kCallerSavedFPU);
+        MultiPopMSA(kCallerSavedWR);
       }
       Branch(&done);
       bind(&no_simd);
-      Daddu(sp, sp, Operand(kCallerSavedFPU.Count() * kDoubleSize));
+      Daddu(sp, sp, Operand(wr_extrabytes));
       MultiPopFPU(kCallerSavedFPU);
       bind(&done);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      bytes += kCallerSavedWR.Count() * kSimd128Size;
     } else if (CpuFeatures::SupportsSimd128()) {
       CpuFeatureScope msa_scope(this, MIPS_SIMD);
-      MultiPopMSA(kCallerSavedFPU);
-      bytes += kCallerSavedFPU.Count() * kSimd128Size;
+      MultiPopMSA(kCallerSavedWR);
+      bytes += kCallerSavedWR.Count() * kSimd128Size;
     } else {
       MultiPopFPU(kCallerSavedFPU);
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
@@ -344,6 +350,9 @@ void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
 void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
                                                        Register value) {
   ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  PrepareCallCFunction(2, scratch);
   MovePair(kCArgRegs[0], object, kCArgRegs[1], value);
   CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2,
                 SetIsolateDataSlots::kNo);
@@ -5232,7 +5241,6 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     }
 
     SmiUntag(actual_parameter_count);
-
   }
   bind(&skip_hook);
 }
@@ -5885,7 +5893,7 @@ void MacroAssembler::AssertSmi(Register object) {
 void MacroAssembler::AssertMap(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
-    AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+    AssertNotSmi(object);
 
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -6744,9 +6752,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                    AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
-
-  __ AssertJSAny(return_value, scratch, scratch2,
-                 AbortReason::kAPICallReturnedInvalidObject);
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);

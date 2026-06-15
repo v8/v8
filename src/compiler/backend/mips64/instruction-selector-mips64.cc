@@ -484,6 +484,13 @@ void InstructionSelector::VisitStore(OpIndex node) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  // For build: mips64 backend hasn't been ported for verify_write_barriers;
+  // treat eliminated barriers as kNoWriteBarrier so mksnapshot completes.
+  if (write_barrier_kind == kSkippedWriteBarrier ||
+      write_barrier_kind == kAssertNoWriteBarrier) {
+    write_barrier_kind = kNoWriteBarrier;
+  }
+
   // TODO(mips): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {

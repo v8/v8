@@ -4262,7 +4262,8 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (!saves_fpu.is_empty()) {
     int count = saves_fpu.Count();
-    DCHECK_EQ(kNumCalleeSavedFPU, count);
+    DCHECK_EQ(saves_fpu.bits(), kCalleeSavedFPU.bits());
+    DCHECK(kCalleeSavedWR.is_empty());
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kSystemPointerSize));
   }
@@ -4391,6 +4392,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, saves_fpu.Count());
+    DCHECK(kCalleeSavedWR.is_empty());
   }
 
   if (!saves.is_empty()) {
