@@ -4465,6 +4465,9 @@ void Isolate::AddSharedWasmMemory(
     DirectHandle<WasmMemoryObject> memory_object) {
   DirectHandle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
+  // Avoid adding the same memory object multiple times.
+  if (shared_wasm_memories->Contains(MakeWeak(*memory_object))) return;
+
   shared_wasm_memories = WeakArrayList::Append(
       this, shared_wasm_memories, MaybeObjectDirectHandle::Weak(memory_object));
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
