@@ -16,6 +16,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/init/isolate-group.h"
 #include "src/logging/log.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
@@ -1008,6 +1009,7 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
                                                 DirectHandle<String> right,
                                                 int length, bool one_byte,
                                                 AllocationType allocation) {
+  SYNCHRONIZATION_POINT_FOR_TESTING("NewConsString");
   DCHECK(!IsThinString(*left));
   DCHECK(!IsThinString(*right));
   DCHECK_GE(length, ConsString::kMinLength);
