@@ -127,7 +127,7 @@ void WriteBarrier::SharedSlow(Tagged<TrustedObject> host,
   if (!MemoryChunk::FromHeapObject(host)->InWritableSharedSpace()) {
     MutablePage* host_chunk_metadata =
         MutablePage::FromHeapObject(Isolate::Current(), host);
-    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+    RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<AccessMode::ATOMIC>(
         host_chunk_metadata, host_chunk_metadata->Offset(slot.address()));
   }
 }
