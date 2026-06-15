@@ -2001,9 +2001,12 @@ void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
   // on.
   DCHECK_IMPLIES(heap->sweeper()->IsIteratingPromotedPages(),
                  v8_flags.minor_ms);
-  if ((heap->incremental_marking()->IsMarking() &&
-       v8_flags.concurrent_marking) ||
-      (v8_flags.minor_ms && heap->sweeper()->IsIteratingPromotedPages())) {
+  // Ensure that checking IsMarking() flag on the page is enough.
+  DCHECK_IMPLIES(!dst_chunk->IsMarking(),
+                 !heap->incremental_marking()->IsMarking());
+  if (v8_flags.concurrent_marking && dst_chunk->IsMarking()) {
+    atomic_op(dst_slot, dst_end, src_slot, len);
+  } else if (v8_flags.minor_ms && heap->sweeper()->IsIteratingPromotedPages()) {
     atomic_op(dst_slot, dst_end, src_slot, len);
   } else {
     non_atomic_op(dst_slot, src_slot, len);
