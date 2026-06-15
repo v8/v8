@@ -1439,7 +1439,13 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   bind(&done);
 }
 
-void LiftoffAssembler::AtomicFence() { mfence(); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder order) {
+  if (order == AtomicMemoryOrder::kSeqCst) {
+    mfence();
+  } else {
+    DCHECK_EQ(order, AtomicMemoryOrder::kAcqRel);
+  }
+}
 
 void LiftoffAssembler::Pause() { pause(); }
 

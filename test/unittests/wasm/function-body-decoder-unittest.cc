@@ -4908,6 +4908,28 @@ TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderAcqRelFeatureGated) {
     };
     ExpectFailure(sigs.v_i(), code, kAppendEnd, error_msg);
   }
+  {
+    const uint8_t code[] = {
+        kAtomicPrefix,
+        U32V_1(kExprAtomicFence),
+        order,
+    };
+    ExpectFailure(sigs.v_v(), code, kAppendEnd, error_msg);
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, AtomicFenceValidation) {
+  WASM_FEATURE_SCOPE(acquire_release);
+
+  for (uint8_t order : {static_cast<uint8_t>(AtomicMemoryOrder::kSeqCst),
+                        static_cast<uint8_t>(AtomicMemoryOrder::kAcqRel)}) {
+    const uint8_t code[] = {
+        kAtomicPrefix,
+        U32V_1(kExprAtomicFence),
+        order,
+    };
+    ExpectValidates(sigs.v_v(), code);
+  }
 }
 
 TEST_F(FunctionBodyDecoderTest, AtomicMemoryOrderInvalidOnNonAtomic) {

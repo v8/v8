@@ -1577,7 +1577,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(EndEffectHandlers)                                                         \
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
-  F(AtomicFence)                                                               \
+  F(AtomicFence, const MemoryOrderImmediate& imm)                              \
   F(Pause)                                                                     \
   F(MemoryInit, const MemoryInitImmediate& imm, const Value& dst,              \
     const Value& src, const Value& size)                                       \
@@ -2885,9 +2885,10 @@ class WasmDecoder : public Decoder {
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
-          FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
-            // One unused zero-byte.
-            return length + 1;
+          case kExprAtomicFence: {
+            MemoryOrderImmediate memory_order(decoder, pc + length, validate);
+            (ios.MemoryOrder(memory_order), ...);
+            return length + memory_order.length;
           }
           case kExprPause:
           case kExprWaitqueueNew:
@@ -7269,15 +7270,20 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef CASE_ATOMIC_OP
       case kExprAtomicFence: {
         this->detected_->add_threads();
-        uint8_t zero = this->template read_u8<ValidationTag>(
-            this->pc_ + opcode_length, "zero");
-        if (!VALIDATE(zero == 0)) {
-          this->DecodeError(this->pc_ + opcode_length,
-                            "invalid atomic operand");
-          return 0;
+        MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
+                                          validate);
+        if (!VALIDATE(this->ok())) return 0;
+        if (memory_order.order == AtomicMemoryOrder::kAcqRel) {
+          if (!VALIDATE(this->enabled_.has_acquire_release())) {
+            this->DecodeError(
+                this->pc_ + opcode_length,
+                "invalid memory ordering: acquire-release requires "
+                "--experimental-wasm-acquire-release flag");
+            return 0;
+          }
         }
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence);
-        return 1 + opcode_length;
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicFence, memory_order);
+        return opcode_length + memory_order.length;
       }
       case kExprPause:
         CHECK_PROTOTYPE_OPCODE(shared);
@@ -7290,7 +7296,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7326,7 +7332,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7366,7 +7372,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7415,7 +7421,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7455,7 +7461,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         FieldImmediate field(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7537,7 +7543,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
             this, this->pc_ + memory_order.length + opcode_length, validate);
         if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
@@ -7574,7 +7580,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
             this, this->pc_ + memory_order.length + opcode_length, validate);
         if (!this->Validate(this->pc_ + memory_order.length + opcode_length,
@@ -7602,7 +7608,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7648,7 +7654,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,
@@ -7683,7 +7689,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryOrderImmediate memory_order(this, this->pc_ + opcode_length,
                                           validate);
-        if (!this->ok()) return 0;
+        if (!VALIDATE(this->ok())) return 0;
         ArrayIndexImmediate imm(
             this, this->pc_ + opcode_length + memory_order.length, validate);
         if (!this->Validate(this->pc_ + opcode_length + memory_order.length,

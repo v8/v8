@@ -6692,7 +6692,9 @@ class LiftoffCompiler {
 #undef ATOMIC_BINOP_INSTRUCTION_LIST
 #undef ATOMIC_COMPARE_EXCHANGE_LIST
 
-  void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
+  void AtomicFence(FullDecoder* decoder, const MemoryOrderImmediate& imm) {
+    __ AtomicFence(imm.order);
+  }
 
   void Pause(FullDecoder* decoder) { __ Pause(); }
 

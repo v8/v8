@@ -1475,7 +1475,9 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   }
 }
 
-void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) {
+  Dmb(InnerShareable, BarrierAll);
+}
 
 void LiftoffAssembler::Pause() { Isb(); }
 

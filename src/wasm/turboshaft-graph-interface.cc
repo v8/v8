@@ -4751,8 +4751,8 @@ class TurboshaftGraphBuildingInterface
 #endif
   }
 
-  void AtomicFence(FullDecoder* decoder) {
-    __ MemoryBarrier(AtomicMemoryOrder::kSeqCst);
+  void AtomicFence(FullDecoder* decoder, const MemoryOrderImmediate& imm) {
+    __ MemoryBarrier(imm.order);
   }
 
   void Pause(FullDecoder* decoder) { __ Pause(); }

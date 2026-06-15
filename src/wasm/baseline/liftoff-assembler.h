@@ -826,7 +826,7 @@ class LiftoffAssembler : public MacroAssembler {
       LiftoffRegister result, uint32_t* trapping_load_pc,
       LiftoffRegList pinned);
 
-  inline void AtomicFence();
+  inline void AtomicFence(AtomicMemoryOrder order);
   inline void Pause();
 
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,

@@ -1707,7 +1707,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   bind(&exit);
 }
 
-void LiftoffAssembler::AtomicFence() { dmb(ISH); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) { dmb(ISH); }
 
 void LiftoffAssembler::Pause() { isb(SY); }
 
