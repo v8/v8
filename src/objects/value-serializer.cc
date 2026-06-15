@@ -2519,14 +2519,20 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   // We use GetByteLength() here because for resizable shared buffers,
   // byte_length() will trigger a DCHECK.
   std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
-  if (buffer->GetByteLength() < backing_store->byte_length()) {
-    backing_store->AttachSharedWasmMemoryObject(isolate_, result);
-  } else {
+  // Update the managed backing store first.
+  result->managed_backing_store()->SetManagedObject(
+      backing_store, isolate_, backing_store->byte_length());
+  // Register the memory object in the isolate and the isolate in the global
+  // registry for the backing store. This must happen before we check if the
+  // buffer is stale. If it grows between the registration and the check, we
+  // will see it's stale. If it grows after the check, we will receive a
+  // broadcast and refresh the buffer on the next access.
+  backing_store->AttachSharedWasmMemoryObject(isolate_, result);
+
+  if (buffer->GetByteLength() >= backing_store->byte_length()) {
     // Link the two.
     WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
   }
-  result->managed_backing_store()->SetManagedObject(
-      backing_store, isolate_, backing_store->byte_length());
 
   return result;
 }
