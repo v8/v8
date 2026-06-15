@@ -23,6 +23,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
+#include "src/sandbox/trusted-pointer-table-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-segments.h"
@@ -450,6 +451,28 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
+// Sandbox.unpublishTrustedHandle(Number) -> Void
+void SandboxUnpublishTrustedHandle(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  if (info.Length() < 1) {
+    ThrowTypeError(isolate, "First argument must be a handle");
+    return;
+  }
+  uint32_t handle_value;
+  if (!info[0]->Uint32Value(isolate->GetCurrentContext()).To(&handle_value)) {
+    ThrowTypeError(isolate, "First argument must be a handle");
+    return;
+  }
+
+  IndirectPointerHandle handle =
+      static_cast<IndirectPointerHandle>(handle_value);
+  i_isolate->trusted_pointer_table().Unpublish(handle);
+}
+
 // Returns an array of all builtin names, index of the name is the builtin id.
 //
 // This can be used to determine the id of a specific builtin for use with
@@ -834,6 +857,8 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   InstallFunction(isolate, sandbox, SandboxGetInstanceTypeIdFor,
                   "getInstanceTypeIdFor", 1);
   InstallFunction(isolate, sandbox, SandboxGetFieldOffset, "getFieldOffset", 2);
+  InstallFunction(isolate, sandbox, SandboxUnpublishTrustedHandle,
+                  "unpublishTrustedHandle", 1);
 
   InstallFunction(isolate, sandbox, SandboxGetBuiltinNames, "getBuiltinNames",
                   0);
