@@ -6856,8 +6856,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.trace_memory_corruption_via_watchpoints = enable_tracing;
       // Imply --expose-memory-corruption-api.
       i::v8_flags.expose_memory_corruption_api = true;
-      // Disable compaction to get stable addresses.
-      i::v8_flags.compact = false;
 #endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
     } else if (FlagMatches("--disable-in-process-stack-traces", &argv[i])) {
       options.disable_in_process_stack_traces = true;
