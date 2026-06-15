@@ -1508,7 +1508,9 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   bind(&exit);
 }
 
-void LiftoffAssembler::AtomicFence() { bailout(kAtomics, "AtomicFence"); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) {
+  bailout(kAtomics, "AtomicFence");
+}
 
 void LiftoffAssembler::Pause() { nop(); }
 
