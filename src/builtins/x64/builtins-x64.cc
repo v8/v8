@@ -3988,6 +3988,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Trap();
   __ bind(&suspend);
   __ endbr64();
+  __ LoadRoot(kReturnRegister0, RootIndex::kUndefinedValue);
   __ LeaveFrame(StackFrame::WASM_JSPI);
   // Pop receiver + parameter.
   __ ret(2 * kSystemPointerSize);
