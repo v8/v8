@@ -1556,6 +1556,12 @@ class LiftoffCompiler {
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
     DCHECK(for_debugging_);
 
+#if V8_TARGET_ARCH_X64
+    // If OSR is triggered during a builtin call, it must be consumed by
+    // {MaybeOSR} before the next instruction.
+    __ AssertOSREmpty();
+#endif
+
     if (V8_UNLIKELY(v8_flags.wasm_code_coverage && (opcode != kExprLoop))) {
       // Coverage instrumention for 'loop' instructions is emitted in Loop().
       EmitCoverageInstrumentationIfReachable(decoder, opcode);
@@ -4649,6 +4655,7 @@ class LiftoffCompiler {
     __ CallBuiltin(Builtin::kWasmMemoryGrow);
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    MaybeOSR();
 
     if (kReturnRegister0 != result.gp()) {
       __ Move(result.gp(), kReturnRegister0, kI32);
@@ -6531,6 +6538,7 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
+    MaybeOSR();
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm) {
@@ -6956,6 +6964,7 @@ class LiftoffCompiler {
          VarState{kRef, LiftoffRegister{kReturnRegister0}, 0}},
         decoder->position());
     __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
+    MaybeOSR();
   }
 
   void WaitqueueNotify(FullDecoder* decoder, const Value& waitqueue,
@@ -7649,6 +7658,7 @@ class LiftoffCompiler {
         decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    MaybeOSR();
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
@@ -7672,6 +7682,7 @@ class LiftoffCompiler {
                 decoder->position());
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+    MaybeOSR();
     __ SmiToInt32(kReturnRegister0);
     if (imm.table->is_table64()) {
       LiftoffRegister result64 = LiftoffRegister(kReturnRegister0);
@@ -7995,6 +8006,7 @@ class LiftoffCompiler {
                    __ cache_state()->stack_state.end()[-1],  // length
                    VarState{kI32, elem_size, 0}},
                   decoder->position());
+      MaybeOSR();
     }
 
     LiftoffRegister obj(kReturnRegister0);
@@ -8250,6 +8262,7 @@ class LiftoffCompiler {
                 {VarState{kRef, rtt, 0}, VarState{kI32, elem_count, 0},
                  VarState{kI32, value_kind_size(elem_kind), 0}},
                 decoder->position());
+    MaybeOSR();
 
     // Initialize the array with stack arguments.
     LiftoffRegister array(kReturnRegister0);
@@ -8418,6 +8431,8 @@ class LiftoffCompiler {
 
     // Pop parameters from the value stack.
     __ DropValues(2);
+
+    MaybeOSR();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result(kReturnRegister0);
@@ -8460,6 +8475,7 @@ class LiftoffCompiler {
                  __ cache_state()->stack_state.end()[-4]},
                 decoder->position());
     __ DropValues(4);
+    MaybeOSR();
   }
 
   void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
@@ -8703,6 +8719,7 @@ class LiftoffCompiler {
                 decoder->position());
     __ DropValues(1);
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
+    MaybeOSR();
   }
 
   void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
@@ -8821,6 +8838,7 @@ class LiftoffCompiler {
                     VarState{kI32, null_succeeds_reg, 0},
                 },
                 decoder->position());
+    MaybeOSR();
   }
 
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
@@ -10929,9 +10947,11 @@ class LiftoffCompiler {
   }
 
   void MaybeOSR() {
+#if V8_TARGET_ARCH_X64
     if (V8_UNLIKELY(for_debugging_)) {
       __ MaybeOSR();
     }
+#endif
   }
 
   void FinishCall(FullDecoder* decoder, ValueKindSig* sig,

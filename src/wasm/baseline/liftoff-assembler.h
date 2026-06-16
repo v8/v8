@@ -1639,8 +1639,11 @@ class LiftoffAssembler : public MacroAssembler {
   inline void AllocateStackSlot(Register addr, uint32_t size);
   inline void DeallocateStackSlot(uint32_t size);
 
+#if V8_TARGET_ARCH_X64
   // Instrumentation for shadow-stack-compatible OSR on x64.
   inline void MaybeOSR();
+  inline void AssertOSREmpty();
+#endif
 
   inline bool supports_f16_mem_access();
 

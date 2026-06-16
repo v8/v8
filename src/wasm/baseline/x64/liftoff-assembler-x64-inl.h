@@ -5265,6 +5265,13 @@ void LiftoffAssembler::MaybeOSR() {
     RelocInfo::WASM_STUB_CALL);
 }
 
+void LiftoffAssembler::AssertOSREmpty() {
+  if (v8_flags.debug_code) {
+    cmpq(liftoff::kOSRTargetSlot, Immediate(0));
+    Check(equal, AbortReason::kOSREmptyCheckFailed);
+  }
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

@@ -2524,7 +2524,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   AddWord(sp, sp, Operand(static_cast<int64_t>(size)));
 }
 
-void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be

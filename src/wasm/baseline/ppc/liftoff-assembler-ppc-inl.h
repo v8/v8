@@ -3252,7 +3252,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   AddS64(sp, sp, Operand(size));
 }
 
-void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
