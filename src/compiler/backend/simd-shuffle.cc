@@ -226,7 +226,7 @@ bool SimdShuffle::TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
   };
 
   unsigned pattern_idx = 0;
-  uint32_t shuffle = *reinterpret_cast<const uint32_t*>(shuffle32x4);
+  uint32_t shuffle = base::ReadUnalignedValue<uint32_t>(shuffle32x4);
 #ifdef V8_TARGET_BIG_ENDIAN
   shuffle = base::bits::ReverseBytes(shuffle);
 #endif
@@ -255,10 +255,10 @@ bool SimdShuffle::TryMatch64x2Shuffle(const uint8_t* shuffle,
        {24, 25, 26, 27, 28, 29, 30, 31}}};
 
   for (unsigned i = 0; i < 2; ++i) {
-    uint64_t element = *reinterpret_cast<const uint64_t*>(&shuffle[i * 8]);
+    uint64_t element = base::ReadUnalignedValue<uint64_t>(&shuffle[i * 8]);
     for (unsigned j = 0; j < 4; ++j) {
       uint64_t pattern =
-          *reinterpret_cast<const uint64_t*>(element_patterns[j].data());
+          base::ReadUnalignedValue<uint64_t>(element_patterns[j].data());
       if (pattern == element) {
         shuffle64x2[i] = j;
         break;
@@ -371,13 +371,13 @@ bool TryMatch32x4Pairwise(const uint8_t* shuffle) {
   // Pattern to select 32-bit element 1.
   constexpr uint8_t low_pattern_arr[4] = {4, 5, 6, 7};
   // And we'll check that element 1 is shuffled into element 0.
-  uint32_t low_shuffle = reinterpret_cast<const uint32_t*>(shuffle)[0];
+  uint32_t low_shuffle = base::ReadUnalignedValue<uint32_t>(shuffle);
   // Pattern to select 32-bit element 3.
   constexpr uint8_t high_pattern_arr[4] = {12, 13, 14, 15};
   // And we'll check that element 3 is shuffled into element 2.
-  uint32_t high_shuffle = reinterpret_cast<const uint32_t*>(shuffle)[2];
-  uint32_t low_pattern = *reinterpret_cast<const uint32_t*>(low_pattern_arr);
-  uint32_t high_pattern = *reinterpret_cast<const uint32_t*>(high_pattern_arr);
+  uint32_t high_shuffle = base::ReadUnalignedValue<uint32_t>(&shuffle[8]);
+  uint32_t low_pattern = base::ReadUnalignedValue<uint32_t>(low_pattern_arr);
+  uint32_t high_pattern = base::ReadUnalignedValue<uint32_t>(high_pattern_arr);
   return low_shuffle == low_pattern && high_shuffle == high_pattern;
 }
 
@@ -386,8 +386,8 @@ bool TryMatch32x2Pairwise(const uint8_t* shuffle) {
   // Pattern to select 32-bit element 2.
   constexpr uint8_t pattern_arr[4] = {8, 9, 10, 11};
   // And we'll check that element 2 is shuffled to element 0.
-  uint32_t low_shuffle = reinterpret_cast<const uint32_t*>(shuffle)[0];
-  uint32_t pattern = *reinterpret_cast<const uint32_t*>(pattern_arr);
+  uint32_t low_shuffle = base::ReadUnalignedValue<uint32_t>(shuffle);
+  uint32_t pattern = base::ReadUnalignedValue<uint32_t>(pattern_arr);
   return low_shuffle == pattern;
 }
 
@@ -397,8 +397,8 @@ bool TryMatchUpperToLowerFirst(const uint8_t* shuffle) {
   // at byte 8.
   constexpr uint8_t low_pattern_arr[8] = {8, 9, 10, 11, 12, 13, 14, 15};
   // And we'll check that the top half is shuffled into the lower.
-  uint64_t low_shuffle = reinterpret_cast<const uint64_t*>(shuffle)[0];
-  uint64_t low_pattern = *reinterpret_cast<const uint64_t*>(low_pattern_arr);
+  uint64_t low_shuffle = base::ReadUnalignedValue<uint64_t>(shuffle);
+  uint64_t low_pattern = base::ReadUnalignedValue<uint64_t>(low_pattern_arr);
   return low_shuffle == low_pattern;
 }
 
@@ -408,8 +408,8 @@ bool TryMatchUpperToLowerSecond(const uint8_t* shuffle) {
   // at byte 4.
   constexpr uint8_t low_pattern_arr[4] = {4, 5, 6, 7};
   // And we'll check that the top half is shuffled into the lower.
-  uint32_t low_shuffle = reinterpret_cast<const uint32_t*>(shuffle)[0];
-  uint32_t low_pattern = *reinterpret_cast<const uint32_t*>(low_pattern_arr);
+  uint32_t low_shuffle = base::ReadUnalignedValue<uint32_t>(shuffle);
+  uint32_t low_pattern = base::ReadUnalignedValue<uint32_t>(low_pattern_arr);
   return low_shuffle == low_pattern;
 }
 
@@ -418,8 +418,8 @@ bool TryMatchUpperToLowerThird(const uint8_t* shuffle) {
   // The vector now has 4 'active' bytes, select the top two.
   constexpr uint8_t low_pattern_arr[2] = {2, 3};
   // And check they're shuffled to the lower half.
-  uint16_t low_shuffle = reinterpret_cast<const uint16_t*>(shuffle)[0];
-  uint16_t low_pattern = *reinterpret_cast<const uint16_t*>(low_pattern_arr);
+  uint16_t low_shuffle = base::ReadUnalignedValue<uint16_t>(shuffle);
+  uint16_t low_pattern = base::ReadUnalignedValue<uint16_t>(low_pattern_arr);
   return low_shuffle == low_pattern;
 }
 
