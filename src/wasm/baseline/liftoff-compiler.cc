@@ -7790,6 +7790,15 @@ class LiftoffCompiler {
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
                  const Value& descriptor, bool initial_values_on_stack) {
+    if (V8_UNLIKELY(max_steps_ && !initial_values_on_stack &&
+                    imm.struct_type->field_count() > 0)) {
+      // Charge proportional to the number of fields for `struct.new_default`.
+      // The fields are initialized with default values, which were not
+      // individually charged for (unlike `struct.new` where each initial value
+      // is pushed onto the stack and charged for).
+      CheckMaxSteps(decoder,
+                    static_cast<int32_t>(imm.struct_type->field_count()));
+    }
     const TypeDefinition& type = decoder->module_->type(imm.index);
     LiftoffRegister rtt = GetRtt(decoder, imm.index, type, descriptor);
 
