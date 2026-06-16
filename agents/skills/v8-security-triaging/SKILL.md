@@ -30,7 +30,10 @@ security vulnerability report.
   or modify issue metadata on Buganizer or Gerrit without explicit user approval
   of the exact content and action.
 - **Buganizer First**: Use the Buganizer MCP (`render_issue`) as the primary
-  source of truth. Use `render_issue_with_external` if content is redacted.
+  source of truth. Use `render_issue_with_external` if content is redacted. If
+  attachment retrieval via `get_attachment_enrichment` fails, **MUST**
+  immediately attempt retrieval using the `buganizer-cli` skill before asking
+  the user.
 - **Sandbox Bypasses vs. Regular Bugs**:
   - **Sandbox Bypass**: Reports that start with in-sandbox memory corruption
     (using `--sandbox-testing` or `--expose-memory-corruption-api` or the
@@ -60,7 +63,13 @@ security vulnerability report.
   user with manual upload instructions in Step 5.
 - **Exhaustive Verification**: Never classify a bug based solely on the report.
   Exhaustive technical verification via `v8-poc-classification` is mandatory.
-- **Official Documentation**: Always refer to
+- **Artifact Preservation**: Before removing a worktree or cleaning up a
+  session, you MUST identify all generated artifacts (e.g., minimized POCs,
+  crashing `crash.js` scripts, or logs) and ensure they are either uploaded to
+  Buganizer or moved to a permanent location outside the worktree if requested
+  by the user.
+- **Official Documentation**: Consult [SECURITY.md](../../../SECURITY.md) for
+  high-level threat models and entry points. Always refer to
   [triaging.md](../../../docs/security/triaging.md) for the definitive rules on
   labeling and classification.
 - **Strict Subagent Delegation**: To maintain a lean context, the Orchestrator
@@ -99,10 +108,14 @@ When executing a triage task, delegate tactical steps to subagents:
 Task the **Researcher** subagent with gathering all necessary data from
 Buganizer.
 
-- **Orchestrator Instruction**: "Invoke the Researcher to render Buganizer issue
-  `<id>`, extract the POC and d8 flags, find top experts for affected files, and
-  identify the correct component. Instruct the subagent to return only a concise
-  technical summary."
+- **Orchestrator Instruction**: "Retrieve the `INVOKER_INFO_SESSION_ID` from the
+  environment. Invoke the Researcher to render Buganizer issue `<id>`, extract
+  the POC and d8 flags, find top experts for affected files, and identify the
+  correct component. Instruct the subagent to return only a concise technical
+  summary."
+- **Conversation ID Persistence**: The Orchestrator MUST store the
+  `INVOKER_INFO_SESSION_ID` in its current context immediately to ensure the
+  mandatory first sentence in Phase 5 uses the correct, verified ID.
 - **Extraction**: The summary must include the POC script, required `d8` flags,
   the reporter's environment (commit hash/version), and the identified
   **introduction commit (regression range)**.
@@ -111,11 +124,14 @@ Buganizer.
   `git rev-parse HEAD`. Prioritize referencing specific git hashes over generic
   terms like "HEAD" in triage reports.
 - **Attachment Check**: Ensure the subagent checks for mentioned files (e.g.,
-  "poc.html", "crash.log") that are NOT in the attachments list.
-- **Stop Condition**: If the subagent reports that critical attachments (POC,
-  flags, etc.) are inaccessible or redacted, the Orchestrator **MUST** stop
-  immediately and ask the user to provide them manually before proceeding to
-  Phase 2.
+  "poc.html", "crash.log") that are NOT in the attachments list. If retrieval of
+  an attachment via MCP tools fails, the subagent **MUST** use the
+  `buganizer-cli` (`issues download-attachment`) as a fallback.
+- **Stop Condition**: If both MCP and CLI retrieval attempts for critical
+  attachments (POC, flags, etc.) fail or if they are redacted/inaccessible, the
+  Orchestrator **MUST** stop immediately and ask the user to provide them
+  manually before proceeding to Phase 2. This includes asking for the **exact
+  command line** if a ClusterFuzz report link is inaccessible.
 - **Mapping**: Include identified experts and the specific Buganizer component
   (e.g., `Blink > JavaScript > Maglev`).
 
@@ -154,6 +170,14 @@ of impact.
 
 - **Crash/Corruption Priority**: Task **Generalist** to make the POC either
   crash or demonstrate clear memory corruption.
+- **ClusterFuzz Compatibility (Crash Escalation)**: Because ClusterFuzz requires
+  a detectable crash (DCHECK, segfault, SIGILL, or int3), you **MUST**
+  exhaustively pursue a crashing reproducer if the initial POC only proves
+  silent memory corruption. Task **Builder** and **Tester** to run the POC
+  against **Debug**, **ASan**, and **UBSan** builds. If no crash occurs
+  naturally, task **Generalist** to modify the POC to force a crash (e.g., by
+  overwriting a Map with a garbage pointer) while maintaining the original bug
+  trigger.
 - **Verification**: Task **Tester** to verify on Standard Release and ASan
   builds.
 - **Minimization**: Task **Generalist** to reduce the POC and flags to the
@@ -170,10 +194,14 @@ Draft a concise synthesis based on verified subagent findings.
 
 - **Mandatory First Sentence**: "This analysis is AI-generated using the
   `v8-security-triaging` skill (Conversation ID: `<id>`)." You **MUST** retrieve
-  the `<id>` from the `INVOKER_INFO_SESSION_ID` environment variable.
+  the `<id>` from the `INVOKER_INFO_SESSION_ID` environment variable. The
+  variable must always be present.
 - **Formatting Requirement**: Use a **bulleted list** format for the main points
   (Status, Classification, Rationale, etc.) and ensure there are **double line
-  breaks** between each list item for optimal rendering in Buganizer.
+  breaks** between each list item for optimal rendering in Buganizer. If a list
+  item has sub-bullets (specifically in 'Local Reproduction Findings'), they
+  **MUST** be indented (two spaces) and **MUST** also be separated by double
+  line breaks.
 - **Content**:
   - **Classification**: Vulnerability / Bug / Not a Bug (Intended Behavior) /
     Failed to Reproduce. **MANDATORY**: Only classify as "Vulnerability" if
@@ -236,11 +264,27 @@ the draft.
     reproduction results (e.g., if it needs experimental flags, it's a Bug).
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
     version, git hash, and the observed result.
-  - The formatting (double line breaks between list items) is strictly followed.
-  - The conversation ID is valid or "N/A".
+  - The formatting (double line breaks between list items AND indented
+    sub-bullets for findings) is strictly followed.
+  - The conversation ID is correct and matches the `INVOKER_INFO_SESSION_ID`
+    environment variable. The auditor MUST run
+    `env | grep INVOKER_INFO_SESSION_ID` to verify this independently.
 - **Action**: Present the *audited and verified* analysis to the user for
   approval ONLY after all technical gaps identified by the auditor have been
   addressed.
+
+### 7. Phase: Cleanup & Preservation
+
+Finalize the session by securing artifacts and cleaning up the environment.
+
+- **Artifact Check**: Identify all important generated files (e.g., `crash.js`,
+  `minimized_poc.js`, or specialized logs).
+- **Preservation**: If any important artifacts were generated in the worktree,
+  you **MUST** ask the user if they would like to preserve them in the main
+  repository directory before deleting the worktree.
+- **Worktree Removal**: Once artifacts are preserved or the user confirms they
+  are no longer needed, use the `v8-workflow` skill to remove the isolated
+  worktree and branch.
 
 ## Technical Quality Checklist
 
