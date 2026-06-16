@@ -77,7 +77,7 @@ class V8_EXPORT_PRIVATE ExternalStringsCage final {
   }
 
   // Makes the memory pages read-only.
-  V8_EXPORT_PRIVATE void Seal(void* ptr, size_t size);
+  void Seal(void* ptr, size_t size);
 
   base::AddressRegion reservation_region() const {
     CHECK(vm_cage_.IsReserved());
@@ -89,8 +89,8 @@ class V8_EXPORT_PRIVATE ExternalStringsCage final {
   ~ExternalStringsCage();
 
   size_t GetAllocSize(size_t string_size) const;
-  V8_EXPORT_PRIVATE void* AllocateRaw(size_t size);
-  V8_EXPORT_PRIVATE void Free(void* ptr, size_t size);
+  void* AllocateRaw(size_t size);
+  void Free(void* ptr, size_t size);
 
   static ExternalStringsCage* instance_;
 

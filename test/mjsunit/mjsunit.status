@@ -853,6 +853,7 @@
   'regress/wasm/regress-513364114': [SKIP],
   'regress/wasm/regress-518229528': [SKIP],
   'regress/wasm/regress-518872404': [SKIP],
+  'regress/wasm/regress-521064735': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -923,6 +924,7 @@
   # --experimental-wasm-wide-arithmetic
   'regress/wasm/regress-515525741': [SKIP],
   'regress/wasm/regress-516102112-1': [SKIP],
+  'regress/wasm/regress-simd-520944504': [SKIP],
   'wasm/wide-arithmetic': [SKIP],
 
   # --wasm-deopt
@@ -946,6 +948,7 @@
   'compiler/fast-api-calls-wasm': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
   'regress/wasm/regress-488943662': [SKIP],
+  'wasm/regression-521715545': [SKIP], # --wasm-code-coverage
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
@@ -994,7 +997,9 @@
   'regress/wasm/regress-509268941': [SKIP],
   'regress/wasm/regress-509674461': [SKIP],
   'regress/wasm/regress-511772679': [SKIP],
+  'regress/wasm/regress-518697709': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
+  'regress/wasm/regress-simd-518058891': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
@@ -1040,6 +1045,7 @@
   # --experimental-wasm-acquire-release
   'regress/wasm/regress-516102113': [SKIP],
   'regress/wasm/regress-518131466': [SKIP],
+  'wasm/acq-rel-*': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.

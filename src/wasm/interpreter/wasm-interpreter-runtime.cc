@@ -2404,8 +2404,8 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   {
     // Packing the raw refs must not allocate; the only allocation in this
     // block is the JS call below, which re-enables GC via its own nested
-    // {AllowHeapAllocation} scope.
-    DisallowGarbageCollection no_gc;
+    // {AllowGarbageCollection} scope.
+    DisallowGarbageCollection no_gc_packing;
     size_t ref_idx = 0;
     uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(callsite_sig);
     for (size_t i = 0; i < callsite_sig->parameter_count(); ++i) {
@@ -2444,7 +2444,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     DCHECK_NOT_NULL(current_thread_);
     current_thread_->StopExecutionTimer();
     {
-      AllowHeapAllocation allow_gc;
+      AllowGarbageCollection allow_gc;
       CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), callsite_sig);
     }
     current_thread_->StartExecutionTimer();
@@ -2553,7 +2553,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     {
       // No allocation may happen while we copy the raw refs out of the rooted
       // {ref_returns} container onto the wasm stack.
-      DisallowGarbageCollection no_gc;
+      DisallowGarbageCollection no_gc_returns;
       packer.Reset();
       size_t ref_idx = 0;
       for (size_t i = 0; i < callsite_sig->return_count(); i++) {
@@ -3187,6 +3187,7 @@ InterpreterHandle::InterpreterHandle(Isolate* isolate,
                                      DirectHandle<Tuple2> interpreter_object)
     : isolate_(isolate),
       module_(WasmInterpreterObject::get_wasm_instance(*interpreter_object)
+                  ->trusted_data(isolate)
                   ->module()),
       interpreter_(isolate, module_, GetBytes(*interpreter_object),
                    direct_handle(WasmInterpreterObject::get_wasm_instance(
