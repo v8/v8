@@ -275,7 +275,13 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
       inlinees.empty() || data.empty() || !(data.last() & 1);
+#if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
+  // TurboFan compilation (see crbug.com/520317061).
+  const bool assert_types = false;
+#else
   const bool assert_types = !data.empty() && (data.last() & 2);
+#endif
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
   if (v8_flags.wasm_fuzzer_gen_test) {

@@ -1305,7 +1305,13 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   if (!data.empty()) data += 1;
 
   // Enable Wasm type assertions half the time.
+#if defined(DEBUG) && defined(V8_USE_ADDRESS_SANITIZER)
+  // Disable type assertions on slow builds (Debug + ASan) to avoid timeouts in
+  // TurboFan compilation (see crbug.com/520317061).
+  const bool assert_types = false;
+#else
   const bool assert_types = flags_byte & 1;
+#endif
   flags_byte >>= 1;
   FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
   // Enable rescheduling of operations in the Turboshaft graph half the time.
