@@ -16,6 +16,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
+#include "src/objects/fixed-array-base-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/heap-object-set-map-inl.h"
 #include "src/objects/map.h"

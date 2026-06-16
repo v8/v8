@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,15 +22,11 @@ namespace v8::internal {
 static constexpr uint32_t kMaxFixedArrayCapacity =
     V8_LOWER_LIMITS_MODE_BOOL ? (16 * 1024 * 1024) : (128 * 1024 * 1024);
 
-// Common superclass for FixedArrays that allow implementations to share common
-// accessors and some code paths. Note that due to single-inheritance
-// restrictions, it is not part of the actual type hierarchy. Instead, we slot
-// it in with manual is_subtype specializations in tagged.h.
-// TODO(jgruber): This class is really specific to FixedArrays used as
-// elements backing stores and should not be part of the common FixedArray
-// hierarchy.
-V8_OBJECT
-class FixedArrayBase : public HeapObject {
+// Common superclass for the FixedArray family of heap classes. Owns the
+// length_ field (and optional_padding_ for TAGGED_SIZE_8_BYTES); concrete
+// subclasses get them via inheritance and append their own fields after
+// kHeaderSize.
+V8_OBJECT class FixedArrayBase : public HeapObject {
  public:
   static constexpr int kLengthOffset = sizeof(HeapObject);
 #if TAGGED_SIZE_8_BYTES
@@ -54,6 +51,33 @@ class FixedArrayBase : public HeapObject {
   V8_EXPORT_PRIVATE inline bool IsCowArray() const;
 
   DECL_VERIFIER(FixedArrayBase)
+
+ public:
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+} V8_OBJECT_END;
+
+// Trusted-space mirror of FixedArrayBase. Owns the same length_ /
+// optional_padding_ fields but extends TrustedObject so its concrete
+// subclasses live in trusted space.
+V8_OBJECT class TrustedFixedArrayBase : public TrustedObject {
+ public:
+  static constexpr int kLengthOffset = sizeof(TrustedObject);
+#if TAGGED_SIZE_8_BYTES
+  static constexpr uint32_t kPaddingOffset = kLengthOffset + kUInt32Size;
+  static constexpr uint32_t kHeaderSize = kPaddingOffset + kUInt32Size;
+#else
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
+#endif  // TAGGED_SIZE_8_BYTES
+
+  inline SafeHeapObjectSize length() const;
+  inline SafeHeapObjectSize ulength() const;
+  inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
+  inline SafeHeapObjectSize length(RelaxedLoadTag tag) const;
+  inline void set_length(uint32_t value);
+  inline void set_length(uint32_t value, ReleaseStoreTag tag);
 
  public:
   uint32_t length_;

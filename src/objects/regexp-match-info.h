@@ -75,10 +75,7 @@ V8_OBJECT class RegExpMatchInfo : public TaggedArrayBase<RegExpMatchInfo, Smi> {
       3 * kTaggedSize;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   TaggedMember<Smi> number_of_capture_registers_;
   TaggedMember<String> last_subject_;
   TaggedMember<Object> last_input_;

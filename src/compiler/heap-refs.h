@@ -1136,9 +1136,9 @@ class BytecodeArrayRef : public HeapObjectRef {
   uint32_t handler_table_size() const;
 };
 
-class ScriptContextTableRef : public FixedArrayBaseRef {
+class ScriptContextTableRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, FixedArrayBaseRef)
+  DEFINE_REF_CONSTRUCTOR(ScriptContextTable, HeapObjectRef)
 
   IndirectHandle<ScriptContextTable> object() const;
 };

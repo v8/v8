@@ -36,6 +36,33 @@ inline void FixedArrayBase::set_length(uint32_t value, ReleaseStoreTag tag) {
   base::AsAtomic32::Release_Store(&length_, value);
 }
 
+inline SafeHeapObjectSize TrustedFixedArrayBase::length() const {
+  return SafeHeapObjectSize(length_);
+}
+
+inline SafeHeapObjectSize TrustedFixedArrayBase::ulength() const {
+  return length();
+}
+
+inline SafeHeapObjectSize TrustedFixedArrayBase::length(
+    AcquireLoadTag tag) const {
+  return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_));
+}
+
+inline SafeHeapObjectSize TrustedFixedArrayBase::length(
+    RelaxedLoadTag tag) const {
+  return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_));
+}
+
+inline void TrustedFixedArrayBase::set_length(uint32_t value) {
+  length_ = value;
+}
+
+inline void TrustedFixedArrayBase::set_length(uint32_t value,
+                                              ReleaseStoreTag tag) {
+  base::AsAtomic32::Release_Store(&length_, value);
+}
+
 // static
 inline int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(
     ElementsKind kind) {

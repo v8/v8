@@ -274,7 +274,7 @@ class FeedbackMetadata;
 // from a function. This is created once the function is compiled and is either
 // held by the feedback vector (if allocated) or by the FeedbackCell of the
 // closure.
-class ClosureFeedbackCellArray
+V8_OBJECT class ClosureFeedbackCellArray
     : public TaggedArrayBase<ClosureFeedbackCellArray, FeedbackCell> {
   using Super = TaggedArrayBase<ClosureFeedbackCellArray, FeedbackCell>;
 
@@ -292,12 +292,9 @@ class ClosureFeedbackCellArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(typename Super::ElementMemberT, objects);
-};
+} V8_OBJECT_END;
 
 class NexusConfig;
 

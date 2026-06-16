@@ -21,8 +21,10 @@
 
 namespace v8::internal {
 
+// The Super template parameter names the concrete base class (e.g.
+// (Trusted)FixedArrayBase) from which subclasses inherit the length_ field.
 V8_OBJECT
-template <class Derived, typename ElementT_, class Super = HeapObject>
+template <class Derived, typename ElementT_, class Super = FixedArrayBase>
 class PrimitiveArrayBase : public Super {
  private:
   V8_INLINE Derived* derived() { return static_cast<Derived*>(this); }
@@ -45,35 +47,20 @@ class PrimitiveArrayBase : public Super {
   static constexpr bool kElementsAreMaybeObject = false;
   static constexpr int kElementSize = sizeof(ElementMemberT);
 
-  inline SafeHeapObjectSize length() const {
-    return SafeHeapObjectSize(length_field());
-  }
-  inline SafeHeapObjectSize ulength() const {
-    return SafeHeapObjectSize(length_field());
-  }
+  // length() / set_length() are inherited from (Trusted)FixedArrayBase. For
+  // primitive arrays capacity() is an alias for length().
   inline SafeHeapObjectSize capacity() const {
     return SafeHeapObjectSize(length_field());
   }
-  inline SafeHeapObjectSize length(AcquireLoadTag) const {
-    return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_field()));
-  }
-  inline SafeHeapObjectSize length(RelaxedLoadTag) const {
-    return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_field()));
-  }
-  inline void set_length(uint32_t value) { length_field() = value; }
-  inline void set_length(uint32_t value, ReleaseStoreTag) {
-    base::AsAtomic32::Release_Store(&length_field(), value);
-  }
-
   inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const {
-    return length(tag);
+    return this->length(tag);
   }
   inline SafeHeapObjectSize capacity(RelaxedLoadTag tag) const {
-    return length(tag);
+    return this->length(tag);
   }
-  inline void set_capacity(uint32_t value) { set_length(value); }
+  inline void set_capacity(uint32_t value) { this->set_length(value); }
   inline void set_capacity(uint32_t value, ReleaseStoreTag tag) {
-    set_length(value, tag);
+    this->set_length(value, tag);
   }
 
   inline void clear_optional_padding() {
@@ -170,10 +157,7 @@ V8_OBJECT class FixedDoubleArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, values);
 } V8_OBJECT_END;
 
@@ -208,18 +192,16 @@ V8_OBJECT class ByteArray : public PrimitiveArrayBase<ByteArray, uint8_t> {
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 
 // A ByteArray in trusted space.
 V8_OBJECT
-class TrustedByteArray
-    : public PrimitiveArrayBase<TrustedByteArray, uint8_t, TrustedObject> {
-  using Super = PrimitiveArrayBase<TrustedByteArray, uint8_t, TrustedObject>;
+class TrustedByteArray : public PrimitiveArrayBase<TrustedByteArray, uint8_t,
+                                                   TrustedFixedArrayBase> {
+  using Super =
+      PrimitiveArrayBase<TrustedByteArray, uint8_t, TrustedFixedArrayBase>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedByteArrayMap;
@@ -246,10 +228,7 @@ class TrustedByteArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in TrustedFixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(uint8_t, values);
 } V8_OBJECT_END;
 

@@ -1044,13 +1044,13 @@ class FixedArrayData : public FixedArrayBaseData {
 };
 
 // Only used in JSNativeContextSpecialization.
-class ScriptContextTableData : public FixedArrayBaseData {
+class ScriptContextTableData : public HeapObjectData {
  public:
   ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
                          InstanceType instance_type,
                          IndirectHandle<ScriptContextTable> object,
                          ObjectDataKind kind)
-      : FixedArrayBaseData(broker, storage, instance_type, object, kind) {}
+      : HeapObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSArrayData : public JSObjectData {

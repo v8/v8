@@ -182,21 +182,6 @@ inline Tagged<StrongOf<T>> MakeStrong(Tagged<T> value);
 using StrongTaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 using WeakTaggedBase = TaggedImpl<HeapObjectReferenceType::WEAK, Address>;
 
-// Forward declarations for is_subtype.
-class Struct;
-class FixedArrayBase;
-class FixedArray;
-class FixedDoubleArray;
-class ByteArray;
-class NameDictionary;
-class NumberDictionary;
-class OrderedHashMap;
-class OrderedHashSet;
-class OrderedNameDictionary;
-class ScriptContextTable;
-class ArrayList;
-class SloppyArgumentsElements;
-
 namespace detail {
 template <typename Derived, typename Base>
 consteval bool is_subtype_helper();
@@ -305,15 +290,6 @@ consteval bool is_subtype_helper() {
     // Weak<T> cannot be a subtype of a non-weak Base (unless
     // matched exactly earlier by a union)
     return false;
-  } else if constexpr (is_same_v<Base, FixedArrayBase>) {
-    // FixedArrayBase Hierarchy Collapse
-    return is_same_v<D, FixedArray> || is_same_v<D, FixedDoubleArray> ||
-           is_same_v<D, ByteArray> || is_same_v<D, NameDictionary> ||
-           is_same_v<D, NumberDictionary> || is_same_v<D, GlobalDictionary> ||
-           is_same_v<D, OrderedHashMap> || is_same_v<D, OrderedHashSet> ||
-           is_same_v<D, OrderedNameDictionary> ||
-           is_same_v<D, ScriptContextTable> || is_same_v<D, ArrayList> ||
-           is_same_v<D, SloppyArgumentsElements>;
   } else {
     // Fallback to base_of.
     return is_base_of_v<Base, Derived>;

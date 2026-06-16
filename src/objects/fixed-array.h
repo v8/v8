@@ -49,7 +49,12 @@ concept TaggedArrayBaseCompatible = requires(T a) {
                              std::remove_reference_t<decltype(a.objects()[0])>>;
 };
 
-V8_OBJECT template <class Derived, typename ElementT_, class Super = HeapObject>
+// The Super template parameter names the concrete base class (e.g.
+// (Trusted)FixedArrayBase) from which subclasses inherit the length_ field.
+// Classes with a capacity_ + length_ layout pass HeapObject and declare both
+// fields themselves.
+V8_OBJECT template <class Derived, typename ElementT_,
+                    class Super = FixedArrayBase>
 class TaggedArrayBase : public Super {
  private:
   V8_INLINE Derived* derived() { return static_cast<Derived*>(this); }
@@ -71,9 +76,6 @@ class TaggedArrayBase : public Super {
       return derived()->length_;
     }
   }
-
-  uint32_t& length_field() { return derived()->length_; }
-  const uint32_t& length_field() const { return derived()->length_; }
 
   static_assert(std::is_base_of_v<HeapObject, Super>);
 
@@ -114,22 +116,7 @@ class TaggedArrayBase : public Super {
     base::AsAtomic32::Release_Store(&capacity_field(), value);
   }
 
-  inline SafeHeapObjectSize length() const {
-    return SafeHeapObjectSize(length_field());
-  }
-  inline SafeHeapObjectSize ulength() const {
-    return SafeHeapObjectSize(length_field());
-  }
-  inline SafeHeapObjectSize length(AcquireLoadTag) const {
-    return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_field()));
-  }
-  inline SafeHeapObjectSize length(RelaxedLoadTag) const {
-    return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&length_field()));
-  }
-  inline void set_length(uint32_t value) { length_field() = value; }
-  inline void set_length(uint32_t value, ReleaseStoreTag) {
-    base::AsAtomic32::Release_Store(&length_field(), value);
-  }
+  // length() / set_length() are inherited from (Trusted)FixedArrayBase.
 
   inline void clear_optional_padding() {
     if constexpr (requires { derived()->optional_padding_; }) {
@@ -327,10 +314,7 @@ V8_OBJECT class FixedArray : public TaggedArrayBase<FixedArray, Object> {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 
@@ -343,8 +327,9 @@ static_assert(sizeof(FixedArray) == Internals::kFixedArrayHeaderSize);
 // If you are storing references to other trusted object (i.e. protected
 // pointers), use ProtectedFixedArray.
 V8_OBJECT class TrustedFixedArray
-    : public TaggedArrayBase<TrustedFixedArray, Object, TrustedObject> {
-  using Super = TaggedArrayBase<TrustedFixedArray, Object, TrustedObject>;
+    : public TaggedArrayBase<TrustedFixedArray, Object, TrustedFixedArrayBase> {
+  using Super =
+      TaggedArrayBase<TrustedFixedArray, Object, TrustedFixedArrayBase>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedFixedArrayMap;
@@ -369,10 +354,7 @@ V8_OBJECT class TrustedFixedArray
       kTaggedSize;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in TrustedFixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, objects);
 } V8_OBJECT_END;
 
@@ -381,9 +363,10 @@ V8_OBJECT class TrustedFixedArray
 // ProtectedFixedArray has a unique instance type.
 V8_OBJECT class ProtectedFixedArray
     : public TaggedArrayBase<ProtectedFixedArray, UnionOf<TrustedObject, Smi>,
-                             TrustedObject> {
-  using Super = TaggedArrayBase<ProtectedFixedArray,
-                                UnionOf<TrustedObject, Smi>, TrustedObject>;
+                             TrustedFixedArrayBase> {
+  using Super =
+      TaggedArrayBase<ProtectedFixedArray, UnionOf<TrustedObject, Smi>,
+                      TrustedFixedArrayBase>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kProtectedFixedArrayMap;
@@ -410,10 +393,7 @@ V8_OBJECT class ProtectedFixedArray
       kTaggedSize;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in TrustedFixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -447,10 +427,7 @@ V8_OBJECT class WeakFixedArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -480,19 +457,16 @@ V8_OBJECT class WeakHomomorphicFixedArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in FixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
 // A WeakFixedArray in trusted space holding pointers into the main cage.
 V8_OBJECT class TrustedWeakFixedArray
     : public TaggedArrayBase<TrustedWeakFixedArray, MaybeObject,
-                             TrustedObject> {
-  using Super =
-      TaggedArrayBase<TrustedWeakFixedArray, MaybeObject, TrustedObject>;
+                             TrustedFixedArrayBase> {
+  using Super = TaggedArrayBase<TrustedWeakFixedArray, MaybeObject,
+                                TrustedFixedArrayBase>;
 
  public:
   static constexpr RootIndex kMapRootIndex =
@@ -510,10 +484,7 @@ V8_OBJECT class TrustedWeakFixedArray
   class BodyDescriptor;
 
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in TrustedFixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, objects);
 } V8_OBJECT_END;
 
@@ -522,10 +493,10 @@ V8_OBJECT class TrustedWeakFixedArray
 V8_OBJECT class ProtectedWeakFixedArray
     : public TaggedArrayBase<ProtectedWeakFixedArray,
                              UnionOf<MaybeWeak<TrustedObject>, Smi>,
-                             TrustedObject> {
-  using Super =
-      TaggedArrayBase<ProtectedWeakFixedArray,
-                      UnionOf<MaybeWeak<TrustedObject>, Smi>, TrustedObject>;
+                             TrustedFixedArrayBase> {
+  using Super = TaggedArrayBase<ProtectedWeakFixedArray,
+                                UnionOf<MaybeWeak<TrustedObject>, Smi>,
+                                TrustedFixedArrayBase>;
 
  public:
   static constexpr RootIndex kMapRootIndex =
@@ -542,10 +513,7 @@ V8_OBJECT class ProtectedWeakFixedArray
 
   class BodyDescriptor;
  public:
-  uint32_t length_;
-#if TAGGED_SIZE_8_BYTES
-  uint32_t optional_padding_;
-#endif
+  // length_ / optional_padding_ live in TrustedFixedArrayBase.
   FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
 } V8_OBJECT_END;
 
@@ -555,8 +523,8 @@ V8_OBJECT class ProtectedWeakFixedArray
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
 V8_OBJECT class WeakArrayList
-    : public TaggedArrayBase<WeakArrayList, MaybeObject> {
-  using Super = TaggedArrayBase<WeakArrayList, MaybeObject>;
+    : public TaggedArrayBase<WeakArrayList, MaybeObject, HeapObject> {
+  using Super = TaggedArrayBase<WeakArrayList, MaybeObject, HeapObject>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakArrayListMap;
@@ -688,8 +656,9 @@ class WeakArrayList::Iterator {
 
 
 // A generic array that grows dynamically with O(1) amortized insertion.
-V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, Object> {
-  using Super = TaggedArrayBase<ArrayList, Object>;
+V8_OBJECT class ArrayList
+    : public TaggedArrayBase<ArrayList, Object, HeapObject> {
+  using Super = TaggedArrayBase<ArrayList, Object, HeapObject>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;

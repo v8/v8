@@ -880,8 +880,8 @@ V8_OBJECT class NativeContext : public Context {
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
 V8_OBJECT class ScriptContextTable
-    : public TaggedArrayBase<ScriptContextTable, Context> {
-  using Super = TaggedArrayBase<ScriptContextTable, Context>;
+    : public TaggedArrayBase<ScriptContextTable, Context, HeapObject> {
+  using Super = TaggedArrayBase<ScriptContextTable, Context, HeapObject>;
 
  public:
   static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;

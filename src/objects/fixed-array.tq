@@ -9,6 +9,8 @@ extern class FixedArray extends FixedArrayBase {
 
 type EmptyFixedArray extends FixedArray;
 
+// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
+// hierarchy.
 @cppObjectLayoutDefinition
 extern class TrustedFixedArray extends TrustedObject {
   const length: uint32;
@@ -17,6 +19,8 @@ extern class TrustedFixedArray extends TrustedObject {
   objects[length]: Object;
 }
 
+// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
+// hierarchy.
 @cppObjectLayoutDefinition
 extern class ProtectedFixedArray extends TrustedObject {
   const length: uint32;
@@ -25,6 +29,7 @@ extern class ProtectedFixedArray extends TrustedObject {
   objects[length]: TrustedObject|Smi;
 }
 
+// TODO(jgruber): Should extend FixedArrayBase to match the C++ class hierarchy.
 @cppObjectLayoutDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: uint32;
@@ -33,12 +38,16 @@ extern class WeakFixedArray extends HeapObject {
   objects[length]: MaybeObject;
 }
 
+// TODO(jgruber): Should extend FixedArrayBase (with uint32 length) to match the
+// C++ class hierarchy.
 @cppObjectLayoutDefinition
 extern class WeakHomomorphicFixedArray extends HeapObject {
   const length: Smi;
   objects[length]: MaybeObject;
 }
 
+// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
+// hierarchy.
 @cppObjectLayoutDefinition
 extern class TrustedWeakFixedArray extends TrustedObject {
   const length: uint32;
@@ -47,6 +56,8 @@ extern class TrustedWeakFixedArray extends TrustedObject {
   objects[length]: MaybeObject;
 }
 
+// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
+// hierarchy.
 @cppObjectLayoutDefinition
 extern class ProtectedWeakFixedArray extends TrustedObject {
   const length: uint32;
