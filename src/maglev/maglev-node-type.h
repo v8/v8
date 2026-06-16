@@ -53,7 +53,8 @@ namespace v8::internal::maglev {
   V(OtherCallable, (1 << 15))                       \
   V(JSDataView, (1 << 16))                          \
   V(OtherHeapObject, (1 << 17))                     \
-  V(OtherJSReceiver, (1 << 18))
+  V(OtherJSReceiver, (1 << 18))                     \
+  V(BigInt, (1 << 19))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -68,6 +69,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(NullOrUndefined, kNull | kUndefined)                                    \
   V(Oddball, kNullOrUndefined | kBoolean)                                   \
   V(Number, kSmi | kHeapNumber)                                             \
+  V(Numeric, kNumber | kBigInt)                                             \
   V(NumberOrBoolean, kNumber | kBoolean)                                    \
   V(NumberOrUndefined, kNumber | kUndefined)                                \
   V(NumberOrOddball, kNumber | kOddball)                                    \
@@ -81,8 +83,8 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(StringOrStringWrapper, kString | kStringWrapper)                        \
   V(StringOrOddball, kString | kOddball)                                    \
   V(Name, kString | kSymbol)                                                \
-  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */             \
-  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)           \
+  V(JSPrimitive,                                                            \
+    kNumber | kString | kBoolean | kNullOrUndefined | kSymbol | kBigInt)    \
   V(JSReceiver,                                                             \
     kJSArray | kCallable | kStringWrapper | kJSDataView | kOtherJSReceiver) \
   V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)            \

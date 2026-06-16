@@ -78,6 +78,8 @@ namespace internal {
     "Uint32 cannot be converted to Int32 without loss of precision")          \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
   V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")         \
+  V(kUnexpectedBigIntTerminationSentinel,                                     \
+    "Unexpected BigInt TerminationRequested sentinel")                        \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \

@@ -1158,6 +1158,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
   ReduceResult BuildCheckStringOrOddball(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
+  ReduceResult BuildCheckBigInt(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
       std::optional<ValueNode*> map = {},

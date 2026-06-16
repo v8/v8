@@ -289,10 +289,8 @@ class RecomputeKnownNodeAspectsProcessor {
         EnsureType(node->input_node(0), NodeType::kNumber);
         break;
       case Object::Conversion::kToNumeric:
-        // Smi, HeapNumber or BigInt. There's no separate type for BigInt, but
-        // it's a kOtherHeapObject.
-        EnsureType(node->input_node(0),
-                   UnionType(NodeType::kNumber, NodeType::kOtherHeapObject));
+        // Smi, HeapNumber or BigInt.
+        EnsureType(node->input_node(0), NodeType::kNumeric);
         break;
     }
     return ProcessResult::kContinue;

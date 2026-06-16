@@ -1820,6 +1820,27 @@ NodeType BinopHintToNodeTypeAndConversionType(BinaryOperationHint hint) {
   }
   UNREACHABLE();
 }
+
+// Operations for which a BigInt*NoThrow builtin exists, i.e. which can be
+// lowered to a BigIntBinaryOperation node. Exponentiate has no such builtin and
+// ShiftRightLogical always throws on BigInt, so both stay generic.
+constexpr bool BigIntBinaryOperationHasBuiltin(Operation operation) {
+  switch (operation) {
+    case Operation::kAdd:
+    case Operation::kSubtract:
+    case Operation::kMultiply:
+    case Operation::kDivide:
+    case Operation::kModulus:
+    case Operation::kBitwiseAnd:
+    case Operation::kBitwiseOr:
+    case Operation::kBitwiseXor:
+    case Operation::kShiftLeft:
+    case Operation::kShiftRight:
+      return true;
+    default:
+      return false;
+  }
+}
 }  // namespace
 
 template <Operation kOperation>
@@ -1847,10 +1868,18 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
           allowed_input_type);
       break;
     }
-    case BinaryOperationHint::kString:
-    case BinaryOperationHint::kStringOrStringWrapper:
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
+      // Only negation has a dedicated BigInt builtin; increment, decrement and
+      // bitwise-not stay generic.
+      if constexpr (kOperation == Operation::kNegate) {
+        ValueNode* value = GetAccumulator();
+        RETURN_IF_ABORT(BuildCheckBigInt(value));
+        return SetAccumulator(AddNewNode<BigIntNegate>({value}));
+      }
+      break;
+    case BinaryOperationHint::kString:
+    case BinaryOperationHint::kStringOrStringWrapper:
     case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
@@ -2233,9 +2262,21 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
           return BuildStringConcat(left, right);
         }
       }
-      [[fallthrough]];
+      // Fallback to generic node.
+      break;
     case BinaryOperationHint::kBigInt:
     case BinaryOperationHint::kBigInt64:
+      // TODO(jgruber): Specialize kBigInt64 with Int64 arithmetic instead of
+      // sharing the arbitrary-precision BigInt path.
+      if constexpr (BigIntBinaryOperationHasBuiltin(kOperation)) {
+        ValueNode* left = LoadRegister(0);
+        ValueNode* right = GetAccumulator();
+        RETURN_IF_ABORT(BuildCheckBigInt(left));
+        RETURN_IF_ABORT(BuildCheckBigInt(right));
+        return SetAccumulator(
+            AddNewNode<BigIntBinaryOperation>({left, right}, kOperation));
+      }
+      break;
     case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
@@ -2659,9 +2700,46 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       }
       break;
     }
-    case CompareOperationHint::kAny:
     case CompareOperationHint::kBigInt64:
-    case CompareOperationHint::kBigInt:
+    case CompareOperationHint::kBigInt: {
+      // TODO(jgruber): Specialize kBigInt64 with Int64 comparisons instead of
+      // sharing the arbitrary-precision BigInt path.
+      if constexpr (kOperation == Operation::kEqual ||
+                    kOperation == Operation::kStrictEqual ||
+                    kOperation == Operation::kLessThan ||
+                    kOperation == Operation::kLessThanOrEqual ||
+                    kOperation == Operation::kGreaterThan ||
+                    kOperation == Operation::kGreaterThanOrEqual) {
+        ValueNode* left = LoadRegister(0);
+        ValueNode* right = GetAccumulator();
+        RETURN_IF_ABORT(BuildCheckBigInt(left));
+        RETURN_IF_ABORT(BuildCheckBigInt(right));
+        if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
+        // The BigInt comparison builtins only implement Equal, LessThan and
+        // LessThanOrEqual; map the others onto them. Greater* swap operands;
+        // (Strict)Equal both lower to value equality of two BigInts.
+        Operation node_op;
+        if constexpr (kOperation == Operation::kEqual ||
+                      kOperation == Operation::kStrictEqual) {
+          node_op = Operation::kEqual;
+        } else if constexpr (kOperation == Operation::kLessThan) {
+          node_op = Operation::kLessThan;
+        } else if constexpr (kOperation == Operation::kLessThanOrEqual) {
+          node_op = Operation::kLessThanOrEqual;
+        } else if constexpr (kOperation == Operation::kGreaterThan) {
+          node_op = Operation::kLessThan;
+          std::swap(left, right);
+        } else {
+          static_assert(kOperation == Operation::kGreaterThanOrEqual);
+          node_op = Operation::kLessThanOrEqual;
+          std::swap(left, right);
+        }
+        return SetAccumulator(
+            AddNewNode<BigIntCompare>({left, right}, node_op));
+      }
+      break;
+    }
+    case CompareOperationHint::kAny:
       break;
     case CompareOperationHint::kReceiverOrNullOrUndefined: {
       if (kOperation == Operation::kEqual) {
@@ -3837,6 +3915,11 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
     return ReduceResult::Done();
   }
   return AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckBigInt(ValueNode* object) {
+  return BuildCheckInstanceType(object, NodeType::kBigInt, BIGINT_TYPE,
+                                BIGINT_TYPE);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckInstanceType(ValueNode* object,

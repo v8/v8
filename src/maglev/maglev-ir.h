@@ -124,6 +124,14 @@ class ExceptionHandlerInfo;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
+// TODO(jgruber): These are currently implemented using *NoThrow builtin
+// variants, both in Maglev and downstream in Turboshaft. Consider using
+// throwing builtins instead once we've switched over to the Turbolev pipeline.
+#define BIGINT_OPERATIONS_NODE_LIST(V) \
+  V(BigIntBinaryOperation)             \
+  V(BigIntCompare)                     \
+  V(BigIntNegate)
+
 #define INT32_BITWISE_BINARY_OPERATIONS_NODE_LIST(V) \
   V(Int32BitwiseAnd)                                 \
   V(Int32BitwiseOr)                                  \
@@ -408,6 +416,7 @@ class ExceptionHandlerInfo;
   FLOAT64_OPERATIONS_NODE_LIST(V)                                     \
   SMI_OPERATIONS_NODE_LIST(V)                                         \
   GENERIC_OPERATIONS_NODE_LIST(V)                                     \
+  BIGINT_OPERATIONS_NODE_LIST(V)                                      \
   INLINE_BUILTIN_NODE_LIST(V)                                         \
   TURBOLEV_VALUE_NODE_LIST(V)
 
@@ -3274,6 +3283,107 @@ COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_EMBEDDED_FEEDBACK_NODE)
 #undef DEF_OPERATION_WITH_FEEDBACK_NODE
 #undef DEF_OPERATION_WITH_EMBEDDED_FEEDBACK_NODE
 
+// Number of bits needed to encode an Operation in a node's bitfield.
+#define COUNT_OPERATION(Name) +1
+inline constexpr int kNumberOfOperations = 0 OPERATION_LIST(COUNT_OPERATION);
+#undef COUNT_OPERATION
+inline constexpr int kOperationBits = 5;
+static_assert(kNumberOfOperations <= (1 << kOperationBits),
+              "Operation must fit in kOperationBits");
+
+// Arbitrary-precision BigInt arithmetic. Calls the BigInt*NoThrow builtins and
+// eager-deopts on the Smi sentinel they return (signalling BigIntTooBig,
+// DivisionByZero, or TerminationRequested), falling back to the interpreter to
+// produce the correct result or exception. Inputs are known BigInt.
+class BigIntBinaryOperation
+    : public FixedInputValueNodeT<2, BigIntBinaryOperation> {
+  using Base = FixedInputValueNodeT<2, BigIntBinaryOperation>;
+
+ public:
+  explicit BigIntBinaryOperation(uint64_t bitfield, Operation operation)
+      : Base(OperationBitField::update(bitfield, operation)) {}
+
+  // Calls the builtin (Call) which allocates the result (CanAllocate). On the
+  // Smi sentinel it either eager-deopts (BigIntTooBig / DivisionByZero,
+  // EagerDeopt) or, for the Mul/Div/Mod TerminationRequested sentinel, raises
+  // TerminateExecution in this frame; the LazyDeopt frame state lets the
+  // termination stack walk summarize this frame. The result is a pure function
+  // of the inputs, so the node stays idempotent and may be CSE'd.
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::EagerDeopt() | OpProperties::LazyDeopt();
+
+  DECLARE_BINOP(Tagged, Tagged)
+
+  constexpr Operation operation() const {
+    return OperationBitField::decode(bitfield());
+  }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{operation()}; }
+  NodeType type() const { return NodeType::kBigInt; }
+
+ private:
+  using OperationBitField = NextBitField<Operation, kOperationBits>;
+};
+
+// Arbitrary-precision BigInt comparison. Calls the BigInt{Equal,LessThan,
+// LessThanOrEqual} builtins, which return a Boolean and cannot throw or deopt.
+// Inputs are known BigInt.
+class BigIntCompare : public FixedInputValueNodeT<2, BigIntCompare> {
+  using Base = FixedInputValueNodeT<2, BigIntCompare>;
+
+ public:
+  explicit BigIntCompare(uint64_t bitfield, Operation operation)
+      : Base(OperationBitField::update(bitfield, operation)) {}
+
+  // Unlike BigIntBinaryOperation, the comparison builtins return a boolean root
+  // (no allocation) and cannot fail (no deopt).
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  DECLARE_BINOP(Tagged, Tagged)
+
+  constexpr Operation operation() const {
+    return OperationBitField::decode(bitfield());
+  }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{operation()}; }
+  NodeType type() const { return NodeType::kBoolean; }
+
+ private:
+  using OperationBitField = NextBitField<Operation, kOperationBits>;
+};
+
+// BigInt unary minus. Calls BigIntUnaryMinus, which allocates the negated
+// result but cannot overflow (negation does not change the digit length).
+// Input is known BigInt.
+class BigIntNegate : public FixedInputValueNodeT<1, BigIntNegate> {
+  using Base = FixedInputValueNodeT<1, BigIntNegate>;
+
+ public:
+  explicit BigIntNegate(uint64_t bitfield) : Base(bitfield) {}
+
+  // Allocates the negated result (CanAllocate) but cannot overflow, so unlike
+  // BigIntBinaryOperation it needs no deopt.
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate();
+
+  DECLARE_UNOP(Tagged)
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  NodeType type() const { return NodeType::kBigInt; }
+};
+
 template <class Derived, Operation kOperation>
 class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
@@ -3425,7 +3535,7 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
   NodeType type() const { return NodeType::kBoolean; }
 
  private:
-  using OperationBitField = NextBitField<Operation, 5>;
+  using OperationBitField = NextBitField<Operation, kOperationBits>;
 };
 
 class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
@@ -3599,7 +3709,7 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
   NodeType type() const { return NodeType::kBoolean; }
 
  private:
-  using OperationBitField = NextBitField<Operation, 5>;
+  using OperationBitField = NextBitField<Operation, kOperationBits>;
 };
 
 class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {

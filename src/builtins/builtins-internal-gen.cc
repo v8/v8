@@ -1788,8 +1788,8 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
 
   Label is_smi(this), is_heap_number(this), is_string(this), is_symbol(this),
-      is_oddball(this), is_context(this), is_js_receiver(this),
-      is_other_heap_object(this), done(this);
+      is_big_int(this), is_oddball(this), is_context(this),
+      is_js_receiver(this), is_other_heap_object(this), done(this);
 
   GotoIf(TaggedIsSmi(object), &is_smi);
 
@@ -1803,6 +1803,7 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
          &is_string);
   GotoIf(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)), &is_symbol);
+  GotoIf(Word32Equal(instance_type, Int32Constant(BIGINT_TYPE)), &is_big_int);
   GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &is_oddball);
 
   GotoIf(IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE),
@@ -1841,6 +1842,9 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
 
   BIND(&is_symbol);
   CheckType(maglev::NodeType::kSymbol);
+
+  BIND(&is_big_int);
+  CheckType(maglev::NodeType::kBigInt);
 
   BIND(&is_oddball);
   {

@@ -3033,6 +3033,21 @@ ProcessResult MaglevGraphOptimizer::VisitGenericAdd(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitBigIntBinaryOperation(
+    BigIntBinaryOperation* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitBigIntCompare(
+    BigIntCompare* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitBigIntNegate(
+    BigIntNegate* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitGenericSubtract(
     GenericSubtract* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

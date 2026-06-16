@@ -1484,6 +1484,140 @@ void BinaryWithEmbeddedFeedbackNode<Derived, kOperation>::GenerateCode(
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+namespace {
+// The BigInt*NoThrow builtins for these operations perform interrupt-checked
+// large-number arithmetic and can thus return the TerminationRequested
+// sentinel; the others can only signal BigIntTooBig (or never fail).
+constexpr bool BigIntBinaryOperationCanTerminate(Operation operation) {
+  switch (operation) {
+    case Operation::kMultiply:
+    case Operation::kDivide:
+    case Operation::kModulus:
+      return true;
+    default:
+      return false;
+  }
+}
+}  // namespace
+
+int BigIntBinaryOperation::MaxCallStackArgs() const {
+  // All BigInt*NoThrow builtins dispatched in GenerateCode have the same
+  // (BigInt, BigInt) signature and thus the same descriptor; Add is a
+  // representative.
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntAddNoThrow>::type;
+  return D::GetStackParameterCount();
+}
+void BigIntBinaryOperation::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntAddNoThrow>::type;
+  UseFixed(LeftInput(), D::GetRegisterParameter(0));
+  UseFixed(RightInput(), D::GetRegisterParameter(1));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void BigIntBinaryOperation::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // All these builtins share the same call interface descriptor, so we can
+  // select the target at runtime while pinning the inputs once.
+  switch (operation()) {
+#define CASE(Op, BuiltinName)                                                \
+  case Operation::k##Op:                                                     \
+    __ CallBuiltin<Builtin::k##BuiltinName>(masm->native_context().object(), \
+                                            LeftInput(), RightInput());      \
+    break;
+    CASE(Add, BigIntAddNoThrow)
+    CASE(Subtract, BigIntSubtractNoThrow)
+    CASE(Multiply, BigIntMultiplyNoThrow)
+    CASE(Divide, BigIntDivideNoThrow)
+    CASE(Modulus, BigIntModulusNoThrow)
+    CASE(BitwiseAnd, BigIntBitwiseAndNoThrow)
+    CASE(BitwiseOr, BigIntBitwiseOrNoThrow)
+    CASE(BitwiseXor, BigIntBitwiseXorNoThrow)
+    CASE(ShiftLeft, BigIntShiftLeftNoThrow)
+    CASE(ShiftRight, BigIntShiftRightNoThrow)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+  // The NoThrow builtins return a Smi sentinel (rather than a BigInt) to signal
+  // an exceptional result: Smi 0 for BigIntTooBig or DivisionByZero, and Smi 1
+  // for TerminationRequested. In the Smi 0 case we deopt and let the
+  // interpreter recompute and raise the right exception.
+  Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kBigIntTooBig);
+  if (BigIntBinaryOperationCanTerminate(operation())) {
+    Label done;
+    // Not a Smi: this is the BigInt result, nothing to do.
+    __ JumpIfNotSmi(kReturnRegister0, &done, Label::kNear);
+    // Smi 0 (BigIntTooBig / DivisionByZero): deopt and recompute.
+    __ CompareSmiAndJumpIf(kReturnRegister0, Smi::FromInt(1), kNotEqual, deopt);
+    // Smi 1 (TerminationRequested): the builtin already observed (and cleared)
+    // the terminate interrupt, so deopting would let the interpreter recompute
+    // to completion and swallow it. Re-raise the termination in this frame.
+    __ Move(kContextRegister, 0);
+    __ CallRuntime(Runtime::kTerminateExecution, 0);
+    __ DefineLazyDeoptPoint(lazy_deopt_info());
+    __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+    __ bind(&done);
+  } else {
+    if (v8_flags.debug_code) {
+      Label not_smi;
+      __ JumpIfNotSmi(kReturnRegister0, &not_smi, Label::kNear);
+      // If this fails, update BigIntBinaryOperationCanTerminate.
+      __ CompareSmiAndAssert(kReturnRegister0, Smi::FromInt(1), kNotEqual,
+                             AbortReason::kUnexpectedBigIntTerminationSentinel);
+      __ bind(&not_smi);
+    }
+    __ JumpIfSmi(kReturnRegister0, deopt);
+  }
+}
+
+int BigIntCompare::MaxCallStackArgs() const {
+  // The BigInt comparison builtins share the same (BigInt, BigInt) descriptor;
+  // Equal is a representative.
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntEqual>::type;
+  return D::GetStackParameterCount();
+}
+void BigIntCompare::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntEqual>::type;
+  UseFixed(LeftInput(), D::GetRegisterParameter(0));
+  UseFixed(RightInput(), D::GetRegisterParameter(1));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void BigIntCompare::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  // GreaterThan / GreaterThanOrEqual are lowered by the graph builder to
+  // LessThan / LessThanOrEqual with swapped operands.
+  switch (operation()) {
+    case Operation::kEqual:
+      __ CallBuiltin<Builtin::kBigIntEqual>(masm->native_context().object(),
+                                            LeftInput(), RightInput());
+      break;
+    case Operation::kLessThan:
+      __ CallBuiltin<Builtin::kBigIntLessThan>(masm->native_context().object(),
+                                               LeftInput(), RightInput());
+      break;
+    case Operation::kLessThanOrEqual:
+      __ CallBuiltin<Builtin::kBigIntLessThanOrEqual>(
+          masm->native_context().object(), LeftInput(), RightInput());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+int BigIntNegate::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntUnaryMinus>::type;
+  return D::GetStackParameterCount();
+}
+void BigIntNegate::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kBigIntUnaryMinus>::type;
+  UseFixed(ValueInput(), D::GetRegisterParameter(0));
+  DefineAsFixed(this, kReturnRegister0);
+}
+void BigIntNegate::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kBigIntUnaryMinus>(masm->native_context().object(),
+                                             ValueInput());
+}
+
 #define DEF_OPERATION(Name)                               \
   void Name::SetValueLocationConstraints() {              \
     Base::SetValueLocationConstraints();                  \

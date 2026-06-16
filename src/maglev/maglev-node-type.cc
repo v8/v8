@@ -27,6 +27,7 @@ NodeType StaticTypeForMap(compiler::MapRef map,
   }
   if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
   if (map.IsSymbolMap()) return NodeType::kSymbol;
+  if (map.IsBigIntMap()) return NodeType::kBigInt;
   if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
   if (map.IsNullMap(broker)) return NodeType::kNull;
   if (map.IsUndefinedMap(broker)) return NodeType::kUndefined;
@@ -77,6 +78,8 @@ bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
       return map.IsSymbolMap();
+    case NodeType::kBigInt:
+      return map.IsBigIntMap();
     case NodeType::kOtherString:
       // This doesn't exclude other string leaf types, which means one should
       // never test for this node type alone.
@@ -111,7 +114,7 @@ bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
     case NodeType::kOtherHeapObject:
       return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
              !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
-             !map.IsJSReceiverMap();
+             !map.IsJSReceiverMap() && !map.IsBigIntMap();
     default:
       UNREACHABLE();
   }
