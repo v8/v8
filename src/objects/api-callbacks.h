@@ -244,12 +244,14 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
   // TODO(ishell): remove support for old signatures once they go through
   // Api deprecation process.
   DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
+  DECL_BOOLEAN_ACCESSORS(has_dont_delete_property)
 
   using CanInterceptSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
   using NonMaskingBit = CanInterceptSymbolsBit::Next<bool, 1>;
   using NamedBit = NonMaskingBit::Next<bool, 1>;
   using HasNoSideEffectBit = NamedBit::Next<bool, 1>;
   using HasNewCallbacksSignatureBit = HasNoSideEffectBit::Next<bool, 1>;
+  using HasDontDeletePropertyBit = HasNewCallbacksSignatureBit::Next<bool, 1>;
   enum Flag : uint32_t {
     kNone = 0,
     kCanInterceptSymbols = CanInterceptSymbolsBit::kMask,
@@ -257,9 +259,10 @@ V8_OBJECT class InterceptorInfo : public HeapObject {
     kNamed = NamedBit::kMask,
     kHasNoSideEffect = HasNoSideEffectBit::kMask,
     kHasNewCallbacksSignature = HasNewCallbacksSignatureBit::kMask,
+    kHasDontDeleteProperty = HasDontDeletePropertyBit::kMask,
   };
   using Flags = base::Flags<Flag>;
-  static constexpr int kFlagCount = 5;
+  static constexpr int kFlagCount = 6;
 
   DECL_PRINTER(InterceptorInfo)
   DECL_VERIFIER(InterceptorInfo)
