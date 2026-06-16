@@ -286,18 +286,17 @@ void Script::TraceScriptRundownSources() {
                 "ScriptCatchup", "data", std::move(value));
   } else {
     int32_t split_count = source_length / kSplitMaxLength + 1;
-    std::unique_ptr<char[]> source_ptr = source->ToCString();
     for (int32_t i = 0; i < split_count; i++) {
       int32_t begin = i * kSplitMaxLength;
-      int32_t end = std::min(begin + kSplitMaxLength, source_length);
+      int32_t length = std::min(kSplitMaxLength, source_length - begin);
       auto split_trace_value = v8::tracing::TracedValue::Create();
       split_trace_value->SetInteger("splitIndex", i);
       split_trace_value->SetInteger("splitCount", split_count);
       split_trace_value->SetString(
           "isolate", std::to_string(isolate->debug()->IsolateId()));
       split_trace_value->SetInteger("scriptId", script_id);
-      split_trace_value->SetString(
-          "sourceText", std::string(source_ptr.get() + begin, end - begin));
+      split_trace_value->SetString("sourceText",
+                                   source->ToCString(begin, length).get());
       TRACE_EVENT(
           TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
           "LargeScriptCatchup", "data", std::move(split_trace_value));
