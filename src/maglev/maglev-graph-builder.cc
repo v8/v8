@@ -9423,6 +9423,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
   if (map_inference.has_value()) {
     RETURN_IF_ABORT(map_inference->InsertMapChecks(zone()));
+  } else {
+    RETURN_IF_ABORT(BuildCheckMaps(iterated_object, base::VectorOf(maps)));
   }
 
   // Load the [[NextIndex]] from the {iterator}.
