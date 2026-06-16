@@ -1662,9 +1662,9 @@ config("toolchain") {
     } else {
       defines += [ "__mips_soft_float=1" ]
     }
-    if (mips_arch_variant == "r6") {
-      defines += [ "_MIPS_ARCH_MIPS64R6" ]
-    } else if (mips_arch_variant == "r2") {
+    assert(mips_arch_variant != "r6",
+           "Fatal: mips_arch_variant='r6' has been explicitly disabled.")
+    if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
