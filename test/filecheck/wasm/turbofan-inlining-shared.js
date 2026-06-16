@@ -5,7 +5,7 @@
 // Flags: --experimental-wasm-shared --allow-natives-syntax --fuzzing
 // Flags: --trace-turbo-inlining --turbofan --no-disable-optimizing-compilers
 // Flags: --no-optimize-on-next-call-optimizes-to-maglev --no-turbolev
-// Flags: --no-turbolev-future
+// Flags: --no-turbolev-future --no-stress-concurrent-inlining
 
 d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
