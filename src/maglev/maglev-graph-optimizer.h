@@ -73,18 +73,14 @@ class MaglevGraphOptimizer {
 
   void AttachExceptionHandlerInfo(NodeBase* node);
 
-  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
-  ReduceResult BuildAbort(AbortReason);
-  ReduceResult EmitThrow(Throw::Function function, ValueNode* input);
-
   ProcessResult DeoptAndTruncate(DeoptimizeReason reason) {
-    ReduceResult result = EmitUnconditionalDeopt(reason);
+    ReduceResult result = reducer_.EmitUnconditionalDeopt(reason);
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }
   ProcessResult ThrowAndTruncate(Throw::Function function,
                                  ValueNode* input = nullptr) {
-    ReduceResult result = EmitThrow(function, input);
+    ReduceResult result = reducer_.EmitThrow(function, input);
     CHECK(result.IsDoneWithAbort());
     return ProcessResult::kTruncateBlock;
   }
@@ -95,9 +91,6 @@ class MaglevGraphOptimizer {
   Graph* graph() const { return reducer_.graph(); }
 
  private:
-  template <typename NodeT, typename ReasonT>
-  ReduceResult EmitAbruptBlockEnd(ReasonT reason);
-
   MaglevReducer<MaglevGraphOptimizer> reducer_;
   RecomputeKnownNodeAspectsProcessor& kna_processor_;
   NodeRanges* ranges_;

@@ -269,9 +269,8 @@ concept ReducerBaseWithEagerDeopt =
     requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
 
 template <typename BaseT>
-concept ReducerBaseWithUnconditonalDeopt = requires(BaseT* b) {
-  b->EmitUnconditionalDeopt(std::declval<DeoptimizeReason>());
-};
+concept ReducerBaseWithAbruptBlockEnd =
+    requires(BaseT* b, BasicBlock* block) { b->OnAbruptBlockEnd(block); };
 
 template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
@@ -694,6 +693,8 @@ class MaglevReducer {
   ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
 
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+  ReduceResult BuildAbort(AbortReason reason);
+  ReduceResult EmitThrow(Throw::Function function, ValueNode* input = nullptr);
 
   template <class T>
   compiler::OptionalRef<typename compiler::ref_traits<T>::ref_type>
@@ -1468,6 +1469,10 @@ class MaglevReducer {
   friend class MapInference;
 
  private:
+  template <typename NodeT, typename... Args>
+  ReduceResult EmitAbruptBlockEnd(std::initializer_list<ValueNode*> inputs,
+                                  Args&&... args);
+
   // Use TryGetConstant instead.
   compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
       ValueNode* node, ValueNode** constant_node);

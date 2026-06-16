@@ -1311,10 +1311,55 @@ ValueNode* MaglevReducer<BaseT>::TryGetInt32(ValueNode* value) {
 }
 
 template <typename BaseT>
+template <typename NodeT, typename... Args>
+ReduceResult MaglevReducer<BaseT>::EmitAbruptBlockEnd(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  BasicBlock* block = current_block();
+  block->set_deferred(true);
+  const bool current_block_is_terminated = block->control_node() != nullptr;
+  if (current_block_is_terminated) {
+    block->RemovePredecessorFollowing(block->reset_control_node());
+  }
+  ReduceResult result =
+      AddNewControlNode<NodeT>(inputs, std::forward<Args>(args)...);
+  if (result.IsDoneWithAbort()) {
+    // Converting an input already finished the block with a deopt.
+    DCHECK(!current_block_is_terminated);
+    return ReduceResult::DoneWithAbort();
+  }
+  if (!current_block_is_terminated) {
+    FlushNodesToBlock();
+    set_current_block(nullptr);
+    if constexpr (ReducerBaseWithAbruptBlockEnd<BaseT>) {
+      base_->OnAbruptBlockEnd(block);
+    }
+  }
+  return ReduceResult::DoneWithAbort();
+}
+
+template <typename BaseT>
 ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
     DeoptimizeReason reason) {
-  static_assert(ReducerBaseWithUnconditonalDeopt<BaseT>);
-  return base_->EmitUnconditionalDeopt(reason);
+  return EmitAbruptBlockEnd<Deopt>({}, reason);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildAbort(AbortReason reason) {
+  return EmitAbruptBlockEnd<Abort>({}, reason);
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::EmitThrow(Throw::Function function,
+                                             ValueNode* input) {
+  bool has_input;
+  if (input == nullptr) {
+    has_input = false;
+    // To avoid a nullptr input, we use Smi(0) as dummy input.
+    input = GetSmiConstant(0);
+  } else {
+    has_input = true;
+  }
+  return EmitAbruptBlockEnd<Throw>({input}, function, has_input);
 }
 
 template <typename BaseT>
@@ -4242,7 +4287,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryReduceStringLength(
   NodeType node_type = GetType(string);
   if (node_type == NodeType::kNone ||
       !NodeTypeCanBe(node_type, NodeType::kString)) {
-    return base_->BuildAbort(AbortReason::kUnreachable);
+    return BuildAbort(AbortReason::kUnreachable);
   }
   if (auto vo_string = string->template TryCast<InlinedAllocation>()) {
     VirtualObject* vobj = vo_string->object();

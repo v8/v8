@@ -1680,12 +1680,8 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
 ProcessResult MaglevPhiRepresentationSelector::EmitUnconditionalDeopt(
     NodeBase* node, DeoptimizeReason reason) {
   eager_deopt_frame_ = &node->eager_deopt_info()->top_frame();
-  BasicBlock* block = reducer_.current_block();
-  ControlNode* control = block->reset_control_node();
-  block->set_deferred(true);
-  block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Deopt>({}, reason);
-  CHECK(!result.IsDoneWithAbort());
+  ReduceResult result = reducer_.EmitUnconditionalDeopt(reason);
+  CHECK(result.IsDoneWithAbort());
   return ProcessResult::kTruncateBlock;
 }
 

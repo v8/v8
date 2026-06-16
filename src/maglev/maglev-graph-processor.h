@@ -364,31 +364,39 @@ class GraphProcessor {
     block->set_control_node(jump_to_entry);
     splice.entry->set_predecessor(block);
 
-    // Move tail (if any) + original control to the join block.
-    for (Node* n : tail_nodes) {
-      if (n == nullptr) continue;
-      n->set_owner(splice.exit);
-      splice.exit->nodes().push_back(n);
-    }
-    original_control->set_owner(splice.exit);
-    splice.exit->set_control_node(original_control);
+    if (splice.exit == nullptr) {
+      // The subgraph deopts/throws on every path, so there is no join block to
+      // reconnect: the original control (and the already-truncated tail) is
+      // dead. Unwire its successors from `block`.
+      DCHECK(truncate);
+      block->RemovePredecessorFollowing(original_control);
+    } else {
+      // Move tail (if any) + original control to the join block.
+      for (Node* n : tail_nodes) {
+        if (n == nullptr) continue;
+        n->set_owner(splice.exit);
+        splice.exit->nodes().push_back(n);
+      }
+      original_control->set_owner(splice.exit);
+      splice.exit->set_control_node(original_control);
 
-    // Successors of the original control had `block` as predecessor;
-    // they now have the join block.
-    splice.exit->ForEachSuccessor(
-        [block, exit = splice.exit](BasicBlock* succ) {
-          if (!succ->has_state()) {
-            DCHECK_EQ(succ->predecessor(), block);
-            succ->set_predecessor(exit);
-            return;
-          }
-          for (int i = 0; i < succ->predecessor_count(); i++) {
-            if (succ->predecessor_at(i) == block) {
-              succ->state()->set_predecessor_at(i, exit);
-              break;
+      // Successors of the original control had `block` as predecessor;
+      // they now have the join block.
+      splice.exit->ForEachSuccessor(
+          [block, exit = splice.exit](BasicBlock* succ) {
+            if (!succ->has_state()) {
+              DCHECK_EQ(succ->predecessor(), block);
+              succ->set_predecessor(exit);
+              return;
             }
-          }
-        });
+            for (int i = 0; i < succ->predecessor_count(); i++) {
+              if (succ->predecessor_at(i) == block) {
+                succ->state()->set_predecessor_at(i, exit);
+                break;
+              }
+            }
+          });
+    }
 
     size_t current_idx = block_it_ - graph_->begin();
     graph_->AddBlocksAt(splice.all_blocks, current_idx);

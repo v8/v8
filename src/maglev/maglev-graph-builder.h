@@ -265,8 +265,9 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
 
-  // Called when a block is killed by an unconditional eager deopt.
-  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+  // CRTP hook for MaglevReducer::EmitAbruptBlockEnd: registers the
+  // just-finished block in the graph and snapshots the interpreter frame.
+  void OnAbruptBlockEnd(BasicBlock* block);
 
   template <bool is_possible_map_change = true>
   void ResetBuilderCachedState();
@@ -513,10 +514,6 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs);
-
-  ReduceResult BuildThrow(Throw::Function function, ValueNode* input = nullptr);
-
-  ReduceResult BuildAbort(AbortReason reason);
 
   void Print(const char* str);
   void Print(ValueNode* value);
