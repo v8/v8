@@ -800,6 +800,7 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
     //  so avoid the expensive SkipToPosition.)
     bool ascii_only_chunk =
         GetChunk(chunk_no).start.incomplete_char == 0 &&
+        GetChunk(chunk_no).start.state == unibrow::Utf8::State::kAccept &&
         (GetChunk(chunk_no + 1).start.bytes - GetChunk(chunk_no).start.bytes) ==
             (GetChunk(chunk_no + 1).start.chars -
              GetChunk(chunk_no).start.chars);
