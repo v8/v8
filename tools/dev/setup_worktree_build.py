@@ -176,8 +176,24 @@ def init_deps_cache(main_repo: Path, deps_worktree: Path,
       shutil.rmtree(tmp_root, ignore_errors=True)
 
 
+def should_skip_worktree_deps(worktree_dir: Path) -> bool:
+  try:
+    # Check if v8.skip-worktree-deps is set to true in git config
+    res = subprocess.check_output(
+        ["git", "config", "--get", "v8.skip-worktree-deps"],
+        cwd=worktree_dir,
+        stderr=subprocess.DEVNULL,
+        text=True).strip()
+    return res == "true"
+  except Exception:
+    return False
+
+
 def sync_dependencies(main_repo: Path, worktree_dir: Path):
   if main_repo.resolve() == worktree_dir.resolve():
+    return
+
+  if should_skip_worktree_deps(worktree_dir):
     return
 
   # Protect the entire sync operation for this specific worktree
