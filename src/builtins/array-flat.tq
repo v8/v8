@@ -82,8 +82,11 @@ transitioning macro CalculateFlattenedLengthFast(
   let didDescend: bool = false;
 
   while (true) {
+    // Rechecking once per array is enough: nothing in the inner loop
+    // invokes JS.
+    fastOW.Recheck() otherwise goto Bailout;
+
     while (index < currentLength) {
-      fastOW.Recheck() otherwise goto Bailout;
       if (index >= fastOW.Get().length) goto Bailout;
 
       let element: JSAny;
@@ -200,8 +203,12 @@ transitioning macro TryFastFlat(
   if (info.targetKind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
     const doubleMap: Map = LoadJSArrayElementsMap(
         ElementsKind::PACKED_DOUBLE_ELEMENTS, LoadNativeContext(context));
+    // AllocateFixedDoubleArrayWithHoles memsets every slot to the hole
+    // sentinel, but flattenedLength is exact so every slot will be
+    // written.  Use AllocateFixedArray to skip the redundant memset.
     const doubleElements: FixedDoubleArray =
-        AllocateFixedDoubleArrayWithHoles(SmiUntag(flattenedLength));
+        UnsafeCast<FixedDoubleArray>(AllocateFixedArray(
+            ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(flattenedLength)));
     let targetIndex: Smi = 0;
     let stack = growable_fixed_array::NewGrowableFixedArray();
     let currentArray: FastJSArrayForRead =
@@ -213,8 +220,9 @@ transitioning macro TryFastFlat(
     let didDescend: bool = false;
 
     while (true) {
+      fastOW.Recheck() otherwise goto Bailout;
+
       while (index < currentLength) {
-        fastOW.Recheck() otherwise goto Bailout;
         if (index >= fastOW.Get().length) goto Bailout;
 
         let element: JSAny;
@@ -226,10 +234,35 @@ transitioning macro TryFastFlat(
         }
 
         if (currentDepth > 0 && Is<JSArray>(element)) {
-          const elementArray: FastJSArrayForRead =
-              Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
           const nextDepth: Smi =
               math::TrySmiSub(currentDepth, 1) otherwise goto Bailout;
+          const subArray: JSArray = UnsafeCast<JSArray>(element);
+
+          // Packed double sub-array: bulk copy via memcpy.
+          // FixedDoubleArray contains no tagged pointers, so the copy is
+          // unconditionally safe with respect to write barriers.
+          if (subArray.map.elements_kind ==
+              ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+            const srcElements: FixedDoubleArray =
+                Cast<FixedDoubleArray>(subArray.elements)
+                otherwise goto Bailout;
+            const srcLen: Smi =
+                Cast<Smi>(subArray.length) otherwise goto Bailout;
+            const newIdx: Smi = math::TrySmiAdd(targetIndex, srcLen)
+                otherwise goto Bailout;
+            if (Convert<intptr>(newIdx) > doubleElements.length_intptr) {
+              goto Bailout;
+            }
+            TorqueCopyElements(
+                doubleElements, SmiUntag(targetIndex), srcElements, 0,
+                SmiUntag(srcLen));
+            targetIndex = newIdx;
+            index++;
+            continue;
+          }
+
+          const elementArray: FastJSArrayForRead =
+              Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
           const nextIndex: Smi =
               math::TrySmiAdd(index, 1) otherwise goto Bailout;
           stack.Push(currentArray);
@@ -284,11 +317,13 @@ transitioning macro TryFastFlat(
   let index: Smi = SmiConstant(0);
   let currentLength: Smi = fastLength;
   let fastOW = NewFastJSArrayForReadWitness(currentArray);
+
   let didDescend: bool = false;
 
   while (true) {
+    fastOW.Recheck() otherwise goto Bailout;
+
     while (index < currentLength) {
-      fastOW.Recheck() otherwise goto Bailout;
       if (index >= fastOW.Get().length) goto Bailout;
 
       let element: JSAny;
@@ -300,10 +335,31 @@ transitioning macro TryFastFlat(
       }
 
       if (currentDepth > 0 && Is<JSArray>(element)) {
-        const elementArray: FastJSArrayForRead =
-            Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
         const nextDepth: Smi =
             math::TrySmiSub(currentDepth, 1) otherwise goto Bailout;
+        const subArray: JSArray = UnsafeCast<JSArray>(element);
+
+        // Packed Smi sub-array: bulk copy via memcpy.  Smi
+        // values carry no heap pointer, so write barriers are not required.
+        if (subArray.map.elements_kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+          const srcElements: FixedArray = Cast<FixedArray>(subArray.elements)
+              otherwise goto Bailout;
+          const srcLen: Smi = Cast<Smi>(subArray.length) otherwise goto Bailout;
+          const newIdx: Smi = math::TrySmiAdd(targetIndex, srcLen)
+              otherwise goto Bailout;
+          if (Convert<intptr>(newIdx) > vector.fixedArray.length_intptr) {
+            goto Bailout;
+          }
+          TorqueCopyElements(
+              vector.fixedArray, SmiUntag(targetIndex), srcElements, 0,
+              SmiUntag(srcLen));
+          targetIndex = newIdx;
+          index++;
+          continue;
+        }
+
+        const elementArray: FastJSArrayForRead =
+            Cast<FastJSArrayForRead>(element) otherwise goto Bailout;
         const nextIndex: Smi = math::TrySmiAdd(index, 1) otherwise goto Bailout;
         if (stack.length >= kMaxFlatFastStackEntries) goto Bailout;
         stack.Push(currentArray);
@@ -320,8 +376,9 @@ transitioning macro TryFastFlat(
       }
 
       if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
-      if (Convert<intptr>(targetIndex) >= vector.fixedArray.length_intptr)
+      if (Convert<intptr>(targetIndex) >= vector.fixedArray.length_intptr) {
         goto Bailout;
+      }
       vector.StoreResult(targetIndex, element);
       targetIndex++;
       index++;
