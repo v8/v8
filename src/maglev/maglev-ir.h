@@ -9896,6 +9896,7 @@ class Phi : public ValueNodeT<Phi> {
   const MergePointInterpreterFrameState* merge_state() const {
     return merge_state_;
   }
+  MergePointInterpreterFrameState* merge_state() { return merge_state_; }
 
   using Node::initialize_input_null;
   using Node::reduce_input_count;
@@ -9977,7 +9978,7 @@ class Phi : public ValueNodeT<Phi> {
   UseRepresentationSet same_loop_use_repr_hints_ = {};
 
   Phi* next_ = nullptr;
-  MergePointInterpreterFrameState* const merge_state_;
+  MergePointInterpreterFrameState* merge_state_;
 
   // The type of this Phi based on its predecessors' types.
   NodeType type_;
@@ -9991,6 +9992,7 @@ class Phi : public ValueNodeT<Phi> {
   NodeType post_loop_type_;
 
   friend base::ThreadedListTraits<Phi>;
+  friend MergePointInterpreterFrameState;
 };
 
 class Call : public VarargsValueNodeT<2, Call> {

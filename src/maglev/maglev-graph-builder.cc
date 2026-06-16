@@ -668,9 +668,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::Bind(Label* label) {
     // The new block created below only points to label->variable_merge_state_.
     // Move the phis in label->merge_state_ into it, so that they get processed,
     // too.
-
-    label->variable_merge_state_->phis()->Append(
-        std::move(*label->merge_state_->phis()));
+    label->variable_merge_state_->TakePhisFrom(*label->merge_state_);
   }
 
   builder_->ProcessMergePointPredecessors(*label->variable_merge_state_,

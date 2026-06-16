@@ -1219,9 +1219,7 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   // Create a new loop phi for each header phi and collect the rewires.
   for (auto& [old_phi, pem_phi] : ctx.header_phi_to_pem_phi) {
     Phi* loop_phi = NodeBase::New<Phi>(
-        zone(), kPhiInputCount,
-        const_cast<MergePointInterpreterFrameState*>(old_phi->merge_state()),
-        old_phi->owner());
+        zone(), kPhiInputCount, old_phi->merge_state(), old_phi->owner());
     // Slot 0 takes the peeled clone of the back-edge value (via value_map);
     // slot 1 the original back-edge value. If the back-edge value is itself a
     // header phi (a recursive loop phi), slot 1 still points at the old phi

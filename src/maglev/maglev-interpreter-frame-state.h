@@ -435,6 +435,16 @@ class MergePointInterpreterFrameState {
   bool has_phi() const { return !phis_.is_empty(); }
   Phi::List* phis() { return &phis_; }
 
+  // Takes ownership of the phis of {from}, reparenting them to this merge
+  // state so that Phi::merge_state() stays consistent with the block they now
+  // belong to. {from}'s phi list is left empty.
+  void TakePhisFrom(MergePointInterpreterFrameState& from) {
+    for (Phi* phi : *from.phis()) {
+      phi->merge_state_ = this;
+    }
+    phis_.Append(std::move(*from.phis()));
+  }
+
   uint32_t predecessor_count() const { return predecessor_count_; }
 
   uint32_t predecessors_so_far() const { return predecessors_so_far_; }
