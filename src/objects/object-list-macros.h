@@ -383,10 +383,11 @@ namespace internal {
 // and live in trusted space, outside of the sandbox.
 //
 
-#define ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V) \
-  APPLY(V, TrustedObject, TRUSTED_OBJECT)                \
-  APPLY(V, ExposedTrustedObject, EXPOSED_TRUSTED_OBJECT) \
-  APPLY(V, UncompiledData, UNCOMPILED_DATA)              \
+#define ABSTRACT_TRUSTED_OBJECT_LIST_GENERATOR(APPLY, V)    \
+  APPLY(V, TrustedObject, TRUSTED_OBJECT)                   \
+  APPLY(V, ExposedTrustedObject, EXPOSED_TRUSTED_OBJECT)    \
+  APPLY(V, TrustedFixedArrayBase, TRUSTED_FIXED_ARRAY_BASE) \
+  APPLY(V, UncompiledData, UNCOMPILED_DATA)                 \
   IF_WASM(APPLY, V, WasmFunctionData, WASM_FUNCTION_DATA)
 
 // Concrete trusted objects. These must:

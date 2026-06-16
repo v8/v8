@@ -2,12 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jgruber): Should extend FixedArrayBase to match the C++ class hierarchy.
 @cppObjectLayoutDefinition
-extern class ObjectBoilerplateDescription extends HeapObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class ObjectBoilerplateDescription extends FixedArrayBase {
   backing_store_size: Smi;
   flags: Smi;
   raw_entries[length]: Object;

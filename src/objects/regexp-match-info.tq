@@ -2,18 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jgruber): Should extend FixedArrayBase to match the C++ class hierarchy.
 @cppObjectLayoutDefinition
-extern class RegExpMatchInfo extends HeapObject {
+extern class RegExpMatchInfo extends FixedArrayBase {
   macro GetStartOfCapture(i: constexpr int31): Smi {
     return this.objects[i * 2];
   }
   macro GetEndOfCapture(i: constexpr int31): Smi {
     return this.objects[i * 2 + 1];
   }
-
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 
   number_of_capture_registers: Smi;
   last_subject: String;

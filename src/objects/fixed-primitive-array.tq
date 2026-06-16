@@ -12,13 +12,8 @@ extern class ByteArray extends FixedArrayBase {
   values[length]: uint8;
 }
 
-// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
-// hierarchy.
 @cppObjectLayoutDefinition
-extern class TrustedByteArray extends TrustedObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class TrustedByteArray extends TrustedFixedArrayBase {
   values[length]: uint8;
 }
 

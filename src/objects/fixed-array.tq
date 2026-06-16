@@ -9,60 +9,33 @@ extern class FixedArray extends FixedArrayBase {
 
 type EmptyFixedArray extends FixedArray;
 
-// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
-// hierarchy.
 @cppObjectLayoutDefinition
-extern class TrustedFixedArray extends TrustedObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class TrustedFixedArray extends TrustedFixedArrayBase {
   objects[length]: Object;
 }
 
-// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
-// hierarchy.
 @cppObjectLayoutDefinition
-extern class ProtectedFixedArray extends TrustedObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class ProtectedFixedArray extends TrustedFixedArrayBase {
   objects[length]: TrustedObject|Smi;
 }
 
-// TODO(jgruber): Should extend FixedArrayBase to match the C++ class hierarchy.
 @cppObjectLayoutDefinition
-extern class WeakFixedArray extends HeapObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class WeakFixedArray extends FixedArrayBase {
   objects[length]: MaybeObject;
 }
 
-// TODO(jgruber): Should extend FixedArrayBase (with uint32 length) to match the
-// C++ class hierarchy.
 @cppObjectLayoutDefinition
-extern class WeakHomomorphicFixedArray extends HeapObject {
-  const length: Smi;
+extern class WeakHomomorphicFixedArray extends FixedArrayBase {
   objects[length]: MaybeObject;
 }
 
-// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
-// hierarchy.
 @cppObjectLayoutDefinition
-extern class TrustedWeakFixedArray extends TrustedObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class TrustedWeakFixedArray extends TrustedFixedArrayBase {
   objects[length]: MaybeObject;
 }
 
-// TODO(jgruber): Should extend TrustedFixedArrayBase to match the C++
-// hierarchy.
 @cppObjectLayoutDefinition
-extern class ProtectedWeakFixedArray extends TrustedObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class ProtectedWeakFixedArray extends TrustedFixedArrayBase {
   // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
   // code accessing these values.
   objects[length]: TrustedObject|Smi;

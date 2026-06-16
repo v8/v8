@@ -26,12 +26,8 @@ bitfield struct OsrState extends uint8 {
   dont_use_these_bits_unless_beneficial: uint32: 3 bit;
 }
 
-// TODO(jgruber): Should extend FixedArrayBase to match the C++ class hierarchy.
 @cppObjectLayoutDefinition
-extern class ClosureFeedbackCellArray extends HeapObject {
-  const length: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-
+extern class ClosureFeedbackCellArray extends FixedArrayBase {
   objects[length]: FeedbackCell;
 }
 

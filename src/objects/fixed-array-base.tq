@@ -9,6 +9,14 @@ extern class FixedArrayBase extends HeapObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
+// Trusted-space mirror of FixedArrayBase, extending TrustedObject.
+@abstract
+@cppObjectLayoutDefinition
+extern class TrustedFixedArrayBase extends TrustedObject {
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+}
+
 operator '.length_intptr' macro LoadFixedArrayBaseLengthIntptr(
     array: FixedArrayBase): intptr {
   return Convert<intptr>(array.length);
