@@ -1207,6 +1207,9 @@ void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
       }
     }
   }
+  for (auto& job : jobs_to_delete) {
+    job->PrepareForRemoval();
+  }
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
@@ -1234,6 +1237,10 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
       DCHECK(native_modules_.contains(native_module));
       modules_in_isolate.emplace_back(native_modules_[native_module]->weak_ptr);
     }
+  }
+
+  for (auto& job : jobs_to_delete) {
+    job->PrepareForRemoval();
   }
 
   // All modules that have not finished initial compilation yet cannot be

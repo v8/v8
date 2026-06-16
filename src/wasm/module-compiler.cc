@@ -2290,9 +2290,24 @@ void AsyncCompileJob::InitializeIsolateSpecificInfo(Isolate* isolate) {
 void AsyncCompileJob::StartAsyncDecoding() { DoAsync<DecodeModule>(); }
 
 void AsyncCompileJob::Abort() {
-  // Removing this job will trigger the destructor, which will cancel all
-  // compilation.
+  // This will cancel all compilation.
+  PrepareForRemoval();
   GetWasmEngine()->RemoveCompileJob(this);
+}
+
+void AsyncCompileJob::PrepareForRemoval() {
+  if (prepared_for_removal_) return;
+  prepared_for_removal_ = true;
+  background_task_manager_.CancelAndWait();
+  // If initial compilation did not finish yet we can abort it.
+  if (new_native_module_) {
+    Impl(new_native_module_->compilation_state())
+        ->CancelCompilation(CompilationStateImpl::kCancelInitialCompilation);
+  }
+  // Tell the streaming decoder that the AsyncCompileJob is not available
+  // anymore.
+  if (stream_) stream_->NotifyCompilationStopped();
+  CancelPendingForegroundTask();
 }
 
 // {ValidateFunctionsStreamingJobData} holds information that is shared between
@@ -2490,16 +2505,7 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 
 AsyncCompileJob::~AsyncCompileJob() {
   // Note: This destructor always runs on the foreground thread of the isolate.
-  background_task_manager_.CancelAndWait();
-  // If initial compilation did not finish yet we can abort it.
-  if (new_native_module_) {
-    Impl(new_native_module_->compilation_state())
-        ->CancelCompilation(CompilationStateImpl::kCancelInitialCompilation);
-  }
-  // Tell the streaming decoder that the AsyncCompileJob is not available
-  // anymore.
-  if (stream_) stream_->NotifyCompilationDiscarded();
-  CancelPendingForegroundTask();
+  CHECK(prepared_for_removal_);
   if (isolate_specific_info_.isolate_) {
     DCHECK_EQ(isolate_specific_info_.isolate_->thread_id(),
               ThreadId::Current());
@@ -2539,6 +2545,10 @@ void AsyncCompileJob::FinishCompile(
     std::shared_ptr<NativeModule> native_module,
     DirectHandle<WasmModuleObject> deserialized_module_object,
     bool cache_hit) && {
+  PrepareForRemoval();
+  std::unique_ptr<AsyncCompileJob> job =
+      GetWasmEngine()->RemoveCompileJob(this);
+
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
               "wasm.FinishAsyncCompile");
   Isolate* isolate = isolate_specific_info_.isolate_;
@@ -2676,10 +2686,10 @@ void AsyncCompileJob::FinishCompile(
     v8::Context::BackupIncumbentScope incumbent(backup_incumbent_context);
     resolver_->OnCompilationSucceeded(module_object);
   }
-  GetWasmEngine()->RemoveCompileJob(this);
 }
 
 void AsyncCompileJob::Failed() && {
+  PrepareForRemoval();
   // {job} keeps the {this} pointer alive.
   std::unique_ptr<AsyncCompileJob> job =
       GetWasmEngine()->RemoveCompileJob(this);

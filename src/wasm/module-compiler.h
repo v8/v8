@@ -117,6 +117,7 @@ class AsyncCompileJob {
   std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
 
   void Abort();
+  void PrepareForRemoval();
   void CancelPendingForegroundTask();
 
   // Return the isolate that this AsyncCompileJob belongs to, or `nullptr` if
@@ -276,6 +277,8 @@ class AsyncCompileJob {
 
   // The compilation id to identify trace events linked to this compilation.
   const int compilation_id_;
+
+  bool prepared_for_removal_ = false;
 };
 
 // The main purpose of this class is to copy the feedback vectors that live in

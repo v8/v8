@@ -127,7 +127,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
     buffer_.clear();
   }
 
-  void NotifyCompilationDiscarded() override { buffer_.clear(); }
+  void NotifyCompilationStopped() override { buffer_.clear(); }
 
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>&) override {

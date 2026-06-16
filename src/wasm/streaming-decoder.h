@@ -91,9 +91,9 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   virtual void Abort() = 0;
 
-  // Notify the StreamingDecoder that the job was discarded and the
+  // Notify the StreamingDecoder that the job is finished and the
   // StreamingProcessor should not be called anymore.
-  virtual void NotifyCompilationDiscarded() = 0;
+  virtual void NotifyCompilationStopped() = 0;
 
   // Caching support.
   // Sets the callback that is called after a new chunk of the module is tiered

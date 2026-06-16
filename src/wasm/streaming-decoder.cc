@@ -42,8 +42,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
 
   void Abort() override;
 
-  void NotifyCompilationDiscarded() override {
-    // Discard is safe to happen in pretty much any state.
+  void NotifyCompilationStopped() override {
+    // This is safe to happen in pretty much any state.
     // Update `kReceivingBytes` to `kDiscarded`, but keep `kAborted` or
     // `kFinished`.
     if (stream_state_ == StreamState::kReceivingBytes) {
