@@ -292,6 +292,7 @@ class V8_EXPORT_PRIVATE SimdShuffle {
     kS16x8ReverseBytes,
     kS16x8TransposeEven,
     kS16x8TransposeOdd,
+    kS16x8TopBottomInterleave,
     kS16x4DeinterleaveEvenEven,
     kS16x4DeinterleaveOddEven,
     kS16x4DeinterleaveEvenOdd,

@@ -92,6 +92,8 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
        CanonicalShuffle::kS16x8TransposeEven},
       {expand<8>({1, 9, 3, 11, 5, 13, 7, 15}),
        CanonicalShuffle::kS16x8TransposeOdd},
+      {expand<8>({0, 4, 1, 5, 2, 6, 3, 7}),
+       CanonicalShuffle::kS16x8TopBottomInterleave},
       {expand<8>({1, 0, 3, 2, 5, 4, 7, 6}), CanonicalShuffle::kS16x2Reverse},
       {expand<8>({3, 2, 1, 0, 7, 6, 5, 4}), CanonicalShuffle::kS16x4Reverse},
       {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},

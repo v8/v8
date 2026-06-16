@@ -4910,6 +4910,27 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle8x8Test) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, Shuffle16x8TopBottomInterleave) {
+  const MachineType type = MachineType::Simd128();
+  const uint8_t shuffle[] = {0, 1, 8,  9,  2, 3, 10, 11,
+                             4, 5, 12, 13, 6, 7, 14, 15};
+  StreamBuilder m(this, type, type, type, type);
+  m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
+                            Simd128ShuffleOp::Kind::kI8x16, shuffle));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64S128UnzipRight, s[0]->arch_opcode());
+  EXPECT_EQ(64, LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kArm64S128ZipLeft, s[1]->arch_opcode());
+  EXPECT_EQ(16, LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->OutputAt(0)), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(1U, s[1]->OutputCount());
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, Shuffle16x1Test) {
   const MachineType type = MachineType::Simd128();
   {
