@@ -5223,11 +5223,31 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
 
   __ LoadU64(r3, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadU64(r2, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+
+  // If the actual argument count for the previous invocation is smaller than
+  // the formal parameter count then use the latter as the actual argument
+  // count for the next invocation instead of the former.
+  // This approach avoids dropping adapted parameters for simplicity while
+  // keeping the caller stack balanced after the call.
+  __ LoadU64(r4,
+             MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ LoadU16(r4, FieldMemOperand(r4, offsetof(BytecodeArray, parameter_size_)));
+  {
+    Label cont;
+    __ CmpU64(r4, r2);
+    __ blt(&cont);
+    __ Move(r2, r4);
+    __ bind(&cont);
+  }
+
   __ LeaveFrame(StackFrame::INTERPRETED);
 
-  // The arguments are already in the stack (including any necessary padding),
-  // we should not try to massage the arguments again.
-  __ mov(r4, Operand(kDontAdaptArgumentsSentinel));
+  // The arguments are already in the stack, but we might need to adapt them
+  // if the function signature changed (e.g. via LiveEdit).
+  __ LoadTaggedField(
+      r4, FieldMemOperand(r3, offsetof(JSFunction, shared_function_info_)));
+  __ LoadU16(r4, FieldMemOperand(r4, offsetof(SharedFunctionInfo,
+                                              formal_parameter_count_)));
   __ InvokeFunction(r3, r4, r2, InvokeType::kJump);
 }
 
