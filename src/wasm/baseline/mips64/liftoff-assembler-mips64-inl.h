@@ -1210,7 +1210,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   sync();
 }
 
-void LiftoffAssembler::AtomicFence() { sync(); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) { sync(); }
 
 void LiftoffAssembler::Pause() { sync(); }
 

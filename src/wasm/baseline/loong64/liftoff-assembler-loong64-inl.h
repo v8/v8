@@ -1324,7 +1324,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   }
 }
 
-void LiftoffAssembler::AtomicFence() { dbar(0); }
+void LiftoffAssembler::AtomicFence(AtomicMemoryOrder /*order*/) { dbar(0x10); }
 
 void LiftoffAssembler::Pause() { ibar(0); }
 
