@@ -5484,15 +5484,31 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   __ LoadWord(a1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadWord(a0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
 
-  // Pop return address and frame.
+  // If the actual argument count for the previous invocation is smaller than
+  // the formal parameter count then use the latter as the actual argument
+  // count for the next invocation instead of the former.
+  // This approach avoids dropping adapted parameters for simplicity while
+  // keeping the caller stack balanced after the call.
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadWord(scratch,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ Lhu(scratch,
+         FieldMemOperand(scratch, offsetof(BytecodeArray, parameter_size_)));
+
+  Label cont;
+  __ Branch(&cont, ge, a0, Operand(scratch));
+  __ Move(a0, scratch);
+  __ bind(&cont);
+
   __ LeaveFrame(StackFrame::INTERPRETED);
 
+  // The arguments are already in the stack, but we might need to adapt them
+  // if the function signature changed (e.g. via LiveEdit).
 #if defined(V8_TARGET_ARCH_RISCV64)
-  __ InvokeFunction(a1, a0, InvokeType::kJump,
-                    ArgumentAdaptionMode::kDontAdapt);
+  __ InvokeFunction(a1, a0, InvokeType::kJump, ArgumentAdaptionMode::kAdapt);
 #else
-  __ li(a2, Operand(kDontAdaptArgumentsSentinel));
-  __ InvokeFunction(a1, a2, a0, InvokeType::kJump);
+  __ InvokeFunction(a1, scratch, a0, InvokeType::kJump);
 #endif
 }
 
