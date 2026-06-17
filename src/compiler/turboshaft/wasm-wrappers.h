@@ -69,15 +69,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   void AbortIfNot(V<Word32> condition, AbortReason abort_reason);
 
-  V<Smi> BuildChangeInt32ToSmi(V<Word32> value) {
-    // With pointer compression, only the lower 32 bits are used.
-    return COMPRESS_POINTERS_BOOL ? __ BitcastWord32ToSmi(__ Word32ShiftLeft(
-                                        value, BuildSmiShiftBitsConstant32()))
-                                  : __ BitcastWordPtrToSmi(__ WordPtrShiftLeft(
-                                        __ ChangeInt32ToIntPtr(value),
-                                        BuildSmiShiftBitsConstant()));
-  }
-
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin) {
     return wasm::WasmGraphBuilderBase<Assembler>::GetTargetForBuiltinCall(
         builtin, StubCallMode::kCallBuiltinPointer);
@@ -99,7 +90,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, can_throw, lazy_deopt_on_throw, __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
-    return __ Call(call_target, frame_state, base::VectorOf({args...}),
+    return __ Call(call_target, frame_state, base::VectorOf<OpIndex>({args...}),
                    ts_call_descriptor);
   }
 
@@ -120,16 +111,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   V<Number> BuildChangeInt32ToNumber(V<Word32> value);
-
-  V<Number> BuildChangeFloat32ToNumber(V<Float32> value) {
-    return CallBuiltin<WasmFloat32ToNumberDescriptor>(
-        Builtin::kWasmFloat32ToNumber, Operator::kNoProperties, value);
-  }
-
-  V<Number> BuildChangeFloat64ToNumber(V<Float64> value) {
-    return CallBuiltin<WasmFloat64ToTaggedDescriptor>(
-        Builtin::kWasmFloat64ToNumber, Operator::kNoProperties, value);
-  }
 
   V<Object> ToJS(OpIndex ret, CanonicalValueType type, V<Context> context);
   V<Object> BuildToJSFunctionRef(V<WasmFuncRef> ret, V<Context> context);
@@ -180,43 +161,20 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   void BuildCWasmEntryWrapper();
 
-  V<Word32> BuildSmiShiftBitsConstant() {
-    return __ Word32Constant(kSmiShiftSize + kSmiTagSize);
-  }
-
-  V<Word32> BuildSmiShiftBitsConstant32() {
-    return __ Word32Constant(kSmiShiftSize + kSmiTagSize);
-  }
-
-  V<Word32> BuildChangeSmiToInt32(OpIndex value) {
-    return COMPRESS_POINTERS_BOOL
-               ? __ Word32ShiftRightArithmetic(value,
-                                               BuildSmiShiftBitsConstant32())
-               : __
-                 TruncateWordPtrToWord32(__ WordPtrShiftRightArithmetic(
-                     value, BuildSmiShiftBitsConstant()));
-  }
-
   V<Float64> HeapNumberToFloat64(V<HeapNumber> input) {
     return __ template LoadField<Float64>(
         input, compiler::AccessBuilder::ForHeapNumberValue());
   }
 
-  OpIndex LoadInstanceType(V<Map> map) {
-    return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::Uint16(),
-                   offsetof(Map, instance_type_));
-  }
-
-  OpIndex BuildCheckString(OpIndex input, OpIndex js_context,
-                           CanonicalValueType type) {
-    auto done = __ NewBlock();
-    auto type_error = __ NewBlock();
+  V<Object> BuildCheckString(V<Object> input, V<Context> js_context,
+                             CanonicalValueType type) {
+    Block* done = __ NewBlock();
+    Block* type_error = __ NewBlock();
     ScopedVar<Object> result(this,
                              __ template LoadRoot<RootIndex::kWasmNull>());
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
-      auto not_null = __ NewBlock();
+      Block* not_null = __ NewBlock();
       __ GotoIfNot(
           __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
           not_null);
@@ -224,9 +182,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       __ Bind(not_null);
     }
     V<Map> map = LoadMap(input);
-    OpIndex instance_type = LoadInstanceType(map);
-    OpIndex check = __ Uint32LessThan(instance_type,
-                                      __ Word32Constant(FIRST_NONSTRING_TYPE));
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+    V<Word32> check = __ Uint32LessThan(
+        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
     result = input;
     __ GotoIf(check, done, BranchHint::kTrue);
     __ Goto(type_error);
@@ -239,22 +197,21 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   V<Float32> BuildChangeTaggedToFloat32(
-      OpIndex value, OpIndex context,
+      V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
-    ScopedVar<Float32> result(this, OpIndex::Invalid());
+    ScopedVar<Float32> result(this, V<Float32>::Invalid());
     IF (__ IsSmi(value)) {
       // TODO(dlehmann,wasm-runtime): If `ChangeInt32ToFloat32(x)` is exactly
       // equivalent to `TruncateFloat64ToFloat32(ChangeInt32ToFloat64(x))`, we
       // could `TruncateFloat64ToFloat32(BuildChangeTaggedToFloat64(x))` and
       // get rid of this separate function, but I am not 100% sure whether that
       // is a valid optimization so we conservatively keep it.
-      result = __ ChangeInt32ToFloat32(__ UntagSmi(value));
+      result = __ ChangeInt32ToFloat32(__ UntagSmi(V<Smi>::Cast(value)));
     } ELSE {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
-      V<Word32> is_heap_number = __ TaggedEqual(
-          __ template LoadRoot<RootIndex::kHeapNumberMap>(), map);
+      V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
         // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
         // are not Smi or HeapNumber to avoid calling conversion builtins
@@ -262,10 +219,12 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         __ DeoptimizeIfNot(is_heap_number, caller_frame_state.value(),
                            DeoptimizeReason::kNotANumber,
                            compiler::FeedbackSource{});
-        result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
+        result = __ TruncateFloat64ToFloat32(
+            HeapNumberToFloat64(V<HeapNumber>::Cast(value)));
       } else {
         IF (LIKELY(is_heap_number)) {
-          result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
+          result = __ TruncateFloat64ToFloat32(
+              HeapNumberToFloat64(V<HeapNumber>::Cast(value)));
         } ELSE {
           result = __ TruncateFloat64ToFloat32(
               CallBuiltin<WasmTaggedToFloat64Descriptor>(
@@ -282,17 +241,16 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   V<Float64> BuildChangeTaggedToFloat64(
-      OpIndex value, OpIndex context,
+      V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
-    ScopedVar<Float64> result(this, OpIndex::Invalid());
+    ScopedVar<Float64> result(this, V<Float64>::Invalid());
     IF (__ IsSmi(value)) {
-      result = __ ChangeInt32ToFloat64(__ UntagSmi(value));
+      result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(value)));
     } ELSE {
       V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
-      V<Word32> is_heap_number = __ TaggedEqual(
-          __ template LoadRoot<RootIndex::kHeapNumberMap>(), map);
+      V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
         // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
         // are not Smi or HeapNumber to avoid calling conversion builtins
@@ -300,10 +258,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         __ DeoptimizeIfNot(is_heap_number, caller_frame_state.value(),
                            DeoptimizeReason::kNotANumber,
                            compiler::FeedbackSource{});
-        result = HeapNumberToFloat64(value);
+        result = HeapNumberToFloat64(V<HeapNumber>::Cast(value));
       } else {
         IF (LIKELY(is_heap_number)) {
-          result = HeapNumberToFloat64(value);
+          result = HeapNumberToFloat64(V<HeapNumber>::Cast(value));
         } ELSE {
           result = CallBuiltin<WasmTaggedToFloat64Descriptor>(
               Builtin::kWasmTaggedToFloat64, Operator::kNoProperties, value,
@@ -318,27 +276,26 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     return result;
   }
 
-  OpIndex BuildChangeTaggedToInt32(
-      OpIndex value, OpIndex context,
+  V<Word32> BuildChangeTaggedToInt32(
+      V<Object> value, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
-    ScopedVar<Word32> result(this, OpIndex::Invalid());
+    ScopedVar<Word32> result(this, V<Word32>::Invalid());
     IF (LIKELY(__ IsSmi(value))) {
-      result = BuildChangeSmiToInt32(value);
+      result = __ UntagSmi(V<Smi>::Cast(value));
     } ELSE {
       if (caller_frame_state.valid()) {
         // When inlining JS-to-Wasm wrappers, eagerly deopt for values that
         // are not Smi or HeapNumber to avoid calling conversion builtins
         // that may throw (crbug.com/498709150).
         V<Map> map = LoadMap(value);
-        __ DeoptimizeIfNot(
-            __ TaggedEqual(__ template LoadRoot<RootIndex::kHeapNumberMap>(),
-                           map),
-            caller_frame_state.value(), DeoptimizeReason::kNotANumber,
-            compiler::FeedbackSource{});
-        result = __ JSTruncateFloat64ToWord32(HeapNumberToFloat64(value));
+        __ DeoptimizeIfNot(__ IsHeapNumberMap(map), caller_frame_state.value(),
+                           DeoptimizeReason::kNotANumber,
+                           compiler::FeedbackSource{});
+        result = __ JSTruncateFloat64ToWord32(
+            HeapNumberToFloat64(V<HeapNumber>::Cast(value)));
       } else {
         result = CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
             Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties, value,
@@ -359,7 +316,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   OpIndex BuildChangeBigIntToInt64(
-      OpIndex input, OpIndex context,
+      V<Object> input, V<Context> context,
       OptionalV<EagerFrameState> caller_frame_state) {
     DCHECK_EQ(is_inlining_into_js_, caller_frame_state.valid());
     // When inlining JS-to-Wasm wrappers, eagerly deopt for values that are
@@ -371,9 +328,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     // (crbug.com/498709150, crbug.com/504030766).
 
     if (caller_frame_state.valid()) {
-      __ DeoptimizeIfNot(
-          __ ObjectIsBigInt(V<Object>::Cast(input)), caller_frame_state.value(),
-          DeoptimizeReason::kNotABigInt, compiler::FeedbackSource{});
+      __ DeoptimizeIfNot(__ ObjectIsBigInt(input), caller_frame_state.value(),
+                         DeoptimizeReason::kNotABigInt,
+                         compiler::FeedbackSource{});
     }
 
     OpIndex target;
@@ -412,7 +369,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   //   passes, the BigIntToI64 builtin cannot throw (ToBigInt short-circuits
   //   for BigInt inputs, and the conversion is modular truncation).
   //   (crbug.com/498709150)
-  OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
+  OpIndex FromJS(V<Object> input, V<Context> context, CanonicalValueType type,
                  OptionalV<EagerFrameState> caller_frame_state = {}) {
     if (type.is_numeric()) {
       switch (type.numeric_kind()) {
@@ -422,6 +379,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 #ifdef V8_ENABLE_TURBOFAN
           // i64 values can only come from BigInt.
           return BuildChangeBigIntToInt64(input, context, caller_frame_state);
+#else
+          UNREACHABLE();
 #endif
         case NumericKind::kF32:
           return BuildChangeTaggedToFloat32(input, context, caller_frame_state);
@@ -537,23 +496,16 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
                               inputs, context);
   }
 
+  V<Map> LoadMap(V<Object> object) {
+    // TODO(thibaudm): Handle map packing.
+    V<Map> map_word = __ LoadMapField(object);
 #ifdef V8_MAP_PACKING
-  V<Map> UnpackMapWord(OpIndex map_word) {
     map_word = __ BitcastTaggedToWordPtrForTagAndSmiBits(map_word);
     // TODO(wenyuzhao): Clear header metadata.
     OpIndex map = __ WordBitwiseXor(
         map_word, __ IntPtrConstant(Internals::kMapWordXorMask),
         WordRepresentation::UintPtr());
-    return V<Map>::Cast(__ BitcastWordPtrToTagged(map));
-  }
-#endif
-
-  V<Map> LoadMap(V<Object> object) {
-    // TODO(thibaudm): Handle map packing.
-    OpIndex map_word = __ Load(object, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::TaggedPointer(), 0);
-#ifdef V8_MAP_PACKING
-    return UnpackMapWord(map_word);
+    return __ BitcastWordPtrToTagged<Map>(map);
 #else
     return map_word;
 #endif
@@ -571,9 +523,9 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   V<SharedFunctionInfo> LoadSharedFunctionInfo(V<Object> js_function) {
-    return __ Load(js_function, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::TaggedPointer(),
-                   offsetof(JSFunction, shared_function_info_));
+    return __ template LoadField<SharedFunctionInfo>(
+        js_function,
+        compiler::AccessBuilder::ForJSFunctionSharedFunctionInfo());
   }
 
   OpIndex BuildReceiverNode(OpIndex callable_node, OpIndex native_context,
@@ -600,9 +552,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {
-    return __ Load(js_function, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::TaggedPointer(),
-                   offsetof(JSFunction, context_));
+    return __ template LoadField<Context>(
+        js_function, compiler::AccessBuilder::ForJSFunctionContext());
   }
 
   V<Object> BuildSuspend(V<Object> value, V<Object> import_data,

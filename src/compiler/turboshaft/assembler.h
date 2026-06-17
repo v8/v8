@@ -2129,8 +2129,9 @@ class AssemblerOpInterface : public Next {
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
 #undef DECL_TAGGED_BITCAST
-  V<Object> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
-    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<Object>::rep,
+  template <typename T = Object>
+  V<T> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
+    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<T>::rep,
                          TaggedBitcastOp::Kind::kAny);
   }
 

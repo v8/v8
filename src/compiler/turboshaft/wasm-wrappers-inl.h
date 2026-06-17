@@ -37,7 +37,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
   // We expect most integers at runtime to be Smis, so it is important for
   // wrapper performance that Smi conversion be inlined.
   if constexpr (SmiValuesAre32Bits()) {
-    return BuildChangeInt32ToSmi(value);
+    return __ TagSmi(value);
   }
   DCHECK(SmiValuesAre31Bits());
 
@@ -116,9 +116,11 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
         return this->BuildChangeInt64ToBigInt(
             ret, StubCallMode::kCallBuiltinPointer);
       case NumericKind::kF32:
-        return BuildChangeFloat32ToNumber(ret);
+        return CallBuiltin<WasmFloat32ToNumberDescriptor>(
+            Builtin::kWasmFloat32ToNumber, Operator::kNoProperties, ret);
       case NumericKind::kF64:
-        return BuildChangeFloat64ToNumber(ret);
+        return CallBuiltin<WasmFloat64ToTaggedDescriptor>(
+            Builtin::kWasmFloat64ToNumber, Operator::kNoProperties, ret);
       case NumericKind::kS128:
       case NumericKind::kI8:
       case NumericKind::kI16:
