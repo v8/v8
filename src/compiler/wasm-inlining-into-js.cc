@@ -304,7 +304,12 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
 
   Value ParseArrayLen(Value input) {
     DCHECK(wasm::IsHeapSubtypeOf(input.type.heap_type(),
-                                 wasm::kWasmArrayRef.heap_type(), module_));
+                                 wasm::kWasmArrayRef.heap_type(), module_) ||
+           wasm::IsHeapSubtypeOf(
+               input.type.heap_type(),
+               wasm::IndependentHeapType{wasm::GenericKind::kArray,
+                                         wasm::kNullable, SharedFlag::kYes},
+               module_));
     const CheckForNull null_check =
         input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* len = gasm_.ArrayLength(input.node, null_check);
