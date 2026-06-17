@@ -244,7 +244,7 @@ class PropertyCallbackInfo {
    */
   V8_INLINE Local<Object> Holder() const;
   // TODO(http://crbug.com/333672197): deprecate and remove.
-  V8_DEPRECATE_SOON("Use Holder().")
+  V8_DEPRECATED("Use Holder().")
   V8_INLINE Local<Object> HolderV2() const;
 
   /**
