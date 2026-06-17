@@ -7897,7 +7897,7 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
 // This is a helper operation to propagate type information from the graph
 // builder to type-based optimizations and will then be removed.
 struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
-  static constexpr OpEffects effects = OpEffects();
+  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
   wasm::ValueType type;
 
   explicit WasmTypeAnnotationOp(V<Object> value, wasm::ValueType type)
