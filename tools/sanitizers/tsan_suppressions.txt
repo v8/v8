@@ -8,8 +8,8 @@ deadlock:LockAndUnlockDifferentIsolatesThread::Run
 # Allow racy reads of constant HeapNumber field values, for concurrent compilers
 # that promise that this race is benign (compilation will fail if the race
 # happens).
-race:RacyReadHeapNumberBits
+race:*RacyReadHeapNumberBits*
 
 # Allow racy reads of JSTypedArray length, for concurrent compilers
 # that promise that this race is benign.
-race:RacyReadJSTypedArrayLength
+race:*RacyReadJSTypedArrayLength*
