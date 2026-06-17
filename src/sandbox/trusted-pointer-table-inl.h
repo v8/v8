@@ -76,16 +76,24 @@ IndirectPointerTag TrustedPointerTableEntry::GetTag() const {
 void TrustedPointerTableEntry::Unpublish() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
   auto new_payload = old_payload;
-  new_payload.SetTag(kUnpublishedIndirectPointerTag);
-  payload_.store(new_payload, std::memory_order_release);
+  do {
+    new_payload = old_payload;
+    new_payload.SetTag(kUnpublishedIndirectPointerTag);
+  } while (!payload_.compare_exchange_weak(old_payload, new_payload,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed));
 }
 
 void TrustedPointerTableEntry::Publish(IndirectPointerTag tag) {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  CHECK(old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
   auto new_payload = old_payload;
-  new_payload.SetTag(tag);
-  payload_.store(new_payload, std::memory_order_release);
+  do {
+    CHECK(old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
+    new_payload = old_payload;
+    new_payload.SetTag(tag);
+  } while (!payload_.compare_exchange_weak(old_payload, new_payload,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed));
 }
 
 bool TrustedPointerTableEntry::IsFreelistEntry() const {
@@ -100,18 +108,15 @@ std::optional<uint32_t> TrustedPointerTableEntry::GetNextFreelistEntryIndex()
 
 void TrustedPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-
-  auto new_payload = old_payload;
-  new_payload.SetMarkBit();
-
-  // We don't need to perform the CAS in a loop since it can only fail if a new
-  // value has been written into the entry. This, however, will also have set
-  // the marking bit.
-  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
-                                                  std::memory_order_relaxed);
-  DCHECK(success || old_payload.HasMarkBitSet());
-  USE(success);
+  while (!old_payload.HasMarkBitSet()) {
+    DCHECK(old_payload.ContainsPointer());
+    auto new_payload = old_payload;
+    new_payload.SetMarkBit();
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
 }
 
 void TrustedPointerTableEntry::Unmark() {
