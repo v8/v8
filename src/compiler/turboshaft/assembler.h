@@ -3463,8 +3463,19 @@ class AssemblerOpInterface : public Next {
 #endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
-    ReduceIfReachableWasmStackCheck(kind);
+  // Returns the potentially updated memory start/size values.
+  V<Tuple<WordPtr, WordPtr>> WasmStackCheck_UpdateMemory(
+      V<WasmTrustedInstanceData> trusted_instance_data, V<WordPtr> memory_start,
+      V<WordPtr> memory_size) {
+    return ReduceIfReachableWasmStackCheck(trusted_instance_data, memory_start,
+                                           memory_size,
+                                           WasmStackCheckOp::Kind::kLoop);
+  }
+
+  V<None> WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    return ReduceIfReachableWasmStackCheck(OptionalV<WasmTrustedInstanceData>{},
+                                           OptionalV<WordPtr>{},
+                                           OptionalV<WordPtr>{}, kind);
   }
 
   void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,

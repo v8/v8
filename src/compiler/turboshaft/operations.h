@@ -4163,7 +4163,11 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
 
 #if V8_ENABLE_WEBASSEMBLY
 
-struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
+// Supports two configurations:
+// (1) input_count == 3 (i.e. all of trusted_instance_data, memory_start,
+//     memory_size are present and valid), kind == kLoop.
+// (2) input_count == 0, kind may be kFunctionEntry or kLoop.
+struct WasmStackCheckOp : OperationT<WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
 
@@ -4181,13 +4185,74 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
     UNREACHABLE();
   }
 
-  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
+  OptionalV<WasmTrustedInstanceData> trusted_instance_data() const {
+    return input_count > 0 ? input<WasmTrustedInstanceData>(0)
+                           : V<WasmTrustedInstanceData>::Invalid();
+  }
+  OptionalV<WordPtr> memory_start() const {
+    return input_count > 1 ? input<WordPtr>(1) : V<WordPtr>::Invalid();
+  }
+  OptionalV<WordPtr> memory_size() const {
+    return input_count > 2 ? input<WordPtr>(2) : V<WordPtr>::Invalid();
+  }
 
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+  WasmStackCheckOp(OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+                   OptionalV<WordPtr> memory_start,
+                   OptionalV<WordPtr> memory_size, Kind kind)
+      : Base(trusted_instance_data.valid() ? 3 : 0), kind(kind) {
+    if (trusted_instance_data.valid()) {
+      DCHECK(memory_start.valid());
+      DCHECK(memory_size.valid());
+      input(0) = trusted_instance_data.value();
+      input(1) = memory_start.value();
+      input(2) = memory_size.value();
+    }
+  }
+
+  static WasmStackCheckOp& New(
+      Graph* graph, OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+      OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
+      Kind kind) {
+    size_t input_count = trusted_instance_data.valid() ? 3 : 0;
+    return Base::New(graph, input_count, trusted_instance_data, memory_start,
+                     memory_size, kind);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(trusted_instance_data()), mapper.Map(memory_start()),
+              mapper.Map(memory_size()), kind);
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    if (input_count == 0) {
+      return {};
+    }
+    return RepVector<RegisterRepresentation::WordPtr(),
+                     RegisterRepresentation::WordPtr()>();
+  }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return {};
+    if (input_count == 0) {
+      return {};
+    }
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::WordPtr()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    if (kind == Kind::kFunctionEntry) {
+      DCHECK_EQ(input_count, 0);
+      DCHECK(!trusted_instance_data().valid());
+      DCHECK(!memory_start().valid());
+      DCHECK(!memory_size().valid());
+    } else if (kind == Kind::kLoop) {
+      DCHECK(input_count == 0 || input_count == 3);
+    } else {
+      UNREACHABLE();
+    }
   }
 
   auto options() const { return std::tuple{kind}; }

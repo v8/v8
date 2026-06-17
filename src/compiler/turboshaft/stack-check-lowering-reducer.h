@@ -82,7 +82,11 @@ class StackCheckLoweringReducer : public Next {
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE(WasmStackCheck)(WasmStackCheckOp::Kind kind) {
+  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  V<Any> REDUCE(WasmStackCheck)(
+      OptionalV<WasmTrustedInstanceData> trusted_instance_data,
+      OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
+      WasmStackCheckOp::Kind kind) {
     // TODO(14108): Cache descriptor.
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetStubCallDescriptor(
@@ -104,7 +108,8 @@ class StackCheckLoweringReducer : public Next {
       if (v8_flags.experimental_wasm_growable_stacks) {
         // WasmStackCheck should be lowered by GrowableStacksReducer
         // in a special way.
-        return Next::ReduceWasmStackCheck(kind);
+        return Next::ReduceWasmStackCheck(trusted_instance_data, memory_start,
+                                          memory_size, kind);
       }
 
       // Loads of the stack limit should not be load-eliminated as it can be
@@ -120,21 +125,53 @@ class StackCheckLoweringReducer : public Next {
             __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
         __ Call(target, {}, ts_call_descriptor, effects);
       }
-    } else {
-      DCHECK_EQ(kind, WasmStackCheckOp::Kind::kLoop);
-      V<Word32> limit = __ Load(
-          __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
-          MemoryRepresentation::Uint8(),
-          IsolateData::no_heap_write_interrupt_request_offset());
+      DCHECK(!memory_start.valid());
+      DCHECK(!memory_size.valid());
+      return V<None>::Invalid();
+    }
 
-      IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
-        // Pass custom effects to the `Call` node to mark it as non-writing.
-        OpEffects effects =
-            OpEffects().CanReadMemory().RequiredWhenUnused().CanAllocate();
-        V<WordPtr> target =
-            __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuardLoop);
-        __ Call(target, {}, ts_call_descriptor, effects);
+    DCHECK_EQ(kind, WasmStackCheckOp::Kind::kLoop);
+    V<WordPtr> unused_initializer = V<WordPtr>::Invalid();
+    ScopedVar<WordPtr> new_mem_start(
+        this, memory_start.valid() ? memory_start.value() : unused_initializer);
+    ScopedVar<WordPtr> new_mem_size(
+        this, memory_size.valid() ? memory_size.value() : unused_initializer);
+
+    V<Word32> limit = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned().NotLoadEliminable(),
+        MemoryRepresentation::Uint8(),
+        IsolateData::no_heap_write_interrupt_request_offset());
+
+    IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
+      // Pass custom effects to the `Call` node to mark it as non-writing.
+      OpEffects effects =
+          OpEffects().CanReadMemory().RequiredWhenUnused().CanAllocate();
+      V<WordPtr> target =
+          __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuardLoop);
+      __ Call(target, {}, ts_call_descriptor, effects);
+
+      if (memory_start.valid()) {
+        DCHECK(memory_size.valid());
+        DCHECK(trusted_instance_data.valid());
+        const wasm::WasmModule* module = __ data() -> wasm_module();
+        DCHECK(!module->memories.empty());
+        const wasm::WasmMemory& mem = module->memories[0];
+        if (mem.can_move()) {
+          new_mem_start =
+              __ Load(trusted_instance_data.value(), LoadOp::Kind::TaggedBase(),
+                      MemoryRepresentation::UintPtr(),
+                      WasmTrustedInstanceData::kMemory0StartOffset);
+        }
+        if (mem.can_grow()) {
+          new_mem_size =
+              __ Load(trusted_instance_data.value(), LoadOp::Kind::TaggedBase(),
+                      MemoryRepresentation::UintPtr(),
+                      WasmTrustedInstanceData::kMemory0SizeOffset);
+        }
       }
+    }
+    if (memory_start.valid()) {
+      return __ MakeTuple(new_mem_start.Get(), new_mem_size.Get());
     }
     return V<None>::Invalid();
   }

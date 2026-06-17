@@ -944,6 +944,11 @@ class ShadowyOpIndex : public OpIndex {
   operator V<T>() const {  // NOLINT(runtime/explicit)
     return V<T>::Cast(*this);
   }
+
+  template <typename T>
+  operator OptionalV<T>() const {  // NOLINT(runtime/explicit)
+    return OptionalV<T>::Cast(*this);
+  }
 };
 
 // Similarly to how `ShadowyOpIndex` is a wrapper around `OpIndex` that allows

@@ -163,6 +163,14 @@ struct WasmMemory {
   BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
 
   bool is_memory64() const { return address_type == AddressType::kI64; }
+  bool can_grow() const { return initial_pages != maximum_pages; }
+  bool can_move() const {
+    // Memories that can't grow have no reason to move.
+    // Trap handler enabled memories never move.
+    // Shared memories can only be grown in-place.
+    return can_grow() && bounds_checks != kTrapHandler &&
+           is_shared == SharedFlag::kNo;
+  }
 };
 
 V8_EXPORT void UpdateComputedInformation(WasmMemory* memory,

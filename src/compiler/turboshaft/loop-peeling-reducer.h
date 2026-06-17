@@ -78,13 +78,19 @@ class LoopPeelingReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
-      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
+  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  V<Any> REDUCE_INPUT_GRAPH(WasmStackCheck)(
+      V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
     if (ShouldSkipOptimizationStep() || !IsEmittingPeeledIteration()) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
     }
 
     // We remove the stack check of the peeled iteration.
+    if (stack_check.memory_start().valid()) {
+      DCHECK(stack_check.memory_size().valid());
+      return __ MakeTuple(__ MapToNewGraph(stack_check.memory_start().value()),
+                          __ MapToNewGraph(stack_check.memory_size().value()));
+    }
     return V<None>::Invalid();
   }
 #endif

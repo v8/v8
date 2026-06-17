@@ -6674,24 +6674,10 @@ class TurboshaftGraphBuildingInterface
         has_memory_ = true;
 #endif
         const WasmMemory& mem = mod->memories[0];
-        memory_can_grow_ = mem.initial_pages != mem.maximum_pages;
-        // For now, we don't cache the size of shared growable memories.
-        // If we wanted to support this case, we would have to reload the
-        // memory size when loop stack checks detect an interrupt request.
-        // Since memory size caching is particularly important for asm.js,
-        // which never uses growable or shared memories, this limitation is
-        // considered acceptable for now.
-        memory_size_cached_ =
-            mem.is_shared == SharedFlag::kNo || !memory_can_grow_;
-        // Trap handler enabled memories never move.
-        // Memories that can't grow have no reason to move.
-        // Shared memories can only be grown in-place.
-        memory_can_move_ = mem.bounds_checks != kTrapHandler &&
-                           memory_can_grow_ && mem.is_shared == SharedFlag::kNo;
+        memory_can_grow_ = mem.can_grow();
+        memory_can_move_ = mem.can_move();
         memory_is_shared_ = mem.is_shared == SharedFlag::kYes;
-        if (memory_size_cached_) {
-          mem_size_ = LoadMemSize();
-        }
+        mem_size_ = LoadMemSize();
         mem_start_ = LoadMemStart();
       }
     }
@@ -6699,8 +6685,8 @@ class TurboshaftGraphBuildingInterface
     // TODO(14108): Port the dynamic "cached_memory_index" infrastructure
     // from Turbofan.
     void ReloadCachedMemory() {
-      if (memory_can_move()) mem_start_ = LoadMemStart();
-      if (memory_can_grow_ && memory_size_cached_) mem_size_ = LoadMemSize();
+      if (memory_can_move_) mem_start_ = LoadMemStart();
+      if (memory_can_grow_) mem_size_ = LoadMemSize();
     }
 
     V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
@@ -6712,9 +6698,10 @@ class TurboshaftGraphBuildingInterface
     }
     V<WordPtr> memory0_size() {
       DCHECK(has_memory_);
-      if (!memory_size_cached_) return LoadMemSize();
       return mem_size_;
     }
+    void set_memory0_start(V<WordPtr> start) { mem_start_ = start; }
+    void set_memory0_size(V<WordPtr> size) { mem_size_ = size; }
 
    private:
     static constexpr uint8_t kUnused = ~uint8_t{0};
@@ -6725,7 +6712,7 @@ class TurboshaftGraphBuildingInterface
       // eliminable: shared memories never move, and non-shared memories can't
       // have their start modified by other threads.
       LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
-      if (!memory_can_move()) kind = kind.Immutable();
+      if (!memory_can_move_) kind = kind.Immutable();
       return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0StartOffset);
     }
@@ -6742,8 +6729,6 @@ class TurboshaftGraphBuildingInterface
       return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
                      WasmTrustedInstanceData::kMemory0SizeOffset);
     }
-
-    bool memory_can_move() { return memory_can_move_; }
 
     // For compatibility with `__` macro.
     Assembler& Asm() { return asm_; }
@@ -6762,7 +6747,6 @@ class TurboshaftGraphBuildingInterface
     bool memory_is_shared_{false};
     bool memory_can_grow_{false};
     bool memory_can_move_{false};
-    bool memory_size_cached_{false};
 #if DEBUG
     bool has_memory_{false};
 #endif
@@ -8488,7 +8472,16 @@ class TurboshaftGraphBuildingInterface
 
   void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ WasmStackCheck(kind);
+    if (kind == WasmStackCheckOp::Kind::kLoop &&
+        !decoder->module_->memories.empty()) {
+      V<Tuple<WordPtr, WordPtr>> updated = __ WasmStackCheck_UpdateMemory(
+          instance_cache_.trusted_instance_data(),
+          instance_cache_.memory0_start(), instance_cache_.memory0_size());
+      instance_cache_.set_memory0_start(__ Projection<0>(updated));
+      instance_cache_.set_memory0_size(__ Projection<1>(updated));
+    } else {
+      __ WasmStackCheck(kind);
+    }
   }
 
  private:

@@ -337,11 +337,18 @@ class LoopStackCheckElisionReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
-      V<None> ig_idx, const WasmStackCheckOp& stack_check) {
+  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  V<Any> REDUCE_INPUT_GRAPH(WasmStackCheck)(
+      V<Any> ig_idx, const WasmStackCheckOp& stack_check) {
     if (skip_next_stack_check_ &&
         stack_check.kind == WasmStackCheckOp::Kind::kLoop) {
       skip_next_stack_check_ = false;
+      if (stack_check.memory_start().valid()) {
+        DCHECK(stack_check.memory_size().valid());
+        return __ MakeTuple(
+            __ MapToNewGraph(stack_check.memory_start().value()),
+            __ MapToNewGraph(stack_check.memory_size().value()));
+      }
       return {};
     }
     return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
@@ -448,10 +455,16 @@ class LoopUnrollingReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<None> ig_idx,
-                                             const WasmStackCheckOp& check) {
+  // Returns V<None> or V<Tuple<WordPtr, WordPtr>> depending on inputs.
+  V<Any> REDUCE_INPUT_GRAPH(WasmStackCheck)(V<Any> ig_idx,
+                                            const WasmStackCheckOp& check) {
     if (ShouldSkipOptimizationStep() || !skip_next_stack_check_) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, check);
+    }
+    if (check.memory_start().valid()) {
+      DCHECK(check.memory_size().valid());
+      return __ MakeTuple(__ MapToNewGraph(check.memory_start().value()),
+                          __ MapToNewGraph(check.memory_size().value()));
     }
     return V<None>::Invalid();
   }
