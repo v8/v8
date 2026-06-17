@@ -19,6 +19,7 @@
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-serializer.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-inlining.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -63,6 +64,7 @@ TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
   // TODO(victorgomes): Investigate support for Turbolev without
   // MaglevGraphLabeller
   compilation_info_->set_graph_labeller(new maglev::MaglevGraphLabeller());
+  compilation_info_->set_optimization_id(data->info()->optimization_id());
 }
 
 void TurbolevFrontendPipeline::PrintMaglevGraph(const char* msg) {
@@ -299,6 +301,10 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
   bool result = phase.Run(graph_, std::forward<Args>(args)...);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     PrintMaglevGraph(Phase::phase_name());
+  }
+  if (compilation_info_->trace_json_enabled()) {
+    maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
+                                   Phase::phase_name());
   }
 #ifdef DEBUG
   maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(

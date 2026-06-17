@@ -366,7 +366,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
   if (source_positions && source_positions->IsEnabled()) {
     for (OpIndex index : __ output_graph().AllOperationIndices()) {
       compiler::NodeId origin =
-          __ output_graph().operation_origins()[index].DecodeTurbofanNodeId();
+          __ output_graph().operation_origins()[index].DecodeExternalId();
       __ output_graph().source_positions()[index] =
           source_positions->GetSourcePosition(origin);
     }
@@ -375,7 +375,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
   if (origins) {
     for (OpIndex index : __ output_graph().AllOperationIndices()) {
       OpIndex origin = __ output_graph().operation_origins()[index];
-      origins->SetNodeOrigin(index.id(), origin.DecodeTurbofanNodeId());
+      origins->SetNodeOrigin(index.id(), origin.DecodeExternalId());
     }
   }
 
@@ -421,7 +421,7 @@ OpIndex GraphBuilder::Process(
   if (Asm().current_block() == nullptr) {
     return OpIndex::Invalid();
   }
-  __ SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
+  __ SetCurrentOrigin(OpIndex::EncodeExternalId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
   switch (opcode) {

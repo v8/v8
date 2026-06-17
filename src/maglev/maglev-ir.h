@@ -2297,6 +2297,10 @@ class NodeBase : public ZoneObject {
     DCHECK(properties().has_eager_deopt_info());
     return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());
   }
+  const EagerDeoptInfo* eager_deopt_info() const {
+    DCHECK(properties().has_eager_deopt_info());
+    return reinterpret_cast<const EagerDeoptInfo*>(deopt_info_address());
+  }
 
   LazyDeoptInfo* lazy_deopt_info() {
     DCHECK(properties().can_lazy_deopt());
@@ -2304,6 +2308,14 @@ class NodeBase : public ZoneObject {
                         ? EagerDeoptInfoSize(properties())
                         : 0;
     return reinterpret_cast<LazyDeoptInfo*>(deopt_info_address() + offset);
+  }
+  const LazyDeoptInfo* lazy_deopt_info() const {
+    DCHECK(properties().can_lazy_deopt());
+    size_t offset = properties().has_eager_deopt_info()
+                        ? EagerDeoptInfoSize(properties())
+                        : 0;
+    return reinterpret_cast<const LazyDeoptInfo*>(deopt_info_address() +
+                                                  offset);
   }
 
   const RegisterSnapshot& register_snapshot() const {
@@ -2314,6 +2326,11 @@ class NodeBase : public ZoneObject {
   ExceptionHandlerInfo* exception_handler_info() {
     DCHECK(properties().can_throw());
     return reinterpret_cast<ExceptionHandlerInfo*>(exception_handler_address());
+  }
+  const ExceptionHandlerInfo* exception_handler_info() const {
+    DCHECK(properties().can_throw());
+    return reinterpret_cast<const ExceptionHandlerInfo*>(
+        exception_handler_address());
   }
 
   void set_register_snapshot(RegisterSnapshot snapshot) {

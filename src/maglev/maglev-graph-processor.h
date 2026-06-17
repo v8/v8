@@ -96,8 +96,12 @@ class ProcessingState {
   ProcessingState(const ProcessingState&) = delete;
   ProcessingState& operator=(const ProcessingState&) = delete;
 
-  BasicBlock* block() const { return *block_it_; }
+  BasicBlock* block() const {
+    if (block_it_ == block_end_) return nullptr;
+    return *block_it_;
+  }
   BasicBlock* next_block() const {
+    DCHECK_NE(block_it_, block_end_);
     BlockConstIterator next_block_it = block_it_ + 1;
     if (next_block_it == block_end_) return nullptr;
     return *next_block_it;
@@ -123,7 +127,9 @@ class GraphProcessor {
 
   void ProcessGraph(Graph* graph) {
     graph_ = graph;
-
+    // Initializing {block_it_} to `graph->end()` so that the ProcessingState
+    // can return nullptr as the block of the constant nodes.
+    block_it_ = graph->end();
     node_processor_.PreProcessGraph(graph);
 
     auto process_constants = [&](auto& map) {

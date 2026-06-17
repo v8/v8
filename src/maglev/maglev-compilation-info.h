@@ -168,6 +168,7 @@ class MaglevCompilationInfo final {
 
   bool is_turbolev() const { return is_turbolev_; }
   bool is_tracing_enabled() const { return is_tracing_enabled_; }
+  bool trace_json_enabled() const { return trace_json_enabled_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -256,6 +257,7 @@ class MaglevCompilationInfo final {
   bool could_not_inline_all_candidates_ = false;
 
   bool is_tracing_enabled_ = false;
+  bool trace_json_enabled_ = false;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 

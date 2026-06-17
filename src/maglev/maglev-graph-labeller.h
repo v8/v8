@@ -95,6 +95,7 @@ class MaglevGraphLabeller {
       os << ":" << input.operand();
     }
   }
+  const std::map<const NodeBase*, NodeInfo>& nodes() const { return nodes_; }
 
  private:
   std::map<const NodeBase*, NodeInfo> nodes_;

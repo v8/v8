@@ -14,6 +14,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution/frames.h"
 #include "src/flags/flags.h"
 #include "src/init/isolate-group.h"
@@ -24,6 +25,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-serializer.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-inlining.h"
@@ -51,12 +53,17 @@ namespace maglev {
 namespace {
 void PrintGraph(Graph* graph, bool condition, const char* message,
                 bool has_regalloc_data = false) {
-  if (V8_UNLIKELY(condition &&
-                  graph->compilation_info()->is_tracing_enabled())) {
+  MaglevCompilationInfo* info = graph->compilation_info();
+  if (V8_UNLIKELY(condition && info->is_tracing_enabled())) {
     UnparkedScopeIfOnBackground unparked_scope(
         graph->broker()->local_isolate()->heap());
     std::cout << "\n----- " << message << " -----" << std::endl;
     PrintGraph(std::cout, graph, has_regalloc_data);
+  }
+  if (V8_UNLIKELY(info->trace_json_enabled())) {
+    UnparkedScopeIfOnBackground unparked_scope(
+        graph->broker()->local_isolate()->heap());
+    PrintMaglevGraphAsJSON(info, graph, message);
   }
 }
 
@@ -78,6 +85,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   bool enable_labeller = ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL ||
                          compilation_info->is_tracing_enabled() ||
+                         compilation_info->trace_json_enabled() ||
                          compilation_info->collect_source_positions() ||
                          v8_flags.code_comments;
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -87,6 +95,39 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   if (V8_UNLIKELY(enable_labeller)) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     graph_labeller_scope.emplace(compilation_info->graph_labeller());
+  }
+
+  if (compilation_info->is_tracing_enabled() ||
+      compilation_info->trace_json_enabled()) {
+    CodeTracer::StreamScope tracing_scope(
+        local_isolate->GetMainThreadIsolateUnsafe()->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << compilation_info->function_name()
+        << " using Maglev" << std::endl;
+  }
+
+  if (compilation_info->trace_json_enabled()) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+
+    Isolate* isolate = local_isolate->GetMainThreadIsolateUnsafe();
+    Handle<SharedFunctionInfo> shared_info =
+        compilation_info->toplevel_compilation_unit()
+            ->shared_function_info()
+            .object();
+    DirectHandle<Script> script =
+        direct_handle(Cast<Script>(shared_info->script()), isolate);
+
+    // TODO(dmercadier): this is opening JSON structures, but if we bail out
+    // during compilation, we might never close them. We should use a RAII
+    // structure with a desctructor to make sure that the JSON structures are
+    // always closed at the end. (Turbolizer can handle some invalid JSON, but
+    // it would be better not to rely on that)
+    MaglevJsonFile json_of(compilation_info, std::ios_base::trunc);
+    json_of << "{\"function\" : ";
+    JsonPrintFunctionSource(json_of, -1, compilation_info->function_name(),
+                            script, isolate, shared_info);
+    json_of << ",\n\"phases\":[\n";
   }
 
   {
@@ -123,6 +164,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       SYNCHRONIZATION_POINT_FOR_TESTING("MaglevInlining");
       MaglevInliner inliner(graph);
       if (!inliner.Run()) return false;
+      PrintGraph(graph, v8_flags.print_maglev_graphs, "After inlining");
       VerifyGraph(graph);
     }
 
@@ -273,6 +315,19 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
           ->set_maglev_compilation_failed(true);
       return {{}, BailoutReason::kMaglevCodeGenerationFailed};
     }
+  }
+
+  if (compilation_info->trace_json_enabled()) {
+    FinalizeMaglevLogging(isolate, compilation_info, code_generator->graph(),
+                          code);
+  }
+  if (compilation_info->is_tracing_enabled() ||
+      compilation_info->trace_json_enabled()) {
+    CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << compilation_info->function_name()
+        << " using Maglev" << std::endl;
   }
 
   {

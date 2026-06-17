@@ -34,6 +34,8 @@ class MaglevCodeGenerator final {
 
   GlobalHandleVector<Map> RetainedMaps(Isolate* isolate);
 
+  Graph* graph() const { return graph_; }
+
  private:
   V8_NODISCARD bool EmitCode();
   void EmitDeferredCode();

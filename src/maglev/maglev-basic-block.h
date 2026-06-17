@@ -62,6 +62,10 @@ class BasicBlock {
     DCHECK(!is_dead());
     return nodes_;
   }
+  const ZoneVector<Node*>& nodes() const {
+    DCHECK(!is_dead());
+    return nodes_;
+  }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {

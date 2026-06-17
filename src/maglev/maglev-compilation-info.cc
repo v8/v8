@@ -127,6 +127,14 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                        : v8_flags.maglev_print_filter);
   }
 
+  if (is_turbolev ? v8_flags.trace_turbo : v8_flags.trace_maglev) {
+    trace_json_enabled_ =
+        toplevel_compilation_unit_->shared_function_info()
+            .object()
+            ->PassesFilter(is_turbolev ? v8_flags.trace_turbo_filter
+                                       : v8_flags.maglev_print_filter);
+  }
+
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
 }
 

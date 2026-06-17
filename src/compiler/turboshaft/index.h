@@ -129,19 +129,19 @@ class OpIndex {
 
   static constexpr OpIndex Invalid() { return OpIndex(); }
 
-  // Encode a sea-of-nodes node id in the `OpIndex` type.
-  // Only used for node origins that actually point to sea-of-nodes graph nodes.
-  static OpIndex EncodeTurbofanNodeId(uint32_t id) {
+  // Encode an external node id (e.g. Turbofan or Maglev) in the `OpIndex` type.
+  // Only used for node origins that point to nodes in a different graph.
+  static OpIndex EncodeExternalId(uint32_t id) {
     OpIndex result = OpIndex(id * sizeof(OperationStorageSlot));
-    result.offset_ += kTurbofanNodeIdFlag;
+    result.offset_ += kExternalIdFlag;
     return result;
   }
-  uint32_t DecodeTurbofanNodeId() const {
-    DCHECK(IsTurbofanNodeId());
+  uint32_t DecodeExternalId() const {
+    DCHECK(IsExternalId());
     return offset_ / sizeof(OperationStorageSlot);
   }
-  bool IsTurbofanNodeId() const {
-    return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
+  bool IsExternalId() const {
+    return offset_ % sizeof(OperationStorageSlot) == kExternalIdFlag;
   }
 
   constexpr bool operator==(OpIndex other) const {
@@ -192,7 +192,7 @@ class OpIndex {
   // of the offset.
   uint32_t offset_;
 
-  static constexpr uint32_t kTurbofanNodeIdFlag = 1;
+  static constexpr uint32_t kExternalIdFlag = 1;
 
   template <typename H>
   friend H AbslHashValue(H h, const OpIndex& idx) {
