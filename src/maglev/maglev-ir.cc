@@ -5777,6 +5777,8 @@ void StringAt::GenerateCode(MaglevAssembler* masm,
       BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt, save_registers,
       char_code, string, index, scratch, Register::no_reg(),
       &cached_one_byte_string);
+  // StringCharCodeOrCodePointAt guarantees writing a valid unsigned 16-bit
+  // code unit (uint16) into char_code, so extra masking is redundant.
   __ StringFromCharCode(save_registers, &cached_one_byte_string, result_string,
                         char_code, scratch,
                         MaglevAssembler::CharCodeMaskMode::kValueIsInRange);

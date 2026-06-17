@@ -64,7 +64,7 @@ Register MaglevAssembler::FromAnyToRegister(ConstInput input,
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 int char_code) {
   DCHECK_GE(char_code, 0);
-  DCHECK_LT(char_code, String::kMaxOneByteCharCode);
+  DCHECK_LE(char_code, String::kMaxOneByteCharCode);
   LoadRoot(result, RootsTable::SingleCharacterStringIndex(char_code));
 }
 

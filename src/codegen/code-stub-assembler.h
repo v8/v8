@@ -820,6 +820,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
   TNode<Word32T> TruncateWord64ToWord32(TNode<Word64T> value);
+  TNode<Uint16T> TruncateWord32ToUint16(TNode<Word32T> value);
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
@@ -3151,7 +3152,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a character from a String (might flatten a ConsString).
   TNode<Uint16T> StringCharCodeAt(TNode<String> string, TNode<UintPtrT> index);
   // Return the single character string with only {code}.
-  TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
+  TNode<String> StringFromSingleCharCode(TNode<Uint16T> code);
+  TNode<String> StringFromSingleCharCode(TNode<Uint8T> code);
   // Return the one byte single character string with only {code}.
   TNode<String> StringFromSingleOneByteCharCode(TNode<Uint8T> code);
 

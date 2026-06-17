@@ -1349,6 +1349,10 @@ TNode<Word32T> CodeStubAssembler::TruncateWord64ToWord32(TNode<Word64T> value) {
   return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
 }
 
+TNode<Uint16T> CodeStubAssembler::TruncateWord32ToUint16(TNode<Word32T> value) {
+  return UncheckedCast<Uint16T>(Word32And(value, Int32Constant(kMaxUInt16)));
+}
+
 TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
   static_assert(kSmiTagMask < kMaxUInt32);
   return Word32Equal(
@@ -9387,14 +9391,19 @@ TNode<String> CodeStubAssembler::StringFromSingleOneByteCharCode(
   return CAST(entry);
 }
 
-TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
+TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Uint8T> code) {
+  return StringFromSingleOneByteCharCode(code);
+}
+
+TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Uint16T> code) {
   TVARIABLE(String, var_result);
 
   // Check if the {code} is a one-byte char code.
   Label if_codeisonebyte(this), if_codeistwobyte(this, Label::kDeferred),
       if_done(this);
-  Branch(Int32LessThanOrEqual(code, Int32Constant(String::kMaxOneByteCharCode)),
-         &if_codeisonebyte, &if_codeistwobyte);
+  Branch(
+      Uint32LessThanOrEqual(code, Int32Constant(String::kMaxOneByteCharCode)),
+      &if_codeisonebyte, &if_codeistwobyte);
   BIND(&if_codeisonebyte);
   {
     // Load the isolate wide single character string cache.

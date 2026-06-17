@@ -294,7 +294,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             __ jmp(*done);
           },
           register_snapshot, done, result, char_code, scratch),
-      Ugreater_equal, char_code, Operand(String::kMaxOneByteCharCode));
+      Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
 
   if (char_code_fits_one_byte != nullptr) {
     bind(char_code_fits_one_byte);

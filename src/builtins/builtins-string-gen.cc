@@ -414,7 +414,7 @@ TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
 
   BIND(&if_isword16);
   {
-    var_result = StringFromSingleCharCode(codepoint);
+    var_result = StringFromSingleCharCode(UncheckedCast<Uint16T>(codepoint));
     Goto(&return_result);
   }
 
@@ -1061,8 +1061,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // string on the fly otherwise.
     TNode<Object> code = arguments.AtIndex(0);
     TNode<Word32T> code32 = TruncateTaggedToWord32(context, code);
-    TNode<Int32T> code16 =
-        Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
+    static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+    TNode<Uint16T> code16 = TruncateWord32ToUint16(code32);
     TNode<String> result = StringFromSingleCharCode(code16);
     arguments.PopAndReturn(result);
   }
@@ -1082,7 +1082,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     CodeStubAssembler::VariableList vars({&var_max_index}, zone());
     arguments.ForEach(vars, [&](TNode<Object> arg) {
       TNode<Word32T> code32 = TruncateTaggedToWord32(context, arg);
-      code16 = Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
+      static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+      code16 = TruncateWord32ToUint16(code32);
 
       GotoIf(
           Int32GreaterThan(code16, Int32Constant(String::kMaxOneByteCharCode)),
@@ -1127,8 +1128,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
         vars,
         [&](TNode<Object> arg) {
           TNode<Word32T> code32 = TruncateTaggedToWord32(context, arg);
-          TNode<Word32T> code16 =
-              Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
+          static_assert(String::kMaxUtf16CodeUnit == kMaxUInt16);
+          TNode<Uint16T> code16 = TruncateWord32ToUint16(code32);
 
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               var_max_index.value(), UINT16_ELEMENTS,
@@ -1571,7 +1572,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
                                      string_data));
           TNode<Uint8T> char_code =
               Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
-          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
+          TNode<String> entry = StringFromSingleCharCode(char_code);
 
           // TODO(ishell): make it possible to skip write barriers here.
           // The single-character strings are in RO space so it should
@@ -2163,7 +2164,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
   // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
   BIND(&single_char);
   {
-    TNode<Int32T> char_code = StringCharCodeAt(string, Unsigned(from));
+    TNode<Uint16T> char_code = StringCharCodeAt(string, Unsigned(from));
     var_result = StringFromSingleCharCode(char_code);
     Goto(&end);
   }
