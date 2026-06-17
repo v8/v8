@@ -34,21 +34,24 @@ static void AddCounter(v8::Isolate* isolate,
                        StatsCounter* counter,
                        const char* name) {
   if (counter->Enabled()) {
-    object
-        ->Set(isolate->GetCurrentContext(),
-              v8::String::NewFromUtf8(isolate, name).ToLocalChecked(),
-              v8::Number::New(isolate, *counter->GetInternalPointer()))
-        .FromJust();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::String> key =
+        v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
+    v8::Local<v8::Number> value =
+        v8::Number::New(isolate, *counter->GetInternalPointer());
+    // Ignore failure due to throwing setters.
+    std::ignore = object->Set(context, key, value);
   }
 }
 
 static void AddNumber(v8::Isolate* isolate, v8::Local<v8::Object> object,
                       double value, const char* name) {
-  object
-      ->Set(isolate->GetCurrentContext(),
-            v8::String::NewFromUtf8(isolate, name).ToLocalChecked(),
-            v8::Number::New(isolate, value))
-      .FromJust();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::String> key =
+      v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
+  v8::Local<v8::Number> val = v8::Number::New(isolate, value);
+  // Ignore failure due to throwing setters.
+  std::ignore = object->Set(context, key, val);
 }
 
 
@@ -56,11 +59,13 @@ static void AddNumber64(v8::Isolate* isolate,
                         v8::Local<v8::Object> object,
                         int64_t value,
                         const char* name) {
-  object
-      ->Set(isolate->GetCurrentContext(),
-            v8::String::NewFromUtf8(isolate, name).ToLocalChecked(),
-            v8::Number::New(isolate, static_cast<double>(value)))
-      .FromJust();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::String> key =
+      v8::String::NewFromUtf8(isolate, name).ToLocalChecked();
+  v8::Local<v8::Number> val =
+      v8::Number::New(isolate, static_cast<double>(value));
+  // Ignore failure due to throwing setters.
+  std::ignore = object->Set(context, key, val);
 }
 
 void StatisticsExtension::GetCounters(
