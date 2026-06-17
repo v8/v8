@@ -337,7 +337,12 @@ void MaglevGraphOptimizer::PreProcessNode(Node* node,
   reducer_.SetNewNodePosition(BasicBlockPosition::At(state.node_index()));
 }
 
-void MaglevGraphOptimizer::PostProcessNode(Node*) {
+void MaglevGraphOptimizer::PostProcessNode(Node* node) {
+  if (node->opcode() != Opcode::kAllocationBlock &&
+      (node->properties().can_allocate() || node->properties().can_deopt() ||
+       node->properties().can_throw())) {
+    reducer_.ClearCurrentAllocationBlock();
+  }
 #ifdef DEBUG
   reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
