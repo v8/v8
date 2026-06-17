@@ -200,9 +200,24 @@ class FastApiCallLoweringReducer : public Next {
           // Only JavaScript needs a truncation here.
           if (__ Get(argument).outputs_rep()[0] ==
               RegisterRepresentation::Float32()) {
+            if (flags &
+                static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+              GOTO_IF_NOT(__ Float32IsFinite(argument), handle_error);
+            }
             return argument;
           }
+          if (flags &
+              static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+            GOTO_IF_NOT(__ Float64IsFinite(argument), handle_error);
+          }
           return __ TruncateFloat64ToFloat32(argument);
+        }
+        case CTypeInfo::Type::kFloat64: {
+          if (flags &
+              static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+            GOTO_IF_NOT(__ Float64IsFinite(argument), handle_error);
+          }
+          return argument;
         }
         case CTypeInfo::Type::kPointer: {
           // Check that the value is a HeapObject.

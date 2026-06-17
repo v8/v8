@@ -2180,9 +2180,22 @@ class AssemblerOpInterface : public Next {
                     ObjectIsOp::InputAssumptions::kHeapObject);
   }
 
-  V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
-    return ReduceIfReachableFloat64Is(input, kind);
+  V<Word32> FloatIs(V<Float> input, NumericKind kind, FloatRepresentation rep) {
+    return ReduceIfReachableFloatIs(input, kind, rep);
   }
+
+  V<Word32> Float32IsFinite(V<Float32> input) {
+    return FloatIs(input, NumericKind::kFinite, FloatRepresentation::Float32());
+  }
+
+  V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
+    return FloatIs(input, kind, FloatRepresentation::Float64());
+  }
+
+  V<Word32> Float64IsFinite(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFinite);
+  }
+
   V<Word32> Float64IsNaN(V<Float64> input) {
     return Float64Is(input, NumericKind::kNaN);
   }

@@ -242,7 +242,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(CheckHomomorphic)                           \
   V(CheckMaps)                                  \
   V(CompareMaps)                                \
-  V(Float64Is)                                  \
+  V(FloatIs)                                    \
   V(ObjectIs)                                   \
   V(ObjectIsNumericValue)                       \
   V(Float64SameValue)                           \
@@ -5247,10 +5247,12 @@ enum class NumericKind : uint8_t {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, NumericKind kind);
 
-struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
+struct FloatIsOp : FixedArityOperationT<1, FloatIsOp> {
   NumericKind kind;
+  FloatRepresentation rep;
 
-  Float64IsOp(V<Float64> input, NumericKind kind) : Base(input), kind(kind) {}
+  FloatIsOp(V<Float> input, NumericKind kind, FloatRepresentation rep)
+      : Base(input), kind(kind), rep(rep) {}
 
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -5259,12 +5261,12 @@ struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
+    return InputsRepFactory::SingleRep(rep);
   }
 
-  V<Float64> input() const { return Base::input<Float64>(0); }
+  V<Float> input() const { return Base::input<Float>(0); }
 
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, rep}; }
 };
 
 struct ObjectIsNumericValueOp

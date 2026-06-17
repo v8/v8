@@ -698,16 +698,30 @@ class MachineLoweringReducer : public Next {
     }
     UNREACHABLE();
   }
+  V<Word32> REDUCE(FloatIs)(V<Float> value, NumericKind kind,
+                            FloatRepresentation rep) {
+    if (rep == FloatRepresentation::Float32()) {
+      switch (kind) {
+        case NumericKind::kFinite: {
+          V<Float32> value_f32 = V<Float32>::Cast(value);
+          V<Float32> diff = __ Float32Sub(value_f32, value_f32);
+          return __ Float32Equal(diff, diff);
+        }
+        default:
+          UNREACHABLE();
+      }
+    }
 
-  V<Word32> REDUCE(Float64Is)(V<Float64> value, NumericKind kind) {
+    DCHECK_EQ(rep, FloatRepresentation::Float64());
+    V<Float64> value_f64 = V<Float64>::Cast(value);
     switch (kind) {
       case NumericKind::kFloat64Hole: {
         Label<Word32> done(this);
         // First check whether {value} is a NaN at all...
-        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        GOTO_IF(LIKELY(__ Float64Equal(value_f64, value_f64)), done, 0);
         // ...and only if {value} is a NaN, perform the expensive bit
         // check. See http://crbug.com/v8/8264 for details.
-        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value),
+        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value_f64),
                                   kHoleNanUpper32));
         BIND(done, result);
         return result;
@@ -716,10 +730,10 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFloat64Undefined: {
         Label<Word32> done(this);
         // First check whether {value} is a NaN at all...
-        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        GOTO_IF(LIKELY(__ Float64Equal(value_f64, value_f64)), done, 0);
         // ...and only if {value} is a NaN, perform the expensive bit
         // check. See http://crbug.com/v8/8264 for details.
-        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value),
+        GOTO(done, __ Word32Equal(__ Float64ExtractHighWord32(value_f64),
                                   kUndefinedNanUpper32));
         BIND(done, result);
         return result;
@@ -727,10 +741,10 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFloat64UndefinedOrHole: {
         Label<Word32> done(this);
         // First check whether {value} is a NaN at all...
-        GOTO_IF(LIKELY(__ Float64Equal(value, value)), done, 0);
+        GOTO_IF(LIKELY(__ Float64Equal(value_f64, value_f64)), done, 0);
         // ...and only if {value} is a NaN, perform the expensive bit
         // check. See http://crbug.com/v8/8264 for details.
-        V<Word32> hi = __ Float64ExtractHighWord32(value);
+        V<Word32> hi = __ Float64ExtractHighWord32(value_f64);
         GOTO_IF(__ Word32Equal(hi, kUndefinedNanUpper32), done, 1);
         GOTO(done, __ Word32Equal(hi, kHoleNanUpper32));
         BIND(done, result);
@@ -738,18 +752,18 @@ class MachineLoweringReducer : public Next {
       }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
       case NumericKind::kFinite: {
-        V<Float64> diff = __ Float64Sub(value, value);
+        V<Float64> diff = __ Float64Sub(value_f64, value_f64);
         return __ Float64Equal(diff, diff);
       }
       case NumericKind::kInteger: {
-        V<Float64> trunc = __ Float64RoundToZero(value);
-        V<Float64> diff = __ Float64Sub(value, trunc);
+        V<Float64> trunc = __ Float64RoundToZero(value_f64);
+        V<Float64> diff = __ Float64Sub(value_f64, trunc);
         return __ Float64Equal(diff, 0.0);
       }
       case NumericKind::kSafeInteger: {
         Label<Word32> done(this);
-        V<Float64> trunc = __ Float64RoundToZero(value);
-        V<Float64> diff = __ Float64Sub(value, trunc);
+        V<Float64> trunc = __ Float64RoundToZero(value_f64);
+        V<Float64> diff = __ Float64Sub(value_f64, trunc);
         GOTO_IF_NOT(__ Float64Equal(diff, 0), done, 0);
         V<Word32> in_range =
             __ Float64LessThanOrEqual(__ Float64Abs(trunc), kMaxSafeInteger);
@@ -760,13 +774,13 @@ class MachineLoweringReducer : public Next {
       }
       case NumericKind::kInt32: {
         Label<Word32> done(this);
-        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value);
-        GOTO_IF_NOT(__ Float64Equal(value, __ ChangeInt32ToFloat64(v32)), done,
-                    0);
+        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value_f64);
+        GOTO_IF_NOT(__ Float64Equal(value_f64, __ ChangeInt32ToFloat64(v32)),
+                    done, 0);
         IF (__ Word32Equal(v32, 0)) {
           // Checking -0.
-          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value), 0), done,
-                  0);
+          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value_f64), 0),
+                  done, 0);
         }
         GOTO(done, 1);
 
@@ -775,13 +789,13 @@ class MachineLoweringReducer : public Next {
       }
       case NumericKind::kSmi: {
         Label<Word32> done(this);
-        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value);
-        GOTO_IF_NOT(__ Float64Equal(value, __ ChangeInt32ToFloat64(v32)), done,
-                    0);
+        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value_f64);
+        GOTO_IF_NOT(__ Float64Equal(value_f64, __ ChangeInt32ToFloat64(v32)),
+                    done, 0);
         IF (__ Word32Equal(v32, 0)) {
           // Checking -0.
-          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value), 0), done,
-                  0);
+          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value_f64), 0),
+                  done, 0);
         }
 
         if constexpr (SmiValuesAre32Bits()) {
@@ -798,13 +812,13 @@ class MachineLoweringReducer : public Next {
       }
       case NumericKind::kMinusZero: {
         if (Is64()) {
-          V<Word64> value64 = __ BitcastFloat64ToWord64(value);
+          V<Word64> value64 = __ BitcastFloat64ToWord64(value_f64);
           return __ Word64Equal(value64, kMinusZeroBits);
         } else {
           Label<Word32> done(this);
-          V<Word32> value_lo = __ Float64ExtractLowWord32(value);
+          V<Word32> value_lo = __ Float64ExtractLowWord32(value_f64);
           GOTO_IF_NOT(__ Word32Equal(value_lo, kMinusZeroLoBits), done, 0);
-          V<Word32> value_hi = __ Float64ExtractHighWord32(value);
+          V<Word32> value_hi = __ Float64ExtractHighWord32(value_f64);
           GOTO(done, __ Word32Equal(value_hi, kMinusZeroHiBits));
 
           BIND(done, result);
@@ -812,7 +826,7 @@ class MachineLoweringReducer : public Next {
         }
       }
       case NumericKind::kNaN: {
-        V<Word32> diff = __ Float64Equal(value, value);
+        V<Word32> diff = __ Float64Equal(value_f64, value_f64);
         return __ Word32Equal(diff, 0);
       }
     }

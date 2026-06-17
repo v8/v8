@@ -901,6 +901,63 @@ class FastCApiObject {
     }
   }
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType CheckRestrictedFloat32Patch(AnyCType receiver, AnyCType param,
+                                              AnyCType options) {
+    AnyCType ret;
+    CheckRestrictedFloat32FastCallback(receiver.object_value, param.float_value,
+                                       *options.options_value);
+    return ret;
+  }
+  static AnyCType CheckRestrictedFloat64Patch(AnyCType receiver, AnyCType param,
+                                              AnyCType options) {
+    AnyCType ret;
+    CheckRestrictedFloat64FastCallback(
+        receiver.object_value, param.double_value, *options.options_value);
+    return ret;
+  }
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  static void CheckRestrictedFloat32FastCallback(
+      Local<Object> receiver, float param, FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_NOT_NULL(self);
+    self->fast_call_count_++;
+
+    CHECK(std::isfinite(param));
+  }
+
+  static void CheckRestrictedFloat64FastCallback(
+      Local<Object> receiver, double param, FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_NOT_NULL(self);
+    self->fast_call_count_++;
+
+    CHECK(std::isfinite(param));
+  }
+
+  static void CheckRestrictedFloatSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      isolate->ThrowError("Argument must be a number.");
+      return;
+    }
+    double param =
+        info[0]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    if (!std::isfinite(param)) {
+      isolate->ThrowError("Argument must be a finite number.");
+      return;
+    }
+  }
+
   static bool IsFastCApiObjectFastCallback(v8::Local<v8::Object> receiver,
                                            v8::Local<v8::Value> arg,
                                            FastApiCallbackOptions& options) {
@@ -1859,6 +1916,38 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::ClampCompareSlowCallback<uint64_t>,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &clamp_compare_u64_c_func));
+
+    // Testing restricted float annotation.
+
+    static CFunction check_restricted_float32_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::CheckRestrictedFloat32FastCallback)
+            .Arg<1, v8::CTypeInfo::Flags::kIsRestrictedBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::CheckRestrictedFloat32Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "check_restricted_float32",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CheckRestrictedFloatSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &check_restricted_float32_c_func));
+
+    static CFunction check_restricted_float64_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::CheckRestrictedFloat64FastCallback)
+            .Arg<1, v8::CTypeInfo::Flags::kIsRestrictedBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::CheckRestrictedFloat64Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "check_restricted_float64",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CheckRestrictedFloatSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &check_restricted_float64_c_func));
 
     static CFunction is_valid_api_object_c_func =
         CFunction::Make(FastCApiObject::IsFastCApiObjectFastCallback);
