@@ -571,13 +571,13 @@ class MemoryContentTable
 #endif
 
   void InvalidatePotentialLoadedStringMaps() {
-    constexpr int kMapOffset = offsetof(HeapObject, map_);
-    auto offset_keys = offset_keys_.find(kMapOffset);
+    constexpr int kOffset = 0;
+    auto offset_keys = offset_keys_.find(kOffset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
          it != offset_keys->second.end();) {
       Key key = *it;
-      DCHECK_EQ(kMapOffset, key.data().mem.offset);
+      DCHECK_EQ(kOffset, key.data().mem.offset);
       // TODO(dmercadier): check known maps for key.data().mem.base and don't
       // invalidate if maps cannot be string maps.
       it = offset_keys->second.RemoveAt(it);
@@ -994,6 +994,53 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                 // NaN.
                 EmitReportLoadEliminationError();
               }
+            } else if (compare_rep == RegisterRepresentation::Tagged() &&
+                       !v8_flags.turbolev) {
+              // We are trying to replace a Tagged value by a different Tagged
+              // value. This is generally wrong, but there is one exception: we
+              // are allowed to replace a string map by a different string map
+              // that has the same 1/2-byte encoding. The reason why this is
+              // fine is because we never rely on the exact shape of a string,
+              // as the only operations that look at string maps are:
+              //
+              //  - CheckString (in Turboshaft, this is ObjectIs(kString)): this
+              //  doesn't care about shapes, only about the fact that something
+              //  is a string or not.
+              //
+              //  - StringAt: loading the map is done in a loop that contains a
+              //  runtime call, which is annotated as AnySideEffects, which will
+              //  prevent LoadElimination from ever eliminating the map load.
+              //
+              //  - NewConsString: this only cares about the encoding of the
+              //  input, in order to determine the encoding of the outputs.
+
+              Label<> error(this);
+              Label<> done(this);
+              GOTO_IF_NOT(LIKELY(__ IsStringMap(actual_idx)), error);
+              GOTO_IF_NOT(LIKELY(__ IsStringMap(replacement_idx)), error);
+
+              // Both actual and replacement are strings.
+
+              // Checking that the encoding (1 or 2-byte) remained the same.
+              V<Word32> actual_instance_type =
+                  __ LoadInstanceTypeField(actual_idx);
+              V<Word32> replacement_instance_type =
+                  __ LoadInstanceTypeField(replacement_idx);
+              V<Word32> actual_encoding = __ Word32BitwiseAnd(
+                  actual_instance_type, kStringEncodingMask);
+              V<Word32> replacement_encoding = __ Word32BitwiseAnd(
+                  replacement_instance_type, kStringEncodingMask);
+              GOTO_IF(
+                  LIKELY(__ Word32Equal(actual_encoding, replacement_encoding)),
+                  done);
+              GOTO(error);
+
+              BIND(error);
+              EmitReportLoadEliminationError();
+              BIND(done);
+
+              // NOT aborting: we replaced a string map with a different string
+              // map, but they have the same encoding.
             } else {
               EmitReportLoadEliminationError();
             }
