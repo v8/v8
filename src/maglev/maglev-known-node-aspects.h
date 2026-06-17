@@ -104,14 +104,37 @@ class NodeInfo {
 
       if (kind == Kind::kCheckedValue) {
         // For checked_value, we only allow:
-        // 1. Overwriting a non-internalized constant by
-        // CheckedInternalizedString.
-        // 2. Overwriting CheckedInternalizedString by an internalized string
-        // constant.
+        //     1. Overwriting a non-internalized constant by
+        //     CheckedInternalizedString(constant string input).
+        //
+        //     2. Overwriting CheckedInternalizedString(non-constant input) by a
+        //     string constant.
+        //
+        //     3. Overwriting CheckedInternalizedString(non-internalized
+        //     constant input) by an internalized string constant.
+        //
+        // The idea of those rules is to keep the strongest possible alternative
+        // in order to A) elide future CheckedInternalizedString operations, and
+        // B) constant-fold future loads from the string (in particular its
+        // length).
+        // In that regard, 2. doesn't do an amazing job to avoid duplicated
+        // CheckedInternalizedString, but it ensures that we duplicate it at
+        // most once: we could have the following transitions:
+        //
+        //      CheckedInternalizedString(non-constant)
+        //   -> string constant
+        //   -> CheckedInternalizedString(string constant)
+        //
+        // So we would have emitted 2 CheckedInternalizedString, but we won't
+        // emit a third one, and the only allowed transition from this point is
+        // to an internalized string constant (which will also prevent future
+        // CheckedInternalizedStrings from being emitted).
         if (IsNonInternalizedStringConstant(old_alt)) {
           DCHECK_EQ(new_alt->opcode(), Opcode::kCheckedInternalizedString);
         } else if (old_alt->opcode() == Opcode::kCheckedInternalizedString) {
-          DCHECK(IsInternalizedStringConstant(new_alt));
+          if (IsConstantNode(old_alt->input_node(0)->opcode())) {
+            DCHECK(IsInternalizedStringConstant(new_alt));
+          }
         } else {
           // Any other overwrite of checked_value is forbidden.
           DCHECK(false);
