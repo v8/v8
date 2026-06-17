@@ -592,46 +592,29 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .MapArgument(T(cp_offset), 0, I(B::kLoadCurrentCharacter, cp_offset))
         .MapArgument(T(advance_by), 2, I(B::kAdvanceCpAndGoto, by))
         .MapArgument(T(table), 1, I(B::kCheckBitInTable, table))
+        .MapArgument(T(bounds_check_offset), 0,
+                     I(B::kLoadCurrentCharacter, bounds_check_offset))
         .MapArgument(T(on_match), 1, I(B::kCheckBitInTable, on_bit_set))
         .MapArgument(T(on_no_match), 0, I(B::kLoadCurrentCharacter, on_failure))
         .IgnoreArgument(2, I(B::kAdvanceCpAndGoto, on_goto));
   }
 
   {
-    static constexpr auto Target = B::kSkipUntilCharPosChecked;
-    CreateSequence(B::kCheckPosition)
-        .FollowedBy(B::kLoadCurrentCharacterUnchecked)
-        .FollowedBy(B::kCheckCharacter)
-        .FollowedBy(B::kAdvanceCpAndGoto)
-        .IfArgumentEqualsOffset(I(B::kAdvanceCpAndGoto, on_goto), 0)
-        .ReplaceWith(Target)
-        .MapArgument(T(cp_offset), 1,
-                     I(B::kLoadCurrentCharacterUnchecked, cp_offset))
-        .MapArgument(T(advance_by), 3, I(B::kAdvanceCpAndGoto, by))
-        .MapArgument(T(character), 2, I(B::kCheckCharacter, character))
-        .MapArgument(T(eats_at_least), 0, I(B::kCheckPosition, cp_offset))
-        .MapArgument(T(on_match), 2, I(B::kCheckCharacter, on_equal))
-        .MapArgument(T(on_no_match), 0, I(B::kCheckPosition, on_failure))
-        .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto));
-  }
-
-  {
     static constexpr auto Target = B::kSkipUntilCharAnd;
-    CreateSequence(B::kCheckPosition)
-        .FollowedBy(B::kLoadCurrentCharacterUnchecked)
+    CreateSequence(B::kLoadCurrentCharacter)
         .FollowedBy(B::kCheckCharacterAfterAnd)
         .FollowedBy(B::kAdvanceCpAndGoto)
         .IfArgumentEqualsOffset(I(B::kAdvanceCpAndGoto, on_goto), 0)
         .ReplaceWith(Target)
-        .MapArgument(T(cp_offset), 1,
-                     I(B::kLoadCurrentCharacterUnchecked, cp_offset))
-        .MapArgument(T(advance_by), 3, I(B::kAdvanceCpAndGoto, by))
-        .MapArgument(T(character), 2, I(B::kCheckCharacterAfterAnd, character))
-        .MapArgument(T(mask), 2, I(B::kCheckCharacterAfterAnd, mask))
-        .MapArgument(T(eats_at_least), 0, I(B::kCheckPosition, cp_offset))
-        .MapArgument(T(on_match), 2, I(B::kCheckCharacterAfterAnd, on_equal))
-        .MapArgument(T(on_no_match), 0, I(B::kCheckPosition, on_failure))
-        .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto));
+        .MapArgument(T(cp_offset), 0, I(B::kLoadCurrentCharacter, cp_offset))
+        .MapArgument(T(advance_by), 2, I(B::kAdvanceCpAndGoto, by))
+        .MapArgument(T(character), 1, I(B::kCheckCharacterAfterAnd, character))
+        .MapArgument(T(mask), 1, I(B::kCheckCharacterAfterAnd, mask))
+        .MapArgument(T(bounds_check_offset), 0,
+                     I(B::kLoadCurrentCharacter, bounds_check_offset))
+        .MapArgument(T(on_match), 1, I(B::kCheckCharacterAfterAnd, on_equal))
+        .MapArgument(T(on_no_match), 0, I(B::kLoadCurrentCharacter, on_failure))
+        .IgnoreArgument(2, I(B::kAdvanceCpAndGoto, on_goto));
   }
 
   // TODO(pthier): It might make sense for short sequences like this one to only
@@ -649,6 +632,8 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .MapArgument(T(cp_offset), 0, I(B::kLoadCurrentCharacter, cp_offset))
         .MapArgument(T(advance_by), 2, I(B::kAdvanceCpAndGoto, by))
         .MapArgument(T(character), 1, I(B::kCheckCharacter, character))
+        .MapArgument(T(bounds_check_offset), 0,
+                     I(B::kLoadCurrentCharacter, bounds_check_offset))
         .MapArgument(T(on_match), 1, I(B::kCheckCharacter, on_equal))
         .MapArgument(T(on_no_match), 0, I(B::kLoadCurrentCharacter, on_failure))
         .IgnoreArgument(2, I(B::kAdvanceCpAndGoto, on_goto));
@@ -668,6 +653,8 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .MapArgument(T(advance_by), 3, I(B::kAdvanceCpAndGoto, by))
         .MapArgument(T(char1), 1, I(B::kCheckCharacter, character))
         .MapArgument(T(char2), 2, I(B::kCheckCharacter, character))
+        .MapArgument(T(bounds_check_offset), 0,
+                     I(B::kLoadCurrentCharacter, bounds_check_offset))
         .MapArgument(T(on_match), 1, I(B::kCheckCharacter, on_equal))
         .MapArgument(T(on_no_match), 0, I(B::kLoadCurrentCharacter, on_failure))
         .IgnoreArgument(2, I(B::kCheckCharacter, on_equal))
@@ -680,11 +667,11 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .FollowedBy(B::kCheckCharacterGT)
         // Sequence is only valid if the jump target of kCheckCharacterGT is the
         // first bytecode AFTER the whole sequence.
-        .IfArgumentEqualsOffset(I(B::kCheckCharacterGT, on_greater), 56)
+        .IfArgumentEqualsOffset(I(B::kCheckCharacterGT, on_greater), 60)
         .FollowedBy(B::kCheckBitInTable)
         // Sequence is only valid if the jump target of kCheckBitInTable is
         // the kAdvanceCpAndGoto bytecode at the end of the sequence.
-        .IfArgumentEqualsOffset(I(B::kCheckBitInTable, on_bit_set), 48)
+        .IfArgumentEqualsOffset(I(B::kCheckBitInTable, on_bit_set), 52)
         .FollowedBy(B::kGoTo)
         // Sequence is only valid if the jump target of kGoTo is the same as the
         // jump target of kCheckCharacterGT (i.e. both jump to the first
@@ -698,6 +685,8 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .MapArgument(T(advance_by), 4, I(B::kAdvanceCpAndGoto, by))
         .MapArgument(T(character), 1, I(B::kCheckCharacterGT, limit))
         .MapArgument(T(table), 2, I(B::kCheckBitInTable, table))
+        .MapArgument(T(bounds_check_offset), 0,
+                     I(B::kLoadCurrentCharacter, bounds_check_offset))
         .MapArgument(T(on_match), 1, I(B::kCheckCharacterGT, on_greater))
         .MapArgument(T(on_no_match), 0, I(B::kLoadCurrentCharacter, on_failure))
         .IgnoreArgument(2, I(B::kCheckBitInTable, on_bit_set))
@@ -706,8 +695,7 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
   }
   {
     static constexpr auto Target = B::kSkipUntilOneOfMasked;
-    CreateSequence(B::kCheckPosition)
-        .FollowedBy(B::kLoad4CurrentCharsUnchecked)
+    CreateSequence(B::kLoad4CurrentChars)
         .FollowedBy(B::kAndCheck4Chars)
         // Jump target is the offset of the next AndCheck4Chars (right after
         // AdvanceCpAndGoto).
@@ -719,74 +707,69 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         // Jump target is AdvanceCpAndGoto.
         .IfArgumentEqualsOffset(I(B::kAndCheckNot4Chars, on_not_equal), 0x1c)
         .ReplaceWith(Target)
-        .MapArgument(T(cp_offset), 1,
-                     I(B::kLoad4CurrentCharsUnchecked, cp_offset))
-        .MapArgument(T(advance_by), 3, I(B::kAdvanceCpAndGoto, by))
-        .MapArgument(T(both_chars), 2, I(B::kAndCheck4Chars, characters))
-        .MapArgument(T(both_mask), 2, I(B::kAndCheck4Chars, mask))
-        .MapArgument(T(max_offset), 0, I(B::kCheckPosition, cp_offset))
-        .MapArgument(T(chars1), 4, I(B::kAndCheck4Chars, characters))
-        .MapArgument(T(mask1), 4, I(B::kAndCheck4Chars, mask))
-        .MapArgument(T(chars2), 5, I(B::kAndCheckNot4Chars, characters))
-        .MapArgument(T(mask2), 5, I(B::kAndCheckNot4Chars, mask))
-        .MapArgument(T(on_match1), 4, I(B::kAndCheck4Chars, on_equal))
+        .MapArgument(T(cp_offset), 0, I(B::kLoad4CurrentChars, cp_offset))
+        .MapArgument(T(advance_by), 2, I(B::kAdvanceCpAndGoto, by))
+        .MapArgument(T(both_chars), 1, I(B::kAndCheck4Chars, characters))
+        .MapArgument(T(both_mask), 1, I(B::kAndCheck4Chars, mask))
+        .MapArgument(T(max_offset), 0,
+                     I(B::kLoad4CurrentChars, bounds_check_offset))
+        .MapArgument(T(chars1), 3, I(B::kAndCheck4Chars, characters))
+        .MapArgument(T(mask1), 3, I(B::kAndCheck4Chars, mask))
+        .MapArgument(T(chars2), 4, I(B::kAndCheckNot4Chars, characters))
+        .MapArgument(T(mask2), 4, I(B::kAndCheckNot4Chars, mask))
+        .MapArgument(T(on_match1), 3, I(B::kAndCheck4Chars, on_equal))
         .EmitOffsetAfterSequence(T(on_match2))
-        .MapArgument(T(on_failure), 0, I(B::kCheckPosition, on_failure))
-        .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto))
-        .IgnoreArgument(2, I(B::kAndCheck4Chars, on_equal));
+        .MapArgument(T(on_failure), 0, I(B::kLoad4CurrentChars, on_failure))
+        .IgnoreArgument(2, I(B::kAdvanceCpAndGoto, on_goto))
+        .IgnoreArgument(1, I(B::kAndCheck4Chars, on_equal));
   }
   // The original bytecode sequence for kSkipUntilOneOfMasked3 is:
   //
   // sequence offset name
   // bc0   0  SkipUntilBitInTable
-  // bc1  20  CheckPosition
-  // bc2  28  Load4CurrentCharsUnchecked
-  // bc3  2c  AndCheck4Chars
-  // bc4  3c  AdvanceCpAndGoto
-  // bc5  48  Load4CurrentChars
-  // bc6  4c  AndCheck4Chars
-  // bc7  5c  AndCheck4Chars
-  // bc8  6c  AndCheckNot4Chars
+  // bc1  24  Load4CurrentChars
+  // bc2  30  AndCheck4Chars
+  // bc3  40  AdvanceCpAndGoto
+  // bc4  48  Load4CurrentChars
+  // bc5  54  AndCheck4Chars
+  // bc6  64  AndCheck4Chars
+  // bc7  74  AndCheckNot4Chars
   {
     static constexpr int kOffsetOfBc0SkipUntilBitInTable = 0x0;
-    static constexpr int kOffsetOfBc1CheckCurrentPosition = 0x20;
-    static constexpr int kOffsetOfBc4AdvanceBcAndGoto = 0x3c;
+    static constexpr int kOffsetOfBc1Load4CurrentChars = 0x24;
+    static constexpr int kOffsetOfBc3AdvanceCpAndGoto = 0x40;
     static constexpr auto Target = B::kSkipUntilOneOfMasked3;
     BytecodeSequenceNode& s0 =
         CreateSequence(B::kSkipUntilBitInTable)
+            .IfArgumentEqualsOffset(I(B::kSkipUntilBitInTable, on_match),
+                                    kOffsetOfBc1Load4CurrentChars)
             .IfArgumentEqualsOffset(I(B::kSkipUntilBitInTable, on_no_match),
-                                    kOffsetOfBc1CheckCurrentPosition)
-            .IfArgumentEqualsOffset(I(B::kSkipUntilBitInTable, on_no_match),
-                                    kOffsetOfBc1CheckCurrentPosition);
+                                    kOffsetOfBc1Load4CurrentChars);
 
-    DCHECK_EQ(s0.SequenceLength(), 0x20);
-    DCHECK_EQ(s0.SequenceLength(), kOffsetOfBc1CheckCurrentPosition);
-    static constexpr int kOffsetOfBc5Load4CurrentChars = 0x44;
+    DCHECK_EQ(s0.SequenceLength(), kOffsetOfBc1Load4CurrentChars);
+    static constexpr int kOffsetOfBc4Load4CurrentChars = 0x48;
     BytecodeSequenceNode& s1 =
-        s0.FollowedBy(B::kCheckPosition)
-            .FollowedBy(B::kLoad4CurrentCharsUnchecked)
+        s0.FollowedBy(B::kLoad4CurrentChars)
             .FollowedBy(B::kAndCheck4Chars)
             .IfArgumentEqualsOffset(I(B::kAndCheck4Chars, on_equal),
-                                    kOffsetOfBc5Load4CurrentChars);
+                                    kOffsetOfBc4Load4CurrentChars);
 
-    DCHECK_EQ(s1.SequenceLength(), 0x3c);
-    DCHECK_EQ(s1.SequenceLength(), kOffsetOfBc4AdvanceBcAndGoto);
+    DCHECK_EQ(s1.SequenceLength(), kOffsetOfBc3AdvanceCpAndGoto);
     BytecodeSequenceNode& s2 =
         s1.FollowedBy(B::kAdvanceCpAndGoto)
             .IfArgumentEqualsOffset(I(B::kAdvanceCpAndGoto, on_goto),
                                     kOffsetOfBc0SkipUntilBitInTable);
 
-    DCHECK_EQ(s2.SequenceLength(), 0x44);
-    DCHECK_EQ(s2.SequenceLength(), kOffsetOfBc5Load4CurrentChars);
+    DCHECK_EQ(s2.SequenceLength(), kOffsetOfBc4Load4CurrentChars);
     BytecodeSequenceNode& s3 =
         s2.FollowedBy(B::kLoad4CurrentChars)
             .IfArgumentEqualsOffset(I(B::kLoad4CurrentChars, on_failure),
-                                    kOffsetOfBc4AdvanceBcAndGoto)
+                                    kOffsetOfBc3AdvanceCpAndGoto)
             .FollowedBy(B::kAndCheck4Chars)
             .FollowedBy(B::kAndCheck4Chars)
             .FollowedBy(B::kAndCheckNot4Chars)
             .IfArgumentEqualsOffset(I(B::kAndCheckNot4Chars, on_not_equal),
-                                    kOffsetOfBc4AdvanceBcAndGoto);
+                                    kOffsetOfBc3AdvanceCpAndGoto);
 
     s3.ReplaceWith(Target)
         .MapArgument(T(bc0_cp_offset), 0, I(B::kSkipUntilBitInTable, cp_offset))
@@ -795,26 +778,29 @@ void BytecodePeepholeSequences::DefineStandardSequences() {
         .MapArgument(T(bc0_table), 0, I(B::kSkipUntilBitInTable, table))
         .IgnoreArgument(0, I(B::kSkipUntilBitInTable, on_match))
         .IgnoreArgument(0, I(B::kSkipUntilBitInTable, on_no_match))
-        .MapArgument(T(bc1_cp_offset), 1, I(B::kCheckPosition, cp_offset))
-        .MapArgument(T(bc1_on_failure), 1, I(B::kCheckPosition, on_failure))
-        .MapArgument(T(bc2_cp_offset), 2,
-                     I(B::kLoad4CurrentCharsUnchecked, cp_offset))
-        .MapArgument(T(bc3_characters), 3, I(B::kAndCheck4Chars, characters))
-        .MapArgument(T(bc3_mask), 3, I(B::kAndCheck4Chars, mask))
-        .IgnoreArgument(3, I(B::kAndCheck4Chars, on_equal))
-        .MapArgument(T(bc4_by), 4, I(B::kAdvanceCpAndGoto, by))
-        .IgnoreArgument(4, I(B::kAdvanceCpAndGoto, on_goto))
-        .MapArgument(T(bc5_cp_offset), 5, I(B::kLoad4CurrentChars, cp_offset))
-        .IgnoreArgument(5, I(B::kLoad4CurrentChars, on_failure))
+        .IgnoreArgument(0, I(B::kSkipUntilBitInTable, bounds_check_offset))
+        .MapArgument(T(bc1_bounds_check_offset), 1,
+                     I(B::kLoad4CurrentChars, bounds_check_offset))
+        .MapArgument(T(bc1_on_failure), 1, I(B::kLoad4CurrentChars, on_failure))
+        .MapArgument(T(bc1_cp_offset), 1, I(B::kLoad4CurrentChars, cp_offset))
+        .MapArgument(T(bc2_characters), 2, I(B::kAndCheck4Chars, characters))
+        .MapArgument(T(bc2_mask), 2, I(B::kAndCheck4Chars, mask))
+        .IgnoreArgument(2, I(B::kAndCheck4Chars, on_equal))
+        .MapArgument(T(bc3_by), 3, I(B::kAdvanceCpAndGoto, by))
+        .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto))
+        .MapArgument(T(bc4_bounds_check_offset), 4,
+                     I(B::kLoad4CurrentChars, bounds_check_offset))
+        .MapArgument(T(bc4_cp_offset), 4, I(B::kLoad4CurrentChars, cp_offset))
+        .IgnoreArgument(4, I(B::kLoad4CurrentChars, on_failure))
+        .MapArgument(T(bc5_characters), 5, I(B::kAndCheck4Chars, characters))
+        .MapArgument(T(bc5_mask), 5, I(B::kAndCheck4Chars, mask))
+        .MapArgument(T(bc5_on_equal), 5, I(B::kAndCheck4Chars, on_equal))
         .MapArgument(T(bc6_characters), 6, I(B::kAndCheck4Chars, characters))
         .MapArgument(T(bc6_mask), 6, I(B::kAndCheck4Chars, mask))
         .MapArgument(T(bc6_on_equal), 6, I(B::kAndCheck4Chars, on_equal))
-        .MapArgument(T(bc7_characters), 7, I(B::kAndCheck4Chars, characters))
-        .MapArgument(T(bc7_mask), 7, I(B::kAndCheck4Chars, mask))
-        .MapArgument(T(bc7_on_equal), 7, I(B::kAndCheck4Chars, on_equal))
-        .MapArgument(T(bc8_characters), 8, I(B::kAndCheckNot4Chars, characters))
-        .MapArgument(T(bc8_mask), 8, I(B::kAndCheckNot4Chars, mask))
-        .IgnoreArgument(8, I(B::kAndCheckNot4Chars, on_not_equal))
+        .MapArgument(T(bc7_characters), 7, I(B::kAndCheckNot4Chars, characters))
+        .MapArgument(T(bc7_mask), 7, I(B::kAndCheckNot4Chars, mask))
+        .IgnoreArgument(7, I(B::kAndCheckNot4Chars, on_not_equal))
         .EmitOffsetAfterSequence(T(fallthrough_jump_target));
   }
 

@@ -60,7 +60,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
-                           Label* on_match, Label* on_no_match) override;
+                           int bounds_check_offset, Label* on_match,
+                           Label* on_no_match) override;
   bool SkipUntilBitInTableUseSimd(int advance_by) override;
   void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
                             unsigned both_mask, int max_offset, unsigned chars1,
@@ -314,7 +315,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
 
   void EmitSkipUntilBitInTableSimdHelper(
       int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
-      int max_on_match_lookahead, Label* scalar_fallback,
+      int bounds_check_offset, Label* scalar_fallback,
       base::FunctionRef<void(Register, Register)> on_match);
 
   Isolate* isolate() const { return masm_->isolate(); }

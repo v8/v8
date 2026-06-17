@@ -1713,9 +1713,12 @@ bool Node::EmitQuickCheck(Compiler* compiler, Trace* bounds_check_trace,
     int eats_at_least = predecessor->EatsAtLeast(
         bounds_check_trace->at_start() == Trace::FALSE_VALUE);
     DCHECK_GE(eats_at_least, details->characters());
-    assembler->LoadCurrentCharacter(
-        trace->cp_offset(), bounds_check_trace->backtrack(),
-        !preload_has_checked_bounds, details->characters(), eats_at_least);
+    int cp_offset = trace->cp_offset();
+    int bounds_check_offset =
+        assembler->CalculateBoundsCheckOffset(cp_offset, eats_at_least);
+    assembler->LoadCurrentCharacter(cp_offset, bounds_check_trace->backtrack(),
+                                    !preload_has_checked_bounds,
+                                    details->characters(), bounds_check_offset);
   }
 
   bool need_mask = true;
@@ -3054,8 +3057,8 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
     Label cont;
     base::uc16 mask = RegExpMacroAssembler::kTableMask;
     mask &= ~(char_one ^ char_two);  // Mask out the bit where they differ.
-    masm->SkipUntilCharAnd(max_lookahead, 1, char_one & mask, mask, length(),
-                           &cont, &cont);
+    masm->SkipUntilCharAnd(max_lookahead, 1, char_one & mask, mask,
+                           length() - 1, &cont, &cont);
 
     masm->Bind(&cont);
     return;
@@ -3077,7 +3080,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
   Label cont;
   masm->SkipUntilBitInTable(max_lookahead, boolean_skip_table, nibble_table,
-                            skip_distance, &cont, &cont);
+                            skip_distance, length() - 1, &cont, &cont);
   masm->Bind(&cont);
 }
 

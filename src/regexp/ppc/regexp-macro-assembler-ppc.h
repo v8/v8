@@ -55,7 +55,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
-                           Label* on_match, Label* on_no_match) override;
+                           int bounds_check_offset, Label* on_match,
+                           Label* on_no_match) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.

@@ -303,67 +303,58 @@ void RegExpMacroAssembler::UnanchoredAdvance(bool unicode, Label* on_failure) {
   }
 }
 
+int RegExpMacroAssembler::CalculateBoundsCheckOffset(int cp_offset,
+                                                     int characters) {
+  return cp_offset >= 0 ? cp_offset + characters - 1 : cp_offset;
+}
+
 void RegExpMacroAssembler::LoadCurrentCharacter(int cp_offset,
                                                 Label* on_end_of_input,
                                                 bool check_bounds,
                                                 int characters,
-                                                int eats_at_least) {
-  // By default, eats_at_least = characters.
-  if (eats_at_least == kUseCharactersValue) {
-    eats_at_least = characters;
+                                                int bounds_check_offset) {
+  DCHECK_IMPLIES(bounds_check_offset < 0,
+                 bounds_check_offset == kDefaultBoundsCheckOffset ||
+                     bounds_check_offset == cp_offset);
+  if (bounds_check_offset == kDefaultBoundsCheckOffset) {
+    bounds_check_offset = CalculateBoundsCheckOffset(cp_offset, characters);
   }
 
   LoadCurrentCharacterImpl(cp_offset, on_end_of_input, check_bounds, characters,
-                           eats_at_least);
+                           bounds_check_offset);
 }
 
 void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
     int cp_offset, Label* on_end_of_input, bool check_bounds, int characters,
-    int eats_at_least) {
-  // It's possible to preload a small number of characters when each success
-  // path requires a large number of characters, but not the reverse.
-  DCHECK_GE(eats_at_least, characters);
-
+    int bounds_check_offset) {
   CHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
   if (check_bounds) {
-    if (cp_offset >= 0) {
-      CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);
-    } else {
-      CheckPosition(cp_offset, on_end_of_input);
-    }
+    DCHECK_LE(cp_offset, bounds_check_offset);
+    CheckPosition(bounds_check_offset, on_end_of_input);
   }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
 void RegExpMacroAssembler::SkipUntilCharAnd(int cp_offset, int advance_by,
                                             unsigned character, unsigned mask,
-                                            int eats_at_least, Label* on_match,
+                                            int bounds_check_offset,
+                                            Label* on_match,
                                             Label* on_no_match) {
   Label loop;
   Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckCharacterAfterAnd(character, mask, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&loop);
 }
 
 void RegExpMacroAssembler::SkipUntilChar(int cp_offset, int advance_by,
-                                         unsigned character, Label* on_match,
-                                         Label* on_no_match) {
+                                         unsigned character,
+                                         int bounds_check_offset,
+                                         Label* on_match, Label* on_no_match) {
   Label loop;
   Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
-  CheckCharacter(character, on_match);
-  AdvanceCurrentPosition(advance_by);
-  GoTo(&loop);
-}
-
-void RegExpMacroAssembler::SkipUntilCharPosChecked(
-    int cp_offset, int advance_by, unsigned character, int eats_at_least,
-    Label* on_match, Label* on_no_match) {
-  Label loop;
-  Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, eats_at_least);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckCharacter(character, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&loop);
@@ -371,11 +362,12 @@ void RegExpMacroAssembler::SkipUntilCharPosChecked(
 
 void RegExpMacroAssembler::SkipUntilCharOrChar(int cp_offset, int advance_by,
                                                unsigned char1, unsigned char2,
+                                               int bounds_check_offset,
                                                Label* on_match,
                                                Label* on_no_match) {
   Label loop;
   Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckCharacter(char1, on_match);
   CheckCharacter(char2, on_match);
   AdvanceCurrentPosition(advance_by);
@@ -384,12 +376,12 @@ void RegExpMacroAssembler::SkipUntilCharOrChar(int cp_offset, int advance_by,
 
 void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
     int cp_offset, int advance_by, unsigned character, Handle<ByteArray> table,
-    Label* on_match, Label* on_no_match) {
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
   DCHECK(base::IsInRange(character, std::numeric_limits<base::uc16>::min(),
                          std::numeric_limits<base::uc16>::max()));
   Label loop, advance_and_continue;
   Bind(&loop);
-  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  LoadCurrentCharacter(cp_offset, on_no_match, true, 1, bounds_check_offset);
   CheckCharacterGT(character, on_match);
   CheckBitInTable(table, &advance_and_continue);
   GoTo(on_match);
@@ -440,35 +432,35 @@ void RegExpMacroAssembler::SkipUntilOneOfMasked3(
   //
   // sequence offset name
   // bc0   0  SkipUntilBitInTable
-  // bc1  20  CheckPosition
-  // bc2  28  Load4CurrentCharsUnchecked
-  // bc3  2c  AndCheck4Chars
-  // bc4  3c  AdvanceCpAndGoto
-  // bc5  48  Load4CurrentChars
-  // bc6  4c  AndCheck4Chars
-  // bc7  5c  AndCheck4Chars
-  // bc8  6c  AndCheckNot4Chars
+  // bc1  24  Load4CurrentChars
+  // bc2  30  AndCheck4Chars
+  // bc3  40  AdvanceCpAndGoto
+  // bc4  48  Load4CurrentChars
+  // bc5  54  AndCheck4Chars
+  // bc6  64  AndCheck4Chars
+  // bc7  74  AndCheckNot4Chars
 
-  Label bc0_skip_until_bit_in_table, bc1_check_current_position,
-      bc4_advance_cp_and_goto, bc5_load_4_current_chars;
+  Label bc0_skip_until_bit_in_table, bc1_load_4_current_chars,
+      bc3_advance_cp_and_goto, bc4_load_4_current_chars;
   Bind(&bc0_skip_until_bit_in_table);
   SkipUntilBitInTable(args.bc0_cp_offset, args.bc0_table, args.bc0_nibble_table,
-                      args.bc0_advance_by, &bc1_check_current_position,
-                      &bc1_check_current_position);
-  Bind(&bc1_check_current_position);
-  CheckPosition(args.bc1_cp_offset, args.bc1_on_failure);
-  LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, 4);
-  CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask,
-                         &bc5_load_4_current_chars);
-  Bind(&bc4_advance_cp_and_goto);
-  AdvanceCurrentPosition(args.bc4_by);
+                      args.bc0_advance_by, args.bc0_cp_offset,
+                      &bc1_load_4_current_chars, &bc1_load_4_current_chars);
+  Bind(&bc1_load_4_current_chars);
+  LoadCurrentCharacter(args.bc1_cp_offset, args.bc1_on_failure, true, 4,
+                       args.bc1_bounds_check_offset);
+  CheckCharacterAfterAnd(args.bc2_characters, args.bc2_mask,
+                         &bc4_load_4_current_chars);
+  Bind(&bc3_advance_cp_and_goto);
+  AdvanceCurrentPosition(args.bc3_by);
   GoTo(&bc0_skip_until_bit_in_table);
-  Bind(&bc5_load_4_current_chars);
-  LoadCurrentCharacter(args.bc5_cp_offset, &bc4_advance_cp_and_goto, true, 4);
+  Bind(&bc4_load_4_current_chars);
+  LoadCurrentCharacter(args.bc4_cp_offset, &bc3_advance_cp_and_goto, true, 4,
+                       args.bc4_bounds_check_offset);
+  CheckCharacterAfterAnd(args.bc5_characters, args.bc5_mask, args.bc5_on_equal);
   CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask, args.bc6_on_equal);
-  CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask, args.bc7_on_equal);
-  CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
-                            &bc4_advance_cp_and_goto);
+  CheckNotCharacterAfterAnd(args.bc7_characters, args.bc7_mask,
+                            &bc3_advance_cp_and_goto);
   GoTo(args.fallthrough_jump_target);
 }
 

@@ -145,7 +145,7 @@ class V8_EXPORT_PRIVATE BytecodeGenerator : public RegExpMacroAssembler,
                                Label* on_no_match) override;
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,
-                                int eats_at_least) override;
+                                int bounds_check_offset) override;
   void CheckCharacter(unsigned c, Label* on_equal) override;
   void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                               Label* on_equal) override;
@@ -182,21 +182,21 @@ class V8_EXPORT_PRIVATE BytecodeGenerator : public RegExpMacroAssembler,
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
-                           Label* on_match, Label* on_no_match) override;
+                           int bounds_check_offset, Label* on_match,
+                           Label* on_no_match) override;
   void SkipUntilCharAnd(int cp_offset, int advance_by, unsigned character,
-                        unsigned mask, int eats_at_least, Label* on_match,
+                        unsigned mask, int bounds_check_offset, Label* on_match,
                         Label* on_no_match) override;
   void SkipUntilChar(int cp_offset, int advance_by, unsigned character,
-                     Label* on_match, Label* on_no_match) override;
-  void SkipUntilCharPosChecked(int cp_offset, int advance_by,
-                               unsigned character, int eats_at_least,
-                               Label* on_match, Label* on_no_match) override;
+                     int bounds_check_offset, Label* on_match,
+                     Label* on_no_match) override;
   void SkipUntilCharOrChar(int cp_offset, int advance_by, unsigned char1,
-                           unsigned char2, Label* on_match,
-                           Label* on_no_match) override;
+                           unsigned char2, int bounds_check_offset,
+                           Label* on_match, Label* on_no_match) override;
   void SkipUntilGtOrNotBitInTable(int cp_offset, int advance_by,
                                   unsigned character, Handle<ByteArray> table,
-                                  Label* on_match, Label* on_no_match) override;
+                                  int bounds_check_offset, Label* on_match,
+                                  Label* on_no_match) override;
   void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
                             unsigned both_mask, int max_offset, unsigned chars1,
                             unsigned mask1, unsigned chars2, unsigned mask2,

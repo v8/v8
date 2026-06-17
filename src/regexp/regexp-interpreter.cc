@@ -692,13 +692,12 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(LoadCurrentCharacter, cp_offset, on_failure) {
-      int pos = current + cp_offset;
-      if (pos >= subject.length() || pos < 0) {
+    BYTECODE(LoadCurrentCharacter, cp_offset, bounds_check_offset, on_failure) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = subject[pos];
+        current_char = subject[current + cp_offset];
       }
       DISPATCH();
     }
@@ -708,13 +707,12 @@ IrregexpInterpreter::Result RawMatch(
       current_char = subject[pos];
       DISPATCH();
     }
-    BYTECODE(Load2CurrentChars, cp_offset, on_failure) {
-      int pos = current + cp_offset;
-      if (pos + 2 > subject.length() || pos < 0) {
+    BYTECODE(Load2CurrentChars, cp_offset, bounds_check_offset, on_failure) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = Load2Characters(subject, pos);
+        current_char = Load2Characters(subject, current + cp_offset);
       }
       DISPATCH();
     }
@@ -724,14 +722,13 @@ IrregexpInterpreter::Result RawMatch(
       current_char = Load2Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(Load4CurrentChars, cp_offset, on_failure) {
+    BYTECODE(Load4CurrentChars, cp_offset, bounds_check_offset, on_failure) {
       DCHECK_EQ(1, sizeof(Char));
-      int pos = current + cp_offset;
-      if (pos + 4 > subject.length() || pos < 0) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = Load4Characters(subject, pos);
+        current_char = Load4Characters(subject, current + cp_offset);
       }
       DISPATCH();
     }
@@ -1009,9 +1006,9 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(SkipUntilChar, cp_offset, advance_by, character, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilChar, cp_offset, advance_by, character,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == current_char) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1023,8 +1020,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilCharAnd, cp_offset, advance_by, character, mask,
-             eats_at_least, on_match, on_no_match) {
-      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == (current_char & mask)) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1035,22 +1032,9 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharPosChecked, cp_offset, advance_by, character,
-             eats_at_least, on_match, on_no_match) {
-      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
-        current_char = subject[current + cp_offset];
-        if (character == current_char) {
-          SET_PC_FROM_OFFSET(on_match);
-          DISPATCH();
-        }
-        ADVANCE_CURRENT_POSITION(advance_by);
-      }
-      SET_PC_FROM_OFFSET(on_no_match);
-      DISPATCH();
-    }
-    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (CheckBitInTable(current_char, table)) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1062,8 +1046,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character,
-             table, on_match, on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+             table, bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (current_char > character) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1078,9 +1062,9 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         // The two if-statements below are split up intentionally, as combining
         // them seems to result in register allocation behaving quite
@@ -1102,7 +1086,7 @@ IrregexpInterpreter::Result RawMatch(
              max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
              on_failure) {
       DCHECK_GE(cp_offset, 0);
-      DCHECK_GE(max_offset, cp_offset);
+      DCHECK_GE(max_offset, cp_offset + 3);
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
       while (IndexIsInBounds(current + max_offset, subject.length())) {
@@ -1124,15 +1108,16 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
-             bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters,
-             bc3_mask, bc4_by, bc5_cp_offset, bc6_characters, bc6_mask,
-             bc6_on_equal, bc7_characters, bc7_mask, bc7_on_equal,
-             bc8_characters, bc8_mask, fallthrough_jump_target) {
+             bc1_bounds_check_offset, bc1_on_failure, bc1_cp_offset,
+             bc2_characters, bc2_mask, bc3_by, bc4_bounds_check_offset,
+             bc4_cp_offset, bc5_characters, bc5_mask, bc5_on_equal,
+             bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,
+             fallthrough_jump_target) {
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
 
       while (true) {
-        // bcO: kSkipUntilBitInTable
+        // bc0: kSkipUntilBitInTable
         // on_match and on_no_match are constrained to jump to bc1.
         while (IndexIsInBounds(current + bc0_cp_offset, subject.length())) {
           current_char = subject[current + bc0_cp_offset];
@@ -1142,53 +1127,54 @@ IrregexpInterpreter::Result RawMatch(
           ADVANCE_CURRENT_POSITION(bc0_advance_by);
         }
 
-        // bc1: kCheckPosition
-        if (!IndexIsInBounds(current + bc1_cp_offset, subject.length())) {
+        // bc1: kLoad4CurrentChars
+        if (!IndexIsInBounds(current + bc1_bounds_check_offset,
+                             subject.length())) {
           SET_PC_FROM_OFFSET(bc1_on_failure);
           DISPATCH();
         }
 
-        // bc2: Load4CurrentCharsUnchecked
-        int pos = current + bc2_cp_offset;
+        // Load 4 characters
+        int pos = current + bc1_cp_offset;
         current_char = Load4Characters(subject, pos);
 
-        // bc3: AndCheck4Chars
-        // on_equal is constrained to jump to bc5.
-        if (bc3_characters == (current_char & bc3_mask)) {
-          // bc5: Load4CurrentChars
-          // on_failure is constrained to jump to bc4.
-          DCHECK_GE(bc5_cp_offset, 0);
-          if (current + bc5_cp_offset + 4 > subject.length()) {
-            // bc4: AdvanceCpAndGoto
+        // bc2: AndCheck4Chars
+        // on_equal is constrained to jump to bc4.
+        if (bc2_characters == (current_char & bc2_mask)) {
+          // bc4: Load4CurrentChars
+          // on_failure is constrained to jump to bc3 (AdvanceCpAndGoto).
+          if (!IndexIsInBounds(current + bc4_bounds_check_offset,
+                               subject.length())) {
+            // bc3: AdvanceCpAndGoto
             // on_goto is constrained to jump back to bc0.
-            ADVANCE_CURRENT_POSITION(bc4_by);
+            ADVANCE_CURRENT_POSITION(bc3_by);
             continue;
           }
           // TODO(jgruber): Usually we can reuse some of the bytes loaded above.
-          pos = current + bc5_cp_offset;
+          pos = current + bc4_cp_offset;
           current_char = Load4Characters(subject, pos);
 
+          // bc5: AndCheck4Chars
+          if (bc5_characters == (current_char & bc5_mask)) {
+            SET_PC_FROM_OFFSET(bc5_on_equal);
+            DISPATCH();
+          }
           // bc6: AndCheck4Chars
           if (bc6_characters == (current_char & bc6_mask)) {
             SET_PC_FROM_OFFSET(bc6_on_equal);
             DISPATCH();
           }
-          // bc7: AndCheck4Chars
+          // bc7: AndCheckNot4Chars
+          // on_not_equal is constrained to jump to bc3.
           if (bc7_characters == (current_char & bc7_mask)) {
-            SET_PC_FROM_OFFSET(bc7_on_equal);
-            DISPATCH();
-          }
-          // bc8: AndCheckNot4Chars
-          // on_not_equal is constrained to jump to bc4.
-          if (bc8_characters == (current_char & bc8_mask)) {
             SET_PC_FROM_OFFSET(fallthrough_jump_target);
             DISPATCH();
           }
         }
 
-        // bc4: AdvanceCpAndGoto
+        // bc3: AdvanceCpAndGoto
         // on_goto is constrained to jump back to bc0.
-        ADVANCE_CURRENT_POSITION(bc4_by);
+        ADVANCE_CURRENT_POSITION(bc3_by);
       }
 
       UNREACHABLE();

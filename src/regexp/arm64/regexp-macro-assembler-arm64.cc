@@ -628,7 +628,7 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(Handle<ByteArray> table,
 
 void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
     int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
-    int max_on_match_lookahead, Label* scalar_fallback,
+    int bounds_check_offset, Label* scalar_fallback,
     base::FunctionRef<void(Register, Register)> on_match) {
   // This function uses x8, x9, x10, x11 as scratch, and v0-v7 for simd.
 
@@ -647,8 +647,7 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
   // reading 1 character plus cp_offset. So the -1 is the character that is
   // assumed to be read by default.
   static constexpr int kCheckPositionOffset = -1;
-  CheckPosition(cp_offset + kCharsPerVector + kCheckPositionOffset +
-                    max_on_match_lookahead,
+  CheckPosition(bounds_check_offset + kCharsPerVector + kCheckPositionOffset,
                 scalar_fallback);
 
   // Hoist constants.
@@ -743,23 +742,22 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
 
   __ Bind(&advance_vector);
   AdvanceCurrentPosition(kCharsPerVector);
-  CheckPosition(cp_offset + kCharsPerVector + kCheckPositionOffset +
-                    max_on_match_lookahead,
+  CheckPosition(bounds_check_offset + kCharsPerVector + kCheckPositionOffset,
                 scalar_fallback);
   __ B(&simd_loop);
 }
 
 void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
-    Label* on_no_match) {
+    Handle<ByteArray> nibble_table_array, int advance_by,
+    int bounds_check_offset, Label* on_match, Label* on_no_match) {
   Label scalar_repeat;
 
   if (SkipUntilBitInTableUseSimd(advance_by)) {
     DCHECK(!nibble_table_array.is_null());
     Label scalar;
     EmitSkipUntilBitInTableSimdHelper(
-        cp_offset, advance_by, nibble_table_array, 0, &scalar,
+        cp_offset, advance_by, nibble_table_array, bounds_check_offset, &scalar,
         [&](Register index, Register callee_saved) {
           // No need to push callee_saved since we never fall through.
           __ Add(current_input_offset(), current_input_offset(), index);
@@ -773,7 +771,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   __ Mov(table_reg, Operand(table));
 
   Bind(&scalar_repeat);
-  CheckPosition(cp_offset, on_no_match);
+  CheckPosition(bounds_check_offset, on_no_match);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
   Register index = w10;
   if ((mode() != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
@@ -976,21 +974,22 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
 
   Label scalar_fallback;
 
-  // We need to load 4 chars at bc2 and bc5.
+  // We need to load 4 chars at bc1 and bc4.
   static constexpr int kCharsPerLoad = 4;
-  int max_on_match_lookahead =
-      std::max(args.bc2_cp_offset, args.bc5_cp_offset) + kCharsPerLoad;
+  int bounds_check_offset =
+      std::max(args.bc1_bounds_check_offset, args.bc4_bounds_check_offset);
+  DCHECK_LE(args.bc0_cp_offset, bounds_check_offset);
 
   EmitSkipUntilBitInTableSimdHelper(
       args.bc0_cp_offset, args.bc0_advance_by, args.bc0_nibble_table,
-      max_on_match_lookahead, &scalar_fallback,
+      bounds_check_offset, &scalar_fallback,
       [&](Register index, Register callee_saved) {
         // SkipUntilBitInTable has matched at offset `index`. Bounds checks
         // have ensured we can safely perform the below loads without checks.
         //
         // The following inner checks are done using simple scalar code.
-        Label bc5_load, continue_outer_loop, pop_and_goto_bc6_on_equal,
-            pop_and_goto_bc7_on_equal;
+        Label bc4_load, continue_outer_loop, pop_and_goto_bc5_on_equal,
+            pop_and_goto_bc6_on_equal;
 
         // The current position is temporarily advanced for this inner block.
         // If no match is found, it is reverted to the previous state before
@@ -1003,33 +1002,33 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
         __ Add(current_input_offset(), current_input_offset(),
                Operand(index, SXTW));
 
-        // bc2: Load.
-        LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, kCharsPerLoad);
+        // bc1: Load.
+        LoadCurrentCharacter(args.bc1_cp_offset, nullptr, false, kCharsPerLoad);
 
-        // bc3: Check.
-        CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask, &bc5_load);
+        // bc2: Check.
+        CheckCharacterAfterAnd(args.bc2_characters, args.bc2_mask, &bc4_load);
         GoTo(&continue_outer_loop);
 
-        Bind(&bc5_load);
-        // bc5: Load.
-        LoadCurrentCharacter(args.bc5_cp_offset, nullptr, false, kCharsPerLoad);
+        Bind(&bc4_load);
+        // bc4: Load.
+        LoadCurrentCharacter(args.bc4_cp_offset, nullptr, false, kCharsPerLoad);
 
-        // bc6, bc7, bc8.
+        // bc5, bc6, bc7.
+        CheckCharacterAfterAnd(args.bc5_characters, args.bc5_mask,
+                               &pop_and_goto_bc5_on_equal);
         CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask,
                                &pop_and_goto_bc6_on_equal);
-        CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask,
-                               &pop_and_goto_bc7_on_equal);
-        CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
+        CheckNotCharacterAfterAnd(args.bc7_characters, args.bc7_mask,
                                   &continue_outer_loop);
 
         // Success cases:
         GoTo(args.fallthrough_jump_target);
 
+        Bind(&pop_and_goto_bc5_on_equal);
+        GoTo(args.bc5_on_equal);
+
         Bind(&pop_and_goto_bc6_on_equal);
         GoTo(args.bc6_on_equal);
-
-        Bind(&pop_and_goto_bc7_on_equal);
-        GoTo(args.bc7_on_equal);
 
         Bind(&continue_outer_loop);
         // Restore the previous current position before continuing.
