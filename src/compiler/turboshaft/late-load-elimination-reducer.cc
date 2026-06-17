@@ -294,7 +294,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
         break;
     }
-    if (op.Effects().can_allocate && v8_flags.turbolev) {
+    if (op.Effects().can_allocate) {
       // String maps can be invalidated by the GC. Unfortunately, there is no
       // way to know if a particular load at offset 0 loads a string map or not.
       // So, to be safe, we invalidate every load at offset 0 whenever we see an
