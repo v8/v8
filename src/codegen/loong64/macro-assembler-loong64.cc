@@ -3657,7 +3657,7 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
         } else if (RelocInfo::IsCompressedEmbeddedObject(r2.rmode())) {
           li(scratch1, r2);
         } else if (RelocInfo::IsNoInfo(r2.rmode())) {
-          li(scratch1, static_cast<int32_t>(r2.immediate()));
+          LiLower32BitHelper(scratch1, r2);
         } else {
           li(scratch1, r2);
           slli_w(scratch1, scratch1, 0);

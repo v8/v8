@@ -1610,6 +1610,21 @@ inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
   CompareTaggedAndBranch(target, cond, r1, Operand(value) /*, distance*/);
 }
 
+inline void MaglevAssembler::CompareSmiAndAssert(Register r1, Tagged<Smi> value,
+                                                 Condition cond,
+                                                 AbortReason reason) {
+  if (!v8_flags.debug_code) return;
+  AssertSmi(r1);
+  if (COMPRESS_POINTERS_BOOL) {
+    Label L;
+    CompareTaggedAndBranch(&L, cond, r1, Operand(value));
+    Abort(reason);
+    bind(&L);
+  } else {
+    MacroAssembler::Assert(cond, reason, r1, Operand(value));
+  }
+}
+
 inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
                                                   Condition cond,
                                                   Register scratch,
