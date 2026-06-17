@@ -36,7 +36,7 @@
                                                                                \
   /* FP16 proposal. */                                                         \
   /* https://github.com/WebAssembly/half-precision */                          \
-  /* V8 side owner: irezvov */                                                 \
+  /* V8 side owner: dahlb */                                                   \
   V(fp16, "fp16", false)                                                       \
                                                                                \
   /* Memory Control proposal */                                                \
@@ -45,7 +45,7 @@
   V(memory_control, "memory control", false)                                   \
   /* Core stack switching, main proposal */                                    \
   /* https://github.com/WebAssembly/stack-switching */                         \
-  /* V8 side owner: fgm */                                                     \
+  /* V8 side owner: fgm, thibaudm */                                           \
   V(wasmfx, "core stack switching", false)                                     \
                                                                                \
   /* Compilation hints */                                                      \
