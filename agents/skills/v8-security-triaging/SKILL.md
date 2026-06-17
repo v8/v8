@@ -200,8 +200,8 @@ Draft a concise synthesis based on verified subagent findings.
   (Status, Classification, Rationale, etc.) and ensure there are **double line
   breaks** between each list item for optimal rendering in Buganizer. If a list
   item has sub-bullets (specifically in 'Local Reproduction Findings'), they
-  **MUST** be indented (two spaces) and **MUST** also be separated by double
-  line breaks.
+  **MUST** be indented by **at least four spaces** and **MUST NOT** be separated
+  by double line breaks within the same nested list.
 - **Content**:
   - **Classification**: Vulnerability / Bug / Not a Bug (Intended Behavior) /
     Failed to Reproduce. **MANDATORY**: Only classify as "Vulnerability" if
@@ -264,8 +264,9 @@ the draft.
     reproduction results (e.g., if it needs experimental flags, it's a Bug).
   - The "Local Reproduction Findings" section contains the exact d8 command, V8
     version, git hash, and the observed result.
-  - The formatting (double line breaks between list items AND indented
-    sub-bullets for findings) is strictly followed.
+  - The formatting (double line breaks between top-level list items AND
+    four-space indented sub-bullets for findings without internal double line
+    breaks) is strictly followed.
   - The conversation ID is correct and matches the `INVOKER_INFO_SESSION_ID`
     environment variable. The auditor MUST run
     `env | grep INVOKER_INFO_SESSION_ID` to verify this independently.
@@ -295,8 +296,9 @@ Finalize the session by securing artifacts and cleaning up the environment.
   flag (`--run-as-[sandbox]-security-poc`)?
 - [ ] **Mandatory Data**: Are the V8 version and git hash included in the Build
   description?
-- [ ] **Formatting**: Are there double line breaks between all bulleted list
-  items?
+- [ ] **Formatting**: Are there double line breaks between all top-level
+  bulleted list items? Are sub-bullets indented by at least four spaces without
+  internal double line breaks?
 - [ ] **Impact Evidence**: Is the Verified Impact supported by GDB analysis or
   ASan/UBSan logs?
 - [ ] **Component Mapping**: Does the proposed component exist with the stated
