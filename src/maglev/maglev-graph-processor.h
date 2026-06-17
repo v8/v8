@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 
+#include <algorithm>
+
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/compiler/bytecode-analysis.h"
@@ -348,7 +350,10 @@ class GraphProcessor {
     ZoneVector<Node*> tail_nodes(graph_->zone());
     if (truncate) {
       // Drop the visited node and everything after it.
-      block->nodes().resize(node_it_ - block->nodes().begin());
+      auto& nodes = block->nodes();
+      auto it = std::find(nodes.begin(), nodes.end(), node);
+      DCHECK_NE(it, nodes.end());
+      nodes.resize(it - nodes.begin());
     } else {
       // The visitor must have rewritten the visited node to an Identity
       // (typically to the spliced result Phi), so uses on the join-block
