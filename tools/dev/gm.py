@@ -178,9 +178,27 @@ def v8_root_dir() -> Path:
                                       text=True,
                                       stderr=subprocess.PIPE).strip()
     if (V8_DIR / git_dir).exists():
-      return (V8_DIR / git_dir).parent.resolve()
+      root = (V8_DIR / git_dir).parent.resolve()
+      if root != V8_DIR:
+        return root
   except (subprocess.CalledProcessError, FileNotFoundError):
     pass
+
+  # Some AI agent framework creates isolated workspaces using local `git clone` instead of a
+  # `git worktree`. In a full clone, `V8_DIR == V8_ROOT_DIR` (since it has its own standalone
+  # .git dir). We check `remote.origin.url` to detect if the repo was locally cloned. If so,
+  # we return the parent's path so gm.py can automatically setup dependencies.
+  try:
+    origin_url = subprocess.check_output(
+        ["git", "config", "--get", "remote.origin.url"],
+        cwd=V8_DIR,
+        text=True,
+        stderr=subprocess.PIPE).strip()
+    if origin_url and os.path.isdir(origin_url):
+      return Path(origin_url).resolve()
+  except (subprocess.CalledProcessError, FileNotFoundError):
+    pass
+
   return V8_DIR
 
 V8_ROOT_DIR = v8_root_dir()
