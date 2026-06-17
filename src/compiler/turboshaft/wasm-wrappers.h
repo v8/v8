@@ -75,31 +75,11 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   template <typename Descriptor, typename... Args>
-  OpIndex CallBuiltin(Builtin name, OptionalV<LazyFrameState> frame_state,
-                      Operator::Properties properties,
-                      compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-                      Args... args) {
-    auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
-        __ graph_zone(), Descriptor(), 0,
-        frame_state.valid() ? CallDescriptor::kNeedsFrameState
-                            : CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
-    compiler::CanThrow can_throw = (properties & Operator::kNoThrow)
-                                       ? compiler::CanThrow::kNo
-                                       : compiler::CanThrow::kYes;
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, can_throw, lazy_deopt_on_throw, __ graph_zone());
-    V<WordPtr> call_target = GetTargetForBuiltinCall(name);
-    return __ Call(call_target, frame_state, base::VectorOf<OpIndex>({args...}),
-                   ts_call_descriptor);
-  }
-
-  template <typename Descriptor, typename... Args>
   OpIndex CallBuiltin(Builtin name, Operator::Properties properties,
                       Args... args) {
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
-        __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+        __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags, properties,
+        StubCallMode::kCallBuiltinPointer);
     compiler::CanThrow can_throw = (properties & Operator::kNoThrow)
                                        ? compiler::CanThrow::kNo
                                        : compiler::CanThrow::kYes;
@@ -326,7 +306,6 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     // ToBigInt short-circuits for BigInt inputs, and BigIntToRawBytes does
     // modular truncation (ToBigInt64) which never fails.
     // (crbug.com/498709150, crbug.com/504030766).
-
     if (caller_frame_state.valid()) {
       __ DeoptimizeIfNot(__ ObjectIsBigInt(input), caller_frame_state.value(),
                          DeoptimizeReason::kNotABigInt,
@@ -614,7 +593,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
                                                        V<Context> context) {
     V<Smi> length = __ SmiConstant(Smi::FromIntptr(sig_->return_count()));
     return CallBuiltin<IterableToFixedArrayForWasmDescriptor>(
-        Builtin::kIterableToFixedArrayForWasm, Operator::kEliminatable,
+        Builtin::kIterableToFixedArrayForWasm, Operator::kNoProperties,
         iterable, length, context);
   }
 
