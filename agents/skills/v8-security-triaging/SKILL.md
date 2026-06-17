@@ -208,8 +208,11 @@ Draft a concise synthesis based on verified subagent findings.
     local reproduction was successful. If reproduction fails, classify as
     "Failed to Reproduce".
 
-  - **Security Impact**: Provide the label (e.g., `Security_Impact-Head`) and a
-    short explanation. Skip or simplify the CVSS vector unless requested.
+  - **Security Impact**: Classify as "**None**" (experimental, disabled) or
+    "**Yes**" (shipping, web-exploitable) with a mandatory technical rationale;
+    omit specific channel labels (e.g., `Security_Impact-Stable`) as they are
+    auto-derived from `FoundIn`. Skip or simplify the CVSS vector unless
+    requested.
 
   - **Proposed Severity**: Provide the proposed severity (e.g., `S1`) based on
     [triaging.md](../../../docs/security/triaging.md) and Chromium guidelines.
