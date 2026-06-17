@@ -1723,6 +1723,8 @@ inline std::ostream& operator<<(std::ostream& os,
   return os << ToString(reason);
 }
 
+enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
+
 inline size_t hash_value(AllocationType kind) {
   return static_cast<uint8_t>(kind);
 }
