@@ -142,7 +142,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-internal
   # and whatever else without interference from each other.
-  'agents_internal_revision': 'a72744a4fcce619d4706c8b776ed224297f7aed9',
+  'agents_internal_revision': 'a0a2f51fe28e6eb85943bcd1d2b093a574e5ed8e',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling agents-public
   # and whatever else without interference from each other.
@@ -158,7 +158,7 @@ deps = {
     'condition': 'checkout_agents_internal',
   },
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9428d4f9bb026d4db79a6acf28b5838a1c04595c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cd3a86c7c7817c46197ad3d53c38d01448e0bb9e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f0ccfb5933f7daa9545159afbb35bdf8951efcc4',
   'buildtools/linux64': {
@@ -275,7 +275,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '10eda50a3fd9c34ad8d31ec74e5f4eb5823d60f6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c46c2e905741fa94ce6870f9c95978117b8a7917',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -329,7 +329,7 @@ deps = {
   'third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'c3027d884967773057bf74b957e3fea87e5df4d7',
   'third_party/jsoncpp/source':
-    Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '5f1f240f10a19a61929b5c573974900cb62e9dac',
+    Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '11279616cf96c81d57542d5ddabc49d4ad79a0ac',
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '5abc7f839700f0f17338434e1c1c6a8c87c00c11',
   'third_party/libc++abi/src':
@@ -521,7 +521,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'edecd0480cca31bb45f7c2819bc54d05bb9af908',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '96a92e202fd2759ca50e3e475bca903e082f9c3e',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'dd2ede53153add17cd6fe4fc99e3d2929d3caf07',
   'third_party/re2/src':
