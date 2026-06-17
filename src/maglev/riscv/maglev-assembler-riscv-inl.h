@@ -1888,6 +1888,19 @@ inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
   CompareTaggedAndBranch(target, cond, r1, Operand(value));
 }
 
+inline void MaglevAssembler::CompareSmiAndAssert(Register r1, Tagged<Smi> value,
+                                                 Condition cond,
+                                                 AbortReason reason) {
+  if (!v8_flags.debug_code) return;
+  AssertSmi(r1);
+
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  li(scratch, Operand(value.ptr()));
+  CmpTagged(r1, scratch);
+  Assert(cond, reason);
+}
+
 inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
                                                   Condition cond,
                                                   Register scratch,
