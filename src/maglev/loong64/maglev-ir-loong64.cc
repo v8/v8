@@ -199,7 +199,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       __ LoadSingleCharacterString(result_string, char_code);
     } else {
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
-      __ li(scratch, char_code);
+      __ li(scratch, static_cast<int32_t>(char_code));
       __ St_h(scratch, FieldMemOperand(result_string,
                                        OFFSET_OF_DATA_START(SeqTwoByteString)));
     }
