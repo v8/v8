@@ -2885,18 +2885,15 @@ RUNTIME_FUNCTION(Runtime_Resume) {
 
 // Waits until the given synchronization point is reached. Throws an exception
 // if the point is not armed or if a timeout is reached. The timeout is
-// optionally provided in milliseconds.
+// provided in milliseconds.
 RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   HandleScope scope(isolate);
-  CHECK_UNLESS_FUZZING(args.length() == 1 || args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   DirectHandle<String> phase_name = args.at<String>(0);
-
-  base::TimeDelta timeout = base::TimeDelta::FromMilliseconds(1000);
-  if (args.length() == 2) {
-    CHECK_UNLESS_FUZZING(IsSmi(args[1]));
-    timeout = base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  }
+  base::TimeDelta timeout =
+      base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
   bool timed_out = false;
   bool blocked = isolate->isolate_group()->WaitUntilBlockedForTesting(
